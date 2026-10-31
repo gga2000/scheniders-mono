@@ -8,18 +8,28 @@ import { useLanguage } from "@/hooks/use-language";
 import { useStockTodayQuery } from "@/hooks/use-stock-today-query";
 import { ProductThumb } from "@/components/products/product-thumb";
 import { StockTodayGlance } from "@/components/orders/stock-today-glance";
+import { StockUnitBar, SWATCH } from "@/components/orders/stock-unit-bar";
 import {
     filterStockToday,
+    laneState,
+    OPEN_BOX_LOW_AT,
     STOCK_STATE_LABEL,
     stockTodaySummary,
     type StockFilter,
-    type StockLane,
     type StockLaneFilter,
     type StockState,
     type StockTodayItem,
 } from "@/lib/orders/stock-today";
 
 const PAGE = 5;
+
+const HEALTH: Record<StockState, string> = {
+    oversold: "bg-red-500",
+    short: "bg-amber-500",
+    out: "bg-[var(--foreground-muted)]",
+    low: "bg-amber-400",
+    ok: "bg-emerald-500",
+};
 /** Cards come in rows of two or three; six fills both. */
 const GLANCE_PAGE = 6;
 
@@ -155,54 +165,32 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
                     </div>
                     </div>
 
-                    {view === "glance" ? (
+                    <div className="space-y-2.5">
+                        <HealthStrip items={items} />
                         <div role="group" aria-label={t("orders.stockToday.show", "Show")} className="flex flex-wrap gap-1.5">
-                            {tiles.filter(tile => tile.key !== "today").map(tile => (
+                            {tiles.filter(tile => view === "detailed" || tile.key !== "today").map(tile => (
                                 <button
                                     key={tile.key}
                                     type="button"
                                     onClick={() => pick(tile.key)}
                                     aria-pressed={filter === tile.key}
                                     className={cn(
-                                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                                        "inline-flex items-center gap-2 rounded-full border py-1.5 pl-2.5 pr-3 text-xs font-medium transition-colors",
                                         filter === tile.key
                                             ? "border-foreground bg-foreground text-background"
-                                            : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
+                                            : "border-[var(--card-border)] text-[var(--foreground-muted)] hover:border-[var(--foreground-muted)]"
                                     )}
                                 >
-                                    <i className={cn("w-2 h-2 rounded-full", tile.dot)} />
+                                    <i className={cn("w-2 h-2 rounded-[3px]", tile.dot)} />
                                     {tile.label}
-                                    <b className="tabular-nums">{tile.value}</b>
+                                    <b className={cn("font-mono text-sm tabular-nums", filter === tile.key ? "text-background" : "text-foreground")}>{tile.value}</b>
                                 </button>
                             ))}
                         </div>
-                    ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {tiles.map(tile => (
-                            <button
-                                key={tile.key}
-                                type="button"
-                                onClick={() => pick(tile.key)}
-                                aria-pressed={filter === tile.key}
-                                className={cn(
-                                    "text-left rounded-xl border px-3 py-2 transition-colors",
-                                    filter === tile.key
-                                        ? "border-foreground bg-[var(--background)]"
-                                        : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
-                                )}
-                            >
-                                <span className="flex items-center gap-1.5 text-[11px] text-[var(--foreground-muted)]">
-                                    <i className={cn("w-2 h-2 rounded-[3px]", tile.dot)} />
-                                    {tile.label}
-                                </span>
-                                <span className="block text-xl font-semibold tabular-nums font-mono">{tile.value}</span>
-                            </button>
-                        ))}
                     </div>
-                    )}
 
-                    <div className="flex items-center gap-2">
-                        <label className="flex-1 min-w-0 flex items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <label className="flex-[1_1_14rem] min-w-0 flex items-center gap-2 rounded-xl border border-[var(--card-border)] bg-[var(--background)] px-3">
                             <Search className="w-4 h-4 text-[var(--foreground-muted)] shrink-0" />
                             <input
                                 id="stock-today-search"
@@ -303,11 +291,11 @@ function StockRow({ item, lane, cols }: { item: StockTodayItem; lane: StockLaneF
     const { t } = useLanguage();
     const [stateKey, stateFallback] = STOCK_STATE_LABEL[item.state];
     return (
-        <li className={cn("grid grid-cols-2 gap-3 md:gap-4 border-t border-[var(--card-border)] py-3.5 items-stretch md:items-center", cols)}>
-            <div className="col-span-2 md:col-span-1 flex items-center gap-3 min-w-0">
-                <div className="relative w-10 h-10 shrink-0 overflow-hidden rounded-[10px] bg-[var(--background)] flex items-center justify-center">
+        <li className={cn("grid grid-cols-1 min-[480px]:grid-cols-2 gap-3 md:gap-4 border-t border-[var(--card-border)] py-5 first:border-t-0 items-stretch md:items-center", cols)}>
+            <div className="min-[480px]:col-span-2 md:col-span-1 flex items-center gap-3.5 min-w-0">
+                <div className="relative w-12 h-12 shrink-0 overflow-hidden rounded-[14px] bg-[var(--background)] flex items-center justify-center">
                     {item.imageUrl
-                        ? <ProductThumb src={item.imageUrl} alt="" sizes="40px" />
+                        ? <ProductThumb src={item.imageUrl} alt="" sizes="48px" />
                         : <Package className="w-4 h-4 text-[var(--foreground-muted)]" />}
                 </div>
                 <div className="min-w-0">
@@ -321,13 +309,12 @@ function StockRow({ item, lane, cols }: { item: StockTodayItem; lane: StockLaneF
                 </div>
             </div>
             {lane !== "openBox" && (
-                <LaneCell lane={item.fresh} label={t("orders.stockToday.new", "New")} />
+                <StockUnitBar lane={item.fresh} state={laneState(item.fresh, item.lowAt)} label={t("orders.stockToday.new", "New")} />
             )}
             {lane !== "new" && (
                 item.openBox
-                    ? <LaneCell lane={item.openBox} label={t("orders.stockToday.openBox", "Open box")} />
-                    : <div className="rounded-xl bg-[var(--background)] p-2.5 md:bg-transparent md:p-0 text-xs text-[var(--foreground-muted)]">
-                        <span className="md:hidden block text-[11px] uppercase tracking-wider mb-1">{t("orders.stockToday.openBox", "Open box")}</span>
+                    ? <StockUnitBar lane={item.openBox} state={laneState(item.openBox, OPEN_BOX_LOW_AT)} label={t("orders.stockToday.openBox", "Open box")} />
+                    : <div className="flex min-h-12 md:min-h-24 items-center justify-center rounded-2xl border border-dashed border-[var(--card-border)] p-3.5 text-center text-xs text-[var(--foreground-muted)]">
                         {t("orders.stockToday.noOpenBox", "No open-box stock")}
                     </div>
             )}
@@ -335,60 +322,18 @@ function StockRow({ item, lane, cols }: { item: StockTodayItem; lane: StockLaneF
     );
 }
 
-function LaneCell({ lane, label }: { lane: StockLane; label: string }) {
+function HealthStrip({ items }: { items: readonly StockTodayItem[] }) {
     const { t } = useLanguage();
-    const over = lane.left < 0;
-    const after = lane.left - lane.waiting;
-    const total = Math.max(lane.onHand, 1);
-    const pct = (n: number) => `${Math.max(0, Math.min(100, (n / total) * 100))}%`;
-
+    const order: StockState[] = ["oversold", "short", "out", "low", "ok"];
+    const count = (st: StockState) => items.filter(i => i.state === st).length;
+    if (items.length === 0) return null;
     return (
-        <div className="min-w-0 space-y-1.5 rounded-xl bg-[var(--background)] p-2.5 md:bg-transparent md:p-0">
-            <span className="md:hidden block text-[11px] uppercase tracking-wider text-[var(--foreground-muted)]">{label}</span>
-            <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-                <span className={cn(
-                    "font-mono text-[22px] font-semibold leading-none tabular-nums",
-                    over ? "text-red-600 dark:text-red-400" : lane.left === 0 ? "text-[var(--foreground-muted)]" : lane.left - lane.waiting < 0 ? "text-amber-600 dark:text-amber-400" : ""
-                )}>
-                    {Math.abs(lane.left)}
-                    <small className="ml-1 font-sans text-[11px] font-medium text-[var(--foreground-muted)]">
-                        {over ? t("orders.stockToday.over", "over") : t("orders.stockToday.left", "left")}
-                    </small>
-                </span>
-                {lane.waiting > 0 && (
-                    <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                        {after < 0
-                            ? t("orders.stockToday.ifConfirmOver", "If {waiting} waiting confirm: {count} over", { waiting: lane.waiting, count: Math.abs(after) })
-                            : t("orders.stockToday.ifConfirmLeft", "If {waiting} waiting confirm: {count} left", { waiting: lane.waiting, count: after })}
-                    </span>
-                )}
-            </div>
-            <div
-                className="flex h-2 overflow-hidden rounded-full bg-[var(--card-border)]"
-                role="img"
-                aria-label={t("orders.stockToday.barLabel", "{onHand} on hand, {reserved} reserved, {waiting} waiting", { onHand: lane.onHand, reserved: lane.reserved, waiting: lane.waiting })}
-            >
-                {over ? (
-                    <span className="w-full bg-[repeating-linear-gradient(135deg,#f87171_0_4px,#fee2e2_4px_7px)] dark:bg-[repeating-linear-gradient(135deg,#b91c1c_0_4px,#450a0a_4px_7px)]" />
-                ) : (
-                    <>
-                        <span className="bg-slate-700 dark:bg-slate-300" style={{ width: pct(lane.reserved) }} />
-                        <span className="bg-[repeating-linear-gradient(135deg,#f6c27a_0_4px,transparent_4px_7px)] dark:bg-[repeating-linear-gradient(135deg,#a16207_0_4px,transparent_4px_7px)]" style={{ width: pct(Math.min(lane.waiting, lane.left)) }} />
-                        <span className="bg-emerald-300 dark:bg-emerald-700" style={{ width: pct(Math.max(after, 0)) }} />
-                    </>
-                )}
-            </div>
-            <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--foreground-muted)]">
-                <span>{t("orders.stockToday.onHand", "On hand")} <b className="font-mono font-semibold text-foreground/80">{lane.onHand}</b></span>
-                <span>{t("orders.stockToday.reserved", "Reserved")} <b className="font-mono font-semibold text-foreground/80">{lane.reserved}</b></span>
-                <span>{t("orders.stockToday.today", "Today")} <b className="font-mono font-semibold text-foreground/80">{lane.today}</b></span>
-                {lane.waiting > 0 && <span>{t("orders.stockToday.waiting", "Waiting")} <b className="font-mono font-semibold text-foreground/80">{lane.waiting}</b></span>}
-            </div>
-            {lane.onHand < 0 && (
-                <p className="text-[11px] text-red-600 dark:text-red-400">
-                    {t("orders.stockToday.recount", "Shelf count is below zero. Count it and fix the stock.")}
-                </p>
-            )}
+        <div
+            className="flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-[var(--card-border)]"
+            role="img"
+            aria-label={order.map(st => `${t(STOCK_STATE_LABEL[st][0], STOCK_STATE_LABEL[st][1])} ${count(st)}`).join(", ")}
+        >
+            {order.map(st => count(st) > 0 && <i key={st} className={HEALTH[st]} style={{ flexGrow: count(st) }} />)}
         </div>
     );
 }
@@ -396,13 +341,13 @@ function LaneCell({ lane, label }: { lane: StockLane; label: string }) {
 function Legend() {
     const { t } = useLanguage();
     const items: [string, string, string][] = [
-        ["bg-slate-700 dark:bg-slate-300", "orders.stockToday.legend.reserved", "Reserved (confirmed, not shipped)"],
-        ["bg-[repeating-linear-gradient(135deg,#f6c27a_0_4px,transparent_4px_7px)]", "orders.stockToday.legend.waiting", "Waiting to confirm"],
-        ["bg-emerald-300 dark:bg-emerald-700", "orders.stockToday.legend.free", "Free to sell"],
-        ["bg-[repeating-linear-gradient(135deg,#f87171_0_4px,#fee2e2_4px_7px)]", "orders.stockToday.legend.over", "Oversold"],
+        [SWATCH.reserved, "orders.stockToday.legend.reserved", "Confirmed and reserved (not shipped yet)"],
+        [SWATCH.waiting, "orders.stockToday.legend.waiting", "Waiting to confirm"],
+        [SWATCH.free, "orders.stockToday.legend.free", "Free to sell now"],
+        [SWATCH.over, "orders.stockToday.legend.over", "Oversold"],
     ];
     return (
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--card-border)] pt-3 text-[11px] text-[var(--foreground-muted)]">
+        <div className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1.5 border-t border-[var(--card-border)] pt-4 text-[11px] text-[var(--foreground-muted)]">
             {items.map(([sw, key, fallback]) => (
                 <span key={key} className="inline-flex items-center gap-1.5">
                     <i className={cn("h-2 w-3.5 rounded-[3px]", sw)} />
