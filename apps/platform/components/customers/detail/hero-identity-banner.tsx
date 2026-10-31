@@ -16,7 +16,8 @@ interface HeroIdentityBannerProps {
     phone: string;
     city?: string | null;
     tier: TrustTier;
-    trustScore: number;
+    /** Null until the customer has been scored. */
+    trustScore: number | null;
     totalOrders: number;
     isBlacklisted?: boolean;
     tags?: { id: string; name: string; color: string }[];
@@ -58,7 +59,7 @@ export function HeroIdentityBanner({
         .toUpperCase();
 
     // Shown out of 100 the same way the drawer shows it.
-    const shownScore = displayScore(trustScore);
+    const shownScore = trustScore === null ? null : displayScore(trustScore);
 
     const memberSince = firstOrderDate
         ? new Date(firstOrderDate).toLocaleDateString("en-US", {
@@ -214,9 +215,9 @@ export function HeroIdentityBanner({
 
                 <div className="flex items-end gap-1.5">
                     <span className="text-5xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
-                        {shownScore.toLocaleString("en-US")}
+                        {shownScore === null ? "—" : shownScore.toLocaleString("en-US")}
                     </span>
-                    <span className="text-lg text-muted-foreground mb-0.5">/100</span>
+                    {shownScore !== null && <span className="text-lg text-muted-foreground mb-0.5">/100</span>}
                 </div>
 
                 {/* Shield icon */}

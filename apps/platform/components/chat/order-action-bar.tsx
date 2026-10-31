@@ -14,6 +14,7 @@ import { PIPELINE_STAGE_IDS, PIPELINE_STAGE_REGISTRY } from "@/lib/order-pipelin
 import type { PipelineStageId } from "@/lib/order-pipeline";
 import type { Order, OrderStatus } from "@/types/order";
 import type { ConversationWithMeta } from "@/hooks/chat/use-conversations";
+import { orderWriteErrorMessage } from "@/lib/order-status-guard";
 
 interface OrderActionBarProps {
     order: Order;
@@ -53,7 +54,7 @@ export function OrderActionBar({ order, conversation }: OrderActionBarProps) {
                 onError: (err) => {
                     toast({
                         title: t("chat.changeStatus", "Change status"),
-                        description: err instanceof Error ? err.message : String(err),
+                        description: orderWriteErrorMessage(err, t),
                         variant: "error",
                     });
                 },
