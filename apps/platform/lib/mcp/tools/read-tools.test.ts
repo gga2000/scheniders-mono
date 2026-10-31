@@ -103,7 +103,7 @@ describe("read tools", () => {
     it("list_products finds low stock past the first page of the catalog", async () => {
         const products = Array.from({ length: 1205 }, (_, i) => ({
             id: `p${i}`, tenant_id: STORE, name: `P${String(i).padStart(4, "0")}`, sku: null, price: 1000,
-            stock_quantity: i === 1204 ? 1 : 100, reserved_quantity: 0, low_stock_threshold: null,
+            stock_quantity: i === 1204 ? 1 : 100, reserved_quantity: 0, open_box_quantity: i === 1204 ? 3 : 0, low_stock_threshold: null,
             is_visible: true, is_archived: false, is_supply: false,
         }));
         env = fakeDb({ products, product_variants: [], activity_logs: [] });
@@ -111,6 +111,7 @@ describe("read tools", () => {
         const text = await call("list_products", { low_stock: true, include_hidden: true, limit: 50 });
         expect(text).toContain("1 product(s)");
         expect(text).toContain("P1204");
+        expect(text).toContain("stock 1, reserved 0, available 1, open box left 3");
     });
 
     it("every call is written to the activity log as a Claude tool call", async () => {

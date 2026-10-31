@@ -13,7 +13,7 @@ import {
 import { cn, parseWholeNumber } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { useSetCountedStockMutation } from "@/hooks/use-products-query";
+import { countKey, useSetCountedStockMutation, type StockPile } from "@/hooks/use-products-query";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 import type { Product } from "@/lib/supabase";
 
@@ -23,15 +23,18 @@ interface StockCountDialogProps {
     products: Product[];
 }
 
-/** Stock that can't be right: below zero, or below what confirmed orders hold. */
+/** Stock that can't be right: below zero, below what confirmed orders hold, or open box oversold. */
 function needsCount(p: Product): boolean {
     const stock = p.stock_quantity ?? 0;
-    return stock < 0 || stock < (p.reserved_quantity ?? 0);
+    return stock < 0 || stock < (p.reserved_quantity ?? 0) || (p.open_box_quantity ?? 0) < 0;
 }
 
+const PILES: StockPile[] = ["new", "open_box"];
+
 /**
- * The merchant counts the shelf and types what is there. Each entered count
- * replaces the product's stock in the database (the difference is logged), so
+ * The merchant counts the shelf and types what is there, new and open box
+ * separately. Each entered count replaces that pile in the database (the
+ * difference is logged; open box nets out confirmed open-box orders), so
  * an oversold or negative product becomes sellable again with the real number
  * rather than an invented one. Products that can't be right are listed first.
  */
@@ -62,13 +65,16 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
     const save = async () => {
         if (entered.length === 0 || invalid) return;
         setSaving(true);
-        const { saved, failed: failedIds } = await setCounted.mutateAsync(
-            entered.map(([productId, value]) => ({ productId, counted: parseWholeNumber(value) ?? 0, notes: "Stock count" })),
+        const { saved, failed: failedKeys } = await setCounted.mutateAsync(
+            entered.map(([key, value]) => {
+                const [productId, pile] = key.split(":") as [string, StockPile];
+                return { productId, pile, counted: parseWholeNumber(value) ?? 0, notes: "Stock count" };
+            }),
         );
         setSaving(false);
-        const firstError = failedIds.values().next().value;
-        const failed = Object.fromEntries(entered.filter(([productId]) => failedIds.has(productId)));
-        if (failedIds.size > 0) {
+        const firstError = failedKeys.values().next().value;
+        const failed = Object.fromEntries(entered.filter(([key]) => failedKeys.has(key)));
+        if (failedKeys.size > 0) {
             // Keep the counts that did not save so they can be retried.
             setCounts(failed);
             toast.error(
@@ -109,8 +115,6 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
                     )}
                     {rows.map((p) => {
                         const flagged = needsCount(p);
-                        const value = counts[p.id] ?? "";
-                        const bad = value.trim() !== "" && parseWholeNumber(value) === null;
                         return (
                             <li key={p.id} className="flex items-center gap-3 px-1 py-2.5">
                                 <div className="min-w-0 flex-1">
@@ -119,22 +123,32 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
                                         {flagged && <span className="font-semibold">{t("products.count.needsCount")} · </span>}
                                         {t("products.count.inStock")
                                             .replace("{stock}", String(p.stock_quantity ?? 0))
-                                            .replace("{reserved}", String(p.reserved_quantity ?? 0))}
+                                            .replace("{reserved}", String(p.reserved_quantity ?? 0))
+                                            .replace("{openBox}", String(p.open_box_quantity ?? 0))}
                                     </p>
                                 </div>
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    aria-label={`${t("products.count.counted")}: ${p.name}`}
-                                    aria-invalid={bad}
-                                    value={value}
-                                    onChange={(e) => setCounts((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                                    placeholder={t("products.count.counted")}
-                                    className={cn(
-                                        "w-24 h-11 px-3 rounded-xl bg-[var(--background)] border text-sm text-center tabular-nums text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20",
-                                        bad ? "border-rose-500" : "border-[var(--card-border)]",
-                                    )}
-                                />
+                                {PILES.map((pile) => {
+                                    const key = countKey(p.id, pile);
+                                    const value = counts[key] ?? "";
+                                    const bad = value.trim() !== "" && parseWholeNumber(value) === null;
+                                    const pileLabel = t(pile === "new" ? "products.count.new" : "products.count.openBox");
+                                    return (
+                                        <input
+                                            key={pile}
+                                            type="text"
+                                            inputMode="numeric"
+                                            aria-label={`${t("products.count.counted")} ${pileLabel}: ${p.name}`}
+                                            aria-invalid={bad}
+                                            value={value}
+                                            onChange={(e) => setCounts((prev) => ({ ...prev, [key]: e.target.value }))}
+                                            placeholder={pileLabel}
+                                            className={cn(
+                                                "w-20 h-11 px-2 rounded-xl bg-[var(--background)] border text-sm text-center tabular-nums text-foreground placeholder:text-muted placeholder:text-xs focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20",
+                                                bad ? "border-rose-500" : "border-[var(--card-border)]",
+                                            )}
+                                        />
+                                    );
+                                })}
                             </li>
                         );
                     })}

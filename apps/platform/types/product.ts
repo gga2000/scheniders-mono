@@ -331,7 +331,7 @@ export interface InventoryHistoryEntry {
     id?: string;
     product_id?: string;
     variant_id?: string | null;
-    change_type: 'received' | 'sold' | 'returned' | 'adjusted' | 'reserved' | 'quarantined';
+    change_type: 'received' | 'sold' | 'returned' | 'adjusted' | 'reserved' | 'quarantined' | 'count' | 'open_box_count';
     quantity_change: number;
     quantity_before: number;
     quantity_after: number;

@@ -166,7 +166,7 @@ function serializeFeatureCards(cards: NoteCardFormData[]): { image_url?: string;
 }
 
 export interface InventoryHistoryFormData {
-    change_type: 'received' | 'sold' | 'returned' | 'adjusted' | 'reserved' | 'quarantined';
+    change_type: 'received' | 'sold' | 'returned' | 'adjusted' | 'reserved' | 'quarantined' | 'count' | 'open_box_count';
     quantity_change: number;
     quantity_before: number;
     quantity_after: number;

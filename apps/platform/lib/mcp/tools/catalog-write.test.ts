@@ -40,7 +40,7 @@ const call = async (name: string, args: Record<string, unknown>) => {
 };
 
 const product = (id: string, tenant: string, name: string, extra: Record<string, unknown> = {}) => ({
-    id, tenant_id: tenant, name, sku: null, price: 25000, compare_at_price: null, stock_quantity: 10, reserved_quantity: 2,
+    id, tenant_id: tenant, name, sku: null, price: 25000, compare_at_price: null, stock_quantity: 10, reserved_quantity: 2, open_box_quantity: 4,
     is_visible: true, is_archived: false, is_supply: false, ...extra,
 });
 
@@ -49,7 +49,10 @@ beforeEach(() => {
     rpcCalls.length = 0;
     const stockRpc = (name: string) => (args: Record<string, unknown>) => {
         rpcCalls.push({ name, args });
-        return name === "set_counted_stock" ? (args.p_counted as never) : (15 as never);
+        if (name === "set_counted_stock") return args.p_counted as never;
+        // One open box sits on a confirmed order, so one less is left to sell.
+        if (name === "set_counted_open_box") return ((args.p_counted as number) - 1) as never;
+        return 15 as never;
     };
     env = fakeDb(
         {
@@ -66,7 +69,11 @@ beforeEach(() => {
             blacklist: [],
             activity_logs: [],
         },
-        { adjust_product_stock: stockRpc("adjust_product_stock"), set_counted_stock: stockRpc("set_counted_stock") },
+        {
+            adjust_product_stock: stockRpc("adjust_product_stock"),
+            set_counted_stock: stockRpc("set_counted_stock"),
+            set_counted_open_box: stockRpc("set_counted_open_box"),
+        },
     );
     asCaller();
 });
@@ -145,6 +152,14 @@ describe("stock", () => {
         const res = await call("set_stock_count", { product: "SR-1", counted: 7 });
         expect(res.text).toBe("Vitamin C Serum: stock 10 → 7 (counted).");
         expect(rpcCalls[0]).toMatchObject({ name: "set_counted_stock", args: { p_product_id: SERUM, p_counted: 7 } });
+    });
+
+    it("sets an open-box shelf count without touching new stock", async () => {
+        const res = await call("set_stock_count", { product: "SR-1", pile: "open_box", counted: 3 });
+        expect(res.text).toBe("Vitamin C Serum: open box 3 on the shelf, 1 held by confirmed orders. Open box left 4 → 2.");
+        expect(rpcCalls).toEqual([
+            { name: "set_counted_open_box", args: expect.objectContaining({ p_product_id: SERUM, p_variant_id: null, p_counted: 3 }) },
+        ]);
     });
 });
 

@@ -11,10 +11,12 @@ import {
     SlidersHorizontal,
     Lock,
     AlertTriangle,
+    ClipboardCheck,
+    PackageOpen,
 } from "lucide-react";
 
 export interface InventoryHistoryFormData {
-    change_type: "received" | "sold" | "returned" | "adjusted" | "reserved" | "quarantined";
+    change_type: (typeof HISTORY_TYPES)[number];
     quantity_change: number;
     quantity_before: number;
     quantity_after: number;
@@ -29,7 +31,12 @@ interface InventoryTimelineProps {
     onChange: (entries: InventoryHistoryFormData[]) => void;
 }
 
+/** Entries a person can add here by hand. */
 const CHANGE_TYPES = ["received", "sold", "returned", "adjusted", "reserved", "quarantined"] as const;
+/** Every type the log holds: shelf counts are written by the stock count RPCs. */
+const HISTORY_TYPES = [...CHANGE_TYPES, "count", "open_box_count"] as const;
+
+const typeLabel = (type: string) => (type === "open_box_count" ? "Open box count" : type.charAt(0).toUpperCase() + type.slice(1));
 
 const TYPE_CONFIG: Record<
     InventoryHistoryFormData["change_type"],
@@ -83,6 +90,20 @@ const TYPE_CONFIG: Record<
         badgeBg: "bg-rose-100",
         badgeText: "text-rose-700",
     },
+    count: {
+        icon: ClipboardCheck,
+        bgClass: "bg-[var(--pastel-blue)]",
+        textClass: "text-blue-700",
+        badgeBg: "bg-[var(--pastel-blue)]",
+        badgeText: "text-blue-700",
+    },
+    open_box_count: {
+        icon: PackageOpen,
+        bgClass: "bg-[var(--pastel-yellow)]",
+        textClass: "text-yellow-700",
+        badgeBg: "bg-[var(--pastel-yellow)]",
+        badgeText: "text-yellow-700",
+    },
 };
 
 function formatDate(dateStr?: string): string {
@@ -131,7 +152,7 @@ export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps)
         filter === "all" ? entries : entries.filter((e) => e.change_type === filter);
 
     const typeCounts: Record<string, number> = { all: entries.length };
-    for (const t of CHANGE_TYPES) {
+    for (const t of HISTORY_TYPES) {
         typeCounts[t] = entries.filter((e) => e.change_type === t).length;
     }
 
@@ -190,7 +211,7 @@ export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps)
 
             {/* Filter bar */}
             <div className="flex flex-wrap gap-1.5">
-                {(["all", ...CHANGE_TYPES] as const).map((type) => {
+                {(["all", ...HISTORY_TYPES] as const).map((type) => {
                     const isActive = filter === type;
                     const count = typeCounts[type] ?? 0;
                     return (
@@ -204,7 +225,7 @@ export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps)
                                     : "px-3 py-1.5 text-muted hover:text-foreground rounded-lg text-sm transition-colors"
                             }
                         >
-                            {type === "all" ? "All" : type.charAt(0).toUpperCase() + type.slice(1)}
+                            {type === "all" ? "All" : typeLabel(type)}
                             <span className="ml-1.5 text-xs opacity-70">{count}</span>
                         </button>
                     );
@@ -350,8 +371,7 @@ export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps)
                                             <span
                                                 className={`px-2 py-0.5 rounded-full text-xs font-medium ${config.badgeBg} ${config.badgeText}`}
                                             >
-                                                {entry.change_type.charAt(0).toUpperCase() +
-                                                    entry.change_type.slice(1)}
+                                                {typeLabel(entry.change_type)}
                                             </span>
                                             <span className={`font-mono font-bold text-sm ${qty.colorClass}`}>
                                                 {qty.text}
