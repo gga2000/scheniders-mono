@@ -244,7 +244,7 @@ export default function VaultPage() {
         e.preventDefault();
         setIsDragging(false);
         const file = e.dataTransfer.files[0];
-        handleFileSelect(file);
+        if (file) handleFileSelect(file);
     };
 
     const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
