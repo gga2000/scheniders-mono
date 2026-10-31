@@ -89,7 +89,7 @@ export function useCustomerPercentile(phone: string | undefined) {
     return useQuery({
         queryKey: ["customer-percentile", tenantId, phone],
         queryFn: async () => {
-            if (!phone) return { percentile: 50, city_name: '', total_in_group: 0 };
+            if (!phone) return { percentile: 0, city_name: '', total_in_group: 0 };
             const { data, error } = await supabase.rpc("get_customer_percentile", {
                 target_phone: phone,
             });

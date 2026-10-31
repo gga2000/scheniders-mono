@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo, useCallback, useRef, Suspense } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Search, Download } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
@@ -45,7 +46,11 @@ function CustomersPageContent() {
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const { state, chips, setChips, rawSearch, setSearch, setSort, setView, setTag } = useCustomerUrlState();
     const { tags } = useCustomerTags();
-    const { viewMode, setViewMode } = useCustomerStore();
+    const { viewMode, setViewMode, setLastListQuery } = useCustomerStore();
+
+    // Remember this list view so the profile's Back returns to the same filters.
+    const listQuery = useSearchParams().toString();
+    useEffect(() => { setLastListQuery(listQuery); }, [listQuery, setLastListQuery]);
 
     // Two independent server-side axes + the client-only action-lane cohorts.
     // Kept in the URL, so opening a profile and coming back (or a reload) keeps them.
@@ -65,7 +70,6 @@ function CustomersPageContent() {
     const filters = useMemo(() => {
         const f: PaginatedCustomerFilters = {
             search: state.search,
-            city: state.city,
             tagId: state.tagId,
             sortBy: state.sortBy,
             sortOrder: state.sortOrder,
@@ -77,11 +81,11 @@ function CustomersPageContent() {
         else if (laneFilter === "new") { f.firstOrderWithinDays = 30; }
         else if (laneFilter === "firstDelivery") { f.firstDeliveryPending = true; }
         return f;
-    }, [state.search, state.city, state.tagId, state.sortBy, state.sortOrder, valueFilter, riskFilter, laneFilter]);
+    }, [state.search, state.tagId, state.sortBy, state.sortOrder, valueFilter, riskFilter, laneFilter]);
 
-    const filtered = !!(state.search || state.city || state.tagId || filters.valueFilter || filters.riskFilter || laneFilter);
+    const filtered = !!(state.search || state.tagId || filters.valueFilter || filters.riskFilter || laneFilter);
 
-    const { data, isLoading, isError, isFetchNextPageError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
+    const { data, isLoading, isError, isFetchNextPageError, isRefetchError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
     const { data: stats } = useCustomerDashboardStats();
 
     const allCustomers = useMemo(() => data?.pages.flatMap((p) => p.customers) || [], [data]);
@@ -167,11 +171,16 @@ function CustomersPageContent() {
 
     const onRisk = (next: RiskFilter) => setChips({ value: valueFilter, risk: next, lane: null });
 
+    // The dormant cohorts load oldest-first; leaving them restores the default
+    // order instead of keeping that special sort.
+    const inDormantSort = state.sortBy === "last_order_date" && state.sortOrder === "asc";
     const onSegmentSelect = (s: SegmentState) => {
         const sortBy = parseCustomerSort(s.sort?.by);
         setChips(
             { value: s.value, risk: s.risk, lane: s.lane === "risky" ? null : s.lane },
-            s.sort && sortBy ? { by: sortBy, order: s.sort.order } : undefined,
+            s.sort && sortBy
+                ? { by: sortBy, order: s.sort.order }
+                : inDormantSort ? { by: "total_orders", order: "desc" } : undefined,
         );
     };
 
@@ -181,7 +190,17 @@ function CustomersPageContent() {
             setChips({ value: valueFilter, risk: riskFilter === "high" ? "all" : "high", lane: null });
             return;
         }
-        setChips({ value: "all", risk: "all", lane: laneFilter === kind ? null : kind });
+        const leaving = laneFilter === kind;
+        // "VIPs gone quiet" is the Dormant VIPs segment: same chips and sort, so
+        // the value chip says VIP and the segment tab lights up.
+        if (kind === "vipsQuiet") {
+            setChips(
+                { value: leaving ? "all" : "vip", risk: "all", lane: leaving ? null : kind },
+                leaving ? { by: "total_orders", order: "desc" } : { by: "last_order_date", order: "asc" },
+            );
+            return;
+        }
+        setChips({ value: "all", risk: "all", lane: leaving ? null : kind }, inDormantSort ? { by: "total_orders", order: "desc" } : undefined);
     };
 
     // Every customer the current filters match, fetched in pages so the API row cap
@@ -319,7 +338,7 @@ function CustomersPageContent() {
                             <div key={i} className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-6 h-44 animate-pulse" />
                         ))}
                     </div>
-                ) : isError && !isFetchNextPageError ? (
+                ) : isError && !data ? (
                     <div className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-12 text-center">
                         <p className="text-lg font-bold text-foreground mb-1">{t("customers.loadFailed")}</p>
                         <p className="text-sm text-muted-foreground mb-5">{t("customers.loadFailedHint")}</p>
@@ -353,6 +372,18 @@ function CustomersPageContent() {
                     </div>
                 ) : (
                     <>
+                        {isRefetchError && (
+                            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                                <span>{t("customers.refreshFailed", "Couldn't refresh. Showing the last loaded list.")}</span>
+                                <button
+                                    onClick={() => refetch()}
+                                    disabled={isRefetching}
+                                    className="h-9 px-4 rounded-xl border border-current text-sm font-semibold disabled:opacity-50"
+                                >
+                                    {t("customers.profile.retry")}
+                                </button>
+                            </div>
+                        )}
                         {effectiveView === "list" ? (
                             <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} />
                         ) : (

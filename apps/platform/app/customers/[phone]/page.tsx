@@ -206,7 +206,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             <motion.button
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                onClick={() => (window.history.length > 1 ? router.back() : router.push("/customers"))}
+                onClick={() => router.push(store.lastListQuery ? `/customers?${store.lastListQuery}` : "/customers")}
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
             >
                 <ArrowLeft className="w-4 h-4" />

@@ -58,3 +58,32 @@ describe("useCustomerUrlState chips", () => {
         expect(extra).toEqual({ value: "vip", lane: "vipsQuiet", sortBy: "last_order_date", sortOrder: "asc" });
     });
 });
+
+describe("useCustomerUrlState search writes", () => {
+    it("writes the typed text to the URL after the pause and keeps other params", () => {
+        vi.useFakeTimers();
+        extra = { value: "vip" };
+        const { result, rerender } = renderHook(() => useCustomerUrlState());
+        act(() => result.current.setSearch("ab"));
+        act(() => result.current.setSearch("abc"));
+        expect(replace).not.toHaveBeenCalled();
+        act(() => { vi.advanceTimersByTime(300); });
+        expect(replace).toHaveBeenCalledTimes(1);
+        expect(currentSearch).toBe("abc");
+        expect(extra).toEqual({ value: "vip" });
+        rerender();
+        expect(result.current.rawSearch).toBe("abc");
+        vi.useRealTimers();
+    });
+
+    it("does not let its own older write overwrite newer typing", () => {
+        vi.useFakeTimers();
+        const { result, rerender } = renderHook(() => useCustomerUrlState());
+        act(() => result.current.setSearch("ab"));
+        act(() => { vi.advanceTimersByTime(300); });
+        act(() => result.current.setSearch("abcd"));
+        rerender();
+        expect(result.current.rawSearch).toBe("abcd");
+        vi.useRealTimers();
+    });
+});
