@@ -32,6 +32,7 @@ import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
 import { pct } from "@/lib/customer-format";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { usePermission } from "@/hooks/use-permission";
+import { useCustomerTags } from "@/hooks/use-customer-management";
 import { PERMISSIONS } from "@/lib/permissions";
 
 const PAGE_LIMIT = 24;
@@ -42,7 +43,8 @@ function CustomersPageContent() {
     const { can } = usePermission();
     const canExport = can(PERMISSIONS.EXPORT_CUSTOMERS);
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
-    const { state, rawSearch, setSearch, setSort, setView } = useCustomerUrlState();
+    const { state, rawSearch, setSearch, setSort, setView, setTag } = useCustomerUrlState();
+    const { tags } = useCustomerTags();
     const { viewMode, setViewMode } = useCustomerStore();
 
     // Two independent server-side axes + the client-only action-lane cohorts.
@@ -63,6 +65,7 @@ function CustomersPageContent() {
         const f: PaginatedCustomerFilters = {
             search: state.search,
             city: state.city,
+            tagId: state.tagId,
             sortBy: state.sortBy,
             sortOrder: state.sortOrder,
             valueFilter: valueFilter === "all" ? undefined : valueFilter,
@@ -73,9 +76,9 @@ function CustomersPageContent() {
         else if (laneFilter === "new") { f.firstOrderWithinDays = 30; }
         else if (laneFilter === "firstDelivery") { f.firstDeliveryPending = true; }
         return f;
-    }, [state.search, state.city, state.sortBy, state.sortOrder, valueFilter, riskFilter, laneFilter]);
+    }, [state.search, state.city, state.tagId, state.sortBy, state.sortOrder, valueFilter, riskFilter, laneFilter]);
 
-    const filtered = !!(state.search || state.city || filters.valueFilter || filters.riskFilter || laneFilter);
+    const filtered = !!(state.search || state.city || state.tagId || filters.valueFilter || filters.riskFilter || laneFilter);
 
     const { data, isLoading, isError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
     const { data: stats } = useCustomerDashboardStats();
@@ -296,6 +299,9 @@ function CustomersPageContent() {
                     sortBy={state.sortBy || "total_orders"}
                     sortOrder={state.sortOrder || "desc"}
                     onSort={(sb, so) => setSort(parseCustomerSort(sb) ?? "total_orders", so)}
+                    tags={tags}
+                    tagId={state.tagId ?? ""}
+                    onTag={setTag}
                     view={effectiveView}
                     onView={(mode) => { setViewMode(mode); setView(mode); }}
                 >

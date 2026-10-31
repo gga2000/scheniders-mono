@@ -6,6 +6,9 @@ import { PaginatedCustomerFilters, parseCustomerSort } from "@/hooks/use-paginat
 import { CustomerStatus, TrustTier } from "@/types/customer";
 import { useDebounce } from "@/hooks/use-debounce";
 
+// A hand-edited ?tagId= that is not a uuid would make the list RPC error.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 interface CustomerUrlState extends PaginatedCustomerFilters {
     customerId: string | null;
     trustTier?: TrustTier | "all";
@@ -36,7 +39,7 @@ export function useCustomerUrlState() {
         minLtv: searchParams.has("minLtv") ? Number(searchParams.get("minLtv")) : undefined,
         maxLtv: searchParams.has("maxLtv") ? Number(searchParams.get("maxLtv")) : undefined,
         lastOrderWithinDays: searchParams.has("withinDays") ? Number(searchParams.get("withinDays")) : undefined,
-        tagId: searchParams.get("tagId") || undefined,
+        tagId: UUID.test(searchParams.get("tagId") ?? "") ? (searchParams.get("tagId") as string) : undefined,
         trustTier: (searchParams.get("tier") as TrustTier | "all") || undefined,
         minTrustScore: searchParams.has("minScore") ? Number(searchParams.get("minScore")) : undefined,
         maxTrustScore: searchParams.has("maxScore") ? Number(searchParams.get("maxScore")) : undefined,
@@ -75,6 +78,7 @@ export function useCustomerUrlState() {
     const setSearch = (search: string) => setLocalSearch(search);
     const setStatus = (status: CustomerStatus | "all") => pushStateToUrl("status", status);
     const setCity = (city: string) => pushStateToUrl("city", city);
+    const setTag = (tagId: string) => pushStateToUrl("tagId", tagId);
     const setSelectedCustomer = (customerId: string | null) => pushStateToUrl("customer", customerId);
 
     const setSort = (sortBy: CustomerUrlState["sortBy"], sortOrder: "asc" | "desc") => {
@@ -124,6 +128,7 @@ export function useCustomerUrlState() {
         setSearch,
         setStatus,
         setCity,
+        setTag,
         setSort,
         setSelectedCustomer,
         setAdvancedFilters,
