@@ -185,6 +185,7 @@ export function OrderDetailsModal({
     const { splitOrder, isBlacklisted, getBlacklistEntry, addToBlacklist, removeFromBlacklist } = useOrdersContext();
     const { can } = usePermission();
     const canUnblock = can(PERMISSIONS.UNBLOCK_CUSTOMERS);
+    const canBlock = can(PERMISSIONS.BLOCK_CUSTOMERS);
     const startOrderConv = useStartOrderConversation();
     const { open: openChat } = useChatStore();
     const [blacklistDialogOpen, setBlacklistDialogOpen] = useState(false);
@@ -668,7 +669,7 @@ export function OrderDetailsModal({
                                             <Ban className="w-3 h-3" />
                                             {t("orderDetail.blacklisted")}
                                         </button>
-                                    ) : (
+                                    ) : canBlock ? (
                                         <button
                                             onClick={() => { setBlacklistDialogMode("add"); setBlacklistDialogOpen(true); }}
                                             className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-500 border border-gray-200 hover:bg-red-100 hover:text-red-600 hover:border-red-200 transition-all"
@@ -676,7 +677,7 @@ export function OrderDetailsModal({
                                         >
                                             <Ban className="w-3.5 h-3.5" />
                                         </button>
-                                    )}
+                                    ) : null}
                                 </div>
                                 {/* Arrival date (YYYY-MM-DD), Baghdad day — the UTC day is a day early after midnight */}
                                 <span className="flex items-center gap-1.5 text-xs text-muted">

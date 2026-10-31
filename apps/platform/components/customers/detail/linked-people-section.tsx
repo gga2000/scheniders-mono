@@ -1,5 +1,7 @@
 "use client";
 
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Link2, Plus, UserPlus, Home, Users, Copy, X } from "lucide-react";
@@ -30,6 +32,8 @@ const RELATIONSHIP_I18N: Record<string, string> = {
 
 export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
     const { t } = useLanguage();
+    const { can } = usePermission();
+    const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const { data: links = [] } = useCustomerLinks(phone);
     const unlink = useUnlinkCustomers();
     const { setLinkCustomersModalOpen, setLinkCustomersPhone } = useCustomerStore();
@@ -54,13 +58,15 @@ export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
                         </span>
                     )}
                 </div>
-                <button
-                    onClick={handleLinkCustomer}
-                    aria-label={t("customers.link.title")}
-                    className="w-11 h-11 -m-2 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
-                >
-                    <UserPlus className="w-4 h-4" />
-                </button>
+                {canEdit && (
+                    <button
+                        onClick={handleLinkCustomer}
+                        aria-label={t("customers.link.title")}
+                        className="w-11 h-11 -m-2 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                    >
+                        <UserPlus className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
             {/* Links list */}
@@ -131,20 +137,22 @@ export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
                                             </p>
                                         )}
                                     </Link>
-                                    <button
-                                        onClick={() => unlink.mutate(
-                                            { linkId: link.id, phoneA: link.phone_a, phoneB: link.phone_b },
-                                            {
-                                                onSuccess: () => toast({ variant: "success", title: t("customers.link.unlinked") }),
-                                                onError: () => toast({ variant: "error", title: t("customers.link.unlinkFailed") }),
-                                            },
-                                        )}
-                                        disabled={unlink.isPending}
-                                        aria-label={t("customers.link.unlink")}
-                                        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
+                                    {canEdit && (
+                                        <button
+                                            onClick={() => unlink.mutate(
+                                                { linkId: link.id, phoneA: link.phone_a, phoneB: link.phone_b },
+                                                {
+                                                    onSuccess: () => toast({ variant: "success", title: t("customers.link.unlinked") }),
+                                                    onError: () => toast({ variant: "error", title: t("customers.link.unlinkFailed") }),
+                                                },
+                                            )}
+                                            disabled={unlink.isPending}
+                                            aria-label={t("customers.link.unlink")}
+                                            className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition-colors"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    )}
                                 </motion.div>
                             );
                         })}

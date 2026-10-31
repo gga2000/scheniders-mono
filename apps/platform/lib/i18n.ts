@@ -953,6 +953,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "customers.drawer.newOrder": "New order",
         "customers.drawer.call": "Call",
         "customers.drawer.block": "Block",
+        "customers.drawer.blockLookupFailed": "Couldn't check whether this customer is blocked.",
         "customers.drawer.addTag": "Add tag",
         "customers.drawer.empty": "Select a customer to see their profile",
 
@@ -5027,6 +5028,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "customers.drawer.newOrder": "طلب جديد",
         "customers.drawer.call": "اتصال",
         "customers.drawer.block": "حظر",
+        "customers.drawer.blockLookupFailed": "تعذّر التحقق مما إذا كان هذا العميل محظوراً.",
         "customers.drawer.addTag": "إضافة وسم",
         "customers.drawer.empty": "اختر عميلاً لعرض ملفه",
 

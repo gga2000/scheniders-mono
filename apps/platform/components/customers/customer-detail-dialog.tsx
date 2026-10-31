@@ -29,6 +29,7 @@ import { addToBlacklist, removeFromBlacklist, fetchBlacklistEntry } from "@/lib/
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { usePermission } from "@/hooks/use-permission";
+import { toast } from "@/hooks/use-toast";
 import { PERMISSIONS } from "@/lib/permissions";
 
 // Opened on demand from the footer; kept out of the customers page bundle.
@@ -286,8 +287,16 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
     const blockedEntry = useQuery({
         queryKey: ["customer-blacklist-entry", tenantId, customer?.phone],
         queryFn: () => fetchBlacklistEntry(tenantId as string, customer?.phone as string),
-        enabled: !!tenantId && !!customer?.is_blacklisted && creatingOrder,
+        enabled: !!tenantId && !!customer && creatingOrder,
+        staleTime: 0,
+        gcTime: 0,
     });
+    const blockedLookupFailed = blockedEntry.isError;
+    useEffect(() => {
+        if (blockedLookupFailed) {
+            toast({ variant: "error", title: t("customers.drawer.blockLookupFailed", "Couldn't check whether this customer is blocked.") });
+        }
+    }, [blockedLookupFailed, t]);
 
     useEffect(() => {
         if (!customer) return;

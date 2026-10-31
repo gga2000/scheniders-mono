@@ -281,6 +281,7 @@ export default function OrdersPage() {
     const { t } = useLanguage();
     const { can } = usePermission();
     const canUnblock = can(PERMISSIONS.UNBLOCK_CUSTOMERS);
+    const canBlock = can(PERMISSIONS.BLOCK_CUSTOMERS);
 
     // ── Zustand Store (replaces ~35 useState calls) ──
     // Selected through `useShallow` rather than destructured off the bare store:
@@ -1949,7 +1950,7 @@ export default function OrdersPage() {
                                                             }}
                                                             isBlacklisted={isBlacklisted}
                                                             getBlacklistEntry={getBlacklistEntry}
-                                                            onAddToBlacklist={addToBlacklist}
+                                                            onAddToBlacklist={canBlock ? addToBlacklist : undefined}
                                                             onRemoveFromBlacklist={canUnblock ? removeFromBlacklist : undefined}
                                                             getRiskAssessment={getRiskAssessmentByPhone}
                                                             getCustomerOrderCount={getCustomerOrderCount}
@@ -2000,7 +2001,7 @@ export default function OrdersPage() {
                                                             }}
                                                             isBlacklisted={isBlacklisted}
                                                             getBlacklistEntry={getBlacklistEntry}
-                                                            onAddToBlacklist={addToBlacklist}
+                                                            onAddToBlacklist={canBlock ? addToBlacklist : undefined}
                                                             onRemoveFromBlacklist={canUnblock ? removeFromBlacklist : undefined}
                                                             getRiskAssessment={getRiskAssessmentByPhone}
                                                             getCustomerOrderCount={getCustomerOrderCount}
@@ -2034,7 +2035,7 @@ export default function OrdersPage() {
                                                                             onSplit={() => setSplitOrderDialog({ open: true, order })}
                                                                             isBlacklisted={isBlacklisted(order.phone)}
                                                                             blacklistEntry={getBlacklistEntry(order.phone)}
-                                                                            onAddToBlacklist={addToBlacklist}
+                                                                            onAddToBlacklist={canBlock ? addToBlacklist : undefined}
                                                                             onRemoveFromBlacklist={canUnblock ? removeFromBlacklist : undefined}
                                                                             riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
                                                                             riskAssessment={order.risk_data}
