@@ -1,7 +1,7 @@
 /// <reference types="vitest/globals" />
 // @vitest-environment jsdom
 
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { buildStockToday, type StockTodayRow } from "@/lib/orders/stock-today";
 
@@ -30,7 +30,7 @@ import { StockTodayDialog } from "./stock-today-dialog";
 
 function row(i: number, over: Partial<StockTodayRow> = {}): StockTodayRow {
     return {
-        product_id: `p${i}`, variant_id: null as unknown as string, name: `Product ${i}`, variant_name: null as unknown as string,
+        product_id: `p${i}`, variant_id: null as unknown as string, name: `Product ${i}`, short_name: null, variant_name: null as unknown as string,
         sku: `SKU-${i}`, image_url: null as unknown as string, is_filler: false, low_stock_threshold: 5,
         on_hand: 50, reserved: 0, ob_left: 0, ob_reserved: 0,
         today_new: 0, today_ob: 0, waiting_new: 0, waiting_ob: 0,
@@ -38,9 +38,41 @@ function row(i: number, over: Partial<StockTodayRow> = {}): StockTodayRow {
     };
 }
 
-afterEach(() => { cleanup(); rows = []; });
+afterEach(() => { cleanup(); rows = []; window.localStorage.clear(); });
 
-describe("StockTodayDialog", () => {
+describe("StockTodayDialog, simple view", () => {
+    it("opens on the simple board: six cards, worst first, minus sign when oversold", () => {
+        rows = [
+            ...Array.from({ length: 8 }, (_, i) => row(i)),
+            row(99, { name: "Perciveron", on_hand: -84, reserved: 10 }),
+            row(98, { name: "Fusion", on_hand: 3, reserved: 0, ob_left: 1, today_new: 2 }),
+        ];
+        render(<StockTodayDialog open onOpenChange={vi.fn()} />);
+
+        const cards = () => screen.getAllByRole("listitem");
+        expect(cards()).toHaveLength(6);
+        expect(cards()[0].textContent).toContain("Perciveron");
+        expect(cards()[0].textContent).toContain("−94");
+        const fusion = cards().find(c => c.textContent?.includes("Fusion"));
+        expect(fusion?.textContent).toContain("orders.stockToday.openBox");
+        expect(fusion?.textContent).toContain("orders.stockToday.glance.today 2");
+
+        fireEvent.click(screen.getByText(/orders\.stockToday\.showAll/));
+        expect(cards()).toHaveLength(10);
+    });
+
+    it("remembers the detailed view", () => {
+        rows = [row(1)];
+        render(<StockTodayDialog open onOpenChange={vi.fn()} />);
+        fireEvent.click(screen.getByText("orders.stockToday.view.detailed"));
+        expect(window.localStorage.getItem("stock-today-view")).toBe("detailed");
+        expect(screen.getByText("orders.stockToday.todayUnits")).toBeDefined();
+    });
+});
+
+describe("StockTodayDialog, detailed view", () => {
+    beforeEach(() => { window.localStorage.setItem("stock-today-view", "detailed"); });
+
     it("lists five, then five more, then all; oversold first", () => {
         rows = [
             ...Array.from({ length: 12 }, (_, i) => row(i)),

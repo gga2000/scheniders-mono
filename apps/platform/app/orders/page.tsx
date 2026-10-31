@@ -1163,6 +1163,27 @@ export default function OrdersPage() {
                                                             </div>
                                                         </div>
 
+                                                        {/* Stock today - sits beside the count so stock is one glance from the orders */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setIsStockTodayOpen(true)}
+                                                            className="flex items-center gap-2 pl-2 pr-4 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill hover:-translate-y-0.5 hover:shadow-md transition-all duration-300"
+                                                            title={t("orders.stockToday.title", "Stock today")}
+                                                            aria-label={oversoldCount > 0
+                                                                ? t("orders.stockToday.buttonOversold", "Stock today, {count} oversold", { count: oversoldCount })
+                                                                : t("orders.stockToday.title", "Stock today")}
+                                                        >
+                                                            <span className="p-2 rounded-full bg-gradient-to-tr from-emerald-400 to-teal-500 text-white shadow-lg shadow-emerald-500/30">
+                                                                <Boxes className="w-4 h-4" />
+                                                            </span>
+                                                            <span className="text-sm font-bold text-foreground whitespace-nowrap">{t("orders.stockToday.button", "Stock")}</span>
+                                                            {oversoldCount > 0 && (
+                                                                <span className="rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-5 text-white tabular-nums">
+                                                                    {oversoldCount}
+                                                                </span>
+                                                            )}
+                                                        </button>
+
                                                         {/* Selection Indicator */}
                                                         <AnimatePresence>
                                                             {selectedOrders.size > 0 && (
@@ -1635,23 +1656,6 @@ export default function OrdersPage() {
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
                                                         <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-1.5">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setIsStockTodayOpen(true)}
-                                                                className="relative flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:border-[var(--foreground-muted)] transition-all duration-300 font-bold text-sm"
-                                                                title={t("orders.stockToday.title", "Stock today")}
-                                                                aria-label={oversoldCount > 0
-                                                                    ? t("orders.stockToday.buttonOversold", "Stock today, {count} oversold", { count: oversoldCount })
-                                                                    : t("orders.stockToday.title", "Stock today")}
-                                                            >
-                                                                <Boxes className="w-4 h-4" />
-                                                                <span className="whitespace-nowrap hidden lg:inline">{t("orders.stockToday.button", "Stock")}</span>
-                                                                {oversoldCount > 0 && (
-                                                                    <span className="rounded-full bg-red-100 px-1.5 text-[11px] font-bold leading-5 text-red-700 tabular-nums dark:bg-red-500/20 dark:text-red-300">
-                                                                        {oversoldCount}
-                                                                    </span>
-                                                                )}
-                                                            </button>
                                                             <button
                                                                 onClick={() => setIsReturnsOpen(true)}
                                                                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
