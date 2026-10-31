@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useMemo, useCallback, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Search, Download } from "lucide-react";
+import { Search, Download, AlertTriangle } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
@@ -280,7 +280,7 @@ function CustomersPageContent() {
                 >
                     <div>
                         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">{t("customers.title")}</h1>
-                        <p className="text-muted-foreground mt-2 text-[15px]">
+                        <p dir="auto" className="text-muted-foreground mt-2 text-[15px] text-left">
                             {stats
                                 ? t("customers.subtitle", { count: stats.total_customers.toLocaleString("en-US"), repeat: String(repeatPct) })
                                 : `${totalCount.toLocaleString("en-US")}`}
@@ -359,7 +359,10 @@ function CustomersPageContent() {
                         ))}
                     </div>
                 ) : isError && !data ? (
-                    <div className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-12 text-center">
+                    <div role="alert" className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-12 text-center">
+                        <div className="mx-auto w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-500/15 flex items-center justify-center mb-4">
+                            <AlertTriangle className="w-6 h-6 text-rose-600 dark:text-rose-300" />
+                        </div>
                         <p className="text-lg font-bold text-foreground mb-1">{t("customers.loadFailed")}</p>
                         <p className="text-sm text-muted-foreground mb-5">{t("customers.loadFailedHint")}</p>
                         <button
@@ -377,8 +380,20 @@ function CustomersPageContent() {
                         </div>
                         {filtered ? (
                             <>
-                                <p className="text-lg font-bold text-foreground mb-1">{t("customers.noCustomers")}</p>
+                                <p className="text-lg font-bold text-foreground mb-1">
+                                    {state.search
+                                        ? <>{t("customers.noMatchFor")} <bdi className="font-mono px-2 py-0.5 rounded-lg bg-foreground/5">{state.search}</bdi></>
+                                        : t("customers.noCustomers")}
+                                </p>
                                 <p className="text-sm text-muted-foreground">{t("customers.adjustFilters")}</p>
+                                {state.search && (
+                                    <button
+                                        onClick={() => setSearch("")}
+                                        className="mt-5 h-11 px-6 rounded-2xl border border-(--card-border) bg-(--card-bg) text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors"
+                                    >
+                                        {t("customers.search.clear")}
+                                    </button>
+                                )}
                             </>
                         ) : (
                             <>

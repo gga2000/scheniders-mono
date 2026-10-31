@@ -7,8 +7,8 @@ import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-    X, Phone, MapPin, Calendar, MessageCircle, Plus, ExternalLink, Tag, Star,
-    Package, ChevronDown, User, Home, ShoppingBag, StickyNote, ShieldCheck, CreditCard, Truck, Ban,
+    X, Phone, MapPin, Calendar, MessageCircle, Plus, ExternalLink, Tag,
+    Package, ChevronDown, User, Home, ShoppingBag, StickyNote, CreditCard, Truck, Ban,
 } from "lucide-react";
 import { cn, formatIQD, getStatusLabel } from "@/lib/utils";
 import type { Locale } from "@/lib/i18n";
@@ -20,12 +20,12 @@ import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
-    hasRatedScore, averageBasket, displayScore, effectiveSuccessRate, codRiskKey, VALUE_META,
+    hasRatedScore, averageBasket, displayScore, effectiveSuccessRate, codRiskKey, VALUE_META, customerAccent,
 } from "@/lib/customer-reliability";
-import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
+import { ValuePill, RiskChip, ValueIcon, RiskIcon } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
-import { monogram, formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
+import { monogram, formatPhoneDisplay, formatBaghdadMonthYear, toIraqE164 } from "@/lib/customer-format";
 import { addToBlacklist, removeFromBlacklist, fetchBlacklistEntry } from "@/lib/blacklist";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useOrderCrud } from "@/hooks/use-order-crud";
@@ -99,8 +99,7 @@ function fmtDate(locale: string, d?: string | null) {
 }
 function monthYear(locale: string, d?: string | null) {
     if (!d) return "—";
-    const dt = new Date(d);
-    return Number.isNaN(dt.getTime()) ? "—" : dt.toLocaleDateString(dateLocale(locale), { month: "short", year: "numeric" });
+    return Number.isNaN(Date.parse(d)) ? "—" : formatBaghdadMonthYear(d, locale);
 }
 
 function useCustomerDialogData(phone: string | null, limit = 60) {
@@ -255,14 +254,14 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
                                 {(order.address_details || order.governorate_code) && (
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background border border-(--card-border) text-muted-foreground max-w-full">
                                         <MapPin className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="truncate">{[order.address_details, order.governorate_code && (governorateLabel(order.governorate_code, locale) || order.governorate_code)].filter(Boolean).join(" · ")}</span>
+                                        <span dir="auto" className="truncate">{[order.address_details, order.governorate_code && (governorateLabel(order.governorate_code, locale) || order.governorate_code)].filter(Boolean).join(" · ")}</span>
                                     </span>
                                 )}
                             </div>
                             {order.notes && (
                                 <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[13px] text-amber-900">
                                     <StickyNote className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
-                                    <span>{order.notes}</span>
+                                    <span dir="auto">{order.notes}</span>
                                 </div>
                             )}
                         </div>
@@ -417,6 +416,8 @@ function Body({
     const risk = customer.risk_level;
     const rated = hasRatedScore(customer.trust_tier);
     const meta = VALUE_META[value];
+    const accent = customerAccent(value, risk);
+    const unsafe = risk === "blocked" || risk === "high";
     const e164 = toIraqE164(customer.phone);
     const gov = customer.governorate ? governorateLabel(customer.governorate, locale) || customer.governorate : null;
     const codKey = codRiskKey(risk);
@@ -453,18 +454,13 @@ function Body({
                     </span>
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2.5 flex-wrap">
-                            <h2 className="text-xl font-extrabold tracking-tight truncate">{customer.name}</h2>
+                            <h2 dir="auto" className="text-xl font-extrabold tracking-tight truncate min-w-0">{customer.name}</h2>
                             <ValuePill tier={value} variant="compact" />
                             <RiskChip risk={risk} showClean />
-                            {customer.completed_count > 3 && (
-                                <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">
-                                    <Star className="w-2.5 h-2.5" />{t("customers.loyal")}
-                                </span>
-                            )}
                         </div>
                         <div className="flex items-center gap-x-4 gap-y-1 mt-1 text-[13px] text-muted-foreground flex-wrap">
                             <span className="font-mono tabular-nums inline-flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{formatPhoneDisplay(customer.phone)}</span>
-                            {gov && <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{gov}</span>}
+                            {gov && <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /><bdi>{gov}</bdi></span>}
                             <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{t("customers.drawer.since", { date: monthYear(locale, data?.firstOrderDate ?? customer.first_order_date) })}</span>
                         </div>
                     </div>
@@ -476,21 +472,21 @@ function Body({
                 {/* Scroll body */}
                 <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                     {/* Value + COD-risk band */}
-                    <div className="grid md:grid-cols-[1fr_auto] gap-3 items-stretch">
-                        <div className={cn("rounded-2xl p-4 flex items-center justify-between gap-3", meta.pillBg)}>
+                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-stretch">
+                        <div className={cn("min-w-0 rounded-2xl p-4 flex items-center justify-between gap-3", accent.surfaceBg)}>
                             <div className="flex items-center gap-3 min-w-0">
-                                <span className="w-9 h-9 rounded-xl bg-white/60 flex items-center justify-center shrink-0">
-                                    <ShieldCheck className={cn("w-5 h-5", meta.pillText)} />
+                                <span className={cn("w-9 h-9 rounded-xl bg-white/60 dark:bg-white/10 flex items-center justify-center shrink-0", accent.surfaceText)}>
+                                    {unsafe ? <RiskIcon risk={risk} className="w-5 h-5" /> : <ValueIcon tier={value} className="w-5 h-5" />}
                                 </span>
-                                <div className={cn("min-w-0", meta.pillText)}>
-                                    <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">{t("customers.value.label", "Value")}</div>
-                                    <div className="text-lg font-extrabold leading-tight">{t(`customers.value.${value}`, meta.label)}</div>
-                                    <div className="text-[12px] font-medium opacity-80 truncate">{t(codKey)}</div>
+                                <div className={cn("min-w-0", accent.surfaceText)}>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">{unsafe ? t("customers.risk.label", "COD risk") : t("customers.value.label", "Value")}</div>
+                                    <div className="text-lg font-extrabold leading-tight">{unsafe ? t(`customers.risk.${risk}`) : t(`customers.value.${value}`, meta.label)}</div>
+                                    <div className="text-[12px] font-medium opacity-80">{t(codKey)}</div>
                                 </div>
                             </div>
-                            {rated && <div className={cn("font-mono text-3xl font-semibold tabular-nums shrink-0", meta.pillText)}>{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>}
+                            {rated && <div className={cn("font-mono text-3xl font-semibold tabular-nums shrink-0", accent.surfaceText)}>{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>}
                         </div>
-                        <div className="rounded-2xl border border-(--card-border) bg-background p-3 flex flex-col justify-center gap-2 min-w-[150px]">
+                        <div className="rounded-2xl border border-(--card-border) bg-background p-3 flex flex-col justify-center gap-2 min-w-0 md:min-w-[150px]">
                             <RiskChip risk={risk} showClean />
                             <CustomerStatusFlags customer={customer} max={4} />
                         </div>
@@ -500,7 +496,7 @@ function Body({
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                         {stats.map((s) => (
                             <div key={s.k} className="rounded-2xl border border-(--card-border) bg-background p-3.5">
-                                <div className="font-mono text-xl font-extrabold tabular-nums tracking-tight truncate">{s.v}</div>
+                                <div className="font-mono text-xl font-extrabold tabular-nums tracking-tight whitespace-nowrap">{s.v}</div>
                                 <div className="text-xs text-muted-foreground mt-0.5">{s.k}</div>
                             </div>
                         ))}
@@ -530,7 +526,7 @@ function Body({
                                                         <span className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", im.cls)}><Icon className="w-3.5 h-3.5" /></span>
                                                         <div className="min-w-0 flex-1">
                                                             <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t(`customers.dialog.field.${ev.type}`, im.label)} · {fmtDate(locale, ev.at)}</div>
-                                                            <div className="text-[13px] truncate">{ev.value}</div>
+                                                            <div dir="auto" className="text-[13px] truncate text-left">{ev.type === "phone" ? formatPhoneDisplay(ev.value) : ev.value}</div>
                                                         </div>
                                                     </div>
                                                 );
@@ -548,7 +544,7 @@ function Body({
                                 {data && data.notes.length > 0 && (
                                     <div className="mb-3 space-y-2">
                                         {data.notes.map((n, i) => (
-                                            <div key={i} className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[13px] text-amber-900">{n.note}</div>
+                                            <div key={i} dir="auto" className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[13px] text-amber-900 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-200">{n.note}</div>
                                         ))}
                                     </div>
                                 )}

@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MessageCircle, Phone, ShieldCheck, Star } from "lucide-react";
-import { toIraqE164 } from "@/lib/customer-format";
+import { MessageCircle, Phone, ShieldAlert, ShieldCheck, Star } from "lucide-react";
+import { formatBaghdadMonthYear, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { TRUST_TIER_CONFIG, type TrustTier } from "@/types/customer";
@@ -11,13 +11,17 @@ import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
 import { ConfidenceIndicator } from "@/components/customers/shared/confidence-indicator";
-import { displayScore, hasRatedScore } from "@/lib/customer-reliability";
+import { displayScore, hasRatedScore, VALUE_META, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
+import { RiskChip, ValuePill } from "@/components/customers/reliability-pill";
 
 interface HeroIdentityBannerProps {
     name: string;
     phone: string;
     city?: string | null;
     tier: TrustTier;
+    /** Value and COD-risk axes, the same labels the list and drawer show. Null until the reliability read is in. */
+    valueTier: ValueTier | null;
+    riskLevel: RiskLevel | null;
     /** Null until the customer has been scored. */
     trustScore: number | null;
     totalOrders: number;
@@ -43,6 +47,8 @@ export function HeroIdentityBanner({
     phone,
     city,
     tier,
+    valueTier,
+    riskLevel,
     trustScore,
     totalOrders,
     isBlacklisted,
@@ -55,25 +61,18 @@ export function HeroIdentityBanner({
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const config = TRUST_TIER_CONFIG[tier];
 
-    const initials = name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase();
+    const valueMeta = valueTier ? VALUE_META[valueTier] : null;
+    const blocked = isBlacklisted || riskLevel === "blocked" || tier === "blocked";
+    // A shield with a tick next to a failing score contradicts it.
+    const unsafe = blocked || riskLevel === "high" || tier === "risky" || tier === "critical";
+    const ShieldIcon = unsafe ? ShieldAlert : ShieldCheck;
 
     // Shown out of 100 the same way the drawer shows it.
     // Unrated ("new") customers have no proven score, same as the drawer.
     // Blocked customers get no score either: "100/100" next to Blocked misleads.
     const shownScore = trustScore === null || !hasRatedScore(tier) ? null : displayScore(trustScore);
 
-    const memberSince = firstOrderDate
-        ? new Date(firstOrderDate).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
-              month: "short",
-              year: "numeric",
-              timeZone: "Asia/Baghdad",
-          })
-        : null;
+    const memberSince = firstOrderDate ? formatBaghdadMonthYear(firstOrderDate, language) : null;
 
     return (
         <motion.div
@@ -92,13 +91,13 @@ export function HeroIdentityBanner({
                 <div className="relative shrink-0">
                     <div
                         className={cn(
-                            "w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 border-[#FBE38E] flex items-center justify-center",
-                            "text-2xl font-bold select-none",
-                            config.bgClass,
-                            config.textClass
+                            "w-16 h-16 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center",
+                            "text-2xl sm:text-3xl font-bold select-none",
+                            valueMeta ? valueMeta.pillBg : config.bgClass,
+                            valueMeta ? valueMeta.pillText : config.textClass
                         )}
                     >
-                        {initials}
+                        {monogram(name)}
                     </div>
 
                     {totalOrders >= 10 && (
@@ -112,38 +111,23 @@ export function HeroIdentityBanner({
 
                 {/* Info block */}
                 <div className="min-w-0">
-                    {/* Name + tier badge */}
+                    {/* Name + the value / COD-risk pills the list and drawer use */}
                     <div className="flex flex-wrap items-center gap-2.5">
-                        <h1 className="text-3xl font-headline font-extrabold tracking-tight text-foreground leading-tight">
+                        <h1 dir="auto" className="text-3xl font-headline font-extrabold tracking-tight text-foreground leading-tight">
                             {name}
                         </h1>
-                        <span
-                            className={cn(
-                                "px-3 py-1 rounded-full text-xs font-bold border",
-                                config.bgClass,
-                                config.textClass,
-                                config.borderClass
-                            )}
-                        >
-                            {t(config.labelKey)}
-                        </span>
-                        {/* The tier chip already says Blocked for a blocked tier. */}
-                        {isBlacklisted && tier !== "blocked" && (
-                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300">
-                                {t("customers.tier.blocked")}
-                            </span>
-                        )}
+                        {valueTier && <ValuePill tier={valueTier} variant="compact" />}
+                        {blocked ? <RiskChip risk="blocked" /> : riskLevel && <RiskChip risk={riskLevel} showClean />}
                     </div>
 
-                    {/* Subtitle */}
-                    <p className="text-muted-foreground font-medium text-sm mt-1">
-                        {city}
-                        {memberSince && (
-                            <>
-                                {city && " • "}
-                                {t("customers.profile.memberSince")} {memberSince}
-                            </>
-                        )}
+                    {/* Phone, then place and tenure */}
+                    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground font-medium text-sm mt-1.5">
+                        <span className="inline-flex items-center gap-1.5 font-mono tabular-nums text-foreground text-[15px]">
+                            <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                            {formatPhoneDisplay(phone)}
+                        </span>
+                        {city && <><span aria-hidden>•</span><bdi>{city}</bdi></>}
+                        {memberSince && <><span aria-hidden>•</span><span>{t("customers.profile.memberSince")} {memberSince}</span></>}
                     </p>
 
                     {/* Tags */}
@@ -154,7 +138,7 @@ export function HeroIdentityBanner({
                                     key={tag.id}
                                     className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground"
                                 >
-                                    {tag.name}
+                                    <bdi>{tag.name}</bdi>
                                 </span>
                             ))}
                         </div>
@@ -199,9 +183,9 @@ export function HeroIdentityBanner({
                                     store.setCommunityRatingContext({ phone });
                                     store.setCommunityRatingModalOpen(true);
                                 }}
-                                className="flex items-center gap-1.5 min-h-11 px-4 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors text-sm font-bold"
+                                className="flex items-center gap-1.5 min-h-11 px-4 rounded-full border border-(--card-border) text-foreground hover:bg-muted/40 transition-colors text-sm font-semibold"
                             >
-                                <Star className="w-3.5 h-3.5" />
+                                <Star className="w-3.5 h-3.5 text-amber-500" />
                                 {t("customers.actions.rate")}
                             </motion.button>
                         )}
@@ -224,16 +208,22 @@ export function HeroIdentityBanner({
                 </span>
 
                 <div className="flex items-end gap-1.5">
-                    <span className="text-5xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
-                        {shownScore === null ? "—" : shownScore.toLocaleString("en-US")}
-                    </span>
-                    {shownScore !== null && <span className="text-lg text-muted-foreground mb-0.5">/100</span>}
+                    {shownScore === null ? (
+                        <span className="text-2xl font-semibold text-muted-foreground leading-none">—</span>
+                    ) : (
+                        <>
+                            <span className="text-5xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
+                                {shownScore.toLocaleString("en-US")}
+                            </span>
+                            <span className="text-lg text-muted-foreground mb-0.5">/100</span>
+                        </>
+                    )}
                 </div>
 
                 {/* Shield icon */}
-                <ShieldCheck
-                    className="w-6 h-6 mt-1"
-                    style={{ color: config.ringColor }}
+                <ShieldIcon
+                    className={cn("w-6 h-6 mt-1", unsafe && "text-rose-600 dark:text-rose-400")}
+                    style={unsafe ? undefined : { color: config.ringColor }}
                 />
 
                 <p className="text-muted-foreground text-[10px] font-medium italic text-right">

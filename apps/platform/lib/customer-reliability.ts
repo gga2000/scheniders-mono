@@ -33,9 +33,9 @@ export interface ValueMeta {
 }
 
 export const VALUE_META: Record<ValueTier, ValueMeta> = {
-    vip: { label: 'VIP', pillBg: 'bg-purple-100', pillText: 'text-purple-800', rail: 'bg-purple-500', dot: 'bg-purple-500' },
-    good: { label: 'Good', pillBg: 'bg-lime-50', pillText: 'text-lime-800', rail: 'bg-lime-400', dot: 'bg-lime-500' },
-    newcomer: { label: 'Newcomer', pillBg: 'bg-blue-50', pillText: 'text-blue-800', rail: 'bg-blue-400', dot: 'bg-blue-400' },
+    vip: { label: 'VIP', pillBg: 'bg-purple-100 dark:bg-purple-500/15', pillText: 'text-purple-800 dark:text-purple-200', rail: 'bg-purple-500', dot: 'bg-purple-500' },
+    good: { label: 'Good', pillBg: 'bg-lime-50 dark:bg-lime-500/15', pillText: 'text-lime-800 dark:text-lime-200', rail: 'bg-lime-400', dot: 'bg-lime-500' },
+    newcomer: { label: 'Newcomer', pillBg: 'bg-blue-50 dark:bg-blue-500/15', pillText: 'text-blue-800 dark:text-blue-200', rail: 'bg-blue-400', dot: 'bg-blue-400' },
 };
 
 /** Mirror of value_tier_calc: VALUE by completed (delivered) orders. */
@@ -58,11 +58,35 @@ export interface RiskMeta {
 }
 
 export const RISK_META: Record<RiskLevel, RiskMeta> = {
-    clean: { label: 'Clean', chipBg: 'bg-emerald-50', chipText: 'text-emerald-700', rail: 'bg-emerald-400', dot: 'bg-emerald-500' },
-    caution: { label: 'Caution', chipBg: 'bg-amber-50', chipText: 'text-amber-800', rail: 'bg-amber-400', dot: 'bg-amber-500' },
-    high: { label: 'High risk', chipBg: 'bg-rose-50', chipText: 'text-rose-700', rail: 'bg-rose-500', dot: 'bg-rose-600' },
-    blocked: { label: 'Blocked', chipBg: 'bg-zinc-800', chipText: 'text-white', rail: 'bg-zinc-800', dot: 'bg-zinc-600' },
+    clean: { label: 'Clean', chipBg: 'bg-emerald-50 dark:bg-emerald-500/15', chipText: 'text-emerald-700 dark:text-emerald-300', rail: 'bg-emerald-400', dot: 'bg-emerald-500' },
+    caution: { label: 'Caution', chipBg: 'bg-amber-50 dark:bg-amber-500/15', chipText: 'text-amber-800 dark:text-amber-300', rail: 'bg-amber-400', dot: 'bg-amber-500' },
+    high: { label: 'High risk', chipBg: 'bg-rose-50 dark:bg-rose-500/15', chipText: 'text-rose-700 dark:text-rose-300', rail: 'bg-rose-500', dot: 'bg-rose-600' },
+    blocked: { label: 'Blocked', chipBg: 'bg-zinc-800 dark:bg-rose-500/20', chipText: 'text-white dark:text-rose-200', rail: 'bg-rose-600', dot: 'bg-rose-600' },
 };
+
+/** The colours a customer's rail, band and banner are drawn in. */
+export interface CustomerAccent {
+    rail: string;
+    surfaceBg: string;
+    surfaceText: string;
+}
+
+const UNSAFE_ACCENT: CustomerAccent = {
+    rail: 'bg-rose-500',
+    surfaceBg: 'bg-rose-50 dark:bg-rose-500/15',
+    surfaceText: 'text-rose-800 dark:text-rose-200',
+};
+
+/**
+ * The value tier colours a customer, except when shipping them COD is unsafe:
+ * a blocked or high-risk customer is drawn in the risk colour, so the
+ * do-not-ship signal is never painted as a green "Good".
+ */
+export function customerAccent(value: ValueTier, risk: RiskLevel): CustomerAccent {
+    if (risk === 'blocked' || risk === 'high') return UNSAFE_ACCENT;
+    const meta = VALUE_META[value];
+    return { rail: meta.rail, surfaceBg: meta.pillBg, surfaceText: meta.pillText };
+}
 
 export interface RiskInput {
     severe_count: number;

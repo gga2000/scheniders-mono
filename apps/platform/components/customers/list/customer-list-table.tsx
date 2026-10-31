@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, MessageCircle, Phone, ChevronRight, Star, Check } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Check } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -10,24 +10,28 @@ import {
     firstDeliveryPending,
     effectiveSuccessRate,
     VALUE_META,
+    customerAccent,
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 
 function successTone(rate: number): string {
-    if (rate >= 80) return "text-lime-700";
-    if (rate >= 50) return "text-amber-600";
-    return "text-rose-600";
+    if (rate >= 80) return "text-lime-700 dark:text-lime-300";
+    if (rate >= 50) return "text-amber-600 dark:text-amber-300";
+    return "text-rose-600 dark:text-rose-300";
 }
 
-function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
+function Th({ children, right, className }: { children: React.ReactNode; right?: boolean; className?: string }) {
     return (
-        <th className={cn("px-4 py-3.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap", right ? "text-right" : "text-left")}>
+        <th className={cn("px-3 py-3.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap", right ? "text-right" : "text-left", className)}>
             {children}
         </th>
     );
 }
+
+/** Keeps the WhatsApp / Call column on screen when the table is wider than its card. */
+const STICKY_ACTIONS = "sticky right-0 shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.25)]";
 
 /** Dense, scannable list view — the toggle counterpart to the card grid. */
 export function CustomerListTable({
@@ -53,7 +57,7 @@ export function CustomerListTable({
                     <thead>
                         <tr className="bg-background border-b border-(--card-border)">
                             {onToggleSelect && (
-                                <th className="px-4 py-3.5 w-10">
+                                <th className="px-3 py-3.5 w-10">
                                     <button
                                         onClick={() => customers.forEach((c) => {
                                             const on = selectedPhones?.has(c.phone);
@@ -75,12 +79,13 @@ export function CustomerListTable({
                             <Th right>{t("customers.totalSpent")}</Th>
                             <Th right>{t("customers.table.success")}</Th>
                             <Th>{t("customers.lastOrder")}</Th>
-                            <Th right>{" "}</Th>
+                            <Th right className={cn(STICKY_ACTIONS, "bg-background")}>{" "}</Th>
                         </tr>
                     </thead>
                     <tbody>
                         {customers.map((c) => {
                             const meta = VALUE_META[c.value_tier];
+                        const accent = customerAccent(c.value_tier, c.risk_level);
                             const pending = firstDeliveryPending(c);
                             const recency = recencyStatus(c.last_order_date, c.risk_level, t);
                             const success = effectiveSuccessRate(c);
@@ -90,10 +95,10 @@ export function CustomerListTable({
                                 <tr
                                     key={c.phone}
                                     onClick={() => (selecting ? onToggleSelect?.(c.phone) : onRowClick(c.phone))}
-                                    className={cn("border-b border-(--card-border) last:border-0 hover:bg-background cursor-pointer transition-colors", selectedPhones?.has(c.phone) && "bg-foreground/3")}
+                                    className={cn("group border-b border-(--card-border) last:border-0 hover:bg-background cursor-pointer transition-colors", selectedPhones?.has(c.phone) && "bg-foreground/3")}
                                 >
                                     {onToggleSelect && (
-                                        <td className="px-4 py-3 w-10 cursor-default" onClick={(e) => { e.stopPropagation(); onToggleSelect(c.phone); }}>
+                                        <td className="px-3 py-3 w-10 cursor-default" onClick={(e) => { e.stopPropagation(); onToggleSelect(c.phone); }}>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onToggleSelect(c.phone); }}
                                                 className={cn("w-5 h-5 rounded-md border flex items-center justify-center transition-colors mx-auto",
@@ -105,56 +110,55 @@ export function CustomerListTable({
                                         </td>
                                     )}
                                     {/* Customer (+ value rail) */}
-                                    <td className="relative px-4 py-3">
-                                        <span className={cn("absolute left-0 inset-y-0 w-1", meta.rail)} aria-hidden />
+                                    <td className="relative px-3 py-3">
+                                        <span className={cn("absolute left-0 inset-y-0 w-1", accent.rail)} aria-hidden />
                                         <div className="flex items-center gap-3">
                                             <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-bold text-[13px] shrink-0", meta.pillBg, meta.pillText)}>
                                                 {monogram(c.name)}
                                             </span>
                                             <div className="min-w-0">
-                                                <div className="font-semibold text-sm text-foreground truncate">{c.name}</div>
+                                                <div dir="auto" className="font-semibold text-sm text-foreground truncate text-left max-w-56">{c.name}</div>
                                                 <div className="font-mono text-xs text-muted-foreground tabular-nums">{formatPhoneDisplay(c.phone)}</div>
                                                 <CustomerStatusFlags customer={c} max={3} className="mt-1" />
                                             </div>
                                         </div>
                                     </td>
                                     {/* Governorate */}
-                                    <td className="px-4 py-3 text-[13px] text-muted-foreground whitespace-nowrap">
+                                    <td className="px-3 py-3 text-[13px] text-muted-foreground whitespace-nowrap">
                                         <span className="inline-flex items-center gap-1.5">
                                             <MapPin className="w-3.5 h-3.5 text-muted-foreground/70" />
                                             {gov || "—"}
                                         </span>
                                     </td>
                                     {/* Value */}
-                                    <td className="px-4 py-3">
+                                    <td className="px-3 py-3">
                                         <ValuePill tier={c.value_tier} variant="compact" />
                                     </td>
                                     {/* Risk */}
-                                    <td className="px-4 py-3">
+                                    <td className="px-3 py-3">
                                         <RiskChip risk={c.risk_level} showClean />
                                     </td>
                                     {/* Orders */}
-                                    <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-foreground">
+                                    <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-foreground">
                                         <span className="inline-flex items-center justify-end gap-1">
-                                            {c.completed_count > 3 && <Star className="w-3 h-3 text-violet-500 fill-violet-500" aria-label={t("customers.loyal")} />}
                                             {c.total_orders.toLocaleString("en-US")}
                                         </span>
                                     </td>
                                     {/* Lifetime value */}
-                                    <td className="px-4 py-3 text-right font-mono text-sm tabular-nums text-foreground">{formatIQD(c.total_spent)}</td>
+                                    <td className="px-3 py-3 text-right font-mono text-sm tabular-nums text-foreground">{formatIQD(c.total_spent)}</td>
                                     {/* Success */}
-                                    <td className={cn("px-4 py-3 text-right font-mono text-sm tabular-nums font-semibold", pending ? "text-muted-foreground" : successTone(success))}>
+                                    <td className={cn("px-3 py-3 text-right font-mono text-sm tabular-nums font-semibold", pending ? "text-muted-foreground" : successTone(success))}>
                                         {pending ? "—" : `${success}%`}
                                     </td>
                                     {/* Last order */}
-                                    <td className="px-4 py-3 whitespace-nowrap">
+                                    <td className="px-3 py-3 min-w-36">
                                         <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
                                             <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} />
-                                            <span>{pending ? t("customers.card.firstDeliveryPending") : recency.label}</span>
+                                            <span dir="auto">{pending ? t("customers.card.firstDeliveryPending") : recency.label}</span>
                                         </span>
                                     </td>
-                                    {/* Actions */}
-                                    <td className="px-4 py-3">
+                                    {/* Actions: pinned to the right edge so they never scroll out of view */}
+                                    <td className={cn("px-3 py-3", STICKY_ACTIONS, "bg-(--card-bg) group-hover:bg-background")}>
                                         <div className="flex items-center gap-1.5 justify-end">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${e164}`, "_blank"); }}
@@ -170,7 +174,6 @@ export function CustomerListTable({
                                             >
                                                 <Phone className="w-4 h-4" />
                                             </button>
-                                            <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
                                         </div>
                                     </td>
                                 </tr>

@@ -3,9 +3,9 @@
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import {
-    statusFlags, codRiskKey, VALUE_META, type ValueTier, type RiskLevel,
+    statusFlags, codRiskKey, customerAccent, type ValueTier, type RiskLevel,
 } from "@/lib/customer-reliability";
-import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
+import { CustomerHeroBand, RiskChip } from "@/components/customers/reliability-pill";
 
 export interface CustomerReliability {
     total_orders: number;
@@ -25,26 +25,32 @@ export interface CustomerReliability {
  * two-axis model as the list, the dialog and the order-creation panel, so the
  * full profile no longer disagrees with everywhere else. Fed by get_customer_reliability.
  */
-export function CustomerValueRiskBanner({ reliability }: { reliability: CustomerReliability | null }) {
+export function CustomerValueRiskBanner({ reliability, successRate }: {
+    reliability: CustomerReliability | null;
+    /** The trust engine's delivery rate (finished orders only), the same figure the delivery card shows. */
+    successRate: number;
+}) {
     const { t } = useLanguage();
     if (!reliability || reliability.total_orders === 0) return null;
 
     const value = reliability.value_tier;
     const risk = reliability.risk_level;
-    const meta = VALUE_META[value];
-    const success = reliability.total_orders > 0
-        ? Math.round((reliability.completed_count / reliability.total_orders) * 100)
-        : 0;
+    const accent = customerAccent(value, risk);
+    // Orders still on the road have neither succeeded nor failed: with none
+    // finished there is no rate yet, not a 0%.
+    const finished = reliability.completed_count + reliability.cancelled_count + reliability.no_response_count
+        + reliability.rejected_count + reliability.returned_count;
     const flags = statusFlags(reliability);
 
     return (
-        <div className={cn("rounded-3xl border border-(--card-border) p-5 flex flex-col lg:flex-row lg:items-center gap-4", meta.pillBg)}>
+        <div className={cn("rounded-3xl border border-(--card-border) p-5 flex flex-col lg:flex-row lg:items-center gap-4", accent.surfaceBg)}>
             <div className="flex items-center gap-3 flex-wrap">
-                <ValuePill tier={value} variant="hero" className="bg-white/60" />
-                <RiskChip risk={risk} showClean />
+                {/* An unsafe customer leads with the risk, like the list card and the drawer. */}
+                <CustomerHeroBand tier={value} risk={risk} className="bg-white/60 dark:bg-white/10" />
+                {risk !== "blocked" && risk !== "high" && <RiskChip risk={risk} showClean />}
             </div>
 
-            <div className={cn("text-sm font-medium lg:max-w-[280px]", meta.pillText)}>
+            <div className={cn("text-sm font-medium lg:max-w-[280px]", accent.surfaceText)}>
                 {t(codRiskKey(risk))}
             </div>
 
@@ -52,9 +58,9 @@ export function CustomerValueRiskBanner({ reliability }: { reliability: Customer
                 {[
                     { v: reliability.total_orders.toLocaleString("en-US"), k: t("customers.orders") },
                     { v: reliability.completed_count.toLocaleString("en-US"), k: t("customers.card.delivered", "Delivered") },
-                    { v: `${success}%`, k: t("customers.table.success", "Success") },
+                    { v: finished > 0 ? `${Math.round(successRate)}%` : "—", k: t("customers.table.success", "Success") },
                 ].map((s) => (
-                    <div key={s.k} className={cn("text-center", meta.pillText)}>
+                    <div key={s.k} className={cn("text-center", accent.surfaceText)}>
                         <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{s.v}</div>
                         <div className="text-[11px] opacity-70 mt-1">{s.k}</div>
                     </div>

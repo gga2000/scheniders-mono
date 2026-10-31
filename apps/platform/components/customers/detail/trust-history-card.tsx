@@ -174,19 +174,20 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                                                 className="group flex-1 flex flex-col items-stretch relative"
                                                 style={{ height: "100%" }}
                                             >
-                                                <div
-                                                    className={cn(
-                                                        "absolute bottom-full mb-1 w-full flex justify-center transition-opacity duration-200",
-                                                        isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                                                    )}
-                                                >
-                                                    <span className="text-[10px] font-bold text-foreground tabular-nums">{score}</span>
-                                                </div>
-                                                <div className="flex-1 flex items-end">
+                                                {/* The score sits on top of its own bar, not at the top of the chart. */}
+                                                <div className="flex-1 flex flex-col justify-end">
+                                                    <div
+                                                        className={cn(
+                                                            "mb-1 w-full flex justify-center transition-opacity duration-200",
+                                                            isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                                                        )}
+                                                    >
+                                                        <span className="text-[10px] font-bold text-foreground tabular-nums">{score}</span>
+                                                    </div>
                                                     <motion.div
                                                         className={cn(
                                                             "w-full rounded-t-2xl transition-colors duration-200",
-                                                            isCurrent ? "bg-[#FBE38E]" : "bg-[#FBE38E]/10 hover:bg-[#FBE38E]/40"
+                                                            isCurrent ? "bg-[#FBE38E]" : "bg-[#FBE38E]/45 hover:bg-[#FBE38E]/70 dark:bg-[#FBE38E]/25"
                                                         )}
                                                         initial={{ height: 0 }}
                                                         animate={{ height: `${heightPct}%` }}
