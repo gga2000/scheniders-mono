@@ -81,7 +81,8 @@ const MarginHeatmapView = dynamic(() => import("@/components/products/views/marg
 import { ForecastingCards } from "@/components/products/forecasting-cards";
 
 // Store
-import { useProductStore } from "@/store/use-product-store";
+import { uniqueCopyValue } from "@/lib/unique-copy-value";
+import { useProductStore, type ViewMode } from "@/store/use-product-store";
 
 export default function ProductsPage() {
     return (
@@ -199,10 +200,9 @@ function ProductsContent() {
         if (urlSyncInitialized.current || !searchParams) return;
         urlSyncInitialized.current = true;
         const viewParam = searchParams.get("view");
-        const validViews = ["grid", "list", "category", "kanban", "heatmap"] as const;
-        if (viewParam && (validViews as readonly string[]).includes(viewParam)) {
-            setViewMode(viewParam as any);
-        }
+        const validViews: readonly ViewMode[] = ["grid", "list", "category", "kanban", "heatmap"];
+        const requestedView = validViews.find((view) => view === viewParam);
+        if (requestedView) setViewMode(requestedView);
         const filterParam = searchParams.get("filters");
         if (filterParam) {
             try {
@@ -303,12 +303,12 @@ function ProductsContent() {
                 result = result.filter((p) => !p.is_visible);
             }
             if (advancedFilters.productType) {
-                result = result.filter((p) => (p as any).product_type === advancedFilters.productType);
+                result = result.filter((p) => p.product_type === advancedFilters.productType);
             }
             if (advancedFilters.hasVariants === "yes") {
-                result = result.filter((p) => (p as any).variants && (p as any).variants.length > 0);
+                result = result.filter((p) => !!p.variants?.length);
             } else if (advancedFilters.hasVariants === "no") {
-                result = result.filter((p) => !(p as any).variants || (p as any).variants.length === 0);
+                result = result.filter((p) => !p.variants?.length);
             }
             if (advancedFilters.tagId && tagMemberIds) {
                 result = result.filter((p) => tagMemberIds.has(p.id));
@@ -384,10 +384,12 @@ function ProductsContent() {
 
     const handleDuplicateProduct = useCallback(async (product: Product) => {
         let newProduct: Product;
+        const takenSkus = new Set(products.flatMap((p) => (p.sku ? [p.sku] : [])));
+        const takenSlugs = new Set(products.flatMap((p) => (p.slug ? [p.slug] : [])));
         try {
         newProduct = await addProduct({
             name: t("products.ed.copyOf", { name: product.name }),
-            sku: product.sku ? `${product.sku}-copy` : undefined,
+            sku: product.sku ? uniqueCopyValue(product.sku, takenSkus) : undefined,
             description: product.description,
             price: product.price,
             compare_at_price: product.compare_at_price || undefined,
@@ -397,7 +399,7 @@ function ProductsContent() {
             image_url: product.image_url,
             tag_color: product.tag_color,
             is_supply: product.is_supply,
-            slug: product.slug ? `${product.slug}-copy` : undefined,
+            slug: product.slug ? uniqueCopyValue(product.slug, takenSlugs) : undefined,
             is_visible: false,
             display_order: product.display_order,
             category_id: product.category_id,
@@ -409,7 +411,7 @@ function ProductsContent() {
             return;
         }
         router.push(`/products/${newProduct.id}/edit`);
-    }, [addProduct, router, reportWriteError, t]);
+    }, [addProduct, products, router, reportWriteError, t]);
 
     const handleDeleteProduct = useCallback(async (product: Product) => {
         try {
