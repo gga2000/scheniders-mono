@@ -27,6 +27,36 @@ export const CUSTOMER_RESTORE_COLUMNS: readonly string[] = [
     "customer_phone", "birthday", "manual_status", "ai_summary", "ai_summary_generated_at", "created_at",
 ];
 
+/**
+ * The smaller tables a vault carries beside products, customers and orders.
+ * Each has its own column list for the same reason as above: a column that is
+ * not named is never written. Foreign keys that must point into the same
+ * store (category parent, assignment tag, expense order, note author) are
+ * checked by the restore action, not here.
+ */
+export const EXTRA_TABLES = ["categories", "expenses", "customer_tags", "customer_tag_assignments", "customer_notes"] as const;
+export type ExtraTable = (typeof EXTRA_TABLES)[number];
+
+/** `parent_id` is set in a second pass, after every category of the file exists. `brand_id` is not restored. */
+export const EXTRA_RESTORE_COLUMNS: Record<ExtraTable, readonly string[]> = {
+    categories: [
+        "id", "name", "slug", "description", "image_url", "display_order", "is_visible", "created_at", "status",
+        "published_at", "unpublish_at", "archived_at", "banner_url", "accent_color", "icon", "name_ar", "name_en",
+        "description_ar", "description_en", "meta_title", "meta_description", "og_image_url", "canonical_url",
+        "show_in_main_nav", "show_in_mega_menu", "show_in_mobile_drawer", "nav_variant", "page_config",
+        "page_config_draft", "landing_page_url", "scope",
+    ],
+    expenses: ["id", "expense_date", "category", "description", "amount", "order_id", "notes", "is_recurring", "recurring_period", "created_at"],
+    customer_tags: ["id", "name", "color", "created_at"],
+    customer_tag_assignments: ["id", "customer_phone", "tag_id", "created_at"],
+    customer_notes: ["id", "customer_phone", "note", "created_at", "created_by"],
+};
+
+/** Order the extras go back in: categories before products, tags before their assignments, orders before expenses. */
+export const EXTRAS_BEFORE_PRODUCTS: readonly ExtraTable[] = ["categories"];
+export const EXTRAS_AFTER_CUSTOMERS: readonly ExtraTable[] = ["customer_tags", "customer_tag_assignments", "customer_notes"];
+export const EXTRAS_AFTER_ORDERS: readonly ExtraTable[] = ["expenses"];
+
 function pick(row: Record<string, unknown>, columns: readonly string[]): Record<string, unknown> {
     const picked: Record<string, unknown> = {};
     for (const name of columns) {
@@ -44,6 +74,10 @@ export function pickProductWrite(row: Record<string, unknown>, tenantId: string,
 
 export function pickCustomerWrite(row: Record<string, unknown>, tenantId: string): Record<string, unknown> {
     return { ...pick(row, CUSTOMER_RESTORE_COLUMNS), tenant_id: tenantId };
+}
+
+export function pickExtraWrite(table: ExtraTable, row: Record<string, unknown>, tenantId: string): Record<string, unknown> {
+    return { ...pick(row, EXTRA_RESTORE_COLUMNS[table]), tenant_id: tenantId };
 }
 
 /** Rows per restore call; server action bodies are capped at 1 MB. */

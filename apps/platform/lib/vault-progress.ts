@@ -4,7 +4,7 @@
  */
 export type VaultProgress =
     | { step: "fetching" | "encrypting" | "finalizing" | "excel" | "csv" | "security" | "syncing" }
-    | { step: "restoring"; table: "customers" | "products" | "orders"; count: number }
+    | { step: "restoring"; table: "customers" | "products" | "orders" | "extras"; count: number }
     | { step: "restoredOrders"; written: number; total: number };
 
 export type VaultErrorCode =

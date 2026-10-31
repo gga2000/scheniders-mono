@@ -11,10 +11,18 @@ import {
     getCloudDownloadUrlAction,
     logVaultEventAction,
     restoreVaultRowsAction,
+    restoreVaultExtrasAction,
     type CloudVaultEntry,
 } from "@/app/actions/vault";
 import { VAULT_BUCKET, MAX_RESTORE_FILE_BYTES, isVaultKeyLongEnough } from "./vault-paths";
-import { RESTORE_ROWS_BATCH_SIZE } from "./vault-restore";
+import {
+    EXTRA_TABLES,
+    EXTRAS_AFTER_CUSTOMERS,
+    EXTRAS_AFTER_ORDERS,
+    EXTRAS_BEFORE_PRODUCTS,
+    RESTORE_ROWS_BATCH_SIZE,
+    type ExtraTable,
+} from "./vault-restore";
 import { VaultError, type VaultProgress } from "./vault-progress";
 import { vaultFileSchema, type VaultData, type VaultRow } from "./vault-schema";
 import * as XLSX from "xlsx";
@@ -103,10 +111,12 @@ async function fetchAllData(options: VaultBackupOptions, onProgress?: (progress:
     if (onProgress) onProgress({ step: "fetching" });
 
     const tenantId = await requireTenantId();
-    const [orders, products, customers] = await Promise.all([
+    const [orders, products, customers, categories, expenses, customerTags, customerTagAssignments, customerNotes] = await Promise.all([
         options.includeOrders ? fetchTableData("orders", tenantId, "id", ORDER_READ_COLUMNS) : Promise.resolve([]),
         options.includeProducts ? fetchProductsWithCost(tenantId) : Promise.resolve([]),
-        options.includeCustomers ? fetchTableData("customer_metadata", tenantId, "customer_phone") : Promise.resolve([])
+        options.includeCustomers ? fetchTableData("customer_metadata", tenantId, "customer_phone") : Promise.resolve([]),
+        // Small tables a restore needs to be complete: product categories, expenses and the customer tags and notes.
+        ...EXTRA_TABLES.map((table) => fetchTableData(table, tenantId, "id")),
     ]);
 
     return {
@@ -117,12 +127,22 @@ async function fetchAllData(options: VaultBackupOptions, onProgress?: (progress:
                 orders: orders.length,
                 products: products.length,
                 customers: customers.length,
+                categories: categories.length,
+                expenses: expenses.length,
+                customer_tags: customerTags.length,
+                customer_tag_assignments: customerTagAssignments.length,
+                customer_notes: customerNotes.length,
             }
         },
         data: {
             orders,
             products,
-            customers
+            customers,
+            categories,
+            expenses,
+            customer_tags: customerTags,
+            customer_tag_assignments: customerTagAssignments,
+            customer_notes: customerNotes,
         }
     };
 }
@@ -175,6 +195,26 @@ function downloadBlob(blob: Blob, filename: string) {
     URL.revokeObjectURL(url);
 }
 
+/** One value per smaller table, typed per table (Object.fromEntries would widen the keys to string). */
+function extrasRecord<T>(build: (table: ExtraTable) => T): Record<ExtraTable, T> {
+    return {
+        categories: build("categories"),
+        expenses: build("expenses"),
+        customer_tags: build("customer_tags"),
+        customer_tag_assignments: build("customer_tag_assignments"),
+        customer_notes: build("customer_notes"),
+    };
+}
+
+/** Sheet names of the smaller tables in the Excel workbook. */
+const EXTRA_SHEET_NAMES: Record<ExtraTable, string> = {
+    categories: "Categories",
+    expenses: "Expenses",
+    customer_tags: "CustomerTags",
+    customer_tag_assignments: "TagAssignments",
+    customer_notes: "CustomerNotes",
+};
+
 /**
  * Exports data to an Excel file with multiple sheets
  */
@@ -196,6 +236,17 @@ function exportToExcel(vaultData: VaultData, filename: string) {
     // Customers Sheet
     const wsCustomers = XLSX.utils.json_to_sheet(vaultData.data.customers);
     XLSX.utils.book_append_sheet(wb, wsCustomers, "Customers");
+
+    // Categories carry JSON page layouts, which a spreadsheet cell holds as text.
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vaultData.data.categories.map((row) => ({
+        ...row,
+        page_config: JSON.stringify(row.page_config ?? null),
+        page_config_draft: JSON.stringify(row.page_config_draft ?? null),
+    }))), EXTRA_SHEET_NAMES.categories);
+    for (const table of EXTRA_TABLES) {
+        if (table === "categories") continue;
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vaultData.data[table]), EXTRA_SHEET_NAMES[table]);
+    }
 
     // Write file
     XLSX.writeFile(wb, filename);
@@ -227,6 +278,13 @@ function exportToCSV(vaultData: VaultData, prefix: string) {
     setTimeout(() => {
         downloadBlob(new Blob(["\ufeff" + csvCustomers], { type: "text/csv;charset=utf-8;" }), `${prefix}_customers.csv`);
     }, 600);
+
+    EXTRA_TABLES.forEach((table, index) => {
+        const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(vaultData.data[table]));
+        setTimeout(() => {
+            downloadBlob(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" }), `${prefix}_${table}.csv`);
+        }, 900 + index * 300);
+    });
 }
 
 /** A JSON column written out as text by the Excel export; a cell that does not parse is refused, not guessed. */
@@ -271,6 +329,13 @@ export async function parseVaultFile(file: File, password?: string): Promise<Vau
             risk_metadata: parseJsonCell(row.risk_metadata, {}),
         }));
 
+        const extras = extrasRecord((table) => readSheet(EXTRA_SHEET_NAMES[table]));
+        extras.categories = extras.categories.map((row) => ({
+            ...row,
+            page_config: parseJsonCell(row.page_config, null),
+            page_config_draft: parseJsonCell(row.page_config_draft, null),
+        }));
+
         if (orders.length === 0 && productsRaw.length === 0 && customersRaw.length === 0) {
             throw new VaultError("emptyExcel", "Excel file doesn't contain valid backup sheets (Orders, Products, Customers).");
         }
@@ -279,9 +344,18 @@ export async function parseVaultFile(file: File, password?: string): Promise<Vau
             metadata: {
                 version: "1.0.0",
                 timestamp: new Date().toISOString(),
-                counts: { orders: orders.length, products: productsRaw.length, customers: customersRaw.length },
+                counts: {
+                    orders: orders.length,
+                    products: productsRaw.length,
+                    customers: customersRaw.length,
+                    categories: extras.categories.length,
+                    expenses: extras.expenses.length,
+                    customer_tags: extras.customer_tags.length,
+                    customer_tag_assignments: extras.customer_tag_assignments.length,
+                    customer_notes: extras.customer_notes.length,
+                },
             },
-            data: { orders, products: productsRaw, customers: customersRaw },
+            data: { orders, products: productsRaw, customers: customersRaw, ...extras },
         });
     } else {
         throw new VaultError("unsupportedFormat", "Unsupported file format for restore. Please use a .scheniders or .xlsx file.");
@@ -315,10 +389,12 @@ export async function calculateVaultDiff(parsedVault: VaultData) {
         compare("products", "id", parsedVault.data.products),
         compare("customer_metadata", "customer_phone", parsedVault.data.customers),
     ]);
+    const extras = extrasRecord((table) => parsedVault.data[table].length);
     return {
         orders,
         products,
         customers,
+        extras,
         timestamp: parsedVault.metadata.timestamp,
         version: parsedVault.metadata.version,
     };
@@ -341,11 +417,14 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (pr
 
         // Every row is written into the active store whatever the file says
         // (Excel files and legacy backups carry none, or another store's).
-        const injectTenant = (items: Record<string, unknown>[] | undefined) =>
+        const injectTenant = (items: Record<string, unknown>[] | undefined): Record<string, unknown>[] =>
             items?.map(item => ({ ...item, tenant_id: tenantId })) ?? [];
         const customers = injectTenant(vaultData.data.customers);
         const products = injectTenant(vaultData.data.products);
         const orders = injectTenant(vaultData.data.orders);
+        const extras = extrasRecord((table) => injectTenant(vaultData.data[table]));
+        const extraCount = EXTRA_TABLES.reduce((sum, table) => sum + extras[table].length, 0);
+        if (extraCount > 0) onProgress?.({ step: "restoring", table: "extras", count: extraCount });
 
         const accessToken = await requireAccessToken();
         const restoreTable = async (table: "customers" | "products", rows: VaultRow[]) => {
@@ -357,8 +436,24 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (pr
             }
         };
 
-        // Customers, then products, then orders (which reference both).
+        const restoreExtras = async (table: ExtraTable | "category_parents", rows: Record<string, unknown>[]) => {
+            for (let start = 0; start < rows.length; start += RESTORE_ROWS_BATCH_SIZE) {
+                const result = await restoreVaultExtrasAction(accessToken, { table, rows: rows.slice(start, start + RESTORE_ROWS_BATCH_SIZE) });
+                if (!result.success) throw new Error(result.error);
+                skipped += result.skipped;
+            }
+        };
+        let skipped = 0;
+
+        // Categories first (products point at them), then customers and their tags and notes,
+        // then products, then orders (which reference both), then expenses (which can point at orders).
+        for (const table of EXTRAS_BEFORE_PRODUCTS) await restoreExtras(table, extras[table]);
+        const parentLinks = extras.categories
+            .filter((row) => typeof row.parent_id === "string")
+            .map((row) => ({ id: row.id, parent_id: row.parent_id }));
+        await restoreExtras("category_parents", parentLinks);
         await restoreTable("customers", customers);
+        for (const table of EXTRAS_AFTER_CUSTOMERS) await restoreExtras(table, extras[table]);
         await restoreTable("products", products);
 
         // 3. Restore Orders (Dependent on Products)
@@ -371,10 +466,14 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (pr
             }
         }
 
+        for (const table of EXTRAS_AFTER_ORDERS) await restoreExtras(table, extras[table]);
+
         await recordVaultEvent("VAULT_RESTORE", {
             orders: orders.length,
             products: products.length,
             customers: customers.length,
+            extras: extraCount,
+            skipped,
         });
     } catch (e: unknown) {
         if (e instanceof Error) throw e;
