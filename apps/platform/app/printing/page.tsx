@@ -12,7 +12,7 @@ import { BatchManager } from "@/components/printing/batch-manager";
 import { BatchDetailsModal } from "@/components/printing/batch-details-modal";
 import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
 import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
-import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateBulkShippingLabelsHTML } from "@/lib/enhanced-label-generator";
+import { EnhancedLabelOptions, printBulkInvoices, generateBulkA6InvoicesHTML } from "@/lib/enhanced-label-generator";
 import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { supabase } from "@/lib/supabase";
@@ -27,13 +27,14 @@ import {
     SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { partitionByShipDay } from "@/lib/order-bulk-scope";
 import { toast } from "@/hooks/use-toast";
 import { useCustomerOrderCounts } from "@/hooks/use-customer-order-counts";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
-import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
+import { sortQueue } from "@/lib/dispatch-queue";
+import { useDispatchRun } from "@/hooks/use-dispatch-run";
 import { QueueFilters, type SortBy } from "@/components/printing/queue-filters";
 import { QueueRow } from "@/components/printing/queue-row";
+import { BatchHistory } from "@/components/printing/batch-history";
 import { DispatchSummary } from "@/components/printing/dispatch-summary";
 import { DispatchActionBar } from "@/components/printing/dispatch-action-bar";
 
@@ -48,16 +49,15 @@ export default function PrintingPage() {
     const [invoiceTemplate, setInvoiceTemplate] = useState<"classic" | "modern" | "prime">("prime");
 
     // UI state
+    const [view, setView] = useState<"queue" | "history">("queue");
     const [showFilters, setShowFilters] = useState(true);
     const [sortBy, setSortBy] = useState<SortBy>("priority");
-    const [sortDirection] = useState<"asc" | "desc">("asc");
 
     // Modal state
     const [showPreview, setShowPreview] = useState(false);
     const [showReprintWarning, setShowReprintWarning] = useState(false);
     // Which action the reprint warning is guarding: sending to the printer or downloading the PDF
     const [reprintAction, setReprintAction] = useState<"print" | "pdf">("print");
-    const [pdfLoading, setPdfLoading] = useState(false);
     const [showShipDialog, setShowShipDialog] = useState(false);
     const [showDeliverDialog, setShowDeliverDialog] = useState(false);
     const [selectedBatch, setSelectedBatch] = useState<PrintBatch | null>(null);
@@ -72,32 +72,10 @@ export default function PrintingPage() {
         fetchBatches();
     }, [fetchBatches]);
 
-    // Sort orders
-    const sortedOrders = useMemo(() => {
-        const sorted = [...printing.printableOrders].sort((a, b) => {
-            let comparison = 0;
-
-            switch (sortBy) {
-                case "priority":
-                    const priorityOrder = { urgent: 0, high: 1, normal: 2 };
-                    comparison = priorityOrder[a.priority || "normal"] - priorityOrder[b.priority || "normal"];
-                    break;
-                case "date":
-                    comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-                    break;
-                case "city":
-                    comparison = (a.city || "").localeCompare(b.city || "");
-                    break;
-                case "price":
-                    comparison = Number(a.price) - Number(b.price);
-                    break;
-            }
-
-            return sortDirection === "asc" ? comparison : -comparison;
-        });
-
-        return sorted;
-    }, [printing.printableOrders, sortBy, sortDirection]);
+    const sortedOrders = useMemo(
+        () => sortQueue(printing.printableOrders, sortBy),
+        [printing.printableOrders, sortBy]
+    );
 
     // Toggle order selection
     const toggleOrderSelection = (orderId: string) => {
@@ -136,206 +114,40 @@ export default function PrintingPage() {
     // Check for reprints
     const reprintOrders = selectedOrdersList.filter((o) => printing.isReprintOrder(o.id));
 
-    // Handle print action
-    const handlePrint = async () => {
-        if (selectedOrders.size === 0) return;
+    const run = useDispatchRun({
+        printing,
+        printType,
+        invoiceTemplate,
+        customerOrderCounts,
+        autoShipAfterPrint,
+        bulkUpdateStatus,
+        setSelection: (ids) => setSelectedOrders(new Set(ids)),
+    });
+    const { pdfLoading } = run;
 
-        // Check for reprints first
+    // Printed orders get a warning first; the dialog remembers whether it guards print or PDF.
+    const startRun = async (action: "print" | "pdf") => {
+        if (selectedOrders.size === 0) return;
         if (reprintOrders.length > 0) {
-            setReprintAction("print");
+            setReprintAction(action);
             setShowReprintWarning(true);
             return;
         }
-
-        await executePrint(selectedOrdersList);
+        await (action === "pdf" ? run.executePdf(selectedOrdersList) : run.executePrint(selectedOrdersList));
     };
 
-    // Record a finished print or PDF run. The output has already left the app by now,
-    // so a failed record must be loud: unrecorded prints look "never printed" and get printed twice.
-    const recordRun = async (ordersToRecord: Order[]): Promise<boolean> => {
-        const batchName = `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', {
-            hour: '2-digit',
-            minute: '2-digit',
-        })}`;
-        const recorded = await printing.recordPrint(
-            ordersToRecord.map((o) => o.id),
-            printType === "labels" ? "label" : "invoice",
-            printing.labelSettings.size,
-            batchName,
-            invoiceTemplate
-        );
-        if (!recorded.success) {
-            toast.error(t("printing.notRecordedTitle"), recorded.error);
-        }
-        return recorded.success;
-    };
+    const runGuarded = (ordersToRun: Order[]) =>
+        reprintAction === "pdf" ? run.executePdf(ordersToRun) : run.executePrint(ordersToRun);
 
-    // Refuse orders a courier could not deliver to; returns true when the run may go ahead.
-    const checkPrintable = (ordersToCheck: Order[]): boolean => {
-        const unprintable = ordersToCheck.filter((o) => hasBlockingFlag(getQueueFlags(o)));
-        if (unprintable.length === 0) return true;
-        toast.warning(
-            t("printing.blockedTitle").replace("{count}", String(unprintable.length)),
-            t("printing.blockedBody")
-        );
-        return false;
-    };
-
-    // Courier file for the selection. Orders postponed to a later day stay home.
-    const handleExport = async (company: "prime" | "waseet") => {
-        if (!checkPrintable(selectedOrdersList)) return;
-        const { shippable, scheduledLater } = partitionByShipDay(selectedOrdersList);
-        if (scheduledLater.length > 0) {
-            toast.warning(
-                t("printing.laterKeptTitle").replace("{count}", String(scheduledLater.length)),
-                t("printing.laterKeptExportBody")
-            );
-        }
-        if (shippable.length === 0) return;
-
-        const result = await printing.exportShipment(company, shippable.map((o) => o.id), shippable);
-        if (!result.success) {
-            toast.error(t("printing.exportFailedTitle"), result.error);
-            return;
-        }
-        if (!result.recorded) {
-            toast.warning(t("printing.exportNotRecordedTitle"), t("printing.exportNotRecordedBody"));
-        } else {
-            toast.success(t("printing.exportDoneTitle").replace("{count}", String(shippable.length)));
-        }
-        setSelectedOrders(new Set(scheduledLater.map((o) => o.id)));
-    };
-
-    // Execute print
-    const executePrint = async (ordersToPrint: Order[]) => {
-        if (!checkPrintable(ordersToPrint)) return;
-
-        const labelOptions: EnhancedLabelOptions = {
-            ...printing.labelSettings,
-            invoiceTemplate: invoiceTemplate,
-        };
-
-        if (printType === "labels") {
-            if (labelOptions.size === "80x120") {
-                await printBulkShippingLabels(ordersToPrint, labelOptions);
-            } else {
-                await printBulkEnhancedLabels(ordersToPrint, labelOptions, customerOrderCounts);
-            }
-        } else {
-            printBulkInvoices(ordersToPrint, labelOptions);
-        }
-
-        if (!(await recordRun(ordersToPrint))) return;
-
-        if (autoShipAfterPrint) {
-            // Orders postponed to a later day stay home, same rule as the orders page.
-            const { shippable, scheduledLater } = partitionByShipDay(ordersToPrint);
-            if (scheduledLater.length > 0) {
-                toast.warning(
-                    t("printing.laterKeptTitle").replace("{count}", String(scheduledLater.length)),
-                    t("printing.laterKeptPrintBody")
-                );
-            }
-            if (shippable.length > 0) {
-                await bulkUpdateStatus(shippable.map((o) => o.id), "in_transit");
-            }
-            setSelectedOrders(new Set());
-        }
-    };
-
-    // Handle print all (including reprints)
     const handlePrintAll = async () => {
         setShowReprintWarning(false);
-        await (reprintAction === "pdf" ? executePdf(selectedOrdersList) : executePrint(selectedOrdersList));
+        await runGuarded(selectedOrdersList);
     };
 
-    // Handle print new only
     const handlePrintNewOnly = async () => {
         setShowReprintWarning(false);
         const newOrders = selectedOrdersList.filter((o) => !printing.isReprintOrder(o.id));
-        if (newOrders.length > 0) {
-            await (reprintAction === "pdf" ? executePdf(newOrders) : executePrint(newOrders));
-        }
-    };
-
-    // Handle mark as shipped
-    const handleMarkAsShipped = async () => {
-        const { shippable, scheduledLater } = partitionByShipDay(selectedOrdersList);
-        if (scheduledLater.length > 0) {
-            toast.warning(
-                t("printing.laterKeptTitle").replace("{count}", String(scheduledLater.length)),
-                t("printing.laterKeptShipBody")
-            );
-        }
-        if (shippable.length === 0) return;
-        await bulkUpdateStatus(shippable.map((o) => o.id), "in_transit");
-        setSelectedOrders(new Set(scheduledLater.map((o) => o.id)));
-    };
-
-    // Handle mark as delivered
-    const handleMarkAsDelivered = async () => {
-        await bulkUpdateStatus(Array.from(selectedOrders), "delivered");
-        setSelectedOrders(new Set());
-    };
-
-    // Handle download PDF (server-side Puppeteer for vector-quality output)
-    const handleDownloadPDF = async () => {
-        if (selectedOrders.size === 0) return;
-
-        if (reprintOrders.length > 0) {
-            setReprintAction("pdf");
-            setShowReprintWarning(true);
-            return;
-        }
-
-        await executePdf(selectedOrdersList);
-    };
-
-    const executePdf = async (ordersToPrint: Order[]) => {
-        const labelOptions: EnhancedLabelOptions = {
-            ...printing.labelSettings,
-            invoiceTemplate: invoiceTemplate,
-        };
-
-        if (!checkPrintable(ordersToPrint)) return;
-
-        setPdfLoading(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-                toast.error(t("printing.signInAgainTitle"), t("printing.signInAgainBody"));
-                return;
-            }
-
-            let html: string;
-            let filename: string;
-            let pageWidth = '80mm';
-            let pageHeight = '120mm';
-
-            if (printType === "labels" && labelOptions.size === "80x120") {
-                html = await generateBulkShippingLabelsHTML(ordersToPrint, labelOptions);
-                filename = `shipping-labels-${new Date().toISOString().slice(0, 10)}.pdf`;
-            } else if (printType === "labels") {
-                const { generateBulkLabelsHTML } = await import("@/lib/enhanced-label-generator");
-                html = await generateBulkLabelsHTML(ordersToPrint, labelOptions, customerOrderCounts);
-                filename = `labels-${new Date().toISOString().slice(0, 10)}.pdf`;
-                pageWidth = '210mm';
-                pageHeight = '297mm';
-            } else {
-                html = await generateBulkA6InvoicesHTML(ordersToPrint, labelOptions);
-                filename = `invoices-${new Date().toISOString().slice(0, 10)}.pdf`;
-                pageWidth = '210mm';
-                pageHeight = '297mm';
-            }
-
-            await downloadLabelPdf(html, filename, session.access_token, pageWidth, pageHeight);
-            await recordRun(ordersToPrint);
-        } catch (err) {
-            console.error("PDF generation error:", err);
-            toast.error(t("printing.pdfFailedTitle"), t("printing.pdfFailedBody"));
-        } finally {
-            setPdfLoading(false);
-        }
+        if (newOrders.length > 0) await runGuarded(newOrders);
     };
 
     if (loading) {
@@ -469,6 +281,36 @@ export default function PrintingPage() {
                         </div>
                     </motion.div>
 
+                    {/* Queue / history switch */}
+                    <div role="tablist" className="flex w-fit gap-1 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1">
+                        {(["queue", "history"] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                role="tab"
+                                aria-selected={view === tab}
+                                onClick={() => setView(tab)}
+                                className={cn(
+                                    "rounded-lg px-4 py-2 text-sm font-medium transition-all",
+                                    view === tab ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground"
+                                )}
+                            >
+                                {tab === "queue"
+                                    ? `${t("printing.view_queue")} (${sortedOrders.length})`
+                                    : `${t("printing.view_history")} (${printing.batches.length})`}
+                            </button>
+                        ))}
+                    </div>
+
+                    {view === "history" ? (
+                        <BatchHistory
+                            batches={printing.batches}
+                            onOpen={(batch) => {
+                                setSelectedBatch(batch);
+                                setShowBatchDetails(true);
+                            }}
+                        />
+                    ) : (
+                        <>
                     {/* Filters & Settings Panel */}
                     <AnimatePresence>
                         {showFilters && (
@@ -509,10 +351,6 @@ export default function PrintingPage() {
                                     }
                                     onExportCSV={(ids) => printing.exportToCSV(ids, sortedOrders)}
                                     onExportExcel={(ids) => printing.exportToExcel(ids, sortedOrders)}
-                                    onOpenBatchDetails={(batch) => {
-                                        setSelectedBatch(batch);
-                                        setShowBatchDetails(true);
-                                    }}
                                 />
                             </motion.div>
                         )}
@@ -571,15 +409,17 @@ export default function PrintingPage() {
                             )}
                         </StaggerContainer>
                     </motion.div>
+                        </>
+                    )}
                 </div>
 
                 <DispatchActionBar
-                    selectedCount={selectedOrders.size}
+                    selectedCount={view === "queue" ? selectedOrders.size : 0}
                     pdfLoading={pdfLoading}
                     onPreview={() => setShowPreview(true)}
-                    onPrint={handlePrint}
-                    onPdf={handleDownloadPDF}
-                    onExport={(company) => void handleExport(company)}
+                    onPrint={() => void startRun("print")}
+                    onPdf={() => void startRun("pdf")}
+                    onExport={(company) => void run.exportShipment(selectedOrdersList, company)}
                     onShip={() => setShowShipDialog(true)}
                 />
 
@@ -591,7 +431,7 @@ export default function PrintingPage() {
                     printType={printType}
                     labelOptions={{ ...printing.labelSettings, invoiceTemplate }}
                     customerOrderCounts={customerOrderCounts}
-                    onPrint={() => executePrint(selectedOrdersList)}
+                    onPrint={() => startRun("print")}
                 />
 
                 <ReprintWarningModal
@@ -605,14 +445,14 @@ export default function PrintingPage() {
                 <MarkAsShippedDialog
                     isOpen={showShipDialog}
                     onClose={() => setShowShipDialog(false)}
-                    onConfirm={handleMarkAsShipped}
+                    onConfirm={() => run.markShipped(selectedOrdersList)}
                     orderCount={selectedOrders.size}
                 />
 
                 <MarkAsDeliveredDialog
                     isOpen={showDeliverDialog}
                     onClose={() => setShowDeliverDialog(false)}
-                    onConfirm={handleMarkAsDelivered}
+                    onConfirm={() => run.markDelivered(selectedOrdersList)}
                     orderCount={selectedOrders.size}
                 />
 

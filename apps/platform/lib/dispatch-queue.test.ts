@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPickList, getQueueFlags, hasBlockingFlag } from "./dispatch-queue";
+import { buildPickList, getQueueFlags, hasBlockingFlag, sortQueue } from "./dispatch-queue";
 
 const NOW = new Date("2026-10-31T09:00:00Z").getTime();
 const base = { print_count: 0, scheduled_date: null, phone: "07701234567", address_details: "Street 4", city: "Baghdad" };
@@ -50,5 +50,40 @@ describe("buildPickList", () => {
     it("merges per-unit lines of the same product", () => {
         const list = buildPickList([{ items: [item("Fusion", 1, { product_id: "p1" }), item("Fusion", 1, { product_id: "p1" })] }]);
         expect(list).toEqual([{ key: "p1||new", name: "Fusion", quantity: 2, orderCount: 1 }]);
+    });
+});
+
+describe("sortQueue", () => {
+    const row = (id: string, o: Partial<{ priority: "urgent" | "high" | "normal"; created_at: string; city: string; price: number }>) => ({
+        id,
+        priority: "normal" as const,
+        created_at: "2026-10-31T08:00:00Z",
+        city: "Basra",
+        price: 10000,
+        ...o,
+    });
+
+    it("puts urgent before high before normal and keeps ties in input order", () => {
+        const sorted = sortQueue(
+            [row("a", {}), row("b", { priority: "urgent" }), row("c", { priority: "high" }), row("d", {})],
+            "priority"
+        );
+        expect(sorted.map((o) => o.id)).toEqual(["b", "c", "a", "d"]);
+    });
+
+    it("sorts oldest first by date, by city name, and cheapest first by price", () => {
+        const rows = [
+            row("a", { created_at: "2026-10-31T09:00:00Z", city: "Mosul", price: 30000 }),
+            row("b", { created_at: "2026-10-31T07:00:00Z", city: "Erbil", price: 10000 }),
+        ];
+        expect(sortQueue(rows, "date").map((o) => o.id)).toEqual(["b", "a"]);
+        expect(sortQueue(rows, "city").map((o) => o.id)).toEqual(["b", "a"]);
+        expect(sortQueue(rows, "price").map((o) => o.id)).toEqual(["b", "a"]);
+    });
+
+    it("does not mutate its input", () => {
+        const rows = [row("a", { priority: "normal" }), row("b", { priority: "urgent" })];
+        sortQueue(rows, "priority");
+        expect(rows.map((o) => o.id)).toEqual(["a", "b"]);
     });
 });

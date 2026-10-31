@@ -2747,10 +2747,14 @@ export const translations: Record<Locale, Record<string, string>> = {
         "printing.exportForDelivery": "Export for delivery",
         "printing.exportPrime": "Prime",
         "printing.exportWaseet": "Al-Waseet",
-        "printing.filtersToggle": "Filters, labels & history",
+        "printing.filtersToggle": "Filters & label settings",
         "printing.template_classic": "Classic",
         "printing.template_modern": "Modern",
         "printing.template_prime": "Prime",
+        "printing.view_queue": "Queue",
+        "printing.view_history": "History",
+        "printing.history_empty": "No batches yet. Every print, PDF and export you make shows up here.",
+        "printing.history_reprintHint": "Open a batch to reprint it or download it again.",
 
         // ── Team ──
         "team.title": "Team Dashboard",
@@ -7110,10 +7114,14 @@ export const translations: Record<Locale, Record<string, string>> = {
         "printing.exportForDelivery": "تصدير للشحن",
         "printing.exportPrime": "برايم",
         "printing.exportWaseet": "الوسيط",
-        "printing.filtersToggle": "الفلاتر والملصقات والسجل",
+        "printing.filtersToggle": "الفلاتر وإعدادات الملصق",
         "printing.template_classic": "كلاسيك",
         "printing.template_modern": "عصري",
         "printing.template_prime": "برايم",
+        "printing.view_queue": "قائمة الطباعة",
+        "printing.view_history": "السجل",
+        "printing.history_empty": "لا توجد دفعات بعد. كل طباعة أو PDF أو تصدير ستظهر هنا.",
+        "printing.history_reprintHint": "افتح الدفعة لإعادة طباعتها أو تنزيلها مرة أخرى.",
 
         // ── Team ──
         "team.title": "لوحة مراقبة الفريق",

@@ -10,14 +10,12 @@ import {
     Plus,
     X,
     ChevronDown,
-    Calendar,
     FileSpreadsheet,
     FileText,
     FolderPlus,
-    Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatIQD, formatDate } from "@/lib/utils";
+import { formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 
 interface BatchManagerProps {
@@ -28,7 +26,6 @@ interface BatchManagerProps {
     onAddToBatch: (batchId: string, orderIds: string[], ordersData: Order[]) => Promise<{ success: boolean }>;
     onExportCSV: (orderIds: string[]) => void;
     onExportExcel: (orderIds: string[]) => void;
-    onOpenBatchDetails: (batch: PrintBatch) => void;
 }
 
 export function BatchManager({
@@ -39,13 +36,11 @@ export function BatchManager({
     onAddToBatch,
     onExportCSV,
     onExportExcel,
-    onOpenBatchDetails,
 }: BatchManagerProps) {
     const { t } = useLanguage();
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [batchName, setBatchName] = useState("");
     const [creating, setCreating] = useState(false);
-    const [showHistory, setShowHistory] = useState(false);
     const [showAddToBatch, setShowAddToBatch] = useState(false);
     const [addingToBatch, setAddingToBatch] = useState<string | null>(null);
     const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
@@ -203,67 +198,7 @@ export function BatchManager({
                         Excel
                     </button>
                 </div>
-
-                {/* Batch History Toggle */}
-                <button
-                    onClick={() => setShowHistory(!showHistory)}
-                    className={cn(
-                        "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all border",
-                        showHistory
-                            ? "bg-purple-50 text-purple-700 border-purple-200"
-                            : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-border)]"
-                    )}
-                >
-                    <Calendar className="w-4 h-4" />
-                    {t("printing.batch_history")}
-                    <ChevronDown className={cn("w-3 h-3 transition-transform", showHistory && "rotate-180")} />
-                </button>
             </div>
-
-            {/* Batch History */}
-            <AnimatePresence>
-                {showHistory && batches.length > 0 && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="pastel-card p-4 space-y-3">
-                            <h4 className="text-sm font-semibold text-foreground">{t("printing.batch_recent")}</h4>
-                            <div className="space-y-2 max-h-64 overflow-y-auto">
-                                {batches.slice(0, 15).map((batch) => (
-                                    <div
-                                        key={batch.id}
-                                        onClick={() => onOpenBatchDetails(batch)}
-                                        className="flex items-center justify-between p-3 bg-[var(--background)] rounded-xl cursor-pointer hover:bg-[var(--pastel-purple)]/20 transition-all group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-[var(--pastel-purple)] flex items-center justify-center">
-                                                <Package className="w-4 h-4 text-purple-700" />
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-foreground text-sm">{batch.name}</p>
-                                                <div className="flex items-center gap-2 text-xs text-muted">
-                                                    <span>{t("printing.batch_orders").replace("{count}", String(batch.order_count))}</span>
-                                                    <span>•</span>
-                                                    <span>{formatIQD(batch.total_value)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-muted">
-                                                {formatDate(batch.created_at)}
-                                            </span>
-                                            <Eye className="w-4 h-4 text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             {/* Create Batch Modal */}
             <AnimatePresence>
