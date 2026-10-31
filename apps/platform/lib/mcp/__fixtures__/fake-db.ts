@@ -61,6 +61,7 @@ export function fakeDb(tables: Record<string, Row[]>, rpc: Record<string, (args:
                 return chain;
             },
             gte: () => chain,
+            lte: () => chain,
             lt: () => chain,
             like: () => chain,
             limit(n: number) {
