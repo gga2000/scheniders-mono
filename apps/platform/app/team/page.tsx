@@ -13,6 +13,7 @@ import { toast } from "@/hooks/use-toast";
 import { useTeamRealtime, type RealtimeActivity } from "@/components/team/hooks/use-team-realtime";
 import { useInfiniteActivities } from "@/components/team/hooks/use-infinite-activities";
 import { useTeamDailyTrend, useTeamLeaderboard } from "@/components/team/hooks/use-team-leaderboard";
+import { useTeamRollup } from "@/components/team/hooks/use-team-rollup";
 import { TeamStatStrip } from "@/components/team/team-stat-strip";
 import { EmployeeDrawer } from "@/components/team/employee-drawer";
 import { TeamPageHeader } from "@/components/team/team-page-header";
@@ -108,6 +109,9 @@ export default function TeamPage() {
         };
     }, [leaderboard, previousTotals]);
 
+    // Insights charts are counted in the database; only fetched once the tab is opened.
+    const rollup = useTeamRollup({ timeRange, tenantId, enabled: isAdmin && !authLoading && viewMode === "insights", onError: showLoadError });
+
     const { trend, refetchTrend } = useTeamDailyTrend({ tenantId, enabled: isAdmin && !authLoading, onError: showLoadError });
     const actionsTrend = useMemo(() => trend.map((d) => ({ day: d.day, value: d.totalActions })), [trend]);
 
@@ -180,7 +184,7 @@ export default function TeamPage() {
                 refreshing={refreshing}
                 onRefresh={() => {
                     setRefreshing(true);
-                    Promise.all([fetchLeaderboard(), refetchTrend(), infiniteActivities.refresh()])
+                    Promise.all([fetchLeaderboard(), refetchTrend(), infiniteActivities.refresh(), ...(viewMode === "insights" ? [rollup.refetch()] : [])])
                         .catch(showLoadError)
                         .finally(() => setRefreshing(false));
                 }}
@@ -255,9 +259,9 @@ export default function TeamPage() {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
-                        className="space-y-10"
+                        className="space-y-6"
                     >
-                        <TeamAnalyticsTab activities={infiniteActivities.activities} employees={employeesAdapter} />
+                        <TeamAnalyticsTab range={timeRange} insights={rollup.insights} loading={rollup.loading} failed={rollup.failed} />
                         {employeesAdapter.length >= 2 ? (
                             <EmployeeComparison employees={employeesAdapter} />
                         ) : (

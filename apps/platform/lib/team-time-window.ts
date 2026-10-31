@@ -34,3 +34,25 @@ export function teamPreviousWindow(
         end: new Date(baghdadDayStart(currentFirstDay)).toISOString(),
     };
 }
+
+/**
+ * Days the Insights charts cover. A one-day chart says nothing, so "Today" shows the last week;
+ * "All" is capped at a year, the most the rollup RPC accepts.
+ */
+const INSIGHTS_DAYS: Record<TeamTimeRange, number> = { today: 7, week: 7, month: 30, all: 365 };
+
+/** The Insights window as whole Baghdad days ending today, oldest first. */
+export function teamInsightsWindow(range: TeamTimeRange, now: number = Date.now()): {
+    start: string;
+    end: string;
+    dayKeys: string[];
+} {
+    const days = INSIGHTS_DAYS[range];
+    const today = baghdadDayKey(now);
+    const dayKeys = Array.from({ length: days }, (_, i) => addDaysToDayKey(today, i - (days - 1)));
+    return {
+        start: new Date(baghdadDayStart(dayKeys[0])).toISOString(),
+        end: new Date(baghdadDayStart(addDaysToDayKey(today, 1))).toISOString(),
+        dayKeys,
+    };
+}
