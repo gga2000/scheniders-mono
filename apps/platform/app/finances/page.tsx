@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -165,6 +166,7 @@ export default function FinancesPage() {
 }
 
 function FinancesContent() {
+    const { t } = useLanguage();
     const searchParams = useSearchParams();
     const router = useRouter();
     const rawTab = searchParams?.get("tab");
@@ -242,7 +244,7 @@ function FinancesContent() {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-6">
                 <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6 max-w-md text-center">
-                    <h2 className="text-lg font-bold text-rose-700 dark:text-rose-300 mb-1">Couldn't load finances</h2>
+                    <h2 className="text-lg font-bold text-rose-700 dark:text-rose-300 mb-1">{t("finances.loadError")}</h2>
                     <p className="text-sm text-muted">{ordersError}</p>
                 </div>
             </div>
