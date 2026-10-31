@@ -3,6 +3,7 @@ import { withRetry, NonRetryableError } from "./with-retry";
 import type { Product, ProductVariant, ProductPriceHistory } from "@/types/product";
 import { diag } from "@/lib/diag";
 import type { Json } from "@scheniders/supabase";
+import { PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
 
 /**
  * Stock is never part of a generic update. A product edit carries the stock it
@@ -70,6 +71,18 @@ function assertChanged(operation: string, rows: unknown[] | null, expected: numb
     if ((rows?.length ?? 0) < expected) throw new ProductWriteDeniedError(operation);
 }
 
+type ProductCostRow = { product_id: string; variant_id: string | null; cost: number | null; cost_breakdown_json: Json | null };
+
+function costMaps(rows: ProductCostRow[]) {
+    const productCost = new Map<string, { cost: number | null; cost_breakdown_json: Json | null }>();
+    const variantCost = new Map<string, number | null>();
+    for (const row of rows) {
+        if (row.variant_id) variantCost.set(row.variant_id, row.cost);
+        else productCost.set(row.product_id, { cost: row.cost, cost_breakdown_json: row.cost_breakdown_json });
+    }
+    return { productCost, variantCost };
+}
+
 /**
  * ProductRepository — Centralized data access for products.
  */
@@ -80,16 +93,42 @@ export const productRepository = {
             const _t = performance.now();
             diag.log(`[Diag:ProductRepo] findAll query START`);
 
-            const { data, error } = await supabase
-                .from("products")
-                .select(`*, variants:product_variants(*)`)
-                .eq("tenant_id", tenantId)
-                .order("created_at", { ascending: false });
+            // Cost is not a readable column: product_costs returns it, and only
+            // what this member may see (everything for admins, supplies only
+            // for other editors, nothing otherwise).
+            const [{ data, error }, { data: costs, error: costError }] = await Promise.all([
+                supabase
+                    .from("products")
+                    .select(PRODUCT_WITH_VARIANTS_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .order("created_at", { ascending: false }),
+                supabase.rpc("product_costs", { p_tenant_id: tenantId }),
+            ]);
 
             diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);
             if (error) throw error;
-            return data || [];
+            if (costError) throw costError;
+            const { productCost, variantCost } = costMaps(costs ?? []);
+            return (data ?? []).map((product) => ({
+                ...product,
+                cost: productCost.get(product.id)?.cost ?? null,
+                cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
+                variants: (product.variants ?? []).map((variant) => ({
+                    ...variant,
+                    cost: variantCost.get(variant.id) ?? null,
+                })),
+            })) as Product[];
         });
+    },
+
+    /**
+     * Product cost by product id for the products of `tenantId` this member may
+     * see cost of (all for admins, supplies for other editors). Missing = hidden.
+     */
+    async getProductCosts(tenantId: string): Promise<Map<string, number | null>> {
+        const { data, error } = await supabase.rpc("product_costs", { p_tenant_id: tenantId });
+        if (error) throw error;
+        return new Map([...costMaps(data ?? []).productCost].map(([id, c]) => [id, c.cost]));
     },
 
     /**
@@ -197,7 +236,7 @@ export const productRepository = {
             const { data: newProduct, error } = await supabase
                 .from("products")
                 .insert([{ ...data, is_archived: false, tenant_id: tenantId }])
-                .select()
+                .select(PRODUCT_READ_COLUMNS)
                 .single();
 
             if (error) throw error;
@@ -402,7 +441,7 @@ export const productRepository = {
             const { data: newVariant, error } = await supabase
                 .from("product_variants")
                 .insert([{ product_id: productId, ...data, tenant_id: tenantId }])
-                .select()
+                .select(VARIANT_READ_COLUMNS)
                 .single();
 
             if (error) throw error;
@@ -564,15 +603,21 @@ export const productRepository = {
     /** Fetch suppliers for a product, primary first then by created_at. */
     async getSuppliers(productId: string): Promise<any[]> {
         return withRetry('productRepository.getSuppliers', async () => {
-            const { data, error } = await supabase
-                .from("product_suppliers")
-                .select("*")
-                .eq("product_id", productId)
-                .order("is_primary", { ascending: false })
-                .order("created_at", { ascending: true });
+            const [{ data, error }, { data: costs, error: costError }] = await Promise.all([
+                supabase
+                    .from("product_suppliers")
+                    .select(SUPPLIER_READ_COLUMNS)
+                    .eq("product_id", productId)
+                    .order("is_primary", { ascending: false })
+                    .order("created_at", { ascending: true }),
+                // Unit cost only for members who may see cost.
+                supabase.rpc("product_supplier_costs", { p_product_id: productId }),
+            ]);
 
             if (error) throw error;
-            return data || [];
+            if (costError) throw costError;
+            const unitCost = new Map((costs ?? []).map((row: { id: string; unit_cost: number | null }) => [row.id, row.unit_cost]));
+            return (data ?? []).map((supplier) => ({ ...supplier, unit_cost: unitCost.get(supplier.id) ?? null }));
         });
     },
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import type { Product, ProductVariant, VariantOptionType, OptionValueMetadata, CostBreakdown } from "@/types/product";
 import { isCanonicalSlug, slugify } from "@scheniders/shared";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -11,6 +11,8 @@ import { productRepository } from "@/lib/repositories/product-repository";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { productWriteErrorKey } from "@/lib/product-write-error";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 
 export interface ProductOptionFormData {
     id?: string;
@@ -501,6 +503,13 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     const { addProduct, updateProduct, addVariant, updateVariant, deleteVariant } = useProductsCrud();
     const { tenantId } = useAuth();
     const { t } = useLanguage();
+    const { can } = usePermission();
+    // Cost is readable only by admins (product_costs, migration
+    // 20261031004000), plus a supply's own cost, which is its price. Anyone
+    // else loaded no cost, so their saves leave cost untouched instead of
+    // writing back the empty value.
+    const showCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS)
+        || mode === "create" || !!product?.is_supply;
 
     const emptyForm = useMemo(
         () => (defaultIsSupply ? { ...DEFAULT_FORM_DATA, is_supply: true } : DEFAULT_FORM_DATA),
@@ -903,7 +912,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 relation_type: r.relation_type,
                 display_order: r.display_order,
             })),
-            product_suppliers: formData.suppliers.map((s) => ({
+            ...(showCost && { product_suppliers: formData.suppliers.map((s) => ({
                 supplier_name: s.supplier_name,
                 supplier_contact: s.supplier_contact || undefined,
                 supplier_email: s.supplier_email || undefined,
@@ -912,14 +921,14 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 unit_cost: s.unit_cost,
                 notes: s.notes || undefined,
                 is_primary: s.is_primary,
-            })),
+            })) }),
             product_bundle_items: formData.bundle_items.map((b) => ({
                 child_product_id: b.child_product_id,
                 quantity: b.quantity,
                 display_order: b.display_order,
             })),
         });
-    }, [formData]);
+    }, [formData, showCost]);
 
     // Save
     const save = useCallback(async () => {
@@ -1078,13 +1087,12 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     sku: formData.sku.trim() || null,
                     price: formData.price,
                     compare_at_price: formData.compare_at_price || null,
-                    cost: formData.cost,
+                    ...(showCost && { cost: formData.cost, cost_breakdown_json: formData.cost_breakdown_json }),
                     low_stock_threshold: formData.low_stock_threshold,
                     reorder_point: formData.reorder_point,
                     image_url: formData.image_url,
                     tag_color: formData.tag_color,
                     barcode: formData.barcode.trim() || null,
-                    cost_breakdown_json: formData.cost_breakdown_json,
                     is_supply: formData.is_supply,
                     is_filler: formData.is_filler,
                     slug: formData.slug || undefined,
@@ -1134,7 +1142,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         await updateVariant(variant.id, {
                             name: variant.name,
                             price: variant.price,
-                            cost: variant.cost,
+                            ...(showCost && { cost: variant.cost }),
                             sku: variant.sku,
                             option_values: variant.option_values,
                             image_url: variant.image_url,
@@ -1229,7 +1237,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         } finally {
             setSaving(false);
         }
-    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t]);
+    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost]);
 
     // Duplicate product
     const duplicateProduct = useCallback(async () => {
@@ -1307,6 +1315,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     }, [formData, product, addProduct, addVariant, router, saveRelatedData, tenantId, t]);
 
     return {
+        showCost,
         formData,
         setFormData,
         updateField,

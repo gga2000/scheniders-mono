@@ -8728,6 +8728,7 @@ export type Database = {
           is_filler: boolean
           low_stock_threshold: number
           name: string
+          short_name: string | null
           ob_left: number
           ob_reserved: number
           on_hand: number
@@ -8913,6 +8914,22 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      product_costs: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          cost: number | null
+          cost_breakdown_json: Json | null
+          product_id: string
+          variant_id: string | null
+        }[]
+      }
+      product_supplier_costs: {
+        Args: { p_product_id: string }
+        Returns: {
+          id: string
+          unit_cost: number | null
+        }[]
       }
       save_product_children: {
         Args: { p_children: Json; p_product_id: string }

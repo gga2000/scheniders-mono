@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useId } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 

@@ -46,7 +46,7 @@ import {
     PERMISSIONS as ALL_PERMISSIONS
 } from "@/lib/permissions";
 import { activityLogger, ActivityLogEntry } from "@/lib/activity-logger";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { toggleRolePermissionAction, toggleUserOverrideAction } from "@/app/actions/permissions";
 
 // Types

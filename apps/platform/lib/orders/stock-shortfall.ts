@@ -50,7 +50,8 @@ export function findStockShortfalls(
                 ? (stock.open_box_quantity ?? 0)
                 : (stock.stock_quantity ?? 0) - (stock.reserved_quantity ?? 0);
             const key = `${variant?.id ?? product.id}:${isOpenBox ? "ob" : "new"}`;
-            const name = variant ? `${product.name} · ${variant.name}` : product.name;
+            const base = product.short_name?.trim() || product.name;
+            const name = variant ? `${base} · ${variant.name}` : base;
             const prev = need.get(key);
             need.set(key, { name, isOpenBox, qty: (prev?.qty ?? 0) + qty, left });
         }

@@ -19,7 +19,7 @@ import {
     GripVertical,
     ChevronDown,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { StockIndicator } from "./stock-indicator";
 import { StockQuickAdjust } from "./stock-quick-adjust";
 import { QuickActionsMenu } from "./quick-actions-menu";

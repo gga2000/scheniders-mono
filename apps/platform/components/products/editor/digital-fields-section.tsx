@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Download, Key, FileText, Upload, Loader2, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 

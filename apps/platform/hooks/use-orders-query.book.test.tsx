@@ -40,7 +40,6 @@ vi.mock("@/components/auth/auth-provider", () => ({
     useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: H.tenantId, user: { id: "user-1" } }),
 }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn() }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { orderKeys, setOrderBatcher, useOrdersQuery } from "./use-orders-query";
 import { RealtimeBatcher } from "@/lib/realtime-batcher";

@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { productRepository } from "@/lib/repositories/product-repository";
+import { PRODUCT_READ_COLUMNS } from "@/lib/repositories/product-columns";
 import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import type { QCItem, QCStatus, QCResolution, QCEvent, QCReasonCategory } from "@/types/product";
 import { useEffect, useRef } from "react";
@@ -23,19 +24,25 @@ export const qcKeys = {
  * `authenticated`'s grant (orders-select-guard.test.ts).
  */
 const QC_ORDER_COLUMNS = "id, order_id, customer_name, phone, status, created_at, tenant_id";
+const QC_ITEM_COLUMNS = `*, product:products(${PRODUCT_READ_COLUMNS}), order:orders(${QC_ORDER_COLUMNS})` as const;
 
 async function fetchQCItems(): Promise<QCItem[]> {
     const { data, error } = await supabase
         .from("qc_quarantine")
-        .select(`
-            *,
-            product:products(*),
-            order:orders(${QC_ORDER_COLUMNS})
-        `)
+        .select(QC_ITEM_COLUMNS)
         .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return (data || []) as QCItem[];
+    const items = (data || []) as QCItem[];
+    // Cost is not a readable column; it comes per store from product_costs,
+    // and only for members who may see it (the held-stock value stays 0
+    // otherwise).
+    const tenants = [...new Set(items.map((item) => item.tenant_id).filter((id): id is string => !!id))];
+    const costs = await Promise.all(tenants.map((tenant) => productRepository.getProductCosts(tenant)));
+    const costOf = (id: string) => costs.reduce<number | null>((found, map) => found ?? map.get(id) ?? null, null);
+    return items.map((item) =>
+        item.product ? { ...item, product: { ...item.product, cost: costOf(item.product.id) ?? undefined } } : item
+    );
 }
 
 async function fetchQCEvents(qcItemId: string): Promise<QCEvent[]> {
