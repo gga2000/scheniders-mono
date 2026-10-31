@@ -14,6 +14,7 @@ import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal
 import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
 import { DateRangePicker } from "@scheniders/ui/date-range-picker";
 import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateBulkShippingLabelsHTML } from "@/lib/enhanced-label-generator";
+import { exportOrdersToPrimeCSV } from "@/lib/export-utils";
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -189,6 +190,31 @@ export default function PrintingPage() {
         return false;
     };
 
+    // Courier file for the selection. Orders postponed to a later day stay home.
+    const handleExport = async (company: "prime" | "waseet") => {
+        if (!checkPrintable(selectedOrdersList)) return;
+        const { shippable, scheduledLater } = partitionByShipDay(selectedOrdersList);
+        if (scheduledLater.length > 0) {
+            toast.warning(
+                t("printing.laterKeptTitle").replace("{count}", String(scheduledLater.length)),
+                t("printing.laterKeptExportBody")
+            );
+        }
+        if (shippable.length === 0) return;
+
+        const result = await printing.exportShipment(company, shippable.map((o) => o.id), shippable);
+        if (!result.success) {
+            toast.error(t("printing.exportFailedTitle"), result.error);
+            return;
+        }
+        if (!result.recorded) {
+            toast.warning(t("printing.exportNotRecordedTitle"), t("printing.exportNotRecordedBody"));
+        } else {
+            toast.success(t("printing.exportDoneTitle").replace("{count}", String(shippable.length)));
+        }
+        setSelectedOrders(new Set(scheduledLater.map((o) => o.id)));
+    };
+
     // Execute print
     const executePrint = async (ordersToPrint: Order[]) => {
         if (!checkPrintable(ordersToPrint)) return;
@@ -317,7 +343,7 @@ export default function PrintingPage() {
             <div className="min-h-screen flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-purple)] border-t-transparent animate-spin"></div>
-                    <p className="text-muted font-medium">Loading print queue...</p>
+                    <p className="text-muted font-medium">{t("printing.loading")}</p>
                 </div>
             </div>
         );
@@ -352,7 +378,7 @@ export default function PrintingPage() {
                                     {t("printing.title")}
                                 </h1>
                                 <p className="text-muted mt-1 text-lg">
-                                    {sortedOrders.length} confirmed orders ready to print
+                                    {sortedOrders.length} {t("printing.subtitle")}
                                     {selectedOrders.size > 0 && ` • ${selectedOrders.size} selected`}
                                 </p>
                             </div>
@@ -374,7 +400,7 @@ export default function PrintingPage() {
                                                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-blue)] text-blue-900 hover:shadow-md transition-all font-medium text-sm"
                                             >
                                                 <Eye className="h-4 w-4" />
-                                                Preview
+                                                {t("printing.preview")}
                                             </button>
 
                                             {/* Print Button */}
@@ -383,7 +409,7 @@ export default function PrintingPage() {
                                                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--ink)] text-white shadow-lg hover:scale-[1.02] transition-all font-semibold text-sm"
                                             >
                                                 <Printer className="h-4 w-4" />
-                                                Print {selectedOrders.size}
+                                                {t("printing.print")} {selectedOrders.size}
                                             </button>
 
                                             {/* Download PDF Button */}
@@ -417,7 +443,7 @@ export default function PrintingPage() {
                                                         <div className="absolute top-full mt-1 right-0 z-50 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-[180px]">
                                                             <button
                                                                 onClick={() => {
-                                                                    printing.exportToPrimeCSV(Array.from(selectedOrders), sortedOrders);
+                                                                    void handleExport("prime");
                                                                     setShowExportMenu(false);
                                                                 }}
                                                                 className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
@@ -427,7 +453,7 @@ export default function PrintingPage() {
                                                             </button>
                                                             <button
                                                                 onClick={() => {
-                                                                    printing.exportToWaseetCSV(Array.from(selectedOrders), sortedOrders);
+                                                                    void handleExport("waseet");
                                                                     setShowExportMenu(false);
                                                                 }}
                                                                 className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
@@ -446,7 +472,7 @@ export default function PrintingPage() {
                                                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-green)] text-emerald-900 hover:shadow-md transition-all font-medium text-sm"
                                             >
                                                 <Truck className="h-4 w-4" />
-                                                Ship
+                                                {t("printing.ship")}
                                             </button>
                                         </motion.div>
                                     )}
@@ -467,7 +493,7 @@ export default function PrintingPage() {
                                     )}
                                 >
                                     <Tag className="w-4 h-4" />
-                                    Labels
+                                    {t("printing.labels")}
                                 </button>
                                 <button
                                     onClick={() => setPrintType("invoices")}
@@ -479,7 +505,7 @@ export default function PrintingPage() {
                                     )}
                                 >
                                     <FileText className="w-4 h-4" />
-                                    Invoices
+                                    {t("printing.invoices")}
                                 </button>
                             </div>
 
@@ -557,7 +583,7 @@ export default function PrintingPage() {
                                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" />
                                             <input
                                                 type="text"
-                                                placeholder="Search by name, phone, or order ID..."
+                                                placeholder={t("printing.searchPlaceholder")}
                                                 value={printing.filters.searchQuery || ""}
                                                 onChange={(e) =>
                                                     printing.setFilters({
@@ -582,7 +608,7 @@ export default function PrintingPage() {
                                                 }
                                                 className="pl-10 pr-8 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer min-w-[150px]"
                                             >
-                                                <option value="">All Cities</option>
+                                                <option value="">{t("printing.allCities")}</option>
                                                 {printing.availableCities.map((city) => (
                                                     <option key={city} value={city}>
                                                         {city}
@@ -599,10 +625,10 @@ export default function PrintingPage() {
                                                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                                                 className="pl-4 pr-8 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)] appearance-none cursor-pointer"
                                             >
-                                                <option value="priority">Sort by Priority</option>
-                                                <option value="date">Sort by Date</option>
-                                                <option value="city">Sort by City</option>
-                                                <option value="price">Sort by Price</option>
+                                                <option value="priority">{t("printing.sortPriority")}</option>
+                                                <option value="date">{t("printing.sortDate")}</option>
+                                                <option value="city">{t("printing.sortCity")}</option>
+                                                <option value="price">{t("printing.sortPrice")}</option>
                                             </select>
                                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
                                         </div>
@@ -658,7 +684,7 @@ export default function PrintingPage() {
                                                     className="px-4 py-3 rounded-2xl bg-red-50 text-red-600 hover:bg-red-100 transition-all flex items-center gap-2"
                                                 >
                                                     <X className="w-4 h-4" />
-                                                    Clear
+                                                    {t("printing.clear")}
                                                 </button>
                                             )}
                                     </div>
@@ -693,7 +719,7 @@ export default function PrintingPage() {
 
                                         {/* Auto-ship toggle */}
                                         <div className="ml-auto flex items-center gap-2">
-                                            <span className="text-sm text-muted">Auto-ship after print:</span>
+                                            <span className="text-sm text-muted">{t("printing.autoShip")}</span>
                                             <button
                                                 onClick={() => setAutoShipAfterPrint(!autoShipAfterPrint)}
                                                 className={cn(
@@ -794,7 +820,7 @@ export default function PrintingPage() {
                                     )}
                                 </button>
                                 <span className="text-sm text-muted">
-                                    Select all ({sortedOrders.length} orders)
+                                    {t("printing.selectAll")} ({sortedOrders.length})
                                 </span>
                             </div>
                         )}
@@ -805,8 +831,8 @@ export default function PrintingPage() {
                                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--pastel-green)] flex items-center justify-center">
                                         <CheckCircle className="h-8 w-8 text-green-700" />
                                     </div>
-                                    <p className="text-lg font-medium text-foreground mb-1">No orders to print</p>
-                                    <p className="text-sm text-muted">Confirmed orders will appear here for printing</p>
+                                    <p className="text-lg font-medium text-foreground mb-1">{t("printing.noOrders")}</p>
+                                    <p className="text-sm text-muted">{t("printing.noOrdersDesc")}</p>
                                 </div>
                             ) : (
                                 sortedOrders.map((order) => (
@@ -918,7 +944,7 @@ export default function PrintingPage() {
                     onUpdateName={printing.updateBatchName}
                     onRemoveOrders={printing.removeOrdersFromBatch}
                     onExportPrimeCSV={(orderIds, ordersData) => {
-                        printing.exportToPrimeCSV(orderIds, ordersData);
+                        void exportOrdersToPrimeCSV(orderIds, ordersData);
                     }}
                 />
             </div>
