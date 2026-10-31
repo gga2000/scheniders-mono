@@ -16,8 +16,8 @@ export type { GridDensity };
 export const DENSITY_COLUMNS: Record<GridDensity, readonly [number, number, number, number, number]> = {
     comfy: [1, 2, 2, 3, 3],
     normal: [1, 2, 3, 4, 4],
-    compact: [1, 2, 3, 4, 5],
-    tight: [1, 2, 3, 5, 6],
+    compact: [2, 2, 3, 4, 5],
+    tight: [2, 3, 3, 5, 6],
 };
 
 /**

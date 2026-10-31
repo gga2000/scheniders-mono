@@ -429,18 +429,9 @@ function ProductsContent() {
         router.push(`/products/${newProduct.id}/edit`);
     }, [addProduct, products, router, reportWriteError, t, canSeeCost]);
 
-    // Delete opens the impact dialog; the dialog calls confirmDeleteProduct.
-    const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
-    const handleDeleteProduct = useCallback((product: Product) => setDeleteTarget(product), []);
-
-    const confirmDeleteProduct = useCallback(async (product: Product) => {
-        try {
-            await deleteProduct(product.id);
-            toast.success(t("products.deleted"));
-        } catch (err) {
-            reportWriteError(err);
-        }
-    }, [deleteProduct, reportWriteError, t]);
+    // Delete (one product or a selection) opens the impact dialog first.
+    const [deleteTargets, setDeleteTargets] = useState<Product[]>([]);
+    const handleDeleteProduct = useCallback((product: Product) => setDeleteTargets([product]), []);
 
     const handleRestore = useCallback(async (id: string) => {
         try {
@@ -568,10 +559,40 @@ function ProductsContent() {
         clearSelection();
     }, [selectedIds, bulkArchive, clearSelection]);
 
-    const handleBulkDelete = useCallback(async () => {
-        await bulkDelete(Array.from(selectedIds));
-        clearSelection();
-    }, [selectedIds, bulkDelete, clearSelection]);
+    const handleBulkDelete = useCallback(() => {
+        setDeleteTargets(products.filter((p) => selectedIds.has(p.id)));
+    }, [products, selectedIds]);
+
+    const confirmDelete = useCallback(async (targets: Product[]) => {
+        try {
+            if (targets.length === 1) {
+                await deleteProduct(targets[0].id);
+                toast.success(t("products.deleted"));
+            } else {
+                await bulkDelete(targets.map((p) => p.id));
+                toast.success(t("products.bulk.deleteSuccess", { count: targets.length }));
+                clearSelection();
+            }
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [deleteProduct, bulkDelete, clearSelection, reportWriteError, t]);
+
+    const archiveInsteadOfDelete = useCallback(async (targets: Product[]) => {
+        if (targets.length === 1) {
+            await handleArchive(targets[0].id);
+            return;
+        }
+        const ids = targets.map((p) => p.id);
+        try {
+            await bulkArchive(ids);
+            lastUndoableRef.current = { kind: "archive", ids };
+            toast.success(t("products.bulk.archiveSuccess", { count: ids.length }));
+            clearSelection();
+        } catch (err) {
+            reportWriteError(err);
+        }
+    }, [handleArchive, bulkArchive, clearSelection, reportWriteError, t]);
 
     const handleBulkShow = useCallback(async () => {
         const ids = Array.from(selectedIds);
@@ -1221,10 +1242,10 @@ function ProductsContent() {
             />
 
             <ProductDeleteDialog
-                product={deleteTarget}
-                onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-                onArchive={(p) => handleArchive(p.id)}
-                onDelete={confirmDeleteProduct}
+                products={deleteTargets}
+                onOpenChange={(open) => { if (!open) setDeleteTargets([]); }}
+                onArchive={archiveInsteadOfDelete}
+                onDelete={confirmDelete}
             />
 
             {/* Bulk Actions Bar */}

@@ -17,7 +17,11 @@ const PG_INSUFFICIENT_PRIVILEGE = "42501";
 
 function isNonRetryable(err: unknown): boolean {
     if (err instanceof NonRetryableError) return true;
-    return typeof err === "object" && err !== null && (err as { code?: unknown }).code === PG_INSUFFICIENT_PRIVILEGE;
+    if (typeof err !== "object" || err === null) return false;
+    const code = (err as { code?: unknown }).code;
+    // 42501 is a permission refusal; class 23 (unique, foreign key, check) is a
+    // data conflict. Both fail the same way on every attempt.
+    return code === PG_INSUFFICIENT_PRIVILEGE || (typeof code === "string" && code.startsWith("23"));
 }
 
 /**

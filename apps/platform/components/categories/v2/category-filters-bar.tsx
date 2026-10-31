@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X, Grid3X3, ListTree, LayoutGrid, Keyboard, Store, Globe, Layers } from "lucide-react";
+import { Search, X, Grid3X3, ListTree, Keyboard, Store, Globe, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { ViewSwitcher } from "@/components/ui/view-switcher";
@@ -11,7 +11,8 @@ import {
 import type { CategoryStatus } from "@scheniders/shared";
 
 interface CategoryFiltersBarProps {
-  onNewCategory: () => void;
+  /** Hidden for users who cannot edit categories. */
+  onNewCategory?: () => void;
   onOpenShortcuts?: () => void;
 }
 
@@ -178,12 +179,12 @@ export function CategoryFiltersBar({
           options={[
             { mode: "tree", icon: ListTree, label: t("categories.view.tree") || "Tree" },
             { mode: "grid", icon: Grid3X3, label: t("categories.view.grid") || "Grid" },
-            { mode: "megamenu", icon: LayoutGrid, label: t("categories.view.megamenu") || "Mega-menu preview" },
           ]}
           value={viewMode}
           onChange={setViewMode}
         />
 
+        {onNewCategory && (
         <button
           type="button"
           onClick={onNewCategory}
@@ -191,6 +192,7 @@ export function CategoryFiltersBar({
         >
           + {t("categories.new") || "New category"}
         </button>
+        )}
       </div>
     </div>
   );

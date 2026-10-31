@@ -398,21 +398,26 @@ export function CategoriesTabV2() {
           }}
         />
 
-        <CategoryFiltersBar onNewCategory={openNew} />
+        <CategoryFiltersBar onNewCategory={canEditCategories ? openNew : undefined} />
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[var(--pastel-yellow)] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : viewMode === "grid" ? (
-          <CategoryGridView
-            categories={filtered}
-            productCountMap={productCountMap}
-            onEdit={openEdit}
-            onToggleVisibility={handleToggleVisibility}
-            onScopeChange={handleScopeChange}
-          />
-        ) : viewMode === "tree" ? (
+          canEditCategories ? (
+            <CategoryGridView
+              categories={filtered}
+              productCountMap={productCountMap}
+              onEdit={openEdit}
+              onToggleVisibility={handleToggleVisibility}
+              onScopeChange={handleScopeChange}
+              selectable
+            />
+          ) : (
+            <CategoryGridView categories={filtered} productCountMap={productCountMap} />
+          )
+        ) : canEditCategories ? (
           <CategoryTreeView
             categories={filtered}
             productCountMap={productCountMap}
@@ -423,22 +428,23 @@ export function CategoriesTabV2() {
             onToggleVisibility={handleToggleVisibility}
             onScopeChange={handleScopeChange}
             onReorder={handleReorder}
+            selectable
           />
         ) : (
-          <div className="rounded-2xl border border-dashed border-[var(--card-border)] p-12 text-center text-muted">
-            Mega-menu preview — coming in Phase 5.
-          </div>
+          <CategoryTreeView categories={filtered} productCountMap={productCountMap} />
         )}
 
-        <CategoryBulkActionsBar
-          selectedCount={selectedIds.length}
-          totalCount={filtered.length}
-          onArchive={handleBulkArchive}
-          onRestore={handleBulkRestore}
-          onToggleNav={handleBulkToggleNav}
-          onClear={clearSelection}
-          onUndo={lastArchivedIds.length > 0 ? handleUndoArchive : undefined}
-        />
+        {canEditCategories && (
+          <CategoryBulkActionsBar
+            selectedCount={selectedIds.length}
+            totalCount={filtered.length}
+            onArchive={handleBulkArchive}
+            onRestore={handleBulkRestore}
+            onToggleNav={handleBulkToggleNav}
+            onClear={clearSelection}
+            onUndo={lastArchivedIds.length > 0 ? handleUndoArchive : undefined}
+          />
+        )}
 
         <AnimatePresence>
           {lastArchivedIds.length > 0 && undoTimeLeft > 0 && (

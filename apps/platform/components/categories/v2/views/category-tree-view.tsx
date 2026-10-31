@@ -28,14 +28,17 @@ import type { ReorderEntry } from "@/hooks/use-categories-query";
 interface CategoryTreeViewProps {
   categories: Category[];
   productCountMap: Record<string, number>;
-  onEdit: (c: Category) => void;
-  onDuplicate: (c: Category) => void;
-  onArchive: (c: Category) => void;
-  onDelete: (c: Category) => void;
-  onToggleVisibility: (c: Category) => void;
-  onScopeChange: (c: Category, scope: CategoryScope) => void;
+  /** Write controls render only when their handler is passed (read-only users get none). */
+  onEdit?: (c: Category) => void;
+  onDuplicate?: (c: Category) => void;
+  onArchive?: (c: Category) => void;
+  onDelete?: (c: Category) => void;
+  onToggleVisibility?: (c: Category) => void;
+  onScopeChange?: (c: Category, scope: CategoryScope) => void;
   onOpenDetail?: (c: Category) => void;
-  onReorder: (entries: ReorderEntry[]) => void;
+  /** Without it rows cannot be dragged. */
+  onReorder?: (entries: ReorderEntry[]) => void;
+  selectable?: boolean;
 }
 
 interface TreeNode {
@@ -90,6 +93,7 @@ export function CategoryTreeView({
   onScopeChange,
   onOpenDetail,
   onReorder,
+  selectable = false,
 }: CategoryTreeViewProps) {
   const expandedIds = useCategoryStore((s) => s.expandedIds);
   const toggleExpanded = useCategoryStore((s) => s.toggleExpanded);
@@ -116,7 +120,7 @@ export function CategoryTreeView({
     (e: DragEndEvent) => {
       setActiveId(null);
       const { active, over } = e;
-      if (!over || active.id === over.id) return;
+      if (!onReorder || !over || active.id === over.id) return;
 
       const activeNode = flatRows.find((r) => r.category.id === active.id);
       const overNode = flatRows.find((r) => r.category.id === over.id);
@@ -173,7 +177,7 @@ export function CategoryTreeView({
               expanded={expandedSet.has(node.category.id)}
               onToggleExpand={toggleExpanded}
               selected={selectedSet.has(node.category.id)}
-              onToggleSelect={toggleSelected}
+              onToggleSelect={selectable ? toggleSelected : undefined}
               productCount={productCountMap[node.category.id] ?? 0}
               onEdit={onEdit}
               onDuplicate={onDuplicate}
@@ -182,6 +186,7 @@ export function CategoryTreeView({
               onToggleVisibility={onToggleVisibility}
               onScopeChange={onScopeChange}
               onOpenDetail={onOpenDetail}
+              draggable={!!onReorder}
             />
           ))}
         </div>
@@ -208,15 +213,16 @@ interface SortableRowProps {
   expanded: boolean;
   onToggleExpand: (id: string) => void;
   selected: boolean;
-  onToggleSelect: (id: string) => void;
+  onToggleSelect?: (id: string) => void;
   productCount: number;
-  onEdit: (c: Category) => void;
-  onDuplicate: (c: Category) => void;
-  onArchive: (c: Category) => void;
-  onDelete: (c: Category) => void;
-  onToggleVisibility: (c: Category) => void;
-  onScopeChange: (c: Category, scope: CategoryScope) => void;
+  onEdit?: (c: Category) => void;
+  onDuplicate?: (c: Category) => void;
+  onArchive?: (c: Category) => void;
+  onDelete?: (c: Category) => void;
+  onToggleVisibility?: (c: Category) => void;
+  onScopeChange?: (c: Category, scope: CategoryScope) => void;
   onOpenDetail?: (c: Category) => void;
+  draggable: boolean;
 }
 
 function SortableTreeRow({
@@ -234,6 +240,7 @@ function SortableTreeRow({
   onToggleVisibility,
   onScopeChange,
   onOpenDetail,
+  draggable,
 }: SortableRowProps) {
   const {
     attributes,
@@ -242,7 +249,7 @@ function SortableTreeRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: node.category.id });
+  } = useSortable({ id: node.category.id, disabled: !draggable });
 
   return (
     <div
@@ -268,7 +275,7 @@ function SortableTreeRow({
         onToggleVisibility={onToggleVisibility}
         onScopeChange={onScopeChange}
         onOpenDetail={onOpenDetail}
-        dragHandleProps={{ ...attributes, ...listeners }}
+        dragHandleProps={draggable ? { ...attributes, ...listeners } : undefined}
         isDragging={isDragging}
       />
     </div>

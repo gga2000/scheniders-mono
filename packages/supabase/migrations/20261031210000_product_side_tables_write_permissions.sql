@@ -2,10 +2,13 @@
 -- one FOR ALL policy. Reads stay open to members; writes now need the same
 -- permission the products table asks for. Mirrors product_tags.
 --
--- product_attribute_defs  : store-wide attribute schema  -> products.manage
+-- product_attribute_defs  : store-wide attribute schema  -> products.edit (employees manage attributes today)
 -- product_attribute_values: per-product values           -> products.edit
 -- product_batches         : batch / expiry tracking      -> products.edit
 -- product_tag_assignments : tags on a product            -> products.edit
+--
+-- bom_items (recipes): its policy read a tenant_id JWT claim that no token carries,
+-- so every read came back empty and every write failed. Same pattern as above.
 --
 -- Also: one SKU per store. Checked 2026-10-31: no store has a duplicate SKU.
 
@@ -18,14 +21,14 @@ CREATE POLICY tenant_isolation_select ON public.product_attribute_defs
     USING (tenant_id IN (SELECT get_user_tenant_ids()));
 CREATE POLICY product_attribute_defs_insert ON public.product_attribute_defs
     FOR INSERT TO authenticated
-    WITH CHECK (has_tenant_permission(tenant_id, 'products.manage'));
+    WITH CHECK (has_tenant_permission(tenant_id, 'products.edit'));
 CREATE POLICY product_attribute_defs_update ON public.product_attribute_defs
     FOR UPDATE TO authenticated
-    USING (has_tenant_permission(tenant_id, 'products.manage'))
-    WITH CHECK (has_tenant_permission(tenant_id, 'products.manage'));
+    USING (has_tenant_permission(tenant_id, 'products.edit'))
+    WITH CHECK (has_tenant_permission(tenant_id, 'products.edit'));
 CREATE POLICY product_attribute_defs_delete ON public.product_attribute_defs
     FOR DELETE TO authenticated
-    USING (has_tenant_permission(tenant_id, 'products.manage'));
+    USING (has_tenant_permission(tenant_id, 'products.edit'));
 
 -- product_attribute_values
 DROP POLICY IF EXISTS tenant_isolation_all ON public.product_attribute_values;
@@ -82,6 +85,22 @@ CREATE POLICY product_tag_assignments_delete ON public.product_tag_assignments
         WHERE p.id = product_tag_assignments.product_id
           AND has_tenant_permission(p.tenant_id, 'products.edit')
     ));
+
+-- bom_items
+DROP POLICY IF EXISTS tenant_isolation ON public.bom_items;
+CREATE POLICY tenant_isolation_select ON public.bom_items
+    FOR SELECT TO authenticated
+    USING (tenant_id IN (SELECT get_user_tenant_ids()));
+CREATE POLICY bom_items_insert ON public.bom_items
+    FOR INSERT TO authenticated
+    WITH CHECK (has_tenant_permission(tenant_id, 'products.edit'));
+CREATE POLICY bom_items_update ON public.bom_items
+    FOR UPDATE TO authenticated
+    USING (has_tenant_permission(tenant_id, 'products.edit'))
+    WITH CHECK (has_tenant_permission(tenant_id, 'products.edit'));
+CREATE POLICY bom_items_delete ON public.bom_items
+    FOR DELETE TO authenticated
+    USING (has_tenant_permission(tenant_id, 'products.edit'));
 
 -- One SKU per store (blank SKUs are allowed many times).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_products_tenant_sku

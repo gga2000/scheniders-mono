@@ -13,10 +13,12 @@ import { CategoryScopeControl } from "@/components/products/category-scope-contr
 interface CategoryGridViewProps {
   categories: Category[];
   productCountMap: Record<string, number>;
-  onEdit: (c: Category) => void;
-  onToggleVisibility: (c: Category) => void;
-  onScopeChange: (c: Category, scope: CategoryScope) => void;
+  /** Write controls render only when their handler is passed (read-only users get none). */
+  onEdit?: (c: Category) => void;
+  onToggleVisibility?: (c: Category) => void;
+  onScopeChange?: (c: Category, scope: CategoryScope) => void;
   onOpenDetail?: (c: Category) => void;
+  selectable?: boolean;
 }
 
 export function CategoryGridView({
@@ -26,6 +28,7 @@ export function CategoryGridView({
   onToggleVisibility,
   onScopeChange,
   onOpenDetail,
+  selectable = false,
 }: CategoryGridViewProps) {
   const { t } = useLanguage();
   const selectedIds = useCategoryStore((s) => s.selectedIds);
@@ -108,6 +111,7 @@ export function CategoryGridView({
                     </span>
                   )}
                 </div>
+                {selectable && (
                 <label
                   className="absolute top-2 start-2"
                   onClick={(e) => e.stopPropagation()}
@@ -119,6 +123,7 @@ export function CategoryGridView({
                     className="w-4 h-4 rounded border-white/60 text-[var(--ink)]"
                   />
                 </label>
+                )}
               </div>
               <div className="p-3">
                 <div className="flex items-start justify-between gap-2">
@@ -137,11 +142,15 @@ export function CategoryGridView({
               </div>
             </button>
 
+            {(onScopeChange || onToggleVisibility || onEdit) && (
             <div className="absolute bottom-2 end-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onScopeChange && (
               <CategoryScopeControl
                 value={c.scope ?? "both"}
                 onChange={(next) => onScopeChange(c, next)}
               />
+              )}
+              {onToggleVisibility && (
               <button
                 type="button"
                 onClick={() => onToggleVisibility(c)}
@@ -154,6 +163,8 @@ export function CategoryGridView({
                   <EyeOff className="w-3.5 h-3.5" />
                 )}
               </button>
+              )}
+              {onEdit && (
               <button
                 type="button"
                 onClick={() => onEdit(c)}
@@ -162,7 +173,9 @@ export function CategoryGridView({
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
+              )}
             </div>
+            )}
           </motion.div>
         );
       })}

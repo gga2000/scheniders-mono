@@ -11,6 +11,10 @@ describe("productWriteErrorKey", () => {
         expect(productWriteErrorKey({ code: "42501" })).toBe("products.errors.notPermitted");
     });
 
+    it("reports a record still in use elsewhere", () => {
+        expect(productWriteErrorKey({ code: "23503" })).toBe("products.errors.inUse");
+    });
+
     it("reports a paused store", () => {
         expect(productWriteErrorKey({ message: "tenant is paused" })).toBe("products.errors.storePaused");
     });

@@ -16,7 +16,7 @@ import {
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
-import { cn, parseWholeNumber } from "@/lib/utils";
+import { parseWholeNumber } from "@/lib/utils";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 
 interface BulkActionsBarProps {
@@ -33,11 +33,12 @@ interface BulkActionsBarProps {
     onHideFromStore?: () => Promise<void> | void;
     onClearSelection: () => void;
     onUndo?: () => Promise<void> | void;
-    onDelete?: () => Promise<void> | void;
+    /** Opens the delete impact dialog; the page does the delete. */
+    onDelete?: () => void;
 }
 
-type ConfirmAction = "archive" | "delete" | null;
-type LoadingAction = "price" | "archive" | "show" | "hide" | "delete" | null;
+type ConfirmAction = "archive" | null;
+type LoadingAction = "price" | "archive" | "show" | "hide" | null;
 
 const UNDO_TIMEOUT = 8000;
 
@@ -179,20 +180,6 @@ export function BulkActionsBar({
         onClearSelection();
     }, [onArchive, selectedCount, runAction, t, onClearSelection]);
 
-    const handleConfirmDelete = useCallback(async () => {
-        setConfirmAction(null);
-        if (!onDelete) return;
-        await runAction(
-            "delete",
-            onDelete,
-            t("products.bulk.deleteSuccess").replace(
-                "{count}",
-                String(selectedCount)
-            )
-        );
-        onClearSelection();
-    }, [onDelete, selectedCount, runAction, t, onClearSelection]);
-
     const handleShow = useCallback(async () => {
         if (!onShowOnStore) return;
         await runAction(
@@ -303,24 +290,16 @@ export function BulkActionsBar({
                         </div>
 
                         {/* Confirmation overlay for archive */}
-                        {confirmAction === "archive" || confirmAction === "delete" ? (
+                        {confirmAction === "archive" ? (
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center gap-2">
-                                    <AlertTriangle className={cn("w-4 h-4", confirmAction === "delete" ? "text-red-400" : "text-amber-400")} />
+                                    <AlertTriangle className="w-4 h-4 text-amber-400" />
                                     <div className="text-sm">
                                         <p className="text-white font-medium">
-                                            {t(
-                                                confirmAction === "delete"
-                                                    ? "products.bulk.confirmDelete"
-                                                    : "products.bulk.confirmArchive"
-                                            ).replace("{count}", String(selectedCount))}
+                                            {t("products.bulk.confirmArchive").replace("{count}", String(selectedCount))}
                                         </p>
                                         <p className="text-white/50 text-xs">
-                                            {t(
-                                                confirmAction === "delete"
-                                                    ? "products.bulk.confirmDeleteDesc"
-                                                    : "products.bulk.confirmArchiveDesc"
-                                            )}
+                                            {t("products.bulk.confirmArchiveDesc")}
                                         </p>
                                         {previewNames.length > 0 && (
                                             <p className="text-white/40 text-xs mt-0.5 truncate max-w-[300px]">
@@ -332,19 +311,12 @@ export function BulkActionsBar({
                                     </div>
                                 </div>
                                 <button
-                                    onClick={confirmAction === "delete" ? handleConfirmDelete : handleConfirmArchive}
+                                    onClick={handleConfirmArchive}
                                     disabled={isLoading}
-                                    className={cn(
-                                        "flex items-center gap-1.5 px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50",
-                                        confirmAction === "delete"
-                                            ? "bg-red-500 hover:bg-red-600"
-                                            : "bg-amber-500 hover:bg-amber-600"
-                                    )}
+                                    className="flex items-center gap-1.5 px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 bg-amber-500 hover:bg-amber-600"
                                 >
-                                    {loadingAction === "archive" || loadingAction === "delete" ? (
+                                    {loadingAction === "archive" ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : confirmAction === "delete" ? (
-                                        <Trash2 className="w-4 h-4" />
                                     ) : (
                                         <Archive className="w-4 h-4" />
                                     )}
@@ -481,15 +453,11 @@ export function BulkActionsBar({
                                 {onDelete && (
                                     <button
                                     aria-label={t("products.bulk.delete")}
-                                        onClick={() => setConfirmAction("delete")}
+                                        onClick={onDelete}
                                         disabled={isLoading}
                                         className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-300 rounded-lg text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
                                     >
-                                        {loadingAction === "delete" ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <Trash2 className="w-4 h-4" />
-                                        )}
+                                        <Trash2 className="w-4 h-4" />
                                         <span className="hidden sm:inline">
                                             {t("products.bulk.delete")}
                                         </span>

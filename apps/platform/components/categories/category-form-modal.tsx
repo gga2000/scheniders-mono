@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Layers, Eye, EyeOff } from "lucide-react";
 import type { Category } from "@/types/product";
 import { slugify } from "@scheniders/shared";
+import { toast } from "@/hooks/use-toast";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 import { useLanguage } from "@/hooks/use-language";
 
 interface CategoryFormModalProps {
@@ -91,7 +93,8 @@ export function CategoryFormModal({
             await onSubmit(formData);
             onClose();
         } catch (error) {
-            console.error("Error submitting category:", error);
+            // Keep the form open with what was typed, and say why it failed.
+            toast.error(t(productWriteErrorKey(error)));
         } finally {
             setLoading(false);
         }
