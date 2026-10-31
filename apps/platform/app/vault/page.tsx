@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { formatVaultDate } from "@/lib/vault-format";
 import { CloudTimeline } from "@/components/vault/cloud-timeline";
 import { FormatCard } from "@/components/vault/format-card";
 import { BackupHealth } from "@/components/vault/backup-health";
@@ -32,6 +33,8 @@ import {
     calculateVaultDiff,
     VaultData,
     executeVaultRestore,
+    FULL_RESTORE_SCOPE,
+    type VaultRestoreScope,
     uploadVaultToCloud,
     fetchCloudVaults,
     downloadCloudVault,
@@ -98,6 +101,9 @@ export default function VaultPage() {
     const [isRestoring, setIsRestoring] = useState(false);
     // Restore overwrites live rows: the red button stays off until the person says they understand.
     const [restoreAcknowledged, setRestoreAcknowledged] = useState(false);
+    // Which parts of the file to restore; everything by default.
+    const [restoreScope, setRestoreScope] = useState<VaultRestoreScope>(FULL_RESTORE_SCOPE);
+    const scopeEmpty = !Object.values(restoreScope).some(Boolean);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Cloud State
@@ -282,7 +288,7 @@ export default function VaultPage() {
         setIsRestoring(true);
         try {
             // Actual database UPSERT execution
-            await executeVaultRestore(parsedVaultData, (step) => toast.loading(describeVaultProgress(step, t), { id: "restore-progress" }));
+            await executeVaultRestore(parsedVaultData, (step) => toast.loading(describeVaultProgress(step, t), { id: "restore-progress" }), restoreScope);
             toast.dismiss("restore-progress");
             toast.success(t("vault.toast.restored", "Data successfully restored from vault."));
             clearRestore();
@@ -301,6 +307,7 @@ export default function VaultPage() {
         setDiffResult(null);
         setParsedVaultData(null);
         setRestoreAcknowledged(false);
+        setRestoreScope(FULL_RESTORE_SCOPE);
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
@@ -400,11 +407,11 @@ export default function VaultPage() {
                                             value={vaultKey}
                                             onChange={(e) => setVaultKey(e.target.value)}
                                             placeholder={t("vault.key.placeholder", "Enter a strong password to lock this backup")}
-                                            className="w-full bg-[var(--background)] border border-[var(--card-border)] rounded-xl px-4 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
+                                            className="w-full bg-[var(--background)] border border-[var(--card-border)] rounded-xl ps-4 pe-11 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
                                         />
                                         <button
                                             onClick={() => setShowVaultKey(!showVaultKey)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
+                                            className="absolute end-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
                                             aria-label={showVaultKey ? t("vault.key.hide", "Hide vault key") : t("vault.key.show", "Show vault key")}
                                         >
                                             {showVaultKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -441,7 +448,7 @@ export default function VaultPage() {
                                         onChange={(e) => setConfirmKey(e.target.value)}
                                         aria-invalid={keyMismatch}
                                         className={cn(
-                                            "w-full bg-[var(--background)] border rounded-xl px-4 py-3 text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] transition-all",
+                                            "w-full bg-[var(--background)] border rounded-xl ps-4 pe-11 py-3 text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] transition-all",
                                             keyMismatch ? "border-red-500" : "border-[var(--card-border)] focus:border-[var(--vault-accent)]"
                                         )}
                                     />
@@ -611,11 +618,11 @@ export default function VaultPage() {
                                                         value={restoreKey}
                                                         onChange={(e) => setRestoreKey(e.target.value)}
                                                         placeholder={t("vault.restore.passwordPlaceholder", "Enter password...")}
-                                                        className="w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl px-4 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
+                                                        className="w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl ps-4 pe-11 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
                                                     />
                                                     <button
                                                         onClick={() => setShowRestoreKey(!showRestoreKey)}
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
+                                                        className="absolute end-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
                                                         aria-label={showRestoreKey ? t("vault.key.hide", "Hide vault key") : t("vault.key.show", "Show vault key")}
                                                     >
                                                         {showRestoreKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -666,38 +673,68 @@ export default function VaultPage() {
                                                 {restoreFile?.name.endsWith(".xlsx") ? t("vault.restore.parsed", "Excel Successfully Parsed") : t("vault.restore.unlocked", "Vault Unlocked Successfully")}
                                             </div>
                                             <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                                                <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
+                                                <label className={cn("bg-[var(--card-bg)] rounded-lg p-2 border cursor-pointer transition-opacity", restoreScope.orders ? "border-[var(--vault-accent)]" : "border-[var(--card-border)] opacity-60")}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={restoreScope.orders}
+                                                        onChange={(e) => { setRestoreScope({ ...restoreScope, orders: e.target.checked }); setRestoreAcknowledged(false); }}
+                                                        className="sr-only"
+                                                        aria-label={t("nav.orders", "Orders")}
+                                                    />
                                                     <div className="font-semibold">{diffResult.orders.total}</div>
                                                     <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.orders.create, overwrite: diffResult.orders.overwrite })}</div>
                                                     <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.orders", "Orders")}</div>
-                                                </div>
-                                                <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
+                                                </label>
+                                                <label className={cn("bg-[var(--card-bg)] rounded-lg p-2 border cursor-pointer transition-opacity", restoreScope.products ? "border-[var(--vault-accent)]" : "border-[var(--card-border)] opacity-60")}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={restoreScope.products}
+                                                        onChange={(e) => { setRestoreScope({ ...restoreScope, products: e.target.checked }); setRestoreAcknowledged(false); }}
+                                                        className="sr-only"
+                                                        aria-label={t("nav.products", "Products")}
+                                                    />
                                                     <div className="font-semibold">{diffResult.products.total}</div>
                                                     <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.products.create, overwrite: diffResult.products.overwrite })}</div>
                                                     <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.products", "Products")}</div>
-                                                </div>
-                                                <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
+                                                </label>
+                                                <label className={cn("bg-[var(--card-bg)] rounded-lg p-2 border cursor-pointer transition-opacity", restoreScope.customers ? "border-[var(--vault-accent)]" : "border-[var(--card-border)] opacity-60")}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={restoreScope.customers}
+                                                        onChange={(e) => { setRestoreScope({ ...restoreScope, customers: e.target.checked }); setRestoreAcknowledged(false); }}
+                                                        className="sr-only"
+                                                        aria-label={t("nav.customers", "Customers")}
+                                                    />
                                                     <div className="font-semibold">{diffResult.customers.total}</div>
                                                     <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.customers.create, overwrite: diffResult.customers.overwrite })}</div>
                                                     <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.customers", "Customers")}</div>
-                                                </div>
+                                                </label>
                                             </div>
                                             {Object.values(diffResult.extras).some((count) => count > 0) && (
-                                                <div className="text-xs text-[var(--foreground-muted)] mb-2">
-                                                    {t("vault.restore.extras", "Also in this file: {categories} categories, {tags} tags, {assignments} tag assignments, {notes} notes, {expenses} expenses.", {
+                                                <label className="flex items-start gap-2 text-xs text-[var(--foreground-muted)] mb-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={restoreScope.extras}
+                                                        onChange={(e) => { setRestoreScope({ ...restoreScope, extras: e.target.checked }); setRestoreAcknowledged(false); }}
+                                                        className="mt-0.5 h-3.5 w-3.5 accent-[var(--vault-accent)]"
+                                                    />
+                                                    <span>{t("vault.restore.extras", "Also in this file: {categories} categories, {tags} tags, {assignments} tag assignments, {notes} notes, {expenses} expenses.", {
                                                         categories: diffResult.extras.categories,
                                                         tags: diffResult.extras.customer_tags,
                                                         assignments: diffResult.extras.customer_tag_assignments,
                                                         notes: diffResult.extras.customer_notes,
                                                         expenses: diffResult.extras.expenses,
-                                                    })}
-                                                </div>
+                                                    })}</span>
+                                                </label>
                                             )}
+                                            <div className="text-xs text-[var(--foreground-muted)] mb-2">
+                                                {t("vault.restore.pickHint", "Untick anything you do not want to restore.")}
+                                            </div>
                                             <div className="text-xs text-[var(--foreground-muted)]">
                                                 {t("vault.restore.stockNote", "Stock counts and costs of products that already exist are kept as they are now.")}
                                             </div>
                                             <div className="text-xs text-[var(--foreground-muted)] mt-2">
-                                                {t("vault.restore.createdOn", "Backup created on:")} <span className="text-[var(--foreground)] font-medium">{new Date(diffResult.timestamp).toLocaleString()}</span>
+                                                {t("vault.restore.createdOn", "Backup created on:")} <span className="text-[var(--foreground)] font-medium">{formatVaultDate(diffResult.timestamp)}</span>
                                             </div>
                                         </div>
 
@@ -710,18 +747,21 @@ export default function VaultPage() {
                                             />
                                             <span>
                                                 {t("vault.restore.acknowledge", "I understand this overwrites {count} existing rows in my live store.", {
-                                                    count: diffResult.orders.overwrite + diffResult.products.overwrite + diffResult.customers.overwrite,
+                                                    count:
+                                                        (restoreScope.orders ? diffResult.orders.overwrite : 0)
+                                                        + (restoreScope.products ? diffResult.products.overwrite : 0)
+                                                        + (restoreScope.customers ? diffResult.customers.overwrite : 0),
                                                 })}
                                             </span>
                                         </label>
 
                                         <button
                                             onClick={handleExecuteRestore}
-                                            disabled={isRestoring || !restoreAcknowledged}
+                                            disabled={isRestoring || !restoreAcknowledged || scopeEmpty}
                                             className={cn(
                                                 "w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-300",
                                                 "bg-red-600 hover:bg-red-700 text-white dark:bg-red-500 dark:hover:bg-red-400 ",
-                                                (isRestoring || !restoreAcknowledged) && "opacity-60 cursor-not-allowed"
+                                                (isRestoring || !restoreAcknowledged || scopeEmpty) && "opacity-60 cursor-not-allowed"
                                             )}
                                         >
                                             {isRestoring ? (

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Cloud, Download, History, Loader2, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
+import { formatVaultDate } from "@/lib/vault-format";
 import type { CloudVaultEntry } from "@/app/actions/vault";
 
 interface CloudTimelineProps {
@@ -55,11 +56,11 @@ export function CloudTimeline({ vaults, isLoading, downloading, onSelect, deleti
                         </div>
                     ) : (
                         vaults.map((vault) => (
-                            <div key={vault.name} className="bg-[var(--background)] border border-[var(--card-border)] p-4 rounded-xl flex items-center justify-between group hover:border-[var(--vault-border)] transition-all">
-                                <div className="flex items-center gap-3 overflow-hidden">
+                            <div key={vault.name} className="bg-[var(--background)] border border-[var(--card-border)] p-4 rounded-xl flex flex-wrap items-center justify-between gap-3 group hover:border-[var(--vault-border)] transition-all">
+                                <div className="flex items-center gap-3 overflow-hidden min-w-0 flex-1 basis-40">
                                     <Cloud className="w-8 h-8 text-[var(--foreground-subtle)] group-hover:text-[var(--vault-accent)] flex-shrink-0 transition-colors" />
                                     <div className="overflow-hidden">
-                                        <p className="text-sm font-medium truncate">{vault.createdAt ? new Date(vault.createdAt).toLocaleString() : vault.name}</p>
+                                        <p className="text-sm font-medium">{vault.createdAt ? formatVaultDate(vault.createdAt) : vault.name}</p>
                                         <p className="text-[10px] text-[var(--foreground-subtle)] uppercase tracking-wide">{((vault.size ?? 0) / 1024 / 1024).toFixed(2)} MB • {t("vault.cloud.sync", "Sync")}</p>
                                     </div>
                                 </div>

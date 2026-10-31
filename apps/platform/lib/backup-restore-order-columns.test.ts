@@ -26,7 +26,7 @@ vi.mock("@/lib/supabase", async () => {
 vi.mock("@/app/actions/orders", () => ({ restoreOrdersAction: vi.fn() }));
 
 import { restoreOrderRows } from "./backup-utils";
-import { executeVaultRestore, type VaultData } from "./vault-utils";
+import { executeVaultRestore, FULL_RESTORE_SCOPE, type VaultData } from "./vault-utils";
 import { ORDER_MARGIN_COLUMNS, RESTORE_ORDERS_BATCH_SIZE } from "./repositories/order-columns";
 import { restoreOrdersAction } from "@/app/actions/orders";
 
@@ -111,5 +111,16 @@ describe("executeVaultRestore", () => {
         for (const col of ORDER_MARGIN_COLUMNS) expect(rows[0]).not.toHaveProperty(col);
         expect(rows[0]).not.toHaveProperty("risk_data");
         expect(rows[0]).toMatchObject({ id: "o1", order_id: "1001", tenant_id: TENANT });
+    });
+
+    it("sends nothing for a table the person unticked", async () => {
+        const vault: VaultData = {
+            metadata: { version: "1", timestamp: "2026-10-01T00:00:00.000Z", counts: { orders: 1, products: 0, customers: 0, categories: 0, expenses: 0, customer_tags: 0, customer_tag_assignments: 0, customer_notes: 0 } },
+            data: { orders: [legacyOrderRow("o1")], products: [], customers: [], categories: [], expenses: [], customer_tags: [], customer_tag_assignments: [], customer_notes: [] },
+        };
+
+        await executeVaultRestore(vault, undefined, { ...FULL_RESTORE_SCOPE, orders: false });
+
+        expect(restoreOrdersAction).not.toHaveBeenCalled();
     });
 });

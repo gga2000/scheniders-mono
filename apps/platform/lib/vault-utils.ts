@@ -366,7 +366,21 @@ export async function calculateVaultDiff(parsedVault: VaultData) {
  * Executes a safe, destructive bulk upsert of the parsed vault data back into Supabase.
  * Order matters because of foreign keys (Customers -> Products -> Orders).
  */
-export async function executeVaultRestore(vaultData: VaultData, onProgress?: (progress: VaultProgress) => void): Promise<void> {
+export interface VaultRestoreScope {
+    orders: boolean;
+    products: boolean;
+    customers: boolean;
+    /** Categories, expenses, customer tags, tag assignments and notes. */
+    extras: boolean;
+}
+
+export const FULL_RESTORE_SCOPE: VaultRestoreScope = { orders: true, products: true, customers: true, extras: true };
+
+export async function executeVaultRestore(
+    vaultData: VaultData,
+    onProgress?: (progress: VaultProgress) => void,
+    scope: VaultRestoreScope = FULL_RESTORE_SCOPE,
+): Promise<void> {
     try {
         if (onProgress) onProgress({ step: "security" });
         const tenantId = await requireTenantId();
@@ -375,10 +389,11 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (pr
         // (Excel files and legacy backups carry none, or another store's).
         const injectTenant = (items: Record<string, unknown>[] | undefined): Record<string, unknown>[] =>
             items?.map(item => ({ ...item, tenant_id: tenantId })) ?? [];
-        const customers = injectTenant(vaultData.data.customers);
-        const products = injectTenant(vaultData.data.products);
-        const orders = injectTenant(vaultData.data.orders);
-        const extras = extrasRecord((table) => injectTenant(vaultData.data[table]));
+        // A table left out of the scope is treated as empty: nothing of it is read, sent or counted.
+        const customers = scope.customers ? injectTenant(vaultData.data.customers) : [];
+        const products = scope.products ? injectTenant(vaultData.data.products) : [];
+        const orders = scope.orders ? injectTenant(vaultData.data.orders) : [];
+        const extras = extrasRecord((table) => (scope.extras ? injectTenant(vaultData.data[table]) : []));
         const extraCount = EXTRA_TABLES.reduce((sum, table) => sum + extras[table].length, 0);
         if (extraCount > 0) onProgress?.({ step: "restoring", table: "extras", count: extraCount });
 
