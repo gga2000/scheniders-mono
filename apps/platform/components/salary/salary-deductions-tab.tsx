@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 import { Trash2, TrendingDown, AlertCircle, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SalaryAdvance, SalaryPenalty, PerformanceBonus } from "@/types/salary";
@@ -9,8 +12,8 @@ function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
 }
 
-function fmtDate(d: string) {
-    try { return format(new Date(d), "MMM d, yyyy"); } catch { return d; }
+function fmtDate(d: string, isArabic: boolean) {
+    try { return format(new Date(d), "MMM d, yyyy", { locale: isArabic ? ar : undefined }); } catch { return d; }
 }
 
 interface SalaryDeductionsTabProps {
@@ -34,9 +37,11 @@ export function SalaryDeductionsTab({
     onDeletePenalty,
     onDeleteBonus,
 }: SalaryDeductionsTabProps) {
+    const { t } = useLanguage();
+    const unknown = t("payroll.history.unknown");
     if (type === "advances") {
         if (advances.length === 0) {
-            return <EmptyState icon={TrendingDown} label="No salary advances" />;
+            return <EmptyState icon={TrendingDown} label={t("payroll.ded.noAdvances")} />;
         }
         return (
             <div className="space-y-2">
@@ -46,9 +51,9 @@ export function SalaryDeductionsTab({
                         icon={TrendingDown}
                         iconBg="bg-amber-100 dark:bg-amber-900/20"
                         iconColor="text-amber-600"
-                        name={employeeNames.get(item.employee_id) ?? "Unknown"}
+                        name={employeeNames.get(item.employee_id) ?? unknown}
                         amount={item.amount}
-                        label={item.reason ?? "Salary advance"}
+                        label={item.reason ?? t("payroll.ded.advance")}
                         date={item.created_at}
                         isApplied={item.is_deducted}
                         onDelete={() => onDeleteAdvance(item.id)}
@@ -65,7 +70,7 @@ export function SalaryDeductionsTab({
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     if (allItems.length === 0) {
-        return <EmptyState icon={AlertCircle} label="No penalties or bonuses" />;
+        return <EmptyState icon={AlertCircle} label={t("payroll.ded.noPenalties")} />;
     }
 
     return (
@@ -80,11 +85,11 @@ export function SalaryDeductionsTab({
                             : "bg-rose-100 dark:bg-rose-900/20"
                     }
                     iconColor={item.itemType === "bonus" ? "text-violet-600" : "text-rose-600"}
-                    name={employeeNames.get(item.employee_id) ?? "Unknown"}
+                    name={employeeNames.get(item.employee_id) ?? unknown}
                     amount={item.amount}
                     label={
                         item.itemType === "bonus"
-                            ? ((item as PerformanceBonus).reason ?? "Performance bonus")
+                            ? ((item as PerformanceBonus).reason ?? t("payroll.ded.bonus"))
                             : (item as SalaryPenalty).reason
                     }
                     date={item.created_at}
@@ -124,6 +129,8 @@ function DeductionRow({
     onDelete: () => void;
     isBonus?: boolean;
 }) {
+    const { t, language } = useLanguage();
+    const [confirming, setConfirming] = useState(false);
     return (
         <div className="flex items-center gap-3 p-4 bg-[var(--background)] rounded-xl border border-[var(--card-border)]">
             <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", iconBg)}>
@@ -134,26 +141,43 @@ function DeductionRow({
                     <p className="text-sm font-medium text-foreground truncate">{name}</p>
                     {isApplied && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-[var(--card-border)] text-muted">
-                            applied
+                            {t("payroll.ded.applied")}
                         </span>
                     )}
                 </div>
                 <p className="text-xs text-muted truncate">{label}</p>
-                <p className="text-xs text-muted">{fmtDate(date)}</p>
+                <p className="text-xs text-muted">{fmtDate(date, language === "ar")}</p>
             </div>
             <div className="text-right shrink-0">
                 <p className={cn("font-semibold text-sm tabular-nums", isBonus ? "text-violet-600" : "text-rose-600")}>
                     {isBonus ? "+" : "−"}{fmtIQD(amount)} IQD
                 </p>
-                {!isApplied && (
+                {!isApplied && (confirming ? (
+                    <div className="mt-1 flex items-center justify-end gap-1">
+                        <span className="text-xs text-rose-600 font-medium">{t("payroll.ded.confirmDelete")}</span>
+                        <button
+                            onClick={() => { setConfirming(false); onDelete(); }}
+                            className="px-2 py-0.5 text-xs bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
+                        >
+                            {t("common.yes")}
+                        </button>
+                        <button
+                            onClick={() => setConfirming(false)}
+                            className="px-2 py-0.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] text-muted rounded-lg hover:text-foreground transition-colors"
+                        >
+                            {t("common.no")}
+                        </button>
+                    </div>
+                ) : (
                     <button
-                        onClick={onDelete}
+                        onClick={() => setConfirming(true)}
                         className="mt-1 p-1 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/20 text-muted hover:text-rose-600 transition-colors"
-                        title="Delete"
+                        title={t("payroll.ded.delete")}
+                        aria-label={t("payroll.ded.delete")}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                )}
+                ))}
             </div>
         </div>
     );

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download, FileText } from "lucide-react";
 import { downloadPayslipBlob } from "@/lib/payroll-pdf-generator";
+import { useLanguage } from "@/hooks/use-language";
 
 interface PayslipPreviewModalProps {
     isOpen: boolean;
@@ -20,10 +21,11 @@ export function PayslipPreviewModal({
     isOpen,
     onClose,
     source,
-    employeeName = "Employee",
+    employeeName = "",
     periodEnd = "",
     onDownload,
 }: PayslipPreviewModalProps) {
+    const { t } = useLanguage();
     const [iframeSrc, setIframeSrc] = useState<string | null>(null);
 
     useEffect(() => {
@@ -81,7 +83,7 @@ export function PayslipPreviewModal({
                                     <FileText className="w-4 h-4 text-muted" />
                                 </div>
                                 <div>
-                                    <h2 className="text-sm font-semibold text-foreground">Payslip Preview</h2>
+                                    <h2 className="text-sm font-semibold text-foreground">{t("payroll.payslip.title")}</h2>
                                     <p className="text-xs text-muted">{employeeName}</p>
                                 </div>
                             </div>
@@ -100,11 +102,11 @@ export function PayslipPreviewModal({
                                     src={iframeSrc}
                                     className="w-full h-full border-0"
                                     style={{ minHeight: "60vh" }}
-                                    title={`Payslip — ${employeeName}`}
+                                    title={t("payroll.payslip.frameTitle", { name: employeeName })}
                                 />
                             ) : (
                                 <div className="flex items-center justify-center h-full py-20 text-muted text-sm">
-                                    Loading…
+                                    {t("payroll.payslip.loading")}
                                 </div>
                             )}
                         </div>
@@ -115,7 +117,7 @@ export function PayslipPreviewModal({
                                 onClick={onClose}
                                 className="px-4 py-2.5 bg-[var(--background)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Close
+                                {t("payroll.payslip.close")}
                             </button>
                             <button
                                 onClick={handleDownload}
@@ -123,7 +125,7 @@ export function PayslipPreviewModal({
                                 className="flex items-center gap-2 px-5 py-2.5 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-40"
                             >
                                 <Download className="w-4 h-4" />
-                                Download PDF
+                                {t("payroll.payslip.download")}
                             </button>
                         </div>
                     </motion.div>
