@@ -29,3 +29,11 @@ describe("customer CSV export", () => {
         expect(toCsv([["a", 1], [null, "b"]])).toBe("a,1\n,b");
     });
 });
+
+describe("csvDate", () => {
+    it("uses the Baghdad day, not the UTC day", () => {
+        // 22:30 UTC on the 30th is 01:30 on the 31st in Baghdad.
+        expect(csvDate("2026-10-30T22:30:00Z")).toBe("2026-10-31");
+        expect(csvDate(null)).toBe("");
+    });
+});

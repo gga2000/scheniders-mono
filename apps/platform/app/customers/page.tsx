@@ -30,6 +30,7 @@ import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
 import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
 import { pct } from "@/lib/customer-format";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -184,19 +185,17 @@ function CustomersPageContent() {
 
     // Every customer the current filters match, fetched in pages so the API row cap
     // never truncates it. Export and "select all" share it.
-    const fetchAllMatching = useCallback(async () => {
-        const rows: PaginatedCustomer[] = [];
-        for (let offset = 0; ; offset += EXPORT_PAGE) {
+    const fetchAllMatching = useCallback(
+        () => fetchAllPages<PaginatedCustomer>(async (offset) => {
             const { data, error } = await supabase.rpc("get_paginated_customers", toCustomerRpcArgs(filters, EXPORT_PAGE, offset));
             if (error) throw error;
             const page = data ?? [];
-            rows.push(...page.map(mapCustomerRow));
-            // Callers hold customers.export (the server pages everyone else at 100),
-            // so a short page really is the last one.
-            if (page.length < EXPORT_PAGE) break;
-        }
-        return rows;
-    }, [filters]);
+            // total_count rides on every row; the server caps the page size for users
+            // without the export permission, so a short page is not proof of the last one.
+            return { rows: page.map(mapCustomerRow), total: page.length > 0 ? Number(page[0].total_count) : 0 };
+        }),
+        [filters],
+    );
 
     const [exporting, setExporting] = useState(false);
     const exportCsv = useCallback(async () => {
