@@ -454,7 +454,8 @@ function productToFormData(product: Product): ProductEditorFormData {
         variants: (product.variants || []).map((v) => ({
             id: v.id,
             name: v.name,
-            price: v.price || 0,
+            // A variant without its own price sells at the product price.
+            price: v.price || product.price || 0,
             cost: v.cost || 0,
             stock_quantity: v.stock_quantity,
             sku: v.sku || "",
@@ -1094,9 +1095,10 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
                     } catch (followUpError) {
                         // The product row exists. Move to its editor so the next Save
-                        // updates it instead of inserting a second copy. The draft stays
-                        // so the details that failed to save are not lost.
+                        // updates it instead of inserting a second copy. The "new product" draft is
+                        // cleared so it cannot be restored later and saved as a duplicate.
                         console.error("Product created but follow-up save failed", followUpError);
+                        clearDraft();
                         toast.error(t("products.ed.err.createPartial"));
                         router.push(`/products/${newProduct.id}/edit`);
                         return false;
