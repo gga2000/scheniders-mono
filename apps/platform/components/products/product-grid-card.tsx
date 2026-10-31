@@ -76,7 +76,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
     const threshold = product.low_stock_threshold || 5;
     const stockRatio = Math.min(availableStock / threshold, 2);
     const hasReserved = (product.reserved_quantity || 0) > 0;
-    const dailyRate = computeDailySalesRate(product.times_sold || 0);
+    const dailyRate = computeDailySalesRate(product.times_sold_30d || 0);
     const scoreInput: ProductScoreInput = {
         id: product.id,
         price: product.price,

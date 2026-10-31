@@ -73,7 +73,7 @@ export const ProductListRow = React.memo(function ProductListRow({
     const margin = canSeeCost && product.cost && product.cost > 0
         ? Math.round(((product.price - product.cost) / product.price) * 100)
         : null;
-    const dailyRate = computeDailySalesRate(product.times_sold || 0);
+    const dailyRate = computeDailySalesRate(product.times_sold_30d || 0);
     const scoreInput: ProductScoreInput = {
         id: product.id,
         price: product.price,

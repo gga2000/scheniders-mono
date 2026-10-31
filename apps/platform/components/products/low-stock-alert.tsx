@@ -40,12 +40,11 @@ interface SeverityGroup {
 }
 
 function estimateDaysOfSupply(product: Product): number | null {
-    // Use times_sold as a rough proxy for daily sales rate
-    // Assume times_sold represents total lifetime sales
-    // We estimate monthly rate from total_revenue and price
+    // Units sold in the last 30 days, per day. Lifetime sales would overstate
+    // the rate for any product older than a month.
     const dailySalesRate =
-        product.times_sold && product.times_sold > 0
-            ? product.times_sold / 30 // rough estimate: assume times_sold is ~30 day window
+        product.times_sold_30d && product.times_sold_30d > 0
+            ? product.times_sold_30d / 30
             : null;
 
     if (!dailySalesRate || dailySalesRate <= 0) return null;

@@ -72,8 +72,8 @@ function getColumnValue(products: Product[]): number {
 
 function getDaysOfSupply(product: Product): string | null {
     if (product.stock_quantity <= 0) return null;
-    if (!product.times_sold || product.times_sold <= 0) return null;
-    const dailySales = product.times_sold / 30;
+    if (!product.times_sold_30d || product.times_sold_30d <= 0) return null;
+    const dailySales = product.times_sold_30d / 30;
     if (dailySales <= 0) return null;
     return Math.round(product.stock_quantity / dailySales).toString();
 }
