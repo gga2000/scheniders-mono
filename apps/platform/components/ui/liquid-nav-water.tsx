@@ -92,7 +92,7 @@ export function LiquidNavWater({ activeKey, tone = "dark", className, children }
                     ref={dropRef}
                     aria-hidden="true"
                     hidden={renderer !== "css"}
-                    className="pointer-events-none absolute left-0 top-0 -z-10 rounded-full bg-white/[0.14] opacity-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-2px_6px_rgba(0,162,255,0.2),inset_0_0_0_1px_rgba(255,255,255,0.25),0_6px_16px_-6px_rgba(0,70,140,0.45)] will-change-transform"
+                    className="pointer-events-none absolute left-0 top-0 -z-10 rounded-full bg-white/[0.08] opacity-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),inset_0_0_0_1px_rgba(255,255,255,0.08)] will-change-transform"
                 />
                 {children}
             </div>

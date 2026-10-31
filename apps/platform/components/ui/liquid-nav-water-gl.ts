@@ -2,11 +2,10 @@
  * WebGL renderer for the sidebar's liquid drop.
  *
  * Adapted from Nimbus UI "Waterline" (guglielmogiannattasio.it): the same
- * signed-distance drop, lens normals, specular, caustics and ripple field,
- * turned vertical for a sidebar. The original's pill-edge lens is dropped:
- * the sidebar already draws its own panel, so only the drop, its shadow,
- * ripples and the cursor meniscus are rendered. A flat surface renders fully
- * transparent, so nothing shows outside the water.
+ * signed-distance drop, lens normals and ripple field, turned vertical for a
+ * sidebar and shaded far more quietly: a frosted fill, a hairline rim and one
+ * soft highlight. No pill-edge lens, iridescence or caustics. A flat surface
+ * renders fully transparent, so nothing shows outside the water.
  */
 
 import { MAX_BLOBS, MAX_RIPPLES } from "./liquid-nav-water-physics";
@@ -27,34 +26,24 @@ float waves(vec2 p){float w=0.;
  for(int i=0;i<${MAX_RIPPLES};i++){vec4 R=uRip[i];if(R.w>0.){float x=length(p-R.xy)-R.z*240.;w+=R.w*exp(-R.z*1.7)*sin(x*.3)*exp(-x*x/700.);}}
  vec2 m=p-uMouse.xy;w+=uMouse.z*3.*exp(-dot(m,m)/1000.);
  w+=uAmb*.6*(sin(p.y*.05+uTime*1.2)*.45+sin(p.y*.13-uTime*.85+p.x*.2)*.25);return w;}
-float H(vec2 p){float da=areaD(p);return lens(dropD(p),11.)*7.5+waves(p)*smoothstep(0.,7.,-da);}
-float caus(vec2 p,float t){vec2 q=p;float c=0.;for(int i=0;i<3;i++){q+=vec2(sin(q.y*1.1+t),cos(q.x*1.3-t*.7))*.6;c+=1./(1.+16.*abs(sin(q.x)*sin(q.y)));}return c/3.;}
+float H(vec2 p){float da=areaD(p);return lens(dropD(p),11.)*4.+waves(p)*smoothstep(0.,7.,-da);}
 void main(){
  vec2 p=vec2(gl_FragCoord.x,uRes.y*uDpr-gl_FragCoord.y)/uDpr;
  float dp=areaD(p);float dd=dropD(p);
  float h0=H(p);vec3 n=normalize(vec3(h0-H(p+vec2(1.,0.)),h0-H(p+vec2(0.,1.)),1.));
- vec3 V=vec3(0.,0.,1.);
- float spec=pow(max(dot(reflect(-normalize(vec3(-.45,-.8,.85)),n),V),0.),70.);
- float spec2=pow(max(dot(reflect(-normalize(vec3(.6,.75,.7)),n),V),0.),22.)*.3;
+ float spec=pow(max(dot(reflect(-normalize(vec3(-.45,-.8,.85)),n),vec3(0.,0.,1.)),0.),60.);
  float fres=clamp((1.-n.z)*4.,0.,1.);
- vec3 irid=.5+.5*cos(6.2831*(vec3(0.,.33,.67)+fres*.85+p.y*.0028+uTime*.035));
  float pm=smoothstep(1.,-1.,dp);float dm=smoothstep(1.,-1.,dd)*smoothstep(1.,-2.,dp);
- float sh=smoothstep(9.,-9.,dropD(p-vec2(0.,5.)))*(1.-dm)*pm*(.11+.07*uDark);
- vec3 c=vec3(0.,.14,.36)*sh;float a=sh;
- float pa=clamp(pm*(fres*.5+spec*.9+spec2),0.,1.);
- c=mix(vec3(1.),irid,.5*fres)*pa+c*(1.-pa);a=pa+a*(1.-pa);
- float th=lens(dd,11.);
- float cs=caus((p+n.xy*th*18.)*.085,uTime*.9);
- vec3 tint=mix(vec3(.80,.95,1.),vec3(.55,.82,1.),uDark);
- float rim=dm*(1.-smoothstep(0.,8.,-dd));
- float cres=dm*smoothstep(.12,.55,dot(n.xy,normalize(vec2(.55,.85))))*smoothstep(0.,3.,-dd);
+ vec3 tone=mix(vec3(.05,.08,.15),vec3(1.),uDark);
+ // faint contact shadow under the drop
+ float a=smoothstep(6.,-6.,dropD(p-vec2(0.,3.)))*(1.-dm)*pm*.05;vec3 c=vec3(0.);
+ // ripples and the cursor meniscus: a barely-there sheen
+ float l=clamp(pm*(fres*.12+spec*.2),0.,1.);c=tone*l+c*(1.-l);a=l+a*(1.-l);
+ // the drop: frosted fill, a little brighter toward the top, hairline rim, one soft highlight
  float body=.5+.5*clamp(-n.y*3.,-1.,1.);
- float da=dm*(.26+.14*body)*(1.-.35*uDark);vec3 dc=mix(tint,vec3(1.),body*.6);
- float la=rim*.22;vec3 lc=mix(vec3(0.,.42,.78),vec3(.1,.55,.95),uDark);dc=lc*la+dc*da*(1.-la);da=la+da*(1.-la);
- la=clamp(cres*.7+smoothstep(.6,1.,cs)*.28*th*dm,0.,1.);dc=vec3(1.)*la+dc*(1.-la);da=la+da*(1.-la);
- la=clamp(dm*(spec*1.2+spec2*.5),0.,1.);dc=vec3(1.)*la+dc*(1.-la);da=la+da*(1.-la);
- la=dm*smoothstep(-2.,0.,dd)*.4;dc=mix(vec3(1.),irid,.35)*la+dc*(1.-la);da=la+da*(1.-la);
- c=dc+c*(1.-da);a=da+a*(1.-da);
+ l=dm*(.06+.03*body);c=tone*l+c*(1.-l);a=l+a*(1.-l);
+ l=dm*smoothstep(-1.5,0.,dd)*.14;c=tone*l+c*(1.-l);a=l+a*(1.-l);
+ l=clamp(dm*spec*.3,0.,1.);c=tone*l+c*(1.-l);a=l+a*(1.-l);
  gl_FragColor=vec4(c,a);
 }`;
 

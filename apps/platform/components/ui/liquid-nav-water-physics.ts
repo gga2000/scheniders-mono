@@ -180,7 +180,7 @@ export function stepWater(s: WaterState, dt: number, now: number, opts: StepOpti
                 x: T.cx + (opts.random() - 0.5) * 12,
                 vy: (from.v + to.v) * 0.45,
                 vx: (opts.random() - 0.5) * 20,
-                r: 4.5 + opts.random() * 2 - j * 0.5,
+                r: 3.5 + opts.random() * 1.5 - j * 0.5,
                 k: 70 + opts.random() * 90,
             });
         });
