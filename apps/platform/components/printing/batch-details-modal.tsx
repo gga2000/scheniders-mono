@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate } from "@/lib/utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { useLanguage } from "@/hooks/use-language";
 
 interface BatchDetailsModalProps {
     isOpen: boolean;
@@ -46,6 +47,7 @@ export function BatchDetailsModal({
     onUpdateName,
     onRemoveOrders,
 }: BatchDetailsModalProps) {
+    const { t } = useLanguage();
     const [isEditing, setIsEditing] = useState(false);
     const [editedName, setEditedName] = useState("");
     const [selectedForRemoval, setSelectedForRemoval] = useState<Set<string>>(new Set());
@@ -72,7 +74,7 @@ export function BatchDetailsModal({
     };
 
     const handleDelete = async () => {
-        if (confirm("Are you sure you want to delete this batch? This cannot be undone.")) {
+        if (confirm(t("printing.batch_deleteConfirm"))) {
             setIsDeleting(true);
             await onDeleteBatch(batch.id);
             setIsDeleting(false);
@@ -162,7 +164,7 @@ export function BatchDetailsModal({
                                                 {formatDate(batch.created_at)}
                                             </span>
                                             <span>•</span>
-                                            <span>{batch.order_count} orders</span>
+                                            <span>{t("printing.batch_orders").replace("{count}", String(batch.order_count))}</span>
                                             <span>•</span>
                                             <span>{formatIQD(batch.total_value)}</span>
                                         </div>
@@ -183,29 +185,29 @@ export function BatchDetailsModal({
                                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--ink)] text-white font-medium text-sm hover:scale-[1.02] transition-all"
                                 >
                                     <Printer className="w-4 h-4" />
-                                    Re-print Batch
+                                    {t("printing.batch_reprint")}
                                 </button>
                                 <button
                                     onClick={() => onDownloadPDF(batch.order_ids || [], batch.invoice_template || "prime")}
                                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--pastel-purple)] text-purple-900 font-medium text-sm hover:shadow-md transition-all"
                                 >
                                     <Download className="w-4 h-4" />
-                                    Download PDF
+                                    {t("printing.batch_downloadPdf")}
                                 </button>
                                 <button
                                     onClick={() => onExportPrimeCSV(batch.order_ids || [], batchOrders)}
                                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-white font-medium text-sm hover:shadow-md transition-all"
-                                    title="Export for Prime Delivery"
+                                    title={t("printing.batch_exportShip")}
                                 >
                                     <FileText className="w-4 h-4" />
-                                    تصدير للشحن
+                                    {t("printing.batch_exportShip")}
                                 </button>
                                 {selectedForRemoval.size > 0 && (
                                     <button
                                         onClick={handleRemoveSelected}
                                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-100 text-amber-900 font-medium text-sm hover:bg-amber-200 transition-all"
                                     >
-                                        Remove {selectedForRemoval.size} from Batch
+                                        {t("printing.batch_removeN").replace("{count}", String(selectedForRemoval.size))}
                                     </button>
                                 )}
                                 <button
@@ -214,20 +216,20 @@ export function BatchDetailsModal({
                                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 text-red-600 font-medium text-sm hover:bg-red-100 transition-all ml-auto"
                                 >
                                     <Trash2 className="w-4 h-4" />
-                                    {isDeleting ? "Deleting..." : "Delete Batch"}
+                                    {isDeleting ? t("printing.batch_deleting") : t("printing.batch_delete")}
                                 </button>
                             </div>
                         </div>
 
                         {/* Orders List */}
                         <div className="flex-1 overflow-y-auto p-6">
-                            <h3 className="text-sm font-semibold text-muted mb-3">Orders in this batch</h3>
+                            <h3 className="text-sm font-semibold text-muted mb-3">{t("printing.batch_ordersIn")}</h3>
 
                             {batchOrders.length === 0 ? (
                                 <div className="text-center py-8 text-muted">
                                     <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                    <p>No orders found in this batch</p>
-                                    <p className="text-sm">Orders may have been deleted</p>
+                                    <p>{t("printing.batch_noOrders")}</p>
+                                    <p className="text-sm">{t("printing.batch_mayBeDeleted")}</p>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -275,7 +277,7 @@ export function BatchDetailsModal({
                                                 <div className="text-right">
                                                     <p className="font-bold text-foreground">{formatIQD(order.price)}</p>
                                                     <p className="text-xs text-muted">
-                                                        {mergeOrderItems(order.items).length} items
+                                                        {t("printing.batch_itemsCount").replace("{count}", String(mergeOrderItems(order.items).length))}
                                                     </p>
                                                 </div>
                                             </div>
@@ -289,10 +291,10 @@ export function BatchDetailsModal({
                         <div className="p-4 border-t border-[var(--card-border)] bg-[var(--background)]">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted">
-                                    Template: <span className="font-medium text-foreground capitalize">{batch.invoice_template || "prime"}</span>
+                                    {t("printing.batch_template")}: <span className="font-medium text-foreground capitalize">{batch.invoice_template || "prime"}</span>
                                 </span>
                                 <span className="text-muted">
-                                    Cities: <span className="font-medium text-foreground">{batch.cities?.join(", ") || "—"}</span>
+                                    {t("printing.batch_citiesLabel")}: <span className="font-medium text-foreground">{batch.cities?.join(", ") || "—"}</span>
                                 </span>
                             </div>
                         </div>

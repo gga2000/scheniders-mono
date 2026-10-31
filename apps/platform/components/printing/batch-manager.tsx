@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { PrintBatch } from "@/lib/supabase";
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, formatDate } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface BatchManagerProps {
     batches: PrintBatch[];
@@ -40,6 +41,7 @@ export function BatchManager({
     onExportExcel,
     onOpenBatchDetails,
 }: BatchManagerProps) {
+    const { t } = useLanguage();
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [batchName, setBatchName] = useState("");
     const [creating, setCreating] = useState(false);
@@ -99,7 +101,7 @@ export function BatchManager({
                     )}
                 >
                     <Package className="w-4 h-4" />
-                    Create Batch ({selectedOrderIds.size})
+                    {t("printing.batch_create").replace("{count}", String(selectedOrderIds.size))}
                 </button>
 
                 {/* Add to Existing Batch Dropdown */}
@@ -120,7 +122,7 @@ export function BatchManager({
                             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-[var(--pastel-mint)] text-teal-900 hover:shadow-md transition-all"
                         >
                             <FolderPlus className="w-4 h-4" />
-                            Add to Batch
+                            {t("printing.batch_addTo")}
                             <ChevronDown className={cn("w-3 h-3 transition-transform", showAddToBatch && "rotate-180")} />
                         </button>
 
@@ -153,7 +155,7 @@ export function BatchManager({
                                             >
                                                 <div>
                                                     <p className="font-medium text-sm text-foreground">{batch.name}</p>
-                                                    <p className="text-xs text-muted">{batch.order_count} orders</p>
+                                                    <p className="text-xs text-muted">{t("printing.batch_orders").replace("{count}", String(batch.order_count))}</p>
                                                 </div>
                                                 {addingToBatch === batch.id ? (
                                                     <div className="w-4 h-4 rounded-full border-2 border-teal-500 border-t-transparent animate-spin" />
@@ -181,7 +183,7 @@ export function BatchManager({
                                 ? "hover:bg-[var(--card-border)] text-foreground"
                                 : "text-gray-400 cursor-not-allowed"
                         )}
-                        title="Export to CSV"
+                        title={t("printing.batch_exportCsv")}
                     >
                         <FileText className="w-4 h-4" />
                         CSV
@@ -195,7 +197,7 @@ export function BatchManager({
                                 ? "hover:bg-[var(--card-border)] text-foreground"
                                 : "text-gray-400 cursor-not-allowed"
                         )}
-                        title="Export to Excel"
+                        title={t("printing.batch_exportExcel")}
                     >
                         <FileSpreadsheet className="w-4 h-4" />
                         Excel
@@ -213,7 +215,7 @@ export function BatchManager({
                     )}
                 >
                     <Calendar className="w-4 h-4" />
-                    History
+                    {t("printing.batch_history")}
                     <ChevronDown className={cn("w-3 h-3 transition-transform", showHistory && "rotate-180")} />
                 </button>
             </div>
@@ -228,7 +230,7 @@ export function BatchManager({
                         className="overflow-hidden"
                     >
                         <div className="pastel-card p-4 space-y-3">
-                            <h4 className="text-sm font-semibold text-foreground">Recent Batches</h4>
+                            <h4 className="text-sm font-semibold text-foreground">{t("printing.batch_recent")}</h4>
                             <div className="space-y-2 max-h-64 overflow-y-auto">
                                 {batches.slice(0, 15).map((batch) => (
                                     <div
@@ -243,7 +245,7 @@ export function BatchManager({
                                             <div>
                                                 <p className="font-medium text-foreground text-sm">{batch.name}</p>
                                                 <div className="flex items-center gap-2 text-xs text-muted">
-                                                    <span>{batch.order_count} orders</span>
+                                                    <span>{t("printing.batch_orders").replace("{count}", String(batch.order_count))}</span>
                                                     <span>•</span>
                                                     <span>{formatIQD(batch.total_value)}</span>
                                                 </div>
@@ -289,7 +291,7 @@ export function BatchManager({
                                     <div className="w-10 h-10 rounded-xl bg-[var(--pastel-purple)] flex items-center justify-center">
                                         <Package className="w-5 h-5 text-purple-700" />
                                     </div>
-                                    <h3 className="text-lg font-bold text-foreground">Create Print Batch</h3>
+                                    <h3 className="text-lg font-bold text-foreground">{t("printing.batch_createTitle")}</h3>
                                 </div>
                                 <button
                                     onClick={() => setShowCreateModal(false)}
@@ -302,13 +304,13 @@ export function BatchManager({
                             {/* Batch Name Input */}
                             <div>
                                 <label className="text-sm font-medium text-foreground block mb-2">
-                                    Batch Name
+                                    {t("printing.batch_name")}
                                 </label>
                                 <input
                                     type="text"
                                     value={batchName}
                                     onChange={(e) => setBatchName(e.target.value)}
-                                    placeholder="e.g., Morning Delivery Dec 21"
+                                    placeholder={t("printing.batch_namePlaceholder")}
                                     className="w-full px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-purple)]"
                                     autoFocus
                                 />
@@ -317,11 +319,11 @@ export function BatchManager({
                             {/* Batch Summary */}
                             <div className="p-4 bg-[var(--background)] rounded-xl space-y-2">
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted">Orders</span>
+                                    <span className="text-muted">{t("printing.batch_ordersLabel")}</span>
                                     <span className="font-semibold text-foreground">{selectedOrderIds.size}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted">Total Value</span>
+                                    <span className="text-muted">{t("printing.batch_totalValue")}</span>
                                     <span className="font-semibold text-foreground">
                                         {formatIQD(
                                             orders
@@ -331,7 +333,7 @@ export function BatchManager({
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted">Cities</span>
+                                    <span className="text-muted">{t("printing.batch_cities")}</span>
                                     <span className="font-semibold text-foreground">
                                         {[
                                             ...new Set(
@@ -351,7 +353,7 @@ export function BatchManager({
                                     onClick={() => setShowCreateModal(false)}
                                     className="flex-1 px-4 py-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-foreground font-medium hover:bg-[var(--card-border)] transition-colors"
                                 >
-                                    Cancel
+                                    {t("printing.batch_cancel")}
                                 </button>
                                 <button
                                     onClick={handleCreateBatch}
@@ -368,7 +370,7 @@ export function BatchManager({
                                     ) : (
                                         <>
                                             <Plus className="w-4 h-4" />
-                                            Create Batch
+                                            {t("printing.batch_createAction")}
                                         </>
                                     )}
                                 </button>
