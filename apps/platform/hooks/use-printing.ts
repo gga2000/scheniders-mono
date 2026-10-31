@@ -178,7 +178,7 @@ export function usePrinting(orders: Order[]) {
     // BATCH MANAGEMENT
     // =============================================
 
-    async function fetchBatches() {
+    const fetchBatches = useCallback(async () => {
         try {
             const { data, error } = await supabase
                 .from("print_batches")
@@ -191,7 +191,7 @@ export function usePrinting(orders: Order[]) {
         } catch (err) {
             console.error("Error fetching batches:", err);
         }
-    }
+    }, []);
 
     async function createBatch(
         name: string,

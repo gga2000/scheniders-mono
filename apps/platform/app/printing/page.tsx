@@ -59,6 +59,8 @@ export default function PrintingPage() {
     // Modal state
     const [showPreview, setShowPreview] = useState(false);
     const [showReprintWarning, setShowReprintWarning] = useState(false);
+    // Which action the reprint warning is guarding: sending to the printer or downloading the PDF
+    const [reprintAction, setReprintAction] = useState<"print" | "pdf">("print");
     const [pdfLoading, setPdfLoading] = useState(false);
     const [showShipDialog, setShowShipDialog] = useState(false);
     const [showDeliverDialog, setShowDeliverDialog] = useState(false);
@@ -72,10 +74,10 @@ export default function PrintingPage() {
     const [showExportMenu, setShowExportMenu] = useState(false);
 
     // Load batches on mount
+    const { fetchBatches } = printing;
     useEffect(() => {
-        printing.fetchBatches();
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; the hook object changes every render
-    }, []);
+        fetchBatches();
+    }, [fetchBatches]);
 
     // Sort orders
     const sortedOrders = useMemo(() => {
@@ -147,6 +149,7 @@ export default function PrintingPage() {
 
         // Check for reprints first
         if (reprintOrders.length > 0) {
+            setReprintAction("print");
             setShowReprintWarning(true);
             return;
         }
@@ -250,7 +253,7 @@ export default function PrintingPage() {
     // Handle print all (including reprints)
     const handlePrintAll = async () => {
         setShowReprintWarning(false);
-        await executePrint(selectedOrdersList);
+        await (reprintAction === "pdf" ? executePdf(selectedOrdersList) : executePrint(selectedOrdersList));
     };
 
     // Handle print new only
@@ -258,7 +261,7 @@ export default function PrintingPage() {
         setShowReprintWarning(false);
         const newOrders = selectedOrdersList.filter((o) => !printing.isReprintOrder(o.id));
         if (newOrders.length > 0) {
-            await executePrint(newOrders);
+            await (reprintAction === "pdf" ? executePdf(newOrders) : executePrint(newOrders));
         }
     };
 
@@ -286,7 +289,16 @@ export default function PrintingPage() {
     const handleDownloadPDF = async () => {
         if (selectedOrders.size === 0) return;
 
-        const ordersToPrint = sortedOrders.filter((o) => selectedOrders.has(o.id));
+        if (reprintOrders.length > 0) {
+            setReprintAction("pdf");
+            setShowReprintWarning(true);
+            return;
+        }
+
+        await executePdf(selectedOrdersList);
+    };
+
+    const executePdf = async (ordersToPrint: Order[]) => {
         const labelOptions: EnhancedLabelOptions = {
             ...printing.labelSettings,
             invoiceTemplate: invoiceTemplate,

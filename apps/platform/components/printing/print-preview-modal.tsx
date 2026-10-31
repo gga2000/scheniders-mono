@@ -6,6 +6,7 @@ import { Order } from "@/lib/supabase";
 import { EnhancedLabelOptions, generateLabelHTML, generateA6InvoiceHTML, generateA6InvoiceModern, generateA6InvoicePrime, generateBulkA6InvoicesHTML, generateShippingLabelHTML, SHIPPING_LABEL_CSS } from "@/lib/enhanced-label-generator";
 import { X, Printer, ZoomIn, ZoomOut, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface PrintPreviewModalProps {
     isOpen: boolean;
@@ -26,6 +27,7 @@ export function PrintPreviewModal({
     customerOrderCounts,
     onPrint,
 }: PrintPreviewModalProps) {
+    const { t } = useLanguage();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [previewHtml, setPreviewHtml] = useState<string>("");
     const [zoom, setZoom] = useState(100);
@@ -109,9 +111,11 @@ export function PrintPreviewModal({
                                 <Eye className="w-5 h-5 text-purple-700" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-bold text-foreground">Print Preview</h2>
+                                <h2 className="text-xl font-bold text-foreground">{t("printing.preview_title")}</h2>
                                 <p className="text-sm text-muted">
-                                    {printType === "labels" ? "Label" : "Invoice"} {currentIndex + 1} of {orders.length}
+                                    {t(printType === "labels" ? "printing.preview_labelOf" : "printing.preview_invoiceOf")
+                                        .replace("{current}", String(currentIndex + 1))
+                                        .replace("{total}", String(orders.length))}
                                 </p>
                             </div>
                         </div>
@@ -674,7 +678,7 @@ export function PrintPreviewModal({
                                         : "bg-[var(--background)] border border-[var(--card-border)] hover:bg-[var(--card-border)]"
                                 )}
                             >
-                                Previous
+                                {t("printing.preview_prev")}
                             </button>
 
                             {/* Order Pills */}
@@ -706,7 +710,7 @@ export function PrintPreviewModal({
                                         : "bg-[var(--background)] border border-[var(--card-border)] hover:bg-[var(--card-border)]"
                                 )}
                             >
-                                Next
+                                {t("printing.preview_next")}
                             </button>
                         </div>
 
@@ -719,7 +723,7 @@ export function PrintPreviewModal({
                             className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--ink)] text-white font-semibold hover:scale-[1.02] transition-all shadow-lg"
                         >
                             <Printer className="w-5 h-5" />
-                            Print {orders.length} {printType === "labels" ? "Labels" : "Invoices"}
+                            {t(printType === "labels" ? "printing.preview_printLabels" : "printing.preview_printInvoices").replace("{count}", String(orders.length))}
                         </button>
                     </div>
                 </motion.div>
