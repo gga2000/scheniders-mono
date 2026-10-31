@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle, Loader2, AlertCircle, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -8,8 +8,8 @@ import { useLanguage } from "@/hooks/use-language";
 interface AutoSaveIndicatorProps {
     isDirty: boolean;
     saving: boolean;
+    /** Retry after a failed save. Saving itself is always an explicit click. */
     onSave: () => Promise<void> | void;
-    debounceMs?: number;
     lastSaveError?: string | null;
 }
 
@@ -19,13 +19,10 @@ export function AutoSaveIndicator({
     isDirty,
     saving,
     onSave,
-    debounceMs = 2000,
     lastSaveError,
 }: AutoSaveIndicatorProps) {
     const { t } = useLanguage();
     const [status, setStatus] = useState<SaveStatus>("saved");
-    const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const isFirstRender = useRef(true);
 
     // Determine status from props
     useEffect(() => {
@@ -39,25 +36,6 @@ export function AutoSaveIndicator({
             setStatus("saved");
         }
     }, [isDirty, saving, lastSaveError]);
-
-    // Auto-save with debounce
-    useEffect(() => {
-        // Skip auto-save on initial mount
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
-        }
-
-        if (!isDirty || saving) return;
-
-        timerRef.current = setTimeout(() => {
-            onSave();
-        }, debounceMs);
-
-        return () => {
-            if (timerRef.current) clearTimeout(timerRef.current);
-        };
-    }, [isDirty, saving, onSave, debounceMs]);
 
     // beforeunload warning
     useEffect(() => {
