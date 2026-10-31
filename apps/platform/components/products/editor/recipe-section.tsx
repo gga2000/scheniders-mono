@@ -12,6 +12,7 @@ import {
     Save,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { productRepository } from "@/lib/repositories/product-repository";
 import type { Product } from "@/lib/supabase";
 import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -77,15 +78,19 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
         staleTime: 60_000,
         queryFn: async () => {
             if (!tenantId) return [] as Product[];
-            const { data, error } = await supabase
-                .from("products")
-                .select("id, name, sku, cost, stock_quantity, image_url")
-                .eq("tenant_id", tenantId)
-                .eq("is_supply", true)
-                .or("is_archived.is.null,is_archived.eq.false")
-                .order("name", { ascending: true });
+            const [{ data, error }, costs] = await Promise.all([
+                supabase
+                    .from("products")
+                    .select("id, name, sku, stock_quantity, image_url")
+                    .eq("tenant_id", tenantId)
+                    .eq("is_supply", true)
+                    .or("is_archived.is.null,is_archived.eq.false")
+                    .order("name", { ascending: true }),
+                // Cost is not a readable column; product_costs returns supply costs.
+                productRepository.getProductCosts(tenantId),
+            ]);
             if (error) throw error;
-            return (data ?? []) as Product[];
+            return (data ?? []).map((supply) => ({ ...supply, cost: costs.get(supply.id) ?? null })) as Product[];
         },
     });
 

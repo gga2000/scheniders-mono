@@ -39,8 +39,6 @@ import { TrendingUp, Clock, Package, Zap, Link as LinkIcon, Weight, Truck, Barco
 import { SectionNav } from "./section-nav";
 import { AutoSaveIndicator } from "./auto-save-indicator";
 import { useLanguage } from "@/hooks/use-language";
-import { usePermission } from "@/hooks/use-permission";
-import { PERMISSIONS } from "@/lib/permissions";
 import dynamic from "next/dynamic";
 
 // Collapsed-by-default sections: their code (jsbarcode, qrcode, batch and
@@ -59,10 +57,9 @@ interface ProductEditorPageProps {
 export function ProductEditorPage({ product, mode, defaultIsSupply = false }: ProductEditorPageProps) {
     const editor = useProductEditor({ product, mode, defaultIsSupply });
     const { t } = useLanguage();
-    const { can } = usePermission();
-    // Product cost and margin are for admins only (products.manage). A supply's
-    // cost is its price, so whoever adds supplies keeps seeing it.
-    const showCost = can(PERMISSIONS.MANAGE_PRODUCTS) || editor.formData.is_supply;
+    // Product cost and margin are for admins only; a supply's cost is its
+    // price, so whoever adds supplies keeps seeing it (useProductEditor).
+    const { showCost } = editor;
 
     return (
         <div className="min-h-screen bg-[var(--background)]">
@@ -342,6 +339,8 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                         />
                                     </CollapsibleSection>
 
+                                    {/* Suppliers carry unit cost, so they are saved only by members who see cost. */}
+                                    {showCost && (
                                     <CollapsibleSection title={t("products.ed.sec.suppliers")} icon={<Truck className="w-4 h-4 text-muted" />} badge={editor.formData.suppliers.length || undefined} persistKey="suppliers">
                                         <SupplierSection
                                             suppliers={editor.formData.suppliers}
@@ -349,6 +348,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                             showCost={showCost}
                                         />
                                     </CollapsibleSection>
+                                    )}
                                 </>
                             )}
 
