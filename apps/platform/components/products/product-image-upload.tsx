@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, Image as ImageIcon, Link, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ProductImageUploadProps {
     value: string;
@@ -13,6 +14,7 @@ interface ProductImageUploadProps {
 }
 
 export function ProductImageUpload({ value, onChange, productId }: ProductImageUploadProps) {
+    const { t } = useLanguage();
     const [dragActive, setDragActive] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -32,12 +34,12 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
 
     const uploadFile = async (file: File) => {
         if (!file.type.startsWith("image/")) {
-            setError("Please upload an image file");
+            setError(t("products.image.notImage"));
             return;
         }
 
         if (file.size > 5 * 1024 * 1024) {
-            setError("Image must be less than 5MB");
+            setError(t("products.image.tooLarge"));
             return;
         }
 
@@ -59,7 +61,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
             if (uploadError) {
                 // If bucket doesn't exist, show helpful error
                 if (uploadError.message.includes("not found")) {
-                    throw new Error("Storage bucket 'product-images' not found. Please create it in Supabase.");
+                    throw new Error(t("products.image.bucketMissing"));
                 }
                 throw uploadError;
             }
@@ -71,7 +73,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
             onChange(urlData.publicUrl);
         } catch (err) {
             console.error("Upload error:", err);
-            setError(err instanceof Error ? err.message : "Failed to upload image");
+            setError(err instanceof Error ? err.message : t("products.image.uploadFailed"));
         } finally {
             setUploading(false);
         }
@@ -85,7 +87,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             uploadFile(e.dataTransfer.files[0]);
         }
-    }, [productId]);
+    }, [productId, t]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -108,7 +110,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
         <div className="space-y-3">
             <div className="flex items-center justify-between">
                 <label className="block text-sm font-medium text-foreground">
-                    Product Image
+                    {t("products.image.label")}
                 </label>
                 <div className="flex bg-[var(--background)] rounded-lg p-0.5 border border-[var(--card-border)]">
                     <button
@@ -122,7 +124,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                         )}
                     >
                         <Upload className="w-3 h-3" />
-                        Upload
+                        {t("products.image.upload")}
                     </button>
                     <button
                         type="button"
@@ -135,7 +137,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                         )}
                     >
                         <Link className="w-3 h-3" />
-                        URL
+                        {t("products.image.url")}
                     </button>
                 </div>
             </div>
@@ -145,7 +147,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                 <div className="relative w-full h-40 rounded-xl overflow-hidden border border-[var(--card-border)]">
                     <img
                         src={value}
-                        alt="Product preview"
+                        alt={t("products.image.previewAlt")}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                             (e.target as HTMLImageElement).style.display = "none";
@@ -197,7 +199,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                                 {uploading ? (
                                     <>
                                         <Loader2 className="w-8 h-8 text-[var(--foreground)] animate-spin" />
-                                        <p className="text-sm text-muted">Uploading...</p>
+                                        <p className="text-sm text-muted">{t("products.image.uploading")}</p>
                                     </>
                                 ) : (
                                     <>
@@ -206,10 +208,10 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                                         </div>
                                         <div className="text-center">
                                             <p className="text-sm font-medium text-foreground">
-                                                {dragActive ? "Drop image here" : "Click or drag to upload"}
+                                                {dragActive ? t("products.image.dropHere") : t("products.image.clickOrDrag")}
                                             </p>
                                             <p className="text-xs text-muted mt-1">
-                                                PNG, JPG, WEBP up to 5MB
+                                                {t("products.image.formats")}
                                             </p>
                                         </div>
                                     </>
@@ -238,7 +240,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                                     disabled={!urlInput.trim()}
                                     className="px-4 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all disabled:opacity-50"
                                 >
-                                    Add
+                                    {t("products.image.add")}
                                 </button>
                             </div>
                         </motion.div>

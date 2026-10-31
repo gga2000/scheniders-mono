@@ -58,10 +58,10 @@ const STATUS_STYLES: Record<string, string> = {
     written_off: "bg-gray-100 text-gray-500",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-    active: "Active",
-    expired: "Expired",
-    written_off: "Written Off",
+const STATUS_LABEL_KEYS: Record<ProductBatch["status"], string> = {
+    active: "products.batch.active",
+    expired: "products.batch.expired",
+    written_off: "products.batch.writtenOff",
 };
 
 function generateBatchNumber(existingBatches: ProductBatch[]): string {
@@ -145,7 +145,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["product-batches", productId] });
-            toast.success("Batch added successfully");
+            toast.success(t("products.batch.addSuccess"));
             setShowForm(false);
             setForm({
                 batch_number: "",
@@ -156,7 +156,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
             });
         },
         onError: (err: Error) => {
-            toast.error(`Failed to add batch: ${err.message}`);
+            toast.error(t("products.batch.addFailed", { error: err.message }));
         },
     });
 
@@ -172,11 +172,11 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["product-batches", productId] });
-            toast.success("Batch written off");
+            toast.success(t("products.batch.writeOffSuccess"));
             setWriteOffConfirm(null);
         },
         onError: (err: Error) => {
-            toast.error(`Failed to write off batch: ${err.message}`);
+            toast.error(t("products.batch.writeOffFailed", { error: err.message }));
         },
     });
 
@@ -202,7 +202,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
         e.preventDefault();
         if (!tenantId) return;
         if (!form.batch_number || !form.quantity) {
-            toast.error("Batch number and quantity are required");
+            toast.error(t("products.batch.requiredFields"));
             return;
         }
 
@@ -225,7 +225,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
             <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                     <Package className="w-4 h-4" />
-                    Batch Tracking
+                    {t("products.batch.title")}
                 </h2>
                 <button
                     type="button"
@@ -237,7 +237,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                     )}
                 >
                     <Plus className="w-3.5 h-3.5" />
-                    Add Batch
+                    {t("products.batch.addBatch")}
                 </button>
             </div>
 
@@ -245,11 +245,11 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
             {batches.length > 0 && (
                 <div className="flex flex-wrap gap-4 p-3 bg-[var(--background)] rounded-xl border border-[var(--card-border)]">
                     <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted">Active Qty:</span>
+                        <span className="text-muted">{t("products.batch.activeQty")}</span>
                         <span className="font-semibold text-foreground">{summary.totalActiveQty}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
-                        <span className="text-muted">Earliest Expiry:</span>
+                        <span className="text-muted">{t("products.batch.earliestExpiryLabel")}</span>
                         <span
                             className={cn(
                                 "font-semibold",
@@ -258,7 +258,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                     : "text-foreground"
                             )}
                         >
-                            {summary.earliestExpiry ? formatDate(summary.earliestExpiry.toISOString()) : "N/A"}
+                            {summary.earliestExpiry ? formatDate(summary.earliestExpiry.toISOString()) : t("products.batch.notAvailable")}
                         </span>
                     </div>
                 </div>
@@ -277,7 +277,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                     >
                         <div className="p-4 bg-[var(--background)] rounded-xl border border-[var(--card-border)] space-y-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-semibold text-foreground">New Batch</h3>
+                                <h3 className="text-sm font-semibold text-foreground">{t("products.batch.newBatch")}</h3>
                                 <button
                                     type="button"
                                     onClick={() => setShowForm(false)}
@@ -291,7 +291,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                 {/* Batch Number */}
                                 <div>
                                     <label className="block text-xs font-medium text-muted mb-1">
-                                        Batch Number
+                                        {t("products.batch.batchNumber")}
                                     </label>
                                     <div className="relative">
                                         <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
@@ -310,7 +310,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                 {/* Quantity */}
                                 <div>
                                     <label className="block text-xs font-medium text-muted mb-1">
-                                        Quantity
+                                        {t("products.batch.quantity")}
                                     </label>
                                     <input
                                         type="number"
@@ -328,7 +328,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                 {/* Expiry Date */}
                                 <div>
                                     <label className="block text-xs font-medium text-muted mb-1">
-                                        Expiry Date
+                                        {t("products.batch.expiryDate")}
                                     </label>
                                     <div className="relative">
                                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
@@ -347,7 +347,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                 {showCost && (
                                 <div>
                                     <label className="block text-xs font-medium text-muted mb-1">
-                                        Cost per Unit
+                                        {t("products.batch.costPerUnit")}
                                     </label>
                                     <input
                                         type="number"
@@ -367,12 +367,12 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                             {/* Notes */}
                             <div>
                                 <label className="block text-xs font-medium text-muted mb-1">
-                                    Notes
+                                    {t("products.batch.notes")}
                                 </label>
                                 <textarea
                                     value={form.notes}
                                     onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-                                    placeholder="Optional notes about this batch..."
+                                    placeholder={t("products.batch.notesPlaceholder")}
                                     rows={2}
                                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm resize-none"
                                 />
@@ -385,7 +385,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                     onClick={() => setShowForm(false)}
                                     className="px-4 py-2 text-sm text-muted hover:text-foreground transition-colors"
                                 >
-                                    Cancel
+                                    {t("common.cancel")}
                                 </button>
                                 <button
                                     type="submit"
@@ -395,7 +395,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                     {insertMutation.isPending && (
                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                     )}
-                                    Add Batch
+                                    {t("products.batch.addBatch")}
                                 </button>
                             </div>
                         </div>
@@ -410,7 +410,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                 </div>
             ) : batches.length === 0 ? (
                 <div className="text-center py-8 text-sm text-muted">
-                    No batches recorded for this product yet.
+                    {t("products.batch.empty")}
                 </div>
             ) : (
                 <div className="space-y-2">
@@ -446,7 +446,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                         : STATUS_STYLES[batch.status]
                                                 )}
                                             >
-                                                {expired ? "Expired" : STATUS_LABELS[batch.status]}
+                                                {t(expired ? STATUS_LABEL_KEYS.expired : STATUS_LABEL_KEYS[batch.status])}
                                             </span>
                                             {expired && (
                                                 <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
@@ -456,11 +456,11 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                         {/* Detail row */}
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                                             <span>
-                                                Qty: <span className="text-foreground font-medium">{batch.quantity}</span>
+                                                {t("products.batch.qtyPrefix")}{" "}<span className="text-foreground font-medium">{batch.quantity}</span>
                                             </span>
                                             {batch.expiry_date && (
                                                 <span>
-                                                    Exp:{" "}
+                                                    {t("products.batch.expiryPrefix")}{" "}
                                                     <span
                                                         className={cn(
                                                             "font-medium",
@@ -473,14 +473,14 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                             )}
                                             {showCost && batch.cost_per_unit !== null && (
                                                 <span>
-                                                    Cost/unit:{" "}
+                                                    {t("products.batch.costPrefix")}{" "}
                                                     <span className="text-foreground font-medium">
                                                         {formatIQD(batch.cost_per_unit)}
                                                     </span>
                                                 </span>
                                             )}
                                             <span>
-                                                Received: <span className="text-foreground font-medium">{formatDate(batch.received_at)}</span>
+                                                {t("products.batch.receivedPrefix")}{" "}<span className="text-foreground font-medium">{formatDate(batch.received_at)}</span>
                                             </span>
                                         </div>
 
@@ -506,14 +506,14 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                         ) : (
                                                             <Trash2 className="w-3 h-3" />
                                                         )}
-                                                        Confirm
+                                                        {t("common.confirm")}
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => setWriteOffConfirm(null)}
                                                         className="px-2 py-1.5 text-xs text-muted hover:text-foreground transition-colors"
                                                     >
-                                                        Cancel
+                                                        {t("common.cancel")}
                                                     </button>
                                                 </div>
                                             ) : (
@@ -522,7 +522,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                     onClick={() => setWriteOffConfirm(batch.id)}
                                                     disabled={disabled}
                                                     className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors disabled:opacity-50"
-                                                    title="Write off batch"
+                                                    title={t("products.batch.writeOffTitle")}
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>

@@ -159,7 +159,7 @@ function ProductsContent() {
     const lastSelectedRef = useRef<string | null>(null);
 
     // Local UI State (not persisted)
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const searchParams = useSearchParams();
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
@@ -595,22 +595,22 @@ function ProductsContent() {
 
     const handleBulkExport = useCallback(() => {
         const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-        exportToCSV(selectedProducts, "selected-products", canSeeCost);
+        exportToCSV(selectedProducts, "selected-products", canSeeCost, { t, locale: language });
         clearSelection();
-    }, [products, selectedIds, clearSelection, canSeeCost]);
+    }, [products, selectedIds, clearSelection, canSeeCost, t, language]);
 
     // Export handlers
     const handleExportCSV = useCallback(() => {
-        exportToCSV(filteredProducts, "products", canSeeCost);
-    }, [filteredProducts, canSeeCost]);
+        exportToCSV(filteredProducts, "products", canSeeCost, { t, locale: language });
+    }, [filteredProducts, canSeeCost, t, language]);
 
     const handleExportExcel = useCallback(() => {
-        exportToExcel(filteredProducts, "products", canSeeCost);
-    }, [filteredProducts, canSeeCost]);
+        exportToExcel(filteredProducts, "products", canSeeCost, { t, locale: language });
+    }, [filteredProducts, canSeeCost, t, language]);
 
     const handlePrintReport = useCallback(() => {
-        printProductReport(filteredProducts, canSeeCost);
-    }, [filteredProducts, canSeeCost]);
+        printProductReport(filteredProducts, canSeeCost, { t, locale: language });
+    }, [filteredProducts, canSeeCost, t, language]);
 
     // Keyboard chord: G then {G|L|C|K|H} to switch view mode
     useEffect(() => {

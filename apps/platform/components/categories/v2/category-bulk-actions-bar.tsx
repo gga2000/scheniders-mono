@@ -121,32 +121,32 @@ export function CategoryBulkActionsBar({
               {totalCount ? ` / ${totalCount}` : ""}
             </span>
             <span className="text-xs text-muted">
-              {t("categories.bulk.selected") || "selected"}
+              {t("categories.bulk.selected")}
             </span>
           </div>
 
           <BulkBtn
             icon={EyeOff}
-            label={t("categories.bulk.hideNav") || "Hide from nav"}
+            label={t("categories.bulk.hideNav")}
             disabled={loading !== null}
             onClick={() =>
               wrap(
                 "hideNav",
                 () => onToggleNav(false),
-                t("categories.bulk.undoHideNav") || "Hid from nav",
+                t("categories.bulk.undoHideNav"),
               )
             }
             loading={loading === "hideNav"}
           />
           <BulkBtn
             icon={Eye}
-            label={t("categories.bulk.showNav") || "Show in nav"}
+            label={t("categories.bulk.showNav")}
             disabled={loading !== null}
             onClick={() =>
               wrap(
                 "showNav",
                 () => onToggleNav(true),
-                t("categories.bulk.undoShowNav") || "Shown in nav",
+                t("categories.bulk.undoShowNav"),
               )
             }
             loading={loading === "showNav"}
@@ -155,7 +155,7 @@ export function CategoryBulkActionsBar({
           {onMove && (
             <BulkBtn
               icon={FolderInput}
-              label={t("categories.bulk.move") || "Move"}
+              label={t("categories.bulk.move")}
               disabled={loading !== null}
               onClick={() => onMove()}
             />
@@ -163,7 +163,7 @@ export function CategoryBulkActionsBar({
           {onMerge && selectedCount >= 2 && (
             <BulkBtn
               icon={GitMerge}
-              label={t("categories.bulk.merge") || "Merge"}
+              label={t("categories.bulk.merge")}
               disabled={loading !== null}
               onClick={() => onMerge()}
             />
@@ -171,7 +171,7 @@ export function CategoryBulkActionsBar({
           {onDuplicate && (
             <BulkBtn
               icon={Copy}
-              label={t("categories.bulk.duplicate") || "Duplicate"}
+              label={t("categories.bulk.duplicate")}
               disabled={loading !== null}
               onClick={() => onDuplicate()}
             />
@@ -179,13 +179,13 @@ export function CategoryBulkActionsBar({
 
           <BulkBtn
             icon={Archive}
-            label={t("categories.bulk.archive") || "Archive"}
+            label={t("categories.bulk.archive")}
             disabled={loading !== null}
             onClick={() =>
               wrap(
                 "archive",
                 onArchive,
-                t("categories.bulk.undoArchive") || "Archived",
+                t("categories.bulk.undoArchive"),
               )
             }
             loading={loading === "archive"}
@@ -194,7 +194,7 @@ export function CategoryBulkActionsBar({
           {onRestore && (
             <BulkBtn
               icon={ArchiveRestore}
-              label={t("categories.bulk.restore") || "Restore"}
+              label={t("categories.bulk.restore")}
               disabled={loading !== null}
               onClick={() => wrap("restore", onRestore)}
               loading={loading === "restore"}
@@ -203,7 +203,7 @@ export function CategoryBulkActionsBar({
           {onDelete && (
             <BulkBtn
               icon={Trash2}
-              label={t("categories.bulk.delete") || "Delete"}
+              label={t("categories.bulk.delete")}
               disabled={loading !== null}
               onClick={() => wrap("delete", onDelete)}
               loading={loading === "delete"}
@@ -216,7 +216,7 @@ export function CategoryBulkActionsBar({
             type="button"
             onClick={onClear}
             className="p-2 rounded-lg hover:bg-[var(--background)] transition-colors"
-            aria-label="Clear selection"
+            aria-label={t("categories.bulk.clearSelection")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -240,7 +240,7 @@ export function CategoryBulkActionsBar({
               <Undo2 className="w-3.5 h-3.5" />
               {undoState.label}
               <span className="opacity-70">
-                ({Math.ceil(undoState.timeLeft / 1000)}s)
+                ({t("categories.bulk.secondsLeft", { seconds: Math.ceil(undoState.timeLeft / 1000) })})
               </span>
             </motion.button>
           )}
