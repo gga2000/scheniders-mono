@@ -66,6 +66,10 @@ export default function VaultPage() {
         return score; // 0-4
     };
     const keyStrength = calculateStrength(vaultKey);
+    // A typo in an encryption key makes the backup unrecoverable, so the key is typed twice.
+    const [confirmKey, setConfirmKey] = useState("");
+    const keyReady = isVaultKeyLongEnough(vaultKey) && vaultKey === confirmKey;
+    const keyMismatch = confirmKey !== "" && vaultKey !== confirmKey;
     // Security progression: weak → strong reads red → amber → emerald, theme-aware.
     const strengthColors = [
         "bg-red-500 dark:bg-red-400",
@@ -92,6 +96,8 @@ export default function VaultPage() {
     const [diffResult, setDiffResult] = useState<VaultDiff | null>(null);
     const [parsedVaultData, setParsedVaultData] = useState<VaultData | null>(null);
     const [isRestoring, setIsRestoring] = useState(false);
+    // Restore overwrites live rows: the red button stays off until the person says they understand.
+    const [restoreAcknowledged, setRestoreAcknowledged] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Cloud State
@@ -145,10 +151,16 @@ export default function VaultPage() {
         loadActivity();
     }, [loadCloudVaults, loadActivity]);
 
+    const keyToastMessage = () => {
+        if (!vaultKey) return t("vault.toast.keyRequired", "Vault Key is required for encrypted backups.");
+        if (!isVaultKeyLongEnough(vaultKey)) return t("vault.error.weakKey", "The vault key must be at least 10 characters.");
+        return t("vault.key.mismatch", "The two keys do not match.");
+    };
+
     // Handlers: Create Backup & Sync
     const handleGenerateBackup = async () => {
-        if (exportFormat === "vault" && !isVaultKeyLongEnough(vaultKey)) {
-            toast.error(vaultKey ? t("vault.error.weakKey", "The vault key must be at least 10 characters.") : t("vault.toast.keyRequired", "Vault Key is required for encrypted backups."));
+        if (exportFormat === "vault" && !keyReady) {
+            toast.error(keyToastMessage());
             return;
         }
 
@@ -171,8 +183,8 @@ export default function VaultPage() {
     };
 
     const handleCloudSync = async () => {
-        if (!isVaultKeyLongEnough(vaultKey)) {
-            toast.error(vaultKey ? t("vault.error.weakKey", "The vault key must be at least 10 characters.") : t("vault.toast.syncKeyRequired", "Vault Key is required for Cloud Sync."));
+        if (!keyReady) {
+            toast.error(keyToastMessage());
             return;
         }
 
@@ -288,6 +300,7 @@ export default function VaultPage() {
         setRestoreKey("");
         setDiffResult(null);
         setParsedVaultData(null);
+        setRestoreAcknowledged(false);
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
@@ -297,7 +310,7 @@ export default function VaultPage() {
             <div className="flex-shrink-0 border-b border-[var(--card-border)] bg-[var(--background)]/70 backdrop-blur-xl sticky top-0 z-30">
                 <div className="flex items-center px-6 md:px-8 h-[80px] max-w-[1600px] mx-auto w-full">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-[var(--vault-soft)] text-[var(--vault-accent)] border border-[var(--vault-border)] flex items-center justify-center shadow-[0_0_24px_var(--vault-glow)]">
+                        <div className="w-12 h-12 rounded-2xl bg-[var(--vault-soft)] text-[var(--vault-accent)] border border-[var(--vault-border)] flex items-center justify-center">
                             <Database className="w-6 h-6" />
                         </div>
                         <div>
@@ -314,6 +327,11 @@ export default function VaultPage() {
             {/* Main Content */}
             <main className="flex-1 p-6 md:p-8 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
 
+                {/* First thing to see: is my data protected? */}
+                <div className="lg:col-span-3">
+                    <BackupHealth activity={activity} isLoading={isLoadingActivity} failed={activityFailed} />
+                </div>
+
                 {/* CREATE BACKUP SECTION */}
                 <motion.section
                     initial={{ opacity: 0, y: 16 }}
@@ -321,8 +339,6 @@ export default function VaultPage() {
                     transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
                     className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 md:p-8 flex flex-col relative overflow-hidden group shadow-[var(--card-shadow)]"
                 >
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--vault-glow)] rounded-full blur-[80px] -z-10 opacity-70 group-hover:opacity-100 transition-opacity duration-700" />
-
                     <div className="flex items-center gap-3 mb-8">
                         <div className="w-10 h-10 rounded-xl bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center">
                             <Download className="w-5 h-5 text-[var(--foreground-muted)]" />
@@ -357,6 +373,12 @@ export default function VaultPage() {
                                     ext=".csv"
                                 />
                             </div>
+                            {exportFormat !== "vault" && (
+                                <p className="text-sm rounded-xl border border-amber-500/40 bg-amber-500/10 text-[var(--foreground)] px-4 py-3 flex gap-2">
+                                    <ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                                    <span>{t("vault.format.plainWarning", "This file is not encrypted. It holds customer names, phone numbers and addresses: keep it somewhere private.")}</span>
+                                </p>
+                            )}
                         </div>
 
                         {/* Vault Key Input (Conditional) */}
@@ -404,13 +426,31 @@ export default function VaultPage() {
                                                     />
                                                 ))}
                                             </div>
-                                            <div className={cn("text-[10px] font-medium text-right", strengthTextColors[keyStrength])}>
+                                            <div className={cn("text-xs font-medium text-right", strengthTextColors[keyStrength])}>
                                                 {strengthLabels[keyStrength]}
                                             </div>
                                         </div>
                                     )}
-                                    <p className="text-xs text-[var(--foreground-subtle)] mt-2 ml-1">
-                                        {t("vault.key.warning", "This key does not leave your browser. If you lose it, the backup cannot be restored.")}
+                                    <label className="text-sm font-medium text-[var(--foreground-muted)] block mt-4 mb-2" htmlFor="vault-key-confirm">
+                                        {t("vault.key.confirmLabel", "Type the key again")}
+                                    </label>
+                                    <input
+                                        id="vault-key-confirm"
+                                        type={showVaultKey ? "text" : "password"}
+                                        value={confirmKey}
+                                        onChange={(e) => setConfirmKey(e.target.value)}
+                                        aria-invalid={keyMismatch}
+                                        className={cn(
+                                            "w-full bg-[var(--background)] border rounded-xl px-4 py-3 text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] transition-all",
+                                            keyMismatch ? "border-red-500" : "border-[var(--card-border)] focus:border-[var(--vault-accent)]"
+                                        )}
+                                    />
+                                    {keyMismatch && (
+                                        <p className="mt-2 text-xs text-red-600 dark:text-red-400">{t("vault.key.mismatch", "The two keys do not match.")}</p>
+                                    )}
+                                    <p className="text-sm mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 text-[var(--foreground)] px-4 py-3 flex gap-2">
+                                        <ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                                        <span>{t("vault.key.warning", "This key does not leave your browser. If you lose it, the backup cannot be restored.")}</span>
                                     </p>
                                 </motion.div>
                             )}
@@ -418,11 +458,11 @@ export default function VaultPage() {
                         {exportFormat === "vault" && (
                             <button
                                 onClick={handleCloudSync}
-                                disabled={isSyncing || !isVaultKeyLongEnough(vaultKey)}
+                                disabled={isSyncing || !keyReady}
                                 className={cn(
                                     "mt-4 w-full py-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden",
-                                    "bg-[var(--vault-soft)] text-[var(--vault-accent)] border border-[var(--vault-border)] hover:border-[var(--vault-accent)] hover:shadow-[0_0_20px_var(--vault-glow)]",
-                                    (isSyncing || !isVaultKeyLongEnough(vaultKey)) && "opacity-60 cursor-not-allowed hover:shadow-none"
+                                    "bg-[var(--vault-soft)] text-[var(--vault-accent)] border border-[var(--vault-border)] hover:border-[var(--vault-accent)]",
+                                    (isSyncing || !keyReady) && "opacity-60 cursor-not-allowed hover:shadow-none"
                                 )}
                             >
                                 <AnimatePresence mode="wait">
@@ -456,11 +496,11 @@ export default function VaultPage() {
 
                     <button
                         onClick={handleGenerateBackup}
-                        disabled={isGenerating || (exportFormat === "vault" && !isVaultKeyLongEnough(vaultKey))}
+                        disabled={isGenerating || (exportFormat === "vault" && !keyReady)}
                         className={cn(
                             "mt-8 w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden",
                             "bg-[var(--primary)] text-[var(--primary-fg)] hover:bg-[var(--button-primary-hover)] hover:shadow-lg",
-                            (isGenerating || (exportFormat === "vault" && !isVaultKeyLongEnough(vaultKey))) && "opacity-60 cursor-not-allowed hover:shadow-none"
+                            (isGenerating || (exportFormat === "vault" && !keyReady)) && "opacity-60 cursor-not-allowed hover:shadow-none"
                         )}
                     >
                         <AnimatePresence mode="wait">
@@ -498,7 +538,6 @@ export default function VaultPage() {
                     transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
                     className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 md:p-8 flex flex-col relative overflow-hidden shadow-[var(--card-shadow)]"
                 >
-                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-[var(--vault-glow)] rounded-full blur-[80px] -z-10" />
 
                     <div className="flex items-center gap-3 mb-8">
                         <div className="w-10 h-10 rounded-xl bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center">
@@ -629,18 +668,18 @@ export default function VaultPage() {
                                             <div className="grid grid-cols-3 gap-2 text-center text-sm">
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
                                                     <div className="font-semibold">{diffResult.orders.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.orders.create, overwrite: diffResult.orders.overwrite })}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">{t("nav.orders", "Orders")}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.orders.create, overwrite: diffResult.orders.overwrite })}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.orders", "Orders")}</div>
                                                 </div>
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
                                                     <div className="font-semibold">{diffResult.products.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.products.create, overwrite: diffResult.products.overwrite })}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">{t("nav.products", "Products")}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.products.create, overwrite: diffResult.products.overwrite })}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.products", "Products")}</div>
                                                 </div>
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
                                                     <div className="font-semibold">{diffResult.customers.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.customers.create, overwrite: diffResult.customers.overwrite })}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">{t("nav.customers", "Customers")}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.customers.create, overwrite: diffResult.customers.overwrite })}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.customers", "Customers")}</div>
                                                 </div>
                                             </div>
                                             {Object.values(diffResult.extras).some((count) => count > 0) && (
@@ -662,13 +701,27 @@ export default function VaultPage() {
                                             </div>
                                         </div>
 
+                                        <label className="flex items-start gap-3 text-sm rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={restoreAcknowledged}
+                                                onChange={(e) => setRestoreAcknowledged(e.target.checked)}
+                                                className="mt-0.5 h-4 w-4 accent-red-600"
+                                            />
+                                            <span>
+                                                {t("vault.restore.acknowledge", "I understand this overwrites {count} existing rows in my live store.", {
+                                                    count: diffResult.orders.overwrite + diffResult.products.overwrite + diffResult.customers.overwrite,
+                                                })}
+                                            </span>
+                                        </label>
+
                                         <button
                                             onClick={handleExecuteRestore}
-                                            disabled={isRestoring}
+                                            disabled={isRestoring || !restoreAcknowledged}
                                             className={cn(
                                                 "w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-300",
-                                                "bg-red-600 hover:bg-red-700 text-white dark:bg-red-500 dark:hover:bg-red-400 shadow-[0_0_24px_rgba(239,68,68,0.22)]",
-                                                isRestoring && "opacity-70 cursor-not-allowed"
+                                                "bg-red-600 hover:bg-red-700 text-white dark:bg-red-500 dark:hover:bg-red-400 ",
+                                                (isRestoring || !restoreAcknowledged) && "opacity-60 cursor-not-allowed"
                                             )}
                                         >
                                             {isRestoring ? (
@@ -683,7 +736,7 @@ export default function VaultPage() {
                                                 </>
                                             )}
                                         </button>
-                                        <p className="text-[10px] text-center text-red-600/80 dark:text-red-400/80 uppercase tracking-wide">
+                                        <p className="text-xs text-center text-red-600 dark:text-red-400">
                                             {t("vault.restore.warning", "Warning: This will overwrite live data")}
                                         </p>
                                     </motion.div>
@@ -701,10 +754,6 @@ export default function VaultPage() {
                     deleting={isDeletingCloud}
                     onDelete={handleCloudDelete}
                 />
-
-                <div className="lg:col-span-3">
-                    <BackupHealth activity={activity} isLoading={isLoadingActivity} failed={activityFailed} />
-                </div>
 
             </main>
         </div>
