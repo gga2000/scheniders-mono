@@ -528,14 +528,14 @@ export function VariantMatrixTable({
                 <div className="flex items-center gap-3">
                     <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                         <Grid3X3 className="w-4 h-4" />
-                        {t?.("variant_matrix") ?? "Variant Matrix"}
+                        {t("products.vm.variantMatrix")}
                     </h2>
                     {variants.length > 0 && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--pastel-blue)] text-blue-800">
                             {variants.length}{" "}
                             {variants.length !== 1
-                                ? t?.("variants") ?? "variants"
-                                : t?.("variant") ?? "variant"}
+                                ? t("products.vm.variants")
+                                : t("products.vm.variant")}
                             {filterQuery && visibleIndices.length !== variants.length && (
                                 <span className="ml-1 text-blue-600">
                                     ({visibleIndices.length} shown)
@@ -550,7 +550,7 @@ export function VariantMatrixTable({
                                 type="text"
                                 value={filterQuery}
                                 onChange={(e) => setFilterQuery(e.target.value)}
-                                placeholder={t?.("products.editor.filterVariants")}
+                                placeholder={t("products.editor.filterVariants")}
                                 className="pl-8 pr-3 py-1.5 text-xs bg-[var(--background)] border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--pastel-blue)] w-48"
                             />
                         </div>
@@ -565,7 +565,7 @@ export function VariantMatrixTable({
                             disabled={disabled}
                             className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50"
                         >
-                            {t?.("apply_to_all") ?? "Apply to All"}
+                            {t("products.vm.applyToAll")}
                             <ChevronDown
                                 className={cn(
                                     "w-3.5 h-3.5 transition-transform",
@@ -585,15 +585,14 @@ export function VariantMatrixTable({
                                 >
                                     {hasSelection && (
                                         <p className="text-xs text-muted">
-                                            {t?.("applying_to_selected") ??
-                                                `Applying to ${selectedIndices.size} selected`}
+                                            {t("products.vm.applyingToSelected", { count: selectedIndices.size })}
                                         </p>
                                     )}
 
                                     {/* Price */}
                                     <div className="flex items-center gap-2">
                                         <label className="text-xs font-medium text-muted w-12 shrink-0">
-                                            {t?.("price") ?? "Price"}
+                                            {t("products.vm.price")}
                                         </label>
                                         <input
                                             type="number"
@@ -617,14 +616,14 @@ export function VariantMatrixTable({
                                             }}
                                             className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
                                         >
-                                            {t?.("apply") ?? "Apply"}
+                                            {t("products.vm.apply")}
                                         </button>
                                     </div>
 
                                     {showCost && (
                                                                         <div className="flex items-center gap-2">
                                         <label className="text-xs font-medium text-muted w-12 shrink-0">
-                                            {t?.("cost") ?? "Cost"}
+                                            {t("products.vm.cost")}
                                         </label>
                                         <input
                                             type="number"
@@ -648,7 +647,7 @@ export function VariantMatrixTable({
                                             }}
                                             className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
                                         >
-                                            {t?.("apply") ?? "Apply"}
+                                            {t("products.vm.apply")}
                                         </button>
                                     </div>
                                     )}
@@ -656,7 +655,7 @@ export function VariantMatrixTable({
                                     {/* Stock */}
                                     <div className="flex items-center gap-2">
                                         <label className="text-xs font-medium text-muted w-12 shrink-0">
-                                            {t?.("stock") ?? "Stock"}
+                                            {t("products.vm.stock")}
                                         </label>
                                         <input
                                             type="number"
@@ -680,7 +679,7 @@ export function VariantMatrixTable({
                                             }}
                                             className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
                                         >
-                                            {t?.("apply") ?? "Apply"}
+                                            {t("products.vm.apply")}
                                         </button>
                                     </div>
                                 </motion.div>
@@ -702,7 +701,7 @@ export function VariantMatrixTable({
                     >
                         <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-[var(--pastel-blue)]/40 border border-blue-200 rounded-xl text-sm">
                             <span className="font-medium text-blue-800 mr-1">
-                                {selectedIndices.size} {t?.("selected") ?? "selected"}
+                                {selectedIndices.size} {t("products.vm.selected")}
                             </span>
 
                             {/* Set Price */}
@@ -714,7 +713,7 @@ export function VariantMatrixTable({
                                     }
                                     className="px-2.5 py-1 bg-white/70 rounded-lg text-xs font-medium text-foreground hover:bg-white transition-colors"
                                 >
-                                    {t?.("set_price") ?? "Set Price..."}
+                                    {t("products.vm.setPrice")}
                                 </button>
                                 <AnimatePresence>
                                     {bulkPopover === "price" && (
@@ -744,7 +743,7 @@ export function VariantMatrixTable({
                                                 }}
                                                 className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
                                             >
-                                                {t?.("apply") ?? "Apply"}
+                                                {t("products.vm.apply")}
                                             </button>
                                         </motion.div>
                                     )}
@@ -761,7 +760,7 @@ export function VariantMatrixTable({
                                     }
                                     className="px-2.5 py-1 bg-white/70 rounded-lg text-xs font-medium text-foreground hover:bg-white transition-colors"
                                 >
-                                    {t?.("set_cost") ?? "Set Cost..."}
+                                    {t("products.vm.setCost")}
                                 </button>
                                 <AnimatePresence>
                                     {bulkPopover === "cost" && (
@@ -791,7 +790,7 @@ export function VariantMatrixTable({
                                                 }}
                                                 className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
                                             >
-                                                {t?.("apply") ?? "Apply"}
+                                                {t("products.vm.apply")}
                                             </button>
                                         </motion.div>
                                     )}
@@ -808,7 +807,7 @@ export function VariantMatrixTable({
                                     }
                                     className="px-2.5 py-1 bg-white/70 rounded-lg text-xs font-medium text-foreground hover:bg-white transition-colors"
                                 >
-                                    {t?.("add_stock") ?? "Add Stock +N"}
+                                    {t("products.vm.addStock")}
                                 </button>
                                 <AnimatePresence>
                                     {bulkPopover === "stock" && (
@@ -845,7 +844,7 @@ export function VariantMatrixTable({
                                                 }}
                                                 className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
                                             >
-                                                {t?.("apply") ?? "Apply"}
+                                                {t("products.vm.apply")}
                                             </button>
                                         </motion.div>
                                     )}
@@ -860,14 +859,14 @@ export function VariantMatrixTable({
                                 onClick={() => bulkSetEnabled(true)}
                                 className="px-2.5 py-1 bg-emerald-100 rounded-lg text-xs font-medium text-emerald-700 hover:bg-emerald-200 transition-colors"
                             >
-                                {t?.("enable_all") ?? "Enable All"}
+                                {t("products.vm.enableAll")}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => bulkSetEnabled(false)}
                                 className="px-2.5 py-1 bg-gray-100 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors"
                             >
-                                {t?.("disable_all") ?? "Disable All"}
+                                {t("products.vm.disableAll")}
                             </button>
 
                             <div className="w-px h-5 bg-blue-200" />
@@ -879,7 +878,7 @@ export function VariantMatrixTable({
                                 className="px-2.5 py-1 bg-white/70 rounded-lg text-xs font-medium text-foreground hover:bg-white transition-colors inline-flex items-center gap-1"
                             >
                                 <Tag className="w-3 h-3" />
-                                {t?.("generate_skus") ?? "Generate SKUs"}
+                                {t("products.vm.generateSkus")}
                             </button>
 
                             {/* Delete */}
@@ -890,7 +889,7 @@ export function VariantMatrixTable({
                                     className="px-2.5 py-1 bg-red-100 rounded-lg text-xs font-medium text-red-700 hover:bg-red-200 transition-colors inline-flex items-center gap-1 ml-auto"
                                 >
                                     <Trash2 className="w-3 h-3" />
-                                    {t?.("delete_selected") ?? "Delete Selected"}
+                                    {t("products.vm.deleteSelected")}
                                 </button>
                             )}
                         </div>
@@ -903,8 +902,7 @@ export function VariantMatrixTable({
                 <div className="p-8 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
                     <Grid3X3 className="w-8 h-8 text-muted mx-auto mb-2" />
                     <p className="text-muted text-sm">
-                        {t?.("variant_empty_state") ??
-                            "Configure product options above to generate variant combinations."}
+                        {t("products.vm.variantEmptyState")}
                     </p>
                 </div>
             ) : (
@@ -933,7 +931,7 @@ export function VariantMatrixTable({
 
                                     {/* Enable toggle */}
                                     <SortableHeader
-                                        label={t?.("on") ?? "On"}
+                                        label={t("products.vm.on")}
                                         sortKey="is_enabled"
                                         className="w-16"
                                     />
@@ -946,19 +944,19 @@ export function VariantMatrixTable({
                                     ))}
 
                                     <SortableHeader
-                                        label={`${t?.("price") ?? "Price"} (IQD)`}
+                                        label={`${t("products.vm.price")} (IQD)`}
                                         sortKey="price"
                                         className="text-left"
                                     />
                                     {showCost && (
                                         <SortableHeader
-                                            label={`${t?.("cost") ?? "Cost"} (IQD)`}
+                                            label={`${t("products.vm.cost")} (IQD)`}
                                             sortKey="cost"
                                             className="text-left"
                                         />
                                     )}
                                     <SortableHeader
-                                        label={t?.("stock") ?? "Stock"}
+                                        label={t("products.vm.stock")}
                                         sortKey="stock_quantity"
                                         className="text-left"
                                     />
@@ -969,18 +967,18 @@ export function VariantMatrixTable({
                                     />
                                     {hasBarcodes && (
                                         <th className={cn(TH, "text-left")}>
-                                            {t?.("barcode") ?? "Barcode"}
+                                            {t("products.vm.barcode")}
                                         </th>
                                     )}
                                     {showCost && (
                                         <SortableHeader
-                                            label={t?.("margin") ?? "Margin"}
+                                            label={t("products.vm.margin")}
                                             sortKey="margin"
                                             className="text-left"
                                         />
                                     )}
                                     <th className={cn(TH, "text-left")}>
-                                        {t?.("image") ?? "Image"}
+                                        {t("products.vm.image")}
                                     </th>
                                 </tr>
                             </thead>
@@ -1264,8 +1262,7 @@ export function VariantMatrixTable({
                                                         <button
                                                             type="button"
                                                             title={
-                                                                t?.("auto_generate_sku") ??
-                                                                "Auto-generate SKU"
+                                                                t("products.vm.autoGenerateSku")
                                                             }
                                                             disabled={disabled}
                                                             onClick={() =>
@@ -1401,7 +1398,7 @@ export function VariantMatrixTable({
                         <div className="flex items-center gap-2">
                             <Package className="w-3.5 h-3.5 text-muted" />
                             <span className="text-muted">
-                                {t?.("total_variants") ?? "Total variants"}:
+                                {t("products.vm.totalVariants")}:
                             </span>
                             <span className="font-medium text-foreground">
                                 {variants.length}
@@ -1410,7 +1407,7 @@ export function VariantMatrixTable({
                         <span className="text-[var(--card-border)]">|</span>
                         <div className="flex items-center gap-2">
                             <span className="text-muted">
-                                {t?.("enabled") ?? "Enabled"}:
+                                {t("products.vm.enabled")}:
                             </span>
                             <span className="font-medium text-emerald-600">
                                 {enabledVariants.length}
@@ -1419,7 +1416,7 @@ export function VariantMatrixTable({
                         <span className="text-[var(--card-border)]">|</span>
                         <div className="flex items-center gap-2">
                             <span className="text-muted">
-                                {t?.("total_stock") ?? "Total stock"}:
+                                {t("products.vm.totalStock")}:
                             </span>
                             <span className="font-medium text-foreground">
                                 {totalStock.toLocaleString()}
@@ -1428,7 +1425,7 @@ export function VariantMatrixTable({
                         <span className="text-[var(--card-border)]">|</span>
                         <div className="flex items-center gap-2">
                             <span className="text-muted">
-                                {t?.("avg_price") ?? "Avg price"}:
+                                {t("products.vm.avgPrice")}:
                             </span>
                             <span className="font-medium text-foreground">
                                 {formatIQD(Math.round(avgPrice))}
@@ -1437,7 +1434,7 @@ export function VariantMatrixTable({
                         <span className="text-[var(--card-border)]">|</span>
                         <div className="flex items-center gap-2">
                             <span className="text-muted">
-                                {t?.("out_of_stock") ?? "Out of stock"}:
+                                {t("products.vm.outOfStock")}:
                             </span>
                             <span
                                 className={cn(

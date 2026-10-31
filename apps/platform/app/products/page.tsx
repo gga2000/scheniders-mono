@@ -513,19 +513,21 @@ function ProductsContent() {
         clearSelection();
     }, [selectedIds, bulkUpdatePrices, clearSelection]);
 
-    const lastArchivedIdsRef = useRef<string[]>([]);
+    // The one bulk action the Undo toast reverses: archive, show or hide.
+    const lastUndoableRef = useRef<{ kind: "archive" | "show" | "hide"; ids: string[] } | null>(null);
 
     const handleBulkArchiveUndo = useCallback(async () => {
-        if (lastArchivedIdsRef.current.length === 0) return;
-        const ids = lastArchivedIdsRef.current;
-        await bulkRestore(ids);
-        lastArchivedIdsRef.current = [];
-    }, [bulkRestore]);
+        const last = lastUndoableRef.current;
+        if (!last || last.ids.length === 0) return;
+        if (last.kind === "archive") await bulkRestore(last.ids);
+        else await bulkUpdateVisibility(last.ids, last.kind === "hide");
+        lastUndoableRef.current = null;
+    }, [bulkRestore, bulkUpdateVisibility]);
 
     const handleBulkArchive = useCallback(async () => {
         const ids = Array.from(selectedIds);
         await bulkArchive(ids);
-        lastArchivedIdsRef.current = ids;
+        lastUndoableRef.current = { kind: "archive", ids };
         clearSelection();
     }, [selectedIds, bulkArchive, clearSelection]);
 
@@ -535,12 +537,16 @@ function ProductsContent() {
     }, [selectedIds, bulkDelete, clearSelection]);
 
     const handleBulkShow = useCallback(async () => {
-        await bulkUpdateVisibility(Array.from(selectedIds), true);
+        const ids = Array.from(selectedIds);
+        await bulkUpdateVisibility(ids, true);
+        lastUndoableRef.current = { kind: "show", ids };
         clearSelection();
     }, [selectedIds, bulkUpdateVisibility, clearSelection]);
 
     const handleBulkHide = useCallback(async () => {
-        await bulkUpdateVisibility(Array.from(selectedIds), false);
+        const ids = Array.from(selectedIds);
+        await bulkUpdateVisibility(ids, false);
+        lastUndoableRef.current = { kind: "hide", ids };
         clearSelection();
     }, [selectedIds, bulkUpdateVisibility, clearSelection]);
 
