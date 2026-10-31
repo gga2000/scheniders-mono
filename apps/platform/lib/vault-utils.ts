@@ -12,28 +12,12 @@ import {
     type CloudVaultEntry,
 } from "@/app/actions/vault";
 import { VAULT_BUCKET } from "./vault-paths";
+import { vaultFileSchema, type VaultData, type VaultRow } from "./vault-schema";
 import * as XLSX from "xlsx";
 
 export type ExportFormat = "vault" | "excel" | "csv";
 
-export interface VaultMetadata {
-    version: string;
-    timestamp: string;
-    counts: {
-        orders: number;
-        products: number;
-        customers: number;
-    };
-}
-
-export interface VaultData {
-    metadata: VaultMetadata;
-    data: {
-        orders: any[];
-        products: any[];
-        customers: any[];
-    };
-}
+export type { VaultData, VaultMetadata, VaultRow } from "./vault-schema";
 
 export interface VaultBackupOptions {
     includeOrders: boolean;
@@ -49,8 +33,8 @@ export interface VaultBackupOptions {
  * SELECT on their margin / cost columns and a `*` read of either table is
  * refused (migrations 20261021090000, 20261031004000).
  */
-async function fetchTableData(tableName: string, tenantId: string, orderBy: string, columns = "*") {
-    let allData: any[] = [];
+async function fetchTableData(tableName: string, tenantId: string, orderBy: string, columns = "*"): Promise<VaultRow[]> {
+    let allData: VaultRow[] = [];
     let from = 0;
     const step = 1000;
     let keepFetching = true;
@@ -66,7 +50,8 @@ async function fetchTableData(tableName: string, tenantId: string, orderBy: stri
         if (error) throw new Error(`Failed to fetch ${tableName}: ${error.message}`);
 
         if (data && data.length > 0) {
-            allData = [...allData, ...data];
+            // The table name is dynamic, so the typed client cannot infer the row shape.
+            allData = [...allData, ...(data as unknown as VaultRow[])];
             from += step;
         } else {
             keepFetching = false;
@@ -79,7 +64,7 @@ async function fetchTableData(tableName: string, tenantId: string, orderBy: stri
 async function fetchProductsWithCost(tenantId: string) {
     const products = await fetchTableData("products", tenantId, "id", PRODUCT_READ_COLUMNS);
     const costs = await productRepository.getProductCosts(tenantId);
-    return products.map((p) => ({ ...p, cost: costs.get(p.id) ?? null }));
+    return products.map((p) => ({ ...p, cost: costs.get(String(p.id)) ?? null }));
 }
 
 /**
@@ -237,6 +222,22 @@ function exportToCSV(vaultData: VaultData, prefix: string) {
     }, 600);
 }
 
+/** A JSON column written out as text by the Excel export; a cell that does not parse is refused, not guessed. */
+function parseJsonCell(value: unknown, fallback: unknown): unknown {
+    if (typeof value !== "string") return value ?? fallback;
+    try {
+        return JSON.parse(value);
+    } catch {
+        throw new Error("The Excel file has a damaged Items or Risk column and cannot be restored.");
+    }
+}
+
+function validateVaultData(raw: unknown): VaultData {
+    const parsed = vaultFileSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid vault file structure");
+    return parsed.data;
+}
+
 /**
  * Parses and decrypts a .scheniders vault file
  */
@@ -245,63 +246,73 @@ export async function parseVaultFile(file: File, password?: string): Promise<Vau
         if (!password) throw new Error("Vault Key required to unlock this file");
         const decryptedData = await decryptVaultData(file, password);
 
-        // Basic validation
-        if (!decryptedData || !decryptedData.metadata || !decryptedData.data) {
-            throw new Error("Invalid vault file structure");
-        }
-        return decryptedData as VaultData;
+        return validateVaultData(decryptedData);
     } else if (file.name.endsWith(".xlsx")) {
         const arrayBuffer = await file.arrayBuffer();
         const wb = XLSX.read(arrayBuffer, { type: "array" });
 
-        const ordersRaw = wb.Sheets["Orders"] ? XLSX.utils.sheet_to_json(wb.Sheets["Orders"]) : [];
-        const productsRaw = wb.Sheets["Products"] ? XLSX.utils.sheet_to_json(wb.Sheets["Products"]) : [];
-        const customersRaw = wb.Sheets["Customers"] ? XLSX.utils.sheet_to_json(wb.Sheets["Customers"]) : [];
+        const readSheet = (name: string) =>
+            wb.Sheets[name] ? XLSX.utils.sheet_to_json<VaultRow>(wb.Sheets[name]) : [];
+        const ordersRaw = readSheet("Orders");
+        const productsRaw = readSheet("Products");
+        const customersRaw = readSheet("Customers");
 
-        // Parse JSON strings back to objects where needed
-        const parsedOrders = ordersRaw.map((o: any) => ({
-            ...o,
-            items: typeof o.items === "string" ? JSON.parse(o.items) : (o.items || []),
-            risk_metadata: typeof o.risk_metadata === "string" ? JSON.parse(o.risk_metadata) : (o.risk_metadata || {})
+        const orders = ordersRaw.map((row) => ({
+            ...row,
+            items: parseJsonCell(row.items, []),
+            risk_metadata: parseJsonCell(row.risk_metadata, {}),
         }));
 
-        const isNotEmpty = parsedOrders.length > 0 || productsRaw.length > 0 || customersRaw.length > 0;
-        if (!isNotEmpty) {
-             throw new Error("Excel file doesn't contain valid backup sheets (Orders, Products, Customers).");
+        if (orders.length === 0 && productsRaw.length === 0 && customersRaw.length === 0) {
+            throw new Error("Excel file doesn't contain valid backup sheets (Orders, Products, Customers).");
         }
 
-        return {
+        return validateVaultData({
             metadata: {
                 version: "1.0.0",
                 timestamp: new Date().toISOString(),
-                counts: {
-                    orders: parsedOrders.length,
-                    products: productsRaw.length,
-                    customers: customersRaw.length
-                }
+                counts: { orders: orders.length, products: productsRaw.length, customers: customersRaw.length },
             },
-            data: {
-                orders: parsedOrders,
-                products: productsRaw as any[],
-                customers: customersRaw as any[]
-            }
-        };
+            data: { orders, products: productsRaw, customers: customersRaw },
+        });
     } else {
         throw new Error("Unsupported file format for restore. Please use a .scheniders or .xlsx file.");
     }
 }
 
+export interface VaultTableDiff {
+    total: number;
+    /** Rows in the file that do not exist in the store yet. */
+    create: number;
+    /** Rows in the file that replace a row already in the store. */
+    overwrite: number;
+}
+
 /**
- * Calculates a summary diff between a backup and live data (dry-run).
+ * Dry run: compares the file against the active store's live rows by key,
+ * so the confirm screen can say how many rows will be created and how many
+ * overwritten before anything is written.
  */
 export async function calculateVaultDiff(parsedVault: VaultData) {
-    // A simplified visual diff for the user interface
+    const tenantId = await requireTenantId();
+    const compare = async (table: string, key: string, rows: VaultRow[]): Promise<VaultTableDiff> => {
+        if (rows.length === 0) return { total: 0, create: 0, overwrite: 0 };
+        const live = new Set((await fetchTableData(table, tenantId, key, key)).map((row) => String(row[key])));
+        const overwrite = rows.filter((row) => live.has(String(row[key]))).length;
+        return { total: rows.length, create: rows.length - overwrite, overwrite };
+    };
+
+    const [orders, products, customers] = await Promise.all([
+        compare("orders", "id", parsedVault.data.orders),
+        compare("products", "id", parsedVault.data.products),
+        compare("customer_metadata", "customer_phone", parsedVault.data.customers),
+    ]);
     return {
-        ordersToRestore: parsedVault.data.orders?.length || 0,
-        productsToRestore: parsedVault.data.products?.length || 0,
-        customersToRestore: parsedVault.data.customers?.length || 0,
+        orders,
+        products,
+        customers,
         timestamp: parsedVault.metadata.timestamp,
-        version: parsedVault.metadata.version
+        version: parsedVault.metadata.version,
     };
 }
 
