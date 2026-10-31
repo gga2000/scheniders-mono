@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
@@ -18,6 +19,9 @@ import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary
 import type { OrderBulkOperations } from "@/hooks/use-order-bulk-operations";
 import type { Order } from "@/types/order";
 import { useResolvedOrders } from "@/hooks/use-resolved-orders";
+import { partitionForReschedule } from "@/lib/order-bulk-scope";
+import { formatScheduledDate, scheduleDayFromToday } from "@/lib/order-format-utils";
+import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 
 const FloatingActionBar = dynamic(
     () => import("@/components/orders/floating-action-bar").then(mod => ({ default: mod.FloatingActionBar })),
@@ -91,12 +95,16 @@ export function OrderBulkDialogs({
         setMoveTransitOpen,
         pendingTransitIds,
         handleConfirmMoveToTransit,
+        rescheduleOpen,
+        setRescheduleOpen,
+        executeReschedule,
     } = bulk;
 
     // Every selected order, including ones picked from a search (any date) or
     // left selected after the search was cleared: the window alone listed none
     // of those.
     const toDelete = useResolvedOrders(selectedOrders, [orders, filteredOrders], deleteConfirmOpen);
+    const toReschedule = useResolvedOrders(selectedOrders, [orders, filteredOrders], rescheduleOpen);
 
     return (
         <>
@@ -183,6 +191,19 @@ export function OrderBulkDialogs({
                 </DialogContent>
             </Dialog>
 
+            {/* Keyed on open so each use starts with no day picked. */}
+            <RescheduleDialog
+                key={rescheduleOpen ? "open" : "closed"}
+                open={rescheduleOpen}
+                onOpenChange={setRescheduleOpen}
+                resolved={toReschedule}
+                disabled={isBulkProcessing}
+                onConfirm={(day) => {
+                    const { reschedulable, skipped } = partitionForReschedule(toReschedule.orders);
+                    void executeReschedule(reschedulable.map(o => o.id), day, skipped.map(o => o.id));
+                }}
+            />
+
             {/* Ship Export Confirmation Dialog */}
             <ShipExportConfirmationDialog
                 key={shipConfirmKey}
@@ -209,5 +230,117 @@ export function OrderBulkDialogs({
             />
 
         </>
+    );
+}
+
+/**
+ * Pick the day to postpone the selection to. Previews how many orders will
+ * move and how many are held back (finished or already with the courier), so
+ * nothing is changed that the merchant did not see counted.
+ */
+function RescheduleDialog({
+    open,
+    onOpenChange,
+    resolved,
+    disabled,
+    onConfirm,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    resolved: { orders: Order[]; pending: boolean; missing: number };
+    disabled: boolean;
+    /** `null` clears the postponement. */
+    onConfirm: (day: string | null) => void;
+}) {
+    const { t } = useLanguage();
+    // undefined = nothing picked yet; null = "clear postponement" chosen.
+    const [day, setDay] = useState<string | null | undefined>(undefined);
+    const { reschedulable, skipped } = partitionForReschedule(resolved.orders);
+    const today = scheduleDayFromToday(0);
+    const dayIsValid = day === null || (typeof day === "string" && day >= today);
+    const canConfirm = !disabled && !resolved.pending && reschedulable.length > 0 && day !== undefined && dayIsValid;
+
+    const preview = day === undefined
+        ? null
+        : day === null
+            ? t("orders.bulk.reschedule.previewClear")
+            : t("orders.bulk.reschedule.previewMove").replace("{date}", formatScheduledDate(day));
+
+    const quick = (label: string, value: string | null, tone: "blue" | "plain") => (
+        <button
+            type="button"
+            onClick={() => setDay(value)}
+            className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
+                day === value ? "ring-2 ring-sky-400" : "",
+                tone === "blue" ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : "text-muted hover:bg-gray-100",
+            )}
+        >
+            {label}
+        </button>
+    );
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="md:max-w-md" aria-describedby="reschedule-desc">
+                <DialogHeader>
+                    <DialogTitle>{t("orders.bulk.reschedule.title")}</DialogTitle>
+                    <DialogDescription id="reschedule-desc">{t("orders.bulk.reschedule.description")}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                    <div>
+                        <span className="block text-xs text-muted uppercase tracking-wider mb-1.5">
+                            {t("orders.bulk.reschedule.pick")}
+                        </span>
+                        <DateTimePicker
+                            value={typeof day === "string" ? `${day}T00:00:00` : null}
+                            onChange={(iso) => setDay(new Date(iso).toLocaleDateString("en-CA"))}
+                            showTime={false}
+                            minDate="now"
+                            className="h-[38px]"
+                        />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {quick(t("orders.bulk.reschedule.tomorrow"), scheduleDayFromToday(1), "blue")}
+                        {quick(t("orders.bulk.reschedule.inThreeDays"), scheduleDayFromToday(3), "blue")}
+                        {quick(t("orders.bulk.reschedule.clear"), null, "plain")}
+                    </div>
+                    <div className="rounded-xl bg-[var(--background)] border border-[var(--card-border)] p-3 text-sm space-y-1" data-testid="reschedule-preview">
+                        {resolved.pending ? (
+                            <p className="text-muted">{t("common.loading")}</p>
+                        ) : reschedulable.length === 0 ? (
+                            <p className="text-amber-700">{t("orders.bulk.reschedule.nothing")}</p>
+                        ) : (
+                            <p className="font-medium">
+                                {preview
+                                    ? preview.replace("{count}", String(reschedulable.length))
+                                    : `${reschedulable.length} ${t("orders.selected")}`}
+                            </p>
+                        )}
+                        {skipped.length > 0 && !resolved.pending && (
+                            <p className="text-muted">{t("orders.bulk.reschedule.skipped").replace("{count}", String(skipped.length))}</p>
+                        )}
+                    </div>
+                </div>
+                <DialogFooter>
+                    <button
+                        onClick={() => onOpenChange(false)}
+                        className="px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+                    >
+                        {t("common.cancel")}
+                    </button>
+                    <button
+                        onClick={() => { if (day !== undefined) onConfirm(day); }}
+                        disabled={!canConfirm}
+                        className={cn(
+                            "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                            canConfirm ? "bg-sky-600 text-white hover:bg-sky-700" : "bg-sky-100 text-sky-300 cursor-not-allowed",
+                        )}
+                    >
+                        {t("orders.bulk.reschedule.confirm").replace("{count}", String(reschedulable.length))}
+                    </button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { canShipWithoutSelection, canOfferSelectAll, partitionByShipDay } from "./order-bulk-scope";
+import type { Order } from "@/types/order";
+import { canShipWithoutSelection, canOfferSelectAll, partitionByShipDay, partitionForReschedule } from "./order-bulk-scope";
 
 describe("canShipWithoutSelection", () => {
     it("allows shipping an explicit selection even from a partial list", () => {
@@ -57,5 +58,24 @@ describe("partitionByShipDay", () => {
     it("treats an order due today as shippable just after Baghdad midnight", () => {
         // Under UTC-day logic the 8th would still be "tomorrow" here.
         expect(partitionByShipDay([{ scheduled_date: "2026-10-08" }], now).scheduledLater).toHaveLength(0);
+    });
+});
+
+describe("partitionForReschedule", () => {
+    const o = (status: Order["status"]) => ({ status });
+
+    it("moves open orders and skips finished or shipped ones", () => {
+        const { reschedulable, skipped } = partitionForReschedule([
+            o("new"), o("confirmed"), o("contacted"), o("no_response"), o("suspended"),
+            o("in_transit"), o("delivered"), o("completed"), o("rejected"), o("cancelled"), o("refund_delivered"),
+        ]);
+        expect(reschedulable.map(x => x.status)).toEqual(["new", "confirmed", "contacted", "no_response", "suspended"]);
+        expect(skipped.map(x => x.status)).toEqual(["in_transit", "delivered", "completed", "rejected", "cancelled", "refund_delivered"]);
+    });
+
+    it("keeps every order in exactly one list", () => {
+        const input = [o("new"), o("delivered"), o("confirmed")];
+        const { reschedulable, skipped } = partitionForReschedule(input);
+        expect(reschedulable.length + skipped.length).toBe(input.length);
     });
 });

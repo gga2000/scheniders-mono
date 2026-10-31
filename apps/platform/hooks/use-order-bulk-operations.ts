@@ -13,6 +13,7 @@ import { reportOrderError } from "@/lib/order-telemetry";
 import { restoreDeletedOrders } from "@/app/actions/deleted-orders";
 import { canShipWithoutSelection, partitionByShipDay } from "@/lib/order-bulk-scope";
 import { formatBulkProgress } from "@/lib/order-bulk-batches";
+import { formatScheduledDate } from "@/lib/order-format-utils";
 import { summarizeBulkFailures } from "@/lib/order-bulk-result";
 import type { BulkStatusResult } from "@/hooks/use-order-crud";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX } from "@/lib/export-utils";
@@ -35,6 +36,7 @@ export function useOrderBulkOperations() {
         orders,
         filteredOrders,
         bulkUpdateStatus,
+        bulkReschedule,
         bulkArchive,
         bulkUnarchive,
         bulkDelete,
@@ -131,6 +133,79 @@ export function useOrderBulkOperations() {
      */
     const keepSelected = (heldBack: readonly string[] = []) => (result: BulkStatusResult) => {
         setSelectedOrders(new Set([...heldBack, ...result.failures.map(f => f.id)]));
+    };
+
+    // Reschedule dialog: the dialog picks the day and the orders that may move.
+    const [rescheduleOpen, setRescheduleOpen] = useState(false);
+
+    /**
+     * Move `ids` to `day` (null clears the postponement) as background work,
+     * like a bulk status change: a counting toast, then the outcome, with the
+     * orders that did not move left selected and a retry for exactly those.
+     * `skipped` is how many selected orders the dialog held back (finished or
+     * already with the courier); they stay selected and are named in the result.
+     */
+    const executeReschedule = async (
+        ids: string[],
+        day: string | null,
+        skipped: readonly string[] = [],
+    ): Promise<BulkStatusResult | undefined> => {
+        if (bulkRunningRef.current || ids.length === 0) return undefined;
+        bulkRunningRef.current = true;
+        setIsBulkProcessing(true);
+        setRescheduleOpen(false);
+        const toastId = toast.loading(
+            t("orders.bulk.rescheduling").replace("{count}", String(ids.length)),
+            formatBulkProgress({ done: 0, total: ids.length, succeeded: 0, failed: 0 }, t),
+        );
+        try {
+            const result = await bulkReschedule(ids, day, {
+                onProgress: (progress) => updateToast(toastId, { description: formatBulkProgress(progress, t) }),
+            });
+            dismissToast(toastId);
+
+            const skippedNote = skipped.length > 0
+                ? t("orders.bulk.rescheduleSkipped").replace("{count}", String(skipped.length))
+                : undefined;
+            const historyNote = result.historyNotLogged > 0
+                ? t("orders.bulk.historyNotLogged").replace("{count}", String(result.historyNotLogged))
+                : undefined;
+
+            if (result.failures.length === 0) {
+                const note = [skippedNote, historyNote].filter(Boolean).join(" ");
+                toast({
+                    title: (day
+                        ? t("orders.bulk.rescheduled").replace("{date}", formatScheduledDate(day))
+                        : t("orders.bulk.rescheduleCleared")
+                    ).replace("{count}", String(result.count)),
+                    description: note || undefined,
+                    variant: historyNote ? "warning" : "success",
+                });
+            } else {
+                const summary = summarizeBulkFailures(result.failures, orders, result.attempted, "updated");
+                toast({
+                    title: summary.title,
+                    description: [summary.description, skippedNote, historyNote].filter(Boolean).join(". "),
+                    variant: result.count === 0 ? "error" : "warning",
+                    duration: 20000,
+                    action: summary.retryableIds.length > 0
+                        ? {
+                            label: t("orders.bulk.retry").replace("{count}", String(summary.retryableIds.length)),
+                            onClick: () => { void executeReschedule(summary.retryableIds, day, skipped); },
+                        }
+                        : undefined,
+                });
+            }
+            keepSelected(skipped)(result);
+            return result;
+        } catch (error) {
+            dismissToast(toastId);
+            toast.error(t("toast.updateFailed"), error instanceof Error ? error.message : String(error));
+            return undefined;
+        } finally {
+            bulkRunningRef.current = false;
+            setIsBulkProcessing(false);
+        }
     };
 
     // Handle bulk actions
@@ -308,6 +383,7 @@ export function useOrderBulkOperations() {
         noResponse: handleBulkNoResponse,
         setNew: handleBulkNew,
         suspend: handleBulkSuspend,
+        reschedule: () => setRescheduleOpen(true),
         archive: handleBulkArchive,
         remove: handleBulkDelete,
     };
@@ -484,6 +560,10 @@ export function useOrderBulkOperations() {
     return {
         isBulkProcessing,
         bulkActions,
+        // Reschedule
+        rescheduleOpen,
+        setRescheduleOpen,
+        executeReschedule,
         // Delete confirmation
         deleteConfirmOpen,
         setDeleteConfirmOpen,

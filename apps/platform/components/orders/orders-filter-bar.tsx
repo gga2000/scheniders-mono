@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
     Bookmark,
+    CalendarClock,
     ChevronDown,
     CreditCard,
     MapPin,
@@ -43,6 +44,7 @@ export interface OrdersBulkActions {
     archive: () => void;
     remove: () => void;
     suspend: () => void;
+    reschedule: () => void;
 }
 
 interface OrdersFilterBarProps {
@@ -461,6 +463,15 @@ export function OrdersFilterBar({
                                         className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-300 transition-all whitespace-nowrap"
                                     >
                                         {t("orders.status.noResponse")}
+                                    </button>
+
+                                    {/* Postpone to another day */}
+                                    <button
+                                        onClick={bulkActions.reschedule}
+                                        className="px-3 py-1.5 rounded-lg bg-sky-100 text-sky-700 text-sm font-medium hover:bg-sky-200 transition-all whitespace-nowrap flex items-center gap-1.5"
+                                    >
+                                        <CalendarClock className="w-4 h-4" />
+                                        {t("orders.bulk.reschedule")}
                                     </button>
 
                                     {/* Divider */}

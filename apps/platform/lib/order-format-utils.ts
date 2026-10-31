@@ -200,7 +200,7 @@ export const isScheduledToday = (scheduledDate: string | null | undefined, now: 
 };
 
 /** Statuses where the order is finished and is no longer anyone's queue. */
-const SETTLED_STATUSES = new Set<Order["status"]>([
+export const SETTLED_STATUSES = new Set<Order["status"]>([
     "completed",
     "delivered",
     "rejected",
