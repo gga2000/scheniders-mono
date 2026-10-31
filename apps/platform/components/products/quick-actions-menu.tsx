@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
@@ -13,6 +13,8 @@ import {
     Trash2,
     Copy,
     AlertTriangle,
+    Tag,
+    PackagePlus,
 } from "lucide-react";
 import { Product } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
@@ -29,6 +31,10 @@ interface QuickActionsMenuProps {
     onViewDetails: () => void;
     onDuplicate?: () => void;
     onDelete?: () => void;
+    /** Opens the card's own price popover. */
+    onChangePrice?: () => void;
+    /** Opens the card's own stock popover. */
+    onAdjustStock?: () => void;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
 }
@@ -44,6 +50,8 @@ export function QuickActionsMenu({
     onViewDetails,
     onDuplicate,
     onDelete,
+    onChangePrice,
+    onAdjustStock,
     open,
     onOpenChange,
 }: QuickActionsMenuProps) {
@@ -52,6 +60,9 @@ export function QuickActionsMenu({
     // Editing is for products.edit; everyone else sees the product, not the buttons.
     const canEdit = usePermission().can(PERMISSIONS.EDIT_PRODUCTS);
     const [confirmingArchive, setConfirmingArchive] = useState(false);
+    // A popover opened from the menu keeps focus; handing it back to the ⋮
+    // trigger would close that popover straight away.
+    const openedPopover = useRef(false);
 
     const handleOpenChange = (next: boolean) => {
         if (!next) {
@@ -85,6 +96,10 @@ export function QuickActionsMenu({
                     sideOffset={4}
                     className="z-50 w-52 bg-[var(--card-bg)] rounded-xl shadow-lg border border-[var(--card-border)] overflow-hidden p-1 animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
                     onClick={(e) => e.stopPropagation()}
+                    onCloseAutoFocus={(e) => {
+                        if (openedPopover.current) e.preventDefault();
+                        openedPopover.current = false;
+                    }}
                 >
                     {/* View Details */}
                     <DropdownMenu.Item
@@ -103,6 +118,31 @@ export function QuickActionsMenu({
                         >
                             <Edit className="w-4 h-4" />
                             {t("products.actions.editProduct")}
+                        </DropdownMenu.Item>
+                    )}
+
+                    {canEdit && onChangePrice && !product.is_archived && (
+                        <DropdownMenu.Item
+                            className={cn(itemClasses, "text-foreground")}
+                            onSelect={() => {
+                                openedPopover.current = true;
+                                onChangePrice();
+                            }}
+                        >
+                            <Tag className="w-4 h-4" />
+                            {t("products.actions.changePrice")}
+                        </DropdownMenu.Item>
+                    )}
+                    {canEdit && onAdjustStock && !product.is_archived && (
+                        <DropdownMenu.Item
+                            className={cn(itemClasses, "text-foreground")}
+                            onSelect={() => {
+                                openedPopover.current = true;
+                                onAdjustStock();
+                            }}
+                        >
+                            <PackagePlus className="w-4 h-4" />
+                            {t("products.actions.adjustStock")}
                         </DropdownMenu.Item>
                     )}
 

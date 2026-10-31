@@ -23,6 +23,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { StockIndicator } from "./stock-indicator";
 import { StockQuickAdjust } from "./stock-quick-adjust";
+import { PriceQuickEdit } from "./price-quick-edit";
 import { QuickActionsMenu } from "./quick-actions-menu";
 import { BundleStockIndicator } from "./bundle-stock-indicator";
 import { HealthScoreBadge } from "./health-score-badge";
@@ -96,6 +97,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
     const healthScore = calculateProductScore(scoreInput);
     const [menuOpen, setMenuOpen] = useState(false);
     const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
+    const [priceEditOpen, setPriceEditOpen] = useState(false);
     const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
     const { data: allCategories = [] } = useCategoriesQuery();
     const updateProductMutation = useUpdateProductMutation();
@@ -156,6 +158,8 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     onViewDetails={() => onViewDetails(product)}
                     onDuplicate={onDuplicate ? () => onDuplicate(product) : undefined}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
+                    onChangePrice={() => setPriceEditOpen(true)}
+                    onAdjustStock={() => setStockAdjustOpen(true)}
                     open={menuOpen}
                     onOpenChange={setMenuOpen}
                 />
@@ -215,9 +219,35 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     </h3>
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex flex-col items-start">
-                            <p className="text-base font-bold text-foreground whitespace-nowrap leading-tight tabular-nums">
-                                {formatIQD(product.price)}
-                            </p>
+                            <Popover open={priceEditOpen} onOpenChange={setPriceEditOpen}>
+                                <PopoverTrigger asChild>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => e.stopPropagation()}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onPointerUp={(e) => e.stopPropagation()}
+                                        disabled={!canEdit || product.is_archived}
+                                        title={canEdit ? t("products.actions.changePrice") : undefined}
+                                        className="-mx-1 px-1 rounded-md text-base font-bold text-foreground whitespace-nowrap leading-tight tabular-nums enabled:hover:bg-[var(--background)] enabled:cursor-text disabled:cursor-default"
+                                    >
+                                        {formatIQD(product.price)}
+                                    </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    align="start"
+                                    sideOffset={8}
+                                    collisionPadding={16}
+                                    className="w-auto p-0 border-0 bg-transparent shadow-none z-[9999]"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <PriceQuickEdit
+                                        product={product}
+                                        cost={canSeeCost ? product.cost : undefined}
+                                        onClose={() => setPriceEditOpen(false)}
+                                    />
+                                </PopoverContent>
+                            </Popover>
                             {/* The storefront sells at its own price when one is set. */}
                             {product.website_price != null && product.website_price !== product.price && (
                                 <p className="text-[11px] text-muted whitespace-nowrap tabular-nums">
@@ -413,7 +443,6 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     dailySalesRate={dailyRate}
                     daysSinceLastSale={healthScore.daysSinceLastSale}
                     daysOfSupply={healthScore.daysOfSupply}
-                    availableStock={availableStock}
                     size="sm"
                     showActions={false}
                 />
@@ -453,6 +482,8 @@ export const ProductGridCard = React.memo(function ProductGridCard({
         prev.product.id === next.product.id &&
         prev.product.name === next.product.name &&
         prev.product.price === next.product.price &&
+        // Quick price edits save against updated_at; a stale one would read as "changed elsewhere".
+        prev.product.updated_at === next.product.updated_at &&
         prev.product.website_price === next.product.website_price &&
         prev.product.status === next.product.status &&
         prev.product.cost === next.product.cost &&

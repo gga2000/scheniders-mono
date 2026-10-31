@@ -9,7 +9,6 @@ import {
   Tag,
   Layers,
   Archive,
-  XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -21,7 +20,6 @@ interface StockStatusBadgesProps {
   dailySalesRate: number;
   daysSinceLastSale: number;
   daysOfSupply: number;
-  availableStock?: number;
   size?: "sm" | "md";
   showActions?: boolean;
 }
@@ -44,14 +42,12 @@ export const StockStatusBadges = React.memo(function StockStatusBadges({
   dailySalesRate,
   daysSinceLastSale,
   daysOfSupply,
-  availableStock,
   size = "md",
   showActions = true,
 }: StockStatusBadgesProps) {
   const { t } = useLanguage();
 
   const iconSize = "w-3 h-3";
-  const isOutOfStock = availableStock !== undefined && availableStock <= 0;
   const neverSold = !Number.isFinite(daysSinceLastSale);
   const deadSuffix = neverSold
     ? t("products.status.neverSold")
@@ -59,13 +55,6 @@ export const StockStatusBadges = React.memo(function StockStatusBadges({
   const supplySuffix = Number.isFinite(daysOfSupply) ? t("products.status.daysShort", { days: daysOfSupply }) : "—";
 
   const badges: BadgeConfig[] = [
-    {
-      key: "outOfStock",
-      show: isOutOfStock,
-      bg: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30",
-      icon: <XCircle className={iconSize} />,
-      label: t("products.status.outOfStock"),
-    },
     {
       key: "deadStock",
       show: flags.isDeadStock,
