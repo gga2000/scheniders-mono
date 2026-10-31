@@ -38,7 +38,7 @@ export function usePayroll() {
             notes?: string,
             payslipMeta?: { employeeName: string; employeeEmail: string; employeeRole: string; perOrderBonus: number },
             paymentMethod: "cash" | "zain_cash" | "qi_card" = "cash"
-        ): Promise<{ error: string | null; record?: PayrollRecord }> => {
+        ): Promise<{ error: string | null; errorCode?: string; record?: PayrollRecord }> => {
             // Record + deductions are written in one DB transaction (amounts re-summed server-side).
             const { data: created, error: rpcError } = await supabase.rpc("run_payroll", {
                 p_employee_id: calculation.employeeId,
@@ -53,7 +53,7 @@ export function usePayroll() {
                 p_payment_method: paymentMethod,
             });
             if (rpcError || !created) {
-                return { error: rpcError?.message || "Failed to create payroll record" };
+                return { error: rpcError?.message || "Failed to create payroll record", errorCode: rpcError?.code };
             }
 
             let record = created as PayrollRecord;

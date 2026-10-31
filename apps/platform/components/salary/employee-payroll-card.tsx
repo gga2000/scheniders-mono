@@ -10,6 +10,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { format, differenceInCalendarDays } from "date-fns";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { EmployeePayrollData, PayrollRecord } from "@/types/salary";
 import { PayrollAdjustmentModal } from "./payroll-adjustment-modal";
 import { SalaryConfigForm } from "./salary-config-form";
@@ -170,6 +171,7 @@ interface EmployeePayrollCardProps {
     onAddPenalty: (employeeId: string, amount: number, reason: string) => Promise<void>;
     onAddBonus: (employeeId: string, amount: number, reason?: string) => Promise<void>;
     onMarkAsPaid: (data: EmployeePayrollData) => void;
+    onVoidPayment: (recordId: string) => Promise<void>;
     onUpdateConfig: (
         employeeId: string,
         config: { base_monthly_salary: number; per_order_bonus: number; use_role_defaults: boolean }
@@ -194,6 +196,7 @@ export function EmployeePayrollCard({
     onAddPenalty,
     onAddBonus,
     onMarkAsPaid,
+    onVoidPayment,
     onUpdateConfig,
     onPeriodOverride,
     onClearPeriodOverride,
@@ -204,6 +207,8 @@ export function EmployeePayrollCard({
     index = 0,
 }: EmployeePayrollCardProps) {
     const reduce = useReducedMotion();
+    const { t } = useLanguage();
+    const iqd = t("common.iqd");
     const { employee, calculation, effectiveRate, overlappingPayroll } = data;
     const breakdown = calculation.orderBreakdown;
     const qualityPct = Math.round(breakdown.qualityScore * 100);
@@ -281,8 +286,8 @@ export function EmployeePayrollCard({
         (baseSalaryRate > 0 && calculation.netSalary > baseSalaryRate * 2) ||
         (baseSalaryRate === 0 && lastNet > 0 && calculation.netSalary > lastNet * 1.5);
     const overpaidReason = baseSalaryRate > 0
-        ? "net is more than 2× base salary"
-        : "net is well above the last payout";
+        ? t("payroll.card.overpaidBase")
+        : t("payroll.card.overpaidLast");
 
     // Sparkline data (#7)
     const sparkData = [...recentPayments].slice(0, 6).reverse().map(p => ({ v: p.net_salary }));
@@ -311,7 +316,7 @@ export function EmployeePayrollCard({
                         {employee.isActive && (
                             <span
                                 role="img"
-                                aria-label="Active"
+                                aria-label={t("payroll.card.active")}
                                 className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-[var(--card-bg)]"
                             />
                         )}
@@ -328,16 +333,16 @@ export function EmployeePayrollCard({
                                 <button
                                     onClick={() => setConfigOpen(true)}
                                     className="p-1.5 rounded-lg hover:bg-[var(--background)] text-muted hover:text-foreground transition-colors"
-                                    aria-label="Configure salary"
-                                    title="Configure salary"
+                                    aria-label={t("payroll.card.configure")}
+                                    title={t("payroll.card.configure")}
                                 >
                                     <Settings className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                     onClick={() => onHide(employee.id)}
                                     className="p-1.5 rounded-lg hover:bg-[var(--background)] text-muted hover:text-rose-500 transition-colors"
-                                    aria-label="Hide from view"
-                                    title="Hide from view"
+                                    aria-label={t("payroll.card.hide")}
+                                    title={t("payroll.card.hide")}
                                 >
                                     <EyeOff className="w-3.5 h-3.5" />
                                 </button>
@@ -352,13 +357,13 @@ export function EmployeePayrollCard({
                         <button
                             onClick={() => setBreakdownOpen(true)}
                             className="w-full block rounded-lg -mx-1 px-1 py-0.5 hover:bg-[var(--background)] transition-colors"
-                            aria-label={`${calculation.completedOrdersCount} of ${breakdown.completedTotal} orders payable, ${qualityPct}% quality — open order breakdown`}
-                            title="Payable ÷ completed — click for the order breakdown"
+                            aria-label={t("payroll.card.qualityAria", { payable: calculation.completedOrdersCount, total: breakdown.completedTotal, pct: qualityPct })}
+                            title={t("payroll.card.qualityHint")}
                         >
                             <div className="flex items-baseline justify-between mb-1.5">
                                 <span className="text-xs font-medium text-foreground tabular-nums">
                                     {calculation.completedOrdersCount}
-                                    <span className="text-muted font-normal"> / {breakdown.completedTotal} payable</span>
+                                    <span className="text-muted font-normal"> / {breakdown.completedTotal} {t("payroll.card.payable")}</span>
                                 </span>
                                 <span className={cn(
                                     "text-xs font-semibold tabular-nums",
@@ -366,15 +371,15 @@ export function EmployeePayrollCard({
                                         : qualityPct >= 70 ? "text-amber-700 dark:text-amber-400"
                                             : "text-rose-600 dark:text-rose-400",
                                 )}>
-                                    {qualityPct}% quality
+                                    {t("payroll.card.quality", { pct: qualityPct })}
                                 </span>
                             </div>
                             {/* Stacked composition bar: genuine / replacements / refunds */}
                             <div className="h-1.5 rounded-full bg-[var(--card-border)] overflow-hidden flex">
                                 {([
-                                    { n: breakdown.genuine, cls: "bg-emerald-500", label: "genuine" },
-                                    { n: breakdown.replacements, cls: "bg-amber-500", label: "replacements" },
-                                    { n: breakdown.refunds, cls: "bg-rose-500", label: "refunds" },
+                                    { n: breakdown.genuine, cls: "bg-emerald-500", label: t("payroll.card.genuine") },
+                                    { n: breakdown.replacements, cls: "bg-amber-500", label: t("payroll.card.replacements") },
+                                    { n: breakdown.refunds, cls: "bg-rose-500", label: t("payroll.card.refunds") },
                                 ] as const).filter(s => s.n > 0).map((s, si) => (
                                     <motion.div
                                         key={s.label}
@@ -400,7 +405,7 @@ export function EmployeePayrollCard({
                                     ? "bg-indigo-100 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400"
                                     : "bg-[var(--background)] text-muted hover:text-foreground border border-[var(--card-border)]"
                             )}
-                            title="Set a custom period"
+                            title={t("payroll.card.customPeriod")}
                         >
                             <Calendar className="w-3 h-3" />
                             {fmtDate(calculation.periodStart, "MMM d")} – {fmtDate(calculation.periodEnd, "MMM d")}
@@ -409,8 +414,8 @@ export function EmployeePayrollCard({
                             <button
                                 onClick={() => onClearPeriodOverride(employee.id)}
                                 className="p-1 rounded-full text-muted hover:text-rose-500 transition-colors"
-                                aria-label="Reset to global period"
-                                title="Reset to global period"
+                                aria-label={t("payroll.card.resetPeriod")}
+                                title={t("payroll.card.resetPeriod")}
                             >
                                 <X className="w-3 h-3" />
                             </button>
@@ -423,10 +428,10 @@ export function EmployeePayrollCard({
                                     "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium tabular-nums",
                                     trendPct > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
                                 )}
-                                title="Per-day net rate vs your last payout (normalized for period length)"
+                                title={t("payroll.card.trendHint")}
                             >
                                 {trendPct > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                <span className="sr-only">Net vs last payout: </span>
+                                <span className="sr-only">{t("payroll.card.trendSr")} </span>
                                 {trendPct > 0 ? `+${trendPct}%` : `${trendPct}%`}
                             </span>
                         )}
@@ -438,30 +443,29 @@ export function EmployeePayrollCard({
                     <div className="mx-4 mb-3 flex items-start gap-2 p-2.5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-700 dark:text-amber-400">
                         <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                         <span>
-                            <span className="font-semibold">Partial overlap</span>
-                            {" — paid "}
-                            {fmtDate(overlappingPayroll.period_start)} → {fmtDate(overlappingPayroll.period_end)}.
-                            {" Consider using a custom period for the remainder."}
+                            <span className="font-semibold">{t("payroll.card.partialOverlap")}</span>
+                            {" — "}
+                            {t("payroll.card.partialOverlapBody", { from: fmtDate(overlappingPayroll.period_start), to: fmtDate(overlappingPayroll.period_end) })}
                         </span>
                     </div>
                 )}
                 {isOverpaid && (
                     <div className="mx-4 mb-3 flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-700 dark:text-amber-400">
                         <TriangleAlert className="w-3.5 h-3.5 shrink-0" />
-                        <span><span className="font-semibold">Unusually high</span> — {overpaidReason}. Double-check before confirming.</span>
+                        <span><span className="font-semibold">{t("payroll.card.unusuallyHigh")}</span> — {overpaidReason}. {t("payroll.card.doubleCheck")}</span>
                     </div>
                 )}
 
                 {/* ── D. Inline period picker ── */}
                 {calendarOpen && (
                     <div className="mx-4 mb-3 p-3 bg-[var(--background)] rounded-xl border border-[var(--card-border)] space-y-2">
-                        <p className="text-xs font-medium text-muted">Custom Period</p>
+                        <p className="text-xs font-medium text-muted">{t("payroll.card.customPeriodTitle")}</p>
                         <div className="flex items-center gap-2">
                             <input
                                 type="date"
                                 value={draftStart}
                                 onChange={e => setDraftStart(e.target.value)}
-                                aria-label="Period start"
+                                aria-label={t("payroll.card.periodStart")}
                                 className="flex-1 px-2 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-xs text-foreground focus:outline-none"
                             />
                             <span className="text-muted text-xs">→</span>
@@ -469,7 +473,7 @@ export function EmployeePayrollCard({
                                 type="date"
                                 value={draftEnd}
                                 onChange={e => setDraftEnd(e.target.value)}
-                                aria-label="Period end"
+                                aria-label={t("payroll.card.periodEnd")}
                                 className="flex-1 px-2 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-xs text-foreground focus:outline-none"
                             />
                         </div>
@@ -478,14 +482,14 @@ export function EmployeePayrollCard({
                                 onClick={() => { onClearPeriodOverride(employee.id); setCalendarOpen(false); }}
                                 className="flex-1 px-2 py-1.5 text-xs rounded-lg bg-[var(--card-bg)] border border-[var(--card-border)] text-muted hover:text-foreground transition-colors"
                             >
-                                Reset
+                                {t("payroll.card.reset")}
                             </button>
                             <button
                                 onClick={() => { onPeriodOverride(employee.id, draftStart, draftEnd); setCalendarOpen(false); }}
                                 disabled={!draftStart || !draftEnd || draftStart > draftEnd}
                                 className="flex-1 px-2 py-1.5 text-xs rounded-lg bg-[var(--ink)] text-white hover:opacity-90 transition-all disabled:opacity-40"
                             >
-                                Apply
+                                {t("payroll.card.apply")}
                             </button>
                         </div>
                     </div>
@@ -498,31 +502,31 @@ export function EmployeePayrollCard({
                         <div className="flex-1 min-w-0 space-y-0">
                             {/* Earnings */}
                             {calculation.baseSalary > 0 && (
-                                <CompactLineItem label="Base Salary" value={calculation.baseSalary} type="neutral" />
+                                <CompactLineItem label={t("payroll.line.base")} value={calculation.baseSalary} type="neutral" />
                             )}
                             {ordersGross > 0 && (
                                 <CompactLineItem
-                                    label={`Orders (${breakdown.completedTotal}×${fmtIQD(perOrderBonus)})`}
+                                    label={t("payroll.card.ordersLine", { count: breakdown.completedTotal, rate: fmtIQD(perOrderBonus) })}
                                     value={ordersGross}
                                     type="positive"
                                 />
                             )}
                             {calculation.performanceBonusesTotal > 0 && (
                                 <CompactLineItem
-                                    label={`Bonuses (${calculation.pendingBonuses.length})`}
+                                    label={t("payroll.card.bonusesLine", { count: calculation.pendingBonuses.length })}
                                     value={calculation.performanceBonusesTotal}
                                     type="positive"
                                 />
                             )}
                             {!hasEarnings && (
-                                <p className="text-xs text-muted py-0.5">No earnings this period</p>
+                                <p className="text-xs text-muted py-0.5">{t("payroll.card.noEarnings")}</p>
                             )}
 
                             {/* Before-deductions subtotal — only when it sums 2+ earning lines */}
                             {earningLines >= 2 && (
                                 <>
                                     <div className="border-t border-[var(--card-border)] my-1" />
-                                    <CompactLineItem label="Before deductions" value={preDeductions} type="total" bold />
+                                    <CompactLineItem label={t("payroll.card.beforeDeductions")} value={preDeductions} type="total" bold />
                                 </>
                             )}
 
@@ -532,48 +536,48 @@ export function EmployeePayrollCard({
                                     {earningLines < 2 && <div className="border-t border-[var(--card-border)] my-1" />}
                                     {breakdown.replacements > 0 && (
                                         <CompactLineItem
-                                            label={`Replacements (${breakdown.replacements})`}
+                                            label={t("payroll.card.replacementsLine", { count: breakdown.replacements })}
                                             value={replacementDeduction}
                                             type="negative"
                                             onClick={() => setBreakdownOpen(true)}
-                                            ariaLabel={`Replacements: ${breakdown.replacements} orders, ${fmtIQD(replacementDeduction)} IQD excluded — open list`}
-                                            title="Replacement orders — re-ships, not new sales. Click for the order list."
+                                            ariaLabel={t("payroll.card.replacementsAria", { count: breakdown.replacements, amount: fmtIQD(replacementDeduction), currency: iqd })}
+                                            title={t("payroll.card.replacementsHint")}
                                         />
                                     )}
                                     {breakdown.refunds > 0 && (
                                         <CompactLineItem
-                                            label={`Refunds / returns (${breakdown.refunds})`}
+                                            label={t("payroll.card.refundsLine", { count: breakdown.refunds })}
                                             value={refundDeduction}
                                             type="negative"
                                             onClick={() => setBreakdownOpen(true)}
-                                            ariaLabel={`Refunds and returns: ${breakdown.refunds} orders, ${fmtIQD(refundDeduction)} IQD excluded — open list`}
-                                            title="Refunded / returned orders — the sale came back. Click for the order list."
+                                            ariaLabel={t("payroll.card.refundsAria", { count: breakdown.refunds, amount: fmtIQD(refundDeduction), currency: iqd })}
+                                            title={t("payroll.card.refundsHint")}
                                         />
                                     )}
                                     {calculation.absenceDeduction > 0 && (
                                         <CompactLineItem
-                                            label={`Absence (${calculation.absenceDays}d)`}
+                                            label={t("payroll.card.absenceLine", { days: calculation.absenceDays })}
                                             value={calculation.absenceDeduction}
                                             type="negative"
                                         />
                                     )}
                                     {calculation.advancesTotal > 0 && (
                                         <CompactLineItem
-                                            label={`Advances (${calculation.pendingAdvances.length})`}
+                                            label={t("payroll.card.advancesLine", { count: calculation.pendingAdvances.length })}
                                             value={calculation.advancesTotal}
                                             type="negative"
                                         />
                                     )}
                                     {calculation.penaltiesTotal > 0 && (
                                         <CompactLineItem
-                                            label={`Penalties (${calculation.pendingPenalties.length})`}
+                                            label={t("payroll.card.penaltiesLine", { count: calculation.pendingPenalties.length })}
                                             value={calculation.penaltiesTotal}
                                             type="negative"
                                         />
                                     )}
                                     {/* Rollup so the red lines visibly sum and the ledger reconciles to Net */}
                                     <div className="flex items-end gap-1.5 pt-1 mt-0.5 border-t border-dashed border-[var(--card-border)] text-[11px]">
-                                        <span className="text-muted shrink-0">Total deducted</span>
+                                        <span className="text-muted shrink-0">{t("payroll.card.totalDeducted")}</span>
                                         <span aria-hidden className="flex-1 border-b border-dotted border-[var(--card-border)] mb-[3px] min-w-[10px]" />
                                         <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0">−{fmtIQD(totalDeductions)}</span>
                                         <span className="w-3 shrink-0" />
@@ -584,7 +588,7 @@ export function EmployeePayrollCard({
 
                         {/* Sparkline (#7) — only if ≥2 payments */}
                         {sparkData.length >= 2 && (
-                            <div className="w-16 h-12 shrink-0 self-center" role="img" aria-label="Recent net payouts trend">
+                            <div className="w-16 h-12 shrink-0 self-center" role="img" aria-label={t("payroll.card.trendChart")}>
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={sparkData} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
                                         <Area
@@ -611,10 +615,10 @@ export function EmployeePayrollCard({
                                     <div className="flex items-center gap-1.5">
                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400">
                                             <CheckCircle className="w-3.5 h-3.5" />
-                                            Paid
+                                            {t("payroll.card.paid")}
                                         </span>
                                         <span className="text-xs text-muted tabular-nums">
-                                            {fmtDate(overlappingPayroll.paid_at, "MMM d, yyyy")} · {fmtIQD(overlappingPayroll.net_salary)} IQD
+                                            {fmtDate(overlappingPayroll.paid_at, "MMM d, yyyy")} · {fmtIQD(overlappingPayroll.net_salary)} {iqd}
                                         </span>
                                     </div>
                                     <p className="text-xs text-muted mt-1 tabular-nums">
@@ -625,25 +629,28 @@ export function EmployeePayrollCard({
                                     <button
                                         onClick={() => setConfirmVoid(true)}
                                         className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-muted hover:text-rose-500 transition-colors"
-                                        aria-label="Void this payment"
-                                        title="Void this payment"
+                                        aria-label={t("payroll.card.void")}
+                                        title={t("payroll.card.void")}
                                     >
                                         <Undo2 className="w-4 h-4" />
                                     </button>
                                 ) : (
                                     <div className="flex items-center gap-1">
-                                        <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">Void?</span>
-                                        <button
-                                            onClick={() => { /* void is handled via payroll history table; close confirm */ setConfirmVoid(false); }}
-                                            className="px-2 py-1 text-xs bg-[var(--background)] border border-[var(--card-border)] text-muted rounded-lg hover:text-foreground transition-colors"
-                                        >
-                                            No
-                                        </button>
+                                        <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">{t("payroll.card.voidAsk")}</span>
                                         <button
                                             onClick={() => setConfirmVoid(false)}
+                                            className="px-2 py-1 text-xs bg-[var(--background)] border border-[var(--card-border)] text-muted rounded-lg hover:text-foreground transition-colors"
+                                        >
+                                            {t("common.no")}
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                await onVoidPayment(overlappingPayroll.id);
+                                                setConfirmVoid(false);
+                                            }}
                                             className="px-2 py-1 text-xs bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition-colors"
                                         >
-                                            Yes
+                                            {t("common.yes")}
                                         </button>
                                     </div>
                                 )}
@@ -653,17 +660,17 @@ export function EmployeePayrollCard({
                             <>
                                 <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
                                     <div className="min-w-0">
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">Net Payable</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">{t("payroll.line.netPayable")}</p>
                                         <p className="text-[26px] font-bold text-foreground tabular-nums tracking-tight leading-none mt-1">
                                             {fmtIQD(animatedNet)}
-                                            <span className="text-sm font-medium text-muted ml-1">IQD</span>
+                                            <span className="text-sm font-medium text-muted ml-1">{iqd}</span>
                                         </p>
                                         {overDeducted && (
                                             <p
                                                 className="text-[11px] text-amber-700 dark:text-amber-400 mt-1.5 tabular-nums"
-                                                title="Deductions exceeded earnings; Net is floored at 0. The remainder is not carried into the next period automatically."
+                                                title={t("payroll.card.cappedHint")}
                                             >
-                                                Capped at 0 · −{fmtIQD(-rawNet)} IQD not deducted
+                                                {t("payroll.card.capped", { amount: fmtIQD(-rawNet), currency: iqd })}
                                             </p>
                                         )}
                                     </div>
@@ -671,7 +678,7 @@ export function EmployeePayrollCard({
                                         whileTap={reduce ? undefined : { scale: 0.95 }}
                                         onClick={() => onMarkAsPaid(data)}
                                         disabled={isPayingOut || calculation.netSalary === 0}
-                                        title={calculation.netSalary === 0 ? "No amount to pay" : undefined}
+                                        title={calculation.netSalary === 0 ? t("payroll.card.nothingToPayShort") : undefined}
                                         className={cn(
                                             "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
                                             "bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/25",
@@ -683,17 +690,17 @@ export function EmployeePayrollCard({
                                         ) : (
                                             <>
                                                 <CheckCircle className="w-4 h-4" />
-                                                Mark Paid
+                                                {t("payroll.card.markPaid")}
                                             </>
                                         )}
                                     </motion.button>
                                 </div>
                                 {calculation.netSalary === 0 && !overDeducted && (
-                                    <p className="text-xs text-muted mt-2">Nothing to pay this period.</p>
+                                    <p className="text-xs text-muted mt-2">{t("payroll.card.nothingToPay")}</p>
                                 )}
                                 {lastPayment && (
                                     <p className="text-xs text-muted mt-2 tabular-nums">
-                                        Last paid: {fmtDate(lastPayment.paid_at)} · {fmtIQD(lastPayment.net_salary)} IQD
+                                        {t("payroll.card.lastPaid")} {fmtDate(lastPayment.paid_at)} · {fmtIQD(lastPayment.net_salary)} {iqd}
                                     </p>
                                 )}
                             </>
@@ -708,21 +715,21 @@ export function EmployeePayrollCard({
                         className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
                     >
                         <TrendingDown className="w-3 h-3" />
-                        Advance
+                        {t("payroll.card.addAdvance")}
                     </button>
                     <button
                         onClick={() => setPenaltyOpen(true)}
                         className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-medium bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
                     >
                         <AlertCircle className="w-3 h-3" />
-                        Penalty
+                        {t("payroll.card.addPenalty")}
                     </button>
                     <button
                         onClick={() => setBonusOpen(true)}
                         className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-medium bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
                     >
                         <Star className="w-3 h-3" />
-                        Bonus
+                        {t("payroll.card.addBonus")}
                     </button>
                     <button
                         onClick={() => setDetailsExpanded(v => !v)}
@@ -736,7 +743,7 @@ export function EmployeePayrollCard({
                         )}
                     >
                         <History className="w-3 h-3" />
-                        {pendingCount > 0 || recentPayments.length > 0 ? `Details (${pendingCount + recentPayments.length})` : "Details"}
+                        {pendingCount > 0 || recentPayments.length > 0 ? t("payroll.card.detailsCount", { count: pendingCount + recentPayments.length }) : t("payroll.card.details")}
                         {detailsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                     </button>
                 </div>
@@ -755,16 +762,16 @@ export function EmployeePayrollCard({
                             <div>
                                 <p className="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wide mb-1.5 flex items-center gap-1">
                                     <Undo2 className="w-3 h-3" />
-                                    Returned after payment ({data.returnedAfterPayment.length})
+                                    {t("payroll.card.returnedAfter", { count: data.returnedAfterPayment.length })}
                                 </p>
                                 <p className="text-xs text-muted mb-1">
-                                    Returns inside an already-paid period — review only, no automatic deduction.
+                                    {t("payroll.card.returnedAfterHint")}
                                 </p>
                                 <button
                                     onClick={() => setBreakdownOpen(true)}
                                     className="text-xs text-muted hover:text-foreground underline decoration-dotted transition-colors"
                                 >
-                                    View list
+                                    {t("payroll.card.viewList")}
                                 </button>
                             </div>
                         )}
@@ -772,12 +779,12 @@ export function EmployeePayrollCard({
                         {/* Pending advances */}
                         {calculation.pendingAdvances.length > 0 && (
                             <div>
-                                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">Pending Advances</p>
+                                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">{t("payroll.card.pendingAdvances")}</p>
                                 <div className="space-y-1">
                                     {calculation.pendingAdvances.map(a => (
                                         <div key={a.id} className="flex items-center justify-between text-xs">
-                                            <span className="text-muted truncate">{a.reason || "No reason"} · {fmtDate(a.created_at)}</span>
-                                            <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{fmtIQD(a.amount)} IQD</span>
+                                            <span className="text-muted truncate">{a.reason || t("payroll.card.noReason")} · {fmtDate(a.created_at)}</span>
+                                            <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{fmtIQD(a.amount)} {iqd}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -787,12 +794,12 @@ export function EmployeePayrollCard({
                         {/* Pending penalties */}
                         {calculation.pendingPenalties.length > 0 && (
                             <div>
-                                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">Pending Penalties</p>
+                                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">{t("payroll.card.pendingPenalties")}</p>
                                 <div className="space-y-1">
                                     {calculation.pendingPenalties.map(p => (
                                         <div key={p.id} className="flex items-center justify-between text-xs">
-                                            <span className="text-muted truncate">{p.reason || "No reason"} · {fmtDate(p.created_at)}</span>
-                                            <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{fmtIQD(p.amount)} IQD</span>
+                                            <span className="text-muted truncate">{p.reason || t("payroll.card.noReason")} · {fmtDate(p.created_at)}</span>
+                                            <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{fmtIQD(p.amount)} {iqd}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -802,12 +809,12 @@ export function EmployeePayrollCard({
                         {/* Pending bonuses */}
                         {calculation.pendingBonuses.length > 0 && (
                             <div>
-                                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">Pending Bonuses</p>
+                                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">{t("payroll.card.pendingBonuses")}</p>
                                 <div className="space-y-1">
                                     {calculation.pendingBonuses.map(b => (
                                         <div key={b.id} className="flex items-center justify-between text-xs">
-                                            <span className="text-muted truncate">{b.reason || "No reason"} · {fmtDate(b.created_at)}</span>
-                                            <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums shrink-0 ml-2">+{fmtIQD(b.amount)} IQD</span>
+                                            <span className="text-muted truncate">{b.reason || t("payroll.card.noReason")} · {fmtDate(b.created_at)}</span>
+                                            <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums shrink-0 ml-2">+{fmtIQD(b.amount)} {iqd}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -817,7 +824,7 @@ export function EmployeePayrollCard({
                         {/* Recent payments with notes (#8) */}
                         {recentPayments.length > 0 && (
                             <div>
-                                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">Recent Payments</p>
+                                <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1.5">{t("payroll.card.recentPayments")}</p>
                                 <div className="space-y-1.5">
                                     {recentPayments.slice(0, 5).map(p => (
                                         <div key={p.id} className="flex items-start justify-between py-1.5 border-b border-[var(--card-border)] last:border-0 gap-2">
@@ -826,13 +833,13 @@ export function EmployeePayrollCard({
                                                     {fmtDate(p.period_start)} → {fmtDate(p.period_end)}
                                                 </p>
                                                 <p className="text-xs text-muted tabular-nums">
-                                                    {p.completed_orders_count} orders · paid {fmtDate(p.paid_at ?? p.period_end)}
+                                                    {t("payroll.card.paymentRow", { count: p.completed_orders_count, date: fmtDate(p.paid_at ?? p.period_end) })}
                                                 </p>
                                                 {p.notes && (
                                                     <p className="text-xs text-muted italic mt-0.5">&ldquo;{p.notes}&rdquo;</p>
                                                 )}
                                             </div>
-                                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums shrink-0">{fmtIQD(p.net_salary)} IQD</p>
+                                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums shrink-0">{fmtIQD(p.net_salary)} {iqd}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -840,7 +847,7 @@ export function EmployeePayrollCard({
                         )}
 
                         {pendingCount === 0 && recentPayments.length === 0 && breakdown.completedTotal === 0 && data.returnedAfterPayment.length === 0 && (
-                            <p className="text-xs text-muted text-center py-2">No pending items or payment history.</p>
+                            <p className="text-xs text-muted text-center py-2">{t("payroll.card.nothingHere")}</p>
                         )}
                     </motion.div>
                 )}

@@ -218,6 +218,7 @@ function ConfirmPayrollDialog({
 
 export function SalariesTab() {
     const { user } = useAuth();
+    const { t } = useLanguage();
     const [periodMode, setPeriodMode] = useState<PeriodMode>("since_last");
     const [customStart, setCustomStart] = useState(thirtyDaysAgo);
     const [customEnd, setCustomEnd] = useState(today);
@@ -257,7 +258,7 @@ export function SalariesTab() {
         refresh: refreshDeductions,
     } = useSalaryDeductions();
 
-    const { runPayroll, getLastPayrollDates, payrollHistory, fetchAllHistory } = usePayroll();
+    const { runPayroll, voidPayroll, getLastPayrollDates, payrollHistory, fetchAllHistory } = usePayroll();
 
     // Clear per-employee overrides when the global period changes so the new period takes effect
     useEffect(() => {
@@ -324,6 +325,16 @@ export function SalariesTab() {
         refreshConfigs();
         fetchAllHistory();
     }, [refreshSalaries, refreshDeductions, refreshConfigs, fetchAllHistory]);
+
+    const handleVoidPayment = useCallback(async (recordId: string) => {
+        const { error } = await voidPayroll(recordId);
+        if (error) {
+            toast({ title: t("payroll.toast.voidFailed"), description: error, variant: "error" });
+            return;
+        }
+        toast({ title: t("payroll.toast.voided"), description: t("payroll.toast.voidedDesc"), variant: "success" });
+        handleRefreshAll();
+    }, [voidPayroll, handleRefreshAll, t]);
 
     const handleHideEmployee = useCallback((employeeId: string) => {
         setHiddenEmployeeIds(prev => {
@@ -430,21 +441,28 @@ export function SalariesTab() {
                 perOrderBonus: confirmData.effectiveRate.perOrderBonus,
             };
 
-            const { error, record } = await runPayroll(calc, notes || undefined, payslipMeta, paymentMethod);
+            const { error, errorCode, record } = await runPayroll(calc, notes || undefined, payslipMeta, paymentMethod);
             setConfirmData(null);
             setPayingEmployeeId(null);
             handleRefreshAll();
 
             if (error) {
-                toast({ title: "Payroll failed", description: error, variant: "error" });
+                toast({
+                    title: t("payroll.toast.failed"),
+                    description: errorCode === "23P01" ? t("payroll.toast.overlap") : error,
+                    variant: "error",
+                });
             } else {
                 toast({
-                    title: `Payroll locked — ${payslipMeta.employeeName}`,
-                    description: `${new Intl.NumberFormat("en-IQ").format(Math.round(record?.net_salary ?? calc.netSalary))} IQD paid`,
+                    title: t("payroll.toast.locked", { name: payslipMeta.employeeName }),
+                    description: t("payroll.toast.paid", {
+                        amount: new Intl.NumberFormat("en-IQ").format(Math.round(record?.net_salary ?? calc.netSalary)),
+                        currency: t("common.iqd"),
+                    }),
                     variant: "success",
                     duration: 10000,
                     action: record?.pdf_url ? {
-                        label: "Download PDF",
+                        label: t("payroll.toast.downloadPdf"),
                         onClick: async () => {
                             const blob = await fetch(record!.pdf_url!).then(r => r.blob());
                             downloadPayslipBlob(blob, payslipMeta.employeeName, calc.periodEnd);
@@ -453,7 +471,7 @@ export function SalariesTab() {
                 });
             }
         },
-        [confirmData, user, runPayroll, handleRefreshAll, periodMode, periodStart, periodEnd, lastPayrollDates, periodOverrides]
+        [confirmData, user, t, runPayroll, handleRefreshAll, periodMode, periodStart, periodEnd, lastPayrollDates, periodOverrides]
     );
 
     const handleBulkPayAll = useCallback(
@@ -500,8 +518,8 @@ export function SalariesTab() {
 
             if (failedNames.length > 0) {
                 toast({
-                    title: `${failedNames.length} payroll${failedNames.length !== 1 ? "s" : ""} failed`,
-                    description: `Could not process: ${failedNames.join(", ")}`,
+                    title: t("payroll.toast.bulkFailed", { count: failedNames.length }),
+                    description: t("payroll.toast.bulkFailedDesc", { names: failedNames.join("، ") }),
                     variant: "error",
                     duration: 12000,
                 });
@@ -509,20 +527,20 @@ export function SalariesTab() {
             const successCount = eligible.length - failedNames.length;
             if (successCount > 0) {
                 toast({
-                    title: `Bulk payroll complete`,
-                    description: `${successCount} employee${successCount !== 1 ? "s" : ""} paid`,
+                    title: t("payroll.toast.bulkDone"),
+                    description: t("payroll.toast.bulkDoneDesc", { count: successCount }),
                     variant: "success",
                 });
             }
         },
-        [user, effectiveEmployeeData, periodOverrides, periodStart, periodEnd, periodMode, lastPayrollDates, runPayroll, handleRefreshAll]
+        [user, t, effectiveEmployeeData, periodOverrides, periodStart, periodEnd, periodMode, lastPayrollDates, runPayroll, handleRefreshAll]
     );
 
     const subTabs: { key: SubTab; label: string; icon: React.ElementType }[] = [
-        { key: "current", label: "Current Period", icon: Clock },
-        { key: "history", label: "Payroll History", icon: History },
-        { key: "advances", label: "Advances", icon: TrendingDown },
-        { key: "penalties", label: "Penalties & Bonuses", icon: AlertCircle },
+        { key: "current", label: t("payroll.tab.current"), icon: Clock },
+        { key: "history", label: t("payroll.tab.history"), icon: History },
+        { key: "advances", label: t("payroll.tab.advances"), icon: TrendingDown },
+        { key: "penalties", label: t("payroll.tab.penalties"), icon: AlertCircle },
     ];
 
     return (
@@ -539,7 +557,7 @@ export function SalariesTab() {
                         )}
                     >
                         <Clock className="w-3 h-3" />
-                        Since Last Payroll
+                        {t("payroll.period.sinceLast")}
                     </button>
                     <button
                         onClick={() => setPeriodMode("custom")}
@@ -549,7 +567,7 @@ export function SalariesTab() {
                         )}
                     >
                         <Settings2 className="w-3 h-3" />
-                        Custom Range
+                        {t("payroll.period.custom")}
                     </button>
                 </div>
 
@@ -583,25 +601,25 @@ export function SalariesTab() {
                 <div className="flex-1" />
 
                 {/* Attribution toggle */}
-                <div className="flex bg-[var(--card-bg)] rounded-xl p-0.5 border border-[var(--card-border)]" title="How orders are attributed">
+                <div className="flex bg-[var(--card-bg)] rounded-xl p-0.5 border border-[var(--card-border)]" title={t("payroll.attribution.hint")}>
                     <button
                         onClick={() => setAttributionMode("all")}
                         className={cn("px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all", attributionMode === "all" ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground")}
                     >
-                        All Orders
+                        {t("payroll.attribution.all")}
                     </button>
                     <button
                         onClick={() => setAttributionMode("last_touched")}
                         className={cn("px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all", attributionMode === "last_touched" ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground")}
                     >
-                        By Attribution
+                        {t("payroll.attribution.byEmployee")}
                     </button>
                 </div>
 
-                <button onClick={handleRefreshAll} className="p-1.5 rounded-lg hover:bg-[var(--card-bg)] text-muted hover:text-foreground transition-colors" title="Refresh">
+                <button onClick={handleRefreshAll} className="p-1.5 rounded-lg hover:bg-[var(--card-bg)] text-muted hover:text-foreground transition-colors" title={t("common.refresh")}>
                     <RefreshCw className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => setRoleDefaultsOpen(true)} className="p-1.5 rounded-lg hover:bg-[var(--card-bg)] text-muted hover:text-foreground transition-colors" title="Role Defaults">
+                <button onClick={() => setRoleDefaultsOpen(true)} className="p-1.5 rounded-lg hover:bg-[var(--card-bg)] text-muted hover:text-foreground transition-colors" title={t("payroll.roleDefaults")}>
                     <Settings2 className="w-3.5 h-3.5" />
                 </button>
                 <button
@@ -610,7 +628,7 @@ export function SalariesTab() {
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-medium hover:bg-emerald-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-emerald-500/20"
                 >
                     <CheckCircle className="w-3.5 h-3.5" />
-                    Pay All
+                    {t("payroll.payAll")}
                 </button>
             </div>
 
@@ -619,7 +637,7 @@ export function SalariesTab() {
                 <div className="px-4 py-3 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-xl">
                     <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                            Processing payroll… {bulkPayProgress.done} / {bulkPayProgress.total}
+                            {t("payroll.processing")} {bulkPayProgress.done} / {bulkPayProgress.total}
                         </span>
                         <span className="text-xs text-emerald-600">{Math.round((bulkPayProgress.done / bulkPayProgress.total) * 100)}%</span>
                     </div>
@@ -672,7 +690,7 @@ export function SalariesTab() {
                             type="text"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            placeholder="Search…"
+                            placeholder={t("common.search")}
                             className="w-40 px-3 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20 transition-all"
                         />
                         <select
@@ -680,16 +698,16 @@ export function SalariesTab() {
                             onChange={e => setSortBy(e.target.value as typeof sortBy)}
                             className="px-2.5 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none cursor-pointer"
                         >
-                            <option value="name">Sort: Name</option>
-                            <option value="net_desc">Highest Pay</option>
-                            <option value="net_asc">Lowest Pay</option>
-                            <option value="last_paid">Last Paid</option>
+                            <option value="name">{t("payroll.sort.name")}</option>
+                            <option value="net_desc">{t("payroll.sort.highest")}</option>
+                            <option value="net_asc">{t("payroll.sort.lowest")}</option>
+                            <option value="last_paid">{t("payroll.sort.lastPaid")}</option>
                         </select>
                         <button
                             onClick={() => exportCurrentPeriodCSV(effectiveEmployeeData, periodStart, periodEnd)}
                             disabled={effectiveEmployeeData.length === 0}
                             className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-muted hover:text-foreground transition-colors disabled:opacity-40"
-                            title="Export to CSV"
+                            title={t("payroll.exportCsv")}
                         >
                             <FileSpreadsheet className="w-3.5 h-3.5" />
                             CSV
@@ -701,10 +719,10 @@ export function SalariesTab() {
                             }}
                             disabled={effectiveEmployeeData.length === 0}
                             className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-muted hover:text-foreground transition-colors disabled:opacity-40"
-                            title="Download Summary PDF"
+                            title={t("payroll.summaryPdf")}
                         >
                             <Download className="w-3.5 h-3.5" />
-                            Summary PDF
+                            {t("payroll.summaryPdfShort")}
                         </button>
                         {hiddenEmployeeIds.size > 0 && (
                             <button
@@ -716,7 +734,7 @@ export function SalariesTab() {
                                         : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:text-foreground"
                                 )}
                             >
-                                {showHidden ? "Hide hidden" : `+${hiddenEmployeeIds.size} hidden`}
+                                {showHidden ? t("payroll.hidden.hide") : t("payroll.hidden.show", { count: hiddenEmployeeIds.size })}
                             </button>
                         )}
                     </>
@@ -735,7 +753,7 @@ export function SalariesTab() {
                     ) : effectiveEmployeeData.length === 0 ? (
                         <div className="text-center py-16 text-muted">
                             <Clock className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                            <p className="font-medium">No active employees found</p>
+                            <p className="font-medium">{t("payroll.empty")}</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -750,6 +768,7 @@ export function SalariesTab() {
                                     onAddPenalty={async (id, amount, reason) => { await addPenalty(id, amount, reason); }}
                                     onAddBonus={async (id, amount, reason) => { await addBonus(id, amount, reason); }}
                                     onMarkAsPaid={handleMarkAsPaid}
+                                    onVoidPayment={handleVoidPayment}
                                     onUpdateConfig={async (empId, config) => {
                                         await upsertEmployeeConfig(empId, config);
                                         refreshSalaries();
@@ -777,7 +796,7 @@ export function SalariesTab() {
                             {/* Unhide chips — shown when showHidden is on */}
                             {showHidden && hiddenEmployeeIds.size > 0 && (
                                 <div className="col-span-full flex flex-wrap gap-2 pt-2 border-t border-[var(--card-border)]">
-                                    <span className="text-xs text-muted self-center">Hidden:</span>
+                                    <span className="text-xs text-muted self-center">{t("payroll.hidden.label")}</span>
                                     {[...hiddenEmployeeIds].map(id => {
                                         const emp = employeePayrollData.find(d => d.employee.id === id);
                                         const name = emp?.employee.displayName || emp?.employee.email.split("@")[0] || id;
@@ -800,7 +819,7 @@ export function SalariesTab() {
             )}
 
             {activeSubTab === "history" && (
-                <PayrollHistoryTable employeeNames={employeeNames} />
+                <PayrollHistoryTable employeeNames={employeeNames} onVoided={handleRefreshAll} />
             )}
 
             {activeSubTab === "advances" && (
