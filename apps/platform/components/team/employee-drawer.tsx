@@ -7,10 +7,8 @@ import {
     Activity,
     Package,
     RefreshCw,
-    Printer,
     Clock,
     BarChart3,
-    Calendar,
     ChevronLeft,
     ChevronRight,
     Settings,
@@ -28,7 +26,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { AnimatedAvatarRing } from "./animated-avatar-ring";
-import { useWorkSessions, formatSessionDuration } from "./hooks/use-work-sessions";
+import { useWorkSessions } from "./hooks/use-work-sessions";
 import { useLanguage } from "@/hooks/use-language";
 import { SessionGroupedActivities } from "./session-grouped-activities";
 import { ActivityTimeline } from "./activity-timeline";

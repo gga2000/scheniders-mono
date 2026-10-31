@@ -19,7 +19,7 @@ import { PastelCard, PastelButton } from "./shared-pastel-components";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
-import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
+import { teamRangeStart, type TeamTimeRange } from "@/lib/team-time-window";
 import { cn } from "@/lib/utils";
 
 // Types
@@ -407,11 +407,11 @@ const METRIC_TO_ACTIONS: Record<Goal["metric"], string[]> = {
     ordersPrinted: ["order.print"],
 };
 
-// Windows follow the store's Baghdad calendar day: daily = since today 00:00, weekly = last 7 days, monthly = last 30 days.
+// Goal windows use the same whole-Baghdad-day ranges as the rest of the team page.
+const GOAL_RANGE: Record<Goal["type"], TeamTimeRange> = { daily: "today", weekly: "week", monthly: "month" };
+
 function getDateFilterForGoalType(type: Goal["type"]): string {
-    const days = type === "daily" ? 0 : type === "weekly" ? 6 : 29;
-    const start = baghdadDayStart(addDaysToDayKey(baghdadDayKey(), -days));
-    return new Date(start).toISOString();
+    return teamRangeStart(GOAL_RANGE[type]) ?? new Date(0).toISOString();
 }
 
 export function GoalTracking({ employees, className }: GoalTrackingProps) {
@@ -503,7 +503,7 @@ export function GoalTracking({ employees, className }: GoalTrackingProps) {
                 </div>
 
                 {!isAdding && (
-                    <PastelButton onClick={() => setIsAdding(true)} variant="yellow">
+                    <PastelButton onClick={() => setIsAdding(true)}>
                         <span className="flex items-center gap-2">
                             <Plus className="w-5 h-5" />
                             {t("team.goals.newBtn", "New Goal")}

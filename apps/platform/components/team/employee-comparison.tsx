@@ -10,12 +10,10 @@ import {
     Package,
     RefreshCw,
     Printer,
-    ArrowUpRight,
     ArrowDownRight,
     Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AnimatedAvatarRing } from "./animated-avatar-ring";
 import { PastelCard, pastelColors, PastelColor } from "./shared-pastel-components";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -46,7 +44,6 @@ function ComparisonRow({
     label,
     value1,
     value2,
-    color,
     pastelColor,
 }: {
     icon: React.ElementType;
@@ -57,7 +54,6 @@ function ComparisonRow({
     pastelColor: PastelColor;
 }) {
     const diff = value1 - value2;
-    const percentDiff = value2 > 0 ? ((diff / value2) * 100).toFixed(0) : diff > 0 ? "+∞" : "0";
     const colorConfig = pastelColors[pastelColor];
 
     return (
@@ -203,7 +199,7 @@ export function EmployeeComparison({
 
     const canCompare = employee1 && employee2 && employee1Id !== employee2Id;
 
-    const comparisonMetrics: { key: string; icon: any; label: string; color: string; pastelColor: PastelColor }[] = [
+    const comparisonMetrics: { key: string; icon: React.ElementType; label: string; color: string; pastelColor: PastelColor }[] = [
         { icon: Activity, label: t("team.stats.totalActions"), key: "totalActions", color: "#F59E0B", pastelColor: "yellow" },
         { icon: Package, label: t("team.stats.newOrders"), key: "ordersCreated", color: "#10B981", pastelColor: "green" },
         { icon: RefreshCw, label: t("team.stats.statusChanges"), key: "statusChanges", color: "#6366F1", pastelColor: "mint" },

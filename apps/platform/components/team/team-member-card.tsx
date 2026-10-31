@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Activity, Package, Printer, RefreshCw, ChevronRight, Settings, Truck, ShieldAlert } from 'lucide-react';
+import { Activity, Package, RefreshCw, ChevronRight, Settings, Truck, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -19,9 +19,15 @@ interface TeamMemberCardProps {
     isActive?: boolean;
 }
 
+const ONLINE_WINDOW_MS = 15 * 60 * 1000;
+
+function loggedInRecently(lastLogin: string | null): boolean {
+    return lastLogin ? new Date(lastLogin).getTime() > Date.now() - ONLINE_WINDOW_MS : false;
+}
+
 export function TeamMemberCard({ employee, viewMode, onClick, rank, delay = 0, isActive = false }: TeamMemberCardProps) {
     const { t, language } = useLanguage();
-    const isOnline = isActive || (employee.last_login_at ? new Date(employee.last_login_at).getTime() > Date.now() - 15 * 60 * 1000 : false);
+    const isOnline = isActive || loggedInRecently(employee.last_login_at);
 
     // Role-based theming
     const getRoleTheme = (role: string) => {

@@ -153,14 +153,12 @@ export function RankBadge({ rank, className }: { rank: number; className?: strin
 export function PastelButton({
     children,
     onClick,
-    variant = "white",
     active = false,
     className,
     disabled = false,
 }: {
     children: React.ReactNode;
     onClick?: () => void;
-    variant?: PastelColor;
     active?: boolean;
     className?: string;
     disabled?: boolean;

@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Clock, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ActivityLogEntry } from "@/lib/activity-logger";
 import { WorkSession, formatSessionDuration, formatSessionTimeRange } from "./hooks/use-work-sessions";
 import { ActivityTimeline } from "./activity-timeline";
 import { useState } from "react";
@@ -29,7 +28,7 @@ function SessionCard({
     isExpanded: boolean;
     onToggle: () => void;
     delay?: number;
-    t: (key: string, fallback?: string) => string;
+    t: ReturnType<typeof useLanguage>["t"];
     language: string;
 }) {
     return (

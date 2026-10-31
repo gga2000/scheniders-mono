@@ -75,7 +75,7 @@ export function PerformanceTrendsChart({
                 day: "numeric",
             }),
         }));
-    }, [data]);
+    }, [data, language]);
 
     if (data.length === 0) {
         return (
