@@ -50,7 +50,7 @@ beforeEach(() => {
             order("o3", STORE, "rejected", 30000),
             order("o4", STORE, "confirmed", 30000, { city: "البصرة" }),
             order("o5", OTHER, "delivered", 99999),
-        ],
+        ].map((o) => ({ is_archived: false, ...o })),
         products: [
             { id: SERUM, tenant_id: STORE, name: "Serum", sku: "SR-1", cost: 10000 },
             { id: "foreign", tenant_id: OTHER, name: "Other", sku: null, cost: 1 },
@@ -123,6 +123,16 @@ describe("expenses", () => {
         expect(env.tables.expenses[2]).toMatchObject({
             tenant_id: STORE, expense_date: "2026-10-30", category: "shipping", amount: 45000, notes: "Ali (via Claude)",
         });
+    });
+
+    it("will not book the same bill twice unless told it is a second payment", async () => {
+        const args = { date: "2026-10-05", category: "marketing", amount: 8000, description: "Meta ads", confirm: true };
+        const again = await call("add_expense", args);
+        expect(again.text).toContain(`An identical expense is already recorded (id ${EXPENSE})`);
+        expect(env.tables.expenses).toHaveLength(2);
+
+        await call("add_expense", { ...args, allow_duplicate: true });
+        expect(env.tables.expenses).toHaveLength(3);
     });
 
     it("refuses staff without money access, and viewers", async () => {

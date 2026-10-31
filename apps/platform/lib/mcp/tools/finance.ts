@@ -86,7 +86,7 @@ export function registerFinanceTools(server: McpServer): void {
         kind: "read",
         description:
             "Profit for a period (default: this month so far), computed like the products page: a sale counts on the day it was delivered, " +
-            "a refund on the day the money went back. Revenue is delivered orders' price (delivery fees excluded), minus product cost " +
+            "a refund on the day the money went back; test, deleted and archived orders are left out. Revenue is delivered orders' price (delivery fees excluded), minus product cost " +
             "(units × the product's or variant's cost price), minus refunds, minus expenses. Lists products with no cost price, whose " +
             "profit is overstated. Courier charges are only included if they were entered as expenses. Admins only.",
         input: z.object({ from: daySchema.optional(), to: daySchema.optional(), top_products: z.number().int().min(1).max(30).default(10) }),
@@ -102,6 +102,7 @@ export function registerFinanceTools(server: McpServer): void {
                         .eq("tenant_id", caller.tenantId)
                         .is("deleted_at", null)
                         .eq("is_test", false)
+                        .eq("is_archived", false)
                         .eq("is_return", false)
                         .in("status", ["delivered", "completed"])
                         .or(firstNonNullWithin(SOLD_AT, period.start, period.end))
@@ -115,6 +116,7 @@ export function registerFinanceTools(server: McpServer): void {
                         .eq("tenant_id", caller.tenantId)
                         .is("deleted_at", null)
                         .eq("is_test", false)
+                        .eq("is_archived", false)
                         .eq("status", "refund_delivered")
                         .or(firstNonNullWithin(REFUNDED_AT, period.start, period.end))
                         .order("id")
@@ -273,6 +275,7 @@ export function registerFinanceTools(server: McpServer): void {
             amount: z.number().int().min(1).max(1_000_000_000),
             description: z.string().trim().min(1).max(200),
             notes: z.string().trim().max(500).optional(),
+            allow_duplicate: z.boolean().default(false).describe("Only when the same bill really was paid twice"),
             confirm: z.boolean().default(false),
         }),
         async run(caller, input) {
@@ -280,6 +283,22 @@ export function registerFinanceTools(server: McpServer): void {
             requireMoney(caller);
             const date = input.date ?? baghdadToday();
             const summary = `${date} | ${input.category} | ${iqd(input.amount)} | ${input.description}${input.notes ? ` | note: ${input.notes}` : ""}`;
+
+            // A repeated call (or a retry after a lost reply) must not book the same bill twice.
+            const { data: same, error: sameError } = await caller.db
+                .from("expenses")
+                .select("id")
+                .eq("tenant_id", caller.tenantId)
+                .eq("expense_date", date)
+                .eq("category", input.category)
+                .eq("amount", input.amount)
+                .eq("description", input.description)
+                .limit(1);
+            if (sameError) throw sameError;
+            const duplicate = same && same.length > 0 ? (same[0] as { id: string }).id : null;
+            if (duplicate && !input.allow_duplicate) {
+                return `An identical expense is already recorded (id ${duplicate}): ${summary}\nNothing saved. If this really is a second payment, call again with allow_duplicate: true.`;
+            }
             if (!input.confirm) return `Preview — nothing saved yet. New expense:\n  ${summary}\nCall again with confirm: true to save it.`;
 
             const { data, error } = await caller.db
