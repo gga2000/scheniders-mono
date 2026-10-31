@@ -5,6 +5,7 @@ import type { Order, Product } from "@/lib/supabase";
 import type { DateInterval } from "./use-finance-overview";
 import type { Granularity } from "./use-finance-period";
 import { isRefundRow, refundPaidAt, reportDate } from "@/lib/refunds/refund-reporting";
+import { isSaleOrder } from "@/lib/order-revenue";
 import { resolveItemCost } from "@/lib/finance/item-cost";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 
@@ -135,8 +136,7 @@ export function useFinanceRevenue(
             let rev = 0;
             let count = 0;
             for (const o of list) {
-                if (o.status === "rejected") continue;
-                if (o.is_return || o.status === "refund_delivered") continue;
+                if (!isSaleOrder(o)) continue;
                 rev += o.price || 0;
                 count++;
             }
@@ -270,8 +270,7 @@ export function useFinanceRevenue(
             product_cost: number; delivery_cost: number;
         }>();
         for (const o of curr) {
-            if (o.status === "rejected") continue;
-            if (o.is_return || o.status === "refund_delivered") continue;
+            if (!isSaleOrder(o)) continue;
             const ch = o.source || "other";
             const row = channelMap.get(ch) || {
                 revenue: 0, orders: 0, delivered_revenue: 0, delivered_orders: 0,

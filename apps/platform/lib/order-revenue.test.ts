@@ -3,6 +3,7 @@ import type { Order } from "@/types/order";
 import {
     REALIZED_REVENUE_STATUSES,
     isRealizedRevenue,
+    isSaleOrder,
     realizedAt,
     baghdadDayKey,
     sumRealizedRevenue,
@@ -147,5 +148,27 @@ describe("recentBaghdadDayKeys", () => {
     it("returns the window oldest first, ending today", () => {
         const keys = recentBaghdadDayKeys(3, new Date("2026-09-07T12:00:00.000Z"));
         expect(keys).toEqual(["2026-09-05", "2026-09-06", "2026-09-07"]);
+    });
+});
+
+describe("isSaleOrder", () => {
+    const sale = (status: Order["status"], is_return = false) => ({ status, is_return });
+
+    it("counts active and fulfilled orders", () => {
+        for (const s of ["new", "confirmed", "in_transit", "delivered", "completed", "suspended"] as const) {
+            expect(isSaleOrder(sale(s))).toBe(true);
+        }
+    });
+
+    it("excludes orders that never became a sale", () => {
+        for (const s of ["rejected", "cancelled", "no_response", "pending_checkout"] as const) {
+            expect(isSaleOrder(sale(s))).toBe(false);
+        }
+    });
+
+    it("excludes refund and return rows", () => {
+        expect(isSaleOrder(sale("refund_delivered"))).toBe(false);
+        expect(isSaleOrder(sale("return_pending"))).toBe(false);
+        expect(isSaleOrder(sale("completed", true))).toBe(false);
     });
 });

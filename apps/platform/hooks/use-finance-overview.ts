@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { Order, Product } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
 import type { Granularity } from "./use-finance-period";
+import { isRealizedRevenue, isSaleOrder, NON_SALE_STATUSES } from "@/lib/order-revenue";
 import { resolveItemCost } from "@/lib/finance/item-cost";
 import { isRefundRow, reportDate } from "@/lib/refunds/refund-reporting";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
@@ -172,13 +173,11 @@ export function useFinanceOverview(
                 const value = o.price || 0;
                 const disc = o.discount_amount || 0;
                 const dfee = o.delivery_fee || o.delivery_cost || 0;
-                discount_sum += disc;
                 delivery_cost_sum += dfee;
 
-                if (o.status === "rejected") {
-                    // excluded from gross
-                    continue;
-                }
+                // Never became a sale: not revenue, and its discount was never given.
+                if (NON_SALE_STATUSES.includes(o.status)) continue;
+                discount_sum += disc;
                 if (isRefundRow(o)) {
                     refund_value += Math.abs(value);
                     continue;
@@ -230,7 +229,7 @@ export function useFinanceOverview(
                     });
                 }
                 const b = map.get(key)!;
-                if (o.status !== "rejected" && !o.is_return) {
+                if (isSaleOrder(o)) {
                     b.revenue += o.price || 0;
                     b.orders++;
                 }
@@ -314,7 +313,7 @@ export function useFinanceOverview(
         const prevByProduct = new Map<string, number>();
 
         for (const o of currOrders) {
-            if (o.status === "rejected" || o.is_return) continue;
+            if (!isSaleOrder(o)) continue;
             const val = o.price || 0;
             // channel
             const ch = o.source || "other";
@@ -327,7 +326,7 @@ export function useFinanceOverview(
             const ciEntry = byCity.get(ci) || { revenue: 0, orders: 0, profit: 0, delivered: 0 };
             ciEntry.revenue += val;
             ciEntry.orders++;
-            if (o.status === "delivered") ciEntry.delivered++;
+            if (isRealizedRevenue(o)) ciEntry.delivered++;
             byCity.set(ci, ciEntry);
             // payment
             const pay = o.payment_status || "pending";
@@ -343,13 +342,13 @@ export function useFinanceOverview(
                 const prod = byProduct.get(key) || { revenue: 0, units: 0, profit: 0 };
                 prod.revenue += (it.price || 0) * it.quantity;
                 prod.units += it.quantity;
-                if (o.status === "delivered") prod.profit += profit;
+                if (isRealizedRevenue(o)) prod.profit += profit;
                 byProduct.set(key, prod);
             }
         }
 
         for (const o of prevOrders) {
-            if (o.status === "rejected" || o.is_return) continue;
+            if (!isSaleOrder(o)) continue;
             const ch = o.source || "other";
             prevByChannel.set(ch, (prevByChannel.get(ch) || 0) + (o.price || 0));
             for (const it of o.items || []) {
