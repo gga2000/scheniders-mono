@@ -1092,7 +1092,7 @@ export function VariantMatrixTable({
                                                         onChange={(e) =>
                                                             onUpdateVariant(index, {
                                                                 price:
-                                                                    parseFloat(e.target.value) || 0,
+                                                                    Math.round(parseFloat(e.target.value)) || 0,
                                                             })
                                                         }
                                                         onFocus={() =>

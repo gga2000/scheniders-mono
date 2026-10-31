@@ -954,6 +954,12 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             return false;
         }
 
+        // An enabled variant sold at 0 or a fraction of a dinar cannot be bought.
+        if (formData.variants.some((v) => (v.is_enabled ?? true) && (!Number.isInteger(v.price) || v.price <= 0))) {
+            toast.error(t("products.ed.err.variantPrice"));
+            return false;
+        }
+
         // Validate SKU uniqueness format (no spaces)
         if (formData.sku && /\s/.test(formData.sku)) {
             toast.error(t("products.ed.err.sku"));
@@ -1086,10 +1092,11 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                             }, tenantId);
                         }
 
-                    } catch {
+                    } catch (followUpError) {
                         // The product row exists. Move to its editor so the next Save
-                        // updates it instead of inserting a second copy.
-                        clearDraft();
+                        // updates it instead of inserting a second copy. The draft stays
+                        // so the details that failed to save are not lost.
+                        console.error("Product created but follow-up save failed", followUpError);
                         toast.error(t("products.ed.err.createPartial"));
                         router.push(`/products/${newProduct.id}/edit`);
                         return false;

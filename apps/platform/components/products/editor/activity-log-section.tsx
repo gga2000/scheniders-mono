@@ -219,7 +219,7 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
                                             <button
                                                 type="button"
                                                 onClick={() => toggleExpanded(idx)}
-                                                className="flex items-center gap-1 mt-2 text-xs font-medium text-[var(--ink)] hover:opacity-70 transition-opacity"
+                                                className="flex items-center gap-1 mt-2 text-xs font-medium text-foreground hover:opacity-70 transition-opacity"
                                             >
                                                 {isExpanded ? (
                                                     <>
