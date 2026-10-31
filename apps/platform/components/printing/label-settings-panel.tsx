@@ -18,6 +18,7 @@ import {
     X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface LabelSettingsPanelProps {
     settings: EnhancedLabelOptions;
@@ -25,13 +26,13 @@ interface LabelSettingsPanelProps {
     isExpanded?: boolean;
 }
 
-const LABEL_SIZES: Array<{ value: LabelSize; label: string; description: string }> = [
-    { value: "80x120", label: "80×120 mm", description: "Thermal shipping label" },
-    { value: "4x6", label: "4×6 inch", description: "Standard shipping label" },
-    { value: "3x2", label: "3×2 inch", description: "Small compact label" },
-    { value: "a5", label: "A5", description: "148 × 210 mm" },
-    { value: "a6", label: "A6", description: "105 × 148 mm" },
-    { value: "compact", label: "Compact", description: "80 × 60 mm mini" },
+const LABEL_SIZES: Array<{ value: LabelSize; label: string; descriptionKey: string | null; dims?: string }> = [
+    { value: "80x120", label: "80×120 mm", descriptionKey: "printing.label_size80" },
+    { value: "4x6", label: "4×6 inch", descriptionKey: "printing.label_size4x6" },
+    { value: "3x2", label: "3×2 inch", descriptionKey: "printing.label_size3x2" },
+    { value: "a5", label: "A5", descriptionKey: null, dims: "148 × 210 mm" },
+    { value: "a6", label: "A6", descriptionKey: null, dims: "105 × 148 mm" },
+    { value: "compact", label: "Compact", descriptionKey: "printing.label_sizeCompact", dims: "80 × 60 mm" },
 ];
 
 export function LabelSettingsPanel({
@@ -39,6 +40,9 @@ export function LabelSettingsPanel({
     onSettingsChange,
     isExpanded = true,
 }: LabelSettingsPanelProps) {
+    const { t } = useLanguage();
+    const describeSize = (size?: (typeof LABEL_SIZES)[number]) =>
+        [size?.descriptionKey ? t(size.descriptionKey) : null, size?.dims].filter(Boolean).join(" · ");
     const [showPanel, setShowPanel] = useState(isExpanded);
     const [showSizeDropdown, setShowSizeDropdown] = useState(false);
 
@@ -60,48 +64,48 @@ export function LabelSettingsPanel({
             {
                 key: "showQrCode",
                 icon: QrCode,
-                label: "QR Code",
-                description: "Add scannable QR code",
+                label: t("printing.label_qr"),
+                description: t("printing.label_qrDesc"),
                 colorOn: "bg-purple-100 text-purple-700 border-purple-200",
                 colorOff: "bg-[var(--background)] text-muted border-[var(--card-border)]",
             },
             {
                 key: "showBarcode",
                 icon: Barcode,
-                label: "Barcode",
-                description: "Add order ID barcode",
+                label: t("printing.label_barcode"),
+                description: t("printing.label_barcodeDesc"),
                 colorOn: "bg-blue-100 text-blue-700 border-blue-200",
                 colorOff: "bg-[var(--background)] text-muted border-[var(--card-border)]",
             },
             {
                 key: "showPrice",
                 icon: DollarSign,
-                label: "Show Price",
-                description: "Display total amount",
+                label: t("printing.label_price"),
+                description: t("printing.label_priceDesc"),
                 colorOn: "bg-green-100 text-green-700 border-green-200",
                 colorOff: "bg-[var(--background)] text-muted border-[var(--card-border)]",
             },
             {
                 key: "isGift",
                 icon: Gift,
-                label: "Gift Mode",
-                description: "Hide price, show gift badge",
+                label: t("printing.label_gift"),
+                description: t("printing.label_giftDesc"),
                 colorOn: "bg-pink-100 text-pink-700 border-pink-200",
                 colorOff: "bg-[var(--background)] text-muted border-[var(--card-border)]",
             },
             {
                 key: "showCompanyLogo",
                 icon: Building2,
-                label: "Company Logo",
-                description: "Show your brand logo",
+                label: t("printing.label_companyLogo"),
+                description: t("printing.label_companyLogoDesc"),
                 colorOn: "bg-amber-100 text-amber-700 border-amber-200",
                 colorOff: "bg-[var(--background)] text-muted border-[var(--card-border)]",
             },
             {
                 key: "showDeliveryLogo",
                 icon: Truck,
-                label: "Delivery Logo",
-                description: "Show delivery company",
+                label: t("printing.label_deliveryLogo"),
+                description: t("printing.label_deliveryLogoDesc"),
                 colorOn: "bg-teal-100 text-teal-700 border-teal-200",
                 colorOff: "bg-[var(--background)] text-muted border-[var(--card-border)]",
             },
@@ -119,9 +123,9 @@ export function LabelSettingsPanel({
                         <Settings className="w-5 h-5 text-purple-700" />
                     </div>
                     <div className="text-left">
-                        <h3 className="font-semibold text-foreground">Label Settings</h3>
+                        <h3 className="font-semibold text-foreground">{t("printing.label_title")}</h3>
                         <p className="text-sm text-muted">
-                            Size: {LABEL_SIZES.find(s => s.value === settings.size)?.label || "4×6"}
+                            {t("printing.label_size")}: {LABEL_SIZES.find(s => s.value === settings.size)?.label || "4×6"}
                             {settings.showQrCode && " • QR"}
                             {settings.showBarcode && " • Barcode"}
                             {settings.isGift && " • Gift"}
@@ -151,7 +155,7 @@ export function LabelSettingsPanel({
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-foreground flex items-center gap-2">
                                     <Tag className="w-4 h-4 text-muted" />
-                                    Label Size
+                                    {t("printing.label_sizeTitle")}
                                 </label>
                                 <div className="relative">
                                     <button
@@ -167,7 +171,7 @@ export function LabelSettingsPanel({
                                                     {LABEL_SIZES.find(s => s.value === settings.size)?.label}
                                                 </p>
                                                 <p className="text-xs text-muted">
-                                                    {LABEL_SIZES.find(s => s.value === settings.size)?.description}
+                                                    {describeSize(LABEL_SIZES.find(s => s.value === settings.size))}
                                                 </p>
                                             </div>
                                         </div>
@@ -200,7 +204,7 @@ export function LabelSettingsPanel({
                                                         </div>
                                                         <div className="flex-1">
                                                             <p className="font-medium text-foreground">{size.label}</p>
-                                                            <p className="text-xs text-muted">{size.description}</p>
+                                                            <p className="text-xs text-muted">{describeSize(size)}</p>
                                                         </div>
                                                         {settings.size === size.value && (
                                                             <Check className="w-4 h-4 text-blue-600" />
@@ -242,7 +246,7 @@ export function LabelSettingsPanel({
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium text-muted flex items-center gap-2">
                                                 <Building2 className="w-3 h-3" />
-                                                Company Logo
+                                                {t("printing.label_companyLogo")}
                                             </label>
                                             <div className="flex items-center gap-3">
                                                 {/* Logo Preview */}
@@ -250,7 +254,7 @@ export function LabelSettingsPanel({
                                                     <div className="w-16 h-16 rounded-lg border border-[var(--card-border)] bg-white flex items-center justify-center overflow-hidden">
                                                         <img
                                                             src={settings.companyLogoUrl}
-                                                            alt="Company Logo"
+                                                            alt={t("printing.label_companyLogo")}
                                                             className="max-w-full max-h-full object-contain"
                                                         />
                                                     </div>
@@ -286,7 +290,7 @@ export function LabelSettingsPanel({
                                                         className="w-full px-3 py-2 rounded-lg bg-[var(--pastel-purple)] text-purple-800 text-sm font-medium hover:bg-purple-200 transition-all flex items-center justify-center gap-2"
                                                     >
                                                         <Upload className="w-4 h-4" />
-                                                        {settings.companyLogoUrl ? "Change Logo" : "Upload Logo"}
+                                                        {settings.companyLogoUrl ? t("printing.label_changeLogo") : t("printing.label_uploadLogo")}
                                                     </button>
                                                     {settings.companyLogoUrl && (
                                                         <button
@@ -297,7 +301,7 @@ export function LabelSettingsPanel({
                                                             className="w-full px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-medium hover:bg-red-100 transition-all flex items-center justify-center gap-1"
                                                         >
                                                             <X className="w-3 h-3" />
-                                                            Remove
+                                                            {t("printing.label_remove")}
                                                         </button>
                                                     )}
                                                 </div>
@@ -308,7 +312,7 @@ export function LabelSettingsPanel({
                                     {settings.showDeliveryLogo && (
                                         <div className="flex items-center gap-3">
                                             <div className="flex-1">
-                                                <label className="text-xs font-medium text-muted">Delivery Company Logo URL</label>
+                                                <label className="text-xs font-medium text-muted">{t("printing.label_deliveryUrl")}</label>
                                                 <input
                                                     type="url"
                                                     placeholder="https://..."
