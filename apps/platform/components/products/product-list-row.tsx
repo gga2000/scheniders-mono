@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { Product, getStockStatus } from "@/lib/supabase";
-import { formatIQD } from "@/lib/utils";
+import { formatIQD, maskIQD } from "@/lib/utils";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
@@ -62,6 +63,7 @@ export const ProductListRow = React.memo(function ProductListRow({
     isDragging,
 }: ProductListRowProps) {
     const { t } = useLanguage();
+    const { revealed: showFinancials } = useFinancialVisibility();
     const { can } = usePermission();
     // Editing is for products.edit; everyone else sees the product, not the buttons.
     const canEdit = can(PERMISSIONS.EDIT_PRODUCTS);
@@ -119,7 +121,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                 <button
                     onClick={(e) => onToggleSelection(product.id, e)}
                     className="p-1 hover:bg-[var(--background)] rounded-lg transition-colors flex-shrink-0"
-                    aria-label={isSelected ? t("products.selection.deselectAll") : t("products.selection.selectAll")}
+                    aria-label={t(isSelected ? "products.selection.deselectOne" : "products.selection.selectOne", { name: product.name })}
                 >
                     {isSelected ? (
                         <CheckSquare className="w-5 h-5 text-[var(--foreground)]" />
@@ -302,7 +304,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                 {/* Revenue */}
                 <div className="hidden lg:flex flex-col items-end min-w-[100px]">
                     <p className="text-lg font-bold text-green-700">
-                        {formatIQD(product.total_revenue || 0)}
+                        {maskIQD(product.total_revenue || 0, showFinancials)}
                     </p>
                     <p className="text-xs text-muted">{t("products.revenue")}</p>
                 </div>

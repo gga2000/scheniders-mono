@@ -9,6 +9,7 @@ import { AdvancedFilters, FilterValues } from "./advanced-filters";
 interface FilterBottomSheetProps {
     isOpen: boolean;
     onClose: () => void;
+    value: FilterValues | null;
     onApply: (filters: FilterValues) => void;
     onReset: () => void;
 }
@@ -16,6 +17,7 @@ interface FilterBottomSheetProps {
 export function FilterBottomSheet({
     isOpen,
     onClose,
+    value,
     onApply,
     onReset,
 }: FilterBottomSheetProps) {
@@ -78,6 +80,7 @@ export function FilterBottomSheet({
                         <div className="flex-1 overflow-y-auto">
                             <AdvancedFilters
                                 embedded
+                                value={value}
                                 onApply={(filters) => {
                                     onApply(filters);
                                     onClose();

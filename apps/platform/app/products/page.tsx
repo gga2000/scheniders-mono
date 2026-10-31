@@ -22,6 +22,7 @@ import {
     List,
     ChevronDown,
     ChevronRight,
+    X,
     Plus,
     RefreshCw,
     ClipboardList,
@@ -1010,14 +1011,25 @@ function ProductsContent() {
                                             placeholder={t("products.searchPlaceholder")}
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                            className="w-full pl-12 pr-10 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
                                         />
+                                        {searchQuery && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSearchQuery("")}
+                                                aria-label={t("products.clearSearch")}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted hover:text-foreground hover:bg-[var(--card-bg)]"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-3">
                                         {/* Advanced Filters — desktop dropdown */}
                                         <div className="hidden sm:block">
                                             <AdvancedFilters
+                                                value={advancedFilters}
                                                 onApply={setAdvancedFilters}
                                                 onReset={() => setAdvancedFilters(null)}
                                             />
@@ -1152,6 +1164,18 @@ function ProductsContent() {
                                             ? t("products.emptyState.descNew")
                                             : t("products.emptyState.descFilter")}
                                     </p>
+                                    {products.length > 0 && (searchQuery || advancedFilters) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearchQuery("");
+                                                setAdvancedFilters(null);
+                                            }}
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--card-border)] text-sm font-medium text-foreground hover:bg-[var(--background)] transition-colors"
+                                        >
+                                            {t("products.emptyState.clearFilters")}
+                                        </button>
+                                    )}
                                     {products.length === 0 && canEditProducts && (
                                         <button
                                             onClick={handleAddProduct}
@@ -1286,6 +1310,7 @@ function ProductsContent() {
             <FilterBottomSheet
                 isOpen={isMobileFilterOpen}
                 onClose={() => setIsMobileFilterOpen(false)}
+                value={advancedFilters}
                 onApply={setAdvancedFilters}
                 onReset={() => setAdvancedFilters(null)}
             />

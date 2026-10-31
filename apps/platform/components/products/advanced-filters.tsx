@@ -12,6 +12,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 
 interface AdvancedFiltersProps {
+    /** The filters the page is applying now; the panel starts from (and follows) them. */
+    value: FilterValues | null;
     onApply: (filters: FilterValues) => void;
     onReset: () => void;
     embedded?: boolean;
@@ -70,9 +72,16 @@ function countActiveFilters(filters: FilterValues): number {
 const inputClasses = "px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] text-foreground";
 const labelClasses = "block text-sm font-medium text-foreground mb-2";
 
-export function AdvancedFilters({ onApply, onReset, embedded = false }: AdvancedFiltersProps) {
+export function AdvancedFilters({ value, onApply, onReset, embedded = false }: AdvancedFiltersProps) {
     const [isOpen, setIsOpen] = useState(embedded);
-    const [filters, setFilters] = useState<FilterValues>(defaultFilters);
+    const [filters, setFilters] = useState<FilterValues>(value ?? defaultFilters);
+    // Follow the page: a removed pill, a forecast card or the URL changes the
+    // applied filters, and the draft here must not bring the old ones back.
+    const [appliedValue, setAppliedValue] = useState(value);
+    if (value !== appliedValue) {
+        setAppliedValue(value);
+        setFilters(value ?? defaultFilters);
+    }
     const [showSavePreset, setShowSavePreset] = useState(false);
     const [presetName, setPresetName] = useState("");
     const { t } = useLanguage();
@@ -124,9 +133,9 @@ export function AdvancedFilters({ onApply, onReset, embedded = false }: Advanced
         setShowSavePreset(false);
     };
 
-    const handleLoadPreset = (presetFilters: any) => {
-        // Map preset filters to current FilterValues shape with defaults for missing fields
-        const loaded: FilterValues = { ...defaultFilters, ...presetFilters };
+    const handleLoadPreset = (presetFilters: Partial<FilterValues> | null) => {
+        // Presets saved by older versions may miss newer fields; fill them with defaults.
+        const loaded: FilterValues = { ...defaultFilters, ...(presetFilters ?? {}) };
         setFilters(loaded);
         onApply(loaded);
     };
@@ -195,7 +204,7 @@ export function AdvancedFilters({ onApply, onReset, embedded = false }: Advanced
                                     {savedFilterPresets.map((preset) => (
                                         <div key={preset.id} className="flex items-center gap-1 group">
                                             <button
-                                                onClick={() => handleLoadPreset(preset.filters)}
+                                                onClick={() => handleLoadPreset(preset.state.advancedFilters as Partial<FilterValues> | null)}
                                                 className="px-2.5 py-1 text-xs bg-[var(--background)] border border-[var(--card-border)] rounded-lg hover:border-[var(--ink)] transition-colors text-foreground font-medium"
                                             >
                                                 {preset.name}

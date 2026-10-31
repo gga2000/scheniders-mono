@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { Product, getStockStatus } from "@/lib/supabase";
-import { formatIQD } from "@/lib/utils";
+import { formatIQD, maskIQD } from "@/lib/utils";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
@@ -68,6 +69,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
     isDragging,
 }: ProductGridCardProps) {
     const { t } = useLanguage();
+    const { revealed: showFinancials } = useFinancialVisibility();
     const { can } = usePermission();
     // Editing is for products.edit; everyone else sees the product, not the buttons.
     const canEdit = can(PERMISSIONS.EDIT_PRODUCTS);
@@ -122,7 +124,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     onToggleSelection(product.id, e);
                 }}
                 className="absolute top-3 left-3 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors before:absolute before:-inset-2 before:content-['']"
-                aria-label={isSelected ? t("products.selection.deselectAll") : t("products.selection.selectAll")}
+                aria-label={t(isSelected ? "products.selection.deselectOne" : "products.selection.selectOne", { name: product.name })}
             >
                 {isSelected ? (
                     <CheckSquare className="w-4 h-4 text-[var(--foreground)]" />
@@ -433,7 +435,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         <span className="text-[9px] font-bold text-emerald-700 shrink-0">IQD</span>
                         <div className="flex flex-col leading-tight min-w-0">
                             <span className="text-xs font-semibold text-emerald-800 truncate">
-                                {formatIQD(product.total_revenue || 0).replace(/^IQD\s*/, "")}
+                                {maskIQD(product.total_revenue || 0, showFinancials).replace(/^IQD\s*/, "")}
                             </span>
                             <span className="text-[9px] text-emerald-700/70 uppercase tracking-wide">
                                 {t("products.revenue")}
