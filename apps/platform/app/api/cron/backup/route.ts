@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireCronAuth } from "@/lib/cron-auth";
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
+import { autoBackupFoldersToPrune } from '@/lib/vault-retention';
 
 // We need to bypass RLS for a background cron job using the Service Role Key
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
@@ -98,6 +99,29 @@ async function fetchAllInBatches(
     return allRows;
 }
 
+/**
+ * Deletes this store's automated folders beyond the retention window. A failure
+ * is logged, not thrown: the new backup is already written, and the next run
+ * retries the prune.
+ */
+async function pruneOldBackups(supabase: { storage: SupabaseClient['storage'] }, tenantId: string): Promise<void> {
+    const { data: entries, error } = await supabase.storage.from('vault_backups').list(tenantId, { limit: 1000 });
+    if (error) {
+        console.error(`[Cron:Backup] ${tenantId} prune list failed:`, describeError(error));
+        return;
+    }
+    for (const folder of autoBackupFoldersToPrune((entries ?? []).map((entry) => entry.name))) {
+        const { data: files, error: listError } = await supabase.storage.from('vault_backups').list(`${tenantId}/${folder}`);
+        if (listError) {
+            console.error(`[Cron:Backup] ${tenantId}/${folder} prune list failed:`, describeError(listError));
+            continue;
+        }
+        const paths = (files ?? []).map((file) => `${tenantId}/${folder}/${file.name}`);
+        const { error: removeError } = await supabase.storage.from('vault_backups').remove(paths);
+        if (removeError) console.error(`[Cron:Backup] ${tenantId}/${folder} prune failed:`, describeError(removeError));
+    }
+}
+
 export async function GET(request: Request) {
     // Check Authorization if a cron secret is set, to prevent unauthorized triggering
     const denied = requireCronAuth(request);
@@ -150,6 +174,8 @@ export async function GET(request: Request) {
                     failures.push({ file: `${tenantId}/${file}`, reason });
                 }
             }
+
+            await pruneOldBackups(supabase, tenantId);
 
             // Written even on a partial run, so "when did a backup last work, and
             // what was in it" is answerable per store from the audit trail.
