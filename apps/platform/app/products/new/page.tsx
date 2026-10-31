@@ -2,6 +2,9 @@
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { RoleGuard } from "@/components/auth/role-guard";
+import { AccessDenied } from "@/components/auth/access-denied";
+import { PERMISSIONS } from "@/lib/permissions";
 import { ProductEditorPage } from "@/components/products/editor/product-editor-page";
 
 export default function NewProductPage() {
@@ -15,7 +18,11 @@ export default function NewProductPage() {
 /** `?supply=1` comes from the Supplies tab's Add button. */
 function NewProductEditor() {
     const searchParams = useSearchParams();
-    return <ProductEditorPage product={null} mode="create" defaultIsSupply={searchParams.get("supply") === "1"} />;
+    return (
+        <RoleGuard requiredPermission={PERMISSIONS.EDIT_PRODUCTS} fallback={<AccessDenied />}>
+            <ProductEditorPage product={null} mode="create" defaultIsSupply={searchParams.get("supply") === "1"} />
+        </RoleGuard>
+    );
 }
 
 function EditorSkeleton() {
