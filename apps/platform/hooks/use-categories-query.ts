@@ -50,6 +50,44 @@ export function useCategoriesQuery(filters: CategoriesFilters = {}) {
     });
 }
 
+export interface CategoryMembership {
+    category_id: string;
+    product_id: string;
+}
+
+const MEMBERSHIP_PAGE = 1000;
+
+/**
+ * Curated collection members (product_categories). The storefront lists these
+ * on a category page alongside products whose category_id points at it, so
+ * counts and delete checks must include them.
+ */
+async function fetchCategoryMemberships(tenantId: string): Promise<CategoryMembership[]> {
+    const rows: CategoryMembership[] = [];
+    for (let from = 0; ; from += MEMBERSHIP_PAGE) {
+        const { data, error } = await supabase
+            .from("product_categories")
+            .select("category_id, product_id")
+            .eq("tenant_id", tenantId)
+            .order("category_id")
+            .order("product_id")
+            .range(from, from + MEMBERSHIP_PAGE - 1);
+        if (error) throw error;
+        rows.push(...((data ?? []) as CategoryMembership[]));
+        if (!data || data.length < MEMBERSHIP_PAGE) return rows;
+    }
+}
+
+export function useCategoryMembershipsQuery() {
+    const { session, clientReady, tenantId } = useAuth();
+    return useQuery({
+        queryKey: [...categoryKeys.all, "memberships", tenantId] as const,
+        queryFn: () => (tenantId ? fetchCategoryMemberships(tenantId) : Promise.resolve([])),
+        enabled: !!session && clientReady && !!tenantId,
+        staleTime: CACHE_PRESETS.STANDARD.staleTime,
+    });
+}
+
 export function useAddCategoryMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
@@ -180,11 +218,16 @@ export function useReorderCategoriesMutation() {
                             parent_id: e.parent_id,
                             display_order: e.display_order,
                         } as never)
-                        .eq("id", e.id),
+                        .eq("id", e.id)
+                        .select("id"),
                 ),
             );
             const firstError = results.find((r) => r.error)?.error;
             if (firstError) throw firstError;
+            // RLS refusal matches no rows instead of erroring.
+            if (results.some((r) => (r.data ?? []).length === 0)) {
+                throw new ProductWriteDeniedError("reorder categories");
+            }
             return entries.map((e) => e.id);
         },
         onSuccess: () => {
@@ -200,9 +243,12 @@ export function useDuplicateCategoryMutation() {
         mutationFn: async ({
             id,
             withProducts,
+            copySuffix,
         }: {
             id: string;
             withProducts: boolean;
+            /** Appended to the name, in the merchant's language. */
+            copySuffix: string;
         }) => {
             const { data: src, error: fetchErr } = await supabase
                 .from("categories")
@@ -216,7 +262,7 @@ export function useDuplicateCategoryMutation() {
                 ...source,
                 id: undefined,
                 tenant_id: tenantId!,
-                name: `${source.name} (copy)`,
+                name: `${source.name} ${copySuffix}`,
                 slug: `${source.slug}-copy-${Date.now().toString(36)}`,
                 created_at: undefined,
                 updated_at: undefined,
@@ -248,7 +294,8 @@ export function useDuplicateCategoryMutation() {
                         featured_order: a.featured_order,
                         source: "manual" as const,
                     }));
-                    await supabase.from("product_categories").insert(rows as never);
+                    const { error: copyErr } = await supabase.from("product_categories").insert(rows as never);
+                    if (copyErr) throw copyErr;
                 }
             }
             return newCategory;

@@ -4,7 +4,8 @@ import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Package, AlertTriangle, XCircle, TrendingDown } from "lucide-react";
 import { Product, getStockStatus } from "@/lib/supabase";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, formatIQD, maskIQD } from "@/lib/utils";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { ProductThumb } from "@/components/products/product-thumb";
 
@@ -64,11 +65,12 @@ function classifyProducts(products: Product[]) {
     return { healthy, lowStock, outOfStock, overstock };
 }
 
+/**
+ * Stock valued at selling price. Most products have no cost recorded, so a
+ * cost-or-price mix would read as cost while mostly being retail.
+ */
 function getColumnValue(products: Product[]): number {
-    return products.reduce((sum, p) => {
-        const unitValue = p.cost || p.price || 0;
-        return sum + p.stock_quantity * unitValue;
-    }, 0);
+    return products.reduce((sum, p) => sum + Math.max(0, p.stock_quantity) * (p.price || 0), 0);
 }
 
 function getDaysOfSupply(product: Product): string | null {
@@ -209,6 +211,7 @@ export function KanbanStockBoard({
     onVisibilityToggle,
 }: KanbanStockBoardProps) {
     const { t } = useLanguage();
+    const { revealed: showFinancials } = useFinancialVisibility();
 
     const classified = useMemo(() => classifyProducts(products), [products]);
 
@@ -274,7 +277,7 @@ export function KanbanStockBoard({
                         <p className="text-xs text-muted">
                             {t("products.views.kanban.value")}:{" "}
                             <span className="font-semibold text-foreground">
-                                {formatIQD(col.value)}
+                                {maskIQD(col.value, showFinancials)}
                             </span>
                         </p>
                     </div>

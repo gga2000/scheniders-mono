@@ -18,6 +18,34 @@ export interface ProductSales {
 
 const EMPTY: ReadonlyMap<string, ProductSales> = new Map();
 
+async function fetchProductSales(tenantId: string | null | undefined): Promise<ReadonlyMap<string, ProductSales>> {
+    if (!tenantId) return EMPTY;
+    const { data: rows, error } = await supabase.rpc("get_product_sales", { p_tenant_id: tenantId });
+    if (error) throw error;
+    const map = new Map<string, ProductSales>();
+    for (const row of rows ?? []) {
+        const totalRevenue = Number(row.revenue) || 0;
+        const orders = Number(row.order_count) || 0;
+        map.set(row.product_id, {
+            timesSold: Number(row.units_sold) || 0,
+            totalRevenue,
+            averageOrderValue: orders > 0 ? Math.round(totalRevenue / orders) : 0,
+            timesSold30d: Number(row.units_sold_30d) || 0,
+            revenue30d: Number(row.revenue_30d) || 0,
+        });
+    }
+    return map;
+}
+
+/** Shared query options, so a screen that must know whether sales loaded can read the same cache. */
+export function productSalesQueryOptions(tenantId: string | null | undefined) {
+    return {
+        queryKey: [...productKeys.all, "sales", tenantId] as const,
+        queryFn: () => fetchProductSales(tenantId),
+        staleTime: 5 * 60 * 1000,
+    };
+}
+
 /**
  * Per-product sales, folded in SQL by `get_product_sales(p_tenant_id)`.
  *
@@ -29,27 +57,8 @@ const EMPTY: ReadonlyMap<string, ProductSales> = new Map();
 export function useProductSalesQuery(enabled = true): ReadonlyMap<string, ProductSales> {
     const { session, clientReady, tenantId } = useAuth();
     const { data } = useQuery({
-        queryKey: [...productKeys.all, "sales", tenantId] as const,
-        queryFn: async () => {
-            if (!tenantId) return EMPTY;
-            const { data: rows, error } = await supabase.rpc("get_product_sales", { p_tenant_id: tenantId });
-            if (error) throw error;
-            const map = new Map<string, ProductSales>();
-            for (const row of rows ?? []) {
-                const totalRevenue = Number(row.revenue) || 0;
-                const orders = Number(row.order_count) || 0;
-                map.set(row.product_id, {
-                    timesSold: Number(row.units_sold) || 0,
-                    totalRevenue,
-                    averageOrderValue: orders > 0 ? Math.round(totalRevenue / orders) : 0,
-                    timesSold30d: Number(row.units_sold_30d) || 0,
-                    revenue30d: Number(row.revenue_30d) || 0,
-                });
-            }
-            return map;
-        },
+        ...productSalesQueryOptions(tenantId),
         enabled: enabled && !!session && clientReady && !!tenantId,
-        staleTime: 5 * 60 * 1000,
     });
     return data ?? EMPTY;
 }

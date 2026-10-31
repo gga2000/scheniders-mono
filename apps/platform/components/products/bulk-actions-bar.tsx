@@ -122,7 +122,7 @@ export function BulkActionsBar({
             fn: () => Promise<void> | void,
             successMsg: string,
             showUndo = false
-        ) => {
+        ): Promise<boolean> => {
             setLoadingAction(action);
             try {
                 await fn();
@@ -130,8 +130,10 @@ export function BulkActionsBar({
                 if (showUndo && onUndo) {
                     startUndoCountdown(successMsg);
                 }
+                return true;
             } catch (err) {
                 toast.error(t(productWriteErrorKey(err)));
+                return false;
             } finally {
                 setLoadingAction(null);
             }
@@ -154,7 +156,7 @@ export function BulkActionsBar({
         const price = parseWholeNumber(newPrice);
         if (!onUpdatePrice || price === null || price <= 0) return;
 
-        await runAction(
+        const ok = await runAction(
             "price",
             () => onUpdatePrice(price),
             t("products.bulk.priceSuccess").replace(
@@ -162,13 +164,14 @@ export function BulkActionsBar({
                 String(selectedCount)
             )
         );
+        if (!ok) return;
         setShowPriceInput(false);
         setNewPrice("");
     }, [newPrice, onUpdatePrice, selectedCount, runAction, t]);
 
     const handleConfirmArchive = useCallback(async () => {
         setConfirmAction(null);
-        await runAction(
+        const ok = await runAction(
             "archive",
             onArchive,
             t("products.bulk.archiveSuccess").replace(
@@ -177,12 +180,12 @@ export function BulkActionsBar({
             ),
             true
         );
-        onClearSelection();
+        if (ok) onClearSelection();
     }, [onArchive, selectedCount, runAction, t, onClearSelection]);
 
     const handleShow = useCallback(async () => {
         if (!onShowOnStore) return;
-        await runAction(
+        const ok = await runAction(
             "show",
             onShowOnStore,
             t("products.bulk.showSuccess").replace(
@@ -191,12 +194,12 @@ export function BulkActionsBar({
             ),
             true
         );
-        onClearSelection();
+        if (ok) onClearSelection();
     }, [onShowOnStore, selectedCount, runAction, t, onClearSelection]);
 
     const handleHide = useCallback(async () => {
         if (!onHideFromStore) return;
-        await runAction(
+        const ok = await runAction(
             "hide",
             onHideFromStore,
             t("products.bulk.hideSuccess").replace(
@@ -205,7 +208,7 @@ export function BulkActionsBar({
             ),
             true
         );
-        onClearSelection();
+        if (ok) onClearSelection();
     }, [onHideFromStore, selectedCount, runAction, t, onClearSelection]);
 
     const handleExport = useCallback(() => {

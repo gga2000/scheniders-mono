@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Archive, Loader2, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/components/auth/auth-provider";
+import { productSalesQueryOptions } from "@/hooks/use-product-sales-query";
 import { supabase, type Product } from "@/lib/supabase";
 
 interface ProductDeleteDialogProps {
@@ -15,11 +17,11 @@ interface ProductDeleteDialogProps {
 }
 
 interface DeleteImpact {
-    /** Bundles and order bumps of other products that lose these products. */
+    /** Bundles, order bumps, related lists and curated collections that lose these products. */
     usedByOthers: number;
     reviews: number;
-    /** Purchase orders, stock takes and alerts keep a link the database will not drop. */
-    blockers: number;
+    /** Products a purchase order, stock take, alert or recipe still points at; the database refuses to delete them. */
+    blockedIds: Set<string>;
 }
 
 // Keeps each `in.(...)` filter well inside the request URL limit.
@@ -38,21 +40,35 @@ async function countRows(table: string, column: string, ids: string[]): Promise<
     return total;
 }
 
+async function referencedIds(table: string, column: string, ids: string[]): Promise<string[]> {
+    const found: string[] = [];
+    for (let i = 0; i < ids.length; i += ID_CHUNK) {
+        const { data, error } = await supabase
+            .from(table)
+            .select(column)
+            .in(column, ids.slice(i, i + ID_CHUNK));
+        if (error) throw error;
+        for (const row of (data ?? []) as unknown as Record<string, string>[]) found.push(row[column]);
+    }
+    return found;
+}
+
 async function loadImpact(ids: string[]): Promise<DeleteImpact> {
-    const [bundles, bumps, related, reviews, poItems, stockTakes, alerts, bom] = await Promise.all([
+    const [bundles, bumps, related, curated, reviews, poItems, stockTakes, alerts, bom] = await Promise.all([
         countRows("product_bundle_items", "child_product_id", ids),
         countRows("product_order_bumps", "bump_product_id", ids),
         countRows("product_related", "related_product_id", ids),
+        countRows("product_categories", "product_id", ids),
         countRows("product_reviews", "product_id", ids),
-        countRows("purchase_order_items", "product_id", ids),
-        countRows("stock_take_items", "product_id", ids),
-        countRows("inventory_alerts", "product_id", ids),
-        countRows("bom_items", "supply_id", ids),
+        referencedIds("purchase_order_items", "product_id", ids),
+        referencedIds("stock_take_items", "product_id", ids),
+        referencedIds("inventory_alerts", "product_id", ids),
+        referencedIds("bom_items", "supply_id", ids),
     ]);
     return {
-        usedByOthers: bundles + bumps + related,
+        usedByOthers: bundles + bumps + related + curated,
         reviews,
-        blockers: poItems + stockTakes + alerts + bom,
+        blockedIds: new Set([...poItems, ...stockTakes, ...alerts, ...bom]),
     };
 }
 
@@ -63,18 +79,27 @@ async function loadImpact(ids: string[]): Promise<DeleteImpact> {
  */
 export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelete }: ProductDeleteDialogProps) {
     const { t } = useLanguage();
+    const { tenantId } = useAuth();
     const ids = products.map((p) => p.id).sort();
     const many = products.length > 1;
-    const { data: impact, isPending, isError } = useQuery({
+    // Sales come from their own query: a product must not read as "never sold"
+    // just because sales have not loaded (or failed to).
+    const sales = useQuery({ ...productSalesQueryOptions(tenantId), enabled: products.length > 0 && !!tenantId });
+    const impactQuery = useQuery({
         queryKey: ["product-delete-impact", ids],
         queryFn: () => loadImpact(ids),
         enabled: products.length > 0,
         staleTime: 0,
     });
 
-    const sold = products.reduce((sum, p) => sum + (p.times_sold ?? 0), 0);
-    const blocked = (impact?.blockers ?? 0) > 0;
-    const canDelete = !!impact && !blocked && !isError;
+    const impact = impactQuery.data;
+    const isPending = impactQuery.isPending || sales.isPending;
+    const isError = impactQuery.isError || sales.isError;
+    const sold = products.reduce((sum, p) => sum + (sales.data?.get(p.id)?.timesSold ?? 0), 0);
+    const blockedProducts = products.filter((p) => impact?.blockedIds.has(p.id));
+    const deletable = products.filter((p) => !impact?.blockedIds.has(p.id));
+    const blocked = blockedProducts.length > 0;
+    const canDelete = !!impact && !isError && deletable.length > 0;
     const archivable = products.filter((p) => !p.is_archived);
 
     return (
@@ -113,7 +138,14 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                         <li>{t(many ? "products.delete.historyMany" : "products.delete.history")}</li>
                         {blocked && (
                             <li className="font-medium text-rose-600">
-                                {t(many ? "products.delete.blockedMany" : "products.delete.blocked")}
+                                {many ? (
+                                    <>
+                                        {t("products.delete.blockedSome", { count: blockedProducts.length })}{" "}
+                                        <span dir="auto">{blockedProducts.map((p) => p.name).join(", ")}</span>
+                                    </>
+                                ) : (
+                                    t("products.delete.blocked")
+                                )}
                             </li>
                         )}
                     </ul>
@@ -125,12 +157,14 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                         disabled={!canDelete}
                         onClick={() => {
                             onOpenChange(false);
-                            onDelete(products);
+                            onDelete(deletable);
                         }}
                         className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-40 disabled:hover:bg-transparent dark:hover:bg-rose-950/30"
                     >
                         <Trash2 className="h-4 w-4" />
-                        {t("products.delete.deleteForever")}
+                        {many && blocked
+                            ? t("products.delete.deleteOthers", { count: deletable.length })
+                            : t("products.delete.deleteForever")}
                     </button>
                     {archivable.length > 0 && (
                         <button

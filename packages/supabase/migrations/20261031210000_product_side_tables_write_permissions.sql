@@ -10,6 +10,10 @@
 -- bom_items (recipes): its policy read a tenant_id JWT claim that no token carries,
 -- so every read came back empty and every write failed. Same pattern as above.
 --
+-- product_categories (curated collections, read by the storefront): same broken
+-- JWT policy, so the merchant app could not write memberships. The storefront's
+-- public read policy is untouched.
+--
 -- Also: one SKU per store. Checked 2026-10-31: no store has a duplicate SKU.
 
 BEGIN;
@@ -99,6 +103,22 @@ CREATE POLICY bom_items_update ON public.bom_items
     USING (has_tenant_permission(tenant_id, 'products.edit'))
     WITH CHECK (has_tenant_permission(tenant_id, 'products.edit'));
 CREATE POLICY bom_items_delete ON public.bom_items
+    FOR DELETE TO authenticated
+    USING (has_tenant_permission(tenant_id, 'products.edit'));
+
+-- product_categories
+DROP POLICY IF EXISTS product_categories_tenant_isolation ON public.product_categories;
+CREATE POLICY tenant_isolation_select ON public.product_categories
+    FOR SELECT TO authenticated
+    USING (tenant_id IN (SELECT get_user_tenant_ids()));
+CREATE POLICY product_categories_insert ON public.product_categories
+    FOR INSERT TO authenticated
+    WITH CHECK (has_tenant_permission(tenant_id, 'products.edit'));
+CREATE POLICY product_categories_update ON public.product_categories
+    FOR UPDATE TO authenticated
+    USING (has_tenant_permission(tenant_id, 'products.edit'))
+    WITH CHECK (has_tenant_permission(tenant_id, 'products.edit'));
+CREATE POLICY product_categories_delete ON public.product_categories
     FOR DELETE TO authenticated
     USING (has_tenant_permission(tenant_id, 'products.edit'));
 
