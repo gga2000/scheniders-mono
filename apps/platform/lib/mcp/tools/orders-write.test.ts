@@ -180,6 +180,57 @@ describe("update_order", () => {
     });
 });
 
+describe("update_order source, items and price", () => {
+    const SERUM = "11111111-1111-4111-8111-111111111111";
+    beforeEach(() => {
+        env.tables.products = [
+            { id: SERUM, tenant_id: STORE, name: "Serum Long Marketing Title", short_name: "Serum", price: 25000, sku: "SR", image_url: null, compare_at_price: null, is_archived: false },
+        ];
+        asCaller();
+    });
+
+    it("changes the source straight away", async () => {
+        const res = await call("update_order", { order: "1001", source: "meta" });
+        expect(res.isError).toBe(false);
+        expect(env.tables.orders[0].source).toBe("meta");
+    });
+
+    it("previews a new item list and price, then applies it with the short name", async () => {
+        const args = { order: "1001", items: [{ product_id: SERUM, quantity: 2 }], discount: 5000 };
+        const preview = await call("update_order", { ...args, confirm: false });
+        expect(preview.text).toMatch(/^Preview — nothing changed yet/);
+        expect(preview.text).toContain("price: 25,000 IQD → 45,000 IQD");
+        expect(env.calls.some((c) => c.op === "update")).toBe(false);
+
+        const done = await call("update_order", { ...args, confirm: true });
+        expect(done.isError).toBe(false);
+        expect(env.tables.orders[0]).toMatchObject({
+            price: 45000,
+            discount_amount: 5000,
+            items: [expect.objectContaining({ name: "Serum", quantity: 2, price: 25000 })],
+        });
+    });
+
+    it("takes an explicit price over the computed one", async () => {
+        await call("update_order", { order: "1001", price: 20000, confirm: true });
+        expect(env.tables.orders[0].price).toBe(20000);
+    });
+
+    it("locks items once the courier has the order, and the price once it is delivered", async () => {
+        env.tables.orders[0].status = "in_transit";
+        const items = await call("update_order", { order: "1001", items: [{ product_id: SERUM, quantity: 1 }], confirm: true });
+        expect(items.isError).toBe(true);
+        expect(items.text).toContain("items are locked");
+        const price = await call("update_order", { order: "1001", price: 20000, confirm: true });
+        expect(price.isError).toBe(false);
+
+        env.tables.orders[0].status = "delivered";
+        const late = await call("update_order", { order: "1001", price: 10000, confirm: true });
+        expect(late.isError).toBe(true);
+        expect(late.text).toContain("price is locked");
+    });
+});
+
 describe("update_order validation", () => {
     it("refuses a phone the courier cannot call", async () => {
         const res = await call("update_order", { order: "1001", phone: "call me later" });
@@ -200,7 +251,7 @@ describe("update_order_status lookups", () => {
 describe("create_order", () => {
     beforeEach(() => {
         env.tables.products = [
-            { id: "11111111-1111-4111-8111-111111111111", tenant_id: STORE, name: "Serum", price: 25000, sku: "SR", image_url: null, compare_at_price: null, is_archived: false },
+            { id: "11111111-1111-4111-8111-111111111111", tenant_id: STORE, name: "Serum Long Marketing Title", short_name: "Serum", price: 25000, sku: "SR", image_url: null, compare_at_price: null, is_archived: false },
             { id: "22222222-2222-4222-8222-222222222222", tenant_id: OTHER, name: "Foreign", price: 1000, sku: null, image_url: null, compare_at_price: null, is_archived: false },
         ];
         asCaller();
@@ -219,6 +270,19 @@ describe("create_order", () => {
         const res = await call("create_order", { ...base, items: [{ product_id: "11111111-1111-4111-8111-111111111111", quantity: 2 }], confirm: false });
         expect(res.text).toContain("Items total 50,000 IQD − discount 5,000 IQD = 45,000 IQD");
         expect(createOrderForTenant).not.toHaveBeenCalled();
+    });
+
+    it("puts the product's short name and the chosen source on the order", async () => {
+        createOrderForTenant.mockResolvedValue({ success: true, data: { ...order("o9", "1009", STORE), price: 45000 } });
+        await call("create_order", { ...base, source: "whatsapp", items: [{ product_id: "11111111-1111-4111-8111-111111111111", quantity: 2, price: 24000 }], confirm: true });
+        expect(createOrderForTenant).toHaveBeenCalledWith(
+            expect.objectContaining({
+                source: "whatsapp",
+                price: 43000,
+                items: [expect.objectContaining({ name: "Serum", price: 24000, quantity: 2 })],
+            }),
+            STORE,
+        );
     });
 
     it("creates through the New order service in the caller's verified store", async () => {
