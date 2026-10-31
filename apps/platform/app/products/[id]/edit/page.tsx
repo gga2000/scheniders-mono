@@ -18,13 +18,30 @@ function EditProductContent() {
     const params = useParams();
     const router = useRouter();
     const productId = params.id as string;
-    const { products, loading } = useProductsCrud({ withSales: true });
+    const { products, loading, pending, error } = useProductsCrud({ withSales: true });
     const { t } = useLanguage();
 
     const product = products.find((p) => p.id === productId);
 
-    if (loading) {
+    if (loading || (pending && !error)) {
         return <EditorSkeleton />;
+    }
+
+    if (!product && error) {
+        return (
+            <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+                <div className="text-center">
+                    <h2 className="text-xl font-bold text-foreground mb-2">{t("products.editor.loadFailed")}</h2>
+                    <p className="text-muted mb-4">{t("products.editor.loadFailedHint")}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
+                    >
+                        {t("products.editor.retry")}
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (!product) {
