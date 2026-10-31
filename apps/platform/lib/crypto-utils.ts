@@ -3,6 +3,8 @@
  * Uses AES-GCM for encryption and PBKDF2 for key derivation.
  */
 
+import { VaultError } from "./vault-progress";
+
 const ENCRYPTION_ALGORITHM = "AES-GCM";
 const KEY_DERIVATION_ALGORITHM = "PBKDF2";
 const HASH_ALGORITHM = "SHA-256";
@@ -80,7 +82,7 @@ export async function decryptVaultData(blob: Blob, password: string): Promise<un
     const data = new Uint8Array(arrayBuffer);
 
     if (data.length < SALT_LENGTH + IV_LENGTH) {
-        throw new Error("Invalid vault file: too small.");
+        throw new VaultError("invalidFile", "Invalid vault file: too small.");
     }
 
     // Extract Salt and IV
@@ -105,6 +107,6 @@ export async function decryptVaultData(blob: Blob, password: string): Promise<un
         return JSON.parse(jsonString);
     } catch (e) {
         console.error("Decryption failed", e);
-        throw new Error("Failed to unlock vault. Incorrect key or corrupted file.");
+        throw new VaultError("wrongKey", "Failed to unlock vault. Incorrect key or corrupted file.");
     }
 }

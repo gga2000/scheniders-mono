@@ -15,13 +15,13 @@ import {
     FileText,
     ChevronRight,
     Loader2,
-    Cloud,
-    CloudUpload,
-    History,
-    Check
+    CloudUpload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { CloudTimeline } from "@/components/vault/cloud-timeline";
+import { FormatCard } from "@/components/vault/format-card";
+import { describeVaultError, describeVaultProgress } from "@/lib/vault-messages";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -105,7 +105,7 @@ export default function VaultPage() {
             const vaults = await fetchCloudVaults();
             setCloudVaults(vaults);
         } catch (error: unknown) {
-            toast.error(error instanceof Error ? error.message : "Could not load cloud backups.");
+            toast.error(describeVaultError(error, t, t("vault.error.loadCloud", "Could not load cloud backups.")));
         } finally {
             setIsFetchingCloud(false);
         }
@@ -125,10 +125,10 @@ export default function VaultPage() {
                 includeOrders: true,
                 includeProducts: true,
                 includeCustomers: true
-            }, (step) => setGenerationStep(step));
+            }, (step) => setGenerationStep(describeVaultProgress(step, t)));
             toast.success(t("vault.toast.backupDone", "Backup generated successfully in {format} format.", { format: exportFormat.toUpperCase() }));
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Failed to generate backup.";
+            const message = describeVaultError(error, t, t("vault.error.backup", "Failed to generate backup."));
             toast.error(message);
         } finally {
             setIsGenerating(false);
@@ -149,11 +149,11 @@ export default function VaultPage() {
                 includeOrders: true,
                 includeProducts: true,
                 includeCustomers: true
-            }, (step) => setGenerationStep(step));
+            }, (step) => setGenerationStep(describeVaultProgress(step, t)));
             toast.success(t("vault.toast.synced", "Successfully synced backup to the secure cloud."));
             loadCloudVaults(); // Refresh timeline
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Failed to sync to cloud.";
+            const message = describeVaultError(error, t, t("vault.error.sync", "Failed to sync to cloud."));
             toast.error(message);
         } finally {
             setIsSyncing(false);
@@ -170,7 +170,7 @@ export default function VaultPage() {
             setRestoreFile(file);
             toast.success(t("vault.toast.downloaded", "Vault file downloaded from cloud. Please enter Vault Key to unlock."));
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Failed to download cloud vault.";
+            const message = describeVaultError(error, t, t("vault.error.download", "Failed to download cloud vault."));
             toast.error(message);
         } finally {
             setIsDownloadingCloud(null);
@@ -222,7 +222,7 @@ export default function VaultPage() {
             setDiffResult(diff);
             toast.success(isExcel ? t("vault.toast.analyzedExcel", "Excel file analyzed successfully.") : t("vault.toast.unlocked", "File unlocked and analyzed successfully."));
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : (isExcel ? "Failed to parse Excel file." : "Failed to unlock vault. Incorrect key or corrupted file.");
+            const message = describeVaultError(error, t, isExcel ? t("vault.error.parseExcel", "Failed to parse Excel file.") : t("vault.error.wrongKey", "Failed to unlock the vault. Wrong key or damaged file."));
             toast.error(message);
         } finally {
             setIsAnalyzing(false);
@@ -235,13 +235,13 @@ export default function VaultPage() {
         setIsRestoring(true);
         try {
             // Actual database UPSERT execution
-            await executeVaultRestore(parsedVaultData, (step) => toast.loading(step, { id: "restore-progress" }));
+            await executeVaultRestore(parsedVaultData, (step) => toast.loading(describeVaultProgress(step, t), { id: "restore-progress" }));
             toast.dismiss("restore-progress");
             toast.success(t("vault.toast.restored", "Data successfully restored from vault."));
             clearRestore();
         } catch (error: unknown) {
             toast.dismiss("restore-progress");
-            const message = error instanceof Error ? error.message : "Unknown error";
+            const message = describeVaultError(error, t, t("vault.error.unknown", "Unknown error"));
             toast.error(t("vault.toast.restoreFailed", "Restore failed: {message}", { message }));
         } finally {
             setIsRestoring(false);
@@ -641,101 +641,14 @@ export default function VaultPage() {
                     )}
                 </motion.section>
 
-                {/* CLOUD TIMELINE SECTION */}
-                <motion.section
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.16 }}
-                    className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 md:p-8 flex flex-col relative overflow-hidden shadow-[var(--card-shadow)] lg:col-span-1"
-                >
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-[var(--vault-soft)] border border-[var(--vault-border)] flex items-center justify-center">
-                            <History className="w-5 h-5 text-[var(--vault-accent)]" />
-                        </div>
-                        <h2 className="text-xl font-semibold">{t("vault.cloud.title", "Cloud Time Machine")}</h2>
-                    </div>
-
-                    <p className="text-sm text-[var(--foreground-muted)] mb-6">
-                        {t("vault.cloud.desc", "Restore from secure, zero-knowledge snapshots saved in your cloud bucket.")}
-                    </p>
-
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-2 min-h-[200px] scrollbar-thin scrollbar-thumb-[var(--card-border)] scrollbar-track-transparent">
-                        {isFetchingCloud ? (
-                            <div className="flex justify-center items-center py-10">
-                                <Loader2 className="w-6 h-6 animate-spin text-[var(--vault-accent)]" />
-                            </div>
-                        ) : cloudVaults.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <div className="w-12 h-12 rounded-full bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center mb-3">
-                                    <Cloud className="w-6 h-6 text-[var(--foreground-subtle)]" />
-                                </div>
-                                <p className="text-sm text-[var(--foreground-muted)]">{t("vault.cloud.empty", "No cloud backups found.")}</p>
-                                <p className="text-xs text-[var(--foreground-subtle)] mt-1 max-w-[200px]">{t("vault.cloud.emptyHint", "Sync an encrypted vault to start your timeline.")}</p>
-                            </div>
-                        ) : (
-                            cloudVaults.map((vault) => (
-                                <div key={vault.name} className="bg-[var(--background)] border border-[var(--card-border)] p-4 rounded-xl flex items-center justify-between group hover:border-[var(--vault-border)] transition-all">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <Cloud className="w-8 h-8 text-[var(--foreground-subtle)] group-hover:text-[var(--vault-accent)] flex-shrink-0 transition-colors" />
-                                        <div className="overflow-hidden">
-                                            <p className="text-sm font-medium truncate">{vault.createdAt ? new Date(vault.createdAt).toLocaleString() : vault.name}</p>
-                                            <p className="text-[10px] text-[var(--foreground-subtle)] uppercase tracking-wide">{((vault.size ?? 0) / 1024 / 1024).toFixed(2)} MB • {t("vault.cloud.sync", "Sync")}</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => handleCloudFileSelect(vault.name)}
-                                        disabled={isDownloadingCloud === vault.name}
-                                        className="w-9 h-9 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center hover:bg-[var(--vault-accent)] hover:text-[var(--vault-accent-contrast)] hover:border-transparent text-[var(--foreground-muted)] transition-colors flex-shrink-0 disabled:opacity-50"
-                                        aria-label={t("vault.cloud.download", "Download cloud backup")}
-                                    >
-                                        {isDownloadingCloud === vault.name ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </motion.section>
+                <CloudTimeline
+                    vaults={cloudVaults}
+                    isLoading={isFetchingCloud}
+                    downloading={isDownloadingCloud}
+                    onSelect={handleCloudFileSelect}
+                />
 
             </main>
         </div>
-    );
-}
-
-// Sub-component for Format Cards
-function FormatCard({
-    active,
-    onClick,
-    icon,
-    label,
-    ext
-}: {
-    active: boolean,
-    onClick: () => void,
-    icon: React.ReactNode,
-    label: string,
-    ext: string
-}) {
-    return (
-        <button
-            onClick={onClick}
-            aria-pressed={active}
-            className={cn(
-                "flex flex-col items-center justify-center gap-2 p-4 rounded-xl border transition-all duration-200 relative",
-                active
-                    ? "bg-[var(--card-bg)] border-[var(--vault-border)] shadow-[var(--card-shadow)] ring-1 ring-[var(--vault-border)]"
-                    : "bg-[var(--background)] border-[var(--card-border)] hover:border-[var(--border-hover)]"
-            )}
-        >
-            {active && (
-                <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[var(--vault-accent)] text-[var(--vault-accent-contrast)] flex items-center justify-center">
-                    <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                </span>
-            )}
-            {icon}
-            <div className="text-center mt-1">
-                <div className={cn("text-sm font-medium", active ? "text-[var(--foreground)]" : "text-[var(--foreground-muted)]")}>{label}</div>
-                <div className="text-[10px] text-[var(--foreground-subtle)] mt-0.5 uppercase tracking-wide">{ext}</div>
-            </div>
-        </button>
     );
 }
