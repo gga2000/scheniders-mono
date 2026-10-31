@@ -3,15 +3,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
-import {
-    Users,
-    RefreshCw,
-    BarChart3,
-    Target,
-} from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { isAdminRole } from "@/lib/permissions";
-import { cn } from "@/lib/utils";
 import type { TeamTimeRange } from "@/lib/team-time-window";
 import { TeamAnalyticsTab } from "@/components/team/team-analytics-tab";
 import { EmployeeComparison } from "@/components/team/employee-comparison";
@@ -20,16 +13,15 @@ import { toast } from "@/hooks/use-toast";
 import { useTeamRealtime, type RealtimeActivity } from "@/components/team/hooks/use-team-realtime";
 import { useInfiniteActivities } from "@/components/team/hooks/use-infinite-activities";
 import { useTeamDailyTrend, useTeamLeaderboard } from "@/components/team/hooks/use-team-leaderboard";
-import { HeroStatsBanner } from "@/components/team/hero-stats-banner";
+import { TeamStatStrip } from "@/components/team/team-stat-strip";
 import { EmployeeDrawer } from "@/components/team/employee-drawer";
-import { LiveIndicator } from "@/components/team/live-indicator";
+import { TeamPageHeader } from "@/components/team/team-page-header";
+import { TeamViewTabs, type TeamViewMode } from "@/components/team/team-view-tabs";
 import { LiveActivityTicker, useActivityTicker } from "@/components/team/live-activity-ticker";
 import { TeamRosterTable } from "@/components/team/team-roster-table";
 import { TeamAccessDenied } from "@/components/team/team-access-denied";
 import { TeamActivityFeed } from "@/components/team/team-activity-feed";
 import { Skeleton } from "@scheniders/ui/skeletons";
-
-type ViewMode = "team" | "insights" | "goals";
 
 function isUserOnline(lastLogin: string | null): boolean {
     if (!lastLogin) return false;
@@ -42,7 +34,7 @@ export default function TeamPage() {
     const { t } = useLanguage();
 
     const [timeRange, setTimeRange] = useState<TeamTimeRange>("week");
-    const [viewMode, setViewMode] = useState<ViewMode>("team");
+    const [viewMode, setViewMode] = useState<TeamViewMode>("team");
     const [refreshing, setRefreshing] = useState(false);
     const [selectedEmployeeIndex, setSelectedEmployeeIndex] = useState<number | null>(null);
     const [actionFilter, setActionFilter] = useState("all");
@@ -94,7 +86,7 @@ export default function TeamPage() {
     });
 
     // Stats with trends — uses real previous-period totals from DB.
-    const heroStats = useMemo(() => {
+    const teamStats = useMemo(() => {
         const current = {
             totalActions: leaderboard.reduce((sum, e) => sum + e.total_actions, 0),
             ordersCreated: leaderboard.reduce((sum, e) => sum + e.orders_created, 0),
@@ -104,7 +96,6 @@ export default function TeamPage() {
 
         const makeStat = (currentVal: number, prev: number) => ({
             current: currentVal,
-            previous: prev,
             // Null trend when there's no baseline (e.g. "all time" or prev period had zero).
             trend: prev > 0 ? Math.round(((currentVal - prev) / prev) * 100) : null,
         });
@@ -114,13 +105,11 @@ export default function TeamPage() {
             ordersCreated: makeStat(current.ordersCreated, previousTotals.ordersCreated),
             statusChanges: makeStat(current.statusChanges, previousTotals.statusChanges),
             ordersPrinted: makeStat(current.ordersPrinted, previousTotals.ordersPrinted),
-            onlineCount: activeUserIds.size > 0 ? activeUserIds.size : leaderboard.filter(e => isUserOnline(e.last_login_at)).length,
         };
-    }, [leaderboard, activeUserIds, previousTotals]);
+    }, [leaderboard, previousTotals]);
 
     const { trend, refetchTrend } = useTeamDailyTrend({ tenantId, enabled: isAdmin && !authLoading, onError: showLoadError });
     const actionsTrend = useMemo(() => trend.map((d) => ({ day: d.day, value: d.totalActions })), [trend]);
-    const ordersTrend = useMemo(() => trend.map((d) => ({ day: d.day, value: d.ordersCreated })), [trend]);
 
     // Employee Data Adapter
     const employeesAdapter = useMemo(() => {
@@ -140,6 +129,13 @@ export default function TeamPage() {
             logins: emp.logins,
         }));
     }, [leaderboard, activeUserIds]);
+
+    // The feed names people the way the roster does: display name first, then email.
+    const resolveActorName = useCallback((entry: { user_id: string | null; user_email: string | null }) => {
+        const m = entry.user_id ? leaderboard.find((e) => e.user_id === entry.user_id) : undefined;
+        if (m?.display_name) return m.display_name;
+        return entry.user_email ? entry.user_email.split("@")[0] : null;
+    }, [leaderboard]);
 
     // Selected employee for drawer (Step 5)
     const selectedEmployee = selectedEmployeeIndex !== null ? employeesAdapter[selectedEmployeeIndex] : null;
@@ -177,121 +173,33 @@ export default function TeamPage() {
 
     if (!authLoading && !isAdmin) return <TeamAccessDenied />;
 
-    const tabs: { id: ViewMode; label: string; icon: React.ElementType }[] = [
-        { id: "team", label: t("team.tabs.team"), icon: Users },
-        { id: "insights", label: t("team.tabs.insights"), icon: BarChart3 },
-        { id: "goals", label: t("team.tabs.goals"), icon: Target },
-    ];
-
     return (
-        <div className="min-h-screen p-6 max-w-7xl mx-auto space-y-8 pb-24">
-            {/* Header */}
-            <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-            >
-                <div className="flex items-center gap-4">
-                    <motion.div
-                        className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#E4C1F9] to-[#F5E8FC] flex items-center justify-center shadow-lg"
-                        whileHover={{ scale: 1.05, rotate: 5 }}
-                    >
-                        <Users className="w-7 h-7 text-purple-600" />
-                    </motion.div>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold text-[#1E1E1E] dark:text-white">
-                                {t("team.title")}
-                            </h1>
-                            <LiveIndicator isConnected={isConnected} />
-                        </div>
-                        <p className="text-[#6B6B6B] dark:text-gray-400 mt-0.5">{t("team.subtitle")}</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <motion.button
-                        onClick={() => {
-                            setRefreshing(true);
-                            Promise.all([fetchLeaderboard(), refetchTrend(), infiniteActivities.refresh()])
-                                .catch(showLoadError)
-                                .finally(() => setRefreshing(false));
-                        }}
-                        disabled={refreshing}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="p-3 rounded-2xl bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 hover:shadow-md transition-all"
-                        aria-label={t("team.page.refresh")}
-                    >
-                        <RefreshCw className={cn("w-5 h-5 text-[#1E1E1E] dark:text-white", refreshing && "animate-spin")} />
-                    </motion.button>
-
-                    <div className="flex bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 rounded-2xl p-1 shadow-sm">
-                        {(["today", "week", "month", "all"] as TeamTimeRange[]).map((range) => (
-                            <button
-                                key={range}
-                                onClick={() => setTimeRange(range)}
-                                className={cn(
-                                    "px-4 py-2 rounded-xl text-sm font-bold transition-all",
-                                    timeRange === range
-                                        ? "bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] shadow-md"
-                                        : "text-[#6B6B6B] dark:text-gray-400 hover:text-[#1E1E1E] dark:hover:text-white"
-                                )}
-                            >
-                                {t(`team.page.${range}`)}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </motion.div>
+        <div className="min-h-screen px-4 py-5 sm:p-6 max-w-7xl mx-auto space-y-6 pb-24">
+            <TeamPageHeader
+                isConnected={isConnected}
+                refreshing={refreshing}
+                onRefresh={() => {
+                    setRefreshing(true);
+                    Promise.all([fetchLeaderboard(), refetchTrend(), infiniteActivities.refresh()])
+                        .catch(showLoadError)
+                        .finally(() => setRefreshing(false));
+                }}
+                timeRange={timeRange}
+                onTimeRangeChange={setTimeRange}
+            />
 
             {/* Live Activity Ticker (Step 7) */}
             <LiveActivityTicker notifications={ticker.notifications} />
 
-            {/* View Tabs */}
-            <div className="flex justify-center">
-                <div className="flex items-center p-1 bg-white dark:bg-[#1A1A1A] border border-[#E8E4DC] dark:border-white/10 rounded-2xl shadow-sm overflow-x-auto max-w-full">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setViewMode(tab.id)}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-                                viewMode === tab.id
-                                    ? "bg-[#1E1E1E] dark:bg-white text-white dark:text-[#1E1E1E] shadow-md"
-                                    : "text-[#6B6B6B] dark:text-gray-400 hover:text-[#1E1E1E] dark:hover:text-white hover:bg-[#FAF8F5] dark:hover:bg-white/5"
-                            )}
-                        >
-                            <tab.icon className="w-4 h-4" />
-                            <span>{tab.label}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
+            <TeamViewTabs value={viewMode} onChange={setViewMode} />
 
             {/* Content Area */}
             {isInitialLoading ? (
-                <div className="space-y-8" aria-busy="true" aria-live="polite">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <Skeleton key={i} className="h-32 rounded-2xl" />
-                        ))}
-                    </div>
-                    <div className="bg-[var(--card-bg)] rounded-3xl border border-[var(--card-border)] p-6 space-y-4">
-                        <Skeleton className="h-7 w-56 rounded" />
-                        <div className="flex items-stretch justify-center gap-4 py-4">
-                            {Array.from({ length: 3 }).map((_, i) => (
-                                <Skeleton key={i} className="flex-1 max-w-[200px] h-44 rounded-3xl" />
-                            ))}
-                        </div>
-                    </div>
+                <div className="space-y-6" aria-busy="true" aria-live="polite">
+                    <Skeleton className="h-[104px] rounded-2xl" />
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Array.from({ length: 4 }).map((_, i) => (
-                                <Skeleton key={i} className="h-48 rounded-2xl" />
-                            ))}
-                        </div>
-                        <Skeleton className="h-[640px] rounded-2xl" />
+                        <Skeleton className="lg:col-span-2 h-[420px] rounded-3xl" />
+                        <Skeleton className="h-[420px] rounded-3xl" />
                     </div>
                 </div>
             ) : (
@@ -302,19 +210,15 @@ export default function TeamPage() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="space-y-8"
+                        className="space-y-6"
                     >
-                        {/* Hero Stats Banner (Step 3) */}
-                        <HeroStatsBanner
-                            totalActions={heroStats.totalActions}
-                            ordersCreated={heroStats.ordersCreated}
-                            statusChanges={heroStats.statusChanges}
-                            ordersPrinted={heroStats.ordersPrinted}
-                            onlineCount={heroStats.onlineCount}
-                            totalEmployees={leaderboard.length}
-                            actionsTrend={actionsTrend}
-                            ordersTrend={ordersTrend}
-                            isLoading={loading}
+                        <TeamStatStrip
+                            range={timeRange}
+                            totalActions={teamStats.totalActions}
+                            ordersCreated={teamStats.ordersCreated}
+                            statusChanges={teamStats.statusChanges}
+                            ordersPrinted={teamStats.ordersPrinted}
+                            actionsByDay={actionsTrend}
                         />
 
                         {/* Roster + live feed */}
@@ -338,6 +242,7 @@ export default function TeamPage() {
                                     actionFilter={actionFilter}
                                     onActionFilterChange={setActionFilter}
                                     isNew={isNewActivity}
+                                    resolveName={resolveActorName}
                                 />
                             </div>
                         </div>

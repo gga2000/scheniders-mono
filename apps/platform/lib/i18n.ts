@@ -3391,6 +3391,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "team.timeline.blacklistedCustomer": "Blacklisted a customer",
         "team.timeline.loggedIn": "Logged in",
         "team.timeline.updatedSettings": "Updated settings",
+        "team.timeline.mcpToolCall": "used Claude: {tool}",
         "team.timeline.empty": "No activities",
 
         "team.page.accessDenied": "Access Restricted",
@@ -3433,7 +3434,12 @@ export const translations: Record<Locale, Record<string, string>> = {
         
         "team.performance.title": "Employee Performance",
         "team.roster.title": "Team roster",
-        "team.roster.summary": "{count} members · {idle} with no activity",
+        "team.roster.summary": "{count} members · {online} online · {idle} with no activity",
+        "team.strip.label": "Team totals",
+        "team.strip.last7": "Team actions per day, last 7 days",
+        "team.strip.vs.today": "vs yesterday",
+        "team.strip.vs.week": "vs previous 7 days",
+        "team.strip.vs.month": "vs previous 30 days",
         "team.roster.empty": "No members in this store yet.",
         "team.roster.member": "Member",
         "team.roster.actions": "Actions",
@@ -7868,6 +7874,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "team.timeline.blacklistedCustomer": "حظر عميل",
         "team.timeline.loggedIn": "سجّل دخول",
         "team.timeline.updatedSettings": "حدّث الإعدادات",
+        "team.timeline.mcpToolCall": "استخدم Claude: {tool}",
         "team.timeline.empty": "لا توجد نشاطات",
 
         "team.page.accessDenied": "الوصول مقيّد",
@@ -7910,7 +7917,12 @@ export const translations: Record<Locale, Record<string, string>> = {
 
         "team.performance.title": "أداء الموظفين",
         "team.roster.title": "فريق العمل",
-        "team.roster.summary": "{count} عضو · {idle} بدون نشاط",
+        "team.roster.summary": "الأعضاء {count} · متصل {online} · بدون نشاط {idle}",
+        "team.strip.label": "إجماليات الفريق",
+        "team.strip.last7": "نشاطات الفريق يومياً، آخر 7 أيام",
+        "team.strip.vs.today": "عن أمس",
+        "team.strip.vs.week": "عن الأيام 7 السابقة",
+        "team.strip.vs.month": "عن الأيام 30 السابقة",
         "team.roster.empty": "لا يوجد أعضاء في هذا المتجر بعد.",
         "team.roster.member": "العضو",
         "team.roster.actions": "النشاطات",
