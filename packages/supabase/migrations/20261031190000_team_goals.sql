@@ -42,5 +42,5 @@ CREATE POLICY team_goals_delete ON public.team_goals
     FOR DELETE TO authenticated
     USING (tenant_id IN (SELECT public.get_user_tenant_ids()) AND public.is_tenant_admin(tenant_id));
 
-REVOKE ALL ON public.team_goals FROM PUBLIC, anon;
+REVOKE ALL ON public.team_goals FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, DELETE ON public.team_goals TO authenticated;
