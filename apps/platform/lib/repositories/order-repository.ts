@@ -265,6 +265,12 @@ export interface ListReadOptions {
      * concurrent read (the duplicate-alert margin also calls `findWindow`).
      */
     trace?: string;
+    /**
+     * `false` skips the customer_trust join (`risk_data` stays unset). For
+     * readers that never show risk, such as /finances: the join is one more
+     * sequential request per read, or the whole trust book on wide windows.
+     */
+    withRisk?: boolean;
 }
 
 /** `fn`, timed as `<trace>:<step>` when the read is traced. */
@@ -375,7 +381,7 @@ async function readListHead(
  * Page 0 re-reads the head: the result never depends on the preview. Returns
  * the same rows and `risk_data` as the old count → pages → trust read.
  */
-async function readWideList(tenantId: string, window: OrderWindow, onPreview?: ListReadOptions["onPreview"], trace?: string): Promise<Order[]> {
+async function readWideList(tenantId: string, window: OrderWindow, onPreview?: ListReadOptions["onPreview"], trace?: string, withRisk = true): Promise<Order[]> {
     const _t = performance.now();
     let settled = false;
     const publish = (preview: OrderListPreview) => {
@@ -404,7 +410,7 @@ async function readWideList(tenantId: string, window: OrderWindow, onPreview?: L
         // Over TRUST_LOOKUP_MAX_PHONES rows there can be that many customers:
         // read the whole trust book now, beside the pages. Below it, the rows'
         // own phones are looked up once they are in (at most two requests).
-        const wholeTrustBook = total > TRUST_LOOKUP_MAX_PHONES;
+        const wholeTrustBook = withRisk && total > TRUST_LOOKUP_MAX_PHONES;
         const headPreview = head;
         const [pages, trustBook] = await Promise.all([
             traced(trace, "pages", () => Promise.all(Array.from({ length: pageCount }, (_, i) => readPage(() => listPage(tenantId, window, i)))), () => ({ pages: pageCount })),
@@ -416,6 +422,10 @@ async function readWideList(tenantId: string, window: OrderWindow, onPreview?: L
                 : Promise.resolve(),
         ]);
         const rows = tracedSync(trace, "normalize", () => pageRows(pages));
+        if (!withRisk) {
+            diag.log(`[Diag:Repo] wide list OK rows=${rows.length} pages=${pageCount} risk=skipped took=${(performance.now() - _t).toFixed(1)}ms`);
+            return rows;
+        }
         const trust = trustBook ?? await traced(trace, "trust-rows", () => fetchTrustRows(tenantId, trustPhones(rows)), (r) => ({ rows: r.length }));
         const result = tracedSync(trace, "trust-join", () => attachRiskData(rows, trust));
         diag.log(`[Diag:Repo] wide list OK rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
@@ -434,7 +444,7 @@ export const orderRepository = {
      * All Orders list. See `readWideList`; `onPreview` gets the head first.
      */
     async findAll(tenantId: string, opts: ListReadOptions = {}): Promise<Order[]> {
-        return readWideList(tenantId, null, opts.onPreview, opts.trace);
+        return readWideList(tenantId, null, opts.onPreview, opts.trace, opts.withRisk !== false);
     },
 
     /**
@@ -536,7 +546,7 @@ export const orderRepository = {
      */
     async findWindow(tenantId: string, window: OrderWindow, opts: ListReadOptions = {}): Promise<Order[]> {
         if (!window) return this.findAll(tenantId, opts);
-        if (windowWantsPreview(window)) return readWideList(tenantId, window, opts.onPreview, opts.trace);
+        if (windowWantsPreview(window)) return readWideList(tenantId, window, opts.onPreview, opts.trace, opts.withRisk !== false);
 
         const _t = performance.now();
 
@@ -560,7 +570,7 @@ export const orderRepository = {
         const rows = tracedSync(opts.trace, "normalize", () => pageRows(pages));
 
         diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
-        return withRiskData(tenantId, rows, opts.trace);
+        return opts.withRisk === false ? rows : withRiskData(tenantId, rows, opts.trace);
     },
 
     /**

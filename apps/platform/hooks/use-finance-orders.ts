@@ -40,7 +40,7 @@ export function useFinanceOrders({ start, end, compareStart }: FinanceOrdersRang
         queryKey: ["finance-orders", tenantId, fromDay, toDay],
         queryFn: async (): Promise<Order[]> => {
             if (!tenantId) throw new Error("No active tenant");
-            return orderRepository.findWindow(tenantId, windowFromDateFilter(fromDay, toDay));
+            return orderRepository.findWindow(tenantId, windowFromDateFilter(fromDay, toDay), { withRisk: false });
         },
         enabled: !!tenantId,
         // A new period keeps the old rows on screen instead of blanking the page.

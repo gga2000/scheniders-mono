@@ -35,6 +35,8 @@ describe("useFinanceOrders", () => {
         const window = findWindow.mock.calls[0][1];
         expect(window.fromDay).toBe("2026-10-01");
         expect(window.toDay).toBe("2026-10-31");
+        // Finances never shows customer risk: skip the trust join.
+        expect(findWindow.mock.calls[0][2]).toEqual({ withRisk: false });
     });
 
     it("always covers the cash tab's last 30 days and the compare period", async () => {
