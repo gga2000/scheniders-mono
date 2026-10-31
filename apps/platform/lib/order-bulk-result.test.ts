@@ -8,6 +8,7 @@ import {
     findUnaffectedIds,
     MAX_NAMED_FAILURES,
 } from "./order-bulk-result";
+import { ExchangedOrderStatusError } from "./order-status-guard";
 
 const ORDERS = [
     { id: "a", order_id: "1260901001", customer_name: "أحمد" },
@@ -144,5 +145,25 @@ describe("findUnaffectedIds", () => {
 
     it("reports everything when the write affected nothing", () => {
         expect(findUnaffectedIds(["a", "b"], [])).toEqual(["a", "b"]);
+    });
+});
+
+describe("exchanged-original refusals", () => {
+    const guardError = { code: "23514", message: "This order was delivered and has an exchange or return. Keep it delivered and record the outcome on the exchange or return order." };
+
+    it("names the exchange guard and offers no retry for it", () => {
+        const summary = summarizeBulkFailures(
+            [{ id: "a", error: guardError }, { id: "b", error: new Error("CONFLICT_DETECTED") }],
+            [{ id: "a", order_id: "1001" }, { id: "b", order_id: "1002" }],
+            5,
+        );
+        expect(summary.byReason.map((r) => r.reason).sort()).toEqual(["conflict", "exchanged"]);
+        expect(summary.description).toContain("delivered with an exchange or return");
+        expect(summary.failedIds).toEqual(["a", "b"]);
+        expect(summary.retryableIds).toEqual(["b"]);
+    });
+
+    it("recognises the typed error the repository throws", () => {
+        expect(classifyBulkFailure(new ExchangedOrderStatusError())).toBe("exchanged");
     });
 });

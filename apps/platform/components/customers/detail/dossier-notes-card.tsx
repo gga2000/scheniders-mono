@@ -3,18 +3,29 @@
 import { motion } from "framer-motion";
 import { StickyNote, Plus, Trash2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/components/auth/auth-provider";
 import { useDeleteCustomerNote } from "@/hooks/use-customer-notes";
+import { usePermission } from "@/hooks/use-permission";
+import { toast } from "@/hooks/use-toast";
 import type { CustomerNote } from "@/types/customer";
 
 interface DossierNotesCardProps {
     notes: CustomerNote[];
-    phone: string;
     onAddNote?: () => void;
 }
 
-export function DossierNotesCard({ notes, phone, onAddNote }: DossierNotesCardProps) {
+export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
     const { t } = useLanguage();
-    const deleteNote = useDeleteCustomerNote(phone);
+    const { user } = useAuth();
+    const { role } = usePermission();
+    const deleteNote = useDeleteCustomerNote();
+    // Mirrors the database rule: authors delete their own notes, the store's
+    // admins any (platform staff are not store admins there).
+    const canDelete = (note: CustomerNote) => role === "admin" || (!!note.created_by && note.created_by === user?.id);
+    const onDelete = (id: string) =>
+        deleteNote.mutate(id, {
+            onError: () => toast({ variant: "error", title: t("customers.profile.noteDeleteFailed") }),
+        });
 
     const entries = [...notes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -53,14 +64,14 @@ export function DossierNotesCard({ notes, phone, onAddNote }: DossierNotesCardPr
                         >
                             <div className="flex items-start justify-between gap-3 mb-2">
                                 <p className="text-xs text-muted-foreground tabular-nums">{entry.created_at.slice(0, 10)}</p>
-                                <button
-                                    onClick={() => deleteNote.mutate(entry.id)}
+                                {canDelete(entry) && <button
+                                    onClick={() => onDelete(entry.id)}
                                     disabled={deleteNote.isPending}
                                     className="opacity-100 [@media(hover:hover)]:opacity-0 group-hover/note:opacity-100 focus-visible:opacity-100 transition-opacity -m-2 w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-30"
                                     aria-label={t("common.delete")}
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                </button>}
                             </div>
 
                             {/* Content */}

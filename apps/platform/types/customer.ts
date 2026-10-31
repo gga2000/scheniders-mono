@@ -22,6 +22,8 @@ export interface CustomerNote {
     note: string;
     created_at: string;
     updated_at?: string;
+    /** Who wrote it; null for notes from before authors were kept. */
+    created_by?: string | null;
 }
 
 export interface CustomerMetadata {

@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Tag as TagIcon, Search, AlertTriangle } from "lucide-react";
+import { X, Tag as TagIcon, Search, Plus, Loader2 } from "lucide-react";
 import { useCustomerTags } from "@/hooks/use-customer-management";
 import { tagColorClasses } from "@/types/customer";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 
 interface BulkTagModalProps {
     isOpen: boolean;
@@ -18,15 +19,33 @@ interface BulkTagModalProps {
 
 export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoading }: BulkTagModalProps) {
     const { t } = useLanguage();
-    const { tags } = useCustomerTags();
+    const { tags, createTag } = useCustomerTags();
     const [search, setSearch] = useState("");
     const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
+    const [creating, setCreating] = useState(false);
 
     if (!isOpen) return null;
 
     const filteredTags = tags.filter((t) =>
         t.name.toLowerCase().includes(search.toLowerCase())
     );
+    const newTagName = search.trim();
+    const canCreate = newTagName.length > 0 && !tags.some((tag) => tag.name.trim().toLowerCase() === newTagName.toLowerCase());
+
+    // Same create-and-pick the customer drawer offers, so a store with no
+    // tags yet can tag a selection without leaving the list.
+    const handleCreate = async () => {
+        if (!canCreate || creating) return;
+        setCreating(true);
+        const created = await createTag(newTagName, "blue");
+        setCreating(false);
+        if (!created) {
+            toast({ variant: "error", title: t("customers.bulkTag.createFailed") });
+            return;
+        }
+        setSelectedTagIds((prev) => new Set(prev).add(created.id));
+        setSearch("");
+    };
 
     const toggleTag = (id: string) => {
         const next = new Set(selectedTagIds);
@@ -92,10 +111,22 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
 
                         {/* Tag List */}
                         <div className="max-h-60 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                            {canCreate && (
+                                <button
+                                    onClick={handleCreate}
+                                    disabled={creating}
+                                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-[var(--card-border)] hover:border-[var(--ink)] bg-[var(--background)] text-left text-sm font-medium transition-all disabled:opacity-60"
+                                >
+                                    {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                    {t("customers.bulkTag.create", { name: newTagName })}
+                                </button>
+                            )}
                             {filteredTags.length === 0 ? (
-                                <div className="text-center py-8 text-muted text-sm">
-                                    {t("customers.bulkTag.empty")}
-                                </div>
+                                !canCreate && (
+                                    <div className="text-center py-8 text-muted text-sm">
+                                        {t("customers.bulkTag.empty")}
+                                    </div>
+                                )
                             ) : (
                                 filteredTags.map((tag) => {
                                     const isSelected = selectedTagIds.has(tag.id);

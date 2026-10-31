@@ -74,8 +74,11 @@ export interface RiskInput {
 }
 
 /**
- * Mirror of risk_level_calc. severe = rejected + no_response + returned(RTO);
- * moderate = cancelled + refund; recent = last 6 months.
+ * Mirror of risk_level_calc over customer_order_facts. severe = a purchase
+ * refused at the door (rejected or no_response); moderate = a cancelled
+ * purchase, plus one per purchase the customer had refunded. Return orders and
+ * a delivered purchase later exchanged or returned never count as severe.
+ * recent = last 6 months.
  *   blocked                                            → blocked
  *   2+ recent severe, OR chronic (3+) severe still recurring → high
  *   1 recent severe, OR any recent moderate, OR 2+ total blemishes → caution

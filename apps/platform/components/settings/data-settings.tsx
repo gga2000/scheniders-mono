@@ -70,15 +70,16 @@ export function DataSettings() {
     };
 
     const handleExportCustomers = async () => {
+        if (!tenantId) return;
         setExporting("customers");
         try {
-            const { data: notes } = await supabase.from('customer_notes').select('*');
-            if (notes) {
-                const csv = convertToCSV(notes);
-                downloadCSV(csv, `customer_notes_${new Date().toISOString().split('T')[0]}.csv`);
-            }
+            const { data: notes, error } = await supabase.from('customer_notes').select('*').eq('tenant_id', tenantId);
+            if (error) throw error;
+            const csv = convertToCSV(notes);
+            downloadCSV(csv, `customer_notes_${new Date().toISOString().split('T')[0]}.csv`);
         } catch (err) {
             console.error("Export failed", err);
+            alert("Failed to export customer notes");
         } finally {
             setExporting(null);
         }

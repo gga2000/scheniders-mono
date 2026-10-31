@@ -26,12 +26,30 @@ export function useAddCustomerNote(phone: string) {
     });
 }
 
-export function useDeleteCustomerNote(phone: string) {
+/** The note was not deleted: it is someone else's and the caller is not a store admin. */
+export class NoteNotDeletedError extends Error {
+    constructor() {
+        super("Only the note's author or a store admin can delete it");
+        this.name = "NoteNotDeletedError";
+    }
+}
+
+export function useDeleteCustomerNote() {
     const qc = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase.from("customer_notes").delete().eq("id", id);
+            if (!tenantId) throw new Error("No active tenant");
+            // RLS filters out a note the caller may not delete instead of
+            // raising, so an empty result means nothing was removed.
+            const { data, error } = await supabase
+                .from("customer_notes")
+                .delete()
+                .eq("tenant_id", tenantId)
+                .eq("id", id)
+                .select("id");
             if (error) throw error;
+            if (!data || data.length === 0) throw new NoteNotDeletedError();
             return id;
         },
         onSuccess: () => {
