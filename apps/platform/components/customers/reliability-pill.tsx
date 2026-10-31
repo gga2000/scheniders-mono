@@ -3,7 +3,7 @@
 import { ShieldCheck, Clock, AlertTriangle, Sparkles, Ban, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import { VALUE_META, RISK_META, type ValueTier, type RiskLevel } from "@/lib/customer-reliability";
+import { VALUE_META, RISK_META, customerAccent, type ValueTier, type RiskLevel } from "@/lib/customer-reliability";
 
 const VALUE_ICONS: Record<ValueTier, React.ComponentType<{ className?: string }>> = {
     vip: Crown,
@@ -48,7 +48,7 @@ export function ValuePill({
 
     return (
         <div className={cn("flex items-center gap-2.5 rounded-2xl px-3.5 py-3", meta.pillBg, meta.pillText, className)}>
-            <span className="w-7 h-7 rounded-lg bg-white/60 flex items-center justify-center shrink-0">
+            <span className="w-7 h-7 rounded-lg bg-white/60 dark:bg-white/10 flex items-center justify-center shrink-0">
                 <Icon className="w-4 h-4" />
             </span>
             <div className="min-w-0">
@@ -56,6 +56,42 @@ export function ValuePill({
                     {t("customers.value.label", "Value")}
                 </div>
                 <div className="text-base font-extrabold tracking-tight leading-tight truncate">{label}</div>
+            </div>
+        </div>
+    );
+}
+
+/** The value icon, so every surface (pill, drawer band, profile) shows the same one. */
+export function ValueIcon({ tier, className }: { tier: ValueTier; className?: string }) {
+    const Icon = VALUE_ICONS[tier];
+    return <Icon className={className} />;
+}
+
+/** The risk icon, for surfaces drawn in the risk colour. */
+export function RiskIcon({ risk, className }: { risk: RiskLevel; className?: string }) {
+    const Icon = RISK_ICONS[risk];
+    return <Icon className={className} />;
+}
+
+/**
+ * The card's hero block: the value tier, or — for a blocked or high-risk
+ * customer — the COD risk, so an unsafe customer never leads with "Good".
+ */
+export function CustomerHeroBand({ tier, risk, className }: { tier: ValueTier; risk: RiskLevel; className?: string }) {
+    const { t } = useLanguage();
+    if (risk !== "blocked" && risk !== "high") return <ValuePill tier={tier} variant="hero" className={className} />;
+    const accent = customerAccent(tier, risk);
+    const Icon = RISK_ICONS[risk];
+    return (
+        <div className={cn("flex items-center gap-2.5 rounded-2xl px-3.5 py-3", accent.surfaceBg, accent.surfaceText, className)}>
+            <span className="w-7 h-7 rounded-lg bg-white/60 dark:bg-white/10 flex items-center justify-center shrink-0">
+                <Icon className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 leading-none">
+                    {t("customers.risk.label", "COD risk")}
+                </div>
+                <div className="text-base font-extrabold tracking-tight leading-tight truncate">{t(`customers.risk.${risk}`, RISK_META[risk].label)}</div>
             </div>
         </div>
     );

@@ -81,7 +81,7 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
                             </div>
 
                             {/* Content */}
-                            <p className="text-sm text-foreground font-medium leading-relaxed whitespace-pre-wrap break-words">
+                            <p dir="auto" className="text-sm text-foreground font-medium leading-relaxed whitespace-pre-wrap break-words">
                                 {entry.note}
                             </p>
                         </motion.div>

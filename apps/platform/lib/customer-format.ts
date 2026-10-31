@@ -43,3 +43,12 @@ export function formatBaghdadDate(iso: string, language: string): string {
         timeZone: "Asia/Baghdad",
     });
 }
+
+/** "Sep 2025" / "سبتمبر 2025" in Baghdad time: the "customer since" date on every customer surface. */
+export function formatBaghdadMonthYear(iso: string, language: string): string {
+    return new Date(iso).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Baghdad",
+    });
+}

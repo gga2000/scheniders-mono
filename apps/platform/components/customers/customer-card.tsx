@@ -2,18 +2,19 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, MessageCircle, Phone, Star, Tag, X, Check } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Tag, X, Check } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
     VALUE_META,
+    customerAccent,
     recencyStatus,
     firstDeliveryPending,
     effectiveSuccessRate,
 } from "@/lib/customer-reliability";
-import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
+import { CustomerHeroBand, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
@@ -42,6 +43,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
     const value = customer.value_tier;
     const risk = customer.risk_level;
     const meta = VALUE_META[value];
+    const accent = customerAccent(value, risk);
     const pending = firstDeliveryPending(customer);
     const recency = recencyStatus(customer.last_order_date, risk, t);
     const success = effectiveSuccessRate(customer);
@@ -58,8 +60,8 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 isSelected && "ring-2 ring-foreground",
             )}
         >
-            {/* Value accent rail */}
-            <span className={cn("absolute left-0 top-0 bottom-0 w-1.5", meta.rail)} aria-hidden />
+            {/* Accent rail: the value tier, or the risk colour when COD is unsafe */}
+            <span className={cn("absolute left-0 top-0 bottom-0 w-1.5", accent.rail)} aria-hidden />
 
             {/* Select checkbox */}
             {select && (
@@ -92,20 +94,13 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                     {monogram(customer.name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                        <h3 className="font-bold text-foreground truncate">{customer.name}</h3>
-                        {customer.completed_count > 3 && (
-                            <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">
-                                <Star className="w-2.5 h-2.5" />{t("customers.loyal")}
-                            </span>
-                        )}
-                    </div>
+                    <h3 dir="auto" className="font-bold text-foreground truncate text-left">{customer.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5 text-[13px] text-muted-foreground">
                         <span className="font-mono tabular-nums">{formatPhoneDisplay(customer.phone)}</span>
                         {gov && (
                             <span className="inline-flex items-center gap-1 min-w-0">
                                 <MapPin className="w-3 h-3 shrink-0" />
-                                <span className="truncate">{gov}</span>
+                                <span dir="auto" className="truncate">{gov}</span>
                             </span>
                         )}
                     </div>
@@ -115,7 +110,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
 
             {/* Value hero */}
             <div className="mt-4">
-                <ValuePill tier={value} variant="hero" />
+                <CustomerHeroBand tier={value} risk={risk} />
             </div>
 
             {/* Metric line */}
@@ -138,7 +133,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
             <div className="mt-3 pt-3 border-t border-(--card-border) flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground min-w-0">
                     <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} />
-                    <span className="truncate">{pending ? t("customers.card.firstDeliveryPending") : recency.label}</span>
+                    <span dir="auto" className="truncate">{pending ? t("customers.card.firstDeliveryPending") : recency.label}</span>
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
                     {canEdit && (

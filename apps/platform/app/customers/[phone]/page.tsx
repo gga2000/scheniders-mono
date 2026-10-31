@@ -36,7 +36,6 @@ import { CommunityRatingModal } from "@/components/customers/modals/community-ra
 import { LinkCustomersModal } from "@/components/customers/modals/link-customers-modal";
 import { LinkedPeopleSection } from "@/components/customers/detail/linked-people-section";
 import { IdentityTimeline } from "@/components/customers/detail/identity-timeline";
-import { ActivityLogTimeline } from "@/components/customers/detail/activity-log-timeline";
 import { AddNoteModal } from "@/components/customers/modals/add-note-modal";
 import type { CommunityRating, TrustTier } from "@/types/customer";
 
@@ -261,6 +260,8 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     phone={profile.phone}
                     city={profile.city ?? undefined}
                     tier={profile.trustTier}
+                    valueTier={profile.reliability ? profile.reliability.value_tier : null}
+                    riskLevel={profile.reliability ? profile.reliability.risk_level : null}
                     trustScore={profile.trustScore}
                     totalOrders={profile.totalOrders}
                     isBlacklisted={profile.isBlacklisted}
@@ -272,7 +273,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             {/* Two-axis VALUE + RISK headline — keeps the full profile consistent with the list/dialog */}
             {profile.reliability && (
                 <div className="mb-8">
-                    <CustomerValueRiskBanner reliability={profile.reliability} />
+                    <CustomerValueRiskBanner reliability={profile.reliability} successRate={profile.deliverySuccessRate} />
                 </div>
             )}
 
@@ -288,6 +289,83 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 </div>
                 <div className="col-span-12 lg:col-span-8">
                     <TrustHistoryCard data={historyData || []} phone={profile.phone} />
+                </div>
+
+                {/* Order history: the list staff open a profile for, right under the headline numbers */}
+                <div className="col-span-12">
+                    <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+                        <h3 className="font-headline font-extrabold text-xl text-foreground mb-8">
+                            {t("customers.profile.orderHistory")}
+                        </h3>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest border-b border-muted/20">
+                                        <th className="pb-6 px-4">{t("customers.profile.col.order")}</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.date")}</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.items")}</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.amount")}</th>
+                                        <th className="pb-6 px-4">{t("customers.profile.col.status")}</th>
+                                        <th className="pb-6 px-4 text-right"><span className="sr-only">{t("customers.profile.viewOrder")}</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-muted/10">
+                                    {profile.orders.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="py-12 text-center text-muted-foreground text-sm">
+                                                {t("customers.orders.noOrders")}
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        profile.orders.slice(0, HISTORY_ROWS).map((order) => {
+                                            const parsed = Array.isArray(order.items) ? order.items : null;
+                                            const lineCount = parsed ? mergeOrderItems(parsed).length : null;
+                                            return (
+                                                <tr key={order.id} className="group hover:bg-muted/10 transition-colors">
+                                                    <td className="py-4 px-4 font-headline font-bold text-sm tabular-nums text-foreground">
+                                                        #{order.order_id}
+                                                    </td>
+                                                    <td className="py-4 px-4 text-muted-foreground text-xs tabular-nums">
+                                                        {formatBaghdadDate(order.created_at, language)}
+                                                    </td>
+                                                    <td className="py-4 px-4 text-muted-foreground text-xs">
+                                                        {lineCount === null ? "—" : `${lineCount} ${t(lineCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}
+                                                    </td>
+                                                    <td className="py-4 px-4 font-bold text-sm tabular-nums text-foreground">
+                                                        {formatIQD(Number(order.price || 0))}
+                                                    </td>
+                                                    <td className="py-4 px-4">
+                                                        <OrderStatusBadge status={order.status} isReturn={!!order.is_return} />
+                                                    </td>
+                                                    <td className="py-4 px-4 text-right">
+                                                        <Link
+                                                            href={`/orders?search=${encodeURIComponent(order.order_id)}`}
+                                                            aria-label={t("customers.profile.viewOrder")}
+                                                            className="inline-flex text-muted-foreground/50 hover:text-foreground transition-colors"
+                                                        >
+                                                            <Eye className="w-5 h-5" />
+                                                        </Link>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {profile.orders.length > HISTORY_ROWS && (
+                            <div className="mt-10 flex justify-center">
+                                <Link
+                                    href={`/orders?search=0${profile.phone}`}
+                                    className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-[0.2em]"
+                                >
+                                    {t("customers.profile.viewAll", { count: profile.totalOrders.toLocaleString("en-US") })}
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Row 2: Behavioral Patterns (col-span-5) + Dossier Notes (col-span-7) */}
@@ -330,90 +408,10 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     <IdentityTimeline phone={profile.phone} />
                 </div>
 
-                {/* Activity Log — unified chronological feed of orders + notes */}
-                <div className="col-span-12">
-                    <ActivityLogTimeline orders={profile.orders} notes={profile.notes || []} />
-                </div>
-
-                {/* Row 5: Order History (col-span-12) */}
-                <div className="col-span-12">
-                    <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)] overflow-hidden">
-                        <h3 className="font-headline font-extrabold text-xl text-foreground mb-8">
-                            {t("customers.profile.orderHistory")}
-                        </h3>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest border-b border-muted/20">
-                                        <th className="pb-6 px-4">{t("customers.profile.col.order")}</th>
-                                        <th className="pb-6 px-4">{t("customers.profile.col.date")}</th>
-                                        <th className="pb-6 px-4">{t("customers.profile.col.items")}</th>
-                                        <th className="pb-6 px-4">{t("customers.profile.col.amount")}</th>
-                                        <th className="pb-6 px-4">{t("customers.profile.col.status")}</th>
-                                        <th className="pb-6 px-4 text-right"><span className="sr-only">{t("customers.profile.viewOrder")}</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-muted/10">
-                                    {profile.orders.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} className="py-12 text-center text-muted-foreground text-sm">
-                                                {t("customers.orders.noOrders")}
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        profile.orders.slice(0, HISTORY_ROWS).map((order) => {
-                                            const parsed = Array.isArray(order.items) ? order.items : null;
-                                            const lineCount = parsed ? mergeOrderItems(parsed).length : null;
-                                            return (
-                                                <tr key={order.id} className="group hover:bg-muted/10 transition-colors">
-                                                    <td className="py-6 px-4 font-headline font-bold text-sm tabular-nums text-foreground">
-                                                        #{order.order_id}
-                                                    </td>
-                                                    <td className="py-6 px-4 text-muted-foreground text-xs tabular-nums">
-                                                        {formatBaghdadDate(order.created_at, language)}
-                                                    </td>
-                                                    <td className="py-6 px-4 text-muted-foreground text-xs">
-                                                        {lineCount === null ? "—" : t("customers.profile.itemsCount", { count: lineCount })}
-                                                    </td>
-                                                    <td className="py-6 px-4 font-bold text-sm tabular-nums text-foreground">
-                                                        {formatIQD(Number(order.price || 0))}
-                                                    </td>
-                                                    <td className="py-6 px-4">
-                                                        <OrderStatusBadge status={order.status} isReturn={!!order.is_return} />
-                                                    </td>
-                                                    <td className="py-6 px-4 text-right">
-                                                        <Link
-                                                            href={`/orders?search=${encodeURIComponent(order.order_id)}`}
-                                                            aria-label={t("customers.profile.viewOrder")}
-                                                            className="inline-flex text-muted-foreground/50 hover:text-foreground transition-colors"
-                                                        >
-                                                            <Eye className="w-5 h-5" />
-                                                        </Link>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {profile.orders.length > HISTORY_ROWS && (
-                            <div className="mt-10 flex justify-center">
-                                <Link
-                                    href={`/orders?search=0${profile.phone}`}
-                                    className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-[0.2em]"
-                                >
-                                    {t("customers.profile.viewAll", { count: profile.totalOrders.toLocaleString("en-US") })}
-                                </Link>
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
 
-            <FabNewShipment onClick={() => setCreatingOrder(true)} />
+            {/* No new-order shortcut on a blocked customer: the block means do not ship. */}
+            {!profile.isBlacklisted && <FabNewShipment onClick={() => setCreatingOrder(true)} />}
 
             {creatingOrder && (
                 <CreateOrderModal
