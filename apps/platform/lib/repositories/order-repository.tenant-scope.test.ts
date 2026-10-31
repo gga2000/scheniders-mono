@@ -92,6 +92,13 @@ describe("orderRepository list reads are scoped to the active tenant", () => {
         expectAllTenantScoped();
     });
 
+    it("findWindow withRisk:false reads no customer_trust (narrow and wide windows)", async () => {
+        await orderRepository.findWindow(TENANT, WINDOW, { withRisk: false });
+        await orderRepository.findWindow(TENANT, null, { withRisk: false });
+        expect(queriesOn("customer_trust").length).toBe(0);
+        expectAllTenantScoped();
+    });
+
     it("findWindow(null) falls back to findAll with the same tenant", async () => {
         await orderRepository.findWindow(TENANT, null);
         expect(queriesOn("orders").length).toBe(2);

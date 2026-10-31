@@ -151,6 +151,9 @@ const ProfitAnalysisTab = dynamic(
     { loading: () => <div className="h-[480px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
 );
 
+/** Tabs that load their own data and never read the order book. */
+const ORDER_FREE_TABS: FinanceTabId[] = ["expenses", "payouts", "print", "salaries"];
+
 const VALID_TABS: FinanceTabId[] = [
     "overview", "revenue", "profit_analysis", "cash", "expenses", "payouts",
     "invoices", "refunds", "customers", "products", "print",
@@ -219,6 +222,7 @@ function FinancesContent() {
     );
 
     const handleExport = () => {
+        if (ordersLoading) return;
         exportFinanceHubToCSV({
             overview,
             revenue,
@@ -228,6 +232,7 @@ function FinancesContent() {
     };
 
     const handlePrint = () => {
+        if (ordersLoading) return;
         printFinanceHubReport({
             overview,
             revenue,
@@ -236,20 +241,13 @@ function FinancesContent() {
         });
     };
 
-    if (!mounted || ordersLoading) {
+    if (!mounted) {
         return <div className="min-h-screen bg-[var(--background)]"><PageSkeleton /></div>;
     }
 
-    if (ordersError) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-6">
-                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6 max-w-md text-center">
-                    <h2 className="text-lg font-bold text-rose-700 dark:text-rose-300 mb-1">{t("finances.loadError")}</h2>
-                    <p className="text-sm text-muted">{ordersError}</p>
-                </div>
-            </div>
-        );
-    }
+    // Header, tabs and the tabs that read their own data render at once; only
+    // the tabs built on the order book wait for it.
+    const needsOrders = !ORDER_FREE_TABS.includes(activeTab);
 
     return (
         <div className="min-h-screen bg-[var(--background)] pb-16">
@@ -259,8 +257,8 @@ function FinancesContent() {
                     onApplyPreset={applyPreset}
                     onApplyCustom={setCustom}
                     onChangeCompareMode={setCompareMode}
-                    onExport={handleExport}
-                    onPrint={handlePrint}
+                    onExport={ordersLoading ? undefined : handleExport}
+                    onPrint={ordersLoading ? undefined : handlePrint}
                 />
 
                 <TabsShell activeTab={activeTab} onChange={handleTabChange} />
@@ -272,105 +270,116 @@ function FinancesContent() {
                     onPrint={handlePrint}
                 />
 
-                {activeTab === "overview" && (
-                    <div className="space-y-5">
-                        <InsightsBanner insights={insights} />
-                        <HeroStrip data={overview} />
-                        <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-                            <div className="xl:col-span-3">
-                                <PnLWaterfall data={overview} />
-                            </div>
-                            <div className="xl:col-span-2 space-y-5">
-                                <CashHealthCard data={cash} />
-                                <TopMovers data={overview} />
-                            </div>
-                        </div>
-                        <RevenueByDimension data={overview} />
-                        <GoalsStrip data={overview} presetKey={period.preset} />
+                {needsOrders && ordersError ? (
+                    <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6 max-w-md mx-auto text-center">
+                        <h2 className="text-lg font-bold text-rose-700 dark:text-rose-300 mb-1">{t("finances.loadError")}</h2>
+                        <p className="text-sm text-muted">{ordersError}</p>
                     </div>
-                )}
-
-                {activeTab === "revenue" && (
-                    <div className="space-y-5">
-                        <RevenueDecomposition data={revenue.decomposition} />
-                        <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-                            <div className="xl:col-span-3">
-                                <ChannelPnL rows={revenue.channels} />
+                ) : needsOrders && ordersLoading ? (
+                    <PageSkeleton />
+                ) : (
+                    <>
+                    {activeTab === "overview" && (
+                        <div className="space-y-5">
+                            <InsightsBanner insights={insights} />
+                            <HeroStrip data={overview} />
+                            <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
+                                <div className="xl:col-span-3">
+                                    <PnLWaterfall data={overview} />
+                                </div>
+                                <div className="xl:col-span-2 space-y-5">
+                                    <CashHealthCard data={cash} />
+                                    <TopMovers data={overview} />
+                                </div>
                             </div>
-                            <div className="xl:col-span-2">
-                                <RevenueRefundsImpact data={revenue.refunds} />
+                            <RevenueByDimension data={overview} />
+                            <GoalsStrip data={overview} presetKey={period.preset} />
+                        </div>
+                    )}
+
+                    {activeTab === "revenue" && (
+                        <div className="space-y-5">
+                            <RevenueDecomposition data={revenue.decomposition} />
+                            <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
+                                <div className="xl:col-span-3">
+                                    <ChannelPnL rows={revenue.channels} />
+                                </div>
+                                <div className="xl:col-span-2">
+                                    <RevenueRefundsImpact data={revenue.refunds} />
+                                </div>
+                            </div>
+                            <MarginHeatmap data={revenue.heatmap} />
+                        </div>
+                    )}
+
+                    {activeTab === "cash" && (
+                        <div className="space-y-5">
+                            <CashPositionHero data={cash} />
+                            <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
+                                <div className="xl:col-span-3">
+                                    <CashTimeline data={cash} />
+                                </div>
+                                <div className="xl:col-span-2">
+                                    <CODAgingBuckets buckets={cash.aging} oldestStuckDays={cash.oldestStuckDays} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                                <StuckInTransit orders={cash.stuckOrders} />
+                                <CollectionByCity rows={cash.byGovernorate} />
                             </div>
                         </div>
-                        <MarginHeatmap data={revenue.heatmap} />
-                    </div>
+                    )}
+
+                    {activeTab === "expenses" && (
+                        <ExpensesTab
+                            period={period}
+                            comparePeriod={compareRange}
+                            dateRangeStrings={dateRangeStrings}
+                        />
+                    )}
+
+                    {activeTab === "payouts" && <PayoutsTab />}
+
+                    {activeTab === "refunds" && (
+                        <RefundsTab orders={orders} period={period} compareRange={compareRange} />
+                    )}
+
+                    {activeTab === "invoices" && (
+                        <InvoicesTab orders={orders} expenses={expenses} period={period} />
+                    )}
+
+                    {activeTab === "customers" && (
+                        <CustomersFinanceTab orders={orders} period={period} compareRange={compareRange} />
+                    )}
+
+                    {activeTab === "print" && <PrintShipTab />}
+
+                    {activeTab === "products" && (
+                        <ProductsFinanceTab orders={orders} products={products} period={period} />
+                    )}
+
+                    {activeTab === "forecasts" && (
+                        <ForecastsTab orders={orders} expenses={expenses} period={period} />
+                    )}
+
+                    {activeTab === "reports" && (
+                        <ReportsTab orders={orders} period={period} dateRangeStrings={dateRangeStrings} />
+                    )}
+
+                    {activeTab === "profit_analysis" && (
+                        <ProfitAnalysisTab
+                            orders={orders}
+                            products={products}
+                            expenses={expenses}
+                            period={period}
+                            dateRange={dateRangeStrings}
+                            addExpense={addExpense}
+                        />
+                    )}
+
+                    {activeTab === "salaries" && <SalariesTab />}
+                    </>
                 )}
-
-                {activeTab === "cash" && (
-                    <div className="space-y-5">
-                        <CashPositionHero data={cash} />
-                        <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-                            <div className="xl:col-span-3">
-                                <CashTimeline data={cash} />
-                            </div>
-                            <div className="xl:col-span-2">
-                                <CODAgingBuckets buckets={cash.aging} oldestStuckDays={cash.oldestStuckDays} />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                            <StuckInTransit orders={cash.stuckOrders} />
-                            <CollectionByCity rows={cash.byGovernorate} />
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === "expenses" && (
-                    <ExpensesTab
-                        period={period}
-                        comparePeriod={compareRange}
-                        dateRangeStrings={dateRangeStrings}
-                    />
-                )}
-
-                {activeTab === "payouts" && <PayoutsTab />}
-
-                {activeTab === "refunds" && (
-                    <RefundsTab orders={orders} period={period} compareRange={compareRange} />
-                )}
-
-                {activeTab === "invoices" && (
-                    <InvoicesTab orders={orders} expenses={expenses} period={period} />
-                )}
-
-                {activeTab === "customers" && (
-                    <CustomersFinanceTab orders={orders} period={period} compareRange={compareRange} />
-                )}
-
-                {activeTab === "print" && <PrintShipTab />}
-
-                {activeTab === "products" && (
-                    <ProductsFinanceTab orders={orders} products={products} period={period} />
-                )}
-
-                {activeTab === "forecasts" && (
-                    <ForecastsTab orders={orders} expenses={expenses} period={period} />
-                )}
-
-                {activeTab === "reports" && (
-                    <ReportsTab orders={orders} period={period} dateRangeStrings={dateRangeStrings} />
-                )}
-
-                {activeTab === "profit_analysis" && (
-                    <ProfitAnalysisTab
-                        orders={orders}
-                        products={products}
-                        expenses={expenses}
-                        period={period}
-                        dateRange={dateRangeStrings}
-                        addExpense={addExpense}
-                    />
-                )}
-
-                {activeTab === "salaries" && <SalariesTab />}
             </div>
         </div>
     );
