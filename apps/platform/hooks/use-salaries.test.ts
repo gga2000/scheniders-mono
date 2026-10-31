@@ -27,16 +27,29 @@ describe("isCompletedInPeriod", () => {
     });
 
     it("excludes an order completed before the period starts", () => {
-        expect(isCompletedInPeriod("2026-06-19T23:00:00Z", periodStart, periodEnd)).toBe(false);
+        expect(isCompletedInPeriod("2026-06-19T20:00:00Z", periodStart, periodEnd)).toBe(false);
     });
 
     it("excludes an order with no completion timestamp (historical import)", () => {
         expect(isCompletedInPeriod(null, periodStart, periodEnd)).toBe(false);
     });
 
-    it("includes the inclusive day boundaries (start 00:00:00 / end 23:59:59 UTC)", () => {
-        expect(isCompletedInPeriod("2026-06-20T00:00:00Z", periodStart, periodEnd)).toBe(true);
-        expect(isCompletedInPeriod("2026-06-30T23:59:59Z", periodStart, periodEnd)).toBe(true);
+    it("uses Baghdad days (UTC+3): the period runs 21:00Z the day before to 20:59:59Z", () => {
+        // 00:00 and 23:59:59 Baghdad on the first and last day are inside the period.
+        expect(isCompletedInPeriod("2026-06-19T21:00:00Z", periodStart, periodEnd)).toBe(true);
+        expect(isCompletedInPeriod("2026-06-30T20:59:59Z", periodStart, periodEnd)).toBe(true);
+        // One second either side belongs to the neighbouring period.
+        expect(isCompletedInPeriod("2026-06-19T20:59:59Z", periodStart, periodEnd)).toBe(false);
+        expect(isCompletedInPeriod("2026-06-30T21:00:00Z", periodStart, periodEnd)).toBe(false);
+    });
+
+    it("pays an order completed 01:00 Baghdad on the first day in that period (UTC day is the day before)", () => {
+        expect(isCompletedInPeriod("2026-06-19T22:00:00Z", periodStart, periodEnd)).toBe(true);
+    });
+
+    it("accepts timestamps with an explicit offset", () => {
+        expect(isCompletedInPeriod("2026-06-20T00:30:00+03:00", periodStart, periodEnd)).toBe(true);
+        expect(isCompletedInPeriod("2026-06-19T23:30:00+03:00", periodStart, periodEnd)).toBe(false);
     });
 });
 
