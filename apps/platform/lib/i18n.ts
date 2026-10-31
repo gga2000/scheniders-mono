@@ -2627,6 +2627,13 @@ export const translations: Record<Locale, Record<string, string>> = {
         "printing.label_size4x6": "Standard shipping label",
         "printing.label_size3x2": "Small compact label",
         "printing.label_sizeCompact": "Compact",
+        "printing.preview_title": "Print Preview",
+        "printing.preview_labelOf": "Label {current} of {total}",
+        "printing.preview_invoiceOf": "Invoice {current} of {total}",
+        "printing.preview_prev": "Previous",
+        "printing.preview_next": "Next",
+        "printing.preview_printLabels": "Print {count} Labels",
+        "printing.preview_printInvoices": "Print {count} Invoices",
 
         // ── Team ──
         "team.title": "Team Dashboard",
@@ -6627,6 +6634,13 @@ export const translations: Record<Locale, Record<string, string>> = {
         "printing.label_size4x6": "ملصق شحن قياسي",
         "printing.label_size3x2": "ملصق صغير",
         "printing.label_sizeCompact": "مضغوط",
+        "printing.preview_title": "معاينة الطباعة",
+        "printing.preview_labelOf": "ملصق {current} من {total}",
+        "printing.preview_invoiceOf": "فاتورة {current} من {total}",
+        "printing.preview_prev": "السابق",
+        "printing.preview_next": "التالي",
+        "printing.preview_printLabels": "طباعة {count} ملصق",
+        "printing.preview_printInvoices": "طباعة {count} فاتورة",
 
         // ── Team ──
         "team.title": "لوحة مراقبة الفريق",
