@@ -5,14 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import {
     Trophy,
-    Activity,
     Users,
     Clock,
-    Package,
-    Printer,
     RefreshCw,
     Lock,
-    Zap,
     Crown,
     Medal,
     Award,
@@ -21,9 +17,8 @@ import {
     GitCompare,
     Target,
     Settings2,
-    Filter,
-    ChevronDown,
 } from "lucide-react";
+import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -214,17 +209,6 @@ function isUserOnline(lastLogin: string | null): boolean {
     return new Date(lastLogin).getTime() > Date.now() - 15 * 60 * 1000;
 }
 
-// Action label map for ticker
-const ACTION_LABELS: Record<string, string> = {
-    "order.create": "أنشأ طلب جديد",
-    "order.status_change": "غيّر حالة طلب",
-    "order.edit": "عدّل طلب",
-    "order.print": "طبع طلبات",
-    "order.delete": "حذف طلب",
-    "user.login": "سجّل دخول",
-    "customer.blacklist": "حظر عميل",
-};
-
 // Access Denied
 function AccessDenied() {
     const { t } = useLanguage();
@@ -246,6 +230,25 @@ function AccessDenied() {
         </div>
     );
 }
+
+// bigint counts come back from PostgREST as numbers; validate the RPC boundary.
+const leaderboardRowsSchema = z.array(z.object({
+    user_id: z.string(),
+    user_email: z.string().nullable(),
+    total_actions: z.coerce.number(),
+    status_changes: z.coerce.number(),
+    orders_created: z.coerce.number(),
+    orders_printed: z.coerce.number(),
+    orders_edited: z.coerce.number(),
+    logins: z.coerce.number(),
+}));
+
+const periodTotalsSchema = z.array(z.object({
+    total_actions: z.coerce.number(),
+    orders_created: z.coerce.number(),
+    status_changes: z.coerce.number(),
+    orders_printed: z.coerce.number(),
+}));
 
 // ============================================
 // MAIN PAGE COMPONENT
@@ -344,123 +347,72 @@ export default function TeamPage() {
         enabled: isAdmin && !authLoading,
     });
 
-    // Fetch leaderboard
+    // Fetch leaderboard (aggregated in the database, tenant- and admin-scoped)
     const fetchLeaderboard = useCallback(async () => {
-        const dateFilter = getDateFilter(timeRange);
-
-        let allLogs: any[] = [];
-        let hasMore = true;
-        let offset = 0;
-        const limit = 1000;
-
-        while (hasMore) {
-            let query = supabase
-                .from("activity_logs")
-                .select("user_id, user_email, action")
-                .not("user_id", "is", null)
-                .range(offset, offset + limit - 1);
-
-            if (dateFilter) query = query.gte("created_at", dateFilter);
-
-            const { data, error } = await query;
-            if (error) {
-                toast({ title: t("team.page.errorTitle"), description: t("team.page.errorDesc"), variant: "error" });
-                setLeaderboard([]);
-                return;
-            }
-
-            if (data && data.length > 0) {
-                allLogs = [...allLogs, ...data];
-                offset += limit;
-                if (data.length < limit) hasMore = false;
-            } else {
-                hasMore = false;
-            }
+        const { data, error } = await supabase.rpc("team_leaderboard", {
+            p_since: getDateFilter(timeRange) ?? undefined,
+        });
+        const parsed = leaderboardRowsSchema.safeParse(data);
+        if (error || !parsed.success) {
+            toast({ title: t("team.page.errorTitle"), description: t("team.page.errorDesc"), variant: "error" });
+            setLeaderboard([]);
+            return;
         }
 
-        const statsMap = new Map<string, EmployeeStats>();
-
-        allLogs.forEach((log) => {
-            const userId = log.user_id;
-            if (!userId) return;
-
-            if (!statsMap.has(userId)) {
-                statsMap.set(userId, {
-                    user_id: userId,
-                    user_email: log.user_email || "",
-                    display_name: null,
-                    avatar_url: null,
-                    role: "employee",
-                    is_active: true,
-                    last_login_at: null,
-                    total_actions: 0,
-                    status_changes: 0,
-                    orders_created: 0,
-                    orders_printed: 0,
-                    orders_edited: 0,
-                    logins: 0,
-                });
-            }
-
-            const stats = statsMap.get(userId)!;
-            stats.total_actions++;
-            if (log.action === "order.status_change") stats.status_changes++;
-            if (log.action === "order.create") stats.orders_created++;
-            if (log.action === "order.print") stats.orders_printed++;
-            if (log.action === "order.edit") stats.orders_edited++;
-            if (log.action === "user.login") stats.logins++;
-        });
-
-        const userIds = Array.from(statsMap.keys());
+        const rows = parsed.data;
+        const userIds = rows.map((r) => r.user_id);
+        const profileById = new Map<string, {
+            display_name: string | null;
+            avatar_url: string | null;
+            role: string | null;
+            is_active: boolean | null;
+            last_login_at: string | null;
+        }>();
         if (userIds.length > 0) {
             const { data: profiles } = await supabase
                 .from("user_profiles")
                 .select("id, display_name, avatar_url, role, is_active, last_login_at")
                 .in("id", userIds);
-
-            profiles?.forEach((p) => {
-                const stats = statsMap.get(p.id);
-                if (stats) {
-                    stats.display_name = p.display_name;
-                    stats.avatar_url = p.avatar_url;
-                    stats.role = p.role || "employee";
-                    stats.is_active = p.is_active ?? true;
-                    stats.last_login_at = p.last_login_at;
-                }
-            });
+            profiles?.forEach((p) => profileById.set(p.id, p));
         }
 
-        setLeaderboard(Array.from(statsMap.values()).sort((a, b) => b.total_actions - a.total_actions));
+        const stats: EmployeeStats[] = rows.map((r) => {
+            const profile = profileById.get(r.user_id);
+            return {
+                user_id: r.user_id,
+                user_email: r.user_email || "",
+                display_name: profile?.display_name ?? null,
+                avatar_url: profile?.avatar_url ?? null,
+                role: profile?.role || "employee",
+                is_active: profile?.is_active ?? true,
+                last_login_at: profile?.last_login_at ?? null,
+                total_actions: r.total_actions,
+                status_changes: r.status_changes,
+                orders_created: r.orders_created,
+                orders_printed: r.orders_printed,
+                orders_edited: r.orders_edited,
+                logins: r.logins,
+            };
+        });
+        setLeaderboard(stats.sort((a, b) => b.total_actions - a.total_actions));
 
-        // Previous-period totals (single count-only query per action).
+        // Previous-period totals for trend deltas.
         const prev = getPreviousWindow(timeRange);
         if (!prev) {
             setPreviousTotals({ totalActions: 0, ordersCreated: 0, statusChanges: 0, ordersPrinted: 0 });
-        } else {
-            const countBy = async (action?: string) => {
-                let q = supabase
-                    .from("activity_logs")
-                    .select("id", { count: "exact", head: true })
-                    .not("user_id", "is", null)
-                    .gte("created_at", prev.start)
-                    .lt("created_at", prev.end);
-                if (action) q = q.eq("action", action);
-                const { count } = await q;
-                return count ?? 0;
-            };
-            const [prevTotal, prevCreated, prevStatus, prevPrinted] = await Promise.all([
-                countBy(),
-                countBy("order.create"),
-                countBy("order.status_change"),
-                countBy("order.print"),
-            ]);
-            setPreviousTotals({
-                totalActions: prevTotal,
-                ordersCreated: prevCreated,
-                statusChanges: prevStatus,
-                ordersPrinted: prevPrinted,
-            });
+            return;
         }
+        const { data: totals } = await supabase.rpc("team_period_totals", {
+            p_start: prev.start,
+            p_end: prev.end,
+        });
+        const row = periodTotalsSchema.safeParse(totals).data?.[0];
+        setPreviousTotals({
+            totalActions: row?.total_actions ?? 0,
+            ordersCreated: row?.orders_created ?? 0,
+            statusChanges: row?.status_changes ?? 0,
+            ordersPrinted: row?.orders_printed ?? 0,
+        });
     }, [timeRange, getDateFilter, getPreviousWindow]);
 
     // Keep ref in sync

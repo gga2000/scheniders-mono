@@ -9034,6 +9034,28 @@ export type Database = {
           tenant_id: string
         }[]
       }
+      team_leaderboard: {
+        Args: { p_since?: string }
+        Returns: {
+          logins: number
+          orders_created: number
+          orders_edited: number
+          orders_printed: number
+          status_changes: number
+          total_actions: number
+          user_email: string
+          user_id: string
+        }[]
+      }
+      team_period_totals: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          orders_created: number
+          orders_printed: number
+          status_changes: number
+          total_actions: number
+        }[]
+      }
       tenant_block_active: {
         Args: { p_block: string; p_tenant_id: string }
         Returns: boolean
