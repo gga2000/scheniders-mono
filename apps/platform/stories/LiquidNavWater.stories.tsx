@@ -22,8 +22,8 @@ function SidebarPanel({ collapsed }: { collapsed: boolean }) {
     const [active, setActive] = useState<string | null>("/orders");
     return (
         <div className={cn("rounded-[32px] border border-white/5 bg-[#1E1E1E] py-6 text-white", collapsed ? "w-[72px]" : "w-[256px] px-6")}>
-            <nav className="px-2">
-                <LiquidNavWater activeKey={active} className="overflow-clip">
+            <nav className="p-2">
+                <LiquidNavWater activeKey={active}>
                     {ITEMS.map(({ key, label, icon: Icon }) => {
                         const isActive = key === active;
                         return (

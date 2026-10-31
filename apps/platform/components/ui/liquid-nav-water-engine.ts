@@ -90,7 +90,8 @@ export function createWaterEngine({ root, canvas, drop, onRenderer }: EngineOpti
                 height: s.height + WATER_PAD * 2,
                 dpr: ratio,
                 time: s.time,
-                area: [WATER_PAD, WATER_PAD, s.width, s.height],
+                // The whole canvas: the bleed is there so the drop is never cut at the edges.
+                area: [0, 0, s.width + WATER_PAD * 2, s.height + WATER_PAD * 2],
                 blobs,
                 stretch,
                 ripples,
@@ -138,10 +139,11 @@ export function createWaterEngine({ root, canvas, drop, onRenderer }: EngineOpti
 
     /** Re-read the layout. `snap` jumps the drop into place instead of animating. */
     function measure(snap: boolean): void {
+        // The wrapper's padding box is the canvas; its content box is the nav area.
         const rootRect = root.getBoundingClientRect();
-        s.width = rootRect.width;
-        s.height = rootRect.height;
-        sizeCanvas(rootRect.width, rootRect.height);
+        s.width = Math.max(0, rootRect.width - WATER_PAD * 2);
+        s.height = Math.max(0, rootRect.height - WATER_PAD * 2);
+        sizeCanvas(s.width, s.height);
         const el = key ? findItem(root, key) : null;
         if (!el) {
             setWaterTarget(s, null, performance.now(), true);
@@ -153,8 +155,8 @@ export function createWaterEngine({ root, canvas, drop, onRenderer }: EngineOpti
         setWaterTarget(
             s,
             {
-                cx: WATER_PAD + r.left - rootRect.left + r.width / 2,
-                y: WATER_PAD + r.top - rootRect.top + half,
+                cx: r.left - rootRect.left + r.width / 2,
+                y: r.top - rootRect.top + half,
                 r: half,
                 q: Math.max(0, r.width / 2 - half),
             },
@@ -167,7 +169,7 @@ export function createWaterEngine({ root, canvas, drop, onRenderer }: EngineOpti
 
     const local = (e: PointerEvent) => {
         const r = root.getBoundingClientRect();
-        return { x: e.clientX - r.left + WATER_PAD, y: e.clientY - r.top + WATER_PAD };
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
     const onPointerMove = (e: PointerEvent) => {
         if (e.pointerType !== "mouse") return;

@@ -378,11 +378,10 @@ export function Sidebar({
                 </motion.div>
 
                 {/* Navigation */}
-                <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
+                {/* p-2 leaves the liquid drop room to draw its rim at the edges, top and bottom included. */}
+                <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide p-2">
                     {!profileLoaded ? navPlaceholder : (
-                        // overflow-clip: the water canvas bleeds past the items for its
-                        // ripples; clipping keeps that bleed out of the nav's scroll height.
-                        <LiquidNavWater activeKey={activeHref} className="overflow-clip">
+                        <LiquidNavWater activeKey={activeHref}>
                             {navSections.map((section, sectionIndex) => (
                                 <div key={section.titleKey} className={sectionIndex > 0 ? (collapsed ? "mt-2" : "mt-5") : undefined}>
                                     <motion.div

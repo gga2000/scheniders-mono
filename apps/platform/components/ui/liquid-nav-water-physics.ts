@@ -7,12 +7,13 @@
  * together. Long jumps break the neck into a few small droplets that fall back
  * into the drop, and arrival sends a ripple.
  *
- * All coordinates are CSS pixels in the water canvas space: the nav area offset
- * by WATER_PAD on each side, so shadows and ripples can bleed past the edges.
+ * All coordinates are CSS pixels in the water canvas space: the nav area plus
+ * WATER_PAD on each side, so the drop's rim, shadow and ripples have room past
+ * the items and are never cut off at the edges (or at the top and bottom item).
  * Everything here is pure state + math so it can be unit tested without a DOM.
  */
 
-export const WATER_PAD = 14;
+export const WATER_PAD = 8;
 /** Uniform array sizes in the shader: 2 drop bodies + 4 droplets, 6 ripples. */
 export const MAX_BLOBS = 6;
 export const MAX_RIPPLES = 6;
@@ -240,16 +241,16 @@ export function packRipples(s: WaterState, out: Float32Array): void {
     s.ripples.slice(-MAX_RIPPLES).forEach((p, i) => out.set([p.x, p.y, p.age, p.amp], i * 4));
 }
 
-/** Box for the CSS fallback drop, in nav-area pixels (padding removed). */
+/** Box for the CSS fallback drop, in canvas pixels (the wrapper's padding box). */
 export function fallbackDropBox(s: WaterState): { top: number; height: number; left: number; width: number } | null {
     const T = s.target;
     if (!T) return null;
     const sep = Math.abs(s.a.x - s.b.x);
     const r = T.r * (1 - 0.2 * Math.min(sep / (4 * T.r || 1), 1));
     return {
-        top: Math.min(s.a.x, s.b.x) - r - WATER_PAD,
+        top: Math.min(s.a.x, s.b.x) - r,
         height: sep + 2 * r,
-        left: T.cx - s.q - T.r - WATER_PAD,
+        left: T.cx - s.q - T.r,
         width: 2 * (s.q + T.r),
     };
 }

@@ -154,7 +154,7 @@ describe("liquid nav water physics", () => {
         const stretch = new Float32Array(MAX_BLOBS);
         packBlobs(s, blobs, stretch);
         expect(Array.from(blobs.slice(0, 4))).toEqual([item(3).cx, item(3).y, 78, 22]);
-        expect(fallbackDropBox(s)).toEqual({ top: 3 * ROW, height: ROW, left: 0, width: 200 });
+        expect(fallbackDropBox(s)).toEqual({ top: WATER_PAD + 3 * ROW, height: ROW, left: WATER_PAD, width: 200 });
     });
 
     it("keeps at most the newest ripples", () => {

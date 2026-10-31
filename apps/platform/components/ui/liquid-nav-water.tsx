@@ -80,13 +80,21 @@ export function LiquidNavWater({ activeKey, tone = "dark", className, children }
 
     return (
         <LiquidNavContext.Provider value={api}>
-            <div ref={rootRef} data-liquid-water={renderer} className={cn("relative isolate", className)}>
+            {/* The wrapper reaches WATER_PAD past the items on every side (negative margin,
+                matching padding) so the drop is never cut off; overflow-clip keeps the canvas
+                out of any scroll height. The parent must leave WATER_PAD of room around it. */}
+            <div
+                ref={rootRef}
+                data-liquid-water={renderer}
+                className={cn("relative isolate overflow-clip", className)}
+                style={{ margin: -WATER_PAD, padding: WATER_PAD }}
+            >
                 <canvas
                     ref={canvasRef}
                     aria-hidden="true"
                     hidden={renderer !== "gl"}
                     className="pointer-events-none absolute -z-10"
-                    style={{ left: -WATER_PAD, top: -WATER_PAD }}
+                    style={{ left: 0, top: 0 }}
                 />
                 <span
                     ref={dropRef}
