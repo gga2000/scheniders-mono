@@ -17,6 +17,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState, type ComponentType } from "react";
 import { canAccessRoute, filterNavSections } from "@/lib/route-permissions";
 import { NotificationCenter } from "@/components/ui/notification-center";
+import { LiquidNavPending, LiquidNavWater } from "@/components/ui/liquid-nav-water";
 import { TransitionLink } from "./transition-link";
 import {
     AnimatedDashboardIcon,
@@ -182,12 +183,15 @@ export function Sidebar({
         expanded: { opacity: 1, height: "auto" as const, marginBottom: 12, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const, delay: 0.05 } },
     };
 
+    // A section owns its nested routes: /store/reviews and /store/recovery are
+    // reached through Store's own tabs, so Store stays lit while you are on them.
+    const isItemActive = (item: NavItem) => pathname === item.href
+        || pathname.startsWith(`${item.href}/`)
+        || Boolean(item.subItems && pathname.startsWith(item.href));
+    const activeHref = navSections.flatMap(section => section.items).find(isItemActive)?.href ?? null;
+
     const renderNavItem = (item: NavItem, index: number) => {
-        // A section owns its nested routes: /store/reviews and /store/recovery are
-        // reached through Store's own tabs, so Store stays lit while you are on them.
-        const isActive = pathname === item.href
-            || pathname.startsWith(`${item.href}/`)
-            || (item.subItems && pathname.startsWith(item.href));
+        const isActive = isItemActive(item);
         // Stagger shine per item with pseudo-random offsets so they never sweep together
         const shineDelay = `${((index * 2.137) % 9).toFixed(2)}s`;
         return (
@@ -195,6 +199,7 @@ export function Sidebar({
                 <TransitionLink
                     href={item.href}
                     prefetch={true}
+                    data-liquid-key={item.href}
                     onMouseEnter={() => {
                         // Intent-based rigorous prefetching
                         if (["/products", "/finances"].includes(item.href)) prefetchProducts();
@@ -205,11 +210,14 @@ export function Sidebar({
                             ? "justify-center w-full"
                             : "gap-3 px-3",
                         isActive
-                            ? "bg-white/10 text-white"
+                            // The liquid drop marks the active item; the flat fill only
+                            // shows until the water has measured the layout.
+                            ? "text-white [[data-liquid-water=pending]_&]:bg-white/10"
                             : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
                     )}
                     title={collapsed ? t(item.key) : undefined}
                 >
+                    <LiquidNavPending navKey={item.href} />
                     <motion.span
                         transition={sidebarSpring}
                         className="nav-icon-shine flex-shrink-0 inline-flex items-center justify-center w-[22px] h-[22px]"
@@ -253,28 +261,6 @@ export function Sidebar({
                         {t(item.key)}
                     </motion.span>
 
-                    <AnimatePresence initial={false}>
-                        {isActive && !collapsed && (
-                            <motion.div
-                                key="dot-inline"
-                                initial={{ opacity: 0, scale: 0.4 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.4 }}
-                                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                                className="ml-auto w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9),0_0_18px_rgba(52,211,153,0.5)]"
-                            />
-                        )}
-                        {isActive && collapsed && (
-                            <motion.div
-                                key="dot-corner"
-                                initial={{ opacity: 0, scale: 0.4 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.4 }}
-                                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-                                className="absolute right-1.5 top-1.5 w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9),0_0_18px_rgba(52,211,153,0.5)]"
-                            />
-                        )}
-                    </AnimatePresence>
                 </TransitionLink>
 
                 {/* Sub Navigation for Desktop Sidebar */}
@@ -392,20 +378,25 @@ export function Sidebar({
                 </motion.div>
 
                 {/* Navigation */}
-                <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
-                    {!profileLoaded ? navPlaceholder : navSections.map((section, sectionIndex) => (
-                        <div key={section.titleKey} className={sectionIndex > 0 ? (collapsed ? "mt-2" : "mt-5") : undefined}>
-                            <motion.div
-                                initial={false}
-                                animate={collapsed ? "collapsed" : "expanded"}
-                                variants={headerVariants}
-                                className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-1 overflow-hidden mb-3"
-                            >
-                                {t(section.titleKey)}
-                            </motion.div>
-                            {section.items.map(item => renderNavItem(item, NAV_ITEMS.indexOf(item)))}
-                        </div>
-                    ))}
+                {/* p-2 leaves the liquid drop room to draw its rim at the edges, top and bottom included. */}
+                <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide p-2">
+                    {!profileLoaded ? navPlaceholder : (
+                        <LiquidNavWater activeKey={activeHref}>
+                            {navSections.map((section, sectionIndex) => (
+                                <div key={section.titleKey} className={sectionIndex > 0 ? (collapsed ? "mt-2" : "mt-5") : undefined}>
+                                    <motion.div
+                                        initial={false}
+                                        animate={collapsed ? "collapsed" : "expanded"}
+                                        variants={headerVariants}
+                                        className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest px-1 overflow-hidden mb-3"
+                                    >
+                                        {t(section.titleKey)}
+                                    </motion.div>
+                                    {section.items.map(item => renderNavItem(item, NAV_ITEMS.indexOf(item)))}
+                                </div>
+                            ))}
+                        </LiquidNavWater>
+                    )}
                 </nav>
 
                 {/* User Section */}
