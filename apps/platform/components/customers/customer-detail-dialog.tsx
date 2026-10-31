@@ -25,7 +25,8 @@ import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { monogram, formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
-import { addToBlacklist, removeFromBlacklist } from "@/lib/blacklist";
+import { addToBlacklist, removeFromBlacklist, fetchBlacklistEntry } from "@/lib/blacklist";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -282,6 +283,11 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
     const [creatingOrder, setCreatingOrder] = useState(false);
     const data = useCustomerDialogData(customer?.phone ?? null, limit);
     const nestedOpen = blacklistMode !== null || creatingOrder;
+    const blockedEntry = useQuery({
+        queryKey: ["customer-blacklist-entry", tenantId, customer?.phone],
+        queryFn: () => fetchBlacklistEntry(tenantId as string, customer?.phone as string),
+        enabled: !!tenantId && !!customer?.is_blacklisted && creatingOrder,
+    });
 
     useEffect(() => {
         if (!customer) return;
@@ -313,6 +319,8 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
 
     const loadedAll = !data.data?.hasMore;
     const canUnblock = can(PERMISSIONS.UNBLOCK_CUSTOMERS);
+    const canBlock = can(PERMISSIONS.BLOCK_CUSTOMERS);
+    const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
 
     return (
         <AnimatePresence>
@@ -330,7 +338,8 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     onClose={onClose}
                     onOpenFull={() => router.push(`/customers/${encodeURIComponent(customer.phone)}`)}
                     onNewOrder={() => setCreatingOrder(true)}
-                    onToggleBlock={customer.is_blacklisted && !canUnblock ? undefined : () => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}
+                    canEdit={canEdit}
+                    onToggleBlock={(customer.is_blacklisted ? !canUnblock : !canBlock) ? undefined : () => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}
                     t={t}
                     locale={language}
                 />
@@ -350,6 +359,9 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     open
                     onClose={() => setCreatingOrder(false)}
                     onCreate={createOrder}
+                    getBlacklistEntry={(phone) =>
+                        blockedEntry.data && normalizePhoneForSearch(phone) === customer.phone ? blockedEntry.data : null
+                    }
                     initialData={{
                         customer_name: customer.name,
                         phone: `0${customer.phone}`,
@@ -365,7 +377,7 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
 }
 
 function Body({
-    customer, data, loading, failed, onRetry, fetchingMore, canLoadMore, onLoadMore, onClose, onOpenFull, onNewOrder, onToggleBlock, t, locale,
+    customer, data, loading, failed, onRetry, fetchingMore, canLoadMore, onLoadMore, onClose, onOpenFull, onNewOrder, onToggleBlock, canEdit, t, locale,
 }: {
     customer: PaginatedCustomer;
     data: ReturnType<typeof useCustomerDialogData>["data"];
@@ -380,6 +392,7 @@ function Body({
     onNewOrder: () => void;
     /** Omitted when the customer is blocked and the user may not unblock. */
     onToggleBlock?: () => void;
+    canEdit: boolean;
     t: Translate;
     locale: Locale;
 }) {
@@ -395,9 +408,7 @@ function Body({
     const completed = data?.completedCount ?? customer.completed_count;
     const spent = data?.totalSpent ?? customer.total_spent;
     const avgBasket = completed > 0 ? Math.round(spent / completed) : 0;
-    const successRate = data
-        ? (totalOrders > 0 ? Math.round((completed / totalOrders) * 100) : 0)
-        : effectiveSuccessRate(customer);
+    const successRate = effectiveSuccessRate(customer);
 
     const stats: { v: string; k: string }[] = [
         { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders") },
@@ -524,9 +535,11 @@ function Body({
                                         ))}
                                     </div>
                                 )}
-                                <div className="rounded-2xl border border-(--card-border) p-3">
-                                    <CustomerQuickActions phone={customer.phone} />
-                                </div>
+                                {canEdit && (
+                                    <div className="rounded-2xl border border-(--card-border) p-3">
+                                        <CustomerQuickActions phone={customer.phone} />
+                                    </div>
+                                )}
                             </section>
                         </div>
 

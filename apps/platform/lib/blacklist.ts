@@ -6,6 +6,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
+import type { BlacklistEntry } from "@/hooks/use-order-auxiliary";
 
 export interface BlacklistWrite {
     tenantId: string;
@@ -29,6 +30,18 @@ export async function addToBlacklist({ tenantId, phone, reason, notes, addedBy }
         { onConflict: "tenant_id,phone", ignoreDuplicates: true },
     );
     if (error) throw error;
+}
+
+/** The block on one number, for banners that need its reason. Null when not blocked. */
+export async function fetchBlacklistEntry(tenantId: string, phone: string): Promise<BlacklistEntry | null> {
+    const { data, error } = await supabase
+        .from("blacklist")
+        .select("phone, reason, notes, added_by")
+        .eq("tenant_id", tenantId)
+        .eq("phone", normalizePhoneForSearch(phone))
+        .maybeSingle();
+    if (error) throw error;
+    return data;
 }
 
 /**

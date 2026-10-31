@@ -7,6 +7,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { TRUST_TIER_CONFIG, type TrustTier } from "@/types/customer";
 import { cn } from "@/lib/utils";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
 import { ConfidenceIndicator } from "@/components/customers/shared/confidence-indicator";
 import { displayScore } from "@/lib/customer-reliability";
@@ -49,6 +51,8 @@ export function HeroIdentityBanner({
 }: HeroIdentityBannerProps) {
     const { t } = useLanguage();
     const store = useCustomerStore();
+    const { can } = usePermission();
+    const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const config = TRUST_TIER_CONFIG[tier];
 
     const initials = name
@@ -183,18 +187,20 @@ export function HeroIdentityBanner({
                         </motion.a>
 
 
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.96 }}
-                            onClick={() => {
-                                store.setCommunityRatingContext({ phone });
-                                store.setCommunityRatingModalOpen(true);
-                            }}
-                            className="flex items-center gap-1.5 min-h-11 px-4 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors text-sm font-bold"
-                        >
-                            <Star className="w-3.5 h-3.5" />
-                            {t("customers.actions.rate")}
-                        </motion.button>
+                        {canEdit && (
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.96 }}
+                                onClick={() => {
+                                    store.setCommunityRatingContext({ phone });
+                                    store.setCommunityRatingModalOpen(true);
+                                }}
+                                className="flex items-center gap-1.5 min-h-11 px-4 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors text-sm font-bold"
+                            >
+                                <Star className="w-3.5 h-3.5" />
+                                {t("customers.actions.rate")}
+                            </motion.button>
+                        )}
                     </div>
                 </div>
             </div>

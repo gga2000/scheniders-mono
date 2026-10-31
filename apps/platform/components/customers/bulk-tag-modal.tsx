@@ -12,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 interface BulkTagModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (tagIds: string[]) => Promise<void>;
+    onConfirm: (tagIds: string[]) => Promise<boolean>;
     selectedCount: number;
     isLoading?: boolean;
 }
@@ -56,8 +56,8 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
 
     const handleConfirm = async () => {
         if (selectedTagIds.size === 0) return;
-        await onConfirm(Array.from(selectedTagIds));
-        setSelectedTagIds(new Set()); // Reset on success closing will be handled parent
+        const applied = await onConfirm(Array.from(selectedTagIds));
+        if (applied) setSelectedTagIds(new Set());
     };
 
     return (

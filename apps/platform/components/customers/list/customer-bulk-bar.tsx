@@ -16,7 +16,7 @@ interface CustomerBulkBarProps {
   selectingAll: boolean;
   /** Omitted when the user may not export customer data. */
   onExport?: () => void;
-  onAddTag: () => void;
+  onAddTag?: () => void;
   onBroadcast: () => void;
   onClear: () => void;
 }
@@ -66,12 +66,14 @@ export function CustomerBulkBar({
             <div className="mx-1 hidden h-5 w-px bg-(--card-border) sm:block" />
 
             {/* Actions */}
-            <ActionButton
-              icon={Tag}
-              label={t("customers.bulk.addTag")}
-              onClick={onAddTag}
-              pastelClass="hover:bg-(--pastel-purple)/40 hover:text-foreground"
-            />
+            {onAddTag && (
+              <ActionButton
+                icon={Tag}
+                label={t("customers.bulk.addTag")}
+                onClick={onAddTag}
+                pastelClass="hover:bg-(--pastel-purple)/40 hover:text-foreground"
+              />
+            )}
             <ActionButton
               icon={Radio}
               label={t("customers.bulk.broadcast")}
