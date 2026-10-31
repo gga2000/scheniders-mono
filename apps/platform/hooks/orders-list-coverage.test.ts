@@ -24,7 +24,6 @@ import { shouldCancelBeforeWindowRefetch } from "./use-orders-query";
 vi.mock("@/lib/repositories/order-repository", () => ({ orderRepository: {} }));
 vi.mock("@/components/auth/auth-provider", () => ({ useAuth: () => ({ tenantId: null }) }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn() }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 const LIST = ["orders", "list"] as const;
 const SEARCH = ["orders", "list", "search", "x", 20] as const;

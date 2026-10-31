@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Copy, Check, Send, Unlink } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import {
     getTelegramLinkStatusAction,
     generateTelegramLinkCodeAction,

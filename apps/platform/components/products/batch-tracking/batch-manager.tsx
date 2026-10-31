@@ -19,7 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/components/auth/auth-provider";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 interface BatchManagerProps {
     productId: string;

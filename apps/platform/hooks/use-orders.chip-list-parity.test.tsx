@@ -166,7 +166,6 @@ vi.mock("@/lib/inventory-engine", () => ({
 }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn(), splitOrderAction: vi.fn(), unsplitOrderAction: vi.fn() }));
 vi.mock("@/hooks/use-toast", () => ({ toast: { error: vi.fn(), warning: vi.fn(), success: vi.fn(), info: vi.fn() } }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { useOrders } from "./use-orders";
 

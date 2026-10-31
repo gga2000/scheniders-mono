@@ -23,7 +23,7 @@ import { perfTrace } from "@/lib/perf-trace";
 import { attachRiskData, orderRepository } from "@/lib/repositories/order-repository";
 import { readPersistedBook, writePersistedBook } from "@/lib/orders/persisted-book";
 import { useAuth } from "@/components/auth/auth-provider";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { createOrderAction } from "@/app/actions/orders";
 import type { CreateOrderInput } from "@/types/order";
 import { shouldApplyRealtimeUpdate, toListRow, type RealtimeBatcher } from "@/lib/realtime-batcher";

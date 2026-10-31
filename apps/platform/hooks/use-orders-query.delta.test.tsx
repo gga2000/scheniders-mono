@@ -34,7 +34,6 @@ vi.mock("@/components/auth/auth-provider", () => ({
     useAuth: () => ({ session: { access_token: "t" }, clientReady: true, tenantId: H.tenantId }),
 }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn() }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import {
     DELTA_OVERLAP_MS,
