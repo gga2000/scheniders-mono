@@ -30,7 +30,7 @@ import { StockTodayDialog } from "./stock-today-dialog";
 
 function row(i: number, over: Partial<StockTodayRow> = {}): StockTodayRow {
     return {
-        product_id: `p${i}`, variant_id: null as unknown as string, name: `Product ${i}`, variant_name: null as unknown as string,
+        product_id: `p${i}`, variant_id: null as unknown as string, name: `Product ${i}`, short_name: null, variant_name: null as unknown as string,
         sku: `SKU-${i}`, image_url: null as unknown as string, is_filler: false, low_stock_threshold: 5,
         on_hand: 50, reserved: 0, ob_left: 0, ob_reserved: 0,
         today_new: 0, today_ob: 0, waiting_new: 0, waiting_ob: 0,

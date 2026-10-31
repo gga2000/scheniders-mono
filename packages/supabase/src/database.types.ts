@@ -8728,6 +8728,7 @@ export type Database = {
           is_filler: boolean
           low_stock_threshold: number
           name: string
+          short_name: string | null
           ob_left: number
           ob_reserved: number
           on_hand: number

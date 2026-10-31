@@ -61,8 +61,8 @@ function GlanceCard({ item }: { item: StockTodayItem }) {
                         : <Package className="w-4 h-4 text-[var(--foreground-muted)]" />}
                 </div>
                 <div className="min-w-0">
-                    <p className="truncate text-left text-sm font-semibold leading-tight" dir="auto" title={item.name}>
-                        {item.name}
+                    <p className="truncate text-left text-[15px] font-bold leading-tight" dir="auto" title={item.name}>
+                        {item.shortName}
                     </p>
                     {item.variantName && (
                         <p className="truncate text-left text-[11px] text-[var(--foreground-muted)]" dir="auto">{item.variantName}</p>

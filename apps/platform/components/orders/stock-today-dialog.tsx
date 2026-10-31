@@ -123,7 +123,7 @@ export function StockTodayDialog({ open, onOpenChange }: StockTodayDialogProps) 
         { key: "openBox", label: t("orders.stockToday.openBox", "Open box") },
     ];
 
-    const cols = lane === "both" ? "md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)]" : "md:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)]";
+    const cols = lane === "both" ? "md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.1fr)_minmax(0,1.1fr)]" : "md:grid-cols-[minmax(0,0.8fr)_minmax(0,2.2fr)]";
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -299,8 +299,8 @@ function StockRow({ item, lane, cols }: { item: StockTodayItem; lane: StockLaneF
                         : <Package className="w-4 h-4 text-[var(--foreground-muted)]" />}
                 </div>
                 <div className="min-w-0">
-                    <p className="truncate text-left text-sm font-semibold" dir="auto" title={item.name}>
-                        {item.name}{item.variantName ? ` · ${item.variantName}` : ""}
+                    <p className="line-clamp-2 text-left text-[15px] font-bold leading-snug" dir="auto" title={item.name}>
+                        {item.shortName}{item.variantName ? ` · ${item.variantName}` : ""}
                     </p>
                     {item.sku && <p className="truncate font-mono text-[11px] text-[var(--foreground-muted)]">{item.sku}</p>}
                     <span className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold", CHIP[item.state])}>

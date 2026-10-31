@@ -3,7 +3,7 @@ import { buildStockToday, filterStockToday, laneState, stockTodaySummary, type S
 
 function row(over: Partial<StockTodayRow>): StockTodayRow {
     return {
-        product_id: "p1", variant_id: null as unknown as string, name: "Envoy", variant_name: null as unknown as string,
+        product_id: "p1", variant_id: null as unknown as string, name: "Envoy", short_name: null, variant_name: null as unknown as string,
         sku: "envoy", image_url: null as unknown as string, is_filler: false, low_stock_threshold: 5,
         on_hand: 0, reserved: 0, ob_left: 0, ob_reserved: 0,
         today_new: 0, today_ob: 0, waiting_new: 0, waiting_ob: 0,
@@ -83,5 +83,13 @@ describe("filters and summary", () => {
 
     it("counts", () => {
         expect(stockTodaySummary(items)).toEqual({ all: 3, oversold: 1, attention: 2, todayUnits: 13 });
+    });
+});
+
+describe("buildStockToday short name", () => {
+    it("shows the short name and still finds the full name", () => {
+        const items = buildStockToday([row({ name: "عطر انفوي بلو الفاخر", short_name: " انفوي " }), row({ product_id: "p2", name: "ايبسكو", short_name: "" })]);
+        expect(items.map(i => i.shortName).sort()).toEqual(["انفوي", "ايبسكو"]);
+        expect(filterStockToday(items, "all", "both", "الفاخر")).toHaveLength(1);
     });
 });

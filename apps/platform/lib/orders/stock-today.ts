@@ -28,6 +28,8 @@ export interface StockTodayItem {
     key: string;
     productId: string;
     name: string;
+    /** What the team calls it ("انفوي"); the full catalogue name is only the fallback. */
+    shortName: string;
     variantName: string | null;
     sku: string | null;
     imageUrl: string | null;
@@ -120,6 +122,7 @@ export function buildStockToday(rows: readonly StockTodayRow[]): StockTodayItem[
             key: r.variant_id ?? r.product_id,
             productId: r.product_id,
             name: r.name,
+            shortName: r.short_name?.trim() || r.name,
             variantName: r.variant_name,
             sku: r.sku,
             imageUrl: r.image_url,
@@ -133,7 +136,7 @@ export function buildStockToday(rows: readonly StockTodayRow[]): StockTodayItem[
         RANK[a.state] - RANK[b.state]
         || (b.fresh.today + (b.openBox?.today ?? 0)) - (a.fresh.today + (a.openBox?.today ?? 0))
         || a.fresh.left - b.fresh.left
-        || a.name.localeCompare(b.name));
+        || a.shortName.localeCompare(b.shortName));
 }
 
 export type StockFilter = "all" | "oversold" | "attention" | "today";
@@ -149,6 +152,7 @@ export function filterStockToday(
     return items.filter(it => {
         if (lane === "openBox" && !it.openBox) return false;
         if (q && !(it.name.toLowerCase().includes(q)
+            || it.shortName.toLowerCase().includes(q)
             || (it.variantName ?? "").toLowerCase().includes(q)
             || (it.sku ?? "").toLowerCase().includes(q))) return false;
         switch (filter) {
