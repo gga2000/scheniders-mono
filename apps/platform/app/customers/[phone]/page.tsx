@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, Suspense } from "react";
+import { use, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -173,6 +173,12 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     // Opened from the list's drawer: step back (the list keeps its scroll and no
     // history entry is stacked). Opened from anywhere else: go to the list with
     // the filters it last had.
+    // A different profile (a linked customer, a Finances link) was not opened by
+    // the list, so the mark from an earlier one no longer applies.
+    const { profileFromList, setProfileFromList } = store;
+    useEffect(() => {
+        if (profileFromList && profileFromList !== phone) setProfileFromList(null);
+    }, [phone, profileFromList, setProfileFromList]);
     const goBackToList = () => {
         if (store.profileFromList === phone) {
             store.setProfileFromList(null);

@@ -16,7 +16,7 @@ interface DossierNotesCardProps {
 }
 
 export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { user } = useAuth();
     const { role } = usePermission();
     const deleteNote = useDeleteCustomerNote();
@@ -64,7 +64,12 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
                             className="group/note bg-muted/30 p-5 rounded-2xl relative"
                         >
                             <div className="flex items-start justify-between gap-3 mb-2">
-                                <p className="text-xs text-muted-foreground tabular-nums">{entry.created_at.slice(0, 10)}</p>
+                                <p className="text-xs text-muted-foreground tabular-nums">{new Date(entry.created_at).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                    timeZone: "Asia/Baghdad",
+                                })}</p>
                                 {canDelete(entry) && <button
                                     onClick={() => onDelete(entry.id)}
                                     disabled={deleteNote.isPending}
@@ -76,7 +81,7 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
                             </div>
 
                             {/* Content */}
-                            <p className="text-sm text-foreground font-medium leading-relaxed line-clamp-3">
+                            <p className="text-sm text-foreground font-medium leading-relaxed whitespace-pre-wrap break-words">
                                 {entry.note}
                             </p>
                         </motion.div>
