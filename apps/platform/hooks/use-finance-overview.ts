@@ -5,6 +5,7 @@ import type { Order, Product } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
 import type { Granularity } from "./use-finance-period";
 import { isRefundRow, reportDate } from "@/lib/refunds/refund-reporting";
+import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 
 export interface DateInterval {
     start: Date;
@@ -75,20 +76,15 @@ export interface FinanceOverviewResult {
     top_loser_channel: { name: string; delta: number; revenue: number } | null;
 }
 
-function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number } {
+export function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number } {
     const dd = new Date(d);
     dd.setHours(0, 0, 0, 0);
-    if (granularity === "day") {
-        const key = dd.toISOString().split("T")[0];
-        return { key, ts: dd.getTime() };
-    }
-    if (granularity === "week") {
-        const day = dd.getDay();
-        const diff = (day + 6) % 7;
-        const monday = new Date(dd);
-        monday.setDate(dd.getDate() - diff);
-        const key = monday.toISOString().split("T")[0];
-        return { key, ts: monday.getTime() };
+    if (granularity === "day" || granularity === "week") {
+        const dayKey = baghdadDayKey(d);
+        if (granularity === "day") return { key: dayKey, ts: baghdadDayStart(dayKey) };
+        const weekday = new Date(`${dayKey}T00:00:00.000Z`).getUTCDay();
+        const mondayKey = addDaysToDayKey(dayKey, -((weekday + 6) % 7));
+        return { key: mondayKey, ts: baghdadDayStart(mondayKey) };
     }
     if (granularity === "quarter") {
         const q = Math.floor(dd.getMonth() / 3);
@@ -103,6 +99,12 @@ function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number
     const m = String(dd.getMonth() + 1).padStart(2, "0");
     const firstOfMonth = new Date(y, dd.getMonth(), 1);
     return { key: `${y}-${m}`, ts: firstOfMonth.getTime() };
+}
+
+/** An expense is dated by calendar day; file it at the start of that Baghdad day, not UTC midnight. */
+function expenseInstant(e: Expense): Date {
+    const day = toBaghdadDayKey(e.expense_date);
+    return day ? new Date(baghdadDayStart(day)) : new Date(NaN);
 }
 
 function withinInterval(date: Date, i: DateInterval): boolean {
@@ -161,7 +163,7 @@ export function useFinanceOverview(
         const currOrders = orders.filter((o) => inInterval(o, current));
         const prevOrders = previous ? orders.filter((o) => inInterval(o, previous)) : [];
         const currExpenses = expenses.filter((e) => {
-            const d = toDate(e.expense_date);
+            const d = expenseInstant(e);
             return withinInterval(d, current);
         });
 
@@ -250,7 +252,7 @@ export function useFinanceOverview(
                 b.discount += o.discount_amount || 0;
             }
             for (const e of eList) {
-                const d = toDate(e.expense_date);
+                const d = expenseInstant(e);
                 const { key, ts } = bucketKey(d, granularity);
                 if (!map.has(key)) {
                     map.set(key, {
