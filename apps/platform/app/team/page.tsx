@@ -4,12 +4,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import {
-    Trophy,
     Users,
     RefreshCw,
-    LayoutGrid,
     BarChart3,
-    GitCompare,
     Target,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -19,8 +16,6 @@ import type { TeamTimeRange } from "@/lib/team-time-window";
 import { TeamAnalyticsTab } from "@/components/team/team-analytics-tab";
 import { EmployeeComparison } from "@/components/team/employee-comparison";
 import { GoalTracking } from "@/components/team/goal-tracking";
-import { PastelCard } from "@/components/team/shared-pastel-components";
-import { TeamMemberCard } from "@/components/team/team-member-card";
 import { toast } from "@/hooks/use-toast";
 import { useTeamRealtime, type RealtimeActivity } from "@/components/team/hooks/use-team-realtime";
 import { useInfiniteActivities } from "@/components/team/hooks/use-infinite-activities";
@@ -29,12 +24,12 @@ import { HeroStatsBanner } from "@/components/team/hero-stats-banner";
 import { EmployeeDrawer } from "@/components/team/employee-drawer";
 import { LiveIndicator } from "@/components/team/live-indicator";
 import { LiveActivityTicker, useActivityTicker } from "@/components/team/live-activity-ticker";
-import { TopPerformerPodium } from "@/components/team/top-performer-podium";
+import { TeamRosterTable } from "@/components/team/team-roster-table";
 import { TeamAccessDenied } from "@/components/team/team-access-denied";
 import { TeamActivityFeed } from "@/components/team/team-activity-feed";
 import { Skeleton } from "@scheniders/ui/skeletons";
 
-type ViewMode = "overview" | "analytics" | "comparison" | "goals";
+type ViewMode = "team" | "insights" | "goals";
 
 function isUserOnline(lastLogin: string | null): boolean {
     if (!lastLogin) return false;
@@ -47,9 +42,8 @@ export default function TeamPage() {
     const { t } = useLanguage();
 
     const [timeRange, setTimeRange] = useState<TeamTimeRange>("week");
-    const [viewMode, setViewMode] = useState<ViewMode>("overview");
+    const [viewMode, setViewMode] = useState<ViewMode>("team");
     const [refreshing, setRefreshing] = useState(false);
-    const [teamViewMode, setTeamViewMode] = useState<"grid" | "list">("grid");
     const [selectedEmployeeIndex, setSelectedEmployeeIndex] = useState<number | null>(null);
     const [actionFilter, setActionFilter] = useState("all");
     const ticker = useActivityTicker();
@@ -58,7 +52,7 @@ export default function TeamPage() {
         toast({ title: t("team.page.errorTitle"), description: t("team.page.errorDesc"), variant: "error" });
     }, [t]);
 
-    const { leaderboard, previousTotals, loading, refetch: fetchLeaderboard } = useTeamLeaderboard({
+    const { leaderboard, previousTotals, loading, updatedAt: leaderboardUpdatedAt, refetch: fetchLeaderboard } = useTeamLeaderboard({
         timeRange,
         tenantId,
         enabled: isAdmin && !authLoading,
@@ -184,9 +178,8 @@ export default function TeamPage() {
     if (!authLoading && !isAdmin) return <TeamAccessDenied />;
 
     const tabs: { id: ViewMode; label: string; icon: React.ElementType }[] = [
-        { id: "overview", label: t("team.tabs.overview"), icon: LayoutGrid },
-        { id: "analytics", label: t("team.tabs.analytics"), icon: BarChart3 },
-        { id: "comparison", label: t("team.tabs.comparison"), icon: GitCompare },
+        { id: "team", label: t("team.tabs.team"), icon: Users },
+        { id: "insights", label: t("team.tabs.insights"), icon: BarChart3 },
         { id: "goals", label: t("team.tabs.goals"), icon: Target },
     ];
 
@@ -303,9 +296,9 @@ export default function TeamPage() {
                 </div>
             ) : (
             <AnimatePresence mode="wait">
-                {viewMode === "overview" && (
+                {viewMode === "team" && (
                     <motion.div
-                        key="overview"
+                        key="team"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -324,79 +317,18 @@ export default function TeamPage() {
                             isLoading={loading}
                         />
 
-                        {/* Top Performers */}
-                        {leaderboard.some(e => e.total_actions > 0) && (
-                            <PastelCard className="p-6">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-10 h-10 rounded-xl bg-[#FBE38E] dark:bg-amber-500/20 flex items-center justify-center">
-                                        <Trophy className="w-5 h-5 text-amber-700 dark:text-amber-400" />
-                                    </div>
-                                    <h2 className="text-xl font-bold text-[#1E1E1E] dark:text-white">
-                                        {t(`team.leaderboard.${timeRange}`)}
-                                    </h2>
-                                </div>
-                                <TopPerformerPodium performers={leaderboard.filter(e => e.total_actions > 0)} />
-                            </PastelCard>
-                        )}
-
-                        {/* Main Grid */}
+                        {/* Roster + live feed */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Employee List */}
-                            <div className="lg:col-span-2 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="text-lg font-bold text-[#1E1E1E] dark:text-white flex items-center gap-2">
-                                        <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                                        {t("team.performance.title")}
-                                    </h2>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex bg-white/50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 rounded-xl p-1 shadow-sm backdrop-blur-sm">
-                                            <button
-                                                onClick={() => setTeamViewMode('grid')}
-                                                aria-label={t("team.performance.grid")}
-                                                className={cn(
-                                                    "p-1.5 rounded-lg transition-all",
-                                                    teamViewMode === 'grid'
-                                                        ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-md"
-                                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
-                                                )}
-                                            >
-                                                <LayoutGrid className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => setTeamViewMode('list')}
-                                                aria-label={t("team.performance.list")}
-                                                className={cn(
-                                                    "p-1.5 rounded-lg transition-all",
-                                                    teamViewMode === 'list'
-                                                        ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-md"
-                                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-white"
-                                                )}
-                                            >
-                                                <Users className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                        <span className="text-sm text-[#6B6B6B] dark:text-gray-400">
-                                            {leaderboard.length} {t("team.performance.memberCount")}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className={cn(
-                                    "grid gap-4",
-                                    teamViewMode === 'grid' ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
-                                )}>
-                                    {leaderboard.map((employee, index) => (
-                                        <TeamMemberCard
-                                            key={employee.user_id}
-                                            employee={employee}
-                                            viewMode={teamViewMode}
-                                            rank={index + 1}
-                                            onClick={() => setSelectedEmployeeIndex(index)}
-                                            delay={0.1 + index * 0.05}
-                                            isActive={activeUserIds.has(employee.user_id)}
-                                        />
-                                    ))}
-                                </div>
+                            <div className="lg:col-span-2">
+                                <TeamRosterTable
+                                    members={leaderboard}
+                                    activeUserIds={activeUserIds}
+                                    now={leaderboardUpdatedAt}
+                                    onSelect={(userId) => {
+                                        const index = employeesAdapter.findIndex((e) => e.userId === userId);
+                                        if (index >= 0) setSelectedEmployeeIndex(index);
+                                    }}
+                                />
                             </div>
 
                             {/* Activity Feed (Step 4 + Step 8) */}
@@ -412,30 +344,19 @@ export default function TeamPage() {
                     </motion.div>
                 )}
 
-                {viewMode === "analytics" && (
+                {viewMode === "insights" && (
                     <motion.div
-                        key="analytics"
+                        key="insights"
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
+                        className="space-y-10"
                     >
                         <TeamAnalyticsTab activities={infiniteActivities.activities} employees={employeesAdapter} />
-                    </motion.div>
-                )}
-
-                {viewMode === "comparison" && (
-                    <motion.div
-                        key="comparison"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                    >
                         {employeesAdapter.length >= 2 ? (
                             <EmployeeComparison employees={employeesAdapter} />
                         ) : (
-                            <div className="text-center py-20">
-                                <p className="text-[#6B6B6B] dark:text-gray-400">{t("team.comparison.notEnough")}</p>
-                            </div>
+                            <p className="text-center py-10 text-[#6B6B6B] dark:text-gray-400">{t("team.comparison.notEnough")}</p>
                         )}
                     </motion.div>
                 )}
