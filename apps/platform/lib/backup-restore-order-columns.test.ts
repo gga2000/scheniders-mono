@@ -8,7 +8,7 @@ import { queriesOn, resetRecording, respond } from "@/lib/__fixtures__/recording
  * INSERT ... ON CONFLICT (id) DO UPDATE SET col = EXCLUDED.col, and Postgres
  * needs SELECT on every column whose EXCLUDED value it reads. Once
  * `authenticated` loses SELECT on the margin columns, sending those keys back
- * fails the whole restore with 42501, admins included. Both restore paths must
+ * fails the whole restore with 42501, admins included. Every restore path must
  * send only ORDER_READ_COLUMNS keys.
  */
 
@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase", async () => {
 // restores hand their order rows to this Server Action.
 vi.mock("@/app/actions/orders", () => ({ restoreOrdersAction: vi.fn() }));
 
-import { restoreFromSnapshot, type DatabaseSnapshot } from "./backup-utils";
+import { restoreOrderRows } from "./backup-utils";
 import { executeVaultRestore, type VaultData } from "./vault-utils";
 import { ORDER_MARGIN_COLUMNS, RESTORE_ORDERS_BATCH_SIZE } from "./repositories/order-columns";
 import { restoreOrdersAction } from "@/app/actions/orders";
@@ -66,19 +66,9 @@ beforeEach(() => {
         : { data: null, error: null }));
 });
 
-describe("restoreFromSnapshot", () => {
+describe("restoreOrderRows", () => {
     it("sends orders to the server without the margin columns", async () => {
-        const snapshot: DatabaseSnapshot = {
-            version: 1,
-            timestamp: "2026-10-01T00:00:00.000Z",
-            source: "admin_dashboard",
-            data: {
-                orders: [legacyOrderRow("o1"), legacyOrderRow("o2")],
-                customers: { metadata: [], notes: [], tags: [], assignments: [] },
-            },
-        };
-
-        await expect(restoreFromSnapshot(snapshot)).resolves.toEqual({ success: true });
+        await restoreOrderRows([legacyOrderRow("o1"), legacyOrderRow("o2")]);
 
         const rows = restoredOrderRows();
         expect(rows.map((r) => r.id)).toEqual(["o1", "o2"]);
@@ -92,36 +82,18 @@ describe("restoreFromSnapshot", () => {
 
     it("sends a large book in Server Action sized batches", async () => {
         const total = RESTORE_ORDERS_BATCH_SIZE * 2 + 1;
-        const snapshot: DatabaseSnapshot = {
-            version: 1,
-            timestamp: "2026-10-01T00:00:00.000Z",
-            source: "admin_dashboard",
-            data: {
-                orders: Array.from({ length: total }, (_, i) => legacyOrderRow(`o${i}`)),
-                customers: { metadata: [], notes: [], tags: [], assignments: [] },
-            },
-        };
 
-        await expect(restoreFromSnapshot(snapshot)).resolves.toEqual({ success: true });
+        await restoreOrderRows(Array.from({ length: total }, (_, i) => legacyOrderRow(`o${i}`)));
 
         const sizes = vi.mocked(restoreOrdersAction).mock.calls.map(([rows]) => (rows as unknown[]).length);
         expect(sizes).toEqual([RESTORE_ORDERS_BATCH_SIZE, RESTORE_ORDERS_BATCH_SIZE, 1]);
         expect(restoredOrderRows()).toHaveLength(total);
     });
 
-    it("reports the server's refusal", async () => {
+    it("throws the server's refusal", async () => {
         vi.mocked(restoreOrdersAction).mockResolvedValue({ success: false, error: "1 order(s) in this backup belong to another store" });
-        const snapshot: DatabaseSnapshot = {
-            version: 1,
-            timestamp: "2026-10-01T00:00:00.000Z",
-            source: "admin_dashboard",
-            data: { orders: [legacyOrderRow("o1")], customers: { metadata: [], notes: [], tags: [], assignments: [] } },
-        };
 
-        await expect(restoreFromSnapshot(snapshot)).resolves.toEqual({
-            success: false,
-            error: "1 order(s) in this backup belong to another store",
-        });
+        await expect(restoreOrderRows([legacyOrderRow("o1")])).rejects.toThrow("1 order(s) in this backup belong to another store");
     });
 });
 
