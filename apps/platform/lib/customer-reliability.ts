@@ -103,9 +103,18 @@ export function codRiskKey(risk: RiskLevel): string {
 
 // ───────────────────────── shared helpers ─────────────────────────
 
-/** Whether to show a numeric engine score — only proven (non-`new`) customers have one. */
+/**
+ * Whether to show a numeric engine score: only proven customers have one.
+ * Unrated ("new") customers have no proof yet, and a blocked customer's score
+ * ("100/100" next to Blocked) would mislead.
+ */
 export function hasRatedScore(tier: TrustTier | string): boolean {
-    return tier !== 'new';
+    return tier !== 'new' && tier !== 'blocked';
+}
+
+/** Average basket: what a delivered order is worth. Undelivered orders earned nothing. */
+export function averageBasket(totalSpent: number, deliveredCount: number): number | null {
+    return deliveredCount > 0 ? Math.round(totalSpent / deliveredCount) : null;
 }
 
 /** Clamp the raw engine score to a sane 0–100 for display. */
@@ -213,10 +222,13 @@ export function statusFlags(c: {
 }
 
 /** Band the average score (0–100) into a one-word summary for the KPI strip. */
-export function reliabilityBand(avgScore: number): string {
+export type ReliabilityBand = 'excellent' | 'good' | 'mixed' | 'attention';
+
+/** Band for an average score; the i18n key is `customers.kpi.band.<band>`. */
+export function reliabilityBand(avgScore: number): ReliabilityBand {
     const s = displayScore(avgScore);
-    if (s >= 85) return 'Excellent overall';
-    if (s >= 70) return 'Good overall';
-    if (s >= 50) return 'Mixed overall';
-    return 'Needs attention';
+    if (s >= 85) return 'excellent';
+    if (s >= 70) return 'good';
+    if (s >= 50) return 'mixed';
+    return 'attention';
 }

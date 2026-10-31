@@ -20,7 +20,7 @@ import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
-    hasRatedScore, displayScore, effectiveSuccessRate, codRiskKey, VALUE_META,
+    hasRatedScore, averageBasket, displayScore, effectiveSuccessRate, codRiskKey, VALUE_META,
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
@@ -424,7 +424,7 @@ function Body({
     const totalOrders = data?.totalOrders ?? customer.total_orders;
     const completed = data?.completedCount ?? customer.completed_count;
     const spent = data?.totalSpent ?? customer.total_spent;
-    const avgBasket = completed > 0 ? Math.round(spent / completed) : 0;
+    const avgBasket = averageBasket(spent, completed) ?? 0;
     const successRate = effectiveSuccessRate(customer);
 
     const stats: { v: string; k: string }[] = [

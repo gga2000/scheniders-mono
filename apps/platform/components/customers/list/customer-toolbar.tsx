@@ -47,6 +47,7 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, t
                             value={search}
                             onChange={(e) => onSearch(e.target.value)}
                             placeholder={t("customers.search")}
+                            aria-label={t("customers.search")}
                             className="w-full h-11 pl-10 pr-11 rounded-xl bg-background border border-(--card-border) text-sm outline-none focus:ring-2 focus:ring-foreground/10 transition-all placeholder:text-muted-foreground"
                         />
                         {search && (

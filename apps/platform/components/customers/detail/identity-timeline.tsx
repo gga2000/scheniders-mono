@@ -22,18 +22,12 @@ function getIcon(type: IdentityEvent["type"]) {
     }
 }
 
-function getLabel(event: IdentityEvent): string {
-    switch (event.type) {
-        case "name":
-            return `First order as ${event.value}`;
-        case "city":
-            return `Shipped to ${event.value}`;
-        case "address":
-            return `New address: ${event.value}`;
-        case "phone":
-            return `Alternate phone ${event.value}`;
-    }
-}
+const LABEL_KEY: Record<IdentityEvent["type"], string> = {
+    name: "customers.identity.name",
+    city: "customers.identity.city",
+    address: "customers.identity.address",
+    phone: "customers.identity.phone",
+};
 
 function getIconColor(type: IdentityEvent["type"]): string {
     switch (type) {
@@ -49,7 +43,7 @@ function getIconColor(type: IdentityEvent["type"]): string {
 }
 
 export function IdentityTimeline({ phone }: IdentityTimelineProps) {
-    const { language } = useLanguage();
+    const { t, language } = useLanguage();
     const { data, isLoading } = useIdentityTimeline(phone);
 
     return (
@@ -63,7 +57,7 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
             <div className="flex items-center gap-2.5 mb-6">
                 <Clock className="w-5 h-5 text-amber-500 shrink-0" />
                 <h3 className="font-headline font-extrabold text-lg leading-none">
-                    Identity Timeline
+                    {t("customers.identity.title")}
                 </h3>
             </div>
 
@@ -82,7 +76,7 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                 </div>
             ) : !data || data.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-6 text-center">
-                    No identity changes recorded
+                    {t("customers.identity.empty")}
                 </p>
             ) : (
                 <div className="relative">
@@ -105,7 +99,7 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                                     </div>
                                     <div className="flex-1 min-w-0 pt-2">
                                         <p className="text-sm font-medium text-foreground truncate">
-                                            {getLabel(event)}
+                                            <bdi>{t(LABEL_KEY[event.type], { value: event.value })}</bdi>
                                         </p>
                                         <p className="text-[11px] text-muted-foreground mt-0.5">
                                             {new Date(event.created_at).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {

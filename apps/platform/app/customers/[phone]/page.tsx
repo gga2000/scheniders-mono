@@ -17,7 +17,7 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { storedPhoneVariants } from "@/lib/order-server-search";
 import type { Database } from "@scheniders/supabase/database.types";
 import { formatIQD, getStatusLabel } from "@/lib/utils";
-import { formatPhoneDisplay } from "@/lib/customer-format";
+import { formatBaghdadDate, formatPhoneDisplay } from "@/lib/customer-format";
 import { toast } from "@/hooks/use-toast";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
@@ -70,7 +70,7 @@ function useCustomerProfile(phone: string) {
             const variants = storedPhoneVariants(normalized);
 
             const [trustRes, aggRes, notesRes, tagsRes, blacklistRes, reliabilityRes, ordersRes, ratingsRes] = await Promise.all([
-                supabase.from("customer_trust").select("trust_score, trust_tier")
+                supabase.from("customer_trust").select("trust_score, trust_tier, delivery_success_rate")
                     .eq("tenant_id", tenantId).eq("phone", normalized).maybeSingle(),
                 // mv_customer_metrics is keyed by the normalized phone.
                 supabase.from("customer_aggregates").select("*")
@@ -122,7 +122,11 @@ function useCustomerProfile(phone: string) {
                 // No trust row yet means not scored, not an average 50.
                 trustScore: trust?.trust_score ?? null,
                 trustTier: (trust?.trust_tier ?? "new") as TrustTier,
-                deliverySuccessRate: totalOrders > 0 ? (completed / totalOrders) * 100 : 0,
+                // The trust engine's rate counts finished orders only (in-flight
+                // ones have not failed); without a trust row, fall back to all orders.
+                deliverySuccessRate: trust
+                    ? Number(trust.delivery_success_rate ?? 0)
+                    : totalOrders > 0 ? (completed / totalOrders) * 100 : 0,
                 totalCompleted: completed,
                 isBlacklisted: (blacklistRes.data ?? []).length > 0,
                 notes: notesRes.data ?? [],
@@ -162,7 +166,7 @@ function OrderStatusBadge({ status, isReturn }: { status: string; isReturn: bool
 const HISTORY_ROWS = 20;
 
 function CustomerProfileContent({ phone }: { phone: string }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { can } = usePermission();
     const canExport = can(PERMISSIONS.EXPORT_CUSTOMERS);
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
@@ -312,6 +316,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <div className="col-span-12 lg:col-span-7">
                     <SummaryStatsCards
                         totalOrders={profile.totalOrders}
+                        deliveredCount={profile.totalCompleted}
                         totalSpent={profile.totalSpent}
                         orders={profile.orders}
                     />
@@ -366,7 +371,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                                         #{order.order_id}
                                                     </td>
                                                     <td className="py-6 px-4 text-muted-foreground text-xs tabular-nums">
-                                                        {order.created_at.slice(0, 10)}
+                                                        {formatBaghdadDate(order.created_at, language)}
                                                     </td>
                                                     <td className="py-6 px-4 text-muted-foreground text-xs">
                                                         {lineCount === null ? "—" : t("customers.profile.itemsCount", { count: lineCount })}
