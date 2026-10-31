@@ -43,7 +43,7 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
                                 updateField("slug", slug);
                             }}
                             placeholder="product-url-handle"
-                            className="flex-1 px-3 py-3 bg-transparent text-foreground placeholder:text-muted/60 focus:outline-none"
+                            className="flex-1 px-3 py-3 bg-transparent text-foreground placeholder:text-[var(--foreground-muted)]/60 focus:outline-none"
                         />
                     </div>
                     <button
@@ -71,7 +71,7 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
                     }}
                     placeholder={t("products.ed.websitePricePh").replace("{price}", formData.price.toLocaleString())}
                     min={0}
-                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 />
             </div>
         </div>

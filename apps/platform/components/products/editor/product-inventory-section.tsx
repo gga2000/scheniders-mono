@@ -34,7 +34,7 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                         onChange={(e) => updateField("stock_quantity", parseInt(e.target.value, 10) || 0)}
                         placeholder="0"
                         min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
 
@@ -48,7 +48,7 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                         onChange={(e) => updateField("low_stock_threshold", parseInt(e.target.value, 10) || 5)}
                         placeholder="5"
                         min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
             </div>

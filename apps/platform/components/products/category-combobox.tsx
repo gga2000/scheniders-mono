@@ -373,7 +373,7 @@ export function CategoryCombobox({
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={searchPlaceholder}
-                    className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder:text-muted outline-none"
+                    className="flex-1 bg-transparent text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] outline-none"
                     autoComplete="off"
                     autoCorrect="off"
                     spellCheck={false}

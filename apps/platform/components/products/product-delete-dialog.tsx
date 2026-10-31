@@ -117,14 +117,20 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
     return (
         <Dialog open={products.length > 0} onOpenChange={onOpenChange}>
             <DialogContent className="md:max-w-md">
-                <DialogHeader>
+                <DialogHeader className="pr-8">
                     <DialogTitle className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-rose-500" />
                         {many ? t("products.delete.titleMany", { count: products.length }) : t("products.delete.title")}
                     </DialogTitle>
                     <DialogDescription>
                         {many ? (
-                            t("products.delete.bodyMany")
+                            <>
+                                {t("products.delete.bodyMany")}
+                                <span dir="auto" className="mt-1.5 block font-medium text-foreground">
+                                    {products.slice(0, 5).map((p) => p.name).join(", ")}
+                                    {products.length > 5 && ` ${t("products.bulk.andMore").replace("{count}", String(products.length - 5))}`}
+                                </span>
+                            </>
                         ) : (
                             <>
                                 <span dir="auto" className="font-semibold text-foreground">{products[0]?.name}</span>

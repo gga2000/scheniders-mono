@@ -210,14 +210,14 @@ function NoteCardRow({
                         value={card.title}
                         onChange={(e) => onUpdate({ title: e.target.value })}
                         placeholder="Card title"
-                        className="w-full px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                        className="w-full px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                     />
                     <textarea
                         value={card.body}
                         onChange={(e) => onUpdate({ body: e.target.value })}
                         placeholder="Card text"
                         rows={2}
-                        className="w-full px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] resize-none"
+                        className="w-full px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] resize-none"
                     />
                     {uploadError && (
                         <p className="text-xs text-rose-600 flex items-center gap-1.5">

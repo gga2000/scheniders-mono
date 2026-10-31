@@ -140,7 +140,7 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
                             value={formData.display_order}
                             onChange={(e) => updateField("display_order", parseInt(e.target.value) || 0)}
                             placeholder="0"
-                            className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                            className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                         />
                     </div>
 

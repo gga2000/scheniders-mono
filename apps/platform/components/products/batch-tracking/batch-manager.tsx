@@ -302,7 +302,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                 setForm((prev) => ({ ...prev, batch_number: e.target.value }))
                                             }
                                             placeholder="BATCH-202604-001"
-                                            className="w-full pl-9 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
+                                            className="w-full pl-9 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
                                         />
                                     </div>
                                 </div>
@@ -321,7 +321,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                         }
                                         placeholder="0"
                                         required
-                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
+                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
                                     />
                                 </div>
 
@@ -338,7 +338,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                             onChange={(e) =>
                                                 setForm((prev) => ({ ...prev, expiry_date: e.target.value }))
                                             }
-                                            className="w-full pl-9 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
+                                            className="w-full pl-9 pr-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
                                         />
                                     </div>
                                 </div>
@@ -358,7 +358,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                             setForm((prev) => ({ ...prev, cost_per_unit: e.target.value }))
                                         }
                                         placeholder="0.00"
-                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
+                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
                                     />
                                 </div>
                                 )}
@@ -374,7 +374,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                     onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
                                     placeholder={t("products.batch.notesPlaceholder")}
                                     rows={2}
-                                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm resize-none"
+                                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm resize-none"
                                 />
                             </div>
 

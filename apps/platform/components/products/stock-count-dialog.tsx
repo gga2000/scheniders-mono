@@ -105,7 +105,7 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={t("products.count.search")}
-                        className="w-full h-11 ps-9 pe-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20"
+                        className="w-full h-11 ps-9 pe-3 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20"
                     />
                 </label>
 
@@ -143,7 +143,7 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
                                             onChange={(e) => setCounts((prev) => ({ ...prev, [key]: e.target.value }))}
                                             placeholder={pileLabel}
                                             className={cn(
-                                                "w-20 h-11 px-2 rounded-xl bg-[var(--background)] border text-sm text-center tabular-nums text-foreground placeholder:text-muted placeholder:text-xs focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20",
+                                                "w-20 h-11 px-2 rounded-xl bg-[var(--background)] border text-sm text-center tabular-nums text-foreground placeholder:text-[var(--foreground-muted)] placeholder:text-xs focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20",
                                                 bad ? "border-rose-500" : "border-[var(--card-border)]",
                                             )}
                                         />

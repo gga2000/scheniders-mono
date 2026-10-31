@@ -180,7 +180,7 @@ export function LandedCostSection({
                                                     min={0}
                                                     disabled={disabled}
                                                     className={cn(
-                                                        "w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all",
+                                                        "w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all",
                                                         disabled && "opacity-50 cursor-not-allowed"
                                                     )}
                                                 />

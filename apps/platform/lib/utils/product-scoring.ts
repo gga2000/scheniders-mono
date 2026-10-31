@@ -161,7 +161,19 @@ export function calculateProductScore(
     const rate = input.daily_sales_rate;
     const now = new Date();
     const lastSold = input.last_sold_at ? new Date(input.last_sold_at) : null;
-    const daysSinceLastSale = lastSold ? daysBetween(now, lastSold) : Infinity;
+    // Without a last-sale date, a product that has sold is not "never sold":
+    // its age since the last sale is unknown (NaN), so it is never called dead.
+    // Only a product with no sales at all, listed for 60+ days, can be.
+    const hasSold = (input.times_sold ?? 0) > 0 || rate > 0;
+    const listedDays = daysBetween(now, new Date(input.created_at));
+    const daysSinceLastSale = lastSold
+        ? daysBetween(now, lastSold)
+        : hasSold
+            ? Number.NaN
+            : Infinity;
+    const isDeadStock = lastSold
+        ? daysSinceLastSale >= 60 && availableStock > 0
+        : !hasSold && listedDays >= 60 && availableStock > 0;
     const daysOfSupply = rate > 0 ? availableStock / rate : Infinity;
 
     const components: ScoreComponents = {
@@ -185,10 +197,10 @@ export function calculateProductScore(
         numericScore,
         components,
         daysOfSupply: Number.isFinite(daysOfSupply) ? Math.round(daysOfSupply) : Infinity,
-        daysSinceLastSale: Number.isFinite(daysSinceLastSale) ? Math.round(daysSinceLastSale) : Infinity,
+        daysSinceLastSale: Number.isFinite(daysSinceLastSale) ? Math.round(daysSinceLastSale) : daysSinceLastSale,
         flags: {
-            isDeadStock: daysSinceLastSale >= 60 && availableStock > 0,
-            isSlowMover: rate < 1 / 7 && rate > 0 && daysSinceLastSale < 60,
+            isDeadStock,
+            isSlowMover: rate < 1 / 7 && rate > 0 && !(daysSinceLastSale >= 60),
             isOverstocked: daysOfSupply > 90,
             isUnderstocked: daysOfSupply < 7 && daysOfSupply > 0,
             isNegativeMargin: marginPct < 0,

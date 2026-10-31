@@ -116,7 +116,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder={t("products.ed.bump.search")}
                                 autoFocus
-                                className="w-full pl-10 pr-4 py-3 bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none"
+                                className="w-full pl-10 pr-4 py-3 bg-[var(--background)] text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none"
                             />
                         </div>
                         <div className="max-h-48 overflow-y-auto border-t border-[var(--card-border)]">
@@ -254,14 +254,14 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                     value={bump.headline}
                                     onChange={(e) => updateBump(index, { headline: e.target.value })}
                                     placeholder={t("products.ed.bump.headline")}
-                                    className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                                    className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                                 />
                                 <textarea
                                     value={bump.description}
                                     onChange={(e) => updateBump(index, { description: e.target.value })}
                                     placeholder={t("products.ed.bump.description")}
                                     rows={2}
-                                    className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] resize-none"
+                                    className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] resize-none"
                                 />
                             </div>
 

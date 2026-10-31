@@ -133,7 +133,7 @@ export function RelatedProductsSection({
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder={t("products.ed.related.search")}
                             autoFocus
-                            className="w-full pl-10 pr-4 py-3 bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none"
+                            className="w-full pl-10 pr-4 py-3 bg-[var(--background)] text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none"
                         />
                     </div>
                     <div className="max-h-48 overflow-y-auto border-t border-[var(--card-border)]">

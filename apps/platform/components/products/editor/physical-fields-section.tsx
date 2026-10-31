@@ -23,7 +23,7 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                         onChange={(e) => updateField("weight", e.target.value === "" ? null : parseFloat(e.target.value))}
                         placeholder="0"
                         min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
                 <div>
@@ -36,7 +36,7 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                         onChange={(e) => updateField("dimensions_length", e.target.value === "" ? null : parseFloat(e.target.value))}
                         placeholder="0"
                         min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
                 <div>
@@ -49,7 +49,7 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                         onChange={(e) => updateField("dimensions_width", e.target.value === "" ? null : parseFloat(e.target.value))}
                         placeholder="0"
                         min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
                 <div>
@@ -62,7 +62,7 @@ export function PhysicalFieldsSection({ formData, updateField }: PhysicalFieldsS
                         onChange={(e) => updateField("dimensions_height", e.target.value === "" ? null : parseFloat(e.target.value))}
                         placeholder="0"
                         min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
             </div>

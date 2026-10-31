@@ -325,7 +325,7 @@ function SortableImageItem({
                         e.currentTarget.blur();
                     }
                 }}
-                className="w-full px-2 py-1.5 text-xs bg-[var(--background)] border border-transparent hover:border-[var(--card-border)] focus:border-[var(--pastel-yellow)] rounded text-foreground placeholder:text-muted focus:outline-none transition-all"
+                className="w-full px-2 py-1.5 text-xs bg-[var(--background)] border border-transparent hover:border-[var(--card-border)] focus:border-[var(--pastel-yellow)] rounded text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none transition-all"
             />
         </div>
     );

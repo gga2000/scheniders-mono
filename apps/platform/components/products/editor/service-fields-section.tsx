@@ -36,7 +36,7 @@ export function ServiceFieldsSection({ formData, updateField }: ServiceFieldsSec
                                     }}
                                     placeholder="0"
                                     min={0}
-                                    className="w-full px-4 py-3 pr-12 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                    className="w-full px-4 py-3 pr-12 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted">hrs</span>
                             </div>
@@ -53,7 +53,7 @@ export function ServiceFieldsSection({ formData, updateField }: ServiceFieldsSec
                                     placeholder="0"
                                     min={0}
                                     max={59}
-                                    className="w-full px-4 py-3 pr-12 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                                    className="w-full px-4 py-3 pr-12 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                 />
                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted">min</span>
                             </div>
