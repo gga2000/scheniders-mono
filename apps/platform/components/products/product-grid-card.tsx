@@ -29,6 +29,7 @@ import { FillerBadge } from "./filler-badge";
 import { StockStatusBadges } from "./stock-status-badges";
 import { BatchBadge } from "./batch-tracking/batch-badge";
 import { CategoryCombobox } from "./category-combobox";
+import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { useUpdateProductMutation } from "@/hooks/use-products-query";
 import { calculateProductScore, computeDailySalesRate, type ProductScoreInput } from "@/lib/utils/product-scoring";
@@ -241,13 +242,11 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                 {/* Category chip · stock indicator · margin — side by side */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                     {/* Category chip — inline picker */}
-                    <div className="relative w-fit">
+                    <Popover open={categoryPickerOpen} onOpenChange={setCategoryPickerOpen}>
+                    <PopoverTrigger asChild>
                     <button
                         type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setCategoryPickerOpen((v) => !v);
-                        }}
+                        onClick={(e) => e.stopPropagation()}
                         onPointerDown={(e) => e.stopPropagation()}
                         onPointerUp={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md w-fit hover:bg-[var(--card-border)] cursor-pointer transition-colors group/catchip"
@@ -268,21 +267,15 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         </span>
                         <ChevronDown className="w-3 h-3 text-[var(--foreground-subtle)] opacity-0 group-hover/catchip:opacity-100 transition-opacity" />
                     </button>
-                    {categoryPickerOpen && (
-                        <>
-                            <div
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setCategoryPickerOpen(false);
-                                }}
-                                onPointerDown={(e) => e.stopPropagation()}
-                                className="fixed inset-0 z-30"
-                            />
-                            <div
-                                className="absolute left-0 top-full mt-1 z-40 min-w-[240px]"
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={(e) => e.stopPropagation()}
-                            >
+                    </PopoverTrigger>
+                    <PopoverContent
+                        align="start"
+                        sideOffset={4}
+                        collisionPadding={16}
+                        className="w-[260px] max-w-[90vw] p-0 border-0 bg-transparent shadow-none z-[9999]"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                                 <CategoryCombobox
                                     variant="anchored"
                                     open={categoryPickerOpen}
@@ -313,20 +306,19 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                                         setCategoryPickerOpen(false);
                                     }}
                                 />
-                            </div>
-                        </>
-                    )}
-                    </div>
+                    </PopoverContent>
+                    </Popover>
 
                     {/* Stock indicator */}
+                    <Popover open={stockAdjustOpen} onOpenChange={setStockAdjustOpen}>
+                    <PopoverTrigger asChild>
                     <button
                         type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setStockAdjustOpen((v) => !v);
-                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onPointerUp={(e) => e.stopPropagation()}
                         className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pastel-yellow)] disabled:cursor-default"
-                        aria-label="Adjust stock"
+                        aria-label={t("products.stockAdjust.title")}
                         disabled={!canEdit}
                     >
                         <StockIndicator
@@ -338,22 +330,23 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                             size="sm"
                         />
                     </button>
-                    {stockAdjustOpen && (
-                        <>
-                            <div
-                                onClick={() => setStockAdjustOpen(false)}
-                                className="fixed inset-0 z-30"
-                            />
-                            <div className="absolute left-4 right-4 z-40 mt-2">
-                                <StockQuickAdjust
-                                    productId={product.id}
-                                    productName={product.name}
-                                    currentStock={product.stock_quantity}
-                                    onClose={() => setStockAdjustOpen(false)}
-                                />
-                            </div>
-                        </>
-                    )}
+                    </PopoverTrigger>
+                    <PopoverContent
+                        align="start"
+                        sideOffset={8}
+                        collisionPadding={16}
+                        className="w-[320px] max-w-[90vw] p-0 border-0 bg-transparent shadow-none z-[9999]"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <StockQuickAdjust
+                            productId={product.id}
+                            productName={product.name}
+                            currentStock={product.stock_quantity}
+                            onClose={() => setStockAdjustOpen(false)}
+                        />
+                    </PopoverContent>
+                    </Popover>
 
                     {hasReserved && (
                         <span

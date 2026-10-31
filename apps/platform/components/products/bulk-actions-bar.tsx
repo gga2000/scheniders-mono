@@ -375,6 +375,7 @@ export function BulkActionsBar({
                                         setShowPriceInput(false);
                                         setNewPrice("");
                                     }}
+                                    aria-label={t("products.bulk.cancel")}
                                     className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                                 >
                                     <X className="w-4 h-4 text-white/70" />
@@ -385,6 +386,7 @@ export function BulkActionsBar({
                             <>
                                 {onUpdatePrice && (
                                 <button
+                                    aria-label={t("products.bulk.updatePrice")}
                                     onClick={() => setShowPriceInput(true)}
                                     disabled={isLoading}
                                     className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg text-sm font-medium hover:bg-white/20 transition-colors disabled:opacity-50"
@@ -397,6 +399,7 @@ export function BulkActionsBar({
                                 )}
 
                                 <button
+                                    aria-label={t("products.bulk.archive")}
                                     onClick={() => setConfirmAction("archive")}
                                     disabled={isLoading}
                                     className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-300 rounded-lg text-sm font-medium hover:bg-amber-500/30 transition-colors disabled:opacity-50"
@@ -412,6 +415,7 @@ export function BulkActionsBar({
                                 </button>
 
                                 <button
+                                    aria-label={t("products.bulk.export")}
                                     onClick={handleExport}
                                     disabled={isLoading}
                                     className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-300 rounded-lg text-sm font-medium hover:bg-green-500/30 transition-colors disabled:opacity-50"
@@ -424,6 +428,7 @@ export function BulkActionsBar({
 
                                 {onShowOnStore && (
                                     <button
+                                    aria-label={t("products.bulk.show")}
                                         onClick={handleShow}
                                         disabled={isLoading}
                                         className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-300 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors disabled:opacity-50"
@@ -441,6 +446,7 @@ export function BulkActionsBar({
 
                                 {onHideFromStore && (
                                     <button
+                                    aria-label={t("products.bulk.hide")}
                                         onClick={handleHide}
                                         disabled={isLoading}
                                         className="flex items-center gap-2 px-4 py-2 bg-slate-500/20 text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-500/30 transition-colors disabled:opacity-50"
@@ -458,6 +464,7 @@ export function BulkActionsBar({
 
                                 {onDelete && (
                                     <button
+                                    aria-label={t("products.bulk.delete")}
                                         onClick={() => setConfirmAction("delete")}
                                         disabled={isLoading}
                                         className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-300 rounded-lg text-sm font-medium hover:bg-red-500/30 transition-colors disabled:opacity-50"
@@ -476,6 +483,7 @@ export function BulkActionsBar({
                                 {/* Clear Selection */}
                                 <button
                                     onClick={onClearSelection}
+                                    aria-label={t("products.bulk.cancel")}
                                     className="p-2 hover:bg-white/10 rounded-lg transition-colors ml-2"
                                 >
                                     <X className="w-5 h-5 text-white/70" />

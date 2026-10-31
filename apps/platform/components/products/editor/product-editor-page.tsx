@@ -1,5 +1,7 @@
 "use client";
 
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { useProductEditor } from "@/hooks/use-product-editor";
 import type { Product } from "@/types/product";
 import { ProductEditorHeader } from "./product-editor-header";
@@ -59,7 +61,11 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
     const { t } = useLanguage();
     // Product cost and margin are for admins only; a supply's cost is its
     // price, so whoever adds supplies keeps seeing it (useProductEditor).
+    const { can } = usePermission();
     const { showCost, canEditSuppliers } = editor;
+    // Batches and locations hang off a saved product, so only editing has them.
+    const canEditProducts = can(PERMISSIONS.EDIT_PRODUCTS);
+    const editProductId = mode === "edit" ? product?.id : undefined;
 
     return (
         <div className="min-h-screen bg-[var(--background)]">
@@ -393,18 +399,20 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 />
                             </CollapsibleSection>
 
-                            {editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" && (
+                            {editProductId && editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" && (
                                 <>
                                     <CollapsibleSection title={t("products.ed.sec.batch")} icon={<Layers3 className="w-4 h-4 text-muted" />} persistKey="batch-expiry">
                                         <BatchManager
-                                            productId={product?.id || ""}
+                                            productId={editProductId}
                                             productName={editor.formData.name}
+                                            disabled={!canEditProducts}
                                         />
                                     </CollapsibleSection>
 
                                     <CollapsibleSection title={t("products.ed.sec.locations")} icon={<MapPin className="w-4 h-4 text-muted" />} persistKey="storage-locations">
                                         <ProductLocationPicker
-                                            productId={product?.id || ""}
+                                            productId={editProductId}
+                                            disabled={!canEditProducts}
                                         />
                                     </CollapsibleSection>
                                 </>

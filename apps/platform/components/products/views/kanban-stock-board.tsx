@@ -32,12 +32,13 @@ interface ColumnDef {
     borderColor: string;
 }
 
+// Overstock is more than three months of the last 30 days' sales, and never
+// less than ten times the low-stock threshold, so a slow seller isn't flagged
+// the moment it is restocked.
 function isOverstock(product: Product): boolean {
-    const threshold =
-        (product.times_sold ?? 0) > 0
-            ? (product.times_sold ?? 0) * 3
-            : (product.low_stock_threshold || 5) * 10;
-    return product.stock_quantity > threshold;
+    const floor = (product.low_stock_threshold || 5) * 10;
+    const limit = Math.max((product.times_sold_30d ?? 0) * 3, floor);
+    return product.stock_quantity > limit;
 }
 
 function classifyProducts(products: Product[]) {
@@ -51,10 +52,10 @@ function classifyProducts(products: Product[]) {
 
         if (p.stock_quantity <= 0) {
             outOfStock.push(p);
-        } else if (isOverstock(p)) {
-            overstock.push(p);
         } else if (p.stock_quantity <= threshold) {
             lowStock.push(p);
+        } else if (isOverstock(p)) {
+            overstock.push(p);
         } else {
             healthy.push(p);
         }
