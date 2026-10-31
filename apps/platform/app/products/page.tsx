@@ -65,7 +65,7 @@ const AttributesTab = dynamic(() => import("@/components/products/attributes-tab
 const CategoriesTabV2 = dynamic(() => import("@/components/categories/v2/categories-tab-v2").then((m) => m.CategoriesTabV2), { loading: tabFallback });
 
 const CATEGORIES_V2_ENABLED = process.env.NEXT_PUBLIC_CATEGORIES_V2 !== "0";
-import { useCategoriesQuery } from "@/hooks/use-categories-query";
+import { useCategoriesQuery, useCategoryMembershipsQuery } from "@/hooks/use-categories-query";
 import { useAuth } from "@/components/auth/auth-provider";
 
 // Virtualized views
@@ -136,6 +136,18 @@ function ProductsContent() {
     const { revealed: showFinancials } = useFinancialVisibility();
 
     const { data: categories } = useCategoriesQuery();
+    const { data: categoryMemberships } = useCategoryMembershipsQuery();
+    // Products in each curated collection, so the category filter shows what
+    // the Categories tab counts and the storefront lists.
+    const curatedIdsByCategory = useMemo(() => {
+        const map = new Map<string, Set<string>>();
+        for (const m of categoryMemberships ?? []) {
+            const set = map.get(m.category_id) ?? new Set<string>();
+            set.add(m.product_id);
+            map.set(m.category_id, set);
+        }
+        return map;
+    }, [categoryMemberships]);
     const categoriesMap = useMemo(() => {
         if (!categories) return new Map<string, string>();
         return new Map(categories.map((c) => [c.id, c.name]));
@@ -301,7 +313,9 @@ function ProductsContent() {
                 result = result.filter((p) => !p.is_archived);
             }
             if (advancedFilters.categoryId) {
-                result = result.filter((p) => p.category_id === advancedFilters.categoryId);
+                const categoryId = advancedFilters.categoryId;
+                const curated = curatedIdsByCategory.get(categoryId);
+                result = result.filter((p) => p.category_id === categoryId || !!curated?.has(p.id));
             }
             if (advancedFilters.visibility === "visible") {
                 result = result.filter((p) => p.is_visible);
@@ -349,7 +363,7 @@ function ProductsContent() {
         });
 
         return result;
-    }, [products, searchQuery, sortBy, advancedFilters, tagMemberIds, showFiller]);
+    }, [products, searchQuery, sortBy, advancedFilters, tagMemberIds, showFiller, curatedIdsByCategory]);
 
     // A selection never outlives what is on screen: bulk price, archive and
     // delete act on the selected ids, so one hidden by a search or filter

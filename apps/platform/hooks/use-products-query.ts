@@ -7,6 +7,7 @@ import { productRepository, type ProductUpdate, type VariantUpdate } from "@/lib
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { useAuth } from "@/components/auth/auth-provider";
 import { diag } from "@/lib/diag";
+import { categoryKeys } from "@/hooks/use-categories-query";
 
 // Query keys
 export type BulkPriceChange = { id: string; oldPrice: number; clearCompareAt: boolean };
@@ -165,6 +166,12 @@ export function useRestoreProductMutation() {
 
 export function useDeleteProductMutation() {
     const queryClient = useQueryClient();
+    // A deleted product also leaves curated collections (product_categories).
+    const invalidateAfterDelete = () =>
+        Promise.all([
+            queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
+        ]);
     const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (id: string) => {
@@ -182,7 +189,7 @@ export function useDeleteProductMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: invalidateAfterDelete
     });
 }
 
@@ -222,12 +229,18 @@ export function useBulkRestoreMutation() {
 
 export function useBulkDeleteMutation() {
     const queryClient = useQueryClient();
+    // A deleted product also leaves curated collections (product_categories).
+    const invalidateAfterDelete = () =>
+        Promise.all([
+            queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
+        ]);
     return useMutation({
         mutationFn: async (ids: string[]) => {
             await productRepository.bulkDelete(ids);
             return ids;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: invalidateAfterDelete
     });
 }
 

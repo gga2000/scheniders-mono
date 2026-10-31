@@ -40,7 +40,7 @@ export function CategoriesTabV2() {
   const { data: categories = [], isLoading } = useCategoriesQuery({
     includeArchived: true,
   });
-  const { products } = useProductsCrud();
+  const { products, pending: productsPending, error: productsError } = useProductsCrud();
   const { data: memberships = [], isSuccess: membershipsReady } = useCategoryMembershipsQuery();
 
   const addMutation = useAddCategoryMutation();
@@ -243,10 +243,11 @@ export function CategoriesTabV2() {
   const handleDelete = useCallback(
     async (c: Category) => {
       if (!canDeleteCategories) return;
-      // Deleting cascades into curated members and subcategories, so the check
-      // waits for the membership list instead of passing on an empty one.
-      if (!membershipsReady) {
-        toast.error(t("products.errors.saveFailed"));
+      // Deleting cascades into curated members and subcategories and unlinks
+      // products, so the check waits for both lists instead of passing on an
+      // empty one.
+      if (!membershipsReady || productsPending || productsError) {
+        toast.error(t("categories.error.stillChecking"));
         return;
       }
       if ((curatedCountMap[c.id] ?? 0) > 0) {
@@ -277,7 +278,7 @@ export function CategoriesTabV2() {
       }
       toast.success(t("categories.toast.deleted") || "Category deleted");
     },
-    [deleteMutation, productCountMap, curatedCountMap, membershipsReady, categories, canDeleteCategories, t, reportCategoryError],
+    [deleteMutation, productCountMap, curatedCountMap, membershipsReady, productsPending, productsError, categories, canDeleteCategories, t, reportCategoryError],
   );
 
   const handleDuplicate = useCallback(

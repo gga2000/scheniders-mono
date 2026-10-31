@@ -53,8 +53,13 @@ async function referencedIds(table: string, column: string, ids: string[]): Prom
     return found;
 }
 
-async function loadImpact(ids: string[]): Promise<DeleteImpact> {
-    const [bundles, bumps, related, curated, reviews, poItems, stockTakes, alerts, bom] = await Promise.all([
+async function loadImpact(products: Product[]): Promise<DeleteImpact> {
+    const ids = products.map((p) => p.id);
+    // Purchase orders and stock counts can point at a variant; that blocks its product too.
+    const productByVariant = new Map<string, string>();
+    for (const p of products) for (const v of p.variants ?? []) productByVariant.set(v.id, p.id);
+    const variantIds = [...productByVariant.keys()];
+    const [bundles, bumps, related, curated, reviews, poItems, stockTakes, alerts, bom, poVariants, stockTakeVariants] = await Promise.all([
         countRows("product_bundle_items", "child_product_id", ids),
         countRows("product_order_bumps", "bump_product_id", ids),
         countRows("product_related", "related_product_id", ids),
@@ -64,11 +69,17 @@ async function loadImpact(ids: string[]): Promise<DeleteImpact> {
         referencedIds("stock_take_items", "product_id", ids),
         referencedIds("inventory_alerts", "product_id", ids),
         referencedIds("bom_items", "supply_id", ids),
+        referencedIds("purchase_order_items", "variant_id", variantIds),
+        referencedIds("stock_take_items", "variant_id", variantIds),
     ]);
+    const variantBlocked = [...poVariants, ...stockTakeVariants].flatMap((v) => {
+        const productId = productByVariant.get(v);
+        return productId ? [productId] : [];
+    });
     return {
         usedByOthers: bundles + bumps + related + curated,
         reviews,
-        blockedIds: new Set([...poItems, ...stockTakes, ...alerts, ...bom]),
+        blockedIds: new Set([...poItems, ...stockTakes, ...alerts, ...bom, ...variantBlocked]),
     };
 }
 
@@ -87,7 +98,7 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
     const sales = useQuery({ ...productSalesQueryOptions(tenantId), enabled: products.length > 0 && !!tenantId });
     const impactQuery = useQuery({
         queryKey: ["product-delete-impact", ids],
-        queryFn: () => loadImpact(ids),
+        queryFn: () => loadImpact(products),
         enabled: products.length > 0,
         staleTime: 0,
     });
@@ -95,11 +106,12 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
     const impact = impactQuery.data;
     const isPending = impactQuery.isPending || sales.isPending;
     const isError = impactQuery.isError || sales.isError;
-    const sold = products.reduce((sum, p) => sum + (sales.data?.get(p.id)?.timesSold ?? 0), 0);
     const blockedProducts = products.filter((p) => impact?.blockedIds.has(p.id));
     const deletable = products.filter((p) => !impact?.blockedIds.has(p.id));
     const blocked = blockedProducts.length > 0;
     const canDelete = !!impact && !isError && deletable.length > 0;
+    // Only what will actually be deleted: blocked products are kept.
+    const sold = deletable.reduce((sum, p) => sum + (sales.data?.get(p.id)?.timesSold ?? 0), 0);
     const archivable = products.filter((p) => !p.is_archived);
 
     return (
@@ -129,7 +141,19 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                         {t("products.delete.checking")}
                     </div>
                 ) : isError ? (
-                    <p className="py-3 text-sm text-rose-600">{t("products.delete.checkFailed")}</p>
+                    <div className="flex items-center justify-between gap-3 py-3 text-sm">
+                        <p className="text-rose-600">{t("products.delete.checkFailed")}</p>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (impactQuery.isError) void impactQuery.refetch();
+                                if (sales.isError) void sales.refetch();
+                            }}
+                            className="shrink-0 rounded-lg border border-[var(--card-border)] px-3 py-1.5 text-xs font-medium text-foreground hover:bg-[var(--card-bg)]"
+                        >
+                            {t("products.errorRetry")}
+                        </button>
+                    </div>
                 ) : (
                     <ul className="my-2 space-y-1.5 text-sm">
                         {sold > 0 && <li>{t("products.delete.sold", { count: sold })}</li>}
