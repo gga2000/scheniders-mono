@@ -13,6 +13,8 @@ import {
 import { cn, maskIQD } from "@/lib/utils";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { Product } from "@/lib/supabase";
 import {
   calculateProductScore,
@@ -38,6 +40,9 @@ interface ForecastingCardsProps {
 export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProps) {
   const { t } = useLanguage();
   const { revealed } = useFinancialVisibility();
+  // Stock value at cost stays masked for anyone without products.manage.
+  const { can } = usePermission();
+  const costRevealed = revealed && can(PERMISSIONS.MANAGE_PRODUCTS);
 
   // ---- Derived stats (single pass where possible) ----
   const stats = useMemo(() => {
@@ -189,7 +194,7 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
           </div>
         </div>
         <p className="text-2xl font-bold mt-3">
-          {maskIQD(stats.inventoryValueCost, revealed)}
+          {maskIQD(stats.inventoryValueCost, costRevealed)}
         </p>
         <p className="text-xs text-muted">
           {t("products.forecast.inventoryValue")}

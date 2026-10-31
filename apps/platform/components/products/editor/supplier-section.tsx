@@ -17,6 +17,8 @@ export interface SupplierFormData {
 interface SupplierSectionProps {
     suppliers: SupplierFormData[];
     onChange: (suppliers: SupplierFormData[]) => void;
+    /** Unit cost is for admins only (products.manage). */
+    showCost?: boolean;
 }
 
 const defaultSupplier: SupplierFormData = {
@@ -30,7 +32,7 @@ const defaultSupplier: SupplierFormData = {
     is_primary: false,
 };
 
-export function SupplierSection({ suppliers, onChange }: SupplierSectionProps) {
+export function SupplierSection({ suppliers, onChange, showCost = true }: SupplierSectionProps) {
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
     const addSupplier = () => {
@@ -217,6 +219,7 @@ export function SupplierSection({ suppliers, onChange }: SupplierSectionProps) {
                                     </div>
 
                                     {/* Unit Cost */}
+                                    {showCost && (
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">
                                             Unit Cost (IQD)
@@ -233,6 +236,7 @@ export function SupplierSection({ suppliers, onChange }: SupplierSectionProps) {
                                             className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
+                                    )}
 
                                     {/* Notes - full width */}
                                     <div className="md:col-span-2">

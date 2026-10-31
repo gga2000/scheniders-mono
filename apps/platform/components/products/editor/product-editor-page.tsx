@@ -39,6 +39,8 @@ import { TrendingUp, Clock, Package, Zap, Link as LinkIcon, Weight, Truck, Barco
 import { SectionNav } from "./section-nav";
 import { AutoSaveIndicator } from "./auto-save-indicator";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import dynamic from "next/dynamic";
 
 // Collapsed-by-default sections: their code (jsbarcode, qrcode, batch and
@@ -57,6 +59,10 @@ interface ProductEditorPageProps {
 export function ProductEditorPage({ product, mode, defaultIsSupply = false }: ProductEditorPageProps) {
     const editor = useProductEditor({ product, mode, defaultIsSupply });
     const { t } = useLanguage();
+    const { can } = usePermission();
+    // Product cost and margin are for admins only (products.manage). A supply's
+    // cost is its price, so whoever adds supplies keeps seeing it.
+    const showCost = can(PERMISSIONS.MANAGE_PRODUCTS) || editor.formData.is_supply;
 
     return (
         <div className="min-h-screen bg-[var(--background)]">
@@ -164,13 +170,16 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 profitMargin={editor.profitMargin}
                                 profitAmount={editor.profitAmount}
                                 discountPercentage={editor.discountPercentage}
+                                showCost={showCost}
                             />
+                            {showCost && (
                             <LandedCostSection
                                 costBreakdown={editor.formData.cost_breakdown_json}
                                 onCostBreakdownChange={(breakdown) => editor.updateField("cost_breakdown_json", breakdown)}
                                 onCostChange={(cost) => editor.updateField("cost", cost)}
                                 price={editor.formData.price}
                             />
+                            )}
                         </div>
 
                         {/* Type-specific fields */}
@@ -215,6 +224,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                         productSku={editor.formData.sku}
                                         productPrice={editor.formData.price}
                                         productCost={editor.formData.cost}
+                                        showCost={showCost}
                                     />
                                 )}
                                 {editor.pendingVariantDiff && (
@@ -336,6 +346,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                         <SupplierSection
                                             suppliers={editor.formData.suppliers}
                                             onChange={(suppliers) => editor.updateField("suppliers", suppliers)}
+                                            showCost={showCost}
                                         />
                                     </CollapsibleSection>
                                 </>
@@ -414,7 +425,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 mode={mode}
                                 timesSold={product?.times_sold}
                                 totalRevenue={product?.total_revenue}
-                                profitMargin={editor.profitMargin}
+                                profitMargin={showCost ? editor.profitMargin : null}
                                 averageOrderValue={product?.average_order_value}
                             />
                         </div>
