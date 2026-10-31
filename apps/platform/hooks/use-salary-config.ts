@@ -108,12 +108,13 @@ export function useSalaryConfig() {
     );
 
     const fetchConfigHistory = useCallback(async (employeeId: string): Promise<SalaryConfigHistoryRow[]> => {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from("salary_config_history")
             .select("*")
             .eq("employee_id", employeeId)
             .order("created_at", { ascending: false })
             .limit(10);
+        if (error) throw error;
         return (data ?? []) as SalaryConfigHistoryRow[];
     }, []);
 

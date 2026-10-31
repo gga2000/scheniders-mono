@@ -244,7 +244,7 @@ export function SalariesTab() {
     });
     const [showHidden, setShowHidden] = useState(false);
 
-    const { roleSalaryDefaults, upsertRoleDefault, upsertEmployeeConfig, refresh: refreshConfigs } = useSalaryConfig();
+    const { roleSalaryDefaults, upsertRoleDefault, upsertEmployeeConfig, fetchConfigHistory, refresh: refreshConfigs } = useSalaryConfig();
     const {
         advances,
         penalties,
@@ -756,7 +756,7 @@ export function SalariesTab() {
                             <p className="font-medium">{t("payroll.empty")}</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
                             {effectiveEmployeeData.map((data, i) => (
                                 <EmployeePayrollCard
                                     key={data.employee.id}
@@ -790,6 +790,7 @@ export function SalariesTab() {
                                     hasOverride={periodOverrides.has(data.employee.id)}
                                     isPayingOut={payingEmployeeId === data.employee.id}
                                     onHide={handleHideEmployee}
+                                    loadConfigHistory={fetchConfigHistory}
                                     recentPayments={payrollHistory.filter(r => r.employee_id === data.employee.id && r.status === "paid")}
                                 />
                             ))}

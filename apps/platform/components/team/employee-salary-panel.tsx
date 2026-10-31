@@ -9,7 +9,7 @@ import { EmployeeSalarySummary, type PendingPayItem } from "./employee-salary-su
 /** The drawer's Salary tab: reads pay config and pending items (RLS-scoped) and opens the editor. */
 export function EmployeeSalaryPanel({ employeeId, employeeName, role }: { employeeId: string; employeeName: string; role: string }) {
     const [editing, setEditing] = useState(false);
-    const { getEffectiveRate, upsertEmployeeConfig } = useSalaryConfig();
+    const { getEffectiveRate, upsertEmployeeConfig, fetchConfigHistory } = useSalaryConfig();
     const { advances, penalties, bonuses } = useSalaryDeductions();
     const rate = getEffectiveRate(employeeId, role);
     const pending: PendingPayItem[] = [
@@ -29,6 +29,7 @@ export function EmployeeSalaryPanel({ employeeId, employeeName, role }: { employ
                 onSubmit={async (config) => {
                     await upsertEmployeeConfig(employeeId, config);
                 }}
+                loadHistory={fetchConfigHistory}
             />
         </>
     );
