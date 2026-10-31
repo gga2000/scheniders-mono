@@ -71,9 +71,9 @@ export function BackupPrompt() {
                             </div>
 
                             <div className="flex flex-col">
-                                <h3 className="text-white font-semibold text-base mb-1">Monthly Local Backup</h3>
+                                <h3 className="text-white font-semibold text-base mb-1">{t("vault.prompt.title", "Monthly Local Backup")}</h3>
                                 <p className="text-sm text-zinc-400 leading-relaxed mb-4">
-                                    It is the 1st of the month! Please download a raw CSV copy of your entire database directly to your computer.
+                                    {t("vault.prompt.body", "It is the 1st of the month! Please download a raw CSV copy of your entire database directly to your computer.")}
                                 </p>
 
                                 <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export function BackupPrompt() {
                                         onClick={handleGoToVault}
                                         className="flex-1 py-2 px-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-teal-950 font-medium text-sm rounded-lg hover:from-teal-400 hover:to-emerald-400 transition-all flex items-center justify-center gap-2"
                                     >
-                                        Go to Data Vault
+                                        {t("vault.prompt.cta", "Go to Data Vault")}
                                         <ArrowRight className="w-4 h-4" />
                                     </button>
                                 </div>
