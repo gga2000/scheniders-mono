@@ -2,13 +2,14 @@
 
 import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import { ModalShell } from "./modal-shell";
 import { cn } from "@/lib/utils";
 
 export function ScoreBreakdownModal() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { isScoreBreakdownModalOpen, setScoreBreakdownModalOpen, scoreBreakdownPhone } = useCustomerStore();
     const { data: breakdown } = useTrustScoreBreakdown(scoreBreakdownPhone || undefined);
     const { data: auditData } = useTrustAuditLog(scoreBreakdownPhone || undefined);
@@ -66,7 +67,7 @@ export function ScoreBreakdownModal() {
                                     )}
                                 >
                                     <span className="text-xs text-muted-foreground w-20 shrink-0 tabular-nums">
-                                        {event.event_date.slice(0, 10)}
+                                        {formatBaghdadDate(event.event_date, language)}
                                     </span>
                                     <span className="text-foreground flex-1 truncate">
                                         {t(`customers.trust.event.${event.event_type}`)}

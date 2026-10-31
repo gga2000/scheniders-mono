@@ -17,7 +17,7 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { storedPhoneVariants } from "@/lib/order-server-search";
 import type { Database } from "@scheniders/supabase/database.types";
 import { formatIQD, getStatusLabel } from "@/lib/utils";
-import { formatPhoneDisplay } from "@/lib/customer-format";
+import { formatBaghdadDate, formatPhoneDisplay } from "@/lib/customer-format";
 import { toast } from "@/hooks/use-toast";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
@@ -162,7 +162,7 @@ function OrderStatusBadge({ status, isReturn }: { status: string; isReturn: bool
 const HISTORY_ROWS = 20;
 
 function CustomerProfileContent({ phone }: { phone: string }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { can } = usePermission();
     const canExport = can(PERMISSIONS.EXPORT_CUSTOMERS);
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
@@ -312,6 +312,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <div className="col-span-12 lg:col-span-7">
                     <SummaryStatsCards
                         totalOrders={profile.totalOrders}
+                        deliveredCount={profile.totalCompleted}
                         totalSpent={profile.totalSpent}
                         orders={profile.orders}
                     />
@@ -366,7 +367,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                                         #{order.order_id}
                                                     </td>
                                                     <td className="py-6 px-4 text-muted-foreground text-xs tabular-nums">
-                                                        {order.created_at.slice(0, 10)}
+                                                        {formatBaghdadDate(order.created_at, language)}
                                                     </td>
                                                     <td className="py-6 px-4 text-muted-foreground text-xs">
                                                         {lineCount === null ? "—" : t("customers.profile.itemsCount", { count: lineCount })}

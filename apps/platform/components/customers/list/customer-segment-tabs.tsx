@@ -63,7 +63,7 @@ export function CustomerSegmentTabs({
 
     const label = (id: SegmentId): string => t(`customers.segment.${id}`, {
         all: "All", vips: "VIPs", dormantVips: "Dormant VIPs", highRisk: "High risk",
-        caution: "Needs confirming", newThisMonth: "New this month", firstDelivery: "First delivery",
+        caution: "Needs confirming", newThisMonth: "New, last 30 days", firstDelivery: "First delivery",
     }[id]);
 
     return (

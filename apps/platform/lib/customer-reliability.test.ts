@@ -5,6 +5,7 @@ import {
     riskLevel,
     codRiskKey,
     hasRatedScore,
+    averageBasket,
     displayScore,
     effectiveSuccessRate,
     recencyStatus,
@@ -135,14 +136,20 @@ describe('firstDeliveryPending', () => {
 
 describe('copy + meta', () => {
     it('reliabilityBand summarises an average', () => {
-        expect(reliabilityBand(90)).toBe('Excellent overall');
-        expect(reliabilityBand(75)).toBe('Good overall');
-        expect(reliabilityBand(55)).toBe('Mixed overall');
-        expect(reliabilityBand(30)).toBe('Needs attention');
+        expect(reliabilityBand(90)).toBe('excellent');
+        expect(reliabilityBand(75)).toBe('good');
+        expect(reliabilityBand(55)).toBe('mixed');
+        expect(reliabilityBand(30)).toBe('attention');
     });
-    it('hasRatedScore is false only for the engine "new" tier', () => {
+    it('hasRatedScore is false for unrated and blocked customers', () => {
         expect(hasRatedScore('new')).toBe(false);
+        expect(hasRatedScore('blocked')).toBe(false);
         expect(hasRatedScore('silver')).toBe(true);
+    });
+    it('averageBasket divides by delivered orders only', () => {
+        expect(averageBasket(48_000, 1)).toBe(48_000);
+        expect(averageBasket(50_000, 3)).toBe(16_667);
+        expect(averageBasket(10_000, 0)).toBeNull();
     });
     it('every value + risk level has visual meta', () => {
         (['vip', 'good', 'newcomer'] as const).forEach((v) => expect(VALUE_META[v].label.length).toBeGreaterThan(0));

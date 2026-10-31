@@ -64,7 +64,7 @@ export function CustomerInsightStrip({ stats }: { stats: Stats }) {
             label: t("customers.kpi.avgReliability"),
             value: String(displayScore(stats.avg_trust_score)),
             sub: t("customers.kpi.avgReliabilitySub"),
-            badge: reliabilityBand(stats.avg_trust_score).split(" ")[0],
+            badge: t(`customers.kpi.band.${reliabilityBand(stats.avg_trust_score)}`),
             badgeTone: "bg-lime-50 text-lime-700",
         },
         {

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ShoppingBag, TrendingUp, TrendingDown, DollarSign, RotateCcw } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useEffect, useMemo, useState } from "react";
+import { averageBasket } from "@/lib/customer-reliability";
 
 function AnimatedCounter({ value, suffix }: { value: number; suffix?: string }) {
     const [display, setDisplay] = useState(0);
@@ -39,6 +40,7 @@ type Order = { created_at: string; status: string; total_price: number | string 
 
 interface SummaryStatsCardsProps {
     totalOrders: number;
+    deliveredCount: number;
     totalSpent: number;
     orders: Order[];
 }
@@ -103,10 +105,11 @@ function TrendBadge({ pct, label }: { pct: number; label: string }) {
     );
 }
 
-export function SummaryStatsCards({ totalOrders, totalSpent, orders }: SummaryStatsCardsProps) {
+export function SummaryStatsCards({ totalOrders, deliveredCount, totalSpent, orders }: SummaryStatsCardsProps) {
     const { t } = useLanguage();
 
-    const avgBasket = totalOrders > 0 ? totalSpent / totalOrders : null;
+    // Same rule as the drawer: spent per delivered order.
+    const avgBasket = averageBasket(totalSpent, deliveredCount);
     const returnCount = useMemo(
         () =>
             orders.filter((o) => {
@@ -157,7 +160,7 @@ export function SummaryStatsCards({ totalOrders, totalSpent, orders }: SummarySt
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="col-span-2 group bg-muted rounded-[3rem] p-8 shadow-md hover:translate-y-[-4px] transition-all cursor-default flex items-center justify-between gap-8"
+                className="min-[420px]:col-span-2 group bg-muted rounded-[3rem] p-8 shadow-md hover:translate-y-[-4px] transition-all cursor-default flex flex-wrap items-center justify-between gap-8"
             >
                 {/* Left: icon + label + big value */}
                 <div className="flex-1 min-w-0">

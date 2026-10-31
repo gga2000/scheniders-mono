@@ -65,7 +65,7 @@ export function HeroIdentityBanner({
     // Shown out of 100 the same way the drawer shows it.
     // Unrated ("new") customers have no proven score, same as the drawer.
     // Blocked customers get no score either: "100/100" next to Blocked misleads.
-    const shownScore = trustScore === null || !hasRatedScore(tier) || tier === "blocked" ? null : displayScore(trustScore);
+    const shownScore = trustScore === null || !hasRatedScore(tier) ? null : displayScore(trustScore);
 
     const memberSince = firstOrderDate
         ? new Date(firstOrderDate).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
@@ -105,7 +105,7 @@ export function HeroIdentityBanner({
                         <span
                             className="absolute -bottom-1 -right-1 bg-[#c7f8ef] text-[#1f4e48] text-[10px] font-bold px-2 py-0.5 rounded-full border-2 border-white leading-tight"
                         >
-                            VERIFIED
+                            {t("customers.profile.verified")}
                         </span>
                     )}
                 </div>

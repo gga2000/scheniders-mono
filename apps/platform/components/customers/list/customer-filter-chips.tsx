@@ -29,6 +29,7 @@ function Chip({
     return (
         <motion.button
             onClick={onClick}
+            aria-pressed={active}
             whileTap={{ scale: 0.96 }}
             className={`inline-flex items-center gap-2 h-9 px-3.5 rounded-full text-[13px] font-semibold border transition-colors ${
                 active

@@ -33,3 +33,13 @@ export function pct(part: number, whole: number): number {
     if (!whole) return 0;
     return Math.round((part / whole) * 100);
 }
+
+/** A timestamp as its Baghdad calendar day, e.g. "Oct 31, 2026" / Arabic with Western digits. */
+export function formatBaghdadDate(iso: string, language: string): string {
+    return new Date(iso).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "Asia/Baghdad",
+    });
+}
