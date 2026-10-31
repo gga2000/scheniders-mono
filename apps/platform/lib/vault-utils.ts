@@ -24,6 +24,7 @@ import {
     type ExtraTable,
 } from "./vault-restore";
 import { VaultError, type VaultProgress } from "./vault-progress";
+import { fromSheetRows, toSheetRows } from "./vault-sheets";
 import { vaultFileSchema, type VaultData, type VaultRow } from "./vault-schema";
 import * as XLSX from "xlsx";
 
@@ -221,31 +222,13 @@ const EXTRA_SHEET_NAMES: Record<ExtraTable, string> = {
 function exportToExcel(vaultData: VaultData, filename: string) {
     const wb = XLSX.utils.book_new();
 
-    // Orders Sheet
-    const wsOrders = XLSX.utils.json_to_sheet(vaultData.data.orders.map(order => ({
-        ...order,
-        items: order.items ? JSON.stringify(order.items) : "[]",
-        risk_metadata: order.risk_metadata ? JSON.stringify(order.risk_metadata) : "{}"
-    })));
-    XLSX.utils.book_append_sheet(wb, wsOrders, "Orders");
-
-    // Products Sheet
-    const wsProducts = XLSX.utils.json_to_sheet(vaultData.data.products);
-    XLSX.utils.book_append_sheet(wb, wsProducts, "Products");
-
-    // Customers Sheet
-    const wsCustomers = XLSX.utils.json_to_sheet(vaultData.data.customers);
-    XLSX.utils.book_append_sheet(wb, wsCustomers, "Customers");
-
-    // Categories carry JSON page layouts, which a spreadsheet cell holds as text.
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vaultData.data.categories.map((row) => ({
-        ...row,
-        page_config: JSON.stringify(row.page_config ?? null),
-        page_config_draft: JSON.stringify(row.page_config_draft ?? null),
-    }))), EXTRA_SHEET_NAMES.categories);
+    const sheet = (rows: VaultRow[]) => XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, sheet(toSheetRows("orders", vaultData.data.orders)), "Orders");
+    XLSX.utils.book_append_sheet(wb, sheet(toSheetRows("products", vaultData.data.products)), "Products");
+    XLSX.utils.book_append_sheet(wb, sheet(toSheetRows("customers", vaultData.data.customers)), "Customers");
     for (const table of EXTRA_TABLES) {
-        if (table === "categories") continue;
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(vaultData.data[table]), EXTRA_SHEET_NAMES[table]);
+        const rows = table === "categories" ? toSheetRows("categories", vaultData.data.categories) : vaultData.data[table];
+        XLSX.utils.book_append_sheet(wb, sheet(rows), EXTRA_SHEET_NAMES[table]);
     }
 
     // Write file
@@ -257,17 +240,10 @@ function exportToExcel(vaultData: VaultData, filename: string) {
  * Multiple downloads is easier without adding JSZip dependency.
  */
 function exportToCSV(vaultData: VaultData, prefix: string) {
-    const wsOrders = XLSX.utils.json_to_sheet(vaultData.data.orders.map(order => ({
-        ...order,
-        items: order.items ? JSON.stringify(order.items) : "[]"
-    })));
-    const wsProducts = XLSX.utils.json_to_sheet(vaultData.data.products);
-    const wsCustomers = XLSX.utils.json_to_sheet(vaultData.data.customers);
-
-    // Export each as CSV
-    const csvOrders = XLSX.utils.sheet_to_csv(wsOrders);
-    const csvProducts = XLSX.utils.sheet_to_csv(wsProducts);
-    const csvCustomers = XLSX.utils.sheet_to_csv(wsCustomers);
+    const toCsv = (rows: VaultRow[]) => XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(rows));
+    const csvOrders = toCsv(toSheetRows("orders", vaultData.data.orders));
+    const csvProducts = toCsv(toSheetRows("products", vaultData.data.products));
+    const csvCustomers = toCsv(toSheetRows("customers", vaultData.data.customers));
 
     downloadBlob(new Blob(["\ufeff" + csvOrders], { type: "text/csv;charset=utf-8;" }), `${prefix}_orders.csv`);
 
@@ -280,21 +256,11 @@ function exportToCSV(vaultData: VaultData, prefix: string) {
     }, 600);
 
     EXTRA_TABLES.forEach((table, index) => {
-        const csv = XLSX.utils.sheet_to_csv(XLSX.utils.json_to_sheet(vaultData.data[table]));
+        const csv = toCsv(table === "categories" ? toSheetRows("categories", vaultData.data.categories) : vaultData.data[table]);
         setTimeout(() => {
             downloadBlob(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" }), `${prefix}_${table}.csv`);
         }, 900 + index * 300);
     });
-}
-
-/** A JSON column written out as text by the Excel export; a cell that does not parse is refused, not guessed. */
-function parseJsonCell(value: unknown, fallback: unknown): unknown {
-    if (typeof value !== "string") return value ?? fallback;
-    try {
-        return JSON.parse(value);
-    } catch {
-        throw new VaultError("damagedExcel", "The Excel file has a damaged Items or Risk column and cannot be restored.");
-    }
 }
 
 function validateVaultData(raw: unknown): VaultData {
@@ -319,22 +285,12 @@ export async function parseVaultFile(file: File, password?: string): Promise<Vau
 
         const readSheet = (name: string) =>
             wb.Sheets[name] ? XLSX.utils.sheet_to_json<VaultRow>(wb.Sheets[name]) : [];
-        const ordersRaw = readSheet("Orders");
-        const productsRaw = readSheet("Products");
-        const customersRaw = readSheet("Customers");
-
-        const orders = ordersRaw.map((row) => ({
-            ...row,
-            items: parseJsonCell(row.items, []),
-            risk_metadata: parseJsonCell(row.risk_metadata, {}),
-        }));
+        const orders = fromSheetRows("orders", readSheet("Orders"));
+        const productsRaw = fromSheetRows("products", readSheet("Products"));
+        const customersRaw = fromSheetRows("customers", readSheet("Customers"));
 
         const extras = extrasRecord((table) => readSheet(EXTRA_SHEET_NAMES[table]));
-        extras.categories = extras.categories.map((row) => ({
-            ...row,
-            page_config: parseJsonCell(row.page_config, null),
-            page_config_draft: parseJsonCell(row.page_config_draft, null),
-        }));
+        extras.categories = fromSheetRows("categories", extras.categories);
 
         if (orders.length === 0 && productsRaw.length === 0 && customersRaw.length === 0) {
             throw new VaultError("emptyExcel", "Excel file doesn't contain valid backup sheets (Orders, Products, Customers).");
