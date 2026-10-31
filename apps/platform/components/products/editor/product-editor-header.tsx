@@ -101,7 +101,7 @@ export function ProductEditorHeader({
                     <button
                         onClick={onSave}
                         disabled={saving || (!isDirty && mode === "edit")}
-                        className="px-4 sm:px-6 py-2.5 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        className="px-4 sm:px-6 py-2.5 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:bg-[var(--background)] disabled:text-[var(--foreground-muted)] disabled:border disabled:border-[var(--card-border)] disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         {saving ? (
                             <>

@@ -27,24 +27,24 @@ const statusConfig: Record<StockStatus, {
     pattern: string; // text pattern for accessibility (not color-only)
 }> = {
     in_stock: {
-        bg: "bg-[var(--pastel-green)]",
-        text: "text-green-700",
+        bg: "bg-emerald-500/10",
+        text: "text-emerald-700 dark:text-emerald-300",
         icon: CheckCircle,
         key: "products.stock.inStock",
         progressColor: "bg-green-400",
         pattern: "●",
     },
     low_stock: {
-        bg: "bg-[var(--pastel-yellow)]",
-        text: "text-amber-700",
+        bg: "bg-amber-500/10",
+        text: "text-amber-700 dark:text-amber-300",
         icon: AlertTriangle,
         key: "products.stock.lowStock",
         progressColor: "bg-amber-400",
         pattern: "▲",
     },
     out_of_stock: {
-        bg: "bg-[var(--pastel-pink)]",
-        text: "text-rose-700",
+        bg: "bg-rose-500/10",
+        text: "text-rose-700 dark:text-rose-300",
         icon: XCircle,
         key: "products.stock.outOfStock",
         progressColor: "bg-red-400",

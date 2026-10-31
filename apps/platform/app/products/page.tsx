@@ -782,7 +782,7 @@ function ProductsContent() {
                                 <Package className="w-7 h-7 xl:w-8 xl:h-8 shrink-0" />
                                 <span className="truncate">{t("products.title")}</span>
                             </h1>
-                            <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 {activeTab === "products" && filteredProducts.length > 0 && (
                                     <button
                                         onClick={handleSelectAll}
@@ -799,52 +799,46 @@ function ProductsContent() {
                                         }
                                     >
                                         {selectedIds.size === filteredProducts.length && (
-                                            <div className="absolute inset-0 bg-gradient-to-br from-primary to-violet-600 opacity-100" />
+                                            <div className="absolute inset-0 bg-[var(--ink)]" />
                                         )}
                                         <CheckSquare className={cn("w-3.5 h-3.5 z-10 transition-transform duration-300", selectedIds.size > 0 ? "scale-100" : "scale-0")} />
                                     </button>
                                 )}
 
                                 {/* Count Pill — orders-style glass pill */}
-                                <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
-                                    <div className="p-2 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-amber-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
-                                        <Package className="w-4 h-4" />
-                                    </div>
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
+                                    <Package className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
-                                        <span className="text-2xl font-black text-foreground dark:text-white leading-none">
+                                        <span className="text-lg font-bold text-foreground leading-none tabular-nums">
                                             {stats.totalProducts}
                                         </span>
-                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
+                                        <span className="text-xs font-medium text-[var(--foreground-muted)]">
                                             {t("nav.products")}
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Units sold pill */}
-                                <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
-                                    <div className="p-2 rounded-full bg-gradient-to-tr from-emerald-400 to-green-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-emerald-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
-                                        <ShoppingCart className="w-4 h-4" />
-                                    </div>
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
+                                    <ShoppingCart className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
-                                        <span className="text-2xl font-black text-foreground dark:text-white leading-none">
+                                        <span className="text-lg font-bold text-foreground leading-none tabular-nums">
                                             {stats.totalSold}
                                         </span>
-                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
+                                        <span className="text-xs font-medium text-[var(--foreground-muted)]">
                                             {t("products.sold")}
                                         </span>
                                     </div>
                                 </div>
 
                                 {/* Total revenue pill (masked via RevealToggle) */}
-                                <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
-                                    <div className="p-2 rounded-full bg-gradient-to-tr from-teal-400 to-cyan-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-teal-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
-                                        <DollarSign className="w-4 h-4" />
-                                    </div>
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
+                                    <DollarSign className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
-                                        <span className="text-2xl font-black text-foreground dark:text-white leading-none">
+                                        <span className="text-lg font-bold text-foreground leading-none tabular-nums">
                                             {maskIQD(stats.totalRevenue, showFinancials)}
                                         </span>
-                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
+                                        <span className="text-xs font-medium text-[var(--foreground-muted)]">
                                             {t("products.totalRevenue")}
                                         </span>
                                         <RevealToggle className="text-muted-foreground hover:text-foreground" />
@@ -852,15 +846,13 @@ function ProductsContent() {
                                 </div>
 
                                 {/* Avg price per unit sold (masked via RevealToggle) */}
-                                <div className="flex items-center gap-3 pl-2 pr-5 py-2 rounded-full bg-white/40 backdrop-blur-md border border-white/20 ring-1 ring-black/5 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] orders-toolbar-pill">
-                                    <div className="p-2 rounded-full bg-gradient-to-tr from-sky-400 to-blue-500 dark:!bg-none dark:bg-[var(--primary)] text-white dark:text-black shadow-lg shadow-sky-500/30 dark:shadow-[0_0_12px_rgba(239,255,0,0.4)]">
-                                        <TrendingUp className="w-4 h-4" />
-                                    </div>
+                                <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] whitespace-nowrap">
+                                    <TrendingUp className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
-                                        <span className="text-2xl font-black text-foreground dark:text-white leading-none">
+                                        <span className="text-lg font-bold text-foreground leading-none tabular-nums">
                                             {maskIQD(stats.avgUnitPrice, showFinancials)}
                                         </span>
-                                        <span className="text-xs font-semibold text-muted-foreground dark:text-[var(--foreground-muted)] uppercase tracking-wide">
+                                        <span className="text-xs font-medium text-[var(--foreground-muted)]">
                                             {t("products.avgUnitPrice")}
                                         </span>
                                     </div>

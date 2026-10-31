@@ -160,7 +160,8 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
         onClick={onDrillDown ? () => onDrillDown("revenue") : undefined}
         disabled={!onDrillDown}
         className={cn(
-          "pastel-card border border-[var(--card-border)] p-4 text-left",
+          // A button centres its content vertically; keep it top-aligned like the other cards.
+          "pastel-card border border-[var(--card-border)] p-4 text-start flex flex-col justify-start",
           onDrillDown && "hover:shadow-md transition-shadow cursor-pointer"
         )}
       >
@@ -254,7 +255,7 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
             )}
           </div>
         )}
-        <p className="mt-1.5 flex flex-wrap gap-x-2 text-[11px] text-muted tabular-nums">
+        <p className="mt-1.5 flex flex-wrap gap-x-2 text-xs text-muted tabular-nums">
           {(["A", "B", "C", "D", "F"] as const).map((g) => (
             <span key={g}>
               {g} {stats.gradeCounts[g]}

@@ -23,6 +23,8 @@ import { productWriteErrorKey } from "@/lib/product-write-error";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { StockIndicator } from "./stock-indicator";
 import { QuickActionsMenu } from "./quick-actions-menu";
+import { PriceQuickEdit } from "./price-quick-edit";
+import { StockQuickAdjust } from "./stock-quick-adjust";
 import { HealthScoreBadge } from "./health-score-badge";
 import { FillerBadge } from "./filler-badge";
 import { CategoryCombobox } from "./category-combobox";
@@ -69,6 +71,9 @@ export const ProductListRow = React.memo(function ProductListRow({
     const canEdit = can(PERMISSIONS.EDIT_PRODUCTS);
     // Cost and margin are for admins only (products.manage).
     const canSeeCost = can(PERMISSIONS.MANAGE_PRODUCTS);
+    const [priceEditOpen, setPriceEditOpen] = useState(false);
+    const [stockAdjustOpen, setStockAdjustOpen] = useState(false);
+    const quickEditable = canEdit && !product.is_archived;
     const stockStatus = getStockStatus(product);
     const availableStock = Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
     const threshold = product.low_stock_threshold || 5;
@@ -233,11 +238,38 @@ export const ProductListRow = React.memo(function ProductListRow({
 
                 {/* Stock column with progress bar */}
                 <div className="hidden sm:flex flex-col items-center gap-1 min-w-[100px]">
-                    <StockIndicator
-                        status={stockStatus}
-                        quantity={availableStock}
-                        size="sm"
-                    />
+                    <Popover open={stockAdjustOpen} onOpenChange={setStockAdjustOpen}>
+                        <PopoverTrigger asChild>
+                            <button
+                                type="button"
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={!quickEditable}
+                                aria-label={t("products.actions.adjustStock")}
+                                className="rounded-lg disabled:cursor-default"
+                            >
+                                <StockIndicator
+                                    status={stockStatus}
+                                    quantity={availableStock}
+                                    size="sm"
+                                />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                            align="center"
+                            sideOffset={8}
+                            collisionPadding={16}
+                            className="w-auto p-0 border-0 bg-transparent shadow-none z-[9999]"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <StockQuickAdjust
+                                productId={product.id}
+                                productName={product.name}
+                                currentStock={product.stock_quantity}
+                                onClose={() => setStockAdjustOpen(false)}
+                            />
+                        </PopoverContent>
+                    </Popover>
                     <div className="h-1 w-16 bg-[var(--background)] rounded-full overflow-hidden">
                         {availableStock <= 0 ? (
                             <div
@@ -265,17 +297,41 @@ export const ProductListRow = React.memo(function ProductListRow({
                         )}
                     </div>
                     {hasReserved && (
-                        <span className="text-[10px] text-amber-600 font-medium">
-                            {product.reserved_quantity} {t("products.rsvd")}
+                        <span className="text-[10px] text-[var(--foreground-muted)] font-medium tabular-nums" title={t("products.stock.reservedStock")}>
+                            {t("products.stock.reservedCount", { count: product.reserved_quantity || 0 })}
                         </span>
                     )}
                 </div>
 
                 {/* Price + Margin */}
                 <div className="hidden md:flex flex-col items-end min-w-[100px]">
-                    <p className="text-lg font-bold text-foreground">
-                        {formatIQD(product.price)}
-                    </p>
+                    <Popover open={priceEditOpen} onOpenChange={setPriceEditOpen}>
+                        <PopoverTrigger asChild>
+                            <button
+                                type="button"
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={!quickEditable}
+                                title={quickEditable ? t("products.actions.changePrice") : undefined}
+                                className="-mx-1 px-1 rounded-md text-lg font-bold text-foreground tabular-nums enabled:hover:bg-[var(--background)] enabled:cursor-text disabled:cursor-default"
+                            >
+                                {formatIQD(product.price)}
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                            align="end"
+                            sideOffset={8}
+                            collisionPadding={16}
+                            className="w-auto p-0 border-0 bg-transparent shadow-none z-[9999]"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <PriceQuickEdit
+                                product={product}
+                                cost={canSeeCost ? product.cost : undefined}
+                                onClose={() => setPriceEditOpen(false)}
+                            />
+                        </PopoverContent>
+                    </Popover>
                     {product.website_price != null && product.website_price !== product.price && (
                         <span className="text-xs text-muted tabular-nums">
                             {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
@@ -284,9 +340,9 @@ export const ProductListRow = React.memo(function ProductListRow({
                     {margin !== null && (
                         <span className={cn(
                             "text-xs font-medium",
-                            margin > 30 ? "text-green-600" :
-                                margin > 15 ? "text-amber-600" :
-                                    margin > 0 ? "text-orange-600" : "text-red-600"
+                            margin > 30 ? "text-emerald-600 dark:text-emerald-400" :
+                                margin > 15 ? "text-amber-600 dark:text-amber-400" :
+                                    margin > 0 ? "text-orange-600 dark:text-orange-400" : "text-rose-600 dark:text-rose-400"
                         )}>
                             {margin}% {t("products.margin")}
                         </span>
@@ -343,6 +399,8 @@ export const ProductListRow = React.memo(function ProductListRow({
                     onViewDetails={() => onViewDetails(product)}
                     onDuplicate={onDuplicate ? () => onDuplicate(product) : undefined}
                     onDelete={onDelete ? () => onDelete(product) : undefined}
+                    onChangePrice={() => setPriceEditOpen(true)}
+                    onAdjustStock={() => setStockAdjustOpen(true)}
                 />
             </div>
         </div>
@@ -352,6 +410,8 @@ export const ProductListRow = React.memo(function ProductListRow({
         prev.product.id === next.product.id &&
         prev.product.name === next.product.name &&
         prev.product.price === next.product.price &&
+        // Quick price edits save against updated_at; a stale one would read as "changed elsewhere".
+        prev.product.updated_at === next.product.updated_at &&
         prev.product.cost === next.product.cost &&
         prev.product.stock_quantity === next.product.stock_quantity &&
         prev.product.reserved_quantity === next.product.reserved_quantity &&
