@@ -206,7 +206,7 @@ export function formatSessionDuration(
  * Get session time range string
  */
 export function formatSessionTimeRange(session: WorkSession, language?: string): string {
-    const localeString = language === "ar" ? "ar-IQ" : "en-US";
+    const localeString = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
     const startTime = session.startTime.toLocaleTimeString(localeString, {
         hour: "2-digit",
         minute: "2-digit",

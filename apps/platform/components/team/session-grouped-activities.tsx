@@ -36,7 +36,7 @@ function SessionCard({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay }}
-            className="rounded-2xl border border-border/50 overflow-hidden bg-white/50"
+            className="rounded-2xl border border-[#E8E4DC] dark:border-white/10 overflow-hidden bg-white dark:bg-[#1A1A1A]"
         >
             {/* Session Header */}
             <button
@@ -48,15 +48,15 @@ function SessionCard({
                 )}
             >
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                        <Clock className="w-5 h-5 text-primary" />
+                    <div className="w-9 h-9 rounded-lg bg-[#F5F0E8] dark:bg-white/10 flex items-center justify-center">
+                        <Clock className="w-4 h-4 text-[#6B6B6B] dark:text-gray-300" aria-hidden="true" />
                     </div>
-                    <div className="text-right">
+                    <div className="text-left">
                         <p className="font-semibold text-foreground">
                             {formatSessionTimeRange(session, language)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            {new Date(session.startTime).toLocaleDateString(language === 'ar' ? "ar-IQ" : "en-US", {
+                            {new Date(session.startTime).toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", {
                                 weekday: "short",
                                 month: "short",
                                 day: "numeric",
@@ -135,15 +135,6 @@ export function SessionGroupedActivities({
         });
     };
 
-    // Calculate totals
-    const totals = useMemo(() => {
-        return {
-            totalMinutes: displayedSessions.reduce((sum, s) => sum + s.durationMinutes, 0),
-            totalActivities: displayedSessions.reduce((sum, s) => sum + s.activityCount, 0),
-            sessionCount: displayedSessions.length,
-        };
-    }, [displayedSessions]);
-
     if (sessions.length === 0) {
         return (
             <div className="text-center py-12 text-muted-foreground">
@@ -155,30 +146,6 @@ export function SessionGroupedActivities({
 
     return (
         <div className={cn("space-y-4", className)}>
-            {/* Summary Header */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-2xl">
-                <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-primary" />
-                    <span className="font-bold text-foreground">{t("team.sessions.title")}</span>
-                </div>
-                <div className="flex items-center gap-4 text-sm">
-                    <div className="text-center">
-                        <p className="font-bold text-foreground">{totals.sessionCount}</p>
-                        <p className="text-xs text-muted-foreground">{t("team.stats.sessionLabel")}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="font-bold text-foreground">{totals.totalActivities}</p>
-                        <p className="text-xs text-muted-foreground">{t("team.sessions.activity")}</p>
-                    </div>
-                    <div className="text-center">
-                        <p className="font-bold text-foreground">
-                            {formatSessionDuration(totals.totalMinutes, t)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{t("team.stats.total")}</p>
-                    </div>
-                </div>
-            </div>
-
             {/* Sessions List */}
             <div className="space-y-3">
                 {displayedSessions.map((session, index) => (

@@ -9123,6 +9123,10 @@ export type Database = {
         Args: { p_end: string; p_start: string }
         Returns: Json
       }
+      team_member_activity_rollup: {
+        Args: { p_end: string; p_start: string; p_user_id: string }
+        Returns: Json
+      }
       team_period_totals: {
         Args: { p_end: string; p_start: string }
         Returns: {
