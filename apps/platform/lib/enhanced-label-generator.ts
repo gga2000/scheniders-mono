@@ -10,6 +10,9 @@ import { mergeOrderItems } from "@/lib/merge-order-items";
 import { computeRefundPayout, courierAmount } from "@/lib/order-money";
 import QRCode from "qrcode";
 import { code128Svg, qrSvg } from "@/lib/print-codes";
+import { escapeHtml } from "@/lib/html-escape";
+import { SCHNEIDERS_LOGO_SVG } from "@/lib/label-brand";
+import { DISPATCH_LABEL_CSS, DISPATCH_LABEL_FONTS, generateDispatchLabelHTML } from "@/lib/dispatch-label";
 
 // =============================================
 // TYPES
@@ -18,6 +21,8 @@ import { code128Svg, qrSvg } from "@/lib/print-codes";
 export type LabelSize = "4x6" | "3x2" | "a5" | "a6" | "compact" | "80x120";
 
 export type InvoiceTemplate = "classic" | "modern" | "prime";
+
+export type ShippingLabelDesign = "dispatch" | "classic";
 
 export interface EnhancedLabelOptions {
     size: LabelSize;
@@ -31,6 +36,8 @@ export interface EnhancedLabelOptions {
     deliveryLogoUrl?: string;
     customerOrderCount?: number;
     invoiceTemplate?: InvoiceTemplate;
+    /** Design of the 80x120 shipping label; Dispatch unless the classic table layout is chosen. */
+    labelDesign?: ShippingLabelDesign;
 }
 
 // Label dimensions in inches
@@ -57,14 +64,7 @@ const BARCODE_MAX_WIDTH_MM: Record<LabelSize, number> = {
 // SCHNEIDERS LOGO (B&W for thermal printing)
 // =============================================
 
-const SCHNEIDERS_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="-300 -300 600 600">
-  <g fill="#000" transform="scale(0.9783764)">
-    <circle r="50"/>
-    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z"/>
-    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z" transform="rotate(120)"/>
-    <path d="M75,0A75,75 0 0,0 37.5-64.951905L125-216.50635A250,250 0 0,1 250,0Z" transform="rotate(240)"/>
-  </g>
-</svg>`;
+
 
 // =============================================
 // LABEL HTML GENERATION
@@ -828,7 +828,7 @@ export async function generateA6InvoicePrime(order: Order, options: EnhancedLabe
     <table class="prime-table">
         <tr>
             <td class="prime-label">اسم الزبون</td>
-            <td class="prime-value">${order.customer_name}</td>
+            <td class="prime-value">${escapeHtml(order.customer_name ?? "")}</td>
             <td class="prime-label">المتجر</td>
             <td class="prime-value">شنايدر</td>
         </tr>
@@ -877,6 +877,9 @@ export async function generateShippingLabelHTML(
     order: Order,
     options: EnhancedLabelOptions
 ): Promise<string> {
+    if ((options.labelDesign ?? "dispatch") === "dispatch") {
+        return generateDispatchLabelHTML(order, { showBarcode: options.showBarcode });
+    }
     const displayOrderId = getBaseOrderId(order.order_id);
 
     // Vector codes on the printer's dot grid: crisp at 203 and 300 dpi (see lib/print-codes.ts).
@@ -926,7 +929,7 @@ export async function generateShippingLabelHTML(
     <table class="sl-table">
         <tr>
             <td class="sl-td-label">اسم الزبون</td>
-            <td class="sl-td-value">${order.customer_name}</td>
+            <td class="sl-td-value">${escapeHtml(order.customer_name ?? "")}</td>
             <td class="sl-td-label">المتجر</td>
             <td class="sl-td-value">شنايدر</td>
         </tr>
@@ -940,7 +943,7 @@ export async function generateShippingLabelHTML(
         </tr>` : ''}
         <tr>
             <td class="sl-td-label">عنوان الزبون</td>
-            <td class="sl-td-value" colspan="3">${order.city || ''}${order.address_details ? ' - ' + order.address_details : ''}</td>
+            <td class="sl-td-value" colspan="3">${escapeHtml(order.city || '')}${order.address_details ? ' - ' + escapeHtml(order.address_details) : ''}</td>
         </tr>
     </table>
 
@@ -949,7 +952,7 @@ export async function generateShippingLabelHTML(
     <table class="sl-table">
         <tr>
             <td class="sl-td-label">نوع البضاعة</td>
-            <td class="sl-td-value">${productsText}</td>
+            <td class="sl-td-value">${escapeHtml(productsText)}</td>
             <td class="sl-td-label">عدد</td>
             <td class="sl-td-value" style="text-align:center;font-weight:700;">${productCount}</td>
         </tr>
@@ -959,7 +962,7 @@ export async function generateShippingLabelHTML(
         </tr>
         <tr>
             <td class="sl-td-label">الملاحظات</td>
-            <td class="sl-td-value" colspan="3">${order.notes || '—'}</td>
+            <td class="sl-td-value" colspan="3">${order.notes ? escapeHtml(order.notes) : '—'}</td>
         </tr>
         <tr>
             <td class="sl-td-label">تاريخ وقت الحجز</td>
@@ -974,12 +977,12 @@ export async function generateShippingLabelHTML(
 
 // Arabic-first font for printed labels. Loaded from Google Fonts like the payslip;
 // falls back to system fonts when offline.
-export const LABEL_FONT_LINK = `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">`;
+export const LABEL_FONT_LINK = `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&${DISPATCH_LABEL_FONTS}&display=swap" rel="stylesheet">`;
 
 // CSS for shipping labels (used in bulk wrapper and preview).
 // Thermal printers only print black dots: no greys, no tinted fills, no hairlines,
 // and sizes in pt so text keeps its size at any printer resolution.
-export const SHIPPING_LABEL_CSS = `
+const CLASSIC_SHIPPING_LABEL_CSS = `
     .shipping-label {
         width: 80mm;
         height: 120mm;
@@ -1071,6 +1074,8 @@ export const SHIPPING_LABEL_CSS = `
         direction: ltr;
     }
 `;
+
+export const SHIPPING_LABEL_CSS = CLASSIC_SHIPPING_LABEL_CSS + DISPATCH_LABEL_CSS;
 
 // =============================================
 // BULK SHIPPING LABELS (one per page, 80x120mm)

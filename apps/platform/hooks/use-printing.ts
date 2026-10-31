@@ -5,6 +5,7 @@ import { supabase, Order, OrderFilters, PrintBatch } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { exportOrdersToPrimeCSV, exportOrdersToWaseetXLSX, cleanPhoneForExport } from "@/lib/export-utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import type { ShippingLabelDesign } from "@/lib/enhanced-label-generator";
 
 // =============================================
 // TYPES
@@ -14,6 +15,7 @@ import { mergeOrderItems } from "@/lib/merge-order-items";
 
 export interface LabelSettings {
     size: "4x6" | "3x2" | "a5" | "a6" | "compact" | "80x120";
+    labelDesign?: ShippingLabelDesign;
     showQrCode: boolean;
     showBarcode: boolean;
     showPrice: boolean;
@@ -43,6 +45,7 @@ export function usePrinting(orders: Order[]) {
     const [filters, setFilters] = useState<PrintingFilters>({ status: "confirmed" });
     const [labelSettings, setLabelSettings] = useState<LabelSettings>({
         size: "80x120",
+        labelDesign: "dispatch",
         showQrCode: true,
         showBarcode: true,
         showPrice: true,
