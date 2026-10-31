@@ -1,5 +1,12 @@
 {
     "framework": "nextjs",
+    "git": {
+        "deploymentEnabled": {
+            "main": true,
+            "**": false
+        }
+    },
+    "ignoreCommand": "bash ../../scripts/vercel-ignore-build.sh apps/storefront packages/sections packages/shared packages/supabase/src packages/supabase/package.json packages/provider-mock",
     "rewrites": [
         {
             "source": "/:path*",
