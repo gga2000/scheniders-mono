@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { LabelSize, EnhancedLabelOptions } from "@/lib/enhanced-label-generator";
+import { LabelSize, EnhancedLabelOptions, ShippingLabelDesign } from "@/lib/enhanced-label-generator";
 import {
     QrCode,
     Barcode,
@@ -33,6 +33,11 @@ const LABEL_SIZES: Array<{ value: LabelSize; label: string; descriptionKey: stri
     { value: "a5", label: "A5", descriptionKey: null, dims: "148 × 210 mm" },
     { value: "a6", label: "A6", descriptionKey: null, dims: "105 × 148 mm" },
     { value: "compact", label: "Compact", descriptionKey: "printing.label_sizeCompact", dims: "80 × 60 mm" },
+];
+
+const LABEL_DESIGNS: Array<{ value: ShippingLabelDesign; labelKey: string; descriptionKey: string }> = [
+    { value: "dispatch", labelKey: "printing.label_designDispatch", descriptionKey: "printing.label_designDispatchDesc" },
+    { value: "classic", labelKey: "printing.label_designClassic", descriptionKey: "printing.label_designClassicDesc" },
 ];
 
 export function LabelSettingsPanel({
@@ -216,6 +221,38 @@ export function LabelSettingsPanel({
                                     </AnimatePresence>
                                 </div>
                             </div>
+
+                            {settings.size === "80x120" && (
+                                <div className="space-y-2">
+                                    <p className="text-xs font-medium text-muted">{t("printing.label_design")}</p>
+                                    <div role="radiogroup" aria-label={t("printing.label_design")} className="grid grid-cols-2 gap-2">
+                                        {LABEL_DESIGNS.map((design) => {
+                                            const selected = (settings.labelDesign ?? "dispatch") === design.value;
+                                            return (
+                                                <button
+                                                    key={design.value}
+                                                    type="button"
+                                                    role="radio"
+                                                    aria-checked={selected}
+                                                    onClick={() => updateSetting("labelDesign", design.value)}
+                                                    className={cn(
+                                                        "text-start p-3 rounded-xl border transition-all",
+                                                        selected
+                                                            ? "border-foreground bg-[var(--background)]"
+                                                            : "border-[var(--card-border)] hover:bg-[var(--background)]"
+                                                    )}
+                                                >
+                                                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                                        {t(design.labelKey)}
+                                                        {selected && <Check className="w-3 h-3 ml-auto" />}
+                                                    </span>
+                                                    <span className="block text-xs text-muted mt-0.5">{t(design.descriptionKey)}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Toggle Settings Grid */}
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
