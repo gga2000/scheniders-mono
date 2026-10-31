@@ -28,6 +28,7 @@ const ERROR_FALLBACKS = {
     noStore: "Could not confirm which store you are working in. Reload and try again.",
     sessionExpired: "Your session has expired. Sign in again.",
     passwordRequired: "A vault key is required for this file.",
+    weakKey: "The vault key must be at least 10 characters.",
     invalidFile: "This is not a valid vault file.",
     wrongKey: "Failed to unlock the vault. Wrong key or damaged file.",
     damagedExcel: "The Excel file has a damaged Items or Risk column and cannot be restored.",

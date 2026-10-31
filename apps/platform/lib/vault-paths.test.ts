@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cloudVaultPath, isCloudVaultFilename } from "./vault-paths";
+import { cloudVaultPath, isCloudVaultFilename, isVaultKeyLongEnough, MIN_VAULT_KEY_LENGTH } from "./vault-paths";
 
 describe("vault paths", () => {
     it("accepts only files the sync feature writes", () => {
@@ -12,5 +12,13 @@ describe("vault paths", () => {
 
     it("always places the file under the tenant folder", () => {
         expect(cloudVaultPath("t-1", "sync_a.scheniders")).toBe("t-1/sync_a.scheniders");
+    });
+});
+
+describe("isVaultKeyLongEnough", () => {
+    it("rejects keys shorter than the minimum and accepts the minimum itself", () => {
+        expect(isVaultKeyLongEnough("a".repeat(MIN_VAULT_KEY_LENGTH - 1))).toBe(false);
+        expect(isVaultKeyLongEnough("a".repeat(MIN_VAULT_KEY_LENGTH))).toBe(true);
+        expect(isVaultKeyLongEnough("")).toBe(false);
     });
 });

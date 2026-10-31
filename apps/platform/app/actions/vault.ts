@@ -94,6 +94,28 @@ export async function getCloudDownloadUrlAction(
     return { success: true, url: data.signedUrl };
 }
 
+export async function deleteCloudVaultAction(accessToken: string, filename: string): Promise<VaultResult<object>> {
+    const resolved = await resolveCaller(accessToken);
+    if ("error" in resolved) return { success: false, error: resolved.error };
+    const denied = vaultRoleError(resolved.caller);
+    if (denied) return { success: false, error: denied };
+    if (!isCloudVaultFilename(filename)) return { success: false, error: "Unknown backup file" };
+
+    const supabase = createSupabaseServiceClient();
+    const { error } = await supabase.storage
+        .from(VAULT_BUCKET)
+        .remove([cloudVaultPath(resolved.caller.tenantId, filename)]);
+    if (error) return { success: false, error: "Could not delete this backup" };
+
+    await supabase.from("security_logs").insert({
+        action: "VAULT_CLOUD_DELETE",
+        details: { file: filename },
+        user_id: resolved.caller.userId,
+        tenant_id: resolved.caller.tenantId,
+    });
+    return { success: true };
+}
+
 const auditInput = z.object({
     action: z.enum(VAULT_AUDIT_ACTIONS),
     details: z.record(z.string(), z.union([z.string().max(200), z.number(), z.boolean()])).default({}),
