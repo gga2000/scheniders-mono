@@ -12,16 +12,6 @@ import { mergeOrderItems } from "@/lib/merge-order-items";
 
 // PrintBatch interface moved to lib/supabase.ts
 
-export interface PrintHistoryEntry {
-    id: string;
-    order_id: string;
-    batch_id?: string;
-    printed_at: string;
-    print_type: "label" | "invoice";
-    label_size?: string;
-    printed_by?: string;
-}
-
 export interface LabelSettings {
     size: "4x6" | "3x2" | "a5" | "a6" | "compact" | "80x120";
     showQrCode: boolean;
@@ -40,13 +30,6 @@ export interface PrintingFilters extends OrderFilters {
     batchId?: string;
 }
 
-export interface PrintStats {
-    todayPrinted: number;
-    todayPending: number;
-    totalPrinted: number;
-    cityDistribution: Array<{ city: string; count: number; percentage: number }>;
-}
-
 // =============================================
 // HOOK
 // =============================================
@@ -55,7 +38,6 @@ export function usePrinting(orders: Order[]) {
     const { tenantId } = useAuth();
     // State
     const [batches, setBatches] = useState<PrintBatch[]>([]);
-    const [printHistory, setPrintHistory] = useState<PrintHistoryEntry[]>([]);
     const [loading, setLoading] = useState(false);
     // No date window by default: a confirmed order from yesterday still needs to ship.
     const [filters, setFilters] = useState<PrintingFilters>({ status: "confirmed" });
@@ -156,21 +138,6 @@ export function usePrinting(orders: Order[]) {
     // =============================================
     // PRINT HISTORY
     // =============================================
-
-    async function fetchPrintHistory() {
-        try {
-            const { data, error } = await supabase
-                .from("print_history")
-                .select("*")
-                .order("printed_at", { ascending: false })
-                .limit(100);
-
-            if (error) throw error;
-            setPrintHistory(data || []);
-        } catch (err) {
-            console.error("Error fetching print history:", err);
-        }
-    }
 
     /**
      * Record a print run in one transaction: history rows, print counters and the
@@ -411,80 +378,6 @@ export function usePrinting(orders: Order[]) {
     }
 
     // =============================================
-    // CUSTOMER ORDER COUNT (for labels)
-    // =============================================
-
-    async function getCustomerOrderCount(phone: string): Promise<number> {
-        // The label counts this customer's orders with the merchant printing it.
-        if (!tenantId) return 1;
-        try {
-            const { count, error } = await supabase
-                .from("orders")
-                .select("id", { count: "exact", head: true })
-                .eq("tenant_id", tenantId)
-                .eq("phone", phone)
-                .in("status", ["confirmed", "delivered", "in_transit"]);
-
-            if (error) throw error;
-            return count || 1;
-        } catch (err) {
-            console.error("Error getting customer order count:", err);
-            return 1;
-        }
-    }
-
-    // =============================================
-    // STATISTICS
-    // =============================================
-
-    const stats = useMemo((): PrintStats => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const confirmedOrders = orders.filter((o) => o.status === "confirmed");
-
-        // Today's printed
-        const todayPrinted = confirmedOrders.filter((o) => {
-            if (!o.printed_at) return false;
-            const printedDate = new Date(o.printed_at);
-            return printedDate >= today;
-        }).length;
-
-        // Today's pending (confirmed but not printed today)
-        const todayPending = confirmedOrders.filter((o) => {
-            if (!o.printed_at) return true;
-            const printedDate = new Date(o.printed_at);
-            return printedDate < today;
-        }).length;
-
-        // Total printed
-        const totalPrinted = orders.filter((o) => (o.print_count || 0) > 0).length;
-
-        // City distribution
-        const cityCount: Record<string, number> = {};
-        confirmedOrders.forEach((o) => {
-            const city = o.city || "Unknown";
-            cityCount[city] = (cityCount[city] || 0) + 1;
-        });
-
-        const totalOrders = confirmedOrders.length || 1;
-        const cityDistribution = Object.entries(cityCount)
-            .map(([city, count]) => ({
-                city,
-                count,
-                percentage: Math.round((count / totalOrders) * 100),
-            }))
-            .sort((a, b) => b.count - a.count);
-
-        return {
-            todayPrinted,
-            todayPending,
-            totalPrinted,
-            cityDistribution,
-        };
-    }, [orders]);
-
-    // =============================================
     // EXPORT
     // =============================================
 
@@ -619,8 +512,6 @@ export function usePrinting(orders: Order[]) {
         setLabelSettings,
 
         // Print history
-        printHistory,
-        fetchPrintHistory,
         recordPrint,
         isReprintOrder,
         getOrderPrintCount,
@@ -634,12 +525,6 @@ export function usePrinting(orders: Order[]) {
         updateBatchName,
         deleteBatch,
         getBatchById,
-
-        // Customer data
-        getCustomerOrderCount,
-
-        // Stats
-        stats,
 
         // Export
         exportToCSV,

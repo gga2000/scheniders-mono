@@ -43,6 +43,8 @@ import { cn } from "@/lib/utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { partitionByShipDay } from "@/lib/order-bulk-scope";
 import { toast } from "@/hooks/use-toast";
+import { useCustomerOrderCounts } from "@/hooks/use-customer-order-counts";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
 import { DispatchSummary } from "@/components/printing/dispatch-summary";
 
@@ -77,31 +79,10 @@ export default function PrintingPage() {
     // Export menu state
     const [showExportMenu, setShowExportMenu] = useState(false);
 
-    // Customer order counts for labels
-    const [customerOrderCounts, setCustomerOrderCounts] = useState<Record<string, number>>({});
-
-    // Fetch customer counts for selected orders
-    useEffect(() => {
-        async function fetchCounts() {
-            const phones = [...new Set(printing.printableOrders.map((o) => o.phone))];
-            const counts: Record<string, number> = {};
-
-            for (const phone of phones) {
-                counts[phone] = await printing.getCustomerOrderCount(phone);
-            }
-
-            setCustomerOrderCounts(counts);
-        }
-
-        if (printing.printableOrders.length > 0) {
-            fetchCounts();
-        }
-    }, [printing.printableOrders]);
-
     // Load batches on mount
     useEffect(() => {
         printing.fetchBatches();
-        printing.fetchPrintHistory();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- load once on mount; the hook object changes every render
     }, []);
 
     // Sort orders
@@ -150,6 +131,17 @@ export default function PrintingPage() {
             setSelectedOrders(new Set(sortedOrders.map((o) => o.id)));
         }
     };
+
+    // One server round trip for every customer on the page, keyed back to the raw phone the labels use.
+    const countsByNormalizedPhone = useCustomerOrderCounts(sortedOrders, sortedOrders.length);
+    const customerOrderCounts = useMemo(() => {
+        const byPhone: Record<string, number> = {};
+        for (const o of sortedOrders) {
+            const count = countsByNormalizedPhone?.get(normalizePhoneForSearch(o.phone));
+            if (count !== undefined) byPhone[o.phone] = count;
+        }
+        return byPhone;
+    }, [sortedOrders, countsByNormalizedPhone]);
 
     // Get selected orders list
     const selectedOrdersList = sortedOrders.filter((o) => selectedOrders.has(o.id));
@@ -279,7 +271,7 @@ export default function PrintingPage() {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) {
-                alert("Please log in to download PDFs.");
+                toast.error("Sign in again", "Your session expired. Log in to download PDFs.");
                 return;
             }
 
@@ -307,7 +299,7 @@ export default function PrintingPage() {
             await downloadLabelPdf(html, filename, session.access_token, pageWidth, pageHeight);
         } catch (err) {
             console.error("PDF generation error:", err);
-            alert("Failed to generate PDF. Please try again.");
+            toast.error("PDF failed", "Could not generate the PDF. Try again.");
         } finally {
             setPdfLoading(false);
         }
@@ -1044,7 +1036,7 @@ export default function PrintingPage() {
                         };
                         const { data: { session } } = await supabase.auth.getSession();
                         if (!session?.access_token) {
-                            alert("Please log in to download PDFs.");
+                            toast.error("Sign in again", "Your session expired. Log in to download PDFs.");
                             return;
                         }
                         const html = await generateBulkA6InvoicesHTML(batchOrdersForPdf, labelOptions);
