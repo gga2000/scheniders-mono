@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 import { Expense, ExpenseCategory } from "@/types/expense";
 
 interface ExpenseFormData {
@@ -28,12 +31,15 @@ interface ExpenseSummary {
 }
 
 export function useExpenses(filters?: ExpenseFilters) {
+    const { tenantId } = useAuth();
+    const { t } = useLanguage();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Fetch expenses with optional filters
     const fetchExpenses = useCallback(async () => {
+        if (!tenantId) return;
         try {
             setLoading(true);
             setError(null);
@@ -41,6 +47,7 @@ export function useExpenses(filters?: ExpenseFilters) {
             let query = supabase
                 .from("expenses")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .order("expense_date", { ascending: false });
 
             // Apply date filters
@@ -65,14 +72,15 @@ export function useExpenses(filters?: ExpenseFilters) {
         } finally {
             setLoading(false);
         }
-    }, [filters?.startDate, filters?.endDate, filters?.category]);
+    }, [tenantId, filters?.startDate, filters?.endDate, filters?.category]);
 
     // Add expense
     const addExpense = async (data: ExpenseFormData): Promise<Expense | null> => {
         try {
             const { data: newExpense, error: insertError } = await supabase
                 .from("expenses")
-                .insert([data])
+                // RLS only accepts a row stamped with one of the member's stores.
+                .insert([{ ...data, tenant_id: tenantId }])
                 .select()
                 .single();
 
@@ -83,6 +91,7 @@ export function useExpenses(filters?: ExpenseFilters) {
         } catch (err) {
             console.error("Error adding expense:", err);
             setError(err instanceof Error ? err.message : "Failed to add expense");
+            toast.error(t("finances.expense.saveFailed"));
             return null;
         }
     };
@@ -93,7 +102,8 @@ export function useExpenses(filters?: ExpenseFilters) {
             const { error: updateError } = await supabase
                 .from("expenses")
                 .update(data)
-                .eq("id", id);
+                .eq("id", id)
+                .eq("tenant_id", tenantId);
 
             if (updateError) throw updateError;
 
@@ -102,6 +112,7 @@ export function useExpenses(filters?: ExpenseFilters) {
         } catch (err) {
             console.error("Error updating expense:", err);
             setError(err instanceof Error ? err.message : "Failed to update expense");
+            toast.error(t("finances.expense.saveFailed"));
             return false;
         }
     };
@@ -112,7 +123,8 @@ export function useExpenses(filters?: ExpenseFilters) {
             const { error: deleteError } = await supabase
                 .from("expenses")
                 .delete()
-                .eq("id", id);
+                .eq("id", id)
+                .eq("tenant_id", tenantId);
 
             if (deleteError) throw deleteError;
 
@@ -121,6 +133,7 @@ export function useExpenses(filters?: ExpenseFilters) {
         } catch (err) {
             console.error("Error deleting expense:", err);
             setError(err instanceof Error ? err.message : "Failed to delete expense");
+            toast.error(t("finances.expense.deleteFailed"));
             return false;
         }
     };
@@ -159,6 +172,7 @@ export function useExpenses(filters?: ExpenseFilters) {
             const { data, error } = await supabase
                 .from("expenses")
                 .select("*")
+                .eq("tenant_id", tenantId)
                 .gte("expense_date", startDate)
                 .lte("expense_date", endDate)
                 .order("expense_date", { ascending: false });

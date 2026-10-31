@@ -2,16 +2,19 @@
 // EXPENSE / FINANCE DOMAIN TYPES
 // =============================================
 
-export type ExpenseCategory =
-    | 'product_cost'
-    | 'packaging'
-    | 'sample_vial'
-    | 'sample_perfume'
-    | 'thank_you_cards'
-    | 'sweets'
-    | 'marketing'
-    | 'shipping'
-    | 'other';
+export const EXPENSE_CATEGORIES = [
+    'product_cost',
+    'packaging',
+    'sample_vial',
+    'sample_perfume',
+    'thank_you_cards',
+    'sweets',
+    'marketing',
+    'shipping',
+    'other',
+] as const;
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
 export interface Expense {
     id: string;
