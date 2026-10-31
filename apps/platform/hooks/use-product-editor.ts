@@ -1053,36 +1053,46 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 } as any);
 
                 if (newProduct) {
-                    // Add variants
-                    if (formData.variants.length > 0) {
-                        for (const variant of formData.variants) {
-                            await addVariant(newProduct.id, {
-                                name: variant.name,
-                                price: variant.price,
-                                cost: variant.cost,
-                                stock_quantity: variant.stock_quantity,
-                                sku: variant.sku,
-                                option_values: variant.option_values,
-                                image_url: variant.image_url,
-                                is_enabled: variant.is_enabled ?? true,
-                            } as any);
+                    try {
+                        // Add variants
+                        if (formData.variants.length > 0) {
+                            for (const variant of formData.variants) {
+                                await addVariant(newProduct.id, {
+                                    name: variant.name,
+                                    price: variant.price,
+                                    cost: variant.cost,
+                                    stock_quantity: variant.stock_quantity,
+                                    sku: variant.sku,
+                                    option_values: variant.option_values,
+                                    image_url: variant.image_url,
+                                    is_enabled: variant.is_enabled ?? true,
+                                } as any);
+                            }
                         }
-                    }
 
-                    // Save all related data
-                    await saveRelatedData(newProduct.id);
+                        // Save all related data
+                        await saveRelatedData(newProduct.id);
 
-                    // Log creation
-                    await productRepository.addActivityLogEntry(newProduct.id, {
-                        action: "created",
-                    }, tenantId);
-
-                    // Log initial price
-                    if (formData.price > 0) {
-                        await productRepository.addPriceHistoryEntry(newProduct.id, {
-                            new_price: formData.price,
-                            reason: "Initial price",
+                        // Log creation
+                        await productRepository.addActivityLogEntry(newProduct.id, {
+                            action: "created",
                         }, tenantId);
+
+                        // Log initial price
+                        if (formData.price > 0) {
+                            await productRepository.addPriceHistoryEntry(newProduct.id, {
+                                new_price: formData.price,
+                                reason: "Initial price",
+                            }, tenantId);
+                        }
+
+                    } catch {
+                        // The product row exists. Move to its editor so the next Save
+                        // updates it instead of inserting a second copy.
+                        clearDraft();
+                        toast.error(t("products.ed.err.createPartial"));
+                        router.push(`/products/${newProduct.id}/edit`);
+                        return false;
                     }
                 }
 

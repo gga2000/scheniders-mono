@@ -109,6 +109,7 @@ function ProductsContent() {
     const {
         products,
         loading,
+        pending,
         error,
         addProduct,
         updateProduct,
@@ -674,7 +675,7 @@ function ProductsContent() {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [sortBy, selectedIds, filteredProducts, handleReorder]);
 
-    if (loading) {
+    if (loading || (pending && !error)) {
         return (
             <div className="min-h-screen bg-[var(--background)]" aria-busy="true" aria-label={t("products.loading")}>
                 <PageSkeleton />
@@ -687,7 +688,14 @@ function ProductsContent() {
             <div className="min-h-screen flex items-center justify-center">
                 <div className="pastel-card pastel-card-pink p-8 text-center">
                     <h2 className="text-xl font-bold text-rose-900 mb-2">{t("products.errorTitle")}</h2>
-                    <p className="text-rose-700">{error}</p>
+                    <p className="text-rose-700 mb-4">{t("products.editor.loadFailedHint")}</p>
+                    <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
+                    >
+                        {t("products.editor.retry")}
+                    </button>
                 </div>
             </div>
         );
