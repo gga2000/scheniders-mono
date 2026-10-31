@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { formatVaultDate } from "@/lib/vault-format";
+import { RestoreScopeRow } from "@/components/vault/restore-scope-row";
 import { CloudTimeline } from "@/components/vault/cloud-timeline";
 import { FormatCard } from "@/components/vault/format-card";
 import { BackupHealth } from "@/components/vault/backup-health";
@@ -604,7 +605,7 @@ export default function VaultPage() {
                                             {restoreFile.name}
                                         </h3>
                                         <p className="text-xs text-[var(--foreground-muted)]">
-                                            {(restoreFile.size / 1024 / 1024).toFixed(2)} MB • {restoreFile.name.endsWith(".xlsx") ? "Excel Backup" : "Encrypted Vault"}
+                                            {(restoreFile.size / 1024 / 1024).toFixed(2)} MB • {restoreFile.name.endsWith(".xlsx") ? t("vault.format.excelBackup", "Excel backup") : t("vault.format.vault", "Encrypted Vault")}
                                         </p>
                                     </div>
                                 </div>
@@ -684,43 +685,28 @@ export default function VaultPage() {
                                                 <ShieldCheck className="w-4 h-4" />
                                                 {restoreFile?.name.endsWith(".xlsx") ? t("vault.restore.parsed", "Excel Successfully Parsed") : t("vault.restore.unlocked", "Vault Unlocked Successfully")}
                                             </div>
-                                            <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                                                <label className={cn("bg-[var(--card-bg)] rounded-lg p-2 border cursor-pointer transition-opacity", restoreScope.orders ? "border-[var(--vault-accent)]" : "border-[var(--card-border)] opacity-60")}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={restoreScope.orders}
-                                                        onChange={(e) => { setRestoreScope({ ...restoreScope, orders: e.target.checked }); setRestoreAcknowledged(false); }}
-                                                        className="sr-only"
-                                                        aria-label={t("nav.orders", "Orders")}
-                                                    />
-                                                    <div className="font-semibold">{diffResult.orders.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.orders.create, overwrite: diffResult.orders.overwrite })}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.orders", "Orders")}</div>
-                                                </label>
-                                                <label className={cn("bg-[var(--card-bg)] rounded-lg p-2 border cursor-pointer transition-opacity", restoreScope.products ? "border-[var(--vault-accent)]" : "border-[var(--card-border)] opacity-60")}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={restoreScope.products}
-                                                        onChange={(e) => { setRestoreScope({ ...restoreScope, products: e.target.checked }); setRestoreAcknowledged(false); }}
-                                                        className="sr-only"
-                                                        aria-label={t("nav.products", "Products")}
-                                                    />
-                                                    <div className="font-semibold">{diffResult.products.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.products.create, overwrite: diffResult.products.overwrite })}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.products", "Products")}</div>
-                                                </label>
-                                                <label className={cn("bg-[var(--card-bg)] rounded-lg p-2 border cursor-pointer transition-opacity", restoreScope.customers ? "border-[var(--vault-accent)]" : "border-[var(--card-border)] opacity-60")}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={restoreScope.customers}
-                                                        onChange={(e) => { setRestoreScope({ ...restoreScope, customers: e.target.checked }); setRestoreAcknowledged(false); }}
-                                                        className="sr-only"
-                                                        aria-label={t("nav.customers", "Customers")}
-                                                    />
-                                                    <div className="font-semibold">{diffResult.customers.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-xs">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.customers.create, overwrite: diffResult.customers.overwrite })}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-xs uppercase tracking-wide">{t("nav.customers", "Customers")}</div>
-                                                </label>
+                                            <div className="space-y-2">
+                                                <RestoreScopeRow
+                                                    label={t("nav.orders", "Orders")}
+                                                    total={diffResult.orders.total}
+                                                    counts={t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.orders.create, overwrite: diffResult.orders.overwrite })}
+                                                    checked={restoreScope.orders}
+                                                    onChange={(checked) => { setRestoreScope({ ...restoreScope, orders: checked }); setRestoreAcknowledged(false); }}
+                                                />
+                                                <RestoreScopeRow
+                                                    label={t("nav.products", "Products")}
+                                                    total={diffResult.products.total}
+                                                    counts={t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.products.create, overwrite: diffResult.products.overwrite })}
+                                                    checked={restoreScope.products}
+                                                    onChange={(checked) => { setRestoreScope({ ...restoreScope, products: checked }); setRestoreAcknowledged(false); }}
+                                                />
+                                                <RestoreScopeRow
+                                                    label={t("nav.customers", "Customers")}
+                                                    total={diffResult.customers.total}
+                                                    counts={t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.customers.create, overwrite: diffResult.customers.overwrite })}
+                                                    checked={restoreScope.customers}
+                                                    onChange={(checked) => { setRestoreScope({ ...restoreScope, customers: checked }); setRestoreAcknowledged(false); }}
+                                                />
                                             </div>
                                             {Object.values(diffResult.extras).some((count) => count > 0) && (
                                                 <label className="flex items-start gap-2 text-xs text-[var(--foreground-muted)] mb-2 cursor-pointer">
