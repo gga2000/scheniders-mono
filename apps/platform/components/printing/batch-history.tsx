@@ -30,7 +30,7 @@ export function BatchHistory({ batches, onOpen }: BatchHistoryProps) {
                 <button
                     key={batch.id}
                     onClick={() => onOpen(batch)}
-                    className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 text-start transition-colors hover:border-[var(--pastel-purple)]"
+                    className="group flex w-full flex-col items-start justify-between gap-2 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 text-start transition-colors hover:border-[var(--pastel-purple)] sm:flex-row sm:items-center sm:gap-3"
                 >
                     <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--pastel-purple)]">

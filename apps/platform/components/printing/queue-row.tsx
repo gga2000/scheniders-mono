@@ -58,9 +58,9 @@ export function QueueRow({ order, selected, onToggle, customerOrderCount }: Queu
                     </div>
     
                     {/* Main Content - Single Row */}
-                    <div className="flex-1 flex items-center gap-3 py-2 px-3 min-w-0">
+                    <div className="flex-1 flex flex-wrap items-center gap-x-3 gap-y-1 py-2 px-3 min-w-0 md:flex-nowrap">
                         {/* Customer Name + Order ID */}
-                        <div className="flex items-center gap-2 min-w-[130px] max-w-[180px] flex-shrink-0">
+                        <div className="flex items-center gap-2 min-w-0 max-w-full md:min-w-[130px] md:max-w-[180px] flex-shrink-0">
                             <span className="font-semibold text-sm truncate text-foreground">
                                 {order.customer_name}
                             </span>
@@ -123,14 +123,14 @@ export function QueueRow({ order, selected, onToggle, customerOrderCount }: Queu
     
                         {/* City */}
                         {order.city && (
-                            <div className="hidden lg:flex items-center gap-1 text-xs text-muted flex-shrink-0 max-w-[120px]">
+                            <div className="flex items-center gap-1 text-xs text-muted flex-shrink-0 max-w-[120px]">
                                 <MapPin className="w-3 h-3 flex-shrink-0" />
                                 <span className="truncate">{order.city}</span>
                             </div>
                         )}
     
                         {/* Payment + Price */}
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="ml-auto flex items-center gap-2 flex-shrink-0 md:ml-0">
                             <span
                                 className={cn(
                                     "px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase",
@@ -147,7 +147,7 @@ export function QueueRow({ order, selected, onToggle, customerOrderCount }: Queu
                                         ? "PARTIAL"
                                         : "COD"}
                             </span>
-                            <div className="text-right min-w-[90px]">
+                            <div className="text-right md:min-w-[90px]">
                                 <p className="text-sm font-bold text-foreground tabular-nums">
                                     {formatIQD(Number(order.price))}
                                 </p>
