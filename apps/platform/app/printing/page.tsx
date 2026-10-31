@@ -325,7 +325,7 @@ export default function PrintingPage() {
 
     return (
         <PageTransition>
-            <div className="min-h-screen p-6 md:p-8">
+            <div className="min-h-screen p-6 pb-28 md:p-8 md:pb-8">
                 <div className="space-y-6">
                     {/* Page Header */}
                     <motion.div
@@ -347,7 +347,7 @@ export default function PrintingPage() {
                             </div>
 
                             {/* Action Buttons - Always visible area to prevent snap */}
-                            <div className="flex items-center gap-2 min-h-[44px]">
+                            <div className="hidden md:flex items-center gap-2 min-h-[44px]">
                                 <AnimatePresence mode="wait">
                                     {selectedOrders.size > 0 && (
                                         <motion.div
@@ -811,6 +811,34 @@ export default function PrintingPage() {
                         </StaggerContainer>
                     </motion.div>
                 </div>
+
+                {/* Phone action bar: the header actions are desktop-only */}
+                {selectedOrders.size > 0 && (
+                    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-[var(--card-border)] bg-[var(--card-bg)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+                        <button
+                            onClick={handlePrint}
+                            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ink)] text-sm font-semibold text-white"
+                        >
+                            <Printer className="h-4 w-4" />
+                            {t("printing.print")} {selectedOrders.size}
+                        </button>
+                        <button
+                            onClick={handleDownloadPDF}
+                            disabled={pdfLoading}
+                            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-blue)] px-4 text-sm font-medium text-blue-900 disabled:opacity-50"
+                        >
+                            <Download className="h-4 w-4" />
+                            {t("printing.pdf")}
+                        </button>
+                        <button
+                            onClick={() => setShowShipDialog(true)}
+                            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-green)] px-4 text-sm font-medium text-emerald-900"
+                        >
+                            <Truck className="h-4 w-4" />
+                            {t("printing.ship")}
+                        </button>
+                    </div>
+                )}
 
                 {/* Modals */}
                 <PrintPreviewModal
