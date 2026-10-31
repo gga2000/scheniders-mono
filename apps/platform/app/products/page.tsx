@@ -136,7 +136,9 @@ function ProductsContent() {
     }, [categories]);
 
     // Store state
-    const viewMode = useProductStore((s) => s.viewMode);
+    const storedViewMode = useProductStore((s) => s.viewMode);
+    // The margin heatmap is built from cost, which only admins see.
+    const viewMode = storedViewMode === "heatmap" && !canManageProducts ? "grid" : storedViewMode;
     const setViewMode = useProductStore((s) => s.setViewMode);
     const sortBy = useProductStore((s) => s.sortBy);
     const setSortBy = useProductStore((s) => s.setSortBy);
@@ -932,7 +934,7 @@ function ProductsContent() {
                                                 { mode: "category" as const, icon: Layers, label: "products.views.category" },
                                                 { mode: "kanban" as const, icon: Columns3, label: "products.views.kanban" },
                                                 { mode: "heatmap" as const, icon: BarChart3, label: "products.views.heatmap" },
-                                            ]).map(({ mode, icon: Icon, label }) => (
+                                            ]).filter(({ mode }) => mode !== "heatmap" || canManageProducts).map(({ mode, icon: Icon, label }) => (
                                                 <button
                                                     key={mode}
                                                     onClick={() => setViewMode(mode)}

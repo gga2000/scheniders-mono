@@ -41,7 +41,8 @@ export function TieredPricingSection({
 
     const handleAddTier = () => {
         if (tiers.length === 0) {
-            onChange([{ min_quantity: 1, max_quantity: null, price: basePrice }]);
+            // A break starts at 2: a 1-or-more tier would replace the price.
+            onChange([{ min_quantity: 2, max_quantity: null, price: Math.round(basePrice * 0.95) }]);
             return;
         }
         const last = tiers[tiers.length - 1];

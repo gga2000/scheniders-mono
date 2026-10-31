@@ -16,6 +16,8 @@ import {
 import { Product, ProductPriceHistory, getStockStatus } from "@/lib/supabase";
 import { formatIQD, formatDate, maskIQD, FINANCIAL_MASK } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { StockIndicator } from "./stock-indicator";
 import { ProductThumb } from "@/components/products/product-thumb";
@@ -38,6 +40,9 @@ export function ProductDetailModal({
     const { t } = useLanguage();
     // Cost, margin and revenue follow the page's reveal toggle (hidden unless revealed).
     const { revealed } = useFinancialVisibility();
+    // Cost and margin stay masked for anyone without products.manage.
+    const { can } = usePermission();
+    const costRevealed = revealed && can(PERMISSIONS.MANAGE_PRODUCTS);
     if (!isOpen || !product) return null;
 
     const stockStatus = getStockStatus(product);
@@ -175,13 +180,13 @@ export function ProductDetailModal({
                                 <div>
                                     <p className="text-sm text-muted">{t("products.detail.cost")}</p>
                                     <p className="text-lg font-bold text-foreground">
-                                        {product.cost ? maskIQD(product.cost, revealed) : "—"}
+                                        {product.cost ? maskIQD(product.cost, costRevealed) : "—"}
                                     </p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted">{t("products.detail.margin")}</p>
                                     <p className="text-lg font-bold text-green-600">
-                                        {!profitMargin ? "—" : revealed ? `${profitMargin}%` : FINANCIAL_MASK}
+                                        {!profitMargin ? "—" : costRevealed ? `${profitMargin}%` : FINANCIAL_MASK}
                                     </p>
                                 </div>
                             </div>

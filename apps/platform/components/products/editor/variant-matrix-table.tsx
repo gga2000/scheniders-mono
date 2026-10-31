@@ -55,6 +55,8 @@ interface VariantMatrixTableProps {
     productSku?: string;
     productPrice: number;
     productCost: number;
+    /** Cost and margin are for admins only (products.manage). */
+    showCost?: boolean;
     disabled?: boolean;
 }
 
@@ -138,6 +140,7 @@ export function VariantMatrixTable({
     productSku,
     productPrice,
     productCost,
+    showCost = true,
     disabled = false,
 }: VariantMatrixTableProps) {
     const { t } = useLanguage();
@@ -186,10 +189,12 @@ export function VariantMatrixTable({
 
     // Columns that are actually editable in the current view
     const activeEditableColumns = useMemo(() => {
-        const cols: EditableColumn[] = ["price", "cost", "stock_quantity", "sku"];
+        const cols: EditableColumn[] = showCost
+            ? ["price", "cost", "stock_quantity", "sku"]
+            : ["price", "stock_quantity", "sku"];
         if (hasBarcodes) cols.push("barcode");
         return cols;
-    }, [hasBarcodes]);
+    }, [hasBarcodes, showCost]);
 
     // Sorted index mapping
     const sortedIndices = useMemo(() => {
@@ -616,8 +621,8 @@ export function VariantMatrixTable({
                                         </button>
                                     </div>
 
-                                    {/* Cost */}
-                                    <div className="flex items-center gap-2">
+                                    {showCost && (
+                                                                        <div className="flex items-center gap-2">
                                         <label className="text-xs font-medium text-muted w-12 shrink-0">
                                             {t?.("cost") ?? "Cost"}
                                         </label>
@@ -646,6 +651,7 @@ export function VariantMatrixTable({
                                             {t?.("apply") ?? "Apply"}
                                         </button>
                                     </div>
+                                    )}
 
                                     {/* Stock */}
                                     <div className="flex items-center gap-2">
@@ -746,6 +752,7 @@ export function VariantMatrixTable({
                             </div>
 
                             {/* Set Cost */}
+                            {showCost && (
                             <div className="relative">
                                 <button
                                     type="button"
@@ -790,6 +797,7 @@ export function VariantMatrixTable({
                                     )}
                                 </AnimatePresence>
                             </div>
+                            )}
 
                             {/* Add Stock */}
                             <div className="relative">
@@ -942,11 +950,13 @@ export function VariantMatrixTable({
                                         sortKey="price"
                                         className="text-left"
                                     />
-                                    <SortableHeader
-                                        label={`${t?.("cost") ?? "Cost"} (IQD)`}
-                                        sortKey="cost"
-                                        className="text-left"
-                                    />
+                                    {showCost && (
+                                        <SortableHeader
+                                            label={`${t?.("cost") ?? "Cost"} (IQD)`}
+                                            sortKey="cost"
+                                            className="text-left"
+                                        />
+                                    )}
                                     <SortableHeader
                                         label={t?.("stock") ?? "Stock"}
                                         sortKey="stock_quantity"
@@ -962,11 +972,13 @@ export function VariantMatrixTable({
                                             {t?.("barcode") ?? "Barcode"}
                                         </th>
                                     )}
-                                    <SortableHeader
-                                        label={t?.("margin") ?? "Margin"}
-                                        sortKey="margin"
-                                        className="text-left"
-                                    />
+                                    {showCost && (
+                                        <SortableHeader
+                                            label={t?.("margin") ?? "Margin"}
+                                            sortKey="margin"
+                                            className="text-left"
+                                        />
+                                    )}
                                     <th className={cn(TH, "text-left")}>
                                         {t?.("image") ?? "Image"}
                                     </th>
@@ -1111,6 +1123,7 @@ export function VariantMatrixTable({
                                                 </td>
 
                                                 {/* Cost */}
+                                                {showCost && (
                                                 <td className="px-3 py-2.5">
                                                     <input
                                                         ref={(el) => {
@@ -1148,6 +1161,7 @@ export function VariantMatrixTable({
                                                         )}
                                                     />
                                                 </td>
+                                                )}
 
                                                 {/* Stock */}
                                                 <td className="px-3 py-2.5">
@@ -1317,6 +1331,7 @@ export function VariantMatrixTable({
                                                 )}
 
                                                 {/* Margin */}
+                                                {showCost && (
                                                 <td className="px-3 py-2.5">
                                                     {margin !== null ? (
                                                         <span
@@ -1339,6 +1354,7 @@ export function VariantMatrixTable({
                                                         </span>
                                                     )}
                                                 </td>
+                                                )}
 
                                                 {/* Image */}
                                                 <td className="px-3 py-2.5">

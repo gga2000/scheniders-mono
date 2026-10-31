@@ -968,6 +968,16 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             }
         }
 
+        // A tier is a break for buying 2 or more at a price above 0 and below
+        // the product price. Checkout charges the lower of the two, so a
+        // 1-or-more tier would freeze the price and a 0 tier would sell free.
+        if (formData.tiered_prices.some((tp) =>
+            tp.min_quantity < 2 || tp.price <= 0 || tp.price >= formData.price
+        )) {
+            toast.error(t("products.ed.err.tierPrice"));
+            return false;
+        }
+
         // Validate bundle has items
         if (formData.product_type === "bundle" && formData.bundle_items.length === 0) {
             toast.error(t("products.ed.err.bundle"));
@@ -1113,10 +1123,11 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     loaded.variants.flatMap((v) => (v.id ? [[v.id, v.stock_quantity] as const] : []))
                 );
 
-                // Handle variants
-                const existingVariantIds = new Set(
-                    (product.variants || []).map((v) => v.id)
-                );
+                // Handle variants. Only the variants this editor loaded (or
+                // created in an earlier save) are updated or deleted, so a
+                // variant someone else added meanwhile is left alone.
+                const existingVariantIds = new Set(loadedVariantStock.keys());
+                const savedVariants: typeof formData.variants = [];
 
                 for (const variant of formData.variants) {
                     if (variant.id && existingVariantIds.has(variant.id)) {
@@ -1138,8 +1149,9 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                             });
                         }
                         existingVariantIds.delete(variant.id);
+                        savedVariants.push(variant);
                     } else {
-                        await addVariant(product.id, {
+                        const created = await addVariant(product.id, {
                             name: variant.name,
                             price: variant.price,
                             cost: variant.cost,
@@ -1149,6 +1161,9 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                             image_url: variant.image_url,
                             is_enabled: variant.is_enabled ?? true,
                         } as any);
+                        // Keep the new id, so the next save updates this
+                        // variant instead of creating it again.
+                        savedVariants.push({ ...variant, id: created.id });
                     }
                 }
 
@@ -1195,7 +1210,15 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
                 clearDraft();
                 // Update initial data ref to new saved state
-                initialDataRef.current = { ...formData };
+                const saved = { ...formData, variants: savedVariants };
+                initialDataRef.current = saved;
+                // Edits typed while saving stay; only the new ids are filled in.
+                setFormData((current) => ({
+                    ...current,
+                    variants: current.variants.map((v, i) =>
+                        v.id || !savedVariants[i]?.id ? v : { ...v, id: savedVariants[i].id }
+                    ),
+                }));
                 toast.success(t("products.updated"));
             }
 
