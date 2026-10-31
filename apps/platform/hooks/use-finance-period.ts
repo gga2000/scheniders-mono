@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import { baghdadDayKey } from "@/lib/order-window";
 
 export type Granularity = "day" | "week" | "month" | "quarter" | "year";
 export type PresetKey = "today" | "yesterday" | "last7" | "last30" | "mtd" | "ytd" | "custom";
@@ -109,8 +110,8 @@ export function useFinancePeriod(initial: PresetKey = "last30") {
     }, [period]);
 
     const dateRangeStrings = useMemo(() => ({
-        startDate: period.start.toISOString().split("T")[0],
-        endDate: period.end.toISOString().split("T")[0],
+        startDate: baghdadDayKey(period.start),
+        endDate: baghdadDayKey(period.end),
     }), [period]);
 
     return {
