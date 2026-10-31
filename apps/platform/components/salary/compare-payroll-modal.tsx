@@ -3,14 +3,16 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 import type { PayrollRecord } from "@/types/salary";
 
 function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
 }
 
-function fmtMonth(d: string) {
-    try { return format(new Date(d + "T00:00:00"), "MMM yyyy"); } catch { return d; }
+function fmtMonth(d: string, isArabic: boolean) {
+    try { return format(new Date(d + "T00:00:00"), "MMM yyyy", { locale: isArabic ? ar : undefined }); } catch { return d; }
 }
 
 interface ComparePayrollModalProps {
@@ -30,6 +32,7 @@ interface DiffRowProps {
 }
 
 function DiffRow({ label, valueA, valueB, isCount = false, isTotal = false }: DiffRowProps) {
+    const { t } = useLanguage();
     const diff = valueB - valueA;
     const fmt = (n: number) => isCount ? String(n) : `${fmtIQD(n)} IQD`;
 
@@ -48,7 +51,7 @@ function DiffRow({ label, valueA, valueB, isCount = false, isTotal = false }: Di
                 {diff === 0 ? (
                     <span className="inline-flex items-center gap-0.5 text-muted">
                         <ArrowRight className="w-3 h-3" />
-                        Same
+                        {t("payroll.compare.same")}
                     </span>
                 ) : diff > 0 ? (
                     <span className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400 font-medium">
@@ -73,6 +76,8 @@ export function ComparePayrollModal({
     recordB,
     employeeName,
 }: ComparePayrollModalProps) {
+    const { t, language } = useLanguage();
+    const isArabic = language === "ar";
     // Always put the older record on the left
     const [older, newer] = recordA.period_end <= recordB.period_end
         ? [recordA, recordB]
@@ -99,7 +104,7 @@ export function ComparePayrollModal({
                         {/* Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
                             <div>
-                                <h2 className="text-sm font-semibold text-foreground">Period Comparison</h2>
+                                <h2 className="text-sm font-semibold text-foreground">{t("payroll.compare.title")}</h2>
                                 <p className="text-xs text-muted">{employeeName}</p>
                             </div>
                             <button
@@ -115,26 +120,26 @@ export function ComparePayrollModal({
                             <table className="w-full">
                                 <thead>
                                     <tr className="border-b border-[var(--card-border)]">
-                                        <th className="pb-2 text-left text-xs font-medium text-muted w-32">Metric</th>
+                                        <th className="pb-2 text-left text-xs font-medium text-muted w-32">{t("payroll.compare.metric")}</th>
                                         <th className="pb-2 px-3 text-right text-xs font-semibold text-foreground">
-                                            {fmtMonth(older.period_end)}
+                                            {fmtMonth(older.period_end, isArabic)}
                                         </th>
                                         <th className="pb-2 px-3 text-right text-xs font-semibold text-foreground">
-                                            {fmtMonth(newer.period_end)}
+                                            {fmtMonth(newer.period_end, isArabic)}
                                         </th>
-                                        <th className="pb-2 pl-3 text-right text-xs font-medium text-muted">Δ Change</th>
+                                        <th className="pb-2 pl-3 text-right text-xs font-medium text-muted">{t("payroll.compare.change")}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[var(--card-border)]">
-                                    <DiffRow label="Orders" valueA={older.completed_orders_count} valueB={newer.completed_orders_count} isCount />
-                                    <DiffRow label="Base Salary" valueA={older.base_salary} valueB={newer.base_salary} />
-                                    <DiffRow label="Order Bonus" valueA={older.order_bonus} valueB={newer.order_bonus} />
-                                    <DiffRow label="Perf. Bonuses" valueA={older.performance_bonuses_total} valueB={newer.performance_bonuses_total} />
-                                    <DiffRow label="Gross Salary" valueA={older.gross_salary} valueB={newer.gross_salary} />
-                                    <DiffRow label="Absence Deduction" valueA={older.absence_deduction} valueB={newer.absence_deduction} />
-                                    <DiffRow label="Advances" valueA={older.advances_deducted} valueB={newer.advances_deducted} />
-                                    <DiffRow label="Penalties" valueA={older.penalties_deducted} valueB={newer.penalties_deducted} />
-                                    <DiffRow label="Net Salary" valueA={older.net_salary} valueB={newer.net_salary} isTotal />
+                                    <DiffRow label={t("payroll.compare.orders")} valueA={older.completed_orders_count} valueB={newer.completed_orders_count} isCount />
+                                    <DiffRow label={t("payroll.compare.base")} valueA={older.base_salary} valueB={newer.base_salary} />
+                                    <DiffRow label={t("payroll.compare.orderBonus")} valueA={older.order_bonus} valueB={newer.order_bonus} />
+                                    <DiffRow label={t("payroll.compare.perfBonus")} valueA={older.performance_bonuses_total} valueB={newer.performance_bonuses_total} />
+                                    <DiffRow label={t("payroll.compare.gross")} valueA={older.gross_salary} valueB={newer.gross_salary} />
+                                    <DiffRow label={t("payroll.compare.absence")} valueA={older.absence_deduction} valueB={newer.absence_deduction} />
+                                    <DiffRow label={t("payroll.compare.advances")} valueA={older.advances_deducted} valueB={newer.advances_deducted} />
+                                    <DiffRow label={t("payroll.compare.penalties")} valueA={older.penalties_deducted} valueB={newer.penalties_deducted} />
+                                    <DiffRow label={t("payroll.compare.net")} valueA={older.net_salary} valueB={newer.net_salary} isTotal />
                                 </tbody>
                             </table>
                         </div>
@@ -145,7 +150,7 @@ export function ComparePayrollModal({
                                 onClick={onClose}
                                 className="px-4 py-2 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all"
                             >
-                                Close
+                                {t("payroll.compare.close")}
                             </button>
                         </div>
                     </motion.div>

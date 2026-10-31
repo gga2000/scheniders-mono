@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Settings2 } from "lucide-react";
 import type { RoleSalaryDefault } from "@/types/salary";
+import { useLanguage } from "@/hooks/use-language";
 
 interface RoleDefaultsModalProps {
     isOpen: boolean;
@@ -12,13 +13,14 @@ interface RoleDefaultsModalProps {
     onSave: (role: string, config: { base_monthly_salary: number; per_order_bonus: number }) => Promise<void>;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-    admin: "Admin",
-    employee: "Employee",
-    viewer: "Viewer",
+const ROLE_LABEL_KEYS: Record<string, string> = {
+    admin: "payroll.roles.admin",
+    employee: "payroll.roles.employee",
+    viewer: "payroll.roles.viewer",
 };
 
 export function RoleDefaultsModal({ isOpen, onClose, roleDefaults, onSave }: RoleDefaultsModalProps) {
+    const { t } = useLanguage();
     const [values, setValues] = useState<Record<string, { base: number; bonus: number }>>({});
     const [loading, setLoading] = useState(false);
 
@@ -74,8 +76,8 @@ export function RoleDefaultsModal({ isOpen, onClose, roleDefaults, onSave }: Rol
                                 <Settings2 className="w-5 h-5 text-indigo-600" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-foreground">Role Salary Defaults</h2>
-                                <p className="text-xs text-muted">Applied to employees using role defaults</p>
+                                <h2 className="text-lg font-bold text-foreground">{t("payroll.roles.title")}</h2>
+                                <p className="text-xs text-muted">{t("payroll.roles.subtitle")}</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="p-2 rounded-xl hover:bg-[var(--background)] transition-colors">
@@ -92,11 +94,11 @@ export function RoleDefaultsModal({ isOpen, onClose, roleDefaults, onSave }: Rol
                                     className="p-4 bg-[var(--background)] rounded-xl border border-[var(--card-border)] space-y-3"
                                 >
                                     <p className="text-sm font-semibold text-foreground">
-                                        {ROLE_LABELS[rd.role] ?? rd.role}
+                                        {ROLE_LABEL_KEYS[rd.role] ? t(ROLE_LABEL_KEYS[rd.role]) : rd.role}
                                     </p>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="block text-xs text-muted mb-1">Base Monthly (IQD)</label>
+                                            <label className="block text-xs text-muted mb-1">{t("payroll.roles.base")}</label>
                                             <input
                                                 type="number"
                                                 value={val.base || ""}
@@ -112,7 +114,7 @@ export function RoleDefaultsModal({ isOpen, onClose, roleDefaults, onSave }: Rol
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs text-muted mb-1">Per Order Bonus (IQD)</label>
+                                            <label className="block text-xs text-muted mb-1">{t("payroll.roles.bonus")}</label>
                                             <input
                                                 type="number"
                                                 value={val.bonus || ""}
@@ -138,7 +140,7 @@ export function RoleDefaultsModal({ isOpen, onClose, roleDefaults, onSave }: Rol
                                 onClick={onClose}
                                 className="flex-1 px-4 py-3 bg-[var(--background)] text-foreground rounded-xl font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Cancel
+                                {t("payroll.roles.cancel")}
                             </button>
                             <button
                                 onClick={handleSave}
@@ -148,7 +150,7 @@ export function RoleDefaultsModal({ isOpen, onClose, roleDefaults, onSave }: Rol
                                 {loading ? (
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    "Save Defaults"
+                                    t("payroll.roles.save")
                                 )}
                             </button>
                         </div>

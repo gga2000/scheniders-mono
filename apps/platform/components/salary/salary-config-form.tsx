@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Settings, History, TrendingUp, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+import { useLanguage } from "@/hooks/use-language";
 import type { EffectiveSalaryRate } from "@/types/salary";
 import { useSalaryConfig, type SalaryConfigHistoryRow } from "@/hooks/use-salary-config";
 
@@ -41,6 +43,7 @@ export function SalaryConfigForm({
     const [historyOpen, setHistoryOpen] = useState(false);
 
     const { fetchConfigHistory } = useSalaryConfig();
+    const { t, language } = useLanguage();
 
     useEffect(() => {
         if (isOpen) {
@@ -91,7 +94,7 @@ export function SalaryConfigForm({
                                 <Settings className="w-5 h-5 text-rose-700" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-foreground">Salary Configuration</h2>
+                                <h2 className="text-lg font-bold text-foreground">{t("payroll.config.title")}</h2>
                                 <p className="text-xs text-muted">{employeeName}</p>
                             </div>
                         </div>
@@ -111,7 +114,7 @@ export function SalaryConfigForm({
                                 className="w-4 h-4 rounded"
                             />
                             <label htmlFor="useRoleDefaults" className="text-sm text-foreground">
-                                Use role-level default rates
+                                {t("payroll.config.useDefaults")}
                             </label>
                         </div>
 
@@ -119,31 +122,31 @@ export function SalaryConfigForm({
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">
-                                        Base Monthly Salary (IQD)
+                                        {t("payroll.config.base")}
                                     </label>
                                     <input
                                         type="number"
                                         value={baseSalary || ""}
                                         onChange={e => setBaseSalary(parseFloat(e.target.value) || 0)}
                                         min={0}
-                                        placeholder="e.g. 850000"
+                                        placeholder="850000"
                                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/30 transition-all"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">
-                                        Per Completed Order Bonus (IQD)
+                                        {t("payroll.config.perOrder")}
                                     </label>
                                     <input
                                         type="number"
                                         value={perOrderBonus || ""}
                                         onChange={e => setPerOrderBonus(parseFloat(e.target.value) || 0)}
                                         min={0}
-                                        placeholder="e.g. 500"
+                                        placeholder="500"
                                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/30 transition-all"
                                     />
                                     <p className="text-xs text-muted mt-1.5">
-                                        Paid per order that reaches &quot;completed&quot; status
+                                        {t("payroll.config.perOrderHint")}
                                     </p>
                                 </div>
                             </div>
@@ -155,7 +158,7 @@ export function SalaryConfigForm({
                                 onClick={onClose}
                                 className="flex-1 px-4 py-3 bg-[var(--background)] text-foreground rounded-xl font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Cancel
+                                {t("payroll.config.cancel")}
                             </button>
                             <button
                                 type="submit"
@@ -165,7 +168,7 @@ export function SalaryConfigForm({
                                 {loading ? (
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    "Save Configuration"
+                                    t("payroll.config.save")
                                 )}
                             </button>
                         </div>
@@ -179,7 +182,7 @@ export function SalaryConfigForm({
                                 className="flex items-center gap-2 text-xs font-medium text-muted hover:text-foreground transition-colors mb-3"
                             >
                                 <History className="w-3.5 h-3.5" />
-                                Change History ({history.length})
+                                {t("payroll.config.history", { count: history.length })}
                                 <span className="ml-auto">{historyOpen ? "▲" : "▼"}</span>
                             </button>
                             {historyOpen && (
@@ -191,7 +194,7 @@ export function SalaryConfigForm({
                                             <div key={row.id} className="p-3 bg-[var(--background)] rounded-xl text-xs space-y-1">
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-muted">
-                                                        {format(new Date(row.created_at), "MMM d, yyyy · HH:mm")}
+                                                        {format(new Date(row.created_at), "MMM d, yyyy · HH:mm", { locale: language === "ar" ? ar : undefined })}
                                                     </span>
                                                     {baseUp && <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />}
                                                     {baseDown && <TrendingDown className="w-3.5 h-3.5 text-rose-500" />}
@@ -200,14 +203,14 @@ export function SalaryConfigForm({
                                                     <div className="flex items-center gap-1.5 text-foreground">
                                                         <span className="text-muted line-through">{fmtIQD(row.old_base_salary)}</span>
                                                         <span>→</span>
-                                                        <span className="font-medium">{fmtIQD(row.new_base_salary)} IQD base</span>
+                                                        <span className="font-medium">{t("payroll.config.baseSuffix", { amount: fmtIQD(row.new_base_salary) })}</span>
                                                     </div>
                                                 )}
                                                 {(row.old_per_order !== row.new_per_order) && (
                                                     <div className="flex items-center gap-1.5 text-foreground">
                                                         <span className="text-muted line-through">{fmtIQD(row.old_per_order)}</span>
                                                         <span>→</span>
-                                                        <span className="font-medium">{fmtIQD(row.new_per_order)} IQD/order</span>
+                                                        <span className="font-medium">{t("payroll.config.orderSuffix", { amount: fmtIQD(row.new_per_order) })}</span>
                                                     </div>
                                                 )}
                                                 {row.note && <p className="text-muted italic">{row.note}</p>}
