@@ -113,8 +113,11 @@ describe("order book mounting (PERF-D1)", () => {
         const files = sourceFiles(PLATFORM).filter((f) => relative(f) !== "lib/repositories/order-repository.ts");
         const callers = (pattern: RegExp) => files.filter((f) => pattern.test(code(f))).map(relative).sort();
 
+        // use-finance-orders.ts is /finances reading its own period: the book
+        // holds the Orders page's window, and Finances must not inherit it (ORD-2).
         expect(callers(/\borderRepository\.(findWindow|findAll)\(/)).toEqual([
             "hooks/use-duplicate-window-alerts.ts",
+            "hooks/use-finance-orders.ts",
             "hooks/use-orders-query.ts",
         ]);
         // Both run only under OrdersProvider: the duplicate margin from useOrders,
