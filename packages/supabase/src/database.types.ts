@@ -8931,6 +8931,21 @@ export type Database = {
           unit_cost: number | null
         }[]
       }
+      run_payroll: {
+        Args: {
+          p_absence_days: number
+          p_absence_deduction: number
+          p_base_salary: number
+          p_completed_orders_count: number
+          p_employee_id: string
+          p_notes?: string
+          p_order_bonus: number
+          p_payment_method?: string
+          p_period_end: string
+          p_period_start: string
+        }
+        Returns: Database["public"]["Tables"]["payroll_records"]["Row"]
+      }
       save_product_children: {
         Args: { p_children: Json; p_product_id: string }
         Returns: undefined
@@ -9089,6 +9104,7 @@ export type Database = {
         Args: { _split_log_id: string; _tenant_id?: string }
         Returns: Json
       }
+      void_payroll: { Args: { p_record_id: string }; Returns: undefined }
       uuid_generate_v4: { Args: never; Returns: string }
       value_tier_calc: { Args: { p_completed: number }; Returns: string }
     }

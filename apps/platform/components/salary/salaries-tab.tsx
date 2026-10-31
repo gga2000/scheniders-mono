@@ -418,7 +418,7 @@ export function SalariesTab() {
                 perOrderBonus: confirmData.effectiveRate.perOrderBonus,
             };
 
-            const { error, record, deductionWarnings } = await runPayroll(calc, user.id, notes || undefined, payslipMeta, paymentMethod);
+            const { error, record } = await runPayroll(calc, notes || undefined, payslipMeta, paymentMethod);
             setConfirmData(null);
             setPayingEmployeeId(null);
             handleRefreshAll();
@@ -426,17 +426,9 @@ export function SalariesTab() {
             if (error) {
                 toast({ title: "Payroll failed", description: error, variant: "error" });
             } else {
-                if (deductionWarnings?.length) {
-                    toast({
-                        title: "Payroll saved — deduction sync issue",
-                        description: `Some deductions may not have been marked applied. Please verify in the Advances/Penalties tabs. (${deductionWarnings.join("; ")})`,
-                        variant: "warning",
-                        duration: 12000,
-                    });
-                }
                 toast({
                     title: `Payroll locked — ${payslipMeta.employeeName}`,
-                    description: `${new Intl.NumberFormat("en-IQ").format(Math.round(calc.netSalary))} IQD paid`,
+                    description: `${new Intl.NumberFormat("en-IQ").format(Math.round(record?.net_salary ?? calc.netSalary))} IQD paid`,
                     variant: "success",
                     duration: 10000,
                     action: record?.pdf_url ? {
@@ -486,7 +478,7 @@ export function SalariesTab() {
                     employeeRole: emp.role,
                     perOrderBonus: data.effectiveRate.perOrderBonus,
                 };
-                const { error: runErr } = await runPayroll(calc, user.id, undefined, payslipMeta, paymentMethod);
+                const { error: runErr } = await runPayroll(calc, undefined, payslipMeta, paymentMethod);
                 if (runErr) failedNames.push(emp.displayName || emp.email.split("@")[0]);
                 setBulkPayProgress({ done: i + 1, total: eligible.length });
             }
