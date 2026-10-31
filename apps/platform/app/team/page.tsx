@@ -283,11 +283,10 @@ export default function TeamPage() {
             </AnimatePresence>
             )}
 
-            {/* Employee Drawer (Step 5) */}
             {selectedEmployee && (
                 <EmployeeDrawer
                     employee={selectedEmployee}
-                    activities={infiniteActivities.activities}
+                    range={timeRange}
                     isOpen={selectedEmployeeIndex !== null}
                     onClose={() => setSelectedEmployeeIndex(null)}
                     onNavigate={handleNavigateEmployee}
