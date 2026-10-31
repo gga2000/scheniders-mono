@@ -55,13 +55,15 @@ function avatarColor(name: string): string {
 
 interface PayrollHistoryTableProps {
     employeeNames: Map<string, string>;
+    /** Called after a payroll is voided so other views (current period) reload. */
+    onVoided?: () => void;
 }
 
 type ViewMode = "list" | "calendar" | "ytd";
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function PayrollHistoryTable({ employeeNames }: PayrollHistoryTableProps) {
+export function PayrollHistoryTable({ employeeNames, onVoided }: PayrollHistoryTableProps) {
     const { payrollHistory, isLoading, fetchAllHistory, voidPayroll } = usePayroll();
 
     // Preview state
@@ -174,6 +176,7 @@ export function PayrollHistoryTable({ employeeNames }: PayrollHistoryTableProps)
             toast({ title: "Failed to void payroll", description: error, variant: "error" });
         } else {
             toast({ title: "Payroll voided", description: "Record removed and deductions restored to pending.", variant: "success" });
+            onVoided?.();
         }
     }
 
