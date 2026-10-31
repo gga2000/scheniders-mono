@@ -36,7 +36,9 @@ export function StockQuickAdjust({ productId, productName, currentStock, reserve
     const inputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
+        // Selected, so typing "5" replaces the starting 0 instead of making "05".
         inputRef.current?.focus();
+        inputRef.current?.select();
     }, []);
 
     const newQuantity = currentStock + delta;
