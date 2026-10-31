@@ -333,10 +333,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                             {editor.formData.product_type !== "digital" && editor.formData.product_type !== "service" && (
                                 <>
                                     <CollapsibleSection title={t("products.ed.sec.invHistory")} icon={<Clock className="w-4 h-4 text-muted" />} badge={editor.formData.inventory_history.length || undefined} persistKey="inventory-history">
-                                        <InventoryTimeline
-                                            entries={editor.formData.inventory_history}
-                                            onChange={(entries) => editor.updateField("inventory_history", entries)}
-                                        />
+                                        <InventoryTimeline entries={editor.formData.inventory_history} />
                                     </CollapsibleSection>
 
                                     {/* Suppliers carry unit cost, so they are saved only by members who see cost. */}
