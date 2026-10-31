@@ -139,6 +139,11 @@ export async function GET(request: Request) {
             { file: 'orders.csv', source: 'orders', orderBy: 'id' },
             { file: 'customers.csv', source: 'mv_customer_metrics', orderBy: 'customer_phone' },
             { file: 'products.csv', source: 'products', orderBy: 'id' },
+            { file: 'categories.csv', source: 'categories', orderBy: 'id' },
+            { file: 'expenses.csv', source: 'expenses', orderBy: 'id' },
+            { file: 'customer_tags.csv', source: 'customer_tags', orderBy: 'id' },
+            { file: 'customer_tag_assignments.csv', source: 'customer_tag_assignments', orderBy: 'id' },
+            { file: 'customer_notes.csv', source: 'customer_notes', orderBy: 'id' },
         ] as const;
 
         const { data: tenants, error: tenantsError } = await supabase.from('tenants').select('id');
