@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Tag as TagIcon, Search, Plus, Loader2 } from "lucide-react";
 import { useCustomerTags } from "@/hooks/use-customer-management";
@@ -23,6 +23,13 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
     const [search, setSearch] = useState("");
     const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
     const [creating, setCreating] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) {
+            setSearch("");
+            setSelectedTagIds(new Set());
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 

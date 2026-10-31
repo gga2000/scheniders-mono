@@ -377,7 +377,7 @@ function CustomersPageContent() {
             <CustomerBulkBar
                 selectedCount={selected.size}
                 totalMatching={totalCount}
-                onSelectAll={canExport ? selectAllMatching : undefined}
+                onSelectAll={selectAllMatching}
                 allSelected={allSelectedFor === filtersKey}
                 selectingAll={selectingAll}
                 onExport={canExport ? exportSelected : undefined}

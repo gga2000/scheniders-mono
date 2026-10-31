@@ -15,6 +15,8 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { addToBlacklist } from "@/lib/blacklist";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 
 const DESTS: { key: ReturnDestination; label: string }[] = [
     { key: "restock", label: "Restock" },
@@ -41,6 +43,8 @@ export function ReturnDetailPanel({
 }) {
     const { reasons } = useOrderReasons("reject", { enabledOnly: true });
     const { profile, user, tenantId } = useAuth();
+    const { can } = usePermission();
+    const canBlock = can(PERMISSIONS.BLOCK_CUSTOMERS);
     const orderStatusLabel = useStatusLabel();
     const [reasonLabel, setReasonLabel] = useState<string>(defaultReasonLabel || "");
     const [orderDest, setOrderDest] = useState<ReturnDestination>("restock");
@@ -126,11 +130,13 @@ export function ReturnDetailPanel({
                             <ExternalLink className="w-3.5 h-3.5" /> Open order
                         </button>
                     )}
-                    <button type="button" onClick={handleBlacklist} disabled={blacklisting || blacklisted || !order.phone}
-                        className={cn("inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border",
-                            blacklisted ? "bg-gray-900 text-white border-gray-900" : "border-rose-200 text-rose-600 hover:bg-rose-50")}>
-                        {blacklisted ? <><Ban className="w-3.5 h-3.5" /> Blacklisted</> : <><ShieldAlert className="w-3.5 h-3.5" /> Blacklist</>}
-                    </button>
+                    {(canBlock || blacklisted) && (
+                        <button type="button" onClick={handleBlacklist} disabled={blacklisting || blacklisted || !order.phone}
+                            className={cn("inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border",
+                                blacklisted ? "bg-gray-900 text-white border-gray-900" : "border-rose-200 text-rose-600 hover:bg-rose-50")}>
+                            {blacklisted ? <><Ban className="w-3.5 h-3.5" /> Blacklisted</> : <><ShieldAlert className="w-3.5 h-3.5" /> Blacklist</>}
+                        </button>
+                    )}
                 </div>
             </div>
 
