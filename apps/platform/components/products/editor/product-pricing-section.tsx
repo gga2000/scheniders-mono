@@ -10,6 +10,8 @@ interface ProductPricingSectionProps {
     profitMargin: number | null;
     profitAmount: number | null;
     discountPercentage: number | null;
+    /** Cost and margin are for admins only (products.manage). */
+    showCost?: boolean;
 }
 
 export function ProductPricingSection({
@@ -18,6 +20,7 @@ export function ProductPricingSection({
     profitMargin,
     profitAmount,
     discountPercentage,
+    showCost = true,
 }: ProductPricingSectionProps) {
     const { t } = useLanguage();
     return (
@@ -61,6 +64,7 @@ export function ProductPricingSection({
                     </>
                 )}
 
+                {showCost && (
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.cost")}
@@ -75,12 +79,13 @@ export function ProductPricingSection({
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>
+                )}
             </div>
 
             {/* Profit & Discount indicators */}
-            {!formData.is_supply && (profitMargin !== null || discountPercentage !== null) && (
+            {!formData.is_supply && ((showCost && profitMargin !== null) || discountPercentage !== null) && (
                 <div className="flex flex-row items-center gap-2">
-                    {profitMargin !== null && profitAmount !== null && (
+                    {showCost && profitMargin !== null && profitAmount !== null && (
                         <div className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--pastel-green)] rounded-xl">
                             <TrendingUp className="w-3.5 h-3.5 text-green-700" />
                             <span className="text-sm font-bold text-green-900">{profitMargin.toFixed(1)}%</span>

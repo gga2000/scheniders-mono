@@ -171,10 +171,13 @@ export function registerCatalogWriteTools(server: McpServer): void {
         title: "Set stock from a shelf count",
         kind: "write",
         description:
-            "Set stock to the number counted on the shelf. The difference is logged as a count, exactly like the products page.",
+            "Set stock to the number counted on the shelf, exactly like the products page; the difference is logged as a count. " +
+            "`pile` picks new units (default) or open-box units. Count every box on the shelf, including ones held by confirmed " +
+            "orders that have not shipped; for open box the app subtracts those itself.",
         input: z.object({
             product: productRefSchema,
             variant: variantRefSchema.optional(),
+            pile: z.enum(["new", "open_box"]).default("new"),
             counted: z.number().int().min(0).max(1_000_000),
             notes: z.string().trim().max(300).optional(),
         }),
@@ -182,6 +185,26 @@ export function registerCatalogWriteTools(server: McpServer): void {
             requireWriter(caller);
             const { product, variants } = await findProduct(caller, input.product);
             const variant = pickVariant(product, variants, input.variant);
+            const notes = [input.notes, "via Claude"].filter(Boolean).join(" — ");
+
+            if (input.pile === "open_box") {
+                const before = (variant ?? product).open_box_quantity ?? 0;
+                const { data, error } = await caller.db.rpc("set_counted_open_box", {
+                    p_product_id: product.id,
+                    p_variant_id: variant?.id ?? null,
+                    p_counted: input.counted,
+                    p_notes: notes,
+                });
+                if (error) throw stockError(error);
+                const after = data as number;
+                const held = input.counted - after;
+                return (
+                    `${label(product, variant)}: open box ${input.counted} on the shelf` +
+                    (held > 0 ? `, ${held} held by confirmed orders` : "") +
+                    `. Open box left ${before} → ${after}.`
+                );
+            }
+
             const before = (variant ?? product).stock_quantity ?? 0;
             if (before === input.counted) return `${label(product, variant)} already has ${before} in stock; nothing changed.`;
 
@@ -189,7 +212,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
                 p_product_id: product.id,
                 p_variant_id: variant?.id ?? null,
                 p_counted: input.counted,
-                p_notes: [input.notes, "via Claude"].filter(Boolean).join(" — "),
+                p_notes: notes,
             });
             if (error) throw stockError(error);
             return `${label(product, variant)}: stock ${before} → ${input.counted} (counted).`;

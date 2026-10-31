@@ -25,6 +25,7 @@ export type CatalogProduct = {
     compare_at_price: number | null;
     stock_quantity: number | null;
     reserved_quantity: number | null;
+    open_box_quantity: number | null;
     is_visible: boolean | null;
 };
 
@@ -37,11 +38,12 @@ export type CatalogVariant = {
     compare_at_price: number | null;
     stock_quantity: number | null;
     reserved_quantity: number | null;
+    open_box_quantity: number | null;
     is_enabled: boolean | null;
 };
 
-const PRODUCT_COLUMNS = "id, name, sku, price, compare_at_price, stock_quantity, reserved_quantity, is_visible";
-const VARIANT_COLUMNS = "id, product_id, name, sku, price, compare_at_price, stock_quantity, reserved_quantity, is_enabled";
+const PRODUCT_COLUMNS = "id, name, sku, price, compare_at_price, stock_quantity, reserved_quantity, open_box_quantity, is_visible";
+const VARIANT_COLUMNS = "id, product_id, name, sku, price, compare_at_price, stock_quantity, reserved_quantity, open_box_quantity, is_enabled";
 const UUID = z.string().uuid();
 
 const sameText = (a: string | null, b: string) => (a ?? "").trim().toLowerCase() === b.trim().toLowerCase();

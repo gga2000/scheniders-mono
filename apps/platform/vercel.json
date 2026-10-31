@@ -1,5 +1,12 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
+    "git": {
+        "deploymentEnabled": {
+            "main": true,
+            "**": false
+        }
+    },
+    "ignoreCommand": "bash ../../scripts/vercel-ignore-build.sh apps/platform packages/sections packages/shared packages/supabase/src packages/supabase/package.json packages/ui packages/provider-mock",
     "crons": [
         {
             "path": "/api/cron/backup",
