@@ -2527,6 +2527,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "printing.signInAgainBody": "Your session expired. Log in to download PDFs.",
         "printing.pdfFailedTitle": "PDF failed",
         "printing.pdfFailedBody": "Could not generate the PDF. Try again.",
+        "printing.laterKeptExportBody": "They were left out of the courier file.",
+        "printing.exportFailedTitle": "Export failed",
+        "printing.exportNotRecordedTitle": "Exported, but not recorded",
+        "printing.exportNotRecordedBody": "The file was produced but the batch record could not be saved.",
+        "printing.exportDoneTitle": "{count} orders exported",
 
         // ── Team ──
         "team.title": "Team Dashboard",
@@ -6425,6 +6430,11 @@ export const translations: Record<Locale, Record<string, string>> = {
         "printing.signInAgainBody": "انتهت الجلسة. سجّل الدخول لتنزيل ملفات PDF.",
         "printing.pdfFailedTitle": "فشل إنشاء PDF",
         "printing.pdfFailedBody": "تعذّر إنشاء الملف. حاول مرة أخرى.",
+        "printing.laterKeptExportBody": "تم استثناؤها من ملف شركة التوصيل.",
+        "printing.exportFailedTitle": "فشل التصدير",
+        "printing.exportNotRecordedTitle": "تم التصدير لكن لم يُسجَّل",
+        "printing.exportNotRecordedBody": "تم إنشاء الملف لكن تعذّر حفظ سجل الدفعة.",
+        "printing.exportDoneTitle": "تم تصدير {count} طلب",
 
         // ── Team ──
         "team.title": "لوحة مراقبة الفريق",

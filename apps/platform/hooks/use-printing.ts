@@ -485,12 +485,50 @@ export function usePrinting(orders: Order[]) {
      * Export orders to Prime delivery company XLSX format
      * Matches the exact column structure of PrimeUploadSample.xlsx
      */
-    async function exportToPrimeCSV(orderIds: string[], ordersData: Order[]) {
-        return exportOrdersToPrimeCSV(orderIds, ordersData);
-    }
+    /**
+     * Hand a courier file to the operator and leave the same trace the orders page
+     * does: the file first (a batch row must never claim a shipment that did not
+     * leave), then the batch record, and every attempt in the shipping export log.
+     */
+    async function exportShipment(
+        company: "prime" | "waseet",
+        orderIds: string[],
+        ordersData: Order[]
+    ): Promise<{ success: true; recorded: boolean } | { success: false; error: string }> {
+        const log = async (succeeded: boolean, failureStage?: "file" | "batch_record", message?: string) => {
+            const { error } = await supabase.rpc("log_shipping_export", {
+                p_tenant_id: tenantId,
+                p_company: company,
+                p_order_count: orderIds.length,
+                p_succeeded: succeeded,
+                p_failure_stage: failureStage ?? null,
+                p_error_message: message ?? null,
+            });
+            if (error) console.error("Could not log shipping export:", error.message);
+        };
 
-    async function exportToWaseetCSV(orderIds: string[], ordersData: Order[]) {
-        return exportOrdersToWaseetXLSX(orderIds, ordersData);
+        try {
+            if (company === "prime") {
+                await exportOrdersToPrimeCSV(orderIds, ordersData);
+            } else {
+                await exportOrdersToWaseetXLSX(orderIds, ordersData);
+            }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Could not complete the export";
+            await log(false, "file", message);
+            return { success: false, error: message };
+        }
+
+        const label = company === "prime" ? "Prime" : "Al-Waseet";
+        const batch = await createBatch(
+            `${label} Export ${new Date().toLocaleDateString("en-GB")}`,
+            orderIds,
+            ordersData,
+            company,
+            "invoice"
+        );
+        await log(batch.success, batch.success ? undefined : "batch_record", batch.error);
+        return { success: true, recorded: batch.success };
     }
 
     // =============================================
@@ -529,8 +567,7 @@ export function usePrinting(orders: Order[]) {
         // Export
         exportToCSV,
         exportToExcel,
-        exportToPrimeCSV,
-        exportToWaseetCSV,
+        exportShipment,
 
         // State
         loading,
