@@ -5,6 +5,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useAddCustomerNote } from "@/hooks/use-customer-notes";
 import { ModalShell } from "./modal-shell";
+import { toast } from "@/hooks/use-toast";
 
 interface AddNoteModalProps {
     phone: string;
@@ -24,7 +25,10 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
 
     const handleSave = () => {
         if (!text.trim() || addNote.isPending) return;
-        addNote.mutate(text, { onSuccess: handleClose });
+        addNote.mutate(text, {
+            onSuccess: handleClose,
+            onError: () => toast({ variant: "error", title: t("customers.quick.noteFailed", "Couldn't save the note. Try again.") }),
+        });
     };
 
     return (

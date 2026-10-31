@@ -72,7 +72,7 @@ export const customerRepository = {
         });
     },
 
-    async assignTag(phone: string, tagId: string, tenantId: string | null): Promise<void> {
+    async assignTag(phone: string, tagId: string, tenantId: string): Promise<void> {
         return withRetry('customerRepository.assignTag', async () => {
             const { error } = await supabase
                 .from("customer_tag_assignments")
