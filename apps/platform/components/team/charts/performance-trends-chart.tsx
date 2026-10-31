@@ -70,9 +70,11 @@ export function PerformanceTrendsChart({
     const chartData = useMemo(() => {
         return data.map((d) => ({
             ...d,
-            displayDate: new Date(d.date).toLocaleDateString(language === "ar" ? "ar-IQ" : "en-US", {
+            // Day keys are Baghdad calendar dates; read them as UTC so no device shifts the day.
+            displayDate: new Date(`${d.date}T00:00:00Z`).toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", {
                 month: "short",
                 day: "numeric",
+                timeZone: "UTC",
             }),
         }));
     }, [data, language]);

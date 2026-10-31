@@ -1,20 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { motion } from "framer-motion";
-import {
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
-    Tooltip,
-    Legend,
-} from "recharts";
-import { PieChart as PieChartIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { cn } from "@/lib/utils";
 
-// Types
 interface ActionBreakdown {
     action: string;
     count: number;
@@ -22,145 +10,51 @@ interface ActionBreakdown {
 
 interface ActionBreakdownChartProps {
     data: ActionBreakdown[];
-    height?: number;
-    showLabels?: boolean;
     className?: string;
 }
 
-const ACTION_CONFIG: Record<string, { labelKey: string; color: string }> = {
-    "order.create": { labelKey: "team.drawer.actionCreate", color: "#10B981" },
-    "order.status_change": { labelKey: "team.drawer.actionStatus", color: "#F59E0B" },
-    "order.edit": { labelKey: "team.drawer.actionEdit", color: "#8B5CF6" },
-    "order.print": { labelKey: "team.drawer.actionPrint", color: "#3B82F6" },
-    "order.delete": { labelKey: "team.drawer.actionDelete", color: "#EF4444" },
-    "order.assign": { labelKey: "team.drawer.actionAssign", color: "#06B6D4" },
-    "user.login": { labelKey: "team.drawer.actionLogin", color: "#84CC16" },
-    "customer.blacklist": { labelKey: "team.drawer.actionBlacklist", color: "#F43F5E" },
-    "settings.update": { labelKey: "team.drawer.actionSettings", color: "#6B7280" },
+const ACTION_LABEL_KEYS: Record<string, string> = {
+    "order.create": "team.drawer.actionCreate",
+    "order.status_change": "team.drawer.actionStatus",
+    "order.edit": "team.drawer.actionEdit",
+    "order.print": "team.drawer.actionPrint",
+    "order.delete": "team.drawer.actionDelete",
+    "order.assign": "team.drawer.actionAssign",
+    "user.login": "team.drawer.actionLogin",
+    "customer.blacklist": "team.drawer.actionBlacklist",
+    "settings.update": "team.drawer.actionSettings",
+    "mcp.tool_call": "team.drawer.actionClaude",
 };
 
-const DEFAULT_COLORS = [
-    "#10B981",
-    "#F59E0B",
-    "#8B5CF6",
-    "#3B82F6",
-    "#EF4444",
-    "#06B6D4",
-    "#84CC16",
-    "#F43F5E",
-    "#6B7280",
-];
-
-export function ActionBreakdownChart({
-    data,
-    height = 280,
-    showLabels = true,
-    className,
-}: ActionBreakdownChartProps) {
+/** What the work was made of: one ranked row per action type with its share of the total. */
+export function ActionBreakdownChart({ data, className }: ActionBreakdownChartProps) {
     const { t } = useLanguage();
-    // Process data with labels and colors
-    const chartData = useMemo(() => {
-        return data.map((item, index) => {
-            const config = ACTION_CONFIG[item.action];
-            return {
-                name: config ? t(config.labelKey) : item.action,
-                value: item.count,
-                color: config?.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length],
-            };
-        });
-    }, [data, t]);
+    const rows = [...data].sort((a, b) => b.count - a.count);
+    const total = rows.reduce((s, r) => s + r.count, 0);
+    const max = Math.max(1, ...rows.map((r) => r.count));
 
-    const totalCount = useMemo(() => {
-        return data.reduce((sum, item) => sum + item.count, 0);
-    }, [data]);
-
-    if (data.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-64 text-muted-foreground">
-                <p>{t("team.charts.noData")}</p>
-            </div>
-        );
+    if (total === 0) {
+        return <p className={cn("py-20 text-center text-sm text-[#6B6B6B] dark:text-gray-400", className)}>{t("team.charts.noData")}</p>;
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={cn("relative", className)}
-        >
-            {/* Header */}
-            <div className="flex items-center gap-2 mb-4">
-                <PieChartIcon className="w-5 h-5 text-primary" />
-                <h3 className="font-bold text-foreground">{t("team.charts.actionBreakdown")}</h3>
-            </div>
-
-            {/* Chart */}
-            <div style={{ height }} className="relative">
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={chartData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={90}
-                            paddingAngle={3}
-                            dataKey="value"
-                            stroke="none"
-                        >
-                            {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                        </Pie>
-
-                        <Tooltip
-                            content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                    const data = payload[0].payload;
-                                    const percentage = ((data.value / totalCount) * 100).toFixed(1);
-                                    return (
-                                        <div className="bg-white/95 backdrop-blur-sm shadow-lg border border-border rounded-xl p-3">
-                                            <p
-                                                className="font-bold text-sm mb-1"
-                                                style={{ color: data.color }}
-                                            >
-                                                {data.name}
-                                            </p>
-                                            <p className="text-sm text-foreground">
-                                                {data.value} ({percentage}%)
-                                            </p>
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            }}
-                        />
-
-                        {showLabels && (
-                            <Legend
-                                layout="vertical"
-                                align="left"
-                                verticalAlign="middle"
-                                iconType="circle"
-                                iconSize={8}
-                                formatter={(value) => (
-                                    <span className="text-xs text-foreground">{value}</span>
-                                )}
-                                wrapperStyle={{
-                                    paddingRight: "20px",
-                                    fontSize: "12px",
-                                }}
+        <ul className={cn("space-y-3", className)}>
+            {rows.map((r, i) => {
+                const key = ACTION_LABEL_KEYS[r.action];
+                return (
+                    <li key={r.action} className="grid grid-cols-[160px_1fr_56px_44px] items-center gap-3 text-sm">
+                        <span className="truncate text-[#1E1E1E] dark:text-gray-100">{key ? t(key) : r.action}</span>
+                        <span className="h-2.5 rounded-full bg-[#F0ECE4] dark:bg-white/10 overflow-hidden">
+                            <span
+                                className={cn("block h-full rounded-full", i === 0 ? "bg-[#1E1E1E] dark:bg-white" : "bg-[#C9C3B8] dark:bg-white/30")}
+                                style={{ width: `${Math.round((r.count / max) * 100)}%` }}
                             />
-                        )}
-                    </PieChart>
-                </ResponsiveContainer>
-
-                {/* Center stat */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-3xl font-bold text-foreground">{totalCount}</span>
-                    <span className="text-xs text-muted-foreground">{t("team.stats.total")}</span>
-                </div>
-            </div>
-        </motion.div>
+                        </span>
+                        <span className="text-right font-semibold tabular-nums text-[#1E1E1E] dark:text-white">{r.count.toLocaleString("en-US")}</span>
+                        <span className="text-right text-xs tabular-nums text-[#6B6B6B] dark:text-gray-400">{Math.round((r.count / total) * 100)}%</span>
+                    </li>
+                );
+            })}
+        </ul>
     );
 }

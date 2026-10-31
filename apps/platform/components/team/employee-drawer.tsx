@@ -353,7 +353,7 @@ export function EmployeeDrawer({
                                         height={200}
                                     />
                                     <div className="grid grid-cols-1 gap-6">
-                                        <ActionBreakdownChart data={breakdownData} height={200} />
+                                        <ActionBreakdownChart data={breakdownData} />
                                         <PeakHoursHeatmap
                                             data={peakHoursData}
                                             employeeName={employee.displayName || employee.email}
