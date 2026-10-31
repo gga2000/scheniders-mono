@@ -23,7 +23,7 @@ import type { OrderItem } from "@/lib/supabase";
 import type { CreateOrderInput, CreateOrderResult, OrderSource } from "@/types/order";
 import { useAuth } from "@/components/auth/auth-provider";
 import { checkOrderLimitsAction } from "@/app/actions/orders";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import {
     User,
     Phone,

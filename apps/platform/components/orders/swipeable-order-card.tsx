@@ -8,7 +8,7 @@ import { OrderCard } from "./order-card";
 import { CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 interface SwipeableOrderCardProps {
     order: Order;

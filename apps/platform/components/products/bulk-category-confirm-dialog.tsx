@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { FolderOpen, Loader2 } from "lucide-react";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { productKeys } from "@/hooks/use-products-query";

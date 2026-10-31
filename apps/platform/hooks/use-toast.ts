@@ -124,8 +124,13 @@ interface ToastOptions {
     icon?: React.ReactNode;
 }
 
-function createToast(options: ToastOptions) {
+function createToast(options: ToastOptions & { id?: string }) {
     const variant = options.variant || "default";
+    // A caller-chosen id updates that toast in place (progress messages).
+    if (options.id && memoryState.toasts.some((t) => t.id === options.id)) {
+        dispatch({ type: "UPDATE_TOAST", toast: { ...options, id: options.id, variant } });
+        return options.id;
+    }
     const duration = options.duration ?? DURATIONS[variant];
 
     // Smart Aggregation (Throttle identical toasts)
@@ -151,7 +156,7 @@ function createToast(options: ToastOptions) {
         }
     }
 
-    const id = genId();
+    const id = options.id ?? genId();
 
     const toast: Toast = {
         ...options,
@@ -175,17 +180,28 @@ export function toast(options: ToastOptions) {
     return createToast(options);
 }
 
-toast.success = (title: string, description?: string) =>
-    createToast({ title, description, variant: "success" });
+/** The second argument: a description, or the description plus options. */
+type ToastExtras = string | {
+    description?: string;
+    duration?: number;
+    action?: ToastOptions["action"];
+    /** Reuse an id to update that toast instead of stacking a new one. */
+    id?: string;
+};
 
-toast.error = (title: string, description?: string) =>
-    createToast({ title, description, variant: "error" });
+function withExtras(title: string, variant: ToastVariant, extras?: ToastExtras) {
+    const options = typeof extras === "string" ? { description: extras } : extras ?? {};
+    return createToast({ title, variant, ...options });
+}
 
-toast.warning = (title: string, description?: string) =>
-    createToast({ title, description, variant: "warning" });
+toast.success = (title: string, extras?: ToastExtras) => withExtras(title, "success", extras);
 
-toast.loading = (title: string, description?: string) =>
-    createToast({ title, description, variant: "loading", duration: 100000 });
+toast.error = (title: string, extras?: ToastExtras) => withExtras(title, "error", extras);
+
+toast.warning = (title: string, extras?: ToastExtras) => withExtras(title, "warning", extras);
+
+toast.loading = (title: string, extras?: ToastExtras) =>
+    createToast({ duration: 100000, ...(typeof extras === "string" ? { description: extras } : extras), title, variant: "loading" });
 
 export function updateToast(id: string, options: Partial<ToastOptions>) {
     dispatch({ type: "UPDATE_TOAST", toast: { ...options, id } });

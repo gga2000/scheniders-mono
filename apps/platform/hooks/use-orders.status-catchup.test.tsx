@@ -78,7 +78,6 @@ vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn(), splitOrderA
 vi.mock("@/lib/activity-logger", () => ({ activityLogger: { log: vi.fn(), logStatusChange: vi.fn(), logOrderCreate: vi.fn() } }));
 vi.mock("@/lib/inventory-engine", () => ({ deductSupplies: vi.fn(), quarantineOrder: vi.fn(), removeFromQuarantine: vi.fn() }));
 vi.mock("@/hooks/use-toast", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn(), warning: vi.fn() }) }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { RealtimeBatcher } from "@/lib/realtime-batcher";
 import { belongsInWindow, type OrderWindow } from "@/lib/order-window";
