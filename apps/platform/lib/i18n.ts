@@ -2700,6 +2700,15 @@ export const translations: Record<Locale, Record<string, string>> = {
         "printing.preview_next": "Next",
         "printing.preview_printLabels": "Print {count} Labels",
         "printing.preview_printInvoices": "Print {count} Invoices",
+        "printing.selectedCount": "{count} selected",
+        "printing.generating": "Generating...",
+        "printing.exportForDelivery": "Export for delivery",
+        "printing.exportPrime": "Prime",
+        "printing.exportWaseet": "Al-Waseet",
+        "printing.filtersToggle": "Filters, labels & history",
+        "printing.template_classic": "Classic",
+        "printing.template_modern": "Modern",
+        "printing.template_prime": "Prime",
 
         // ── Team ──
         "team.title": "Team Dashboard",
@@ -6773,6 +6782,15 @@ export const translations: Record<Locale, Record<string, string>> = {
         "printing.preview_next": "التالي",
         "printing.preview_printLabels": "طباعة {count} ملصق",
         "printing.preview_printInvoices": "طباعة {count} فاتورة",
+        "printing.selectedCount": "{count} محدد",
+        "printing.generating": "جارٍ الإنشاء...",
+        "printing.exportForDelivery": "تصدير للشحن",
+        "printing.exportPrime": "برايم",
+        "printing.exportWaseet": "الوسيط",
+        "printing.filtersToggle": "الفلاتر والملصقات والسجل",
+        "printing.template_classic": "كلاسيك",
+        "printing.template_modern": "عصري",
+        "printing.template_prime": "برايم",
 
         // ── Team ──
         "team.title": "لوحة مراقبة الفريق",

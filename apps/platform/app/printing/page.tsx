@@ -23,13 +23,8 @@ import {
     CheckSquare,
     FileText,
     Tag,
-    Truck,
     CheckCircle,
-    ChevronDown,
-    Eye,
-    RefreshCw,
     SlidersHorizontal,
-    Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { partitionByShipDay } from "@/lib/order-bulk-scope";
@@ -40,6 +35,7 @@ import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
 import { QueueFilters, type SortBy } from "@/components/printing/queue-filters";
 import { QueueRow } from "@/components/printing/queue-row";
 import { DispatchSummary } from "@/components/printing/dispatch-summary";
+import { DispatchActionBar } from "@/components/printing/dispatch-action-bar";
 
 export default function PrintingPage() {
     const { orders, loading, error, bulkUpdateStatus } = useOrdersContext();
@@ -69,9 +65,6 @@ export default function PrintingPage() {
 
     // Automation state
     const [autoShipAfterPrint, setAutoShipAfterPrint] = useState(true);
-
-    // Export menu state
-    const [showExportMenu, setShowExportMenu] = useState(false);
 
     // Load batches on mount
     const { fetchBatches } = printing;
@@ -386,104 +379,8 @@ export default function PrintingPage() {
                                 </h1>
                                 <p className="text-muted mt-1 text-lg">
                                     {sortedOrders.length} {t("printing.subtitle")}
-                                    {selectedOrders.size > 0 && ` • ${selectedOrders.size} selected`}
+                                    {selectedOrders.size > 0 && ` • ${t("printing.selectedCount").replace("{count}", String(selectedOrders.size))}`}
                                 </p>
-                            </div>
-
-                            {/* Action Buttons - Always visible area to prevent snap */}
-                            <div className="hidden md:flex items-center gap-2 min-h-[44px]">
-                                <AnimatePresence mode="wait">
-                                    {selectedOrders.size > 0 && (
-                                        <motion.div
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: -10 }}
-                                            transition={{ duration: 0.15 }}
-                                            className="flex items-center gap-2"
-                                        >
-                                            {/* Preview Button */}
-                                            <button
-                                                onClick={() => setShowPreview(true)}
-                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-blue)] text-blue-900 hover:shadow-md transition-all font-medium text-sm"
-                                            >
-                                                <Eye className="h-4 w-4" />
-                                                {t("printing.preview")}
-                                            </button>
-
-                                            {/* Print Button */}
-                                            <button
-                                                onClick={handlePrint}
-                                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--ink)] text-white shadow-lg hover:scale-[1.02] transition-all font-semibold text-sm"
-                                            >
-                                                <Printer className="h-4 w-4" />
-                                                {t("printing.print")} {selectedOrders.size}
-                                            </button>
-
-                                            {/* Download PDF Button */}
-                                            <button
-                                                onClick={handleDownloadPDF}
-                                                disabled={pdfLoading}
-                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-purple)] text-purple-900 hover:shadow-md transition-all font-medium text-sm disabled:opacity-50"
-                                            >
-                                                {pdfLoading ? (
-                                                    <RefreshCw className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Download className="h-4 w-4" />
-                                                )}
-                                                {pdfLoading ? "Generating..." : "PDF"}
-                                            </button>
-
-                                            {/* Shipping Export Dropdown */}
-                                            <div className="relative">
-                                                <button
-                                                    onClick={() => setShowExportMenu(!showExportMenu)}
-                                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-700 to-slate-900 text-white hover:shadow-md transition-all font-medium text-sm"
-                                                    title="Export for Delivery"
-                                                >
-                                                    <FileText className="h-4 w-4" />
-                                                    تصدير للشحن
-                                                    <ChevronDown className="h-3.5 w-3.5" />
-                                                </button>
-                                                {showExportMenu && (
-                                                    <>
-                                                        <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
-                                                        <div className="absolute top-full mt-1 right-0 z-50 bg-white rounded-xl shadow-lg border border-gray-200 py-1 min-w-[180px]">
-                                                            <button
-                                                                onClick={() => {
-                                                                    void handleExport("prime");
-                                                                    setShowExportMenu(false);
-                                                                }}
-                                                                className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
-                                                            >
-                                                                <FileText className="h-4 w-4 text-slate-600" />
-                                                                Prime
-                                                            </button>
-                                                            <button
-                                                                onClick={() => {
-                                                                    void handleExport("waseet");
-                                                                    setShowExportMenu(false);
-                                                                }}
-                                                                className="w-full text-right px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
-                                                            >
-                                                                <FileText className="h-4 w-4 text-slate-600" />
-                                                                الوسيط (Al-Waseet)
-                                                            </button>
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-
-                                            {/* Ship Button */}
-                                            <button
-                                                onClick={() => setShowShipDialog(true)}
-                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--pastel-green)] text-emerald-900 hover:shadow-md transition-all font-medium text-sm"
-                                            >
-                                                <Truck className="h-4 w-4" />
-                                                {t("printing.ship")}
-                                            </button>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
                             </div>
                         </div>
 
@@ -528,45 +425,46 @@ export default function PrintingPage() {
                                                 : "text-muted hover:text-foreground"
                                         )}
                                     >
-                                        📄 Classic
+                                        {t("printing.template_classic")}
                                     </button>
                                     <button
                                         onClick={() => setInvoiceTemplate("modern")}
                                         className={cn(
                                             "px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium",
                                             invoiceTemplate === "modern"
-                                                ? "bg-gradient-to-r from-orange-500 to-rose-500 text-white"
+                                                ? "bg-orange-500 text-white"
                                                 : "text-muted hover:text-foreground"
                                         )}
                                     >
-                                        ✨ Modern
+                                        {t("printing.template_modern")}
                                     </button>
                                     <button
                                         onClick={() => setInvoiceTemplate("prime")}
                                         className={cn(
                                             "px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-sm font-medium",
                                             invoiceTemplate === "prime"
-                                                ? "bg-gradient-to-r from-slate-700 to-slate-900 text-white"
+                                                ? "bg-slate-800 text-white"
                                                 : "text-muted hover:text-foreground"
                                         )}
                                     >
-                                        📋 Prime
+                                        {t("printing.template_prime")}
                                     </button>
                                 </div>
                             )}
 
-                            {/* Filters Toggle */}
+                            {/* Filters, label settings and batch history */}
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
+                                aria-expanded={showFilters}
                                 className={cn(
-                                    "p-3 rounded-2xl border transition-all shadow-sm",
+                                    "flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all",
                                     showFilters
                                         ? "bg-blue-100 border-blue-200 text-blue-700"
                                         : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
                                 )}
-                                title="Toggle Filters"
                             >
                                 <SlidersHorizontal className="w-4 h-4" />
+                                {t("printing.filtersToggle")}
                             </button>
                         </div>
                     </motion.div>
@@ -675,33 +573,15 @@ export default function PrintingPage() {
                     </motion.div>
                 </div>
 
-                {/* Phone action bar: the header actions are desktop-only */}
-                {selectedOrders.size > 0 && (
-                    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-[var(--card-border)] bg-[var(--card-bg)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
-                        <button
-                            onClick={handlePrint}
-                            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ink)] text-sm font-semibold text-white"
-                        >
-                            <Printer className="h-4 w-4" />
-                            {t("printing.print")} {selectedOrders.size}
-                        </button>
-                        <button
-                            onClick={handleDownloadPDF}
-                            disabled={pdfLoading}
-                            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-blue)] px-4 text-sm font-medium text-blue-900 disabled:opacity-50"
-                        >
-                            <Download className="h-4 w-4" />
-                            {t("printing.pdf")}
-                        </button>
-                        <button
-                            onClick={() => setShowShipDialog(true)}
-                            className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-green)] px-4 text-sm font-medium text-emerald-900"
-                        >
-                            <Truck className="h-4 w-4" />
-                            {t("printing.ship")}
-                        </button>
-                    </div>
-                )}
+                <DispatchActionBar
+                    selectedCount={selectedOrders.size}
+                    pdfLoading={pdfLoading}
+                    onPreview={() => setShowPreview(true)}
+                    onPrint={handlePrint}
+                    onPdf={handleDownloadPDF}
+                    onExport={(company) => void handleExport(company)}
+                    onShip={() => setShowShipDialog(true)}
+                />
 
                 {/* Modals */}
                 <PrintPreviewModal
