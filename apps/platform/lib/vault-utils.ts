@@ -13,7 +13,7 @@ import {
     restoreVaultRowsAction,
     type CloudVaultEntry,
 } from "@/app/actions/vault";
-import { VAULT_BUCKET, isVaultKeyLongEnough } from "./vault-paths";
+import { VAULT_BUCKET, MAX_RESTORE_FILE_BYTES, isVaultKeyLongEnough } from "./vault-paths";
 import { RESTORE_ROWS_BATCH_SIZE } from "./vault-restore";
 import { VaultError, type VaultProgress } from "./vault-progress";
 import { vaultFileSchema, type VaultData, type VaultRow } from "./vault-schema";
@@ -249,6 +249,7 @@ function validateVaultData(raw: unknown): VaultData {
  * Parses and decrypts a .scheniders vault file
  */
 export async function parseVaultFile(file: File, password?: string): Promise<VaultData> {
+    if (file.size > MAX_RESTORE_FILE_BYTES) throw new VaultError("fileTooLarge", "Restore file is too large");
     if (file.name.endsWith(".scheniders")) {
         if (!password) throw new VaultError("passwordRequired", "Vault Key required to unlock this file");
         const decryptedData = await decryptVaultData(file, password);

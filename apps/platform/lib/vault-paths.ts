@@ -31,3 +31,6 @@ export const MIN_VAULT_KEY_LENGTH = 10;
 export function isVaultKeyLongEnough(key: string): boolean {
     return key.length >= MIN_VAULT_KEY_LENGTH;
 }
+
+/** Largest file the restore will read: it is decrypted and parsed in the browser, so a huge file would freeze the tab. */
+export const MAX_RESTORE_FILE_BYTES = 100 * 1024 * 1024;

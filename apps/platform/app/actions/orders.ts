@@ -9,6 +9,7 @@ import { createOrderForTenant } from "@/lib/order-service";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { isPastDaySystemOrderNumber, isSystemOrderNumber, merchantOrderNumberSchema } from "@/lib/order-number";
 import { ORDER_READ_COLUMNS, RESTORE_ORDERS_BATCH_SIZE, pickOrderWriteColumns } from "@/lib/repositories/order-columns";
+import { VAULT_ADMIN_ROLES } from "@/lib/vault-paths";
 import { z } from "zod";
 
 // =============================================
@@ -132,8 +133,11 @@ export async function restoreOrdersAction(
     const resolved = await resolveCaller(accessToken);
     if ("error" in resolved) return { success: false, error: resolved.error };
 
+    // Restoring is a Data Vault operation: it can rewrite any order field in bulk,
+    // so it needs the same administrator role as the rest of the vault, not the
+    // wider order-editing role an employee holds.
     const { tenantId, role } = resolved.caller;
-    if (!ORDER_WRITE_ROLES.includes(role)) {
+    if (!VAULT_ADMIN_ROLES.includes(role)) {
         return { success: false, error: "You do not have permission to restore orders" };
     }
 

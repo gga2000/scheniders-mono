@@ -101,8 +101,17 @@ describe("restoreOrdersAction", () => {
         expect(recorded.upserted).toBeUndefined();
     });
 
-    it("keeps an existing order's current number", async () => {
+    it("refuses an employee: restoring is an administrator action", async () => {
         signedInAs("employee");
+        const { recorded } = serviceClient([]);
+        const res = await restoreOrdersAction([backupRow(ORDER_A)], "token");
+
+        expect(res).toEqual({ success: false, error: "You do not have permission to restore orders" });
+        expect(recorded.upserted).toBeUndefined();
+    });
+
+    it("keeps an existing order's current number", async () => {
+        signedInAs("admin");
         const { recorded } = serviceClient([{ id: ORDER_A, tenant_id: TENANT, order_id: "4261020007" }]);
         const res = await restoreOrdersAction([backupRow(ORDER_A, { order_id: "4261026999" })], "token");
 

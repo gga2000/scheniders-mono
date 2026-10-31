@@ -12,6 +12,7 @@ export type VaultErrorCode =
     | "sessionExpired"
     | "passwordRequired"
     | "weakKey"
+    | "fileTooLarge"
     | "invalidFile"
     | "wrongKey"
     | "damagedExcel"
