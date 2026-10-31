@@ -129,6 +129,8 @@ function ProductsContent() {
     const { can } = usePermission();
     const canEditProducts = can(PERMISSIONS.EDIT_PRODUCTS);
     const canManageProducts = can(PERMISSIONS.MANAGE_PRODUCTS);
+    // Members without cost access get no cost on a copy, as in the editor save path.
+    const canSeeCost = canManageProducts || can(PERMISSIONS.VIEW_FINANCIALS);
     const { revealed: showFinancials } = useFinancialVisibility();
 
     const { data: categories } = useCategoriesQuery();
@@ -406,7 +408,7 @@ function ProductsContent() {
             description: product.description,
             price: product.price,
             compare_at_price: product.compare_at_price || undefined,
-            cost: product.cost,
+            ...(canSeeCost && { cost: product.cost }),
             stock_quantity: 0,
             low_stock_threshold: product.low_stock_threshold,
             image_url: product.image_url,
@@ -424,7 +426,7 @@ function ProductsContent() {
             return;
         }
         router.push(`/products/${newProduct.id}/edit`);
-    }, [addProduct, products, router, reportWriteError, t]);
+    }, [addProduct, products, router, reportWriteError, t, canSeeCost]);
 
     const handleDeleteProduct = useCallback(async (product: Product) => {
         try {
@@ -514,13 +516,24 @@ function ProductsContent() {
     }, [selectedIds, bulkUpdatePrices, clearSelection]);
 
     // The one bulk action the Undo toast reverses: archive, show or hide.
-    const lastUndoableRef = useRef<{ kind: "archive" | "show" | "hide"; ids: string[] } | null>(null);
+    const lastUndoableRef = useRef<
+        | { kind: "archive"; ids: string[] }
+        | { kind: "visibility"; previous: { id: string; was_visible: boolean }[] }
+        | null
+    >(null);
 
     const handleBulkArchiveUndo = useCallback(async () => {
         const last = lastUndoableRef.current;
-        if (!last || last.ids.length === 0) return;
-        if (last.kind === "archive") await bulkRestore(last.ids);
-        else await bulkUpdateVisibility(last.ids, last.kind === "hide");
+        if (!last) return;
+        if (last.kind === "archive") {
+            if (last.ids.length > 0) await bulkRestore(last.ids);
+        } else {
+            // Restore each product's own earlier visibility, not one blanket value.
+            const wasVisible = last.previous.filter((p) => p.was_visible).map((p) => p.id);
+            const wasHidden = last.previous.filter((p) => !p.was_visible).map((p) => p.id);
+            if (wasVisible.length > 0) await bulkUpdateVisibility(wasVisible, true);
+            if (wasHidden.length > 0) await bulkUpdateVisibility(wasHidden, false);
+        }
         lastUndoableRef.current = null;
     }, [bulkRestore, bulkUpdateVisibility]);
 
@@ -538,17 +551,23 @@ function ProductsContent() {
 
     const handleBulkShow = useCallback(async () => {
         const ids = Array.from(selectedIds);
+        const previous = products
+            .filter((p) => selectedIds.has(p.id))
+            .map((p) => ({ id: p.id, was_visible: p.is_visible !== false }));
         await bulkUpdateVisibility(ids, true);
-        lastUndoableRef.current = { kind: "show", ids };
+        lastUndoableRef.current = { kind: "visibility", previous };
         clearSelection();
-    }, [selectedIds, bulkUpdateVisibility, clearSelection]);
+    }, [selectedIds, products, bulkUpdateVisibility, clearSelection]);
 
     const handleBulkHide = useCallback(async () => {
         const ids = Array.from(selectedIds);
+        const previous = products
+            .filter((p) => selectedIds.has(p.id))
+            .map((p) => ({ id: p.id, was_visible: p.is_visible !== false }));
         await bulkUpdateVisibility(ids, false);
-        lastUndoableRef.current = { kind: "hide", ids };
+        lastUndoableRef.current = { kind: "visibility", previous };
         clearSelection();
-    }, [selectedIds, bulkUpdateVisibility, clearSelection]);
+    }, [selectedIds, products, bulkUpdateVisibility, clearSelection]);
 
     const handleBulkExport = useCallback(() => {
         const selectedProducts = products.filter((p) => selectedIds.has(p.id));
