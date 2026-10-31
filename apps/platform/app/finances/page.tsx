@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { useFinanceOrders } from "@/hooks/use-finance-orders";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useExpenses } from "@/hooks/use-expenses";
 import { useFinancePeriod } from "@/hooks/use-finance-period";
@@ -186,7 +186,11 @@ function FinancesContent() {
     } = useFinancePeriod("last30");
 
     // Data sources
-    const { orders, loading: ordersLoading, error: ordersError } = useOrdersContext();
+    const { orders, loading: ordersLoading, error: ordersError } = useFinanceOrders({
+        start: period.start,
+        end: period.end,
+        compareStart: compareRange?.start,
+    });
     const { products } = useProductsCrud();
     const { expenses, addExpense } = useExpenses({
         startDate: dateRangeStrings.startDate,
@@ -350,7 +354,7 @@ function FinancesContent() {
                 )}
 
                 {activeTab === "reports" && (
-                    <ReportsTab period={period} dateRangeStrings={dateRangeStrings} />
+                    <ReportsTab orders={orders} period={period} dateRangeStrings={dateRangeStrings} />
                 )}
 
                 {activeTab === "profit_analysis" && (

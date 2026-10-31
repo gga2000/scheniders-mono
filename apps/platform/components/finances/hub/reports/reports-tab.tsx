@@ -1,5 +1,6 @@
 "use client";
 
+import type { Order } from "@/types/order";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -7,7 +8,6 @@ import {
     FileSpreadsheet, FileText, Mail, Calendar, Download,
     ChevronRight, Building2, Sparkles, Clock,
 } from "lucide-react";
-import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useExpenses } from "@/hooks/use-expenses";
 import { useFinances } from "@/hooks/use-finances";
@@ -16,6 +16,7 @@ import { SectionCard } from "../primitives/section-card";
 import { cn } from "@/lib/utils";
 
 interface Props {
+    orders: Order[];
     period: { start: Date; end: Date };
     dateRangeStrings: { startDate: string; endDate: string };
 }
@@ -75,8 +76,7 @@ const SCHEDULES = [
     { id: "monthly", label: "Monthly close", time: "1st of month", icon: Sparkles, status: "off" as const },
 ];
 
-export function ReportsTab({ period, dateRangeStrings }: Props) {
-    const { orders } = useOrdersContext();
+export function ReportsTab({ orders, period, dateRangeStrings }: Props) {
     const { products } = useProductsCrud();
     const { expenses } = useExpenses({
         startDate: dateRangeStrings.startDate,
