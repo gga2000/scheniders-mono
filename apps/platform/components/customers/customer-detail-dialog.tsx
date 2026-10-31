@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCustomerStore } from "@/store/use-customer-store";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,7 +20,7 @@ import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
-    hasRatedScore, displayScore, effectiveSuccessRate, codRiskKey, VALUE_META, RISK_META,
+    hasRatedScore, displayScore, effectiveSuccessRate, codRiskKey, VALUE_META,
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
@@ -276,6 +277,7 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
     const { t, language } = useLanguage();
     const { can } = usePermission();
     const router = useRouter();
+    const setProfileFromList = useCustomerStore((s) => s.setProfileFromList);
     const queryClient = useQueryClient();
     const { tenantId, profile, user } = useAuth();
     const { createOrder } = useOrderCrud();
@@ -351,7 +353,7 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     canLoadMore={!loadedAll}
                     onLoadMore={() => setLimit((l) => l + 60)}
                     onClose={onClose}
-                    onOpenFull={() => router.push(`/customers/${encodeURIComponent(customer.phone)}`)}
+                    onOpenFull={() => { setProfileFromList(customer.phone); router.push(`/customers/${encodeURIComponent(customer.phone)}`); }}
                     onNewOrder={() => setCreatingOrder(true)}
                     canEdit={canEdit}
                     onToggleBlock={(customer.is_blacklisted ? !canUnblock : !canBlock) ? undefined : () => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}

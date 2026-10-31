@@ -64,11 +64,15 @@ export function useCustomerUrlState() {
     const urlSearch = state.search ?? "";
     const [localSearch, setLocalSearch] = useState(urlSearch);
     const [urlSeen, setUrlSeen] = useState(urlSearch);
-    const [pushed, setPushed] = useState(urlSearch);
+    // The box's own write still on its way to the URL; null once it has arrived.
+    const [pushed, setPushed] = useState<string | null>(null);
     if (urlSearch !== urlSeen) {
         setUrlSeen(urlSearch);
-        // The box's own write coming back is not an outside change.
-        if (urlSearch !== pushed) setLocalSearch(urlSearch);
+        // The box's own write coming back is not an outside change (newer typing
+        // stays); it is forgotten on arrival, so a later back/forward to the same
+        // text still reaches the box.
+        if (urlSearch === pushed) setPushed(null);
+        else setLocalSearch(urlSearch);
     }
 
     // The timer fires after later renders, so it reads the params as they are then.

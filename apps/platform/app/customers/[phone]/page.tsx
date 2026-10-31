@@ -170,6 +170,17 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     const router = useRouter();
     const store = useCustomerStore();
     const { createOrder } = useOrderCrud();
+    // Opened from the list's drawer: step back (the list keeps its scroll and no
+    // history entry is stacked). Opened from anywhere else: go to the list with
+    // the filters it last had.
+    const goBackToList = () => {
+        if (store.profileFromList === phone) {
+            store.setProfileFromList(null);
+            router.back();
+            return;
+        }
+        router.push(store.lastListQuery ? `/customers?${store.lastListQuery}` : "/customers");
+    };
     const [creatingOrder, setCreatingOrder] = useState(false);
 
     const { data: profile, isLoading, isError, refetch, isRefetching } = useCustomerProfile(phone);
@@ -206,7 +217,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             <motion.button
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                onClick={() => router.push(store.lastListQuery ? `/customers?${store.lastListQuery}` : "/customers")}
+                onClick={goBackToList}
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
             >
                 <ArrowLeft className="w-4 h-4" />

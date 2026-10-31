@@ -54,7 +54,8 @@ function CustomersPageContent() {
 
     // Two independent server-side axes + the client-only action-lane cohorts.
     // Kept in the URL, so opening a profile and coming back (or a reload) keeps them.
-    const valueFilter: ValueFilter = chips.value;
+    // Dormant VIPs is a VIP-only cohort whatever a hand-edited URL says.
+    const valueFilter: ValueFilter = chips.lane === "vipsQuiet" ? "vip" : chips.value;
     const riskFilter: RiskFilter = chips.risk;
     const laneFilter: LaneSegment | null = chips.lane;
     const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
@@ -167,27 +168,31 @@ function CustomersPageContent() {
         return true;
     }, [bulkAddTags, selectedPhones, clearSelected, t]);
 
-    const onValue = (next: ValueFilter) => setChips({ value: next, risk: riskFilter, lane: null });
+    // Dormant VIPs loads oldest-first; leaving it restores the default order.
+    // A sort the merchant picked outside that cohort is left alone.
+    const exitSort: { by: string; order: "asc" | "desc" } | undefined =
+        laneFilter === "vipsQuiet" && state.sortBy === "last_order_date" && state.sortOrder === "asc"
+            ? { by: "total_orders", order: "desc" }
+            : undefined;
 
-    const onRisk = (next: RiskFilter) => setChips({ value: valueFilter, risk: next, lane: null });
+    const onValue = (next: ValueFilter) => setChips({ value: next, risk: riskFilter, lane: null }, exitSort);
 
-    // The dormant cohorts load oldest-first; leaving them restores the default
-    // order instead of keeping that special sort.
-    const inDormantSort = state.sortBy === "last_order_date" && state.sortOrder === "asc";
+    const onRisk = (next: RiskFilter) => setChips({ value: valueFilter, risk: next, lane: null }, exitSort);
+
     const onSegmentSelect = (s: SegmentState) => {
         const sortBy = parseCustomerSort(s.sort?.by);
         setChips(
             { value: s.value, risk: s.risk, lane: s.lane === "risky" ? null : s.lane },
             s.sort && sortBy
                 ? { by: sortBy, order: s.sort.order }
-                : inDormantSort ? { by: "total_orders", order: "desc" } : undefined,
+                : exitSort,
         );
     };
 
     const onSegment = (kind: LaneSegment) => {
         // "High COD risk" maps to the server-side risk filter so the whole cohort loads.
         if (kind === "risky") {
-            setChips({ value: valueFilter, risk: riskFilter === "high" ? "all" : "high", lane: null });
+            setChips({ value: valueFilter, risk: riskFilter === "high" ? "all" : "high", lane: null }, exitSort);
             return;
         }
         const leaving = laneFilter === kind;
@@ -200,7 +205,7 @@ function CustomersPageContent() {
             );
             return;
         }
-        setChips({ value: "all", risk: "all", lane: leaving ? null : kind }, inDormantSort ? { by: "total_orders", order: "desc" } : undefined);
+        setChips({ value: "all", risk: "all", lane: leaving ? null : kind }, exitSort);
     };
 
     // Every customer the current filters match, fetched in pages so the API row cap
@@ -331,6 +336,19 @@ function CustomersPageContent() {
                     />
                 </CustomerToolbar>
 
+                {/* A failed background refresh keeps whatever is on screen. */}
+                {isRefetchError && (
+                    <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                        <span>{t("customers.refreshFailed", "Couldn't refresh. Showing the last loaded list.")}</span>
+                        <button
+                            onClick={() => refetch()}
+                            disabled={isRefetching}
+                            className="h-9 px-4 rounded-xl border border-current text-sm font-semibold disabled:opacity-50"
+                        >
+                            {t("customers.profile.retry")}
+                        </button>
+                    </div>
+                )}
                 {/* Content */}
                 {isLoading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -372,18 +390,6 @@ function CustomersPageContent() {
                     </div>
                 ) : (
                     <>
-                        {isRefetchError && (
-                            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-                                <span>{t("customers.refreshFailed", "Couldn't refresh. Showing the last loaded list.")}</span>
-                                <button
-                                    onClick={() => refetch()}
-                                    disabled={isRefetching}
-                                    className="h-9 px-4 rounded-xl border border-current text-sm font-semibold disabled:opacity-50"
-                                >
-                                    {t("customers.profile.retry")}
-                                </button>
-                            </div>
-                        )}
                         {effectiveView === "list" ? (
                             <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} />
                         ) : (
