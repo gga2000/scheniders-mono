@@ -20,6 +20,8 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 
 interface BatchManagerProps {
     productId: string;
@@ -100,6 +102,8 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
     const { t } = useLanguage();
     const { tenantId } = useAuth();
     const queryClient = useQueryClient();
+    const { can } = usePermission();
+    const showCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS);
 
     const [showForm, setShowForm] = useState(false);
     const [writeOffConfirm, setWriteOffConfirm] = useState<string | null>(null);
@@ -207,7 +211,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
             batch_number: form.batch_number,
             quantity: parseInt(form.quantity, 10),
             expiry_date: form.expiry_date || null,
-            cost_per_unit: form.cost_per_unit ? parseFloat(form.cost_per_unit) : null,
+            cost_per_unit: showCost && form.cost_per_unit ? parseFloat(form.cost_per_unit) : null,
             notes: form.notes || null,
             status: "active",
             tenant_id: tenantId!,
@@ -339,7 +343,8 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                     </div>
                                 </div>
 
-                                {/* Cost per unit */}
+                                {/* Cost per unit: admins only */}
+                                {showCost && (
                                 <div>
                                     <label className="block text-xs font-medium text-muted mb-1">
                                         Cost per Unit
@@ -356,6 +361,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
                                     />
                                 </div>
+                                )}
                             </div>
 
                             {/* Notes */}
@@ -465,7 +471,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                     </span>
                                                 </span>
                                             )}
-                                            {batch.cost_per_unit !== null && (
+                                            {showCost && batch.cost_per_unit !== null && (
                                                 <span>
                                                     Cost/unit:{" "}
                                                     <span className="text-foreground font-medium">

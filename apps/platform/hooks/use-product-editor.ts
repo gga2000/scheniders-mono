@@ -510,6 +510,11 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     // writing back the empty value.
     const showCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS)
         || mode === "create" || !!product?.is_supply;
+    // Supplier rows carry unit cost, so save_product_children refuses them from
+    // a caller who cannot read cost, even as an empty list. Create mode shows
+    // the cost field (the row's own cost is writable) but not this section.
+    const canEditSuppliers = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS)
+        || !!product?.is_supply;
 
     const emptyForm = useMemo(
         () => (defaultIsSupply ? { ...DEFAULT_FORM_DATA, is_supply: true } : DEFAULT_FORM_DATA),
@@ -653,12 +658,13 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 setRelatedDataLoaded(true);
             } catch (error) {
                 console.error("Error loading related product data:", error);
+                if (!cancelled) toast.error(t("products.ed.err.relatedLoad"));
             }
         }
 
         loadRelatedData();
         return () => { cancelled = true; };
-    }, [product?.id, mode]);
+    }, [product?.id, mode, t]);
 
     // Auto-save
     const autoSaveKey = mode === "create"
@@ -912,7 +918,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 relation_type: r.relation_type,
                 display_order: r.display_order,
             })),
-            ...(showCost && { product_suppliers: formData.suppliers.map((s) => ({
+            ...(canEditSuppliers && { product_suppliers: formData.suppliers.map((s) => ({
                 supplier_name: s.supplier_name,
                 supplier_contact: s.supplier_contact || undefined,
                 supplier_email: s.supplier_email || undefined,
@@ -928,10 +934,16 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 display_order: b.display_order,
             })),
         });
-    }, [formData, showCost]);
+    }, [formData, canEditSuppliers]);
 
     // Save
     const save = useCallback(async () => {
+        if (mode === "edit" && !relatedDataLoaded) {
+            // Saving before the tiers, bumps and options arrive would replace
+            // them with empty lists.
+            toast.error(t("products.ed.err.relatedNotLoaded"));
+            return false;
+        }
         if (!formData.name.trim()) {
             toast.error(t("products.ed.err.name"));
             return false;
@@ -1237,11 +1249,15 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         } finally {
             setSaving(false);
         }
-    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost]);
+    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost, mode, relatedDataLoaded]);
 
     // Duplicate product
     const duplicateProduct = useCallback(async () => {
         if (!product) return;
+        if (!relatedDataLoaded) {
+            toast.error(t("products.ed.err.relatedNotLoaded"));
+            return;
+        }
         setSaving(true);
         try {
             const newProduct = await addProduct({
@@ -1312,10 +1328,11 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         } finally {
             setSaving(false);
         }
-    }, [formData, product, addProduct, addVariant, router, saveRelatedData, tenantId, t]);
+    }, [formData, product, addProduct, addVariant, router, saveRelatedData, tenantId, t, relatedDataLoaded]);
 
     return {
         showCost,
+        canEditSuppliers,
         formData,
         setFormData,
         updateField,

@@ -59,7 +59,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
     const { t } = useLanguage();
     // Product cost and margin are for admins only; a supply's cost is its
     // price, so whoever adds supplies keeps seeing it (useProductEditor).
-    const { showCost } = editor;
+    const { showCost, canEditSuppliers } = editor;
 
     return (
         <div className="min-h-screen bg-[var(--background)]">
@@ -337,7 +337,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                     </CollapsibleSection>
 
                                     {/* Suppliers carry unit cost, so they are saved only by members who see cost. */}
-                                    {showCost && (
+                                    {canEditSuppliers && (
                                     <CollapsibleSection title={t("products.ed.sec.suppliers")} icon={<Truck className="w-4 h-4 text-muted" />} badge={editor.formData.suppliers.length || undefined} persistKey="suppliers">
                                         <SupplierSection
                                             suppliers={editor.formData.suppliers}
