@@ -15,7 +15,7 @@ const TYPE_TONE: Record<CommunityRating["overall_type"], string> = {
     warning: "bg-rose-50 text-rose-700",
 };
 
-/** The day the rating was given, in Baghdad time (a UTC slice is a day early after 21:00). */
+/** The day the rating was given, in Baghdad time (a UTC slice is a day early between 00:00 and 03:00 there). */
 function ratingDay(iso: string): string {
     return new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Baghdad" });
 }

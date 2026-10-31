@@ -19,9 +19,9 @@ export function csvPhone(raw: string | null | undefined): string {
     return raw ? `+${toIraqE164(raw)}` : "";
 }
 
-/** ISO timestamp → YYYY-MM-DD. */
+/** ISO timestamp → YYYY-MM-DD on the Baghdad calendar (a UTC slice is a day early between 00:00 and 03:00 there). */
 export function csvDate(iso: string | null | undefined): string {
-    return iso ? iso.slice(0, 10) : "";
+    return iso ? new Date(iso).toLocaleDateString("en-CA", { timeZone: "Asia/Baghdad" }) : "";
 }
 
 export function toCsv(rows: (string | number | null | undefined)[][]): string {
