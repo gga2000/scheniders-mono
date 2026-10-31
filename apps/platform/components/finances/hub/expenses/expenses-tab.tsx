@@ -21,6 +21,7 @@ import { Delta } from "@/components/finances/hub/primitives/delta";
 import { Sparkline } from "@/components/finances/hub/primitives/sparkline";
 import type { FinancePeriod } from "@/hooks/use-finance-period";
 import { cn } from "@/lib/utils";
+import { baghdadDayKey } from "@/lib/order-window";
 
 interface ExpensesTabProps {
     period: FinancePeriod;
@@ -29,7 +30,7 @@ interface ExpensesTabProps {
 }
 
 function fmtDate(d: Date): string {
-    return d.toISOString().split("T")[0];
+    return baghdadDayKey(d);
 }
 
 function diffDays(a: Date, b: Date): number {

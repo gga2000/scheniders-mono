@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ChevronDown } from "lucide-react";
+import { baghdadDayKey } from "@/lib/order-window";
 
 interface DateRangePickerProps {
     startDate: string;
@@ -34,7 +35,7 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
 
     const getQuickRange = (range: QuickRange): { start: string; end: string } => {
         const now = new Date();
-        const today = now.toISOString().split("T")[0];
+        const today = baghdadDayKey(now);
 
         switch (range) {
             case "today":
@@ -42,20 +43,20 @@ export function DateRangePicker({ startDate, endDate, onChange }: DateRangePicke
             case "week": {
                 const weekStart = new Date(now);
                 weekStart.setDate(now.getDate() - 7);
-                return { start: weekStart.toISOString().split("T")[0], end: today };
+                return { start: baghdadDayKey(weekStart), end: today };
             }
             case "month": {
                 const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                return { start: monthStart.toISOString().split("T")[0], end: today };
+                return { start: baghdadDayKey(monthStart), end: today };
             }
             case "quarter": {
                 const quarterStart = new Date(now);
                 quarterStart.setMonth(now.getMonth() - 3);
-                return { start: quarterStart.toISOString().split("T")[0], end: today };
+                return { start: baghdadDayKey(quarterStart), end: today };
             }
             case "year": {
                 const yearStart = new Date(now.getFullYear(), 0, 1);
-                return { start: yearStart.toISOString().split("T")[0], end: today };
+                return { start: baghdadDayKey(yearStart), end: today };
             }
             default:
                 return { start: customStart, end: customEnd };
