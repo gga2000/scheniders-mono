@@ -9,6 +9,24 @@ import { useDebounce } from "@/hooks/use-debounce";
 // A hand-edited ?tagId= that is not a uuid would make the list RPC error.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const VALUE_TIERS = ["vip", "good", "newcomer"] as const;
+const RISK_LEVELS = ["clean", "caution", "high", "blocked"] as const;
+const LANES = ["vipsQuiet", "new", "firstDelivery"] as const;
+export type UrlValueFilter = (typeof VALUE_TIERS)[number] | "all";
+export type UrlRiskFilter = (typeof RISK_LEVELS)[number] | "all";
+export type UrlLane = (typeof LANES)[number] | null;
+
+function pick<T extends string>(raw: string | null, allowed: readonly T[]): T | undefined {
+    return allowed.find((v) => v === raw);
+}
+
+/** The chip, risk and action-lane filters, kept in the URL so a profile round-trip or reload keeps them. */
+export interface CustomerChipFilters {
+    value: UrlValueFilter;
+    risk: UrlRiskFilter;
+    lane: UrlLane;
+}
+
 interface CustomerUrlState extends PaginatedCustomerFilters {
     customerId: string | null;
     trustTier?: TrustTier | "all";
@@ -44,6 +62,12 @@ export function useCustomerUrlState() {
         minTrustScore: searchParams.has("minScore") ? Number(searchParams.get("minScore")) : undefined,
         maxTrustScore: searchParams.has("maxScore") ? Number(searchParams.get("maxScore")) : undefined,
         view: (searchParams.get("view") as "grid" | "list") || undefined,
+    };
+
+    const chips: CustomerChipFilters = {
+        value: pick(searchParams.get("value"), VALUE_TIERS) ?? "all",
+        risk: pick(searchParams.get("risk"), RISK_LEVELS) ?? "all",
+        lane: pick(searchParams.get("lane"), LANES) ?? null,
     };
 
     // 2. Local search tracking strictly for fast typing UI
@@ -115,6 +139,19 @@ export function useCustomerUrlState() {
         if (max !== undefined) params.set("maxScore", max.toString()); else params.delete("maxScore");
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
+    /** One URL write for the chips (and optionally the sort), so two setters never race on stale params. */
+    const setChips = (next: CustomerChipFilters, sort?: { by: string; order: "asc" | "desc" }) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (next.value === "all") params.delete("value"); else params.set("value", next.value);
+        if (next.risk === "all") params.delete("risk"); else params.set("risk", next.risk);
+        if (next.lane) params.set("lane", next.lane); else params.delete("lane");
+        if (sort) {
+            if (sort.by === "total_orders") params.delete("sortBy"); else params.set("sortBy", sort.by);
+            if (sort.order === "desc") params.delete("sortOrder"); else params.set("sortOrder", sort.order);
+        }
+        const qs = params.toString();
+        router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    };
     const setView = (view: "grid" | "list") => pushStateToUrl("view", view === "grid" ? null : view);
 
     const setAdvancedFilters = (filters: Pick<CustomerUrlState, "minLtv" | "maxLtv" | "lastOrderWithinDays" | "tagId">) => {
@@ -140,6 +177,8 @@ export function useCustomerUrlState() {
             ...state,
             search: state.search // Exposed true URL state for fetchers
         },
+        chips,
+        setChips,
         rawSearch: localSearch, // Instant view for search box
         setSearch,
         setStatus,

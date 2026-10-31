@@ -159,7 +159,7 @@ export function HeroIdentityBanner({
 
                     {/* Peer badges — integrated into hero, not floating below */}
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                        <PeerComparisonBadge phone={phone} city={city || null} />
+                        {shownScore !== null && <PeerComparisonBadge phone={phone} city={city || null} />}
                         <ConfidenceIndicator orderCount={totalOrders} />
                     </div>
 
