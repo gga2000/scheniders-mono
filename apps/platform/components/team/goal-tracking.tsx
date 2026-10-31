@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { z } from "zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Target,
@@ -13,15 +15,17 @@ import {
     Flag,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { PastelCard, pastelColors, PastelButton } from "./shared-pastel-components";
+import { PastelCard, PastelButton } from "./shared-pastel-components";
 import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/hooks/use-auth";
+import { toast } from "@/hooks/use-toast";
+import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 import { cn } from "@/lib/utils";
 
 // Types
 export interface Goal {
     id: string;
     employeeId: string;
-    employeeName: string;
     type: "daily" | "weekly" | "monthly";
     metric: "totalActions" | "ordersCreated" | "statusChanges" | "ordersPrinted";
     target: number;
@@ -43,7 +47,16 @@ interface GoalTrackingProps {
     className?: string;
 }
 
-const STORAGE_KEY = "team-goals";
+const goalRowsSchema = z.array(
+    z.object({
+        id: z.string(),
+        employee_id: z.string(),
+        type: z.enum(["daily", "weekly", "monthly"]),
+        metric: z.enum(["totalActions", "ordersCreated", "statusChanges", "ordersPrinted"]),
+        target: z.coerce.number(),
+        created_at: z.string(),
+    }),
+);
 
 const METRIC_LABEL_KEYS: Record<Goal["metric"], string> = {
     totalActions: "team.goals.totalActions",
@@ -58,63 +71,76 @@ const TYPE_LABEL_KEYS: Record<Goal["type"], string> = {
     monthly: "team.goals.monthly",
 };
 
-// Custom hook for goal management
+// Goals live in the team_goals table (per store, RLS-protected), not in the browser.
 export function useGoals() {
-    const [goals, setGoals] = useState<Goal[]>([]);
+    const { tenantId } = useAuth();
+    const { t } = useLanguage();
+    const queryClient = useQueryClient();
+    const queryKey = ["team-goals", tenantId] as const;
 
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                setGoals(JSON.parse(stored));
-            } catch (e) {
-                console.error("Failed to parse goals:", e);
-            }
-        }
-    }, []);
-
-    const saveToStorage = useCallback((newGoals: Goal[]) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newGoals));
-        setGoals(newGoals);
-    }, []);
-
-    const addGoal = useCallback(
-        (goal: Omit<Goal, "id" | "createdAt">) => {
-            const newGoal: Goal = {
-                ...goal,
-                id: `goal-${Date.now()}`,
-                createdAt: new Date().toISOString(),
-            };
-            saveToStorage([...goals, newGoal]);
-            return newGoal;
+    const { data: goals = [], isError: goalsFailed } = useQuery({
+        queryKey,
+        enabled: !!tenantId,
+        queryFn: async (): Promise<Goal[]> => {
+            const { data, error } = await supabase
+                .from("team_goals")
+                .select("id, employee_id, type, metric, target, created_at")
+                .eq("tenant_id", tenantId ?? "")
+                .order("created_at", { ascending: true });
+            if (error) throw error;
+            return goalRowsSchema.parse(data).map((r) => ({
+                id: r.id,
+                employeeId: r.employee_id,
+                type: r.type,
+                metric: r.metric,
+                target: r.target,
+                createdAt: r.created_at,
+            }));
         },
-        [goals, saveToStorage]
-    );
+    });
 
-    const updateGoal = useCallback(
-        (id: string, updates: Partial<Goal>) => {
-            saveToStorage(goals.map((g) => (g.id === id ? { ...g, ...updates } : g)));
+    const addMutation = useMutation({
+        mutationFn: async (goal: Omit<Goal, "id" | "createdAt">) => {
+            if (!tenantId) throw new Error("No active store");
+            const { error } = await supabase.from("team_goals").insert({
+                tenant_id: tenantId,
+                employee_id: goal.employeeId,
+                type: goal.type,
+                metric: goal.metric,
+                target: Math.round(goal.target),
+            });
+            if (error) throw error;
         },
-        [goals, saveToStorage]
-    );
+        onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+        onError: (e: Error) => toast({ title: t("team.goals.saveFailed"), description: e.message, variant: "error" }),
+    });
 
-    const deleteGoal = useCallback(
-        (id: string) => {
-            saveToStorage(goals.filter((g) => g.id !== id));
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase.from("team_goals").delete().eq("id", id);
+            if (error) throw error;
         },
-        [goals, saveToStorage]
-    );
+        onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+        onError: (e: Error) => toast({ title: t("team.goals.deleteFailed"), description: e.message, variant: "error" }),
+    });
 
-    return { goals, addGoal, updateGoal, deleteGoal };
+    return {
+        goals,
+        goalsFailed,
+        addGoal: (goal: Omit<Goal, "id" | "createdAt">) => addMutation.mutateAsync(goal).catch(() => undefined),
+        deleteGoal: (id: string) => deleteMutation.mutateAsync(id).catch(() => undefined),
+    };
 }
 
 // Goal Card
 function GoalCard({
     goal,
+    employeeName,
     currentValue,
     onDelete,
 }: {
     goal: Goal;
+    employeeName: string;
     currentValue: number;
     onDelete: () => void;
 }) {
@@ -187,7 +213,7 @@ function GoalCard({
                         <Target className={cn("w-6 h-6", isAchieved ? "text-green-700" : "text-amber-700")} />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[#1E1E1E] dark:text-white truncate text-lg">{goal.employeeName}</p>
+                        <p className="font-bold text-[#1E1E1E] dark:text-white truncate text-lg">{employeeName}</p>
                         <div className="flex items-center gap-2 text-xs font-medium text-[#6B6B6B] dark:text-gray-400 mt-0.5">
                             <span className="bg-black/5 dark:bg-white/10 px-2 py-0.5 rounded-lg">{t(METRIC_LABEL_KEYS[goal.metric])}</span>
                             <span>•</span>
@@ -239,7 +265,7 @@ function AddGoalForm({
     onCancel,
 }: {
     employees: EmployeeData[];
-    onAdd: (goal: Omit<Goal, "id" | "createdAt">) => void;
+    onAdd: (goal: Omit<Goal, "id" | "createdAt">) => void | Promise<void>;
     onCancel: () => void;
 }) {
     const { t } = useLanguage();
@@ -254,7 +280,6 @@ function AddGoalForm({
 
         onAdd({
             employeeId,
-            employeeName: employee.displayName || employee.email.split("@")[0],
             type,
             metric,
             target,
@@ -382,25 +407,21 @@ const METRIC_TO_ACTIONS: Record<Goal["metric"], string[]> = {
     ordersPrinted: ["order.print"],
 };
 
+// Windows follow the store's Baghdad calendar day: daily = since today 00:00, weekly = last 7 days, monthly = last 30 days.
 function getDateFilterForGoalType(type: Goal["type"]): string {
-    const now = new Date();
-    switch (type) {
-        case "daily":
-            now.setHours(0, 0, 0, 0);
-            return now.toISOString();
-        case "weekly":
-            now.setDate(now.getDate() - 7);
-            return now.toISOString();
-        case "monthly":
-            now.setMonth(now.getMonth() - 1);
-            return now.toISOString();
-    }
+    const days = type === "daily" ? 0 : type === "weekly" ? 6 : 29;
+    const start = baghdadDayStart(addDaysToDayKey(baghdadDayKey(), -days));
+    return new Date(start).toISOString();
 }
 
 export function GoalTracking({ employees, className }: GoalTrackingProps) {
     const { t } = useLanguage();
-    const { goals, addGoal, deleteGoal } = useGoals();
+    const { goals, goalsFailed, addGoal, deleteGoal } = useGoals();
     const [isAdding, setIsAdding] = useState(false);
+    const employeeNames = useMemo(
+        () => new Map(employees.map((e) => [e.userId, e.displayName || e.email.split("@")[0]])),
+        [employees],
+    );
     const [periodStats, setPeriodStats] = useState<Record<string, number>>({});
 
     // Fetch period-specific stats for each goal
@@ -496,14 +517,18 @@ export function GoalTracking({ employees, className }: GoalTrackingProps) {
                 {isAdding && (
                     <AddGoalForm
                         employees={employees}
-                        onAdd={(goal) => {
-                            addGoal(goal);
+                        onAdd={async (goal) => {
+                            await addGoal(goal);
                             setIsAdding(false);
                         }}
                         onCancel={() => setIsAdding(false)}
                     />
                 )}
             </AnimatePresence>
+
+            {goalsFailed && (
+                <p role="alert" className="text-sm font-medium text-rose-600">{t("team.goals.loadFailed")}</p>
+            )}
 
             {/* Goals list */}
             {goalsWithProgress.length === 0 && !isAdding ? (
@@ -524,6 +549,7 @@ export function GoalTracking({ employees, className }: GoalTrackingProps) {
                             <GoalCard
                                 key={goal.id}
                                 goal={goal}
+                                employeeName={employeeNames.get(goal.employeeId) ?? t("team.goals.formerMember")}
                                 currentValue={currentValue}
                                 onDelete={() => deleteGoal(goal.id)}
                             />
