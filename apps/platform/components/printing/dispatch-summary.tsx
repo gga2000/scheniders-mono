@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, ChevronDown, ClipboardList } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { buildPickList, getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
+import { useLanguage } from "@/hooks/use-language";
 import type { Order } from "@/lib/supabase";
 
 interface DispatchSummaryProps {
@@ -12,6 +13,7 @@ interface DispatchSummaryProps {
 
 /** What the picker needs before printing: units to pull, cash to collect, orders that cannot ship. */
 export function DispatchSummary({ orders }: DispatchSummaryProps) {
+    const { t } = useLanguage();
     const [open, setOpen] = useState(false);
     const pickList = useMemo(() => buildPickList(orders), [orders]);
     const totalUnits = pickList.reduce((sum, line) => sum + line.quantity, 0);
@@ -33,10 +35,10 @@ export function DispatchSummary({ orders }: DispatchSummaryProps) {
             >
                 <ClipboardList className="h-5 w-5 text-muted" />
                 <div className="flex flex-1 flex-wrap items-baseline gap-x-6 gap-y-1">
-                    <span className="font-semibold text-foreground">Pick list</span>
-                    <span className="text-sm text-muted">{orders.length} orders</span>
-                    <span className="text-sm text-muted">{totalUnits} units</span>
-                    <span className="text-sm text-muted tabular-nums">Collect {formatIQD(toCollect)}</span>
+                    <span className="font-semibold text-foreground">{t("printing.pickList")}</span>
+                    <span className="text-sm text-muted">{t("printing.ordersCount").replace("{count}", String(orders.length))}</span>
+                    <span className="text-sm text-muted">{t("printing.unitsCount").replace("{count}", String(totalUnits))}</span>
+                    <span className="text-sm text-muted tabular-nums">{t("printing.collect")} {formatIQD(toCollect)}</span>
                 </div>
                 <ChevronDown className={cn("h-4 w-4 text-muted transition-transform", open && "rotate-180")} />
             </button>
@@ -44,11 +46,7 @@ export function DispatchSummary({ orders }: DispatchSummaryProps) {
             {blocked.length > 0 && (
                 <div className="mx-4 mb-4 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
                     <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                    <span>
-                        {blocked.length} selected {blocked.length === 1 ? "order has" : "orders have"} no phone or no
-                        address and cannot be printed. Fix {blocked.length === 1 ? "it" : "them"} on the orders page or
-                        deselect.
-                    </span>
+                    <span>{t("printing.blockedHint").replace("{count}", String(blocked.length))}</span>
                 </div>
             )}
 
@@ -57,7 +55,7 @@ export function DispatchSummary({ orders }: DispatchSummaryProps) {
                     {pickList.map((line) => (
                         <li key={line.key} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
                             <span className="min-w-0 flex-1 truncate text-foreground">{line.name}</span>
-                            <span className="text-xs text-muted">{line.orderCount} orders</span>
+                            <span className="text-xs text-muted">{t("printing.ordersCount").replace("{count}", String(line.orderCount))}</span>
                             <span className="w-12 text-right font-bold tabular-nums text-foreground">×{line.quantity}</span>
                         </li>
                     ))}
