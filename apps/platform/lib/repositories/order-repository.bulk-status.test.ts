@@ -139,3 +139,53 @@ describe("orderRepository.bulkUpdateStatus", () => {
         expect(progress).toEqual([0, 5, 6]);
     });
 });
+
+describe("orderRepository.bulkUpdateScheduledDate", () => {
+    const rowOn = (id: string) => ({ id, status: "confirmed", version: 3, scheduled_date: "2026-11-05", items: [] });
+
+    it("writes the day in batches of 5, sequentially, ids ascending, with the version guard", async () => {
+        respond = (ids) => ({ data: ids.map(rowOn), error: null });
+        const ids = Array.from({ length: 7 }, (_, i) => `id-${6 - i}`);
+        const versions = Object.fromEntries(ids.map((id) => [id, 2]));
+
+        const { successfulOperations, failedOperations } =
+            await orderRepository.bulkUpdateScheduledDate(ids, "2026-11-05", versions);
+
+        expect(failedOperations).toEqual([]);
+        expect(successfulOperations).toHaveLength(7);
+        expect(calls).toHaveLength(2);
+        expect(calls.every((c) => c.patch.scheduled_date === "2026-11-05")).toBe(true);
+        expect(idsOf(calls[0])).toEqual(["id-0", "id-1", "id-2", "id-3", "id-4"]);
+        expect(idsOf(calls[1])).toEqual(["id-5", "id-6"]);
+        const orFilter = calls[0].filters.find((f) => f.op === "or");
+        expect(orFilter?.args[0]).toBe(buildVersionedIdFilter(idsOf(calls[0]), versions));
+    });
+
+    it("clears the postponement with null", async () => {
+        respond = (ids) => ({ data: ids.map((id) => ({ ...rowOn(id), scheduled_date: null })), error: null });
+        await orderRepository.bulkUpdateScheduledDate(["a"], null, { a: 1 });
+        expect(calls[0].patch).toEqual({ scheduled_date: null });
+    });
+
+    it("reports a row the version guard filtered out as a conflict, and lands the rest", async () => {
+        respond = (ids) => ({ data: ids.filter((id) => id !== "b").map(rowOn), error: null });
+        const { successfulOperations, failedOperations } =
+            await orderRepository.bulkUpdateScheduledDate(["a", "b", "c"], "2026-11-05", { a: 1, b: 1, c: 1 });
+        expect(successfulOperations.map((o) => o.id)).toEqual(["a", "c"]);
+        expect(failedOperations).toHaveLength(1);
+        expect(failedOperations[0].id).toBe("b");
+        expect((failedOperations[0].error as Error).message).toBe("CONFLICT_DETECTED");
+    });
+
+    it("fails only the batch whose statement errored; later batches still run", async () => {
+        let n = 0;
+        respond = (ids) => (n++ === 0
+            ? { data: null, error: { code: "57014", message: "timeout" } }
+            : { data: ids.map(rowOn), error: null });
+        const ids = Array.from({ length: 8 }, (_, i) => `id-${i}`);
+        const { successfulOperations, failedOperations } =
+            await orderRepository.bulkUpdateScheduledDate(ids, "2026-11-05");
+        expect(failedOperations.map((f) => f.id)).toEqual(["id-0", "id-1", "id-2", "id-3", "id-4"]);
+        expect(successfulOperations.map((o) => o.id)).toEqual(["id-5", "id-6", "id-7"]);
+    });
+});

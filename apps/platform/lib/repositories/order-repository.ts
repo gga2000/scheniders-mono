@@ -1132,6 +1132,54 @@ export const orderRepository = {
         return { successfulOperations: succeeded, failedOperations: failed };
     },
 
+    /**
+     * Move many orders to another day (or clear the postponement with `null`):
+     * small sequential batches like the status bulk, one UPDATE per batch with
+     * the version guard. Rows that do not come back were changed by someone
+     * else meanwhile (or filtered by RLS) and are reported failed. A statement
+     * error fails the whole batch; later batches still run.
+     */
+    async bulkUpdateScheduledDate(
+        orderIds: string[],
+        scheduledDate: string | null,
+        expectedVersions?: Record<string, number>,
+        hooks?: {
+            onBatchSettled?: (outcome: BatchOutcome<{ id: string, order: Order }>) => Promise<void> | void;
+            onProgress?: (progress: BulkProgress) => void;
+        }
+    ): Promise<{
+        successfulOperations: { id: string, order: Order }[],
+        failedOperations: { id: string, error: unknown }[]
+    }> {
+        const { succeeded, failed } = await runInSequentialBatches<{ id: string, order: Order }>({
+            ids: orderIds,
+            runBatch: async (batch) => {
+                const { data, error } = await supabase
+                    .from("orders")
+                    .update({ scheduled_date: scheduledDate })
+                    .in("id", batch)
+                    .or(buildVersionedIdFilter(batch, expectedVersions))
+                    .select(ORDER_READ_COLUMNS)
+                    .abortSignal(AbortSignal.timeout(STATUS_BATCH_TIMEOUT_MS));
+                if (error) throw error;
+
+                const written = new Map((data ?? []).map((row) => [row.id as string, normalizeOrder(row)]));
+                const okRows: { id: string, order: Order }[] = [];
+                const badRows: { id: string, error: unknown }[] = [];
+                for (const id of batch) {
+                    const order = written.get(id);
+                    if (order) okRows.push({ id, order });
+                    else if (typeof expectedVersions?.[id] === "number") badRows.push({ id, error: new Error("CONFLICT_DETECTED") });
+                    else badRows.push({ id, error: new Error("Reschedule failed: row not found or write was rejected. Try refreshing.") });
+                }
+                return { succeeded: okRows, failed: badRows };
+            },
+            onBatchSettled: hooks?.onBatchSettled,
+            onProgress: hooks?.onProgress,
+        });
+        return { successfulOperations: succeeded, failedOperations: failed };
+    },
+
     /** Hard-delete an order by ID. */
     async delete(id: string): Promise<void> {
         const { error } = await supabase

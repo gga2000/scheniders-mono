@@ -1,4 +1,5 @@
-import { getScheduledState } from "@/lib/order-format-utils";
+import type { Order } from "@/types/order";
+import { SETTLED_STATUSES, getScheduledState } from "@/lib/order-format-utils";
 
 /**
  * Guards for actions that mean "act on everything matching my filter".
@@ -63,4 +64,26 @@ export function partitionByShipDay<T extends { scheduled_date?: string | null }>
         else shippable.push(order);
     }
     return { shippable, scheduledLater };
+}
+
+/**
+ * Split a selection headed for a bulk reschedule into orders that can still be
+ * moved to another day and orders that cannot.
+ *
+ * A postponement only means something while the order is still ours to handle.
+ * Finished orders (completed, delivered, rejected, cancelled, refunded) have no
+ * queue left, and an order already with the courier cannot be held back, so
+ * writing a future date on either would be noise at best and a lie on the
+ * orders list at worst. They are skipped and counted, never silently changed.
+ */
+export function partitionForReschedule<T extends { status: Order["status"] }>(
+    orders: readonly T[],
+): { reschedulable: T[]; skipped: T[] } {
+    const reschedulable: T[] = [];
+    const skipped: T[] = [];
+    for (const order of orders) {
+        if (SETTLED_STATUSES.has(order.status) || order.status === "in_transit") skipped.push(order);
+        else reschedulable.push(order);
+    }
+    return { reschedulable, skipped };
 }

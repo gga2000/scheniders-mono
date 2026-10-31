@@ -1134,6 +1134,97 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         return result;
     }
 
+    /**
+     * Move many orders to another day, or clear the postponement with `null`.
+     * Same shape as `bulkUpdateStatus`: small sequential batches with the
+     * version guard, history written as each batch lands, and the cache moved
+     * with it. The history line matches the single-order edit
+     * ("Updated: Scheduled Date: old → new") so the timeline reads the same.
+     */
+    async function bulkReschedule(
+        orderIds: string[],
+        scheduledDate: string | null,
+        options: { onProgress?: (progress: BulkProgress) => void } = {},
+    ): Promise<BulkStatusResult> {
+        const wanted = new Set(orderIds);
+        const cached = queryClient.getQueryData<Order[]>(orderKeys.lists()) ?? [];
+        const freshById = new Map(cached.filter(o => wanted.has(o.id)).map(o => [o.id, o]));
+        const previousOrders = orders
+            .filter(o => wanted.has(o.id))
+            .map(o => freshById.get(o.id) ?? o);
+        for (const [id, o] of freshById) {
+            if (!previousOrders.some(p => p.id === id)) previousOrders.push(o);
+        }
+        const previousById = new Map(previousOrders.map(o => [o.id, o]));
+        const expectedVersions: { [key: string]: number } = {};
+        previousOrders.forEach(o => {
+            if (typeof o.version === "number") expectedVersions[o.id] = o.version;
+        });
+
+        const { profile: currentProfile, user: currentUser } = authRef.current;
+        const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
+
+        let historyNotLogged = 0;
+
+        const settleBatch = async ({ succeeded }: BatchOutcome<{ id: string; order: Order }>) => {
+            if (succeeded.length === 0) return;
+
+            const historyEntries = succeeded.map(({ id }) => {
+                const previous = previousById.get(id);
+                const status = previous?.status || 'unknown';
+                return {
+                    order_id: id,
+                    changed_by: changedBy,
+                    from_status: status,
+                    to_status: status,
+                    changed_at: new Date().toISOString(),
+                    notes: `Updated: Scheduled Date: ${previous?.scheduled_date || 'None'} → ${scheduledDate || 'None'}`,
+                    tenant_id: tenantId,
+                };
+            });
+            const { error: historyError } = await supabase
+                .from("order_status_history")
+                .insert(historyEntries);
+            if (historyError) {
+                historyNotLogged += historyEntries.length;
+                reportOrderError(historyError, {
+                    operation: "orders-bulk-reschedule-history",
+                    extra: { count: historyEntries.length },
+                });
+            }
+
+            const written = new Map(succeeded.map(({ id, order }) => [id, order]));
+            optimisticUpdate((prev) =>
+                prev.map((order) => {
+                    const next = written.get(order.id);
+                    if (!next) return order;
+                    return {
+                        ...order,
+                        scheduled_date: next.scheduled_date,
+                        version: next.version,
+                        updated_at: next.updated_at,
+                    };
+                })
+            );
+        };
+
+        const { successfulOperations, failedOperations } = await orderRepository.bulkUpdateScheduledDate(
+            orderIds,
+            scheduledDate,
+            expectedVersions,
+            { onBatchSettled: settleBatch, onProgress: options.onProgress },
+        );
+
+        return {
+            success: failedOperations.length === 0,
+            count: successfulOperations.length,
+            attempted: successfulOperations.length + failedOperations.length,
+            succeededIds: successfulOperations.map(op => op.id),
+            failures: failedOperations,
+            historyNotLogged,
+        };
+    }
+
     async function bulkArchive(orderIds: string[]) {
         try {
             // `.in()` succeeds even when RLS filters rows out, so ask which rows
@@ -1755,6 +1846,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
         // Bulk operations
         bulkUpdateStatus,
+        bulkReschedule,
         bulkArchive,
         bulkUnarchive,
         bulkDelete,

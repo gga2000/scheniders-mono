@@ -324,6 +324,7 @@ export function useOrders() {
 
         // Bulk operations
         bulkUpdateStatus: crudHook.bulkUpdateStatus,
+        bulkReschedule: crudHook.bulkReschedule,
         bulkArchive: crudHook.bulkArchive,
         bulkUnarchive: crudHook.bulkUnarchive,
         bulkDelete: crudHook.bulkDelete,
