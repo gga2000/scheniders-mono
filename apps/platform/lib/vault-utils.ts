@@ -12,6 +12,7 @@ import {
     type CloudVaultEntry,
 } from "@/app/actions/vault";
 import { VAULT_BUCKET } from "./vault-paths";
+import { VaultError, type VaultProgress } from "./vault-progress";
 import { vaultFileSchema, type VaultData, type VaultRow } from "./vault-schema";
 import * as XLSX from "xlsx";
 
@@ -75,14 +76,14 @@ async function fetchProductsWithCost(tenantId: string) {
 async function requireTenantId(): Promise<string> {
     const { data, error } = await supabase.rpc("get_current_tenant_id");
     if (error || typeof data !== "string" || !data) {
-        throw new Error("Could not confirm which store you are working in. Reload and try again.");
+        throw new VaultError("noStore", "Could not confirm which store you are working in. Reload and try again.");
     }
     return data;
 }
 
 async function requireAccessToken(): Promise<string> {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) throw new Error("Your session has expired. Sign in again.");
+    if (!session?.access_token) throw new VaultError("sessionExpired", "Your session has expired. Sign in again.");
     return session.access_token;
 }
 
@@ -95,8 +96,8 @@ async function recordVaultEvent(action: "VAULT_EXPORT" | "VAULT_CLOUD_SYNC" | "V
 /**
  * Orchestrates fetching all requested core data.
  */
-async function fetchAllData(options: VaultBackupOptions, onProgress?: (msg: string) => void): Promise<VaultData> {
-    if (onProgress) onProgress("Fetching Database...");
+async function fetchAllData(options: VaultBackupOptions, onProgress?: (progress: VaultProgress) => void): Promise<VaultData> {
+    if (onProgress) onProgress({ step: "fetching" });
 
     const tenantId = await requireTenantId();
     const [orders, products, customers] = await Promise.all([
@@ -130,7 +131,7 @@ export async function generateVaultBackup(
     format: ExportFormat,
     password?: string,
     options?: VaultBackupOptions,
-    onProgress?: (msg: string) => void
+    onProgress?: (progress: VaultProgress) => void
 ): Promise<void> {
     const opts = options || { includeOrders: true, includeProducts: true, includeCustomers: true };
     const vaultData = await fetchAllData(opts, onProgress);
@@ -138,18 +139,18 @@ export async function generateVaultBackup(
     await recordVaultEvent("VAULT_EXPORT", { format, ...vaultData.metadata.counts });
 
     if (format === "vault") {
-        if (!password) throw new Error("Password required for encrypted vault export");
+        if (!password) throw new VaultError("passwordRequired", "Password required for encrypted vault export");
 
-        if (onProgress) onProgress("Encrypting with Vault Key...");
+        if (onProgress) onProgress({ step: "encrypting" });
         const blob = await encryptVaultData(vaultData, password);
 
-        if (onProgress) onProgress("Finalizing Download...");
+        if (onProgress) onProgress({ step: "finalizing" });
         downloadBlob(blob, `scheniders_vault_${timestamp}.scheniders`);
     } else if (format === "excel") {
-        if (onProgress) onProgress("Compressing Excel Workbook...");
+        if (onProgress) onProgress({ step: "excel" });
         exportToExcel(vaultData, `scheniders_backup_${timestamp}.xlsx`);
     } else if (format === "csv") {
-        if (onProgress) onProgress("Generating CSV Formats...");
+        if (onProgress) onProgress({ step: "csv" });
         exportToCSV(vaultData, `scheniders_backup_${timestamp}`);
     }
 }
@@ -228,13 +229,13 @@ function parseJsonCell(value: unknown, fallback: unknown): unknown {
     try {
         return JSON.parse(value);
     } catch {
-        throw new Error("The Excel file has a damaged Items or Risk column and cannot be restored.");
+        throw new VaultError("damagedExcel", "The Excel file has a damaged Items or Risk column and cannot be restored.");
     }
 }
 
 function validateVaultData(raw: unknown): VaultData {
     const parsed = vaultFileSchema.safeParse(raw);
-    if (!parsed.success) throw new Error("Invalid vault file structure");
+    if (!parsed.success) throw new VaultError("invalidFile", "Invalid vault file structure");
     return parsed.data;
 }
 
@@ -243,7 +244,7 @@ function validateVaultData(raw: unknown): VaultData {
  */
 export async function parseVaultFile(file: File, password?: string): Promise<VaultData> {
     if (file.name.endsWith(".scheniders")) {
-        if (!password) throw new Error("Vault Key required to unlock this file");
+        if (!password) throw new VaultError("passwordRequired", "Vault Key required to unlock this file");
         const decryptedData = await decryptVaultData(file, password);
 
         return validateVaultData(decryptedData);
@@ -264,7 +265,7 @@ export async function parseVaultFile(file: File, password?: string): Promise<Vau
         }));
 
         if (orders.length === 0 && productsRaw.length === 0 && customersRaw.length === 0) {
-            throw new Error("Excel file doesn't contain valid backup sheets (Orders, Products, Customers).");
+            throw new VaultError("emptyExcel", "Excel file doesn't contain valid backup sheets (Orders, Products, Customers).");
         }
 
         return validateVaultData({
@@ -276,7 +277,7 @@ export async function parseVaultFile(file: File, password?: string): Promise<Vau
             data: { orders, products: productsRaw, customers: customersRaw },
         });
     } else {
-        throw new Error("Unsupported file format for restore. Please use a .scheniders or .xlsx file.");
+        throw new VaultError("unsupportedFormat", "Unsupported file format for restore. Please use a .scheniders or .xlsx file.");
     }
 }
 
@@ -326,9 +327,9 @@ export async function calculateVaultDiff(parsedVault: VaultData) {
  * Executes a safe, destructive bulk upsert of the parsed vault data back into Supabase.
  * Order matters because of foreign keys (Customers -> Products -> Orders).
  */
-export async function executeVaultRestore(vaultData: VaultData, onProgress?: (msg: string) => void): Promise<void> {
+export async function executeVaultRestore(vaultData: VaultData, onProgress?: (progress: VaultProgress) => void): Promise<void> {
     try {
-                if (onProgress) onProgress("Initializing security context...");
+        if (onProgress) onProgress({ step: "security" });
         const tenantId = await requireTenantId();
 
         // Every row is written into the active store whatever the file says
@@ -341,7 +342,7 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (ms
 
         // 1. Restore Customers
         if (customers && customers.length > 0) {
-            if (onProgress) onProgress(`Restoring ${customers.length} Customers...`);
+            if (onProgress) onProgress({ step: "restoring", table: "customers", count: customers.length });
             const { error: customerError } = await supabase
                 .from('customer_metadata')
                 .upsert(customers, { onConflict: 'customer_phone,tenant_id' });
@@ -350,7 +351,7 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (ms
 
         // 2. Restore Products 
         if (products && products.length > 0) {
-            if (onProgress) onProgress(`Restoring ${products.length} Products...`);
+            if (onProgress) onProgress({ step: "restoring", table: "products", count: products.length });
             const { error: productError } = await supabase
                 .from('products')
                 .upsert(products, { onConflict: 'id' });
@@ -359,9 +360,9 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (ms
 
         // 3. Restore Orders (Dependent on Products)
         if (orders && orders.length > 0) {
-            if (onProgress) onProgress(`Restoring ${orders.length} Orders...`);
+            if (onProgress) onProgress({ step: "restoring", table: "orders", count: orders.length });
             try {
-                await restoreOrderRows(orders, (written, total) => onProgress?.(`Restored ${written} of ${total} Orders...`));
+                await restoreOrderRows(orders, (written, total) => onProgress?.({ step: "restoredOrders", written, total }));
             } catch (orderError) {
                 throw new Error(`Orders Restore Failed: ${orderError instanceof Error ? orderError.message : String(orderError)}`);
             }
@@ -373,7 +374,8 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (ms
             customers: customers.length,
         });
     } catch (e: unknown) {
-        throw new Error(e instanceof Error ? e.message : "An unexpected error occurred during database restoration.");
+        if (e instanceof Error) throw e;
+        throw new Error("An unexpected error occurred during database restoration.");
     }
 }
 
@@ -381,14 +383,14 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (ms
  * Encrypts in the browser, then uploads straight to the caller's own folder.
  * The server only hands out a one-shot upload slot; it never sees the key.
  */
-export async function uploadVaultToCloud(password: string, options?: VaultBackupOptions, onProgress?: (msg: string) => void): Promise<void> {
+export async function uploadVaultToCloud(password: string, options?: VaultBackupOptions, onProgress?: (progress: VaultProgress) => void): Promise<void> {
     const opts = options || { includeOrders: true, includeProducts: true, includeCustomers: true };
     const vaultData = await fetchAllData(opts, onProgress);
 
-    if (onProgress) onProgress("Encrypting payload...");
+    if (onProgress) onProgress({ step: "encrypting" });
     const encryptedBlob = await encryptVaultData(vaultData, password);
 
-    if (onProgress) onProgress("Syncing to Secure Cloud...");
+    if (onProgress) onProgress({ step: "syncing" });
     const slot = await prepareCloudUploadAction(await requireAccessToken());
     if (!slot.success) throw new Error(`Cloud Sync Failed: ${slot.error}`);
 
