@@ -21,6 +21,7 @@ import {
     Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -41,6 +42,7 @@ type VaultDiff = Awaited<ReturnType<typeof calculateVaultDiff>>;
 type CloudVault = Awaited<ReturnType<typeof fetchCloudVaults>>[number];
 
 export default function VaultPage() {
+    const { t } = useLanguage();
     // Backup State
     const [exportFormat, setExportFormat] = useState<ExportFormat>("vault");
     const [vaultKey, setVaultKey] = useState("");
@@ -74,7 +76,7 @@ export default function VaultPage() {
         "text-emerald-600 dark:text-emerald-400",
         "text-emerald-600 dark:text-emerald-300"
     ];
-    const strengthLabels = ["Weak", "Fair", "Good", "Strong", "Very Strong"];
+    const strengthLabels = [0, 1, 2, 3, 4].map((level) => t(`vault.strength.${level}`));
 
     // Restore State
     const [restoreFile, setRestoreFile] = useState<File | null>(null);
@@ -112,7 +114,7 @@ export default function VaultPage() {
     // Handlers: Create Backup & Sync
     const handleGenerateBackup = async () => {
         if (exportFormat === "vault" && !vaultKey) {
-            toast.error("Vault Key is required for encrypted backups.");
+            toast.error(t("vault.toast.keyRequired", "Vault Key is required for encrypted backups."));
             return;
         }
 
@@ -124,7 +126,7 @@ export default function VaultPage() {
                 includeProducts: true,
                 includeCustomers: true
             }, (step) => setGenerationStep(step));
-            toast.success(`Backup generated successfully in ${exportFormat.toUpperCase()} format.`);
+            toast.success(t("vault.toast.backupDone", "Backup generated successfully in {format} format.", { format: exportFormat.toUpperCase() }));
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Failed to generate backup.";
             toast.error(message);
@@ -136,7 +138,7 @@ export default function VaultPage() {
 
     const handleCloudSync = async () => {
         if (!vaultKey) {
-            toast.error("Vault Key is required for Cloud Sync.");
+            toast.error(t("vault.toast.syncKeyRequired", "Vault Key is required for Cloud Sync."));
             return;
         }
 
@@ -148,7 +150,7 @@ export default function VaultPage() {
                 includeProducts: true,
                 includeCustomers: true
             }, (step) => setGenerationStep(step));
-            toast.success("Successfully synced backup to the secure cloud.");
+            toast.success(t("vault.toast.synced", "Successfully synced backup to the secure cloud."));
             loadCloudVaults(); // Refresh timeline
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Failed to sync to cloud.";
@@ -166,7 +168,7 @@ export default function VaultPage() {
             const blob = await downloadCloudVault(filename);
             const file = new File([blob], filename, { type: "application/octet-stream" });
             setRestoreFile(file);
-            toast.success("Vault file downloaded from cloud. Please enter Vault Key to unlock.");
+            toast.success(t("vault.toast.downloaded", "Vault file downloaded from cloud. Please enter Vault Key to unlock."));
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Failed to download cloud vault.";
             toast.error(message);
@@ -198,7 +200,7 @@ export default function VaultPage() {
 
     const handleFileSelect = (file: File) => {
         if (!file.name.endsWith(".scheniders") && !file.name.endsWith(".json") && !file.name.endsWith(".xlsx")) {
-            toast.error("Invalid file format. Please upload a .scheniders or .xlsx vault file.");
+            toast.error(t("vault.toast.badFormat", "Invalid file format. Please upload a .scheniders or .xlsx vault file."));
             return;
         }
         setRestoreFile(file);
@@ -208,7 +210,7 @@ export default function VaultPage() {
         if (!restoreFile) return;
         const isExcel = restoreFile.name.endsWith(".xlsx");
         if (!isExcel && !restoreKey) {
-            toast.error("Please enter the Vault Key to unlock this file.");
+            toast.error(t("vault.toast.enterKey", "Please enter the Vault Key to unlock this file."));
             return;
         }
 
@@ -218,7 +220,7 @@ export default function VaultPage() {
             const diff = await calculateVaultDiff(parsedData);
             setParsedVaultData(parsedData);
             setDiffResult(diff);
-            toast.success(isExcel ? "Excel file analyzed successfully." : "File unlocked and analyzed successfully.");
+            toast.success(isExcel ? t("vault.toast.analyzedExcel", "Excel file analyzed successfully.") : t("vault.toast.unlocked", "File unlocked and analyzed successfully."));
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : (isExcel ? "Failed to parse Excel file." : "Failed to unlock vault. Incorrect key or corrupted file.");
             toast.error(message);
@@ -235,12 +237,12 @@ export default function VaultPage() {
             // Actual database UPSERT execution
             await executeVaultRestore(parsedVaultData, (step) => toast.loading(step, { id: "restore-progress" }));
             toast.dismiss("restore-progress");
-            toast.success("Data successfully restored from vault.");
+            toast.success(t("vault.toast.restored", "Data successfully restored from vault."));
             clearRestore();
         } catch (error: unknown) {
             toast.dismiss("restore-progress");
             const message = error instanceof Error ? error.message : "Unknown error";
-            toast.error("Restore failed: " + message);
+            toast.error(t("vault.toast.restoreFailed", "Restore failed: {message}", { message }));
         } finally {
             setIsRestoring(false);
         }
@@ -264,10 +266,10 @@ export default function VaultPage() {
                             <Database className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold tracking-tight">Data Vault</h1>
+                            <h1 className="text-2xl font-bold tracking-tight">{t("nav.vault", "Data Vault")}</h1>
                             <div className="flex items-center gap-1.5 mt-1">
                                 <ShieldCheck className="w-4 h-4 text-[var(--vault-accent)]" />
-                                <span className="text-sm text-[var(--foreground-muted)]">Secure Backup &amp; Restore Center</span>
+                                <span className="text-sm text-[var(--foreground-muted)]">{t("vault.subtitle", "Secure Backup & Restore Center")}</span>
                             </div>
                         </div>
                     </div>
@@ -290,19 +292,19 @@ export default function VaultPage() {
                         <div className="w-10 h-10 rounded-xl bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center">
                             <Download className="w-5 h-5 text-[var(--foreground-muted)]" />
                         </div>
-                        <h2 className="text-xl font-semibold">Create Backup</h2>
+                        <h2 className="text-xl font-semibold">{t("vault.create.title", "Create Backup")}</h2>
                     </div>
 
                     <div className="space-y-6 flex-1">
                         {/* Format Selection & Options */}
                         <div className="space-y-4">
-                            <label className="text-sm font-medium text-[var(--foreground-muted)]">Export Format</label>
+                            <label className="text-sm font-medium text-[var(--foreground-muted)]">{t("vault.format.label", "Export Format")}</label>
                             <div className="grid grid-cols-3 gap-3">
                                 <FormatCard
                                     active={exportFormat === "vault"}
                                     onClick={() => setExportFormat("vault")}
                                     icon={<Lock className={cn("w-5 h-5", exportFormat === "vault" ? "text-[var(--vault-accent)]" : "text-[var(--foreground-subtle)]")} />}
-                                    label="Encrypted Vault"
+                                    label={t("vault.format.vault", "Encrypted Vault")}
                                     ext=".scheniders"
                                 />
                                 <FormatCard
@@ -316,7 +318,7 @@ export default function VaultPage() {
                                     active={exportFormat === "csv"}
                                     onClick={() => setExportFormat("csv")}
                                     icon={<FileText className={cn("w-5 h-5", exportFormat === "csv" ? "text-blue-600 dark:text-blue-400" : "text-[var(--foreground-subtle)]")} />}
-                                    label="CSV Raw"
+                                    label={t("vault.format.csv", "CSV Raw")}
                                     ext=".csv"
                                 />
                             </div>
@@ -333,20 +335,20 @@ export default function VaultPage() {
                                 >
                                     <label className="text-sm font-medium text-[var(--vault-accent)] flex items-center gap-2 mb-2">
                                         <KeyRound className="w-4 h-4" />
-                                        Vault Key required for encryption
+                                        {t("vault.key.required", "Vault Key required for encryption")}
                                     </label>
                                     <div className="relative">
                                         <input
                                             type={showVaultKey ? "text" : "password"}
                                             value={vaultKey}
                                             onChange={(e) => setVaultKey(e.target.value)}
-                                            placeholder="Enter a strong password to lock this backup"
+                                            placeholder={t("vault.key.placeholder", "Enter a strong password to lock this backup")}
                                             className="w-full bg-[var(--background)] border border-[var(--card-border)] rounded-xl px-4 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
                                         />
                                         <button
                                             onClick={() => setShowVaultKey(!showVaultKey)}
                                             className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
-                                            aria-label={showVaultKey ? "Hide vault key" : "Show vault key"}
+                                            aria-label={showVaultKey ? t("vault.key.hide", "Hide vault key") : t("vault.key.show", "Show vault key")}
                                         >
                                             {showVaultKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
@@ -370,7 +372,7 @@ export default function VaultPage() {
                                         </div>
                                     )}
                                     <p className="text-xs text-[var(--foreground-subtle)] mt-2 ml-1">
-                                        This key does not leave your browser. If you lose it, the backup cannot be restored.
+                                        {t("vault.key.warning", "This key does not leave your browser. If you lose it, the backup cannot be restored.")}
                                     </p>
                                 </motion.div>
                             )}
@@ -395,7 +397,7 @@ export default function VaultPage() {
                                             className="flex items-center gap-2"
                                         >
                                             <Loader2 className="w-5 h-5 animate-spin" />
-                                            Syncing to Cloud...
+                                            {t("vault.sync.busy", "Syncing to Cloud...")}
                                         </motion.div>
                                     ) : (
                                         <motion.div
@@ -406,7 +408,7 @@ export default function VaultPage() {
                                             className="flex items-center gap-2"
                                         >
                                             <CloudUpload className="w-5 h-5" />
-                                            Sync to Cloud
+                                            {t("vault.sync.idle", "Sync to Cloud")}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -433,7 +435,7 @@ export default function VaultPage() {
                                     className="flex items-center gap-2"
                                 >
                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                    {generationStep || "Processing..."}
+                                    {generationStep || t("vault.processing", "Processing...")}
                                 </motion.div>
                             ) : (
                                 <motion.div
@@ -444,7 +446,7 @@ export default function VaultPage() {
                                     className="flex items-center gap-2"
                                 >
                                     {exportFormat === "vault" ? <Lock className="w-5 h-5" /> : <Download className="w-5 h-5" />}
-                                    Export {exportFormat === "vault" ? "Encrypted Vault" : exportFormat.toUpperCase()}
+                                    {exportFormat === "vault" ? t("vault.export.vault", "Export Encrypted Vault") : t("vault.export.other", "Export {format}", { format: exportFormat.toUpperCase() })}
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -464,7 +466,7 @@ export default function VaultPage() {
                         <div className="w-10 h-10 rounded-xl bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center">
                             <UploadCloud className="w-5 h-5 text-[var(--foreground-muted)]" />
                         </div>
-                        <h2 className="text-xl font-semibold">Restore Backup</h2>
+                        <h2 className="text-xl font-semibold">{t("vault.restore.title", "Restore Backup")}</h2>
                     </div>
 
                     {!restoreFile ? (
@@ -490,9 +492,9 @@ export default function VaultPage() {
                             <div className="w-16 h-16 rounded-full bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center mb-4 group-hover:scale-110 group-hover:border-[var(--vault-border)] transition-all duration-300">
                                 <UploadCloud className="w-8 h-8 text-[var(--foreground-subtle)] group-hover:text-[var(--vault-accent)] transition-colors" />
                             </div>
-                            <h3 className="font-medium mb-1">Upload Vault File</h3>
+                            <h3 className="font-medium mb-1">{t("vault.restore.upload", "Upload Vault File")}</h3>
                             <p className="text-sm text-[var(--foreground-muted)] text-center max-w-[220px]">
-                                Drag &amp; drop your .scheniders or .xlsx file here, or click to browse
+                                {t("vault.restore.drop", "Drag & drop your .scheniders or .xlsx file here, or click to browse")}
                             </p>
                         </div>
                     ) : (
@@ -502,7 +504,7 @@ export default function VaultPage() {
                                     onClick={clearRestore}
                                     className="absolute top-4 right-4 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors text-sm"
                                 >
-                                    Cancel
+                                    {t("vault.cancel", "Cancel")}
                                 </button>
                                 <div className="flex items-center gap-4 mb-6">
                                     <div className="w-12 h-12 rounded-xl bg-[var(--vault-soft)] border border-[var(--vault-border)] flex items-center justify-center">
@@ -524,20 +526,20 @@ export default function VaultPage() {
                                             <div className="space-y-2">
                                                 <label className="text-sm font-medium text-[var(--vault-accent)] flex items-center gap-2">
                                                     <KeyRound className="w-4 h-4" />
-                                                    Enter Vault Key to Unlock
+                                                    {t("vault.restore.enterKey", "Enter Vault Key to Unlock")}
                                                 </label>
                                                 <div className="relative">
                                                     <input
                                                         type={showRestoreKey ? "text" : "password"}
                                                         value={restoreKey}
                                                         onChange={(e) => setRestoreKey(e.target.value)}
-                                                        placeholder="Enter password..."
+                                                        placeholder={t("vault.restore.passwordPlaceholder", "Enter password...")}
                                                         className="w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl px-4 py-3 text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--vault-ring)] focus:border-[var(--vault-accent)] transition-all"
                                                     />
                                                     <button
                                                         onClick={() => setShowRestoreKey(!showRestoreKey)}
                                                         className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--foreground-subtle)] hover:text-[var(--foreground)] transition-colors"
-                                                        aria-label={showRestoreKey ? "Hide vault key" : "Show vault key"}
+                                                        aria-label={showRestoreKey ? t("vault.key.hide", "Hide vault key") : t("vault.key.show", "Show vault key")}
                                                     >
                                                         {showRestoreKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                                     </button>
@@ -547,7 +549,7 @@ export default function VaultPage() {
                                         {restoreFile.name.endsWith(".xlsx") && (
                                             <div className="bg-[var(--vault-soft)] border border-[var(--vault-border)] p-4 rounded-xl">
                                                 <p className="text-sm text-[var(--foreground-muted)]">
-                                                    Excel backup ready for analysis. No password required.
+                                                    {t("vault.restore.excelReady", "Excel backup ready for analysis. No password required.")}
                                                 </p>
                                             </div>
                                         )}
@@ -565,11 +567,11 @@ export default function VaultPage() {
                                             {isAnalyzing ? (
                                                 <>
                                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                                    {restoreFile.name.endsWith(".xlsx") ? "Analyzing Excel..." : "Decrypting & Analyzing..."}
+                                                    {restoreFile.name.endsWith(".xlsx") ? t("vault.restore.analyzingExcel", "Analyzing Excel...") : t("vault.restore.decrypting", "Decrypting & Analyzing...")}
                                                 </>
                                             ) : (
                                                 <>
-                                                    {restoreFile.name.endsWith(".xlsx") ? "Analyze Excel Data" : "Unlock & Preview Restore"} <ChevronRight className="w-5 h-5" />
+                                                    {restoreFile.name.endsWith(".xlsx") ? t("vault.restore.analyzeExcel", "Analyze Excel Data") : t("vault.restore.unlock", "Unlock & Preview Restore")} <ChevronRight className="w-5 h-5" />
                                                 </>
                                             )}
                                         </button>
@@ -584,27 +586,27 @@ export default function VaultPage() {
                                         <div className="bg-[var(--vault-soft)] border border-[var(--vault-border)] p-4 rounded-xl space-y-3">
                                             <div className="flex items-center gap-2 text-[var(--vault-accent)] text-sm font-medium mb-1">
                                                 <ShieldCheck className="w-4 h-4" />
-                                                {restoreFile?.name.endsWith(".xlsx") ? "Excel Successfully Parsed" : "Vault Unlocked Successfully"}
+                                                {restoreFile?.name.endsWith(".xlsx") ? t("vault.restore.parsed", "Excel Successfully Parsed") : t("vault.restore.unlocked", "Vault Unlocked Successfully")}
                                             </div>
                                             <div className="grid grid-cols-3 gap-2 text-center text-sm">
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
                                                     <div className="font-semibold">{diffResult.orders.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{diffResult.orders.create} new · {diffResult.orders.overwrite} overwritten</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">Orders</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.orders.create, overwrite: diffResult.orders.overwrite })}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">{t("nav.orders", "Orders")}</div>
                                                 </div>
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
                                                     <div className="font-semibold">{diffResult.products.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{diffResult.products.create} new · {diffResult.products.overwrite} overwritten</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">Products</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.products.create, overwrite: diffResult.products.overwrite })}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">{t("nav.products", "Products")}</div>
                                                 </div>
                                                 <div className="bg-[var(--card-bg)] rounded-lg p-2 border border-[var(--card-border)]">
                                                     <div className="font-semibold">{diffResult.customers.total}</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{diffResult.customers.create} new · {diffResult.customers.overwrite} overwritten</div>
-                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">Customers</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px]">{t("vault.restore.counts", "{create} new · {overwrite} overwritten", { create: diffResult.customers.create, overwrite: diffResult.customers.overwrite })}</div>
+                                                    <div className="text-[var(--foreground-subtle)] text-[10px] uppercase tracking-wide">{t("nav.customers", "Customers")}</div>
                                                 </div>
                                             </div>
                                             <div className="text-xs text-[var(--foreground-muted)] mt-2">
-                                                Backup created on: <span className="text-[var(--foreground)] font-medium">{new Date(diffResult.timestamp).toLocaleString()}</span>
+                                                {t("vault.restore.createdOn", "Backup created on:")} <span className="text-[var(--foreground)] font-medium">{new Date(diffResult.timestamp).toLocaleString()}</span>
                                             </div>
                                         </div>
 
@@ -620,17 +622,17 @@ export default function VaultPage() {
                                             {isRestoring ? (
                                                 <>
                                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                                    Restoring Database...
+                                                    {t("vault.restore.busy", "Restoring Database...")}
                                                 </>
                                             ) : (
                                                 <>
                                                     <ShieldAlert className="w-5 h-5" />
-                                                    Confirm & Execute Restore
+                                                    {t("vault.restore.confirm", "Confirm & Execute Restore")}
                                                 </>
                                             )}
                                         </button>
                                         <p className="text-[10px] text-center text-red-600/80 dark:text-red-400/80 uppercase tracking-wide">
-                                            Warning: This will overwrite live data
+                                            {t("vault.restore.warning", "Warning: This will overwrite live data")}
                                         </p>
                                     </motion.div>
                                 )}
@@ -650,11 +652,11 @@ export default function VaultPage() {
                         <div className="w-10 h-10 rounded-xl bg-[var(--vault-soft)] border border-[var(--vault-border)] flex items-center justify-center">
                             <History className="w-5 h-5 text-[var(--vault-accent)]" />
                         </div>
-                        <h2 className="text-xl font-semibold">Cloud Time Machine</h2>
+                        <h2 className="text-xl font-semibold">{t("vault.cloud.title", "Cloud Time Machine")}</h2>
                     </div>
 
                     <p className="text-sm text-[var(--foreground-muted)] mb-6">
-                        Restore from secure, zero-knowledge snapshots saved in your cloud bucket.
+                        {t("vault.cloud.desc", "Restore from secure, zero-knowledge snapshots saved in your cloud bucket.")}
                     </p>
 
                     <div className="flex-1 overflow-y-auto space-y-3 pr-2 min-h-[200px] scrollbar-thin scrollbar-thumb-[var(--card-border)] scrollbar-track-transparent">
@@ -667,8 +669,8 @@ export default function VaultPage() {
                                 <div className="w-12 h-12 rounded-full bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center mb-3">
                                     <Cloud className="w-6 h-6 text-[var(--foreground-subtle)]" />
                                 </div>
-                                <p className="text-sm text-[var(--foreground-muted)]">No cloud backups found.</p>
-                                <p className="text-xs text-[var(--foreground-subtle)] mt-1 max-w-[200px]">Sync an encrypted vault to start your timeline.</p>
+                                <p className="text-sm text-[var(--foreground-muted)]">{t("vault.cloud.empty", "No cloud backups found.")}</p>
+                                <p className="text-xs text-[var(--foreground-subtle)] mt-1 max-w-[200px]">{t("vault.cloud.emptyHint", "Sync an encrypted vault to start your timeline.")}</p>
                             </div>
                         ) : (
                             cloudVaults.map((vault) => (
@@ -677,14 +679,14 @@ export default function VaultPage() {
                                         <Cloud className="w-8 h-8 text-[var(--foreground-subtle)] group-hover:text-[var(--vault-accent)] flex-shrink-0 transition-colors" />
                                         <div className="overflow-hidden">
                                             <p className="text-sm font-medium truncate">{vault.createdAt ? new Date(vault.createdAt).toLocaleString() : vault.name}</p>
-                                            <p className="text-[10px] text-[var(--foreground-subtle)] uppercase tracking-wide">{((vault.size ?? 0) / 1024 / 1024).toFixed(2)} MB • Sync</p>
+                                            <p className="text-[10px] text-[var(--foreground-subtle)] uppercase tracking-wide">{((vault.size ?? 0) / 1024 / 1024).toFixed(2)} MB • {t("vault.cloud.sync", "Sync")}</p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => handleCloudFileSelect(vault.name)}
                                         disabled={isDownloadingCloud === vault.name}
                                         className="w-9 h-9 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center hover:bg-[var(--vault-accent)] hover:text-[var(--vault-accent-contrast)] hover:border-transparent text-[var(--foreground-muted)] transition-colors flex-shrink-0 disabled:opacity-50"
-                                        aria-label="Download cloud backup"
+                                        aria-label={t("vault.cloud.download", "Download cloud backup")}
                                     >
                                         {isDownloadingCloud === vault.name ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                                     </button>
