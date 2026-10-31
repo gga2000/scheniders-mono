@@ -59,3 +59,26 @@ export function buildPickList(orders: readonly PickInput[]): PickLine[] {
     }
     return [...lines.values()].sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name));
 }
+
+export type QueueSort = "priority" | "date" | "city" | "price";
+
+const PRIORITY_RANK = { urgent: 0, high: 1, normal: 2 } as const;
+
+/** The queue in the chosen order. Ties keep the incoming order. */
+export function sortQueue<T extends Pick<Order, "priority" | "created_at" | "city" | "price">>(
+    orders: readonly T[],
+    sortBy: QueueSort
+): T[] {
+    return [...orders].sort((a, b) => {
+        switch (sortBy) {
+            case "priority":
+                return PRIORITY_RANK[a.priority || "normal"] - PRIORITY_RANK[b.priority || "normal"];
+            case "date":
+                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+            case "city":
+                return (a.city || "").localeCompare(b.city || "");
+            case "price":
+                return Number(a.price) - Number(b.price);
+        }
+    });
+}
