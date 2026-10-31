@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Clock3 } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { AgingBucket } from "@/hooks/use-cash-position";
 
@@ -13,23 +14,25 @@ interface Props {
 }
 
 export function CODAgingBuckets({ buckets, oldestStuckDays }: Props) {
+    const { t } = useLanguage();
+    const unit = t("finances.cash.daysUnit");
     const totalCount = buckets.reduce((s, b) => s + b.count, 0);
     const totalValue = buckets.reduce((s, b) => s + b.value, 0);
 
     const subtitle = totalCount > 0
-        ? `${totalCount} orders floating · oldest ${oldestStuckDays}d`
-        : "Nothing in transit right now";
+        ? t("finances.cash.agingSub", { count: totalCount, days: oldestStuckDays })
+        : t("finances.cash.agingNone");
 
     return (
         <SectionCard
-            title="COD Aging"
+            title={t("finances.cash.aging")}
             subtitle={subtitle}
             icon={Clock3}
             accent="amber"
         >
             {totalCount === 0 ? (
                 <div className="py-8 text-center text-sm text-muted">
-                    No orders in transit — either everything delivered or nothing shipped yet.
+                    {t("finances.cash.agingEmpty")}
                 </div>
             ) : (
                 <div className="space-y-2.5">
@@ -46,13 +49,13 @@ export function CODAgingBuckets({ buckets, oldestStuckDays }: Props) {
                                 <div className="flex items-baseline justify-between gap-3 mb-1.5">
                                     <div className="flex items-baseline gap-2 min-w-0">
                                         <span className={cn("text-[13px] font-semibold", toneText(b.tone))}>
-                                            {b.label}
+                                            {t(`finances.cash.bucket.${b.id}`)}
                                         </span>
-                                        <span className="text-[11px] text-muted tabular-nums">{b.range}</span>
+                                        <span className="text-[11px] text-muted tabular-nums">{b.minDays}{b.maxDays === null ? "+" : `-${b.maxDays}`}&nbsp;{unit}</span>
                                     </div>
                                     <div className="flex items-baseline gap-3 shrink-0 tabular-nums">
                                         <span className="text-[12px] text-muted">
-                                            {b.count} {b.count === 1 ? "order" : "orders"}
+                                            {t("finances.cash.ordersCount", { count: b.count })}
                                         </span>
                                         <FinanceValue
                                             value={b.value}
@@ -71,8 +74,8 @@ export function CODAgingBuckets({ buckets, oldestStuckDays }: Props) {
                                     />
                                 </div>
                                 <div className="flex items-center justify-between mt-1 text-[10px] text-muted">
-                                    <span>{pctCount.toFixed(0)}% of orders</span>
-                                    <span>{pctValue.toFixed(0)}% of floating IQD</span>
+                                    <span>{t("finances.cash.pctOrders", { pct: pctCount.toFixed(0) })}</span>
+                                    <span>{t("finances.cash.pctValue", { pct: pctValue.toFixed(0) })}</span>
                                 </div>
                             </motion.div>
                         );
@@ -82,9 +85,9 @@ export function CODAgingBuckets({ buckets, oldestStuckDays }: Props) {
 
             {totalCount > 0 && (
                 <div className="mt-5 pt-4 border-t border-[var(--card-border)] grid grid-cols-3 gap-2 text-center">
-                    <MiniStat label="Avg hold" value={calcAvgHold(buckets)} />
-                    <MiniStat label="Stuck IQD" value={formatAbbrev(buckets.find((b) => b.id === "stuck")?.value || 0)} warning={buckets.find((b) => b.id === "stuck")?.count ? true : false} />
-                    <MiniStat label="Stale IQD" value={formatAbbrev(buckets.find((b) => b.id === "stale")?.value || 0)} />
+                    <MiniStat label={t("finances.cash.avgHold")} value={calcAvgHold(buckets, unit)} />
+                    <MiniStat label={t("finances.cash.stuckIqd")} value={formatAbbrev(buckets.find((b) => b.id === "stuck")?.value || 0)} warning={buckets.find((b) => b.id === "stuck")?.count ? true : false} />
+                    <MiniStat label={t("finances.cash.staleIqd")} value={formatAbbrev(buckets.find((b) => b.id === "stale")?.value || 0)} />
                 </div>
             )}
         </SectionCard>
@@ -102,12 +105,12 @@ function MiniStat({ label, value, warning }: { label: string; value: string; war
     );
 }
 
-function calcAvgHold(buckets: AgingBucket[]): string {
+function calcAvgHold(buckets: AgingBucket[], unit: string): string {
     const total = buckets.reduce((s, b) => s + b.count, 0);
     if (total === 0) return "—";
     const midpoints: Record<string, number> = { fresh: 1.5, aging: 5.5, stale: 11, stuck: 20 };
     const weighted = buckets.reduce((s, b) => s + b.count * (midpoints[b.id] || 0), 0);
-    return `${(weighted / total).toFixed(1)}d`;
+    return `${(weighted / total).toFixed(1)}${unit}`;
 }
 
 function formatAbbrev(n: number): string {

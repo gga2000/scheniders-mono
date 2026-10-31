@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Target, Pencil, Check, X } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
 import type { PresetKey } from "@/hooks/use-finance-period";
@@ -28,17 +29,8 @@ type GoalsByPeriod = Partial<Record<PresetKey, Goals>>;
 
 const DEFAULTS: Goals = { revenue: 0, profit: 0, orders: 0 };
 
-const PRESET_LABEL: Record<PresetKey, string> = {
-    today: "today",
-    yesterday: "yesterday",
-    last7: "last 7 days",
-    last30: "last 30 days",
-    mtd: "this month",
-    ytd: "this year",
-    custom: "this custom range",
-};
-
 export function GoalsStrip({ data, presetKey }: GoalsStripProps) {
+    const { t } = useLanguage();
     const [allGoals, setAllGoals] = useState<GoalsByPeriod>({});
     const [editing, setEditing] = useState<GoalKey | null>(null);
     const [draft, setDraft] = useState<string>("");
@@ -63,15 +55,15 @@ export function GoalsStrip({ data, presetKey }: GoalsStripProps) {
     };
 
     const items = useMemo(() => [
-        { key: "revenue" as const, label: "Revenue", actual: data.gross_revenue, goal: goals.revenue, currency: "IQD" as const },
-        { key: "profit" as const, label: "Net Profit", actual: data.net_profit, goal: goals.profit, currency: "IQD" as const },
-        { key: "orders" as const, label: "Orders", actual: data.orders_count, goal: goals.orders, currency: "none" as const },
-    ], [data, goals]);
+        { key: "revenue" as const, label: t("finances.overview.goals.revenue"), actual: data.gross_revenue, goal: goals.revenue, currency: "IQD" as const },
+        { key: "profit" as const, label: t("finances.overview.goals.profit"), actual: data.net_profit, goal: goals.profit, currency: "IQD" as const },
+        { key: "orders" as const, label: t("finances.overview.goals.orders"), actual: data.orders_count, goal: goals.orders, currency: "none" as const },
+    ], [data, goals, t]);
 
     return (
         <SectionCard
-            title="Period Goals"
-            subtitle={`Targets for ${PRESET_LABEL[presetKey]} — switch the date range to set different goals`}
+            title={t("finances.overview.goals.title")}
+            subtitle={t("finances.overview.goals.sub", { period: t(`finances.overview.goals.p.${presetKey}`) })}
             icon={Target}
             accent="cyan"
         >
@@ -95,7 +87,7 @@ export function GoalsStrip({ data, presetKey }: GoalsStripProps) {
                                         className="text-muted hover:text-foreground text-[11px] flex items-center gap-1"
                                     >
                                         <Pencil className="w-3 h-3" />
-                                        {hasGoal ? "Edit" : "Set goal"}
+                                        {hasGoal ? t("finances.overview.goals.edit") : t("finances.overview.goals.set")}
                                     </button>
                                 ) : (
                                     <div className="flex items-center gap-1">
@@ -128,7 +120,7 @@ export function GoalsStrip({ data, presetKey }: GoalsStripProps) {
                                 />
                                 {hasGoal && (
                                     <span className="text-[11px] text-muted tabular-nums">
-                                        of <FinanceValue value={it.goal} currency={it.currency} abbreviate className="font-semibold" /> goal
+                                        {t("finances.overview.goals.ofGoal")} <FinanceValue value={it.goal} currency={it.currency} abbreviate className="font-semibold" />
                                     </span>
                                 )}
                             </div>
@@ -144,9 +136,9 @@ export function GoalsStrip({ data, presetKey }: GoalsStripProps) {
                             </div>
                             <div className="flex items-center justify-between mt-1 text-[11px]">
                                 <span className="text-muted">
-                                    {hasGoal ? `${pct.toFixed(0)}% of goal` : "No goal set"}
+                                    {hasGoal ? t("finances.overview.goals.pct", { pct: pct.toFixed(0) }) : t("finances.overview.goals.none")}
                                 </span>
-                                {hasGoal && done && <span className="text-emerald-600 font-semibold">✓ Hit</span>}
+                                {hasGoal && done && <span className="text-emerald-600 font-semibold">{t("finances.overview.goals.hit")}</span>}
                             </div>
 
                             {isEditing && (
@@ -162,7 +154,7 @@ export function GoalsStrip({ data, presetKey }: GoalsStripProps) {
                                         }
                                         if (e.key === "Escape") setEditing(null);
                                     }}
-                                    placeholder={`Target ${it.currency === "none" ? "orders" : "IQD"}`}
+                                    placeholder={it.currency === "none" ? t("finances.overview.goals.targetOrders") : t("finances.overview.goals.targetIqd")}
                                     className="mt-2 w-full px-2 py-1 rounded bg-[var(--card-bg)] border border-[var(--card-border)] text-[13px] text-foreground tabular-nums outline-none focus:border-[var(--ink)]"
                                 />
                             )}

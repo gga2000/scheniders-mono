@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceTooltip } from "../primitives/finance-tooltip";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
 
@@ -17,46 +18,42 @@ interface RevenueByDimensionProps {
     data: FinanceOverviewResult;
 }
 
-const DIMENSIONS: Array<{ id: DimensionId; label: string }> = [
-    { id: "time", label: "Over time" },
-    { id: "channel", label: "By channel" },
-    { id: "city", label: "By city" },
-    { id: "product", label: "By product" },
-    { id: "payment", label: "By payment" },
-];
+const DIMENSIONS: DimensionId[] = ["time", "channel", "city", "product", "payment"];
 
 export function RevenueByDimension({ data }: RevenueByDimensionProps) {
+    const { t, language } = useLanguage();
+    const locale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
     const [dim, setDim] = useState<DimensionId>("time");
 
     const content = useMemo(() => {
         if (dim === "time") {
             return <TimeChart data={data} />;
         }
-        if (dim === "channel") return <BarRows rows={data.by_channel.map((c) => ({ label: c.label, value: c.revenue, secondary: `${c.orders} orders` }))} />;
-        if (dim === "city") return <BarRows rows={data.by_city.slice(0, 12).map((c) => ({ label: c.label, value: c.revenue, secondary: `${c.orders} orders · ${c.delivered} delivered` }))} />;
-        if (dim === "product") return <BarRows rows={data.by_product.slice(0, 12).map((p) => ({ label: p.label, value: p.revenue, secondary: `${p.units} units · ${p.margin.toFixed(0)}% margin` }))} />;
-        if (dim === "payment") return <BarRows rows={data.by_payment.map((p) => ({ label: p.label, value: p.revenue, secondary: `${p.orders} orders` }))} />;
+        if (dim === "channel") return <BarRows rows={data.by_channel.map((c) => ({ label: c.label, value: c.revenue, secondary: t("finances.overview.dim.orders", { count: c.orders }) }))} />;
+        if (dim === "city") return <BarRows rows={data.by_city.slice(0, 12).map((c) => ({ label: c.label, value: c.revenue, secondary: t("finances.overview.dim.ordersDelivered", { orders: c.orders, delivered: c.delivered }) }))} />;
+        if (dim === "product") return <BarRows rows={data.by_product.slice(0, 12).map((p) => ({ label: p.label, value: p.revenue, secondary: t("finances.overview.dim.units", { units: p.units, margin: p.margin.toFixed(0) }) }))} />;
+        if (dim === "payment") return <BarRows rows={data.by_payment.map((p) => ({ label: p.label, value: p.revenue, secondary: t("finances.overview.dim.orders", { count: p.orders }) }))} />;
         return null;
-    }, [dim, data]);
+    }, [dim, data, t]);
 
     return (
         <SectionCard
-            title="Revenue Composition"
-            subtitle="Switch lens to see what's carrying your revenue"
+            title={t("finances.overview.dim.title")}
+            subtitle={t("finances.overview.dim.sub")}
             icon={BarChart3}
             accent="violet"
             action={
                 <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-[var(--card-border)] bg-[var(--background)] overflow-x-auto max-w-full">
                     {DIMENSIONS.map((d) => (
                         <button
-                            key={d.id}
-                            onClick={() => setDim(d.id)}
+                            key={d}
+                            onClick={() => setDim(d)}
                             className={cn(
                                 "px-2.5 py-1 rounded text-[11px] font-medium transition-colors whitespace-nowrap",
-                                dim === d.id ? "bg-[var(--card-bg)] text-foreground shadow-sm" : "text-muted hover:text-foreground"
+                                dim === d ? "bg-[var(--card-bg)] text-foreground shadow-sm" : "text-muted hover:text-foreground"
                             )}
                         >
-                            {d.label}
+                            {t(`finances.overview.dim.${d}`)}
                         </button>
                     ))}
                 </div>
@@ -68,6 +65,8 @@ export function RevenueByDimension({ data }: RevenueByDimensionProps) {
 }
 
 function TimeChart({ data }: { data: FinanceOverviewResult }) {
+    const { t, language } = useLanguage();
+    const locale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
     const series = data.series.map((s) => ({
         bucket: s.bucket,
         revenue: s.revenue,
@@ -76,7 +75,7 @@ function TimeChart({ data }: { data: FinanceOverviewResult }) {
     }));
 
     if (series.length === 0 || series.every((s) => s.revenue === 0)) {
-        return <EmptyBlock label="No activity in this period" />;
+        return <EmptyBlock label={t("finances.overview.dim.noActivity")} />;
     }
 
     return (
@@ -95,7 +94,7 @@ function TimeChart({ data }: { data: FinanceOverviewResult }) {
                         tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                         axisLine={false}
                         tickLine={false}
-                        tickFormatter={shortLabel}
+                        tickFormatter={(k: string) => shortLabel(k, locale)}
                     />
                     <YAxis
                         tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
@@ -114,7 +113,7 @@ function TimeChart({ data }: { data: FinanceOverviewResult }) {
                         stroke="#10b981"
                         strokeWidth={2}
                         fill="url(#revGradient)"
-                        name="Revenue"
+                        name={t("finances.overview.dim.revenue")}
                     />
                     <Line
                         type="monotone"
@@ -122,7 +121,7 @@ function TimeChart({ data }: { data: FinanceOverviewResult }) {
                         stroke="#8b5cf6"
                         strokeWidth={2}
                         dot={false}
-                        name="Profit"
+                        name={t("finances.overview.dim.profit")}
                     />
                 </ComposedChart>
             </ResponsiveContainer>
@@ -131,8 +130,9 @@ function TimeChart({ data }: { data: FinanceOverviewResult }) {
 }
 
 function BarRows({ rows }: { rows: Array<{ label: string; value: number; secondary?: string }> }) {
+    const { t } = useLanguage();
     const max = Math.max(...rows.map((r) => r.value), 1);
-    if (rows.length === 0) return <EmptyBlock label="Nothing to show here" />;
+    if (rows.length === 0) return <EmptyBlock label={t("finances.overview.dim.nothing")} />;
     return (
         <div className="space-y-1.5">
             {rows.slice(0, 10).map((r) => {
@@ -172,16 +172,16 @@ function abbrev(n: number): string {
     return `${Math.round(n)}`;
 }
 
-function shortLabel(key: string): string {
+function shortLabel(key: string, locale: string): string {
     // yyyy-mm-dd → Mar 14 ;  yyyy-mm → Mar 26 ; otherwise as-is
     if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
         const d = new Date(key);
-        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
     }
     if (/^\d{4}-\d{2}$/.test(key)) {
         const [y, m] = key.split("-");
         const d = new Date(Number(y), Number(m) - 1, 1);
-        return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+        return d.toLocaleDateString(locale, { month: "short", year: "2-digit" });
     }
     return key;
 }

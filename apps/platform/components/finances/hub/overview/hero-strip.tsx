@@ -141,7 +141,7 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
                             isActive && "ring-2 ring-[var(--ink)]"
                         )}
                     >
-                        <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-start justify-between mb-2 h-8">
                             <div className={cn(
                                 "w-8 h-8 rounded-lg flex items-center justify-center",
                                 accentToBg(tile.accent)

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Landmark, ArrowRight, AlertTriangle } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { CashPositionResult } from "@/hooks/use-cash-position";
 
@@ -13,13 +14,14 @@ interface Props {
 }
 
 export function CashHealthCard({ data }: Props) {
+    const { t } = useLanguage();
     const totalFloat = data.aging.reduce((s, b) => s + b.value, 0);
     const hasRisk = data.stuckCount > 0;
 
     return (
         <SectionCard
-            title="Cash Health"
-            subtitle={hasRisk ? `${data.stuckCount} stuck orders need attention` : "COD pipeline is healthy"}
+            title={t("finances.overview.cash.title")}
+            subtitle={hasRisk ? t("finances.overview.cash.stuck", { count: data.stuckCount }) : t("finances.overview.cash.healthy")}
             icon={Landmark}
             accent={hasRisk ? "rose" : "emerald"}
             action={
@@ -27,31 +29,31 @@ export function CashHealthCard({ data }: Props) {
                     href="/finances?tab=cash"
                     className="inline-flex items-center gap-1 text-[11px] font-medium text-muted hover:text-foreground transition-colors"
                 >
-                    Open Cash <ArrowRight className="w-3 h-3" />
+                    {t("finances.overview.cash.open")} <ArrowRight className="w-3 h-3" />
                 </Link>
             }
             dense
         >
             <div className="grid grid-cols-2 gap-3 mb-4">
                 <Tile
-                    label="Collected"
+                    label={t("finances.overview.cash.collected")}
                     value={data.cashCollected}
                     accent="emerald"
                 />
                 <Tile
-                    label="At Risk"
+                    label={t("finances.overview.cash.atRisk")}
                     value={data.cashAtRisk}
                     accent="rose"
-                    sublabel={data.stuckCount > 0 ? `${data.stuckCount} orders ≥15d` : "No stuck orders"}
+                    sublabel={data.stuckCount > 0 ? t("finances.overview.cash.stuckOrders", { count: data.stuckCount }) : t("finances.overview.cash.noStuck")}
                 />
             </div>
 
             {totalFloat > 0 && (
                 <div>
                     <div className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-2">
-                        In-transit aging
+                        {t("finances.overview.cash.aging")}
                     </div>
-                    <AgingBar buckets={data.aging} />
+                    <AgingBar buckets={data.aging} tip={(b) => t("finances.overview.cash.agingTip", { label: b.label, count: b.count })} />
                     <div className="mt-2 flex items-center justify-between text-[10px] text-muted tabular-nums">
                         {data.aging.map((b) => (
                             <span key={b.id} className={cn(toneText(b.tone))}>
@@ -73,7 +75,7 @@ export function CashHealthCard({ data }: Props) {
                         <span className="font-semibold">
                             <FinanceValue value={data.cashAtRisk} currency="IQD" abbreviate className="text-inherit" />
                         </span>{" "}
-                        stuck in transit 15+ days. Check with your delivery partner.
+                        {t("finances.overview.cash.warn")}
                     </p>
                 </motion.div>
             )}
@@ -99,7 +101,7 @@ function Tile({ label, value, accent, sublabel }: { label: string; value: number
     );
 }
 
-function AgingBar({ buckets }: { buckets: CashPositionResult["aging"] }) {
+function AgingBar({ buckets, tip }: { buckets: CashPositionResult["aging"]; tip: (b: CashPositionResult["aging"][number]) => string }) {
     const total = buckets.reduce((s, b) => s + b.value, 0);
     if (total === 0) {
         return <div className="h-2 rounded-full bg-[var(--background)]" />;
@@ -116,7 +118,7 @@ function AgingBar({ buckets }: { buckets: CashPositionResult["aging"] }) {
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.5, ease: "easeOut" }}
                         className={cn("h-full", toneBar(b.tone))}
-                        title={`${b.label}: ${b.count} orders`}
+                        title={tip(b)}
                     />
                 );
             })}

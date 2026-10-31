@@ -4,6 +4,7 @@ import { LineChart } from "lucide-react";
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
+import { useLanguage } from "@/hooks/use-language";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceTooltip } from "../primitives/finance-tooltip";
 import type { CashPositionResult } from "@/hooks/use-cash-position";
@@ -13,18 +14,20 @@ interface Props {
 }
 
 export function CashTimeline({ data }: Props) {
+    const { t, language } = useLanguage();
+    const locale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
     const hasData = data.cashSeries.some((s) => s.collected > 0 || s.float > 0);
 
     return (
         <SectionCard
-            title="Cash Timeline"
-            subtitle="Daily collected vs. in-transit over the last 30 days"
+            title={t("finances.cash.timeline")}
+            subtitle={t("finances.cash.timelineSub")}
             icon={LineChart}
             accent="cyan"
         >
             {!hasData ? (
                 <div className="h-48 flex items-center justify-center text-sm text-muted">
-                    No cash activity in the last 30 days.
+                    {t("finances.cash.timelineEmpty")}
                 </div>
             ) : (
                 <div className="h-64 -mx-2">
@@ -46,7 +49,7 @@ export function CashTimeline({ data }: Props) {
                                 tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                                 axisLine={false}
                                 tickLine={false}
-                                tickFormatter={shortDate}
+                                tickFormatter={(k: string) => shortDate(k, locale)}
                             />
                             <YAxis
                                 tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
@@ -65,7 +68,7 @@ export function CashTimeline({ data }: Props) {
                                 stroke="#10b981"
                                 strokeWidth={2}
                                 fill="url(#collectedGrad)"
-                                name="Collected"
+                                name={t("finances.cash.collected")}
                             />
                             <Area
                                 type="monotone"
@@ -73,7 +76,7 @@ export function CashTimeline({ data }: Props) {
                                 stroke="#06b6d4"
                                 strokeWidth={2}
                                 fill="url(#floatGrad)"
-                                name="In Transit"
+                                name={t("finances.cash.transit")}
                             />
                         </AreaChart>
                     </ResponsiveContainer>
@@ -90,10 +93,10 @@ function abbrev(n: number): string {
     return `${Math.round(n)}`;
 }
 
-function shortDate(key: string): string {
+function shortDate(key: string, locale: string): string {
     if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
         const d = new Date(key);
-        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
     }
     return key;
 }

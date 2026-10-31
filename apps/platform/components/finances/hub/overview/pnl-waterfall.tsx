@@ -53,6 +53,7 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
             subtitle={t("finances.pnl.subtitle")}
             icon={GitFork}
             accent="emerald"
+            className="h-full"
             action={
                 <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-[var(--card-border)] bg-[var(--background)]">
                     <button
@@ -95,18 +96,18 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
                             initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.03 }}
-                            className="flex items-center gap-3"
+                            className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 sm:flex"
                         >
-                            <div className={cn("w-36 shrink-0 text-[13px] font-medium", toneClass)}>
+                            <div className={cn("sm:w-44 sm:shrink-0 text-[13px] font-medium", toneClass)}>
                                 {s.label}
                             </div>
-                            <div className="flex-1 relative h-6 rounded-md bg-[var(--background)] overflow-hidden">
+                            <div className="relative h-6 rounded-md bg-[var(--background)] overflow-hidden col-span-2 row-start-2 sm:flex-1">
                                 <div
                                     className={cn("absolute inset-y-0 left-0 rounded-md transition-all", toneBar)}
                                     style={{ width: `${barPct}%` }}
                                 />
                             </div>
-                            <div className={cn("w-28 text-right tabular-nums text-[13px] font-semibold", toneClass)}>
+                            <div className={cn("sm:w-28 text-right tabular-nums text-[13px] font-semibold", toneClass)}>
                                 {mode === "abs" ? (
                                     <FinanceValue value={s.value} currency="IQD" abbreviate signed={s.kind === "deduction" || s.kind === "addition"} />
                                 ) : (
