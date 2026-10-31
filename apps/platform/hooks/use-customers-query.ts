@@ -89,7 +89,8 @@ export function useDeleteTagMutation() {
     const key = customerKeys.tags(tenantId);
     return useMutation({
         mutationFn: async (id: string) => {
-            await customerRepository.deleteTag(id);
+            if (!tenantId) throw new Error("No active tenant");
+            await customerRepository.deleteTag(id, tenantId);
             return id;
         },
         onMutate: async (id) => {
@@ -145,7 +146,8 @@ export function useRemoveTagMutation() {
     const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ phone, tagId }: { phone: string; tagId: string }) => {
-            await customerRepository.removeTag(phone, tagId);
+            if (!tenantId) throw new Error("No active tenant");
+            await customerRepository.removeTag(phone, tagId, tenantId);
             return { phone, tagId };
         },
         onMutate: async ({ phone, tagId }) => {
