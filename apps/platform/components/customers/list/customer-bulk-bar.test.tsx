@@ -26,7 +26,7 @@ describe("CustomerBulkBar select all", () => {
     it("offers every matching customer and reports the click", () => {
         const onSelectAll = vi.fn();
         render(
-            <CustomerBulkBar selectedCount={3} totalMatching={1200} onSelectAll={onSelectAll} selectingAll={false}
+            <CustomerBulkBar selectedCount={3} totalMatching={1200} onSelectAll={onSelectAll} allSelected={false} selectingAll={false}
                 onAddTag={noop} onBroadcast={noop} onClear={noop} />,
         );
         fireEvent.click(screen.getByText("customers.bulk.selectAllMatching:1,200"));
@@ -35,7 +35,15 @@ describe("CustomerBulkBar select all", () => {
 
     it("hides the offer once everything is selected", () => {
         render(
-            <CustomerBulkBar selectedCount={50} totalMatching={50} onSelectAll={noop} selectingAll={false}
+            <CustomerBulkBar selectedCount={50} totalMatching={50} onSelectAll={noop} allSelected selectingAll={false}
+                onAddTag={noop} onBroadcast={noop} onClear={noop} />,
+        );
+        expect(screen.queryByText(/selectAllMatching/)).toBeNull();
+    });
+
+    it("hides the offer from users who may not bulk-read customers", () => {
+        render(
+            <CustomerBulkBar selectedCount={3} totalMatching={1200} allSelected={false} selectingAll={false}
                 onAddTag={noop} onBroadcast={noop} onClear={noop} />,
         );
         expect(screen.queryByText(/selectAllMatching/)).toBeNull();
