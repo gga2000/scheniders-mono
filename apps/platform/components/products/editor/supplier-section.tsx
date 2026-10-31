@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Truck, Plus, Building2, ChevronDown, Trash2 } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 export interface SupplierFormData {
     supplier_name: string;
@@ -33,6 +34,7 @@ const defaultSupplier: SupplierFormData = {
 };
 
 export function SupplierSection({ suppliers, onChange, showCost = true }: SupplierSectionProps) {
+    const { t } = useLanguage();
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
     const addSupplier = () => {
@@ -81,7 +83,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Supplier
+                    {t("products.ed.supplier.add")}
                 </button>
             </div>
 
@@ -90,7 +92,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                 <div className="p-8 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
                     <Truck className="w-8 h-8 text-muted mx-auto mb-2" />
                     <p className="text-muted text-sm">
-                        No suppliers added. Add supplier information to track your supply chain.
+                        {t("products.ed.supplier.empty")}
                     </p>
                 </div>
             )}
@@ -112,7 +114,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-foreground truncate">
-                                    {supplier.supplier_name || "Unnamed Supplier"}
+                                    {supplier.supplier_name || t("products.ed.supplier.unnamed")}
                                 </p>
                                 {supplier.supplier_email && (
                                     <p className="text-xs text-muted truncate">{supplier.supplier_email}</p>
@@ -121,11 +123,11 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                             <div className="flex items-center gap-2 shrink-0">
                                 {supplier.is_primary && (
                                     <span className="px-2 py-0.5 bg-[var(--pastel-green)] text-green-800 rounded-full text-xs font-medium">
-                                        Primary
+                                        {t("products.ed.supplier.primary")}
                                     </span>
                                 )}
                                 {supplier.lead_time_days !== null && supplier.lead_time_days > 0 && (
-                                    <span className="text-xs text-muted">{supplier.lead_time_days} days</span>
+                                    <span className="text-xs text-muted">{t("products.ed.supplier.days").replace("{days}", String(supplier.lead_time_days))}</span>
                                 )}
                                 <ChevronDown
                                     className={`w-4 h-4 text-muted transition-transform ${
@@ -142,13 +144,13 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     {/* Supplier Name */}
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">
-                                            Supplier Name <span className="text-rose-500">*</span>
+                                            {t("products.ed.supplier.name")} <span className="text-rose-500">*</span>
                                         </label>
                                         <input
                                             type="text"
                                             value={supplier.supplier_name}
                                             onChange={(e) => updateSupplier(index, { supplier_name: e.target.value })}
-                                            placeholder="Company name"
+                                            placeholder={t("products.ed.supplier.companyPh")}
                                             required
                                             className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
@@ -157,13 +159,13 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     {/* Contact Person */}
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">
-                                            Contact Person
+                                            {t("products.ed.supplier.contact")}
                                         </label>
                                         <input
                                             type="text"
                                             value={supplier.supplier_contact}
                                             onChange={(e) => updateSupplier(index, { supplier_contact: e.target.value })}
-                                            placeholder="Full name"
+                                            placeholder={t("products.ed.supplier.fullNamePh")}
                                             className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
@@ -171,13 +173,13 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     {/* Email */}
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">
-                                            Email
+                                            {t("products.ed.supplier.email")}
                                         </label>
                                         <input
                                             type="email"
                                             value={supplier.supplier_email}
                                             onChange={(e) => updateSupplier(index, { supplier_email: e.target.value })}
-                                            placeholder="supplier@example.com"
+                                            placeholder={t("products.ed.supplier.emailPh")}
                                             className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
                                     </div>
@@ -185,7 +187,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     {/* Lead Time */}
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">
-                                            Lead Time (days)
+                                            {t("products.ed.supplier.lead")}
                                         </label>
                                         <input
                                             type="number"
@@ -194,7 +196,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                                 const val = e.target.value;
                                                 updateSupplier(index, { lead_time_days: val === "" ? null : parseInt(val) || 0 });
                                             }}
-                                            placeholder="e.g. 14"
+                                            placeholder={t("products.ed.supplier.leadPh")}
                                             min={0}
                                             className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
@@ -203,7 +205,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     {/* Min Order Qty */}
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">
-                                            Min Order Qty
+                                            {t("products.ed.supplier.moq")}
                                         </label>
                                         <input
                                             type="number"
@@ -212,7 +214,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                                 const val = e.target.value;
                                                 updateSupplier(index, { minimum_order_quantity: val === "" ? null : parseInt(val) || 0 });
                                             }}
-                                            placeholder="e.g. 100"
+                                            placeholder={t("products.ed.supplier.moqPh")}
                                             min={0}
                                             className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
@@ -222,7 +224,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     {showCost && (
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">
-                                            Unit Cost (IQD)
+                                            {t("products.ed.supplier.unitCost")}
                                         </label>
                                         <input
                                             type="number"
@@ -231,7 +233,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                                 const val = e.target.value;
                                                 updateSupplier(index, { unit_cost: val === "" ? null : parseFloat(val) || 0 });
                                             }}
-                                            placeholder="e.g. 5000"
+                                            placeholder={t("products.ed.supplier.unitCostPh")}
                                             min={0}
                                             className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                                         />
@@ -241,12 +243,12 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     {/* Notes - full width */}
                                     <div className="md:col-span-2">
                                         <label className="block text-sm font-medium text-foreground mb-2">
-                                            Notes
+                                            {t("products.ed.supplier.notes")}
                                         </label>
                                         <textarea
                                             value={supplier.notes}
                                             onChange={(e) => updateSupplier(index, { notes: e.target.value })}
-                                            placeholder="Additional notes about this supplier..."
+                                            placeholder={t("products.ed.supplier.notesPh")}
                                             rows={2}
                                             className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
                                         />
@@ -255,7 +257,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     {/* Primary toggle + Delete */}
                                     <div className="md:col-span-2 flex items-center justify-between pt-2">
                                         <label className="flex items-center gap-2 cursor-pointer">
-                                            <span className="text-sm text-foreground font-medium">Primary Supplier</span>
+                                            <span className="text-sm text-foreground font-medium">{t("products.ed.supplier.primarySupplier")}</span>
                                             <button
                                                 type="button"
                                                 role="switch"
@@ -278,7 +280,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                             className="text-sm text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors"
                                         >
                                             <Trash2 className="w-4 h-4" />
-                                            Remove
+                                            {t("products.ed.supplier.remove")}
                                         </button>
                                     </div>
                                 </div>

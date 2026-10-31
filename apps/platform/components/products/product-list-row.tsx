@@ -60,8 +60,11 @@ export const ProductListRow = React.memo(function ProductListRow({
     isDragging,
 }: ProductListRowProps) {
     const { t } = useLanguage();
+    const { can } = usePermission();
+    // Editing is for products.edit; everyone else sees the product, not the buttons.
+    const canEdit = can(PERMISSIONS.EDIT_PRODUCTS);
     // Cost and margin are for admins only (products.manage).
-    const canSeeCost = usePermission().can(PERMISSIONS.MANAGE_PRODUCTS);
+    const canSeeCost = can(PERMISSIONS.MANAGE_PRODUCTS);
     const stockStatus = getStockStatus(product);
     const availableStock = Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
     const threshold = product.low_stock_threshold || 5;
@@ -151,6 +154,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onPointerUp={(e) => e.stopPropagation()}
                                 className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md hover:bg-[var(--card-border)] cursor-pointer transition-colors group/catchip"
+                                disabled={!canEdit}
                                 aria-haspopup="listbox"
                                 aria-expanded={categoryPickerOpen}
                             >
@@ -321,6 +325,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                                 : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]"
                         )}
                         title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
+                        disabled={!canEdit}
                     >
                         {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     </button>

@@ -31,12 +31,14 @@ import {
     useRemoveProductGalleryUrlMutation,
     ProductImage
 } from "@/hooks/use-product-images-query";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ProductGallerySectionProps {
     productId?: string;
 }
 
 export function ProductGallerySection({ productId }: ProductGallerySectionProps) {
+    const { t } = useLanguage();
     const { data: images = [], isLoading } = useProductImagesQuery(productId);
     const { data: galleryUrls = [] } = useProductGalleryUrlsQuery(productId);
     const addImageMutation = useAddProductImageMutation();
@@ -79,15 +81,15 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
 
     const uploadFile = async (file: File) => {
         if (!productId) {
-            toast.error("Save the product first before adding gallery images");
+            toast.error(t("products.ed.gallery.saveFirst"));
             return;
         }
         if (!file.type.startsWith("image/")) {
-            toast.error("Only image files are allowed");
+            toast.error(t("products.ed.gallery.onlyImages"));
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
-            toast.error("Image must be under 5MB");
+            toast.error(t("products.ed.gallery.tooBig"));
             return;
         }
 
@@ -104,7 +106,7 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                 });
 
             if (uploadError) {
-                toast.error("Storage upload failed", uploadError.message);
+                toast.error(t("products.ed.gallery.uploadFailed"), uploadError.message);
                 throw uploadError;
             }
 
@@ -118,12 +120,12 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                 alt_text: "",
                 display_order: images.length,
             });
-            toast.success("Image added");
+            toast.success(t("products.ed.gallery.added"));
         } catch (err) {
             console.error("Failed to upload gallery image", err);
             const e = err as { message?: string; code?: string; details?: string; hint?: string };
             const message = e?.message || e?.details || e?.hint || JSON.stringify(err);
-            toast.error("Failed to add image", e?.code ? `[${e.code}] ${message}` : message);
+            toast.error(t("products.ed.gallery.addFailed"), e?.code ? `[${e.code}] ${message}` : message);
         } finally {
             setUploading(false);
             if (fileInputRef.current) {
@@ -141,9 +143,9 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
     if (!productId) {
         return (
             <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">Gallery</h3>
+                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">{t("products.ed.gallery.title")}</h3>
                 <div className="p-6 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
-                    <p className="text-muted text-sm">Save the product first to add gallery images</p>
+                    <p className="text-muted text-sm">{t("products.ed.gallery.saveFirstShort")}</p>
                 </div>
             </div>
         );
@@ -152,7 +154,7 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">Gallery</h3>
+                <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">{t("products.ed.gallery.title")}</h3>
                 <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -160,7 +162,7 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--background)] border border-[var(--card-border)] text-foreground rounded-lg text-sm font-medium hover:bg-[var(--card-border)] transition-colors disabled:opacity-50"
                 >
                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    Add Image
+                    {t("products.ed.gallery.add")}
                 </button>
                 <input
                     ref={fileInputRef}
@@ -177,7 +179,7 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                  </div>
             ) : images.length === 0 ? (
                 <div className="p-6 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
-                    <p className="text-muted text-sm">No secondary images added to this product.</p>
+                    <p className="text-muted text-sm">{t("products.ed.gallery.empty")}</p>
                 </div>
             ) : (
                 <DndContext
@@ -207,7 +209,7 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
             {galleryUrls.length > 0 && (
                 <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-semibold text-muted uppercase tracking-wider">Imported photos</h4>
+                        <h4 className="text-xs font-semibold text-muted uppercase tracking-wider">{t("products.ed.gallery.imported")}</h4>
                         <span className="text-xs text-muted">({galleryUrls.length})</span>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -219,7 +221,7 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                                 <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/20">
                                     <img
                                         src={url}
-                                        alt="Imported gallery image"
+                                        alt={t("products.ed.gallery.importedAlt")}
                                         loading="lazy"
                                         className="w-full h-full object-cover"
                                     />
@@ -231,10 +233,10 @@ export function ProductGallerySection({ productId }: ProductGallerySectionProps)
                                                 removeGalleryUrlMutation.mutate(
                                                     { productId, url },
                                                     {
-                                                        onSuccess: () => toast.success("Photo removed"),
+                                                        onSuccess: () => toast.success(t("products.ed.gallery.removed")),
                                                         onError: (err) => {
                                                             console.error("Failed to remove imported photo", err);
-                                                            toast.error("Failed to remove photo");
+                                                            toast.error(t("products.ed.gallery.removeFailed"));
                                                         },
                                                     },
                                                 );
@@ -264,6 +266,7 @@ function SortableImageItem({
     onUpdate: (alt: string) => void; 
     onDelete: () => void;
 }) {
+    const { t } = useLanguage();
     const {
         attributes,
         listeners,
@@ -288,7 +291,7 @@ function SortableImageItem({
             <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/20 mb-2">
                 <img
                     src={image.image_url}
-                    alt={image.alt_text || "Gallery image"}
+                    alt={image.alt_text || t("products.ed.gallery.galleryAlt")}
                     className="w-full h-full object-cover"
                 />
                 
@@ -313,7 +316,7 @@ function SortableImageItem({
             </div>
             <input
                 type="text"
-                placeholder="Alt text..."
+                placeholder={t("products.ed.gallery.alt")}
                 defaultValue={image.alt_text || ""}
                 onBlur={(e) => onUpdate(e.target.value)}
                 onKeyDown={(e) => {
