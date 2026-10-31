@@ -9,6 +9,7 @@ import {
     VAULT_AUDIT_ACTIONS,
     isCloudVaultFilename,
     cloudVaultPath,
+    MAX_CLOUD_VAULTS,
 } from "@/lib/vault-paths";
 
 /**
@@ -61,11 +62,16 @@ export async function prepareCloudUploadAction(
     const denied = vaultRoleError(resolved.caller);
     if (denied) return { success: false, error: denied };
 
+    const storage = createSupabaseServiceClient().storage.from(VAULT_BUCKET);
+    const { data: existing, error: listError } = await storage.list(resolved.caller.tenantId, { limit: 1000 });
+    if (listError) return { success: false, error: "Could not start the cloud upload" };
+    if ((existing ?? []).filter((file) => isCloudVaultFilename(file.name)).length >= MAX_CLOUD_VAULTS) {
+        return { success: false, error: `Cloud storage is full (${MAX_CLOUD_VAULTS} backups). Ask support to clear old copies.` };
+    }
+
     const filename = `sync_${new Date().toISOString().replace(/[:.]/g, "-")}.scheniders`;
     const path = cloudVaultPath(resolved.caller.tenantId, filename);
-    const { data, error } = await createSupabaseServiceClient()
-        .storage.from(VAULT_BUCKET)
-        .createSignedUploadUrl(path);
+    const { data, error } = await storage.createSignedUploadUrl(path);
     if (error || !data) return { success: false, error: "Could not start the cloud upload" };
     return { success: true, path: data.path, token: data.token };
 }

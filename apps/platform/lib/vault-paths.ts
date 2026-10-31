@@ -20,3 +20,6 @@ export function isCloudVaultFilename(name: string): boolean {
 export function cloudVaultPath(tenantId: string, filename: string): string {
     return `${tenantId}/${filename}`;
 }
+
+/** Manual cloud copies a store may hold; the user deletes none from the UI, so the cap stops unbounded growth. */
+export const MAX_CLOUD_VAULTS = 30;
