@@ -46,7 +46,9 @@ function CustomersPageContent() {
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const { state, chips, setChips, rawSearch, setSearch, setSort, setView, setTag } = useCustomerUrlState();
     const { tags } = useCustomerTags();
-    const { viewMode, setViewMode, setLastListQuery } = useCustomerStore();
+    const { viewMode, setViewMode, setLastListQuery, setProfileFromList } = useCustomerStore();
+    // Back on the list: any "opened from the list" mark is spent.
+    useEffect(() => { setProfileFromList(null); }, [setProfileFromList]);
 
     // Remember this list view so the profile's Back returns to the same filters.
     const listQuery = useSearchParams().toString();
@@ -201,7 +203,7 @@ function CustomersPageContent() {
         if (kind === "vipsQuiet") {
             setChips(
                 { value: leaving ? "all" : "vip", risk: "all", lane: leaving ? null : kind },
-                leaving ? { by: "total_orders", order: "desc" } : { by: "last_order_date", order: "asc" },
+                leaving ? exitSort : { by: "last_order_date", order: "asc" },
             );
             return;
         }

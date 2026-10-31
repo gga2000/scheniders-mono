@@ -64,7 +64,8 @@ export function HeroIdentityBanner({
 
     // Shown out of 100 the same way the drawer shows it.
     // Unrated ("new") customers have no proven score, same as the drawer.
-    const shownScore = trustScore === null || !hasRatedScore(tier) ? null : displayScore(trustScore);
+    // Blocked customers get no score either: "100/100" next to Blocked misleads.
+    const shownScore = trustScore === null || !hasRatedScore(tier) || tier === "blocked" ? null : displayScore(trustScore);
 
     const memberSince = firstOrderDate
         ? new Date(firstOrderDate).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
@@ -126,7 +127,8 @@ export function HeroIdentityBanner({
                         >
                             {t(config.labelKey)}
                         </span>
-                        {isBlacklisted && (
+                        {/* The tier chip already says Blocked for a blocked tier. */}
+                        {isBlacklisted && tier !== "blocked" && (
                             <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-300">
                                 {t("customers.tier.blocked")}
                             </span>
@@ -160,7 +162,7 @@ export function HeroIdentityBanner({
 
                     {/* Peer badges — integrated into hero, not floating below */}
                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                        {shownScore !== null && tier !== "blocked" && <PeerComparisonBadge phone={phone} />}
+                        {shownScore !== null && <PeerComparisonBadge phone={phone} />}
                         <ConfidenceIndicator orderCount={totalOrders} />
                     </div>
 
