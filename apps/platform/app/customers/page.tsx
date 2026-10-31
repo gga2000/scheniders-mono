@@ -127,6 +127,8 @@ function CustomersPageContent() {
         t("customers.export.completed", "Completed"), t("customers.export.spent", "Total spent"),
         t("customers.export.value", "Value"), t("customers.export.risk", "COD risk"),
         t("customers.export.lastOrder", "Last order"), t("customers.export.firstOrder", "First order"),
+        t("customers.export.city", "City"), t("customers.export.secondaryPhone", "Secondary phone"),
+        t("customers.export.blocked", "Blocked"),
     ], [t]);
 
     const customerCsvRow = useCallback((c: PaginatedCustomer) => [
@@ -135,6 +137,8 @@ function CustomersPageContent() {
         c.total_orders, c.completed_count, Math.round(c.total_spent),
         t(`customers.value.${c.value_tier}`, c.value_tier), t(`customers.risk.${c.risk_level}`, c.risk_level),
         csvDate(c.last_order_date), csvDate(c.first_order_date),
+        c.city ?? "", c.secondary_phone ? csvPhone(c.secondary_phone) : "",
+        c.is_blacklisted ? t("common.yes", "Yes") : t("common.no", "No"),
     ], [t, language]);
 
     const exportSelected = useCallback(() => {

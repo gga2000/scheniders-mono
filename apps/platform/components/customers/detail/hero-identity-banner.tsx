@@ -49,7 +49,7 @@ export function HeroIdentityBanner({
     tags,
     firstOrderDate,
 }: HeroIdentityBannerProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const store = useCustomerStore();
     const { can } = usePermission();
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
@@ -66,9 +66,10 @@ export function HeroIdentityBanner({
     const shownScore = trustScore === null ? null : displayScore(trustScore);
 
     const memberSince = firstOrderDate
-        ? new Date(firstOrderDate).toLocaleDateString("en-US", {
+        ? new Date(firstOrderDate).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
               month: "short",
               year: "numeric",
+              timeZone: "Asia/Baghdad",
           })
         : null;
 
@@ -78,9 +79,9 @@ export function HeroIdentityBanner({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
             className={cn(
-                "w-full bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border)",
+                "w-full bg-(--card-bg) rounded-[2rem] sm:rounded-[3rem] p-5 sm:p-8 border border-(--card-border)",
                 "shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)]",
-                "flex flex-row items-center justify-between gap-6"
+                "flex flex-col sm:flex-row sm:items-center justify-between gap-5 sm:gap-6"
             )}
         >
             {/* LEFT — avatar + info */}
@@ -89,7 +90,7 @@ export function HeroIdentityBanner({
                 <div className="relative shrink-0">
                     <div
                         className={cn(
-                            "w-24 h-24 rounded-full border-4 border-[#FBE38E] flex items-center justify-center",
+                            "w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 border-[#FBE38E] flex items-center justify-center",
                             "text-2xl font-bold select-none",
                             config.bgClass,
                             config.textClass
