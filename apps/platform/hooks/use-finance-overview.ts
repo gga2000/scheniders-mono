@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { Order, Product } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
 import type { Granularity } from "./use-finance-period";
+import { resolveItemCost } from "@/lib/finance/item-cost";
 import { isRefundRow, reportDate } from "@/lib/refunds/refund-reporting";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 
@@ -35,6 +36,8 @@ export interface FinanceOverviewResult {
     delivered_revenue: number;
     refund_value: number;
     product_cost: number;
+    /** Delivered units with no cost on file; COGS and profit exclude them. */
+    missing_cost_units: number;
     delivery_cost: number;
     discount: number;
     expenses: number;
@@ -111,21 +114,6 @@ function withinInterval(date: Date, i: DateInterval): boolean {
     return date >= i.start && date <= i.end;
 }
 
-function findProductCost(
-    item: { name?: string; sku?: string; quantity: number; price: number },
-    products: Product[]
-): number {
-    if (item.sku) {
-        const bySku = products.find((p) => p.sku?.toLowerCase() === item.sku?.toLowerCase());
-        if (bySku?.cost) return bySku.cost * item.quantity;
-    }
-    if (item.name) {
-        const byName = products.find((p) => p.name.toLowerCase() === item.name?.toLowerCase());
-        if (byName?.cost) return byName.cost * item.quantity;
-    }
-    return 0;
-}
-
 const CHANNEL_LABELS: Record<string, string> = {
     whatsapp: "WhatsApp",
     lightfunnels: "Lightfunnels",
@@ -172,6 +160,7 @@ export function useFinanceOverview(
             let delivered_revenue = 0;
             let refund_value = 0;
             let product_cost = 0;
+            let missing_cost_units = 0;
             let delivery_cost_sum = 0;
             let discount_sum = 0;
             let cash_realized = 0;
@@ -202,7 +191,11 @@ export function useFinanceOverview(
                     delivered_revenue += value;
                     delivered_count++;
                     if (o.items) {
-                        for (const it of o.items) product_cost += findProductCost(it, products);
+                        for (const it of o.items) {
+                            const line = resolveItemCost(it, products);
+                            product_cost += line.cost;
+                            if (!line.known) missing_cost_units += it.quantity;
+                        }
                     }
                     if (o.payment_status === "paid" || o.payment_status === "cod") {
                         cash_realized += value;
@@ -245,7 +238,7 @@ export function useFinanceOverview(
                     b.delivered_revenue += o.price || 0;
                     b.delivered++;
                     if (o.items) {
-                        for (const it of o.items) b.product_cost += findProductCost(it, products);
+                        for (const it of o.items) b.product_cost += resolveItemCost(it, products).cost;
                     }
                 }
                 b.delivery_cost += o.delivery_fee || o.delivery_cost || 0;
@@ -289,6 +282,7 @@ export function useFinanceOverview(
                 delivered_revenue,
                 refund_value,
                 product_cost,
+                missing_cost_units,
                 delivery_cost: delivery_cost_sum,
                 discount: discount_sum,
                 expenses: expense_total,
@@ -344,7 +338,7 @@ export function useFinanceOverview(
             // product
             for (const it of o.items || []) {
                 const key = it.name || "Unknown";
-                const cost = findProductCost(it, products) || 0;
+                const cost = resolveItemCost(it, products).cost;
                 const profit = (it.price || 0) * it.quantity - cost;
                 const prod = byProduct.get(key) || { revenue: 0, units: 0, profit: 0 };
                 prod.revenue += (it.price || 0) * it.quantity;
@@ -435,6 +429,7 @@ export function useFinanceOverview(
             delivered_revenue: curr.delivered_revenue,
             refund_value: curr.refund_value,
             product_cost: curr.product_cost,
+            missing_cost_units: curr.missing_cost_units,
             delivery_cost: curr.delivery_cost,
             discount: curr.discount,
             expenses: curr.expenses,
