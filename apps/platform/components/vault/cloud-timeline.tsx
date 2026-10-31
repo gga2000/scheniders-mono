@@ -1,6 +1,7 @@
 "use client";
 
-import { Cloud, Download, History, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Cloud, Download, History, Loader2, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import type { CloudVaultEntry } from "@/app/actions/vault";
@@ -11,10 +12,15 @@ interface CloudTimelineProps {
     /** File name currently being downloaded, if any. */
     downloading: string | null;
     onSelect: (filename: string) => void;
+    /** File name currently being deleted, if any. */
+    deleting: string | null;
+    onDelete: (filename: string) => void;
 }
 
-export function CloudTimeline({ vaults, isLoading, downloading, onSelect }: CloudTimelineProps) {
+export function CloudTimeline({ vaults, isLoading, downloading, onSelect, deleting, onDelete }: CloudTimelineProps) {
     const { t } = useLanguage();
+    // Deleting is permanent, so the trash button first asks for a second tap on the same row.
+    const [confirming, setConfirming] = useState<string | null>(null);
 
     return (
             <motion.section
@@ -57,14 +63,43 @@ export function CloudTimeline({ vaults, isLoading, downloading, onSelect }: Clou
                                         <p className="text-[10px] text-[var(--foreground-subtle)] uppercase tracking-wide">{((vault.size ?? 0) / 1024 / 1024).toFixed(2)} MB • {t("vault.cloud.sync", "Sync")}</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => onSelect(vault.name)}
-                                    disabled={downloading === vault.name}
-                                    className="w-9 h-9 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center hover:bg-[var(--vault-accent)] hover:text-[var(--vault-accent-contrast)] hover:border-transparent text-[var(--foreground-muted)] transition-colors flex-shrink-0 disabled:opacity-50"
-                                    aria-label={t("vault.cloud.download", "Download cloud backup")}
-                                >
-                                    {downloading === vault.name ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                                </button>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    {confirming === vault.name ? (
+                                        <>
+                                            <button
+                                                onClick={() => { setConfirming(null); onDelete(vault.name); }}
+                                                className="h-9 px-3 rounded-full bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors"
+                                            >
+                                                {t("vault.cloud.deleteConfirm", "Delete")}
+                                            </button>
+                                            <button
+                                                onClick={() => setConfirming(null)}
+                                                className="h-9 px-3 rounded-full border border-[var(--card-border)] text-xs font-medium text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors"
+                                            >
+                                                {t("vault.cloud.deleteCancel", "Keep")}
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => onSelect(vault.name)}
+                                                disabled={downloading === vault.name || deleting === vault.name}
+                                                className="w-9 h-9 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center hover:bg-[var(--vault-accent)] hover:text-[var(--vault-accent-contrast)] hover:border-transparent text-[var(--foreground-muted)] transition-colors disabled:opacity-50"
+                                                aria-label={t("vault.cloud.download", "Download cloud backup")}
+                                            >
+                                                {downloading === vault.name ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                            </button>
+                                            <button
+                                                onClick={() => setConfirming(vault.name)}
+                                                disabled={downloading === vault.name || deleting === vault.name}
+                                                className="w-9 h-9 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] flex items-center justify-center hover:bg-red-600 hover:text-white hover:border-transparent text-[var(--foreground-muted)] transition-colors disabled:opacity-50"
+                                                aria-label={t("vault.cloud.delete", "Delete cloud backup")}
+                                            >
+                                                {deleting === vault.name ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         ))
                     )}

@@ -6,13 +6,14 @@ import { restoreOrderRows } from "@/lib/backup-utils";
 import { encryptVaultData, decryptVaultData } from "./crypto-utils";
 import {
     listCloudVaultsAction,
+    deleteCloudVaultAction,
     prepareCloudUploadAction,
     getCloudDownloadUrlAction,
     logVaultEventAction,
     restoreVaultRowsAction,
     type CloudVaultEntry,
 } from "@/app/actions/vault";
-import { VAULT_BUCKET } from "./vault-paths";
+import { VAULT_BUCKET, isVaultKeyLongEnough } from "./vault-paths";
 import { RESTORE_ROWS_BATCH_SIZE } from "./vault-restore";
 import { VaultError, type VaultProgress } from "./vault-progress";
 import { vaultFileSchema, type VaultData, type VaultRow } from "./vault-schema";
@@ -136,6 +137,9 @@ export async function generateVaultBackup(
     onProgress?: (progress: VaultProgress) => void
 ): Promise<void> {
     const opts = options || { includeOrders: true, includeProducts: true, includeCustomers: true };
+    if (format === "vault" && password !== undefined && password !== "" && !isVaultKeyLongEnough(password)) {
+        throw new VaultError("weakKey", "Vault key is too short");
+    }
     const vaultData = await fetchAllData(opts, onProgress);
     const timestamp = new Date().toISOString().split("T")[0];
     await recordVaultEvent("VAULT_EXPORT", { format, ...vaultData.metadata.counts });
@@ -383,6 +387,7 @@ export async function executeVaultRestore(vaultData: VaultData, onProgress?: (pr
  */
 export async function uploadVaultToCloud(password: string, options?: VaultBackupOptions, onProgress?: (progress: VaultProgress) => void): Promise<void> {
     const opts = options || { includeOrders: true, includeProducts: true, includeCustomers: true };
+    if (!isVaultKeyLongEnough(password)) throw new VaultError("weakKey", "Vault key is too short");
     const vaultData = await fetchAllData(opts, onProgress);
 
     if (onProgress) onProgress({ step: "encrypting" });
@@ -416,4 +421,36 @@ export async function downloadCloudVault(filename: string): Promise<Blob> {
     if (!response.ok) throw new Error(`Failed to download ${filename}`);
     await recordVaultEvent("VAULT_CLOUD_DOWNLOAD", { file: filename });
     return response.blob();
+}
+
+/** Permanently removes one of the caller's manual cloud copies. */
+export async function deleteCloudVault(filename: string): Promise<void> {
+    const result = await deleteCloudVaultAction(await requireAccessToken(), filename);
+    if (!result.success) throw new Error(result.error);
+}
+
+export interface VaultActivityEntry {
+    id: string;
+    action: string;
+    createdAt: string;
+    details: Record<string, unknown>;
+}
+
+/** Recent vault activity for the active store. Row-level security limits this to the store's own admins. */
+export async function fetchVaultActivity(limit = 8): Promise<VaultActivityEntry[]> {
+    const tenantId = await requireTenantId();
+    const { data, error } = await supabase
+        .from("security_logs")
+        .select("id, action, created_at, details")
+        .eq("tenant_id", tenantId)
+        .or("action.like.VAULT_%,action.eq.automated_csv_backup")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+    if (error) throw new Error("Could not load vault activity");
+    return (data ?? []).map((row) => ({
+        id: String(row.id),
+        action: row.action,
+        createdAt: row.created_at,
+        details: row.details && typeof row.details === "object" && !Array.isArray(row.details) ? (row.details as Record<string, unknown>) : {},
+    }));
 }

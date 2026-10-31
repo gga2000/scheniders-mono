@@ -8,6 +8,7 @@ export const VAULT_AUDIT_ACTIONS = [
     "VAULT_CLOUD_SYNC",
     "VAULT_CLOUD_DOWNLOAD",
     "VAULT_RESTORE",
+    "VAULT_CLOUD_DELETE",
 ] as const;
 
 const CLOUD_VAULT_FILENAME = /^sync_[0-9A-Za-z-]+\.scheniders$/;
@@ -21,5 +22,12 @@ export function cloudVaultPath(tenantId: string, filename: string): string {
     return `${tenantId}/${filename}`;
 }
 
-/** Manual cloud copies a store may hold; the user deletes none from the UI, so the cap stops unbounded growth. */
+/** Manual cloud copies a store may hold; admins free space by deleting old copies from the page. */
 export const MAX_CLOUD_VAULTS = 30;
+
+/** Shortest vault key accepted: the key is the only thing protecting a file that holds every customer's details. */
+export const MIN_VAULT_KEY_LENGTH = 10;
+
+export function isVaultKeyLongEnough(key: string): boolean {
+    return key.length >= MIN_VAULT_KEY_LENGTH;
+}

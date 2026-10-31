@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
     Database,
     Download,
@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { CloudTimeline } from "@/components/vault/cloud-timeline";
 import { FormatCard } from "@/components/vault/format-card";
+import { BackupHealth } from "@/components/vault/backup-health";
+import { isVaultKeyLongEnough } from "@/lib/vault-paths";
 import { describeVaultError, describeVaultProgress } from "@/lib/vault-messages";
 import { toast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,7 +34,10 @@ import {
     executeVaultRestore,
     uploadVaultToCloud,
     fetchCloudVaults,
-    downloadCloudVault
+    downloadCloudVault,
+    deleteCloudVault,
+    fetchVaultActivity,
+    type VaultActivityEntry
 } from "@/lib/vault-utils";
 
 // Types mapping for Export Format
@@ -94,12 +99,36 @@ export default function VaultPage() {
     const [isFetchingCloud, setIsFetchingCloud] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isDownloadingCloud, setIsDownloadingCloud] = useState<string | null>(null);
+    const [isDeletingCloud, setIsDeletingCloud] = useState<string | null>(null);
+    const [activity, setActivity] = useState<VaultActivityEntry[]>([]);
+    const [isLoadingActivity, setIsLoadingActivity] = useState(true);
+    const [activityFailed, setActivityFailed] = useState(false);
 
-    useEffect(() => {
-        loadCloudVaults();
+    const loadActivity = useCallback(async () => {
+        try {
+            setActivity(await fetchVaultActivity());
+            setActivityFailed(false);
+        } catch {
+            setActivityFailed(true);
+        } finally {
+            setIsLoadingActivity(false);
+        }
     }, []);
 
-    const loadCloudVaults = async () => {
+    const handleCloudDelete = async (filename: string) => {
+        setIsDeletingCloud(filename);
+        try {
+            await deleteCloudVault(filename);
+            toast.success(t("vault.toast.deleted", "Cloud backup deleted."));
+            await Promise.all([loadCloudVaults(), loadActivity()]);
+        } catch (error: unknown) {
+            toast.error(describeVaultError(error, t, t("vault.error.delete", "Could not delete this backup.")));
+        } finally {
+            setIsDeletingCloud(null);
+        }
+    };
+
+    const loadCloudVaults = useCallback(async () => {
         setIsFetchingCloud(true);
         try {
             const vaults = await fetchCloudVaults();
@@ -109,12 +138,17 @@ export default function VaultPage() {
         } finally {
             setIsFetchingCloud(false);
         }
-    };
+    }, [t]);
+
+    useEffect(() => {
+        loadCloudVaults();
+        loadActivity();
+    }, [loadCloudVaults, loadActivity]);
 
     // Handlers: Create Backup & Sync
     const handleGenerateBackup = async () => {
-        if (exportFormat === "vault" && !vaultKey) {
-            toast.error(t("vault.toast.keyRequired", "Vault Key is required for encrypted backups."));
+        if (exportFormat === "vault" && !isVaultKeyLongEnough(vaultKey)) {
+            toast.error(vaultKey ? t("vault.error.weakKey", "The vault key must be at least 10 characters.") : t("vault.toast.keyRequired", "Vault Key is required for encrypted backups."));
             return;
         }
 
@@ -137,8 +171,8 @@ export default function VaultPage() {
     };
 
     const handleCloudSync = async () => {
-        if (!vaultKey) {
-            toast.error(t("vault.toast.syncKeyRequired", "Vault Key is required for Cloud Sync."));
+        if (!isVaultKeyLongEnough(vaultKey)) {
+            toast.error(vaultKey ? t("vault.error.weakKey", "The vault key must be at least 10 characters.") : t("vault.toast.syncKeyRequired", "Vault Key is required for Cloud Sync."));
             return;
         }
 
@@ -152,6 +186,7 @@ export default function VaultPage() {
             }, (step) => setGenerationStep(describeVaultProgress(step, t)));
             toast.success(t("vault.toast.synced", "Successfully synced backup to the secure cloud."));
             loadCloudVaults(); // Refresh timeline
+            loadActivity();
         } catch (error: unknown) {
             const message = describeVaultError(error, t, t("vault.error.sync", "Failed to sync to cloud."));
             toast.error(message);
@@ -353,6 +388,9 @@ export default function VaultPage() {
                                             {showVaultKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
                                     </div>
+                                    {vaultKey && !isVaultKeyLongEnough(vaultKey) && (
+                                        <p className="mt-2 text-xs text-red-600 dark:text-red-400">{t("vault.key.minLength", "At least 10 characters.")}</p>
+                                    )}
                                     {keyStrength >= 0 && (
                                         <div className="mt-3 space-y-1.5">
                                             <div className="flex gap-1 h-1.5">
@@ -380,11 +418,11 @@ export default function VaultPage() {
                         {exportFormat === "vault" && (
                             <button
                                 onClick={handleCloudSync}
-                                disabled={isSyncing || !vaultKey}
+                                disabled={isSyncing || !isVaultKeyLongEnough(vaultKey)}
                                 className={cn(
                                     "mt-4 w-full py-4 rounded-xl font-medium flex items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden",
                                     "bg-[var(--vault-soft)] text-[var(--vault-accent)] border border-[var(--vault-border)] hover:border-[var(--vault-accent)] hover:shadow-[0_0_20px_var(--vault-glow)]",
-                                    (isSyncing || !vaultKey) && "opacity-60 cursor-not-allowed hover:shadow-none"
+                                    (isSyncing || !isVaultKeyLongEnough(vaultKey)) && "opacity-60 cursor-not-allowed hover:shadow-none"
                                 )}
                             >
                                 <AnimatePresence mode="wait">
@@ -418,11 +456,11 @@ export default function VaultPage() {
 
                     <button
                         onClick={handleGenerateBackup}
-                        disabled={isGenerating || (exportFormat === "vault" && !vaultKey)}
+                        disabled={isGenerating || (exportFormat === "vault" && !isVaultKeyLongEnough(vaultKey))}
                         className={cn(
                             "mt-8 w-full py-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all duration-300 relative overflow-hidden",
                             "bg-[var(--primary)] text-[var(--primary-fg)] hover:bg-[var(--button-primary-hover)] hover:shadow-lg",
-                            (isGenerating || (exportFormat === "vault" && !vaultKey)) && "opacity-60 cursor-not-allowed hover:shadow-none"
+                            (isGenerating || (exportFormat === "vault" && !isVaultKeyLongEnough(vaultKey))) && "opacity-60 cursor-not-allowed hover:shadow-none"
                         )}
                     >
                         <AnimatePresence mode="wait">
@@ -649,7 +687,13 @@ export default function VaultPage() {
                     isLoading={isFetchingCloud}
                     downloading={isDownloadingCloud}
                     onSelect={handleCloudFileSelect}
+                    deleting={isDeletingCloud}
+                    onDelete={handleCloudDelete}
                 />
+
+                <div className="lg:col-span-3">
+                    <BackupHealth activity={activity} isLoading={isLoadingActivity} failed={activityFailed} />
+                </div>
 
             </main>
         </div>
