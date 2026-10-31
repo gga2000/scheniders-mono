@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { addDaysToDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 import type {
     EmployeePayrollData,
     PayrollCalculation,
@@ -51,7 +52,27 @@ export function isCompletedInPeriod(
     periodEnd: string
 ): boolean {
     if (!completedAt) return false;
-    return completedAt >= periodStart + "T00:00:00Z" && completedAt <= periodEnd + "T23:59:59Z";
+    return isInPeriod(completedAt, periodStart, periodEnd);
+}
+
+/**
+ * Pay periods are Baghdad calendar days. Iraq is UTC+3 all year, so a period's first
+ * instant is 21:00 UTC the day before; bucketing on UTC days would hand the first three
+ * hours of every Baghdad day to the previous day (orders completed 00:00-03:00 would be
+ * paid in the wrong run). Compare instants, not strings: offsets differ between sources.
+ */
+function periodBounds(periodStart: string, periodEnd: string): { from: number; to: number } {
+    return {
+        from: baghdadDayStart(periodStart),
+        to: baghdadDayStart(addDaysToDayKey(periodEnd, 1)) - 1,
+    };
+}
+
+function isInPeriod(timestamp: string, periodStart: string, periodEnd: string): boolean {
+    const at = Date.parse(timestamp);
+    if (Number.isNaN(at)) return false;
+    const { from, to } = periodBounds(periodStart, periodEnd);
+    return at >= from && at <= to;
 }
 
 /** A return/refund order row (any status) — for refund linkage + the returned-after-payment flag. */
@@ -305,8 +326,8 @@ export function useSalaries(
         // Orders and activity logs are paginated past Supabase's 1000-row cap —
         // without this, a wide window (e.g. "Since Last Payroll") silently truncates
         // the order set and undercounts every employee.
-        const wStart = windowStart + "T00:00:00Z";
-        const wEnd = fetchEnd + "T23:59:59Z";
+        const wStart = new Date(periodBounds(windowStart, fetchEnd).from).toISOString();
+        const wEnd = new Date(periodBounds(windowStart, fetchEnd).to).toISOString();
         const [logsData, paidInWindowRes, completedOrdersData, returnsData, allOrdersData] = await Promise.all([
             // Wide window — we'll slice per-employee client-side
             fetchAllRows<ActivityLogRow>((from, to) =>
@@ -458,9 +479,7 @@ export function useSalaries(
                 const lastPaid = lastPayrollDates.get(emp.id);
                 if (lastPaid) {
                     // Day after last payroll
-                    const next = new Date(lastPaid + "T00:00:00Z");
-                    next.setUTCDate(next.getUTCDate() + 1);
-                    periodStart = next.toISOString().split("T")[0];
+                    periodStart = addDaysToDayKey(lastPaid, 1);
                 } else {
                     periodStart = globalPeriodStart; // No history → use global (90-day fallback)
                 }
@@ -475,9 +494,7 @@ export function useSalaries(
 
             // Filter logs to this employee's period
             const empLogs = activityLogs.filter(l =>
-                l.user_id === emp.id &&
-                l.created_at >= periodStart + "T00:00:00Z" &&
-                l.created_at <= periodEnd + "T23:59:59Z"
+                l.user_id === emp.id && isInPeriod(l.created_at, periodStart, periodEnd)
             );
 
             // Bucket by completion date, not order date — see isCompletedInPeriod.
@@ -492,10 +509,7 @@ export function useSalaries(
 
             // Whole-pipeline status breakdown of every order CREATED in the period
             // (same attribution rule as completed orders, so the two stay consistent).
-            const periodAllOrders = allOrders.filter(o =>
-                o.created_at >= periodStart + "T00:00:00Z" &&
-                o.created_at <= periodEnd + "T23:59:59Z"
-            );
+            const periodAllOrders = allOrders.filter(o => isInPeriod(o.created_at, periodStart, periodEnd));
             const attributedAllOrders = attributionMode === "all"
                 ? periodAllOrders
                 : periodAllOrders.filter(o => orderLastTouchedBy.get(o.id) === emp.id);
@@ -546,7 +560,7 @@ export function useSalaries(
             const lastPaid = lastPayrollDates.get(emp.id) ?? null;
             const returnedAfterPayment: ReturnedAfterPayment[] = lastPaid
                 ? returnOrders
-                    .filter(r => r.created_at <= lastPaid + "T23:59:59Z")
+                    .filter(r => Date.parse(r.created_at) <= periodBounds(lastPaid, lastPaid).to)
                     .filter(r => attributionMode === "all" || orderLastTouchedBy.get(r.id) === emp.id)
                     .map(r => ({
                         id: r.id,
@@ -558,7 +572,7 @@ export function useSalaries(
                 : [];
 
             // Attendance: unique days with any activity log
-            const activeDays = new Set(empLogs.map(l => l.created_at.split("T")[0]));
+            const activeDays = new Set(empLogs.map(l => toBaghdadDayKey(l.created_at)));
             const absenceDays = Math.max(0, workingDaysInPeriod - activeDays.size);
             const dailyRate = effectiveRate.baseMonthlySalary / WORKING_DAYS_PER_MONTH;
             const absenceDeduction = Math.round(absenceDays * dailyRate);
