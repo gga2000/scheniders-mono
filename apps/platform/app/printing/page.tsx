@@ -158,16 +158,40 @@ export default function PrintingPage() {
         await executePrint(selectedOrdersList);
     };
 
+    // Record a finished print or PDF run. The output has already left the app by now,
+    // so a failed record must be loud: unrecorded prints look "never printed" and get printed twice.
+    const recordRun = async (ordersToRecord: Order[]): Promise<boolean> => {
+        const batchName = `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+        })}`;
+        const recorded = await printing.recordPrint(
+            ordersToRecord.map((o) => o.id),
+            printType === "labels" ? "label" : "invoice",
+            printing.labelSettings.size,
+            batchName,
+            invoiceTemplate
+        );
+        if (!recorded.success) {
+            toast.error(t("printing.notRecordedTitle"), recorded.error);
+        }
+        return recorded.success;
+    };
+
+    // Refuse orders a courier could not deliver to; returns true when the run may go ahead.
+    const checkPrintable = (ordersToCheck: Order[]): boolean => {
+        const unprintable = ordersToCheck.filter((o) => hasBlockingFlag(getQueueFlags(o)));
+        if (unprintable.length === 0) return true;
+        toast.warning(
+            t("printing.blockedTitle").replace("{count}", String(unprintable.length)),
+            t("printing.blockedBody")
+        );
+        return false;
+    };
+
     // Execute print
     const executePrint = async (ordersToPrint: Order[]) => {
-        const unprintable = ordersToPrint.filter((o) => hasBlockingFlag(getQueueFlags(o)));
-        if (unprintable.length > 0) {
-            toast.warning(
-                t("printing.blockedTitle").replace("{count}", String(unprintable.length)),
-                t("printing.blockedBody")
-            );
-            return;
-        }
+        if (!checkPrintable(ordersToPrint)) return;
 
         const labelOptions: EnhancedLabelOptions = {
             ...printing.labelSettings,
@@ -184,23 +208,7 @@ export default function PrintingPage() {
             printBulkInvoices(ordersToPrint, labelOptions);
         }
 
-        // The print dialog has already opened by now, so a failed record must be
-        // loud: unrecorded prints look "never printed" and get printed twice.
-        const batchName = `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', {
-            hour: '2-digit',
-            minute: '2-digit',
-        })}`;
-        const recorded = await printing.recordPrint(
-            ordersToPrint.map((o) => o.id),
-            printType === "labels" ? "label" : "invoice",
-            printing.labelSettings.size,
-            batchName,
-            invoiceTemplate
-        );
-        if (!recorded.success) {
-            toast.error(t("printing.notRecordedTitle"), recorded.error);
-            return;
-        }
+        if (!(await recordRun(ordersToPrint))) return;
 
         if (autoShipAfterPrint) {
             // Orders postponed to a later day stay home, same rule as the orders page.
@@ -263,6 +271,8 @@ export default function PrintingPage() {
             invoiceTemplate: invoiceTemplate,
         };
 
+        if (!checkPrintable(ordersToPrint)) return;
+
         setPdfLoading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -293,6 +303,7 @@ export default function PrintingPage() {
             }
 
             await downloadLabelPdf(html, filename, session.access_token, pageWidth, pageHeight);
+            await recordRun(ordersToPrint);
         } catch (err) {
             console.error("PDF generation error:", err);
             toast.error(t("printing.pdfFailedTitle"), t("printing.pdfFailedBody"));
