@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { GitFork, Percent, Hash } from "lucide-react";
@@ -20,6 +21,7 @@ interface PnLWaterfallProps {
 }
 
 export function PnLWaterfall({ data }: PnLWaterfallProps) {
+    const { t } = useLanguage();
     const [mode, setMode] = useState<"abs" | "pct">("abs");
 
     const steps: Step[] = useMemo(() => {
@@ -31,24 +33,24 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
         const undelivered = Math.max(0, data.gross_revenue - delivered);
 
         return [
-            { id: "gross", label: "Gross Revenue", value: data.gross_revenue, kind: "base" },
-            { id: "undelivered", label: "− In transit / unconfirmed", value: -undelivered, kind: "deduction" },
-            { id: "delivered_rev", label: "Delivered Revenue", value: delivered, kind: "result" },
-            { id: "cogs", label: "− COGS", value: -data.product_cost, kind: "deduction" },
-            { id: "gross_profit", label: "Gross Profit", value: gross_profit, kind: "result" },
-            { id: "refunds", label: "− Refunds / Returns", value: -data.refund_value, kind: "deduction" },
-            { id: "expenses", label: "− Expenses", value: -data.expenses, kind: "deduction" },
-            { id: "net_profit", label: "Net Profit", value: net_profit, kind: "result" },
+            { id: "gross", label: t("finances.pnl.gross"), value: data.gross_revenue, kind: "base" },
+            { id: "undelivered", label: t("finances.pnl.inTransit"), value: -undelivered, kind: "deduction" },
+            { id: "delivered_rev", label: t("finances.pnl.delivered"), value: delivered, kind: "result" },
+            { id: "cogs", label: t("finances.pnl.cogs"), value: -data.product_cost, kind: "deduction" },
+            { id: "gross_profit", label: t("finances.pnl.grossProfit"), value: gross_profit, kind: "result" },
+            { id: "refunds", label: t("finances.pnl.refunds"), value: -data.refund_value, kind: "deduction" },
+            { id: "expenses", label: t("finances.pnl.expenses"), value: -data.expenses, kind: "deduction" },
+            { id: "net_profit", label: t("finances.pnl.netProfit"), value: net_profit, kind: "result" },
         ];
-    }, [data]);
+    }, [data, t]);
 
     const maxAbs = Math.max(...steps.map((s) => Math.abs(s.value)), 1);
     const baseRef = steps[0].value || 1;
 
     return (
         <SectionCard
-            title="Profit & Loss"
-            subtitle="Flow from revenue to net profit"
+            title={t("finances.pnl.title")}
+            subtitle={t("finances.pnl.subtitle")}
             icon={GitFork}
             accent="emerald"
             action={
@@ -78,7 +80,7 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
         >
             {data.missing_cost_units > 0 && (
                 <p className="mb-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-600">
-                    {data.missing_cost_units} delivered {data.missing_cost_units === 1 ? "unit has" : "units have"} no cost set, so COGS is understated and profit is higher than real. Add the cost on the product.
+                    {t("finances.pnl.missingCost", { count: data.missing_cost_units })}
                 </p>
             )}
             <div className="space-y-2">
@@ -117,9 +119,9 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
             </div>
 
             <div className="mt-5 pt-4 border-t border-[var(--card-border)] grid grid-cols-3 gap-3 text-center">
-                <Stat label="Net Margin" value={`${data.margin_pct.toFixed(1)}%`} good={data.margin_pct >= 10} />
-                <Stat label="COGS Ratio" value={data.delivered_revenue > 0 ? `${((data.product_cost / data.delivered_revenue) * 100).toFixed(0)}%` : "—"} />
-                <Stat label="Refund Ratio" value={data.delivered_revenue > 0 ? `${((data.refund_value / data.delivered_revenue) * 100).toFixed(1)}%` : "—"} />
+                <Stat label={t("finances.pnl.netMargin")} value={`${data.margin_pct.toFixed(1)}%`} good={data.margin_pct >= 10} />
+                <Stat label={t("finances.pnl.cogsRatio")} value={data.delivered_revenue > 0 ? `${((data.product_cost / data.delivered_revenue) * 100).toFixed(0)}%` : "—"} />
+                <Stat label={t("finances.pnl.refundRatio")} value={data.delivered_revenue > 0 ? `${((data.refund_value / data.delivered_revenue) * 100).toFixed(1)}%` : "—"} />
             </div>
         </SectionCard>
     );
