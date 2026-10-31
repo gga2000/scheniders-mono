@@ -16,7 +16,7 @@ import { iqd, itemsText, orderLine, statusText } from "@/lib/mcp/format";
 import { buildStatusUpdate } from "@/lib/repositories/order-repository";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { applyStatusSideEffect } from "@/lib/orders/status-side-effects";
-import { classifyTransition } from "@/lib/order-status-machine";
+import { classifyTransition, resolveStatusForOrder } from "@/lib/order-status-machine";
 import { createOrderForTenant } from "@/lib/order-service";
 import type { CreateOrderInput, Order, OrderItem } from "@/types/order";
 
@@ -132,14 +132,16 @@ export function registerOrderWriteTools(server: McpServer): void {
             requireWriter(caller);
             const refs = [...new Set(input.orders)];
             const orders = await findOrders(caller, refs);
+            // Same rule as the orders page: a return order is delivered as refund_delivered.
+            const targetOf = (o: Order) => resolveStatusForOrder(o, input.status);
 
             const unusual = orders
-                .map((o) => ({ o, verdict: classifyTransition(o.status, input.status) }))
+                .map((o) => ({ o, verdict: classifyTransition(o.status, targetOf(o)) }))
                 .filter((x) => x.verdict.kind === "unusual");
             if ((orders.length > 1 || unusual.length > 0) && !input.confirm) {
                 return [
                     `Preview — nothing changed yet. ${orders.length} order(s) → ${statusText(input.status)}:`,
-                    ...orders.map((o) => `  #${o.order_id}: ${o.status} → ${input.status}${o.status === input.status ? " (already)" : ""}`),
+                    ...orders.map((o) => `  #${o.order_id}: ${o.status} → ${targetOf(o)}${o.status === targetOf(o) ? " (already)" : ""}${targetOf(o) !== input.status ? " (return order)" : ""}`),
                     ...unusual.map(({ o, verdict }) => `  ⚠ #${o.order_id}: ${verdict.kind === "unusual" ? verdict.reason : ""}`),
                     "Call again with confirm: true to apply.",
                 ].join("\n");
@@ -150,10 +152,11 @@ export function registerOrderWriteTools(server: McpServer): void {
             let changed = 0;
             for (const order of orders) {
                 try {
-                    const outcome = await changeOrderStatus(caller, order, input.status, input.reason);
+                    const target = targetOf(order);
+                    const outcome = await changeOrderStatus(caller, order, target, input.reason);
                     if (outcome.result === "changed") changed += 1;
                     lines.push(
-                        `  #${order.order_id}: ${outcome.result === "changed" ? `${order.status} → ${input.status}` : "already in that status"}` +
+                        `  #${order.order_id}: ${outcome.result === "changed" ? `${order.status} → ${target}` : "already in that status"}` +
                             (outcome.warning ? ` (warning: ${outcome.warning})` : ""),
                     );
                 } catch (err) {
