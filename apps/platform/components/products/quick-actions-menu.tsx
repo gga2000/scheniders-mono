@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { Product } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 
@@ -47,6 +49,8 @@ export function QuickActionsMenu({
 }: QuickActionsMenuProps) {
     const { t } = useLanguage();
     const router = useRouter();
+    // Editing is for products.edit; everyone else sees the product, not the buttons.
+    const canEdit = usePermission().can(PERMISSIONS.EDIT_PRODUCTS);
     const [confirmingArchive, setConfirmingArchive] = useState(false);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -92,13 +96,15 @@ export function QuickActionsMenu({
                     </DropdownMenu.Item>
 
                     {/* Edit */}
-                    <DropdownMenu.Item
-                        className={cn(itemClasses, "text-foreground")}
-                        onSelect={onEdit}
-                    >
-                        <Edit className="w-4 h-4" />
-                        {t("products.actions.editProduct")}
-                    </DropdownMenu.Item>
+                    {canEdit && (
+                        <DropdownMenu.Item
+                            className={cn(itemClasses, "text-foreground")}
+                            onSelect={onEdit}
+                        >
+                            <Edit className="w-4 h-4" />
+                            {t("products.actions.editProduct")}
+                        </DropdownMenu.Item>
+                    )}
 
                     {/* View Orders */}
                     <DropdownMenu.Item
@@ -112,7 +118,7 @@ export function QuickActionsMenu({
                     <DropdownMenu.Separator className="h-px bg-[var(--card-border)] my-1" />
 
                     {/* Duplicate */}
-                    {onDuplicate && !product.is_archived && (
+                    {canEdit && onDuplicate && !product.is_archived && (
                         <DropdownMenu.Item
                             className={cn(itemClasses, "text-foreground")}
                             onSelect={onDuplicate}
@@ -125,7 +131,7 @@ export function QuickActionsMenu({
                     <DropdownMenu.Separator className="h-px bg-[var(--card-border)] my-1" />
 
                     {/* Archive / Restore with inline confirmation */}
-                    {product.is_archived && onRestore ? (
+                    {!canEdit ? null : product.is_archived && onRestore ? (
                         <DropdownMenu.Item
                             className={cn(itemClasses, "text-green-600")}
                             onSelect={onRestore}

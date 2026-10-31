@@ -5,6 +5,7 @@ import { registerOrderWriteTools } from "@/lib/mcp/tools/orders-write";
 import { registerCatalogWriteTools } from "@/lib/mcp/tools/catalog-write";
 import { registerDeliveryTools } from "@/lib/mcp/tools/delivery";
 import { registerCustomerTools } from "@/lib/mcp/tools/customers";
+import { registerFinanceTools } from "@/lib/mcp/tools/finance";
 
 export const MCP_SERVER_INFO = { name: "schenider-platform", version: "1.0.0" };
 
@@ -22,4 +23,5 @@ export function registerPlatformTools(server: McpServer): void {
     registerCatalogWriteTools(server);
     registerDeliveryTools(server);
     registerCustomerTools(server);
+    registerFinanceTools(server);
 }

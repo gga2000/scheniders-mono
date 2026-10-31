@@ -37,7 +37,7 @@ import { reportOrderError } from "@/lib/order-telemetry";
 import { useOrderStore } from "@/store/use-order-store";
 import { scheduleDayFromToday } from "@/lib/order-format-utils";
 import { routeCreateOrderDate, FutureOrderDateError, FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
-import { ExchangedOrderStatusError } from "@/lib/order-status-guard";
+import { orderWriteErrorMessage } from "@/lib/order-status-guard";
 import { useLanguage } from "@/hooks/use-language";
 import { toBaghdadDayKey } from "@/lib/order-window";
 import { duplicateCandidateKeys } from "@/hooks/use-duplicate-window-alerts";
@@ -367,9 +367,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     }
                     diag.log(`[Diag:StatusUpdate] MUTATION_ERR orderId=${orderId} seq=${mySeq} err=${err instanceof Error ? err.message : err} totalTime=${(performance.now() - _t0).toFixed(1)}ms`);
                     console.error("Error updating order status:", err);
-                    const msg = err instanceof ExchangedOrderStatusError
-                        ? tRef.current("orders.status.exchangedOriginal")
-                        : err instanceof Error ? err.message : "Failed to update order status";
+                    const msg = orderWriteErrorMessage(err, tRef.current);
                     toast.error(msg);
                     resolve({ success: false, error: msg });
                 }
@@ -512,7 +510,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
             // Only show toast on final failure
             if (!(err instanceof Error && err.message === "CONFLICT_DETECTED") || retryCount >= 2) {
-                toast.error(err instanceof Error ? err.message : "Failed to update order");
+                toast.error(orderWriteErrorMessage(err, tRef.current));
             }
 
             return {

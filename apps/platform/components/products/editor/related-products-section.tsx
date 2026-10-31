@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Link2, Plus, Trash2, Search, Package } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useLanguage } from "@/hooks/use-language";
 
 export interface RelatedProductFormData {
     related_product_id: string;
@@ -33,6 +34,7 @@ export function RelatedProductsSection({
     onChange,
     currentProductId,
 }: RelatedProductsSectionProps) {
+    const { t } = useLanguage();
     const { products } = useProductsCrud();
     const [searchQuery, setSearchQuery] = useState("");
     const [showSearch, setShowSearch] = useState(false);
@@ -94,10 +96,10 @@ export function RelatedProductsSection({
     const upsellCount = relatedProducts.filter((p) => p.relation_type === 'upsell').length;
 
     const tabs: { key: FilterType; label: string; count: number }[] = [
-        { key: 'all', label: 'All', count: relatedProducts.length },
-        { key: 'complementary', label: 'Complementary', count: complementaryCount },
-        { key: 'similar', label: 'Similar', count: similarCount },
-        { key: 'upsell', label: 'Upsell', count: upsellCount },
+        { key: 'all', label: t("products.ed.related.all"), count: relatedProducts.length },
+        { key: 'complementary', label: t("products.ed.related.complementary"), count: complementaryCount },
+        { key: 'similar', label: t("products.ed.related.similar"), count: similarCount },
+        { key: 'upsell', label: t("products.ed.related.upsell"), count: upsellCount },
     ];
 
     // Build summary string
@@ -116,7 +118,7 @@ export function RelatedProductsSection({
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Related
+                    {t("products.ed.related.add")}
                 </button>
             </div>
 
@@ -129,7 +131,7 @@ export function RelatedProductsSection({
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search products to add..."
+                            placeholder={t("products.ed.related.search")}
                             autoFocus
                             className="w-full pl-10 pr-4 py-3 bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none"
                         />
@@ -173,7 +175,7 @@ export function RelatedProductsSection({
                 <div className="p-8 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
                     <Link2 className="w-8 h-8 text-muted mx-auto mb-2" />
                     <p className="text-muted text-sm">
-                        No related products. Add complementary, similar, or upsell products to boost cross-selling.
+                        {t("products.ed.related.empty")}
                     </p>
                 </div>
             ) : (
@@ -226,7 +228,7 @@ export function RelatedProductsSection({
                                     {/* Product info */}
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-foreground truncate">
-                                            {item.name || "Unknown Product"}
+                                            {item.name || t("products.ed.related.unknown")}
                                         </p>
                                         <p className="text-xs text-muted">
                                             {(item.price || 0).toLocaleString()} IQD
@@ -244,9 +246,9 @@ export function RelatedProductsSection({
                                         }
                                         className={`px-2.5 py-1 rounded-full text-xs font-medium border-0 cursor-pointer appearance-none ${relationColors[item.relation_type]}`}
                                     >
-                                        <option value="complementary">Complementary</option>
-                                        <option value="similar">Similar</option>
-                                        <option value="upsell">Upsell</option>
+                                        <option value="complementary">{t("products.ed.related.complementary")}</option>
+                                        <option value="similar">{t("products.ed.related.similar")}</option>
+                                        <option value="upsell">{t("products.ed.related.upsell")}</option>
                                     </select>
 
                                     {/* Delete button */}

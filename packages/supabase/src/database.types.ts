@@ -8915,6 +8915,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      product_costs: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          cost: number | null
+          cost_breakdown_json: Json | null
+          product_id: string
+          variant_id: string | null
+        }[]
+      }
+      product_supplier_costs: {
+        Args: { p_product_id: string }
+        Returns: {
+          id: string
+          unit_cost: number | null
+        }[]
+      }
       save_product_children: {
         Args: { p_children: Json; p_product_id: string }
         Returns: undefined

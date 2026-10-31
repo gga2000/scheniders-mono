@@ -2,20 +2,17 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
-import { usePrinting, LabelSettings } from "@/hooks/use-printing";
-import { WaseetSubmitDialog } from "@/components/printing/waseet-submit-dialog";
+import { usePrinting } from "@/hooks/use-printing";
 import { PrintBatch } from "@/lib/supabase";
 import { Order } from "@/lib/supabase";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { LabelSettingsPanel } from "@/components/printing/label-settings-panel";
 import { PrintPreviewModal } from "@/components/printing/print-preview-modal";
-import { PrintStatsPanel } from "@/components/printing/print-stats-panel";
 import { BatchManager } from "@/components/printing/batch-manager";
 import { BatchDetailsModal } from "@/components/printing/batch-details-modal";
 import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
 import { MarkAsShippedDialog, MarkAsDeliveredDialog } from "@/components/printing/confirmation-dialog";
 import { DateRangePicker } from "@scheniders/ui/date-range-picker";
-import { SmartBatchPanel } from "@/components/printing/smart-batch-panel";
 import { EnhancedLabelOptions, printBulkEnhancedLabels, printBulkInvoices, generateBulkA6InvoicesHTML, printBulkShippingLabels, generateBulkShippingLabelsHTML } from "@/lib/enhanced-label-generator";
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { supabase } from "@/lib/supabase";
@@ -23,39 +20,34 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import {
     Printer,
-    Package,
     CheckSquare,
-    Square,
     MapPin,
-    Phone,
     FileText,
     Tag,
     Truck,
     CheckCircle,
     Search,
     ChevronDown,
-    Filter,
     X,
     CalendarDays,
     Eye,
-    BarChart3,
     RefreshCw,
     AlertTriangle,
-    ChevronUp,
-    Star,
     SlidersHorizontal,
-    GripVertical,
     Download,
-    Sparkles,
     Flame,
     Flag,
 } from "lucide-react";
 import { formatIQD, formatDate, getBaseOrderId } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { partitionByShipDay } from "@/lib/order-bulk-scope";
+import { toast } from "@/hooks/use-toast";
+import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
+import { DispatchSummary } from "@/components/printing/dispatch-summary";
 
 export default function PrintingPage() {
-    const { orders, loading, error, updateOrderStatus, bulkUpdateStatus } = useOrdersContext();
+    const { orders, loading, error, bulkUpdateStatus } = useOrdersContext();
     const printing = usePrinting(orders);
     const { t } = useLanguage();
 
@@ -65,11 +57,10 @@ export default function PrintingPage() {
     const [invoiceTemplate, setInvoiceTemplate] = useState<"classic" | "modern" | "prime">("prime");
 
     // UI state
-    const [showStats, setShowStats] = useState(false);
     const [showFilters, setShowFilters] = useState(true);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [sortBy, setSortBy] = useState<"priority" | "date" | "city" | "price">("priority");
-    const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+    const [sortDirection] = useState<"asc" | "desc">("asc");
 
     // Modal state
     const [showPreview, setShowPreview] = useState(false);
@@ -85,12 +76,6 @@ export default function PrintingPage() {
 
     // Export menu state
     const [showExportMenu, setShowExportMenu] = useState(false);
-
-    // Smart batching state
-    const [smartBatchingEnabled, setSmartBatchingEnabled] = useState(false);
-
-    // Al-Waseet submit state
-    const [showWaseetSubmitDialog, setShowWaseetSubmitDialog] = useState(false);
 
     // Customer order counts for labels
     const [customerOrderCounts, setCustomerOrderCounts] = useState<Record<string, number>>({});
@@ -187,6 +172,15 @@ export default function PrintingPage() {
 
     // Execute print
     const executePrint = async (ordersToPrint: Order[]) => {
+        const unprintable = ordersToPrint.filter((o) => hasBlockingFlag(getQueueFlags(o)));
+        if (unprintable.length > 0) {
+            toast.warning(
+                `${unprintable.length} without phone or address`,
+                "Fix them on the orders page or deselect them, then print again."
+            );
+            return;
+        }
+
         const labelOptions: EnhancedLabelOptions = {
             ...printing.labelSettings,
             invoiceTemplate: invoiceTemplate,
@@ -202,33 +196,36 @@ export default function PrintingPage() {
             printBulkInvoices(ordersToPrint, labelOptions);
         }
 
-        // Record print history
-        await printing.recordPrint(
-            ordersToPrint.map((o) => o.id),
-            printType === "labels" ? "label" : "invoice",
-            undefined,
-            printing.labelSettings.size
-        );
-
-        // Auto-create batch for this print job
-        const batchName = `${new Date().toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-        })} - ${new Date().toLocaleTimeString('en-US', {
+        // The print dialog has already opened by now, so a failed record must be
+        // loud: unrecorded prints look "never printed" and get printed twice.
+        const batchName = `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', {
             hour: '2-digit',
             minute: '2-digit',
         })}`;
-        await printing.createBatch(
-            batchName,
+        const recorded = await printing.recordPrint(
             ordersToPrint.map((o) => o.id),
-            ordersToPrint,
-            invoiceTemplate,
-            printType
+            printType === "labels" ? "label" : "invoice",
+            printing.labelSettings.size,
+            batchName,
+            invoiceTemplate
         );
+        if (!recorded.success) {
+            toast.error("Printed, but not recorded", recorded.error);
+            return;
+        }
 
-        // Auto-ship if enabled
         if (autoShipAfterPrint) {
-            await bulkUpdateStatus(ordersToPrint.map((o) => o.id), "in_transit");
+            // Orders postponed to a later day stay home, same rule as the orders page.
+            const { shippable, scheduledLater } = partitionByShipDay(ordersToPrint);
+            if (scheduledLater.length > 0) {
+                toast.warning(
+                    `${scheduledLater.length} scheduled for a later day kept back`,
+                    "They were printed but not moved to In Transit."
+                );
+            }
+            if (shippable.length > 0) {
+                await bulkUpdateStatus(shippable.map((o) => o.id), "in_transit");
+            }
             setSelectedOrders(new Set());
         }
     };
@@ -250,8 +247,16 @@ export default function PrintingPage() {
 
     // Handle mark as shipped
     const handleMarkAsShipped = async () => {
-        await bulkUpdateStatus(Array.from(selectedOrders), "in_transit");
-        setSelectedOrders(new Set());
+        const { shippable, scheduledLater } = partitionByShipDay(selectedOrdersList);
+        if (scheduledLater.length > 0) {
+            toast.warning(
+                `${scheduledLater.length} scheduled for a later day kept back`,
+                "Open one on the orders page to move it individually."
+            );
+        }
+        if (shippable.length === 0) return;
+        await bulkUpdateStatus(shippable.map((o) => o.id), "in_transit");
+        setSelectedOrders(new Set(scheduledLater.map((o) => o.id)));
     };
 
     // Handle mark as delivered
@@ -436,17 +441,6 @@ export default function PrintingPage() {
                                                 )}
                                             </div>
 
-                                            {/* Al-Waseet API Submit Button */}
-                                            <button
-                                                onClick={() => setShowWaseetSubmitDialog(true)}
-                                                disabled={selectedOrders.size === 0}
-                                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-teal-500 to-cyan-600 text-white hover:shadow-md transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                title="إرسال الطلبات المحددة إلى الوسيط عبر API"
-                                            >
-                                                <Truck className="h-4 w-4" />
-                                                الوسيط API ({selectedOrders.size})
-                                            </button>
-
                                             {/* Ship Button */}
                                             <button
                                                 onClick={() => setShowShipDialog(true)}
@@ -529,20 +523,6 @@ export default function PrintingPage() {
                                 </div>
                             )}
 
-                            {/* Stats Toggle */}
-                            <button
-                                onClick={() => setShowStats(!showStats)}
-                                className={cn(
-                                    "p-3 rounded-2xl border transition-all shadow-sm",
-                                    showStats
-                                        ? "bg-purple-100 border-purple-200 text-purple-700"
-                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:bg-[var(--background)]"
-                                )}
-                                title="Toggle Stats"
-                            >
-                                <BarChart3 className="w-4 h-4" />
-                            </button>
-
                             {/* Filters Toggle */}
                             <button
                                 onClick={() => setShowFilters(!showFilters)}
@@ -558,20 +538,6 @@ export default function PrintingPage() {
                             </button>
                         </div>
                     </motion.div>
-
-                    {/* Stats Panel */}
-                    <AnimatePresence>
-                        {showStats && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="overflow-hidden"
-                            >
-                                <PrintStatsPanel stats={printing.stats} />
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
 
                     {/* Filters & Settings Panel */}
                     <AnimatePresence>
@@ -754,35 +720,6 @@ export default function PrintingPage() {
                                     isExpanded={false}
                                 />
 
-                                {/* Smart Batching Toggle */}
-                                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                                    <div className="flex items-center gap-3">
-                                        <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                                        <div>
-                                            <div className="font-semibold text-gray-900 dark:text-white">
-                                                Smart Batching (NEW)
-                                            </div>
-                                            <div className="text-xs text-gray-600 dark:text-gray-400">
-                                                Group orders by SKU to minimize context switching
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => setSmartBatchingEnabled(!smartBatchingEnabled)}
-                                        className={cn(
-                                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                                            smartBatchingEnabled ? "bg-purple-600" : "bg-gray-300 dark:bg-gray-600"
-                                        )}
-                                    >
-                                        <span
-                                            className={cn(
-                                                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
-                                                smartBatchingEnabled ? "translate-x-6" : "translate-x-1"
-                                            )}
-                                        />
-                                    </button>
-                                </div>
-
                                 {/* Auto-Ship After Print Toggle */}
                                 <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                     <div className="flex items-center gap-3">
@@ -812,22 +749,6 @@ export default function PrintingPage() {
                                     </button>
                                 </div>
 
-                                {/* Smart Batch Panel */}
-                                {smartBatchingEnabled && (
-                                    <SmartBatchPanel
-                                        orders={sortedOrders}
-                                        labelSettings={printing.labelSettings}
-                                        onBatchSelect={(batchIndex) => {
-                                            // When a smart batch is selected, you could auto-select those orders
-                                            // For now, we'll just log it
-                                            console.log("Selected smart batch:", batchIndex);
-                                        }}
-                                        onBatchGenerated={(batchCount) => {
-                                            console.log(`Generated ${batchCount} smart batches`);
-                                        }}
-                                    />
-                                )}
-
                                 {/* Batch Manager */}
                                 <BatchManager
                                     batches={printing.batches}
@@ -847,6 +768,8 @@ export default function PrintingPage() {
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    <DispatchSummary orders={selectedOrdersList} />
 
                     {/* Print Queue List */}
                     <motion.div
@@ -1024,6 +947,30 @@ export default function PrintingPage() {
                                                         </div>
                                                     </div>
 
+                                                    {/* Queue flags */}
+                                                    {(() => {
+                                                        const flags = getQueueFlags(order);
+                                                        return (
+                                                            <div className="flex flex-shrink-0 items-center gap-1">
+                                                                {flags.reprint && (
+                                                                    <span className="rounded-lg bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                                                                        Printed ×{order.print_count}
+                                                                    </span>
+                                                                )}
+                                                                {flags.scheduledLater && (
+                                                                    <span className="rounded-lg bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                                                                        Later
+                                                                    </span>
+                                                                )}
+                                                                {(flags.missingPhone || flags.missingAddress) && (
+                                                                    <span className="rounded-lg bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+                                                                        {flags.missingPhone ? "No phone" : "No address"}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
+
                                                     {/* Notes indicator */}
                                                     {order.notes && (
                                                         <div className="flex-shrink-0" title={order.notes}>
@@ -1057,15 +1004,6 @@ export default function PrintingPage() {
                     reprintOrders={reprintOrders}
                     onConfirm={handlePrintAll}
                     onPrintNewOnly={handlePrintNewOnly}
-                />
-
-                <WaseetSubmitDialog
-                    open={showWaseetSubmitDialog}
-                    onOpenChange={setShowWaseetSubmitDialog}
-                    orders={sortedOrders.filter(o => selectedOrders.has(o.id))}
-                    onComplete={() => {
-                        setSelectedOrders(new Set());
-                    }}
                 />
 
                 <MarkAsShippedDialog

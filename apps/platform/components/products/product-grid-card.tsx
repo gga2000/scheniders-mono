@@ -66,8 +66,11 @@ export const ProductGridCard = React.memo(function ProductGridCard({
     isDragging,
 }: ProductGridCardProps) {
     const { t } = useLanguage();
+    const { can } = usePermission();
+    // Editing is for products.edit; everyone else sees the product, not the buttons.
+    const canEdit = can(PERMISSIONS.EDIT_PRODUCTS);
     // Cost and margin are for admins only (products.manage).
-    const canSeeCost = usePermission().can(PERMISSIONS.MANAGE_PRODUCTS);
+    const canSeeCost = can(PERMISSIONS.MANAGE_PRODUCTS);
     const stockStatus = getStockStatus(product);
     const availableStock = Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
     const threshold = product.low_stock_threshold || 5;
@@ -185,6 +188,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                             : "bg-black/30 border-white/20 text-white hover:bg-black/50"
                     )}
                     title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
+                    disabled={!canEdit}
                 >
                     {product.is_visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                 </button>
@@ -247,6 +251,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         onPointerDown={(e) => e.stopPropagation()}
                         onPointerUp={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--background)] border border-[var(--card-border)] rounded-md w-fit hover:bg-[var(--card-border)] cursor-pointer transition-colors group/catchip"
+                        disabled={!canEdit}
                         aria-haspopup="listbox"
                         aria-expanded={categoryPickerOpen}
                     >
@@ -320,8 +325,9 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                             e.stopPropagation();
                             setStockAdjustOpen((v) => !v);
                         }}
-                        className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pastel-yellow)]"
+                        className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--pastel-yellow)] disabled:cursor-default"
                         aria-label="Adjust stock"
+                        disabled={!canEdit}
                     >
                         <StockIndicator
                             status={stockStatus}

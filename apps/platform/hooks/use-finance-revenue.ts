@@ -5,6 +5,7 @@ import type { Order, Product } from "@/lib/supabase";
 import type { DateInterval } from "./use-finance-overview";
 import type { Granularity } from "./use-finance-period";
 import { isRefundRow, refundPaidAt, reportDate } from "@/lib/refunds/refund-reporting";
+import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 
 export interface RevenueDecomposition {
     revCurr: number;
@@ -96,15 +97,12 @@ function findCost(
 function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number } {
     const dd = new Date(d);
     dd.setHours(0, 0, 0, 0);
-    if (granularity === "day") {
-        return { key: dd.toISOString().split("T")[0], ts: dd.getTime() };
-    }
-    if (granularity === "week") {
-        const day = dd.getDay();
-        const diff = (day + 6) % 7;
-        const monday = new Date(dd);
-        monday.setDate(dd.getDate() - diff);
-        return { key: monday.toISOString().split("T")[0], ts: monday.getTime() };
+    if (granularity === "day" || granularity === "week") {
+        const dayKey = baghdadDayKey(d);
+        if (granularity === "day") return { key: dayKey, ts: baghdadDayStart(dayKey) };
+        const weekday = new Date(`${dayKey}T00:00:00.000Z`).getUTCDay();
+        const mondayKey = addDaysToDayKey(dayKey, -((weekday + 6) % 7));
+        return { key: mondayKey, ts: baghdadDayStart(mondayKey) };
     }
     if (granularity === "quarter") {
         const q = Math.floor(dd.getMonth() / 3);
@@ -339,7 +337,7 @@ export function useFinanceRevenue(
             const value = Math.abs(o.price || 0);
             refund_value += value;
             refund_count++;
-            const key = paidAt.toISOString().split("T")[0];
+            const key = baghdadDayKey(paidAt);
             refundDaily.set(key, (refundDaily.get(key) || 0) + value);
             for (const it of o.items || []) {
                 const name = it.name || "Unknown";

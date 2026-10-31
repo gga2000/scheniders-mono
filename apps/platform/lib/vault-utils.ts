@@ -1,5 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { PRODUCT_READ_COLUMNS } from "@/lib/repositories/product-columns";
+import { productRepository } from "@/lib/repositories/product-repository";
 import { restoreOrderRows } from "@/lib/backup-utils";
 import { encryptVaultData, decryptVaultData } from "./crypto-utils";
 import {
@@ -42,9 +44,10 @@ export interface VaultBackupOptions {
 /**
  * Fetches data from Supabase in chunks of 1000 to bypass API limits and scale to massive datasets.
  *
- * `columns` defaults to every column; `orders` must pass ORDER_READ_COLUMNS,
- * because a signed-in caller holds no SELECT on its margin columns and a `*`
- * read of the table is refused (migration 20261021090000).
+ * `columns` defaults to every column; `orders` must pass ORDER_READ_COLUMNS
+ * and `products` PRODUCT_READ_COLUMNS, because a signed-in caller holds no
+ * SELECT on their margin / cost columns and a `*` read of either table is
+ * refused (migrations 20261021090000, 20261031004000).
  */
 async function fetchTableData(tableName: string, tenantId: string, orderBy: string, columns = "*") {
     let allData: any[] = [];
@@ -70,6 +73,13 @@ async function fetchTableData(tableName: string, tenantId: string, orderBy: stri
         }
     }
     return allData;
+}
+
+/** Products with the cost this member may see (product_costs), for the active store. */
+async function fetchProductsWithCost(tenantId: string) {
+    const products = await fetchTableData("products", tenantId, "id", PRODUCT_READ_COLUMNS);
+    const costs = await productRepository.getProductCosts(tenantId);
+    return products.map((p) => ({ ...p, cost: costs.get(p.id) ?? null }));
 }
 
 /**
@@ -106,7 +116,7 @@ async function fetchAllData(options: VaultBackupOptions, onProgress?: (msg: stri
     const tenantId = await requireTenantId();
     const [orders, products, customers] = await Promise.all([
         options.includeOrders ? fetchTableData("orders", tenantId, "id", ORDER_READ_COLUMNS) : Promise.resolve([]),
-        options.includeProducts ? fetchTableData("products", tenantId, "id") : Promise.resolve([]),
+        options.includeProducts ? fetchProductsWithCost(tenantId) : Promise.resolve([]),
         options.includeCustomers ? fetchTableData("customer_metadata", tenantId, "customer_phone") : Promise.resolve([])
     ]);
 

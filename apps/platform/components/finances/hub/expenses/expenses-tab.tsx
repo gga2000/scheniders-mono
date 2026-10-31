@@ -151,8 +151,9 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
     }, [expenses]);
 
     const handleSubmit = async (data: ExpenseFormData) => {
-        if (editing) await updateExpense(editing.id, data);
-        else await addExpense(data);
+        const saved = editing ? await updateExpense(editing.id, data) : (await addExpense(data)) !== null;
+        // Throwing keeps the form open with what was typed; the hook already showed the error.
+        if (!saved) throw new Error("Expense not saved");
         setEditing(null);
         setModalOpen(false);
     };

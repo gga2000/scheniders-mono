@@ -1046,7 +1046,7 @@ function ProductsContent() {
                                             ? t("products.emptyState.descNew")
                                             : t("products.emptyState.descFilter")}
                                     </p>
-                                    {products.length === 0 && (
+                                    {products.length === 0 && canEditProducts && (
                                         <button
                                             onClick={handleAddProduct}
                                             className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--ink)] text-white rounded-lg font-medium hover:opacity-90 transition-all"
@@ -1070,7 +1070,7 @@ function ProductsContent() {
                                     onDuplicate={handleDuplicateProduct}
                                     onDelete={canManageProducts ? handleDeleteProduct : undefined}
                                     onVisibilityToggle={handleVisibilityToggle}
-                                    onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
+                                    onReorder={sortBy === "displayOrder" && canEditProducts ? handleReorder : undefined}
                                     density={gridDensity}
                                     groupByCategory={gridGroupByCategory}
                                     categories={categories || []}
@@ -1090,7 +1090,7 @@ function ProductsContent() {
                                     onDuplicate={handleDuplicateProduct}
                                     onDelete={canManageProducts ? handleDeleteProduct : undefined}
                                     onVisibilityToggle={handleVisibilityToggle}
-                                    onReorder={sortBy === "displayOrder" ? handleReorder : undefined}
+                                    onReorder={sortBy === "displayOrder" && canEditProducts ? handleReorder : undefined}
                                 />
                                 </AbcTierProvider>
                             ) : viewMode === "category" ? (

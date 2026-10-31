@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { Zap, Plus, Trash2, Search, Package, Check } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useLanguage } from "@/hooks/use-language";
 
 export interface OrderBumpFormData {
     bump_product_id: string;
@@ -25,6 +26,7 @@ interface OrderBumpsSectionProps {
 }
 
 export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBumpsSectionProps) {
+    const { t } = useLanguage();
     const { products } = useProductsCrud();
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -53,8 +55,8 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
             {
                 bump_product_id: product.id,
                 discount_percentage: 10,
-                headline: `Add ${product.name}!`,
-                description: "Get it at a special price when you order now.",
+                headline: t("products.ed.bump.defaultHeadline").replace("{name}", product.name),
+                description: t("products.ed.bump.defaultDescription"),
                 display_order: bumps.length,
                 is_active: true,
                 bump_product_name: product.name,
@@ -93,7 +95,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Bump
+                    {t("products.ed.bump.add")}
                 </button>
             </div>
 
@@ -112,7 +114,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search products to add as bump..."
+                                placeholder={t("products.ed.bump.search")}
                                 autoFocus
                                 className="w-full pl-10 pr-4 py-3 bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none"
                             />
@@ -157,7 +159,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                 <div className="p-8 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center">
                     <Zap className="w-8 h-8 text-muted mx-auto mb-2" />
                     <p className="text-muted text-sm">
-                        No order bumps. Add products to suggest at checkout for increased revenue.
+                        {t("products.ed.bump.empty")}
                     </p>
                 </div>
             )}
@@ -251,13 +253,13 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                     type="text"
                                     value={bump.headline}
                                     onChange={(e) => updateBump(index, { headline: e.target.value })}
-                                    placeholder="Headline"
+                                    placeholder={t("products.ed.bump.headline")}
                                     className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                                 />
                                 <textarea
                                     value={bump.description}
                                     onChange={(e) => updateBump(index, { description: e.target.value })}
-                                    placeholder="Description"
+                                    placeholder={t("products.ed.bump.description")}
                                     rows={2}
                                     className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] resize-none"
                                 />

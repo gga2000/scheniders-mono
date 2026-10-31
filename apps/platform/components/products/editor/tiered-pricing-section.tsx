@@ -1,6 +1,7 @@
 "use client";
 
 import { TrendingDown, Plus, Trash2 } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 export interface TieredPriceFormData {
     min_quantity: number;
@@ -37,6 +38,7 @@ export function TieredPricingSection({
     onChange,
     basePrice,
 }: TieredPricingSectionProps) {
+    const { t } = useLanguage();
     const hasOverlap = detectOverlaps(tiers);
 
     const handleAddTier = () => {
@@ -101,7 +103,7 @@ export function TieredPricingSection({
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Tier
+                    {t("products.ed.tier.add")}
                 </button>
             </div>
 
@@ -110,8 +112,7 @@ export function TieredPricingSection({
                 <div className="border-2 border-dashed border-[var(--card-border)] rounded-xl p-8 flex flex-col items-center justify-center text-center gap-3">
                     <TrendingDown className="w-8 h-8 text-muted" />
                     <p className="text-sm text-muted">
-                        No volume pricing tiers. Add tiers to offer discounts on
-                        larger quantities.
+                        {t("products.ed.tier.empty")}
                     </p>
                 </div>
             )}
@@ -122,16 +123,16 @@ export function TieredPricingSection({
                     {/* Table header */}
                     <div className="grid grid-cols-[6rem_10rem_8rem_5rem_2.5rem] gap-3 items-center">
                         <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-                            Min Qty
+                            {t("products.ed.tier.minQty")}
                         </span>
                         <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-                            Max Qty
+                            {t("products.ed.tier.maxQty")}
                         </span>
                         <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-                            Price (IQD)
+                            {t("products.ed.tier.price")}
                         </span>
                         <span className="text-xs font-semibold text-muted uppercase tracking-wider">
-                            Discount
+                            {t("products.ed.tier.discount")}
                         </span>
                         <span />
                     </div>
@@ -191,7 +192,7 @@ export function TieredPricingSection({
                                         className="w-3.5 h-3.5 accent-teal-600"
                                     />
                                     <span className="text-xs text-muted whitespace-nowrap">
-                                        No limit
+                                        {t("products.ed.tier.noLimit")}
                                     </span>
                                 </label>
                             </div>
@@ -238,20 +239,18 @@ export function TieredPricingSection({
             {/* Overlap warning */}
             {hasOverlap && (
                 <p className="text-sm text-rose-600 font-medium">
-                    Warning: Tier ranges overlap. Please fix to avoid pricing
-                    conflicts.
+                    {t("products.ed.tier.overlap")}
                 </p>
             )}
 
             {/* Pricing summary */}
             {tiers.length > 0 && (
                 <p className="text-sm text-muted">
-                    Base price: {basePrice.toLocaleString()} IQD
+                    {t("products.ed.tier.base").replace("{price}", basePrice.toLocaleString())}
                     {bestPrice !== null && (
                         <>
-                            {" \u00b7 "}Best volume price:{" "}
-                            {bestPrice.toLocaleString()} IQD
-                            {bestDiscount !== null && ` (${bestDiscount}% off)`}
+                            {" \u00b7 "}{t("products.ed.tier.best").replace("{price}", bestPrice.toLocaleString())}
+                            {bestDiscount !== null && ` (${t("products.ed.tier.off").replace("{pct}", String(bestDiscount))})`}
                         </>
                     )}
                 </p>

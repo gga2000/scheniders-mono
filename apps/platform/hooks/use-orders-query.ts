@@ -967,15 +967,11 @@ export function useUpdateOrderMutation() {
                 queryClient.setQueryData(orderKeys.lists(), context.previousOrders);
             }
 
+            // The caller tells staff what happened (orderWriteErrorMessage), so
+            // a failure is one message in their language, not two.
             if (err instanceof Error && err.message === "CONFLICT_DETECTED") {
-                toast.error("Order was modified elsewhere. Refreshing data...", { duration: 3000 });
                 // Force a fresh refetch immediately to get the latest state
                 queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-            } else if (err instanceof FutureOrderDateError) {
-                // Shown against the order-date field by the caller, with the
-                // merchant's other edits still in the form — not as a toast.
-            } else {
-                toast.error(err instanceof Error ? err.message : "Failed to update order.");
             }
         },
     });
@@ -1117,12 +1113,10 @@ export function useUpdateStatusMutation({ catchUp = "mutation" }: UpdateStatusMu
             // our echo: re-apply it. A conflict is superseded by the refetch.
             getOrderBatcher()?.releaseGuard(variables.orderId, { replay: !conflict });
 
+            // The caller tells staff what happened (orderWriteErrorMessage).
             if (conflict) {
-                toast.error("Order was modified elsewhere. Refreshing data...", { duration: 3000 });
                 // Force a fresh refetch immediately
                 queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-            } else {
-                toast.error(err instanceof Error ? err.message : "Failed to update order status.");
             }
         },
         // No onSettled refetch: it re-downloaded the whole window 2s after

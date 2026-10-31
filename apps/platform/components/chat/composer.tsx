@@ -26,6 +26,7 @@ import { ChatAvatar } from "./chat-avatar";
 import type { ChatReference, ChatAttachment, ChatMessage } from "@/types/chat";
 import type { OrderStatus } from "@/types/order";
 import type { PipelineStageId } from "@/lib/order-pipeline";
+import { orderWriteErrorMessage } from "@/lib/order-status-guard";
 const MAX_MENTION_RESULTS = 6;
 // Mirror the chat-attachments storage bucket limits so we fail fast in the UI
 // instead of opaquely deep inside the upload.
@@ -465,7 +466,7 @@ export function Composer({
                 onError: (err) => {
                     toastHook({
                         title: t("chat.changeStatus", "Change status"),
-                        description: err instanceof Error ? err.message : String(err),
+                        description: orderWriteErrorMessage(err, t),
                         variant: "error",
                     });
                 },

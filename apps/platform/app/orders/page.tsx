@@ -752,15 +752,21 @@ export default function OrdersPage() {
 
     const runStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         setLoadingId(orderId);
+        // The status before the change, so the success toast can undo it (a
+        // swipe on mobile commits with no other acknowledgement).
+        const previousStatus = orders.find((o) => o.id === orderId)?.status;
         try {
+            // updateOrderStatus tells staff about its own failures; only the
+            // success is announced here, so a failure is one message.
             const result = await updateOrderStatus(orderId, status, reason, reasonId);
             if (result?.success || result === undefined) {
-                toast.success(t("toast.statusUpdated"), t("toast.statusUpdatedDesc").replace("{status}", String(status)));
-            } else if (result?.error) {
-                toast.error(t("toast.updateFailed"), result.error);
+                toast.success(t("toast.statusUpdated"), {
+                    description: t("toast.statusUpdatedDesc").replace("{status}", String(status)),
+                    action: previousStatus && previousStatus !== status
+                        ? { label: t("toast.undo"), onClick: () => { void updateOrderStatus(orderId, previousStatus); } }
+                        : undefined,
+                });
             }
-        } catch (err) {
-            toast.error(t("toast.updateFailed"), err instanceof Error ? err.message : "Unknown error");
         } finally {
             setLoadingId(null);
         }

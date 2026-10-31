@@ -3,8 +3,6 @@
 import { useState } from "react";
 import {
     History,
-    Plus,
-    Trash2,
     PackagePlus,
     ShoppingCart,
     RotateCcw,
@@ -14,6 +12,7 @@ import {
     ClipboardCheck,
     PackageOpen,
 } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 export interface InventoryHistoryFormData {
     change_type: (typeof HISTORY_TYPES)[number];
@@ -28,15 +27,13 @@ export interface InventoryHistoryFormData {
 
 interface InventoryTimelineProps {
     entries: InventoryHistoryFormData[];
-    onChange: (entries: InventoryHistoryFormData[]) => void;
 }
 
-/** Entries a person can add here by hand. */
+/** Entry types the log holds for sales and stock movements. */
 const CHANGE_TYPES = ["received", "sold", "returned", "adjusted", "reserved", "quarantined"] as const;
 /** Every type the log holds: shelf counts are written by the stock count RPCs. */
 const HISTORY_TYPES = [...CHANGE_TYPES, "count", "open_box_count"] as const;
 
-const typeLabel = (type: string) => (type === "open_box_count" ? "Open box count" : type.charAt(0).toUpperCase() + type.slice(1));
 
 const TYPE_CONFIG: Record<
     InventoryHistoryFormData["change_type"],
@@ -127,88 +124,21 @@ function formatQuantityChange(value: number): { text: string; colorClass: string
     return { text: `${value}`, colorClass: "text-red-600" };
 }
 
-interface NewEntryForm {
-    change_type: InventoryHistoryFormData["change_type"];
-    quantity_change: string;
-    notes: string;
-    changed_by: string;
-    reference_id: string;
-}
-
-const INITIAL_FORM: NewEntryForm = {
-    change_type: "received",
-    quantity_change: "",
-    notes: "",
-    changed_by: "",
-    reference_id: "",
-};
-
-export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps) {
+export function InventoryTimeline({ entries }: InventoryTimelineProps) {
+    const { t } = useLanguage();
     const [filter, setFilter] = useState<InventoryHistoryFormData["change_type"] | "all">("all");
-    const [showForm, setShowForm] = useState(false);
-    const [form, setForm] = useState<NewEntryForm>(INITIAL_FORM);
+    const typeLabel = (type: string) => t(`products.ed.inv.type.${type}`);
 
     const filteredEntries =
         filter === "all" ? entries : entries.filter((e) => e.change_type === filter);
 
     const typeCounts: Record<string, number> = { all: entries.length };
-    for (const t of HISTORY_TYPES) {
-        typeCounts[t] = entries.filter((e) => e.change_type === t).length;
+    for (const type of HISTORY_TYPES) {
+        typeCounts[type] = entries.filter((e) => e.change_type === type).length;
     }
-
-    function handleDelete(index: number) {
-        const entryToDelete = filteredEntries[index];
-        const originalIndex = entries.indexOf(entryToDelete);
-        if (originalIndex === -1) return;
-        const next = [...entries];
-        next.splice(originalIndex, 1);
-        onChange(next);
-    }
-
-    function handleSave() {
-        const quantityChange = parseInt(form.quantity_change) || 0;
-        const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
-        const quantityBefore = lastEntry ? lastEntry.quantity_after : 0;
-        const quantityAfter = quantityBefore + quantityChange;
-
-        const newEntry: InventoryHistoryFormData = {
-            change_type: form.change_type,
-            quantity_change: quantityChange,
-            quantity_before: quantityBefore,
-            quantity_after: quantityAfter,
-            created_at: new Date().toISOString(),
-            ...(form.notes ? { notes: form.notes } : {}),
-            ...(form.changed_by ? { changed_by: form.changed_by } : {}),
-            ...(form.reference_id ? { reference_id: form.reference_id } : {}),
-        };
-
-        onChange([...entries, newEntry]);
-        setForm(INITIAL_FORM);
-        setShowForm(false);
-    }
-
-    function handleCancel() {
-        setForm(INITIAL_FORM);
-        setShowForm(false);
-    }
-
-    const inputClass =
-        "w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-blue)] transition-all text-sm";
 
     return (
         <div className="space-y-5">
-            {/* Header */}
-            <div className="flex items-center justify-end">
-                <button
-                    type="button"
-                    onClick={() => setShowForm(true)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
-                >
-                    <Plus className="w-4 h-4" />
-                    Add Entry
-                </button>
-            </div>
-
             {/* Filter bar */}
             <div className="flex flex-wrap gap-1.5">
                 {(["all", ...HISTORY_TYPES] as const).map((type) => {
@@ -225,123 +155,17 @@ export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps)
                                     : "px-3 py-1.5 text-muted hover:text-foreground rounded-lg text-sm transition-colors"
                             }
                         >
-                            {type === "all" ? "All" : typeLabel(type)}
+                            {type === "all" ? t("products.ed.inv.all") : typeLabel(type)}
                             <span className="ml-1.5 text-xs opacity-70">{count}</span>
                         </button>
                     );
                 })}
             </div>
 
-            {/* Add Entry Form */}
-            {showForm && (
-                <div className="p-4 bg-[var(--pastel-blue)]/30 rounded-xl border border-blue-200 space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1">
-                                Change Type
-                            </label>
-                            <select
-                                value={form.change_type}
-                                onChange={(e) =>
-                                    setForm({
-                                        ...form,
-                                        change_type: e.target.value as InventoryHistoryFormData["change_type"],
-                                    })
-                                }
-                                className={inputClass}
-                            >
-                                {CHANGE_TYPES.map((t) => (
-                                    <option key={t} value={t}>
-                                        {t.charAt(0).toUpperCase() + t.slice(1)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1">
-                                Quantity Change
-                            </label>
-                            <input
-                                type="number"
-                                value={form.quantity_change}
-                                onChange={(e) => setForm({ ...form, quantity_change: e.target.value })}
-                                placeholder="e.g. 50 or -10"
-                                className={inputClass}
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">
-                            Notes
-                        </label>
-                        <input
-                            type="text"
-                            value={form.notes}
-                            onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                            placeholder="Optional notes..."
-                            className={inputClass}
-                        />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1">
-                                Changed By
-                            </label>
-                            <input
-                                type="text"
-                                value={form.changed_by}
-                                onChange={(e) => setForm({ ...form, changed_by: e.target.value })}
-                                placeholder="Name or email..."
-                                className={inputClass}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-foreground mb-1">
-                                Reference
-                            </label>
-                            <input
-                                type="text"
-                                value={form.reference_id}
-                                onChange={(e) => setForm({ ...form, reference_id: e.target.value })}
-                                placeholder="Order ID, PO number..."
-                                className={inputClass}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Preview calculated values */}
-                    {form.quantity_change && (
-                        <div className="text-xs text-muted px-1">
-                            Before: {entries.length > 0 ? entries[entries.length - 1].quantity_after : 0}{" "}
-                            → After:{" "}
-                            {(entries.length > 0 ? entries[entries.length - 1].quantity_after : 0) +
-                                (parseInt(form.quantity_change) || 0)}
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-2 pt-1">
-                        <button
-                            type="button"
-                            onClick={handleSave}
-                            className="px-4 py-1.5 bg-[var(--foreground)] text-[var(--background)] rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-                        >
-                            Save
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleCancel}
-                            className="px-4 py-1.5 text-muted hover:text-foreground rounded-lg text-sm transition-colors"
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Empty state */}
-            {entries.length === 0 && !showForm && (
+            {entries.length === 0 && (
                 <p className="text-sm text-muted py-4 text-center">
-                    No inventory history entries. Stock changes will be tracked here.
+                    {t("products.ed.inv.empty")}
                 </p>
             )}
 
@@ -385,7 +209,7 @@ export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps)
 
                                         {/* Before -> After */}
                                         <p className="text-sm text-muted mt-1">
-                                            Before: {entry.quantity_before} → After: {entry.quantity_after}
+                                            {t("products.ed.inv.beforeAfter").replace("{before}", String(entry.quantity_before)).replace("{after}", String(entry.quantity_after))}
                                         </p>
 
                                         {/* Bottom details */}
@@ -409,14 +233,6 @@ export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps)
                                             </div>
                                         )}
 
-                                        {/* Delete button */}
-                                        <button
-                                            type="button"
-                                            onClick={() => handleDelete(idx)}
-                                            className="absolute top-2 right-2 p-1 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
                                     </div>
                                 </div>
                             );
@@ -428,7 +244,7 @@ export function InventoryTimeline({ entries, onChange }: InventoryTimelineProps)
             {/* Filtered empty state */}
             {filteredEntries.length === 0 && entries.length > 0 && (
                 <p className="text-sm text-muted py-4 text-center">
-                    No entries match the selected filter.
+                    {t("products.ed.inv.noMatch")}
                 </p>
             )}
         </div>

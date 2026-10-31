@@ -116,15 +116,15 @@ export function StockIndicator({
 
     const tooltipContent = showHoverTooltip ? (
         <div className="w-56 space-y-1.5">
-            <div className="flex items-center justify-between"><span className="text-white/60">Available</span><span className="font-semibold">{quantity ?? "—"}</span></div>
-            <div className="flex items-center justify-between"><span className="text-white/60">Reserved</span><span className="font-semibold">{reserved ?? 0}</span></div>
-            <div className="flex items-center justify-between"><span className="text-white/60">Total</span><span className="font-semibold">{total ?? "—"}</span></div>
-            <div className="flex items-center justify-between"><span className="text-white/60">Threshold</span><span className="font-semibold">{threshold ?? "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.available")}</span><span className="font-semibold">{quantity ?? "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.reserved")}</span><span className="font-semibold">{reserved ?? 0}</span></div>
+            <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.total")}</span><span className="font-semibold">{total ?? "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.threshold")}</span><span className="font-semibold">{threshold ?? "—"}</span></div>
             {reorderSuggestion !== null && (
-                <div className="flex items-center justify-between"><span className="text-white/60">Reorder to</span><span className="font-semibold">{reorderSuggestion}</span></div>
+                <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.reorderTo")}</span><span className="font-semibold">{reorderSuggestion}</span></div>
             )}
             {daysToStockout !== null && (
-                <div className="flex items-center justify-between"><span className="text-white/60">Stockout in</span><span className="font-semibold">{daysToStockout}d</span></div>
+                <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.stockoutIn")}</span><span className="font-semibold">{t("products.stock.tip.days").replace("{days}", String(daysToStockout))}</span></div>
             )}
         </div>
     ) : null;
@@ -181,7 +181,7 @@ export function StockIndicator({
                     role="progressbar"
                     aria-valuenow={quantity}
                     aria-valuemax={effectiveThreshold}
-                    aria-label={`Stock level: ${quantity} of ${effectiveThreshold}`}
+                    aria-label={t("products.stock.tip.level").replace("{quantity}", String(quantity)).replace("{threshold}", String(effectiveThreshold))}
                 >
                     <div
                         className={cn(

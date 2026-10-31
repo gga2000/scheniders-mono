@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useExpenses } from "./use-expenses";
 import { ExpenseCategory } from "@/types/expense";
 import type { Order, Product } from "@/lib/supabase";
+import { baghdadDayKey } from "@/lib/order-window";
 
 export interface DateRange {
     startDate: string;
@@ -72,7 +73,7 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
         if (!dateRange) return orders;
 
         return orders.filter((order) => {
-            const orderDate = new Date(order.created_at).toISOString().split("T")[0];
+            const orderDate = baghdadDayKey(new Date(order.created_at));
             return orderDate >= dateRange.startDate && orderDate <= dateRange.endDate;
         });
     }, [orders, dateRange]);
@@ -172,7 +173,7 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
         filteredOrders.forEach((order) => {
             if (order.status === "rejected") return;
 
-            const date = new Date(order.created_at).toISOString().split("T")[0];
+            const date = baghdadDayKey(new Date(order.created_at));
             const existing = dataMap.get(date) || { date, revenue: 0, profit: 0, orders: 0, expenses: 0 };
 
             existing.revenue += order.price || 0;
@@ -300,13 +301,13 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
         const previousStart = new Date(previousEnd.getTime() - periodLength);
 
         const previousRange = {
-            startDate: previousStart.toISOString().split("T")[0],
-            endDate: previousEnd.toISOString().split("T")[0],
+            startDate: baghdadDayKey(previousStart),
+            endDate: baghdadDayKey(previousEnd),
         };
 
         // Calculate previous period stats
         const previousOrders = orders.filter((order) => {
-            const orderDate = new Date(order.created_at).toISOString().split("T")[0];
+            const orderDate = baghdadDayKey(new Date(order.created_at));
             return orderDate >= previousRange.startDate && orderDate <= previousRange.endDate;
         });
 

@@ -115,7 +115,8 @@ function useCustomerProfile(phone: string) {
                 lastOrderDate: agg?.last_order_date ?? orders[0]?.created_at ?? null,
                 firstOrderDate: agg?.first_order_date ?? orders[orders.length - 1]?.created_at ?? null,
                 // Same neutral default as the list until the trust engine has scored them.
-                trustScore: trust?.trust_score ?? 50,
+                // No trust row yet means not scored, not an average 50.
+                trustScore: trust?.trust_score ?? null,
                 trustTier: (trust?.trust_tier ?? "new") as TrustTier,
                 deliverySuccessRate: totalOrders > 0 ? (completed / totalOrders) * 100 : 0,
                 totalCompleted: completed,
