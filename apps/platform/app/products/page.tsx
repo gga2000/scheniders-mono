@@ -354,6 +354,10 @@ function ProductsContent() {
                     return b.price - a.price;
                 case "stock":
                     return b.stock_quantity - a.stock_quantity;
+                case "lowStock":
+                    return a.stock_quantity - b.stock_quantity;
+                case "newest":
+                    return (b.created_at ?? "").localeCompare(a.created_at ?? "");
                 case "name":
                     return a.name.localeCompare(b.name);
                 case "displayOrder":
@@ -891,19 +895,20 @@ function ProductsContent() {
                                 })}
                                 disabled={recomputeInventory.isPending}
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all",
+                                    // Maintenance tool: kept quiet (icon only) next to the daily actions.
+                                    "flex items-center justify-center p-3 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-muted hover:text-foreground hover:bg-[var(--background)] transition-all",
                                     recomputeInventory.isPending && "opacity-50 cursor-not-allowed"
                                 )}
                                 title={t("products.tools.recalculateHint")}
+                                aria-label={t("products.tools.recalculate")}
                             >
                                 <RefreshCw className={cn("w-4 h-4", recomputeInventory.isPending && "animate-spin")} />
-                                {t("products.tools.recalculate")}
                             </button>
                             )}
                             {canEditProducts && (
                             <button
                                 onClick={() => setIsStockCountOpen(true)}
-                                className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all"
+                                className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:bg-[var(--background)] transition-all"
                                 title={t("products.count.description")}
                             >
                                 <ClipboardList className="w-4 h-4" />
@@ -1103,6 +1108,9 @@ function ProductsContent() {
                                                 <option value="revenue">{t("products.highestRevenue")}</option>
                                                 <option value="price">{t("products.highestPrice")}</option>
                                                 <option value="stock">{t("products.highestStock")}</option>
+                                                <option value="lowStock">{t("products.lowestStock")}</option>
+                                                <option value="newest">{t("products.newestFirst")}</option>
+                                                <option value="name">{t("products.sortByName")}</option>
                                                 <option value="displayOrder">{t("products.customOrder")}</option>
                                             </select>
                                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />

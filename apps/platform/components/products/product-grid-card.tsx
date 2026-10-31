@@ -368,7 +368,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     <div className="h-1.5 w-full bg-[var(--background)] rounded-full overflow-hidden relative">
                         {availableStock <= 0 ? (
                             <div
-                                className="h-full w-full rounded-full animate-pulse"
+                                className="h-full w-full rounded-full"
                                 style={{
                                     backgroundImage:
                                         "repeating-linear-gradient(45deg, rgba(244,63,94,0.85) 0 6px, rgba(225,29,72,0.85) 6px 12px)",

@@ -241,7 +241,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                     <div className="h-1 w-16 bg-[var(--background)] rounded-full overflow-hidden">
                         {availableStock <= 0 ? (
                             <div
-                                className="h-full w-full rounded-full animate-pulse"
+                                className="h-full w-full rounded-full"
                                 style={{
                                     backgroundImage:
                                         "repeating-linear-gradient(45deg, rgba(244,63,94,0.85) 0 5px, rgba(225,29,72,0.85) 5px 10px)",

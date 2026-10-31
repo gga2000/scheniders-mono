@@ -15,7 +15,7 @@ const debouncedLocalStorage: StateStorage = {
 };
 
 export type ViewMode = "grid" | "list" | "category" | "kanban" | "heatmap";
-export type SortField = "sales" | "revenue" | "price" | "stock" | "health" | "name" | "displayOrder";
+export type SortField = "sales" | "revenue" | "price" | "stock" | "lowStock" | "newest" | "health" | "name" | "displayOrder";
 export type GridDensity = "comfy" | "normal" | "compact" | "tight";
 
 // Rich preset shape: captures the full filter bar state (search + advanced + sort)
