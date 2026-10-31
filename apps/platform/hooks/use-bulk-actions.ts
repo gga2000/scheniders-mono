@@ -6,6 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 
+const TAG_UPSERT_CHUNK = 1000;
+
 export function useCustomerBulkActions() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
@@ -29,10 +31,13 @@ export function useCustomerBulkActions() {
                 })),
             );
 
-            const { error } = await supabase
-                .from("customer_tag_assignments")
-                .upsert(payload, { onConflict: "tenant_id,customer_phone,tag_id", ignoreDuplicates: true });
-            if (error) throw error;
+            // Chunked so a select-all over thousands of customers stays under the request limit.
+            for (let i = 0; i < payload.length; i += TAG_UPSERT_CHUNK) {
+                const { error } = await supabase
+                    .from("customer_tag_assignments")
+                    .upsert(payload.slice(i, i + TAG_UPSERT_CHUNK), { onConflict: "tenant_id,customer_phone,tag_id", ignoreDuplicates: true });
+                if (error) throw error;
+            }
 
             // The list, the drawer and the profile page each cache the tags.
             await Promise.all([

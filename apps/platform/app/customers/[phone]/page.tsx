@@ -29,6 +29,7 @@ import { TrustHistoryCard } from "@/components/customers/detail/trust-history-ca
 import { BehavioralPatternsCard } from "@/components/customers/detail/behavioral-patterns-card";
 import { SummaryStatsCards } from "@/components/customers/detail/summary-stats-cards";
 import { DossierNotesCard } from "@/components/customers/detail/dossier-notes-card";
+import { RatingsCard } from "@/components/customers/detail/ratings-card";
 import { FabNewShipment } from "@/components/customers/detail/fab-new-shipment";
 import { ScoreBreakdownModal } from "@/components/customers/modals/score-breakdown-modal";
 import { CommunityRatingModal } from "@/components/customers/modals/community-rating-modal";
@@ -37,7 +38,7 @@ import { LinkedPeopleSection } from "@/components/customers/detail/linked-people
 import { IdentityTimeline } from "@/components/customers/detail/identity-timeline";
 import { ActivityLogTimeline } from "@/components/customers/detail/activity-log-timeline";
 import { AddNoteModal } from "@/components/customers/modals/add-note-modal";
-import type { TrustTier } from "@/types/customer";
+import type { CommunityRating, TrustTier } from "@/types/customer";
 
 const CreateOrderModal = dynamic(() => import("@/components/orders/create-order-modal").then((m) => m.CreateOrderModal), { ssr: false });
 
@@ -68,7 +69,7 @@ function useCustomerProfile(phone: string) {
             const normalized = normalizePhoneForSearch(phone);
             const variants = storedPhoneVariants(normalized);
 
-            const [trustRes, aggRes, notesRes, tagsRes, blacklistRes, reliabilityRes, ordersRes] = await Promise.all([
+            const [trustRes, aggRes, notesRes, tagsRes, blacklistRes, reliabilityRes, ordersRes, ratingsRes] = await Promise.all([
                 supabase.from("customer_trust").select("trust_score, trust_tier")
                     .eq("tenant_id", tenantId).eq("phone", normalized).maybeSingle(),
                 // mv_customer_metrics is keyed by the normalized phone.
@@ -88,8 +89,11 @@ function useCustomerProfile(phone: string) {
                 supabase.rpc("get_customer_order_history", { p_phone: normalized })
                     .order("created_at", { ascending: false })
                     .limit(200),
+                supabase.from("community_ratings").select("*")
+                    .eq("tenant_id", tenantId).in("customer_phone", variants)
+                    .order("created_at", { ascending: false }),
             ]);
-            for (const res of [trustRes, aggRes, notesRes, tagsRes, blacklistRes, reliabilityRes, ordersRes]) {
+            for (const res of [trustRes, aggRes, notesRes, tagsRes, blacklistRes, reliabilityRes, ordersRes, ratingsRes]) {
                 if (res.error) throw res.error;
             }
 
@@ -122,6 +126,7 @@ function useCustomerProfile(phone: string) {
                 totalCompleted: completed,
                 isBlacklisted: (blacklistRes.data ?? []).length > 0,
                 notes: notesRes.data ?? [],
+                ratings: (ratingsRes.data ?? []) as CommunityRating[],
                 tags: ((tagsRes.data ?? []) as unknown as { tag: ProfileTag | null }[])
                     .flatMap((ta) => (ta.tag ? [ta.tag] : [])),
                 orders,
@@ -279,6 +284,10 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                         notes={profile.notes}
                         onAddNote={() => store.setAddNoteModalOpen(true)}
                     />
+                </div>
+
+                <div className="col-span-12">
+                    <RatingsCard ratings={profile.ratings} />
                 </div>
 
                 {/* Row 3: Summary Stats (col-span-7) + Linked People (col-span-5) */}

@@ -1,12 +1,16 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, Tag, Radio, X } from "lucide-react";
+import { Download, Loader2, Tag, Radio, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 
 interface CustomerBulkBarProps {
   selectedCount: number;
+  /** Customers the current filters match; offers "select all" while more than are selected. */
+  totalMatching: number;
+  onSelectAll: () => void;
+  selectingAll: boolean;
   /** Omitted when the user may not export customer data. */
   onExport?: () => void;
   onAddTag: () => void;
@@ -16,6 +20,9 @@ interface CustomerBulkBarProps {
 
 export function CustomerBulkBar({
   selectedCount,
+  totalMatching,
+  onSelectAll,
+  selectingAll,
   onExport,
   onAddTag,
   onBroadcast,
@@ -40,6 +47,17 @@ export function CustomerBulkBar({
               </span>
               {t("customers.bulk.selected")}
             </div>
+
+            {totalMatching > selectedCount && (
+              <button
+                onClick={onSelectAll}
+                disabled={selectingAll}
+                className="flex min-h-11 items-center gap-1.5 rounded-2xl px-3 text-xs font-semibold text-blue-600 transition-colors hover:bg-(--pastel-blue)/40 disabled:opacity-50"
+              >
+                {selectingAll && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {t("customers.bulk.selectAllMatching", { count: totalMatching.toLocaleString("en-US") })}
+              </button>
+            )}
 
             <div className="mx-1 hidden h-5 w-px bg-(--card-border) sm:block" />
 

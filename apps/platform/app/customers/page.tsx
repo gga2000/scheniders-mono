@@ -178,20 +178,25 @@ function CustomersPageContent() {
         setRiskFilter("all");
     }, []);
 
-    // Export the ENTIRE filtered set with the same filters as the list (lane cohorts
-    // included), fetched in pages so the API row cap never truncates the file.
+    // Every customer the current filters match, fetched in pages so the API row cap
+    // never truncates it. Export and "select all" share it.
+    const fetchAllMatching = useCallback(async () => {
+        const rows: PaginatedCustomer[] = [];
+        for (let offset = 0; ; offset += EXPORT_PAGE) {
+            const { data, error } = await supabase.rpc("get_paginated_customers", toCustomerRpcArgs(filters, EXPORT_PAGE, offset));
+            if (error) throw error;
+            const page = data ?? [];
+            rows.push(...page.map(mapCustomerRow));
+            if (page.length < EXPORT_PAGE) break;
+        }
+        return rows;
+    }, [filters]);
+
     const [exporting, setExporting] = useState(false);
     const exportCsv = useCallback(async () => {
         setExporting(true);
         try {
-            const rows: PaginatedCustomer[] = [];
-            for (let offset = 0; ; offset += EXPORT_PAGE) {
-                const { data, error } = await supabase.rpc("get_paginated_customers", toCustomerRpcArgs(filters, EXPORT_PAGE, offset));
-                if (error) throw error;
-                const page = data ?? [];
-                rows.push(...page.map(mapCustomerRow));
-                if (page.length < EXPORT_PAGE) break;
-            }
+            const rows = await fetchAllMatching();
             downloadCsv(
                 toCsv([customerCsvHeader(), ...rows.map(customerCsvRow)]),
                 `customers-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -201,7 +206,24 @@ function CustomersPageContent() {
         } finally {
             setExporting(false);
         }
-    }, [filters, customerCsvHeader, customerCsvRow, t]);
+    }, [fetchAllMatching, customerCsvHeader, customerCsvRow, t]);
+
+    const [selectingAll, setSelectingAll] = useState(false);
+    const selectAllMatching = useCallback(async () => {
+        setSelectingAll(true);
+        try {
+            const rows = await fetchAllMatching();
+            setSelected((prev) => {
+                const next = new Map(prev);
+                for (const row of rows) next.set(row.phone, row);
+                return next;
+            });
+        } catch {
+            toast({ variant: "error", title: t("customers.bulk.selectAllFailed") });
+        } finally {
+            setSelectingAll(false);
+        }
+    }, [fetchAllMatching, t]);
 
     const repeatPct = stats ? pct(stats.repeat_customer_count, stats.total_customers) : 0;
 
@@ -338,6 +360,9 @@ function CustomersPageContent() {
             {/* Bulk actions */}
             <CustomerBulkBar
                 selectedCount={selected.size}
+                totalMatching={totalCount}
+                onSelectAll={selectAllMatching}
+                selectingAll={selectingAll}
                 onExport={canExport ? exportSelected : undefined}
                 onAddTag={() => setShowBulkTag(true)}
                 onBroadcast={() => setShowBroadcast(true)}
