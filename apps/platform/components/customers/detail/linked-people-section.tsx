@@ -43,8 +43,29 @@ export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
         setLinkCustomersModalOpen(true);
     };
 
+    // Nobody linked yet: one line with the link action, not a full empty card.
+    if (links.length === 0) {
+        return (
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 h-14 flex items-center gap-2.5">
+                <Link2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.link.title")}</span>
+                <span className="text-sm text-muted-foreground" aria-hidden>·</span>
+                <span className="text-sm text-muted-foreground truncate">{t("customers.link.empty")}</span>
+                {canEdit && (
+                    <button
+                        onClick={handleLinkCustomer}
+                        className="ml-auto shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-(--card-border) text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                        <Plus className="w-3.5 h-3.5" />
+                        {t("customers.link.add", "Link")}
+                    </button>
+                )}
+            </div>
+        );
+    }
+
     return (
-        <div className="bento-card bg-(--card-bg) rounded-[24px] border border-(--card-border) p-6 shadow-[0_4px_12px_rgba(30,30,30,0.03)]">
+        <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -71,29 +92,7 @@ export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
 
             {/* Links list */}
             <AnimatePresence mode="wait">
-                {links.length === 0 ? (
-                    <motion.div
-                        key="empty"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="flex flex-col items-center gap-3 py-8"
-                    >
-                        <div className="w-10 h-10 rounded-full bg-muted/20 flex items-center justify-center">
-                            <Users className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <p className="text-sm text-muted-foreground text-center">
-                            {t("customers.link.empty")}
-                        </p>
-                        <button
-                            onClick={handleLinkCustomer}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-foreground bg-muted/30 hover:bg-muted/50 transition-colors"
-                        >
-                            <Plus className="w-3 h-3" />
-                            {t("customers.link.title")}
-                        </button>
-                    </motion.div>
-                ) : (
+                {(
                     <motion.div
                         key="list"
                         initial={{ opacity: 0 }}
@@ -132,7 +131,7 @@ export function LinkedPeopleSection({ phone }: LinkedPeopleSectionProps) {
                                             {t(RELATIONSHIP_I18N[link.relationship_type] || "customers.link.family")}
                                         </p>
                                         {link.similarity_hint && (
-                                            <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">
+                                            <p className="text-xs text-muted-foreground/70 mt-0.5 truncate">
                                                 {link.similarity_hint}
                                             </p>
                                         )}

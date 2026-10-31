@@ -39,7 +39,7 @@ export function ValuePill({
 
     if (variant === "compact") {
         return (
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold", meta.pillBg, meta.pillText, className)}>
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap", meta.pillBg, meta.pillText, className)}>
                 <Icon className="w-3.5 h-3.5" />
                 {label}
             </span>
@@ -52,7 +52,7 @@ export function ValuePill({
                 <Icon className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 leading-none">
+                <div className="text-xs font-medium opacity-75 leading-none">
                     {t("customers.value.label", "Value")}
                 </div>
                 <div className="text-base font-extrabold tracking-tight leading-tight truncate">{label}</div>
@@ -88,7 +88,7 @@ export function CustomerHeroBand({ tier, risk, className }: { tier: ValueTier; r
                 <Icon className="w-4 h-4" />
             </span>
             <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 leading-none">
+                <div className="text-xs font-medium opacity-75 leading-none">
                     {t("customers.risk.label", "COD risk")}
                 </div>
                 <div className="text-base font-extrabold tracking-tight leading-tight truncate">{t(`customers.risk.${risk}`, RISK_META[risk].label)}</div>
@@ -115,7 +115,7 @@ export function RiskChip({
     const meta = RISK_META[risk];
     const Icon = RISK_ICONS[risk];
     return (
-        <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold", meta.chipBg, meta.chipText, className)}>
+        <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap", meta.chipBg, meta.chipText, className)}>
             <Icon className="w-3.5 h-3.5" />
             {t(`customers.risk.${risk}`, meta.label)}
         </span>

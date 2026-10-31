@@ -150,22 +150,23 @@ export function BehavioralPatternsCard({
             });
         }
 
-        // Status mix
-        let delivered = 0,
-            rejected = 0,
-            cancelled = 0;
+        // Status mix: a return came back after delivery, a rejection was refused
+        // at the door, no answer is its own outcome; COD decisions need them apart.
+        // Only the outcomes that happened are listed.
+        const counts = { delivered: 0, returned: 0, rejected: 0, noResponse: 0, cancelled: 0 };
         for (const o of orders) {
             const s = o.status?.toLowerCase();
-            if (s === "delivered" || s === "completed") delivered++;
-            else if (s === "rejected" || s === "returned" || s === "refunded") rejected++;
-            else if (s === "cancelled" || s === "canceled") cancelled++;
+            if (s === "delivered" || s === "completed") counts.delivered++;
+            else if (s === "returned" || s === "refunded" || s === "refund_delivered" || s === "return_pending") counts.returned++;
+            else if (s === "rejected") counts.rejected++;
+            else if (s === "no_response") counts.noResponse++;
+            else if (s === "cancelled" || s === "canceled") counts.cancelled++;
         }
         const total = orders.length || 1;
-        const statusMix = t("customers.behavioral.statusMixSummary", {
-            delivered: Math.round((delivered / total) * 100).toString(),
-            rejected: Math.round((rejected / total) * 100).toString(),
-            cancelled: Math.round((cancelled / total) * 100).toString(),
-        });
+        const statusMix = (Object.keys(counts) as (keyof typeof counts)[])
+            .filter((k) => k === "delivered" || counts[k] > 0)
+            .map((k) => t(`customers.behavioral.mix.${k}`, { pct: Math.round((counts[k] / total) * 100).toString() }))
+            .join(" · ");
 
         return {
             timeLabel: preferredTime ? t(TIME_KEY[preferredTime]) : null,
@@ -211,8 +212,8 @@ export function BehavioralPatternsCard({
     }, [mode, firstOrderDate, city, governorate, phone, trustTier, orders.length, links, t]);
 
     return (
-        <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)]">
-            <div className="flex items-center gap-2.5 mb-8">
+        <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] h-full">
+            <div className="flex items-center gap-2.5 mb-5">
                 {mode === "patterns" ? (
                     <BrainCircuit className="w-5 h-5 text-purple-500 shrink-0" />
                 ) : (
@@ -226,7 +227,7 @@ export function BehavioralPatternsCard({
             </div>
 
             {mode === "patterns" && patterns ? (
-                <div className="space-y-7">
+                <div className="space-y-4">
                     {patterns.timeLabel && (
                         <Row
                             icon={<Clock className="w-4.5 h-4.5" />}
@@ -257,7 +258,7 @@ export function BehavioralPatternsCard({
                     />
                 </div>
             ) : snapshot ? (
-                <div className="space-y-7">
+                <div className="space-y-4">
                     <Row
                         icon={<Calendar className="w-4.5 h-4.5" />}
                         iconBg="bg-blue-50 text-blue-500"
@@ -316,14 +317,14 @@ function Row({
     return (
         <div className="flex items-start gap-4">
             <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}
+                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 dark:bg-white/10 ${iconBg}`}
             >
                 {icon}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="font-bold text-sm leading-snug truncate">{title}</p>
+                <p className="font-semibold text-sm leading-snug truncate">{title}</p>
                 {value && (
-                    <p className="text-xs text-muted-foreground leading-relaxed mt-1 wrap-break-word">
+                    <p className="text-[13px] text-muted-foreground leading-relaxed mt-0.5 wrap-break-word">
                         {value}
                     </p>
                 )}

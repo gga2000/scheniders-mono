@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Clock, User, MapPin, Phone, Home } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
 import { useIdentityTimeline, type IdentityEvent } from "@/hooks/use-identity-timeline";
 
 interface IdentityTimelineProps {
@@ -46,12 +47,24 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
     const { t, language } = useLanguage();
     const { data, isLoading } = useIdentityTimeline(phone);
 
+    // Nothing recorded: one line, not a full empty card.
+    if (!isLoading && (!data || data.length === 0)) {
+        return (
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 h-14 flex items-center gap-2.5">
+                <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.identity.title")}</span>
+                <span className="text-sm text-muted-foreground" aria-hidden>·</span>
+                <span className="text-sm text-muted-foreground truncate">{t("customers.identity.empty")}</span>
+            </div>
+        );
+    }
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)]"
+            className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
         >
             {/* Header */}
             <div className="flex items-center gap-2.5 mb-6">
@@ -74,11 +87,7 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                         </div>
                     ))}
                 </div>
-            ) : !data || data.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-6 text-center">
-                    {t("customers.identity.empty")}
-                </p>
-            ) : (
+            ) : (data && (
                 <div className="relative">
                     {/* Connecting line */}
                     <div className="absolute left-5 top-5 bottom-5 w-px bg-muted/40" aria-hidden />
@@ -101,13 +110,8 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                                         <p className="text-sm font-medium text-foreground truncate">
                                             <bdi>{t(LABEL_KEY[event.type], { value: event.value })}</bdi>
                                         </p>
-                                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                                            {new Date(event.created_at).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
-                                                month: "short",
-                                                day: "numeric",
-                                                year: "numeric",
-                                                timeZone: "Asia/Baghdad",
-                                            })}
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            {formatBaghdadDate(event.created_at, language)}
                                         </p>
                                     </div>
                                 </motion.li>
@@ -115,7 +119,7 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                         })}
                     </ul>
                 </div>
-            )}
+            ))}
         </motion.div>
     );
 }

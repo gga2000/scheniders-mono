@@ -82,7 +82,7 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
         <div className="space-y-3">
             {/* Tags */}
             <div>
-                <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <div className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
                     <Tag className="w-3.5 h-3.5" />{t("customers.quick.tags", "Tags")}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -123,7 +123,7 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
 
             {/* Note */}
             <div>
-                <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                <div className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1.5">
                     <StickyNote className="w-3.5 h-3.5" />{t("customers.quick.note", "Note")}
                 </div>
                 <div className="flex items-start gap-2">

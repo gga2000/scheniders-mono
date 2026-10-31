@@ -10,9 +10,9 @@ import { cn } from "@/lib/utils";
 import type { CommunityRating } from "@/types/customer";
 
 const TYPE_TONE: Record<CommunityRating["overall_type"], string> = {
-    positive: "bg-emerald-50 text-emerald-700",
+    positive: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
     neutral: "bg-muted text-muted-foreground",
-    warning: "bg-rose-50 text-rose-700",
+    warning: "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
 };
 
 /** The day the rating was given, in Baghdad time (a UTC slice is a day early between 00:00 and 03:00 there). */
@@ -39,22 +39,31 @@ export function RatingsCard({ ratings }: { ratings: CommunityRating[] }) {
                 }),
         });
 
+    // No ratings yet: one line, not a full empty card.
+    if (ratings.length === 0) {
+        return (
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 h-14 flex items-center gap-2.5">
+                <Star className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="font-semibold text-sm text-foreground">{t("customers.profile.ratings")}</span>
+                <span className="text-sm text-muted-foreground" aria-hidden>·</span>
+                <span className="text-sm text-muted-foreground truncate">{t("customers.profile.noRatings")}</span>
+            </div>
+        );
+    }
+
     return (
-        <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_4px_24px_rgba(30,30,30,0.07),0_1px_4px_rgba(30,30,30,0.04)]">
-            <div className="flex items-center gap-2.5 mb-6">
+        <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+            <div className="flex items-center gap-2.5 mb-4">
                 <Star className="w-5 h-5 text-amber-400" />
                 <span className="font-headline font-extrabold text-lg text-foreground">
                     {t("customers.profile.ratings")}
                 </span>
             </div>
-            {ratings.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">{t("customers.profile.noRatings")}</p>
-            ) : (
-                <ul className="space-y-3">
+            <ul className="space-y-3">
                     {ratings.map((rating) => {
                         const average = (rating.trust_stars + rating.communication_stars + rating.behavior_stars) / 3;
                         return (
-                            <li key={rating.id} className="bg-muted/30 p-5 rounded-2xl flex items-start justify-between gap-3">
+                            <li key={rating.id} className="bg-muted/30 px-4 py-3 rounded-xl flex items-start justify-between gap-3">
                                 <div className="min-w-0 space-y-1.5">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-bold", TYPE_TONE[rating.overall_type])}>
@@ -91,8 +100,7 @@ export function RatingsCard({ ratings }: { ratings: CommunityRating[] }) {
                             </li>
                         );
                     })}
-                </ul>
-            )}
+            </ul>
         </div>
     );
 }

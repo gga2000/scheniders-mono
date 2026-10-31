@@ -5,12 +5,11 @@ import { MessageCircle, Phone, ShieldAlert, ShieldCheck, Star } from "lucide-rea
 import { formatBaghdadMonthYear, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
-import { TRUST_TIER_CONFIG, type TrustTier } from "@/types/customer";
+import { TRUST_TIER_CONFIG, tagColorClasses, type TagColor, type TrustTier } from "@/types/customer";
 import { cn } from "@/lib/utils";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
-import { ConfidenceIndicator } from "@/components/customers/shared/confidence-indicator";
 import { displayScore, hasRatedScore, VALUE_META, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
 import { RiskChip, ValuePill } from "@/components/customers/reliability-pill";
 
@@ -28,6 +27,8 @@ interface HeroIdentityBannerProps {
     isBlacklisted?: boolean;
     tags?: { id: string; name: string; color: string }[];
     firstOrderDate?: string | null;
+    /** False when the value/risk banner right below already shows both pills. */
+    showAxes?: boolean;
 }
 
 const TRUST_SCORE_SUBTITLE_KEY: Record<TrustTier, string> = {
@@ -54,6 +55,7 @@ export function HeroIdentityBanner({
     isBlacklisted,
     tags,
     firstOrderDate,
+    showAxes = true,
 }: HeroIdentityBannerProps) {
     const { t, language } = useLanguage();
     const store = useCustomerStore();
@@ -66,6 +68,9 @@ export function HeroIdentityBanner({
     // A shield with a tick next to a failing score contradicts it.
     const unsafe = blocked || riskLevel === "high" || tier === "risky" || tier === "critical";
     const ShieldIcon = unsafe ? ShieldAlert : ShieldCheck;
+    // A tag that only repeats the value tier ("VIP" under the VIP pill) adds nothing.
+    const valueLabel = valueTier ? t(`customers.value.${valueTier}`, VALUE_META[valueTier].label).trim().toLowerCase() : null;
+    const shownTags = (tags ?? []).filter((tag) => tag.name.trim().toLowerCase() !== valueLabel);
 
     // Shown out of 100 the same way the drawer shows it.
     // Unrated ("new") customers have no proven score, same as the drawer.
@@ -80,19 +85,19 @@ export function HeroIdentityBanner({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
             className={cn(
-                "w-full bg-(--card-bg) rounded-[2rem] sm:rounded-[3rem] p-5 sm:p-8 border border-(--card-border)",
-                "shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)]",
+                "w-full bg-(--card-bg) rounded-2xl p-6 border border-(--card-border)",
+                "shadow-[0_1px_3px_rgba(0,0,0,0.04)]",
                 "flex flex-col sm:flex-row sm:items-center justify-between gap-5 sm:gap-6"
             )}
         >
             {/* LEFT — avatar + info */}
-            <div className="flex items-start gap-5 min-w-0">
+            <div className="flex items-start gap-4 min-w-0">
                 {/* Avatar */}
                 <div className="relative shrink-0">
                     <div
                         className={cn(
-                            "w-16 h-16 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center",
-                            "text-2xl sm:text-3xl font-bold select-none",
+                            "w-14 h-14 rounded-2xl flex items-center justify-center",
+                            "text-xl font-bold select-none",
                             valueMeta ? valueMeta.pillBg : config.bgClass,
                             valueMeta ? valueMeta.pillText : config.textClass
                         )}
@@ -102,7 +107,7 @@ export function HeroIdentityBanner({
 
                     {totalOrders >= 10 && (
                         <span
-                            className="absolute -bottom-1 -right-1 bg-[#c7f8ef] text-[#1f4e48] text-[10px] font-bold px-2 py-0.5 rounded-full border-2 border-white leading-tight"
+                            className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#c7f8ef] text-[#1f4e48] dark:bg-emerald-500/20 dark:text-emerald-200 text-[11px] font-bold px-1.5 rounded-full border-2 border-(--card-bg) leading-tight whitespace-nowrap"
                         >
                             {t("customers.profile.verified")}
                         </span>
@@ -113,11 +118,12 @@ export function HeroIdentityBanner({
                 <div className="min-w-0">
                     {/* Name + the value / COD-risk pills the list and drawer use */}
                     <div className="flex flex-wrap items-center gap-2.5">
-                        <h1 dir="auto" className="text-3xl font-headline font-extrabold tracking-tight text-foreground leading-tight">
+                        <h1 dir="auto" className="text-2xl font-headline font-extrabold tracking-tight text-foreground leading-tight">
                             {name}
                         </h1>
-                        {valueTier && <ValuePill tier={valueTier} variant="compact" />}
-                        {blocked ? <RiskChip risk="blocked" /> : riskLevel && <RiskChip risk={riskLevel} showClean />}
+                        {/* An unsafe customer is never shown with a (green) value tier. */}
+                        {showAxes && valueTier && !unsafe && <ValuePill tier={valueTier} variant="compact" />}
+                        {showAxes && (blocked ? <RiskChip risk="blocked" /> : riskLevel && <RiskChip risk={riskLevel} showClean />)}
                     </div>
 
                     {/* Phone, then place and tenure */}
@@ -131,27 +137,23 @@ export function HeroIdentityBanner({
                     </p>
 
                     {/* Tags */}
-                    {tags && tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {tags.map((tag) => (
-                                <span
-                                    key={tag.id}
-                                    className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted/40 text-muted-foreground"
-                                >
-                                    <bdi>{tag.name}</bdi>
-                                </span>
-                            ))}
+                    {/* Tags (in their colour) and the peer badge on one line */}
+                    {(shownTags.length > 0 || shownScore !== null) && (
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                            {shownTags.map((tag) => {
+                                const tone = tagColorClasses[tag.color as TagColor] ?? tagColorClasses.gray;
+                                return (
+                                    <span key={tag.id} className={cn("px-2.5 py-0.5 rounded-full text-xs font-semibold", tone.bg, tone.text)}>
+                                        <bdi>{tag.name}</bdi>
+                                    </span>
+                                );
+                            })}
+                            {shownScore !== null && <PeerComparisonBadge phone={phone} />}
                         </div>
                     )}
 
-                    {/* Peer badges — integrated into hero, not floating below */}
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                        {shownScore !== null && <PeerComparisonBadge phone={phone} />}
-                        <ConfidenceIndicator orderCount={totalOrders} />
-                    </div>
-
                     {/* Action buttons */}
-                    <div className="flex items-center gap-2 mt-4">
+                    <div className="flex items-center gap-2 mt-3">
                         <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.96 }}
@@ -175,7 +177,8 @@ export function HeroIdentityBanner({
                         </motion.a>
 
 
-                        {canEdit && (
+                        {/* Rating a blocked customer changes nothing you would act on. */}
+                        {canEdit && !blocked && (
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.96 }}
@@ -203,7 +206,7 @@ export function HeroIdentityBanner({
                 }}
                 className="flex flex-col items-end shrink-0 gap-1 cursor-pointer group"
             >
-                <span className="text-muted-foreground font-bold text-[10px] tracking-[0.2em] uppercase">
+                <span className="text-muted-foreground font-semibold text-xs">
                     {t("customers.profile.trustScore")}
                 </span>
 
@@ -212,7 +215,7 @@ export function HeroIdentityBanner({
                         <span className="text-2xl font-semibold text-muted-foreground leading-none">—</span>
                     ) : (
                         <>
-                            <span className="text-5xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
+                            <span className="text-4xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
                                 {shownScore.toLocaleString("en-US")}
                             </span>
                             <span className="text-lg text-muted-foreground mb-0.5">/100</span>
@@ -221,12 +224,14 @@ export function HeroIdentityBanner({
                 </div>
 
                 {/* Shield icon */}
-                <ShieldIcon
-                    className={cn("w-6 h-6 mt-1", unsafe && "text-rose-600 dark:text-rose-400")}
-                    style={unsafe ? undefined : { color: config.ringColor }}
-                />
-
-                <p className="text-muted-foreground text-[10px] font-medium italic text-right">
+                {/* Green for a strong score; amber reads as a warning. */}
+                <p className={cn(
+                    "inline-flex items-center gap-1.5 text-xs font-medium",
+                    unsafe ? "text-rose-600 dark:text-rose-400"
+                        : shownScore !== null && shownScore >= 80 ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-muted-foreground",
+                )}>
+                    <ShieldIcon className="w-4 h-4 shrink-0" />
                     {t(TRUST_SCORE_SUBTITLE_KEY[tier])}
                 </p>
             </motion.button>
