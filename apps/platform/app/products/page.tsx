@@ -30,6 +30,7 @@ import {
     Square,
     Filter,
     Layers,
+    FolderTree,
     Columns3,
     BarChart3,
     ShoppingCart,
@@ -165,7 +166,6 @@ function ProductsContent() {
     const setSortBy = useProductStore((s) => s.setSortBy);
     const gridDensity = useProductStore((s) => s.gridDensity);
     const gridGroupByCategory = useProductStore((s) => s.gridGroupByCategory);
-    const setGridGroupByCategory = useProductStore((s) => s.setGridGroupByCategory);
     const selectedIds = useProductStore((s) => s.selectedIds);
     const toggleSelection = useProductStore((s) => s.toggleSelection);
     const selectAll = useProductStore((s) => s.selectAll);
@@ -1047,7 +1047,7 @@ function ProductsContent() {
                                             {([
                                                 { mode: "grid" as const, icon: Grid3X3, label: "products.views.grid" },
                                                 { mode: "list" as const, icon: List, label: "products.views.list" },
-                                                { mode: "category" as const, icon: Layers, label: "products.views.category" },
+                                                { mode: "category" as const, icon: FolderTree, label: "products.views.category" },
                                                 { mode: "kanban" as const, icon: Columns3, label: "products.views.kanban" },
                                                 { mode: "heatmap" as const, icon: BarChart3, label: "products.views.heatmap" },
                                             ]).filter(({ mode }) => mode !== "heatmap" || canManageProducts).map(({ mode, icon: Icon, label }) => (
@@ -1070,25 +1070,7 @@ function ProductsContent() {
                                         </div>
 
                                         {/* Density + Group-by-category — card grid only */}
-                                        {viewMode === "grid" && (
-                                            <>
-                                                <DensityToggle />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setGridGroupByCategory(!gridGroupByCategory)}
-                                                    aria-pressed={gridGroupByCategory}
-                                                    title={t("products.groupByCategory")}
-                                                    className={cn(
-                                                        "relative p-2 rounded-xl border transition-all before:absolute before:-inset-1.5 before:content-['']",
-                                                        gridGroupByCategory
-                                                            ? "bg-[var(--ink)] text-white border-[var(--ink)]"
-                                                            : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:text-foreground"
-                                                    )}
-                                                >
-                                                    <Layers className="w-4 h-4" />
-                                                </button>
-                                            </>
-                                        )}
+                                        {viewMode === "grid" && <DensityToggle />}
 
                                         {/* Sort Dropdown */}
                                         <div className="relative">

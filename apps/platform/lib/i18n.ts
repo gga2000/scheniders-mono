@@ -4280,6 +4280,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "products.density.compact": "Compact",
         "products.density.tight": "Tight",
         "products.groupByCategory": "Group by category",
+        "products.density.grouped": "grouped",
         "products.groupByCategory.productCount": "{count} products",
 
         // ── Categories V2 ──
@@ -8923,6 +8924,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "products.density.comfy": "مريح",
         "products.density.normal": "عادي",
         "products.density.compact": "مضغوط",
+        "products.density.grouped": "مجمّعة",
         "products.density.tight": "كثيف",
         "products.groupByCategory": "تجميع حسب الفئة",
         "products.groupByCategory.productCount": "{count} منتج",
