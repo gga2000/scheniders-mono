@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { PaginatedCustomerFilters, parseCustomerSort } from "@/hooks/use-paginated-customers";
-import { CustomerStatus, TrustTier } from "@/types/customer";
-import { useDebounce } from "@/hooks/use-debounce";
+import { parseCustomerSort, type PaginatedCustomerFilters } from "@/hooks/use-paginated-customers";
 
 // A hand-edited ?tagId= that is not a uuid would make the list RPC error.
+const SEARCH_DEBOUNCE_MS = 300;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const VALUE_TIERS = ["vip", "good", "newcomer"] as const;
@@ -27,11 +27,8 @@ export interface CustomerChipFilters {
     lane: UrlLane;
 }
 
-interface CustomerUrlState extends PaginatedCustomerFilters {
-    customerId: string | null;
-    trustTier?: TrustTier | "all";
-    minTrustScore?: number;
-    maxTrustScore?: number;
+/** Only what the list page can set; anything else in the URL is ignored. */
+interface CustomerUrlState extends Pick<PaginatedCustomerFilters, "search" | "sortBy" | "sortOrder" | "tagId"> {
     view?: "grid" | "list";
 }
 
@@ -49,19 +46,10 @@ export function useCustomerUrlState() {
     // 1. Derive active state directly from the URL on every render
     const state: CustomerUrlState = {
         search: searchParams.get("search") || "",
-        status: (searchParams.get("status") as CustomerStatus | "all") || "all",
-        city: searchParams.get("city") || "",
         sortBy: parseCustomerSort(searchParams.get("sortBy")) ?? "total_orders",
-        sortOrder: (searchParams.get("sortOrder") as "asc" | "desc") || "desc",
-        customerId: searchParams.get("customer") || null,
-        minLtv: searchParams.has("minLtv") ? Number(searchParams.get("minLtv")) : undefined,
-        maxLtv: searchParams.has("maxLtv") ? Number(searchParams.get("maxLtv")) : undefined,
-        lastOrderWithinDays: searchParams.has("withinDays") ? Number(searchParams.get("withinDays")) : undefined,
+        sortOrder: searchParams.get("sortOrder") === "asc" ? "asc" : "desc",
         tagId: UUID.test(searchParams.get("tagId") ?? "") ? (searchParams.get("tagId") as string) : undefined,
-        trustTier: (searchParams.get("tier") as TrustTier | "all") || undefined,
-        minTrustScore: searchParams.has("minScore") ? Number(searchParams.get("minScore")) : undefined,
-        maxTrustScore: searchParams.has("maxScore") ? Number(searchParams.get("maxScore")) : undefined,
-        view: (searchParams.get("view") as "grid" | "list") || undefined,
+        view: searchParams.get("view") === "list" ? "list" : undefined,
     };
 
     const chips: CustomerChipFilters = {
@@ -70,9 +58,39 @@ export function useCustomerUrlState() {
         lane: pick(searchParams.get("lane"), LANES) ?? null,
     };
 
-    // 2. Local search tracking strictly for fast typing UI
-    const [localSearch, setLocalSearch] = useState(state.search || "");
-    const debouncedSearch = useDebounce(localSearch, 300);
+    // 2. Search box. Typing updates the box at once and writes the URL after a
+    // pause; a search that arrives in the URL from elsewhere (a global-search
+    // result, back/forward) replaces what is in the box.
+    const urlSearch = state.search ?? "";
+    const [localSearch, setLocalSearch] = useState(urlSearch);
+    const [urlSeen, setUrlSeen] = useState(urlSearch);
+    const [pushed, setPushed] = useState(urlSearch);
+    if (urlSearch !== urlSeen) {
+        setUrlSeen(urlSearch);
+        // The box's own write coming back is not an outside change.
+        if (urlSearch !== pushed) setLocalSearch(urlSearch);
+    }
+
+    // The timer fires after later renders, so it reads the params as they are then.
+    const latestParams = useRef(searchParams.toString());
+    useEffect(() => {
+        latestParams.current = searchParams.toString();
+    }, [searchParams]);
+    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    useEffect(() => () => clearTimeout(timer.current), []);
+
+    const setSearch = (text: string) => {
+        setLocalSearch(text);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => {
+            const params = new URLSearchParams(latestParams.current);
+            if ((params.get("search") ?? "") === text) return;
+            if (text) params.set("search", text); else params.delete("search");
+            setPushed(text);
+            const qs = params.toString();
+            router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+        }, SEARCH_DEBOUNCE_MS);
+    };
 
     // Helper to push URL safely
     const pushStateToUrl = (key: string, value: string | null) => {
@@ -91,35 +109,7 @@ export function useCustomerUrlState() {
         }
     };
 
-    // 3. Sync debounced search to URL. Only a change of the typed text pushes;
-    // a URL that moved on its own (below) must not be pushed back to the old text.
-    const lastUrlSearch = useRef(state.search ?? "");
-    const lastDebounced = useRef(debouncedSearch);
-    useEffect(() => {
-        if (debouncedSearch === lastDebounced.current) return;
-        lastDebounced.current = debouncedSearch;
-        if (debouncedSearch !== (state.search ?? "")) {
-            lastUrlSearch.current = debouncedSearch;
-            pushStateToUrl("search", debouncedSearch || null);
-        }
-    }, [debouncedSearch]);
-
-    // A search that arrives from outside the box (a global-search result, browser
-    // back/forward) replaces what is typed; the box's own pushes are not echoed back.
-    useEffect(() => {
-        const urlSearch = state.search ?? "";
-        if (urlSearch !== lastUrlSearch.current) {
-            lastUrlSearch.current = urlSearch;
-            setLocalSearch(urlSearch);
-        }
-    }, [state.search]);
-
-    // Setters just push to the URL. React will handle the re-render.
-    const setSearch = (search: string) => setLocalSearch(search);
-    const setStatus = (status: CustomerStatus | "all") => pushStateToUrl("status", status);
-    const setCity = (city: string) => pushStateToUrl("city", city);
     const setTag = (tagId: string) => pushStateToUrl("tagId", tagId);
-    const setSelectedCustomer = (customerId: string | null) => pushStateToUrl("customer", customerId);
 
     const setSort = (sortBy: CustomerUrlState["sortBy"], sortOrder: "asc" | "desc") => {
         const params = new URLSearchParams(searchParams.toString());
@@ -132,13 +122,6 @@ export function useCustomerUrlState() {
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 
-    const setTrustTier = (tier: TrustTier | "all" | undefined) => pushStateToUrl("tier", tier === "all" ? null : (tier || null));
-    const setTrustScoreRange = (min?: number, max?: number) => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (min !== undefined) params.set("minScore", min.toString()); else params.delete("minScore");
-        if (max !== undefined) params.set("maxScore", max.toString()); else params.delete("maxScore");
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    };
     /** One URL write for the chips (and optionally the sort), so two setters never race on stale params. */
     const setChips = (next: CustomerChipFilters, sort?: { by: string; order: "asc" | "desc" }) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -154,42 +137,14 @@ export function useCustomerUrlState() {
     };
     const setView = (view: "grid" | "list") => pushStateToUrl("view", view === "grid" ? null : view);
 
-    const setAdvancedFilters = (filters: Pick<CustomerUrlState, "minLtv" | "maxLtv" | "lastOrderWithinDays" | "tagId">) => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (filters.minLtv !== undefined) params.set("minLtv", filters.minLtv.toString()); else params.delete("minLtv");
-        if (filters.maxLtv !== undefined) params.set("maxLtv", filters.maxLtv.toString()); else params.delete("maxLtv");
-        if (filters.lastOrderWithinDays !== undefined) params.set("withinDays", filters.lastOrderWithinDays.toString()); else params.delete("withinDays");
-        if (filters.tagId) params.set("tagId", filters.tagId); else params.delete("tagId");
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    };
-
-    const clearAdvancedFilters = () => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("minLtv");
-        params.delete("maxLtv");
-        params.delete("withinDays");
-        params.delete("tagId");
-        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    };
-
     return {
-        state: {
-            ...state,
-            search: state.search // Exposed true URL state for fetchers
-        },
+        state,
         chips,
         setChips,
         rawSearch: localSearch, // Instant view for search box
         setSearch,
-        setStatus,
-        setCity,
         setTag,
         setSort,
-        setSelectedCustomer,
-        setAdvancedFilters,
-        clearAdvancedFilters,
-        setTrustTier,
-        setTrustScoreRange,
         setView,
     };
 }

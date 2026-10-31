@@ -43,6 +43,11 @@ interface CustomerStore {
   isAddNoteModalOpen: boolean;
   setAddNoteModalOpen: (val: boolean) => void;
 
+  // Query string of the last customers list view, so the profile's Back
+  // returns to the same filters (in memory only; a reload starts clean).
+  lastListQuery: string;
+  setLastListQuery: (query: string) => void;
+
   // View mode
   viewMode: 'grid' | 'list';
   setViewMode: (mode: 'grid' | 'list') => void;
@@ -123,6 +128,9 @@ export const useCustomerStore = create<CustomerStore>()(
 
       isAddNoteModalOpen: false,
       setAddNoteModalOpen: (val) => set({ isAddNoteModalOpen: val }),
+
+      lastListQuery: "",
+      setLastListQuery: (query) => set({ lastListQuery: query }),
 
       // View mode
       viewMode: 'grid' as const,
