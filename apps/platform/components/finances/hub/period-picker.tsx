@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ChevronDown, Check, ArrowLeftRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FinancePeriod, PresetKey } from "@/hooks/use-finance-period";
+import { useLanguage } from "@/hooks/use-language";
 import { baghdadDayKey } from "@/lib/order-window";
 
 interface PeriodPickerProps {
@@ -14,16 +15,10 @@ interface PeriodPickerProps {
     onChangeCompareMode: (mode: FinancePeriod["compareMode"]) => void;
 }
 
-const PRESETS: Array<{ key: PresetKey; label: string }> = [
-    { key: "today", label: "Today" },
-    { key: "yesterday", label: "Yesterday" },
-    { key: "last7", label: "Last 7 days" },
-    { key: "last30", label: "Last 30 days" },
-    { key: "mtd", label: "Month to date" },
-    { key: "ytd", label: "Year to date" },
-];
+const PRESETS: PresetKey[] = ["today", "yesterday", "last7", "last30", "mtd", "ytd"];
 
 export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCompareMode }: PeriodPickerProps) {
+    const { t, language } = useLanguage();
     const [open, setOpen] = useState(false);
     const [start, setStart] = useState(formatISO(period.start));
     const [end, setEnd] = useState(formatISO(period.end));
@@ -52,7 +47,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
         };
     }, []);
 
-    const label = formatRangeLabel(period);
+    const label = formatRangeLabel(period, t, language === "ar" ? "ar-IQ-u-nu-latn" : "en-US");
 
     return (
         <div ref={ref} className="relative">
@@ -76,12 +71,12 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                     >
                         <div className="p-2 border-b border-[var(--card-border)]">
                             <div className="grid grid-cols-2 gap-1">
-                                {PRESETS.map((p) => {
-                                    const active = period.preset === p.key;
+                                {PRESETS.map((key) => {
+                                    const active = period.preset === key;
                                     return (
                                         <button
-                                            key={p.key}
-                                            onClick={() => { onApplyPreset(p.key); setOpen(false); }}
+                                            key={key}
+                                            onClick={() => { onApplyPreset(key); setOpen(false); }}
                                             className={cn(
                                                 "flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-medium transition-colors",
                                                 active
@@ -89,7 +84,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                                                     : "text-foreground hover:bg-[var(--background)]"
                                             )}
                                         >
-                                            {p.label}
+                                            {t(`finances.period.${key}`)}
                                             {active && <Check className="w-3 h-3" />}
                                         </button>
                                     );
@@ -98,7 +93,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                         </div>
 
                         <div className="p-3 border-b border-[var(--card-border)] space-y-2">
-                            <div className="text-[11px] uppercase tracking-wider text-muted font-semibold">Custom range</div>
+                            <div className="text-[11px] uppercase tracking-wider text-muted font-semibold">{t("finances.period.custom")}</div>
                             <div className="flex items-center gap-2">
                                 <input
                                     type="date"
@@ -107,7 +102,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                                     onChange={(e) => setStart(e.target.value)}
                                     className="flex-1 px-2 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-[12px] text-foreground outline-none focus:border-[var(--ink)]"
                                 />
-                                <span className="text-muted text-xs">to</span>
+                                <span className="text-muted text-xs">{t("finances.period.to")}</span>
                                 <input
                                     type="date"
                                     value={end}
@@ -124,17 +119,17 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                                     const s = new Date(start);
                                     const e = new Date(end);
                                     if (isNaN(s.getTime()) || isNaN(e.getTime())) {
-                                        setCustomError("Pick a valid start and end date.");
+                                        setCustomError(t("finances.period.errInvalid"));
                                         return;
                                     }
                                     if (s > e) {
-                                        setCustomError("Start date can't be after end date.");
+                                        setCustomError(t("finances.period.errOrder"));
                                         return;
                                     }
                                     const now = new Date();
                                     now.setHours(23, 59, 59, 999);
                                     if (s > now || e > now) {
-                                        setCustomError("Future dates aren't supported yet.");
+                                        setCustomError(t("finances.period.errFuture"));
                                         return;
                                     }
                                     setCustomError(null);
@@ -143,14 +138,14 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                                 }}
                                 className="w-full px-3 py-2 rounded-lg bg-[var(--ink)] text-white text-[12px] font-medium hover:opacity-90"
                             >
-                                Apply custom range
+                                {t("finances.period.apply")}
                             </button>
                         </div>
 
                         <div className="p-3">
                             <div className="flex items-center gap-1.5 mb-2">
                                 <ArrowLeftRight className="w-3 h-3 text-muted" />
-                                <div className="text-[11px] uppercase tracking-wider text-muted font-semibold">Compare against</div>
+                                <div className="text-[11px] uppercase tracking-wider text-muted font-semibold">{t("finances.period.compare")}</div>
                             </div>
                             <div className="grid grid-cols-3 gap-1">
                                 {(["previous", "yoy", "none"] as const).map((m) => (
@@ -164,7 +159,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                                                 : "text-foreground hover:bg-[var(--background)] border border-[var(--card-border)]"
                                         )}
                                     >
-                                        {m === "previous" ? "Previous period" : m === "yoy" ? "Same last year" : "None"}
+                                        {t(`finances.period.compare.${m}`)}
                                     </button>
                                 ))}
                             </div>
@@ -180,12 +175,16 @@ function formatISO(d: Date): string {
     return baghdadDayKey(d);
 }
 
-function formatRangeLabel(p: FinancePeriod): string {
+function formatRangeLabel(
+    p: FinancePeriod,
+    t: (key: string) => string,
+    locale: string,
+): string {
     const sameYear = p.start.getFullYear() === p.end.getFullYear();
     const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-    const s = p.start.toLocaleDateString("en-US", opts);
-    const e = p.end.toLocaleDateString("en-US", opts);
-    if (p.preset === "today") return "Today";
-    if (p.preset === "yesterday") return "Yesterday";
+    const s = p.start.toLocaleDateString(locale, opts);
+    const e = p.end.toLocaleDateString(locale, opts);
+    if (p.preset === "today") return t("finances.period.today");
+    if (p.preset === "yesterday") return t("finances.period.yesterday");
     return sameYear ? `${s} – ${e}` : `${s}, ${p.start.getFullYear()} – ${e}, ${p.end.getFullYear()}`;
 }

@@ -2,6 +2,7 @@
 
 import { Wallet, Download, Printer } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 import { PeriodPicker } from "./period-picker";
 import type { FinancePeriod, PresetKey } from "@/hooks/use-finance-period";
 
@@ -17,6 +18,7 @@ interface PageHeaderProps {
 export function PageHeader({
     period, onApplyPreset, onApplyCustom, onChangeCompareMode, onExport, onPrint,
 }: PageHeaderProps) {
+    const { t } = useLanguage();
     return (
         <motion.header
             initial={{ opacity: 0, y: -10 }}
@@ -28,8 +30,8 @@ export function PageHeader({
                     <Wallet className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Finances</h1>
-                    <p className="text-[13px] text-muted mt-0.5">Single source of truth for your money</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">{t("finances.header.title")}</h1>
+                    <p className="text-[13px] text-muted mt-0.5">{t("finances.header.subtitle")}</p>
                 </div>
             </div>
 
@@ -44,8 +46,8 @@ export function PageHeader({
                     <button
                         onClick={onPrint}
                         className="w-10 h-10 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] flex items-center justify-center text-muted hover:text-foreground hover:border-[var(--ink)] transition-colors"
-                        title="Print"
-                        aria-label="Print"
+                        title={t("finances.header.print")}
+                        aria-label={t("finances.header.print")}
                     >
                         <Printer className="w-4 h-4" />
                     </button>
@@ -56,7 +58,7 @@ export function PageHeader({
                         className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[var(--ink)] text-white text-[13px] font-medium hover:opacity-90 transition-opacity"
                     >
                         <Download className="w-4 h-4" />
-                        Export
+                        {t("finances.header.export")}
                     </button>
                 )}
             </div>

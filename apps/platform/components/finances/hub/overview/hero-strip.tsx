@@ -7,6 +7,7 @@ import {
 import { FinanceValue } from "../primitives/finance-value";
 import { Delta } from "../primitives/delta";
 import { Sparkline } from "../primitives/sparkline";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
 
@@ -40,6 +41,7 @@ type TileSpec = {
 };
 
 export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
+    const { t } = useLanguage();
     const revSeries = data.series.map((s) => s.revenue);
     const profitSeries = data.series.map((s) => s.profit);
     const ordersSeries = data.series.map((s) => s.orders);
@@ -48,8 +50,8 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
     const tiles: TileSpec[] = [
         {
             id: "gross_revenue",
-            label: "Gross Revenue",
-            sublabel: "All non-rejected orders",
+            label: t("finances.hero.gross"),
+            sublabel: t("finances.hero.grossSub"),
             value: data.gross_revenue,
             prevValue: data.prev_gross_revenue,
             series: revSeries,
@@ -58,8 +60,8 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
         },
         {
             id: "net_profit",
-            label: "Net Profit",
-            sublabel: data.delivered_revenue > 0 ? `${data.margin_pct.toFixed(1)}% margin` : "No delivered orders yet",
+            label: t("finances.hero.net"),
+            sublabel: data.delivered_revenue > 0 ? t("finances.hero.netMargin", { pct: data.margin_pct.toFixed(1) }) : t("finances.hero.netNone"),
             value: data.net_profit,
             prevValue: data.prev_net_profit,
             series: profitSeries,
@@ -68,8 +70,8 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
         },
         {
             id: "cash_realized",
-            label: "Cash In",
-            sublabel: "Delivered & collected",
+            label: t("finances.hero.cashIn"),
+            sublabel: t("finances.hero.cashInSub"),
             value: data.cash_realized,
             prevValue: data.prev_cash_realized,
             series: deliveredSeries,
@@ -78,8 +80,8 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
         },
         {
             id: "cash_float",
-            label: "Cash Float",
-            sublabel: "Confirmed · In transit",
+            label: t("finances.hero.float"),
+            sublabel: t("finances.hero.floatSub"),
             value: data.cash_float,
             prevValue: 0,
             series: [],
@@ -89,8 +91,8 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
         },
         {
             id: "aov",
-            label: "Avg Order Value",
-            sublabel: `${data.orders_count} orders`,
+            label: t("finances.hero.aov"),
+            sublabel: t("finances.hero.orders", { count: data.orders_count }),
             value: data.aov,
             prevValue: data.prev_aov,
             series: ordersSeries,
@@ -99,8 +101,8 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
         },
         {
             id: "delivery_rate",
-            label: "Delivery Rate",
-            sublabel: `${data.delivered_count} delivered`,
+            label: t("finances.hero.rate"),
+            sublabel: t("finances.hero.delivered", { count: data.delivered_count }),
             value: data.delivery_rate,
             prevValue: 0,
             series: [],
@@ -125,14 +127,14 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
             animate="show"
             className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"
         >
-            {tiles.map((t) => {
-                const delta = t.prevValue > 0 ? ((t.value - t.prevValue) / t.prevValue) * 100 : null;
-                const isActive = activeTile === t.id;
+            {tiles.map((tile) => {
+                const delta = tile.prevValue > 0 ? ((tile.value - tile.prevValue) / tile.prevValue) * 100 : null;
+                const isActive = activeTile === tile.id;
                 return (
                     <motion.button
-                        key={t.id}
+                        key={tile.id}
                         variants={item}
-                        onClick={() => onTileClick?.(t.id)}
+                        onClick={() => onTileClick?.(tile.id)}
                         className={cn(
                             "group relative text-left rounded-2xl border p-4 transition-all overflow-hidden",
                             "bg-[var(--card-bg)] border-[var(--card-border)] hover:border-[var(--ink)]",
@@ -142,38 +144,38 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
                         <div className="flex items-start justify-between mb-2">
                             <div className={cn(
                                 "w-8 h-8 rounded-lg flex items-center justify-center",
-                                accentToBg(t.accent)
+                                accentToBg(tile.accent)
                             )}>
-                                <t.Icon className={cn("w-4 h-4", accentToText(t.accent))} />
+                                <tile.Icon className={cn("w-4 h-4", accentToText(tile.accent))} />
                             </div>
                             {delta !== null && (
-                                <Delta value={delta} size="sm" inverse={t.inverseDelta} />
+                                <Delta value={delta} size="sm" inverse={tile.inverseDelta} />
                             )}
                         </div>
                         <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-                            {t.label}
+                            {tile.label}
                         </div>
                         <div className="mt-1 flex items-baseline gap-1">
                             <FinanceValue
-                                value={t.value}
-                                currency={t.currency ?? "IQD"}
+                                value={tile.value}
+                                currency={tile.currency ?? "IQD"}
                                 abbreviate
-                                decimals={t.decimals}
+                                decimals={tile.decimals}
                                 className="text-[22px] leading-none text-foreground"
                             />
-                            {t.suffix && (
-                                <span className="text-sm font-semibold text-muted tabular-nums">{t.suffix}</span>
+                            {tile.suffix && (
+                                <span className="text-sm font-semibold text-muted tabular-nums">{tile.suffix}</span>
                             )}
                         </div>
-                        <div className="text-[11px] text-muted mt-1 truncate">{t.sublabel}</div>
-                        {t.series.length > 0 && (
-                            <div className={cn("mt-2 -mb-1", accentToText(t.accent))}>
+                        <div className="text-[11px] text-muted mt-1 truncate">{tile.sublabel}</div>
+                        {tile.series.length > 0 && (
+                            <div className={cn("mt-2 -mb-1", accentToText(tile.accent))}>
                                 <Sparkline
-                                    data={t.series}
+                                    data={tile.series}
                                     width={180}
                                     height={22}
                                     stroke="currentColor"
-                                    fill={accentToFill(t.accent)}
+                                    fill={accentToFill(tile.accent)}
                                     showDot
                                 />
                             </div>
