@@ -43,7 +43,12 @@ export function ProductEditorHeader({
                 {/* Left: Back + Title */}
                 <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                     <button
-                        onClick={() => router.push("/products")}
+                        onClick={() => {
+                            if (isDirty && !window.confirm(t("products.ed.leaveUnsaved"))) return;
+                            // Back to the list as it was left (search and filters live in its URL).
+                            if (window.history.length > 1) router.back();
+                            else router.push("/products");
+                        }}
                         aria-label={t("products.ed.back")}
                         className="p-2 rounded-xl hover:bg-[var(--card-bg)] transition-colors shrink-0"
                     >

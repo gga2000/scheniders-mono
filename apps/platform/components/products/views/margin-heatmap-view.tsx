@@ -3,7 +3,8 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Product } from "@/lib/supabase";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, formatIQD, maskIQD } from "@/lib/utils";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { ChevronDown, AlertTriangle, TrendingDown } from "lucide-react";
 
@@ -56,6 +57,7 @@ export function MarginHeatmapView({
   onViewDetails,
 }: MarginHeatmapViewProps) {
   const { t } = useLanguage();
+  const { revealed: showFinancials } = useFinancialVisibility();
   const [sortBy, setSortBy] = useState<SortOption>("margin");
   const [showLowMarginOnly, setShowLowMarginOnly] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -324,12 +326,12 @@ export function MarginHeatmapView({
                 <div className="space-y-0.5 text-[10px] opacity-90">
                   <p>
                     {t("products.views.heatmap.revenue")}:{" "}
-                    {formatIQD(product.total_revenue ?? 0)}
+                    {maskIQD(product.total_revenue ?? 0, showFinancials)}
                   </p>
                   <p>
                     {t("products.views.heatmap.cost")}:{" "}
                     {product.cost != null
-                      ? formatIQD(product.cost)
+                      ? maskIQD(product.cost, showFinancials)
                       : "—"}
                   </p>
                   <p>
@@ -339,7 +341,7 @@ export function MarginHeatmapView({
                   {product.cost != null && product.price != null && (
                     <p>
                       {t("products.views.heatmap.profitPerUnit")}:{" "}
-                      {formatIQD(product.price - product.cost)}
+                      {maskIQD(product.price - product.cost, showFinancials)}
                     </p>
                   )}
                 </div>

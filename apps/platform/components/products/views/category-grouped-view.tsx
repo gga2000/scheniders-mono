@@ -36,7 +36,8 @@ import {
     type DragEndEvent,
 } from "@dnd-kit/core";
 import { Product, getStockStatus } from "@/lib/supabase";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, formatIQD, maskIQD } from "@/lib/utils";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { QuickActionsMenu } from "../quick-actions-menu";
 import { useProductStore } from "@/store/use-product-store";
@@ -604,6 +605,7 @@ function CategorySection({
     children,
 }: CategorySectionProps) {
     const dropId = `category:${group.id ?? "__uncategorized__"}`;
+    const { revealed: showFinancials } = useFinancialVisibility();
     const { setNodeRef, isOver } = useDroppable({ id: dropId });
 
     return (
@@ -665,7 +667,7 @@ function CategorySection({
                             {t("products.views.category.units")}
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-green)] text-foreground font-medium">
-                            {formatIQD(group.totalRevenue)}
+                            {maskIQD(group.totalRevenue, showFinancials)}
                         </span>
 
                         {/* Add products button */}

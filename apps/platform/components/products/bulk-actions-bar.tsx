@@ -351,7 +351,7 @@ export function BulkActionsBar({
                                 <button
                                     onClick={handlePriceSubmit}
                                     disabled={isLoading}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-white text-[var(--foreground)] rounded-lg text-sm font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
                                 >
                                     {loadingAction === "price" ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />

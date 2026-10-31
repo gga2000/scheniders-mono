@@ -168,7 +168,8 @@ export function ForecastingCards({ products, onDrillDown }: ForecastingCardsProp
 
   // ---- Render ----
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+    // Phones: one swipeable row instead of three rows of cards above the list.
+    <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [&>*]:min-w-[44%] [&>*]:shrink-0 [&>*]:snap-start md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 md:pb-0 md:[&>*]:min-w-0 xl:grid-cols-6">
       {/* Card 1: Total Products */}
       <div className={cn("pastel-card pastel-card-yellow p-4")}>
         <div className="flex items-start justify-between">

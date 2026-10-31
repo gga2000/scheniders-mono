@@ -22,6 +22,7 @@ import {
     List,
     ChevronDown,
     ChevronRight,
+    X,
     Plus,
     RefreshCw,
     ClipboardList,
@@ -353,6 +354,10 @@ function ProductsContent() {
                     return b.price - a.price;
                 case "stock":
                     return b.stock_quantity - a.stock_quantity;
+                case "lowStock":
+                    return a.stock_quantity - b.stock_quantity;
+                case "newest":
+                    return (b.created_at ?? "").localeCompare(a.created_at ?? "");
                 case "name":
                     return a.name.localeCompare(b.name);
                 case "displayOrder":
@@ -890,19 +895,20 @@ function ProductsContent() {
                                 })}
                                 disabled={recomputeInventory.isPending}
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all",
+                                    // Maintenance tool: kept quiet (icon only) next to the daily actions.
+                                    "flex items-center justify-center p-3 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] text-muted hover:text-foreground hover:bg-[var(--background)] transition-all",
                                     recomputeInventory.isPending && "opacity-50 cursor-not-allowed"
                                 )}
                                 title={t("products.tools.recalculateHint")}
+                                aria-label={t("products.tools.recalculate")}
                             >
                                 <RefreshCw className={cn("w-4 h-4", recomputeInventory.isPending && "animate-spin")} />
-                                {t("products.tools.recalculate")}
                             </button>
                             )}
                             {canEditProducts && (
                             <button
                                 onClick={() => setIsStockCountOpen(true)}
-                                className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-all"
+                                className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:bg-[var(--background)] transition-all"
                                 title={t("products.count.description")}
                             >
                                 <ClipboardList className="w-4 h-4" />
@@ -1010,14 +1016,25 @@ function ProductsContent() {
                                             placeholder={t("products.searchPlaceholder")}
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
+                                            className="w-full pl-12 pr-10 py-2 text-sm bg-[var(--background)] border border-[var(--card-border)] rounded-2xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] focus:border-transparent transition-all"
                                         />
+                                        {searchQuery && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSearchQuery("")}
+                                                aria-label={t("products.clearSearch")}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted hover:text-foreground hover:bg-[var(--card-bg)]"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="flex flex-wrap items-center gap-3">
                                         {/* Advanced Filters — desktop dropdown */}
                                         <div className="hidden sm:block">
                                             <AdvancedFilters
+                                                value={advancedFilters}
                                                 onApply={setAdvancedFilters}
                                                 onReset={() => setAdvancedFilters(null)}
                                             />
@@ -1091,6 +1108,9 @@ function ProductsContent() {
                                                 <option value="revenue">{t("products.highestRevenue")}</option>
                                                 <option value="price">{t("products.highestPrice")}</option>
                                                 <option value="stock">{t("products.highestStock")}</option>
+                                                <option value="lowStock">{t("products.lowestStock")}</option>
+                                                <option value="newest">{t("products.newestFirst")}</option>
+                                                <option value="name">{t("products.sortByName")}</option>
                                                 <option value="displayOrder">{t("products.customOrder")}</option>
                                             </select>
                                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
@@ -1152,6 +1172,18 @@ function ProductsContent() {
                                             ? t("products.emptyState.descNew")
                                             : t("products.emptyState.descFilter")}
                                     </p>
+                                    {products.length > 0 && (searchQuery || advancedFilters) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSearchQuery("");
+                                                setAdvancedFilters(null);
+                                            }}
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--card-border)] text-sm font-medium text-foreground hover:bg-[var(--background)] transition-colors"
+                                        >
+                                            {t("products.emptyState.clearFilters")}
+                                        </button>
+                                    )}
                                     {products.length === 0 && canEditProducts && (
                                         <button
                                             onClick={handleAddProduct}
@@ -1286,6 +1318,7 @@ function ProductsContent() {
             <FilterBottomSheet
                 isOpen={isMobileFilterOpen}
                 onClose={() => setIsMobileFilterOpen(false)}
+                value={advancedFilters}
                 onApply={setAdvancedFilters}
                 onReset={() => setAdvancedFilters(null)}
             />

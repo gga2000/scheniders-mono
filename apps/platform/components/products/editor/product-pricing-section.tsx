@@ -1,6 +1,6 @@
 "use client";
 
-import { DollarSign, TrendingUp, Percent } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Percent } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -86,11 +86,20 @@ export function ProductPricingSection({
             {!formData.is_supply && ((showCost && profitMargin !== null) || discountPercentage !== null) && (
                 <div className="flex flex-row items-center gap-2">
                     {showCost && profitMargin !== null && profitAmount !== null && (
-                        <div className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--pastel-green)] rounded-xl">
-                            <TrendingUp className="w-3.5 h-3.5 text-green-700" />
-                            <span className="text-sm font-bold text-green-900">{profitMargin.toFixed(1)}%</span>
-                            <span className="text-xs text-green-700">{t("products.ed.perUnit").replace("{amount}", profitAmount.toLocaleString())}</span>
-                        </div>
+                        profitAmount < 0 ? (
+                            // Selling below cost loses money on every unit; say so in red.
+                            <div className="inline-flex items-center gap-2 px-3 py-2 bg-rose-100 dark:bg-rose-950/40 rounded-xl">
+                                <TrendingDown className="w-3.5 h-3.5 text-rose-700 dark:text-rose-300" />
+                                <span className="text-sm font-bold text-rose-900 dark:text-rose-200">{profitMargin.toFixed(1)}%</span>
+                                <span className="text-xs text-rose-700 dark:text-rose-300">{t("products.ed.lossPerUnit").replace("{amount}", Math.abs(profitAmount).toLocaleString())}</span>
+                            </div>
+                        ) : (
+                            <div className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--pastel-green)] rounded-xl">
+                                <TrendingUp className="w-3.5 h-3.5 text-green-700" />
+                                <span className="text-sm font-bold text-green-900">{profitMargin.toFixed(1)}%</span>
+                                <span className="text-xs text-green-700">{t("products.ed.perUnit").replace("{amount}", profitAmount.toLocaleString())}</span>
+                            </div>
+                        )
                     )}
                     {discountPercentage !== null && (
                         <div className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--pastel-pink)] rounded-xl">
