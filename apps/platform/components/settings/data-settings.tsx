@@ -6,6 +6,7 @@ import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { useAuth } from "@/components/auth/auth-provider";
 import { generateFullSnapshot, restoreFromSnapshot, downloadSnapshot } from "@/lib/backup-utils";
 import { AlertTriangle, Upload, CheckCircle, Database, Download, FileSpreadsheet, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 export function DataSettings() {
     const { tenantId } = useAuth();
@@ -63,7 +64,7 @@ export function DataSettings() {
             downloadCSV(csv, `orders_backup_${new Date().toISOString().split('T')[0]}.csv`);
         } catch (err) {
             console.error("Export failed", err);
-            alert("Failed to export orders");
+            toast.error("Failed to export orders");
         } finally {
             setExporting(null);
         }
@@ -79,7 +80,7 @@ export function DataSettings() {
             downloadCSV(csv, `customer_notes_${new Date().toISOString().split('T')[0]}.csv`);
         } catch (err) {
             console.error("Export failed", err);
-            alert("Failed to export customer notes");
+            toast.error("Failed to export customer notes");
         } finally {
             setExporting(null);
         }
@@ -96,10 +97,10 @@ export function DataSettings() {
         try {
             const snapshot = await generateFullSnapshot(tenantId);
             downloadSnapshot(snapshot);
-            alert("Snapshot created successfully!");
+            toast.success("Snapshot created successfully");
         } catch (error) {
             console.error("Snapshot error:", error);
-            alert("Failed to create snapshot.");
+            toast.error("Failed to create snapshot");
         } finally {
             setIsSnapshotting(false);
         }
@@ -123,14 +124,21 @@ export function DataSettings() {
 
             const result = await restoreFromSnapshot(snapshot);
             if (result.success) {
-                alert("Restore complete! Please refresh the page.");
-                window.location.reload();
+                // The page still shows the old data, so the toast stays until the
+                // operator reloads it themselves.
+                toast({
+                    title: "Restore complete",
+                    description: "Reload the page to see the restored data.",
+                    variant: "success",
+                    duration: 600000,
+                    action: { label: "Reload", onClick: () => window.location.reload() },
+                });
             } else {
-                alert(`Restore failed: ${result.error}`);
+                toast.error("Restore failed", result.error);
             }
         } catch (error) {
             console.error("Restore error:", error);
-            alert("Invalid snapshot file.");
+            toast.error("Invalid snapshot file");
         } finally {
             setIsRestoring(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
