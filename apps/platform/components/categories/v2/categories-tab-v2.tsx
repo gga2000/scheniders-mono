@@ -395,7 +395,7 @@ export function CategoriesTabV2() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--ink)] text-white text-xs font-medium shadow-md"
               >
                 <Undo2 className="w-3.5 h-3.5" />
-                {t("categories.bulk.undoArchive") || "Undo archive"}
+                {t("categories.bulk.undoArchiveAction")}
                 <span className="opacity-70">
                   ({Math.ceil(undoTimeLeft / 1000)}s)
                 </span>
