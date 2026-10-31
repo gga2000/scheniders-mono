@@ -262,7 +262,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6">
                                     <div className="flex items-center gap-2 mb-4">
                                         <Tags className="w-4 h-4 text-muted" />
-                                        <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">Tags</h3>
+                                        <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">{t("products.ed.tags")}</h3>
                                     </div>
                                     <TagInput productId={product.id} />
                                 </div>

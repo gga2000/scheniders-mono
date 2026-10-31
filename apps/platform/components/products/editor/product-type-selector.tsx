@@ -17,25 +17,25 @@ const PRODUCT_TYPES = [
     {
         type: 'physical' as const,
         icon: Package,
-        color: 'bg-emerald-100 text-emerald-700',
+        color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
         activeColor: 'bg-emerald-500 text-white',
     },
     {
         type: 'digital' as const,
         icon: Download,
-        color: 'bg-blue-100 text-blue-700',
+        color: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
         activeColor: 'bg-blue-500 text-white',
     },
     {
         type: 'service' as const,
         icon: Clock,
-        color: 'bg-purple-100 text-purple-700',
+        color: 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300',
         activeColor: 'bg-purple-500 text-white',
     },
     {
         type: 'bundle' as const,
         icon: Layers,
-        color: 'bg-amber-100 text-amber-700',
+        color: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
         activeColor: 'bg-amber-500 text-white',
     },
 ];
@@ -68,7 +68,7 @@ export function ProductTypeSelector({ value, onChange, disabled, mode }: Product
                             className={cn(
                                 "relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center",
                                 isActive
-                                    ? "border-[var(--ink)] bg-[var(--ink)]/5 shadow-sm"
+                                    ? "border-[var(--foreground)] bg-[var(--card-bg)] shadow-sm"
                                     : "border-[var(--card-border)] hover:border-[var(--ink)]/30 bg-[var(--background)]",
                                 disabled && "opacity-50 cursor-not-allowed"
                             )}
@@ -91,7 +91,7 @@ export function ProductTypeSelector({ value, onChange, disabled, mode }: Product
                                 </p>
                             </div>
                             {isActive && (
-                                <div className="absolute top-2 end-2 w-2 h-2 rounded-full bg-[var(--ink)]" />
+                                <div className="absolute top-2 end-2 w-2 h-2 rounded-full bg-[var(--foreground)]" />
                             )}
                         </button>
                     );
