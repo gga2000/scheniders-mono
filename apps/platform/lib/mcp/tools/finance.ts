@@ -65,6 +65,9 @@ async function readAll<T>(page: (from: number, to: number) => PromiseLike<Paged>
     return rows;
 }
 
+type ProductRow = { id: string; name: string; sku: string | null };
+type CostRow = { product_id: string; variant_id: string | null; cost: number | null };
+
 type ExpenseRow = {
     id: string;
     expense_date: string;
@@ -94,7 +97,7 @@ export function registerFinanceTools(server: McpServer): void {
             requireMoney(caller);
             const period = range(input.from, input.to);
 
-            const [sales, refunds, products, variants, expenses] = await Promise.all([
+            const [sales, refunds, productRows, costRows, expenses] = await Promise.all([
                 readAll<ProfitOrder>((a, b) =>
                     caller.db
                         .from("orders")
@@ -122,12 +125,14 @@ export function registerFinanceTools(server: McpServer): void {
                         .order("id")
                         .range(a, b),
                 ),
-                readAll<CostedProduct>((a, b) =>
-                    caller.db.from("products").select("id, name, sku, cost").eq("tenant_id", caller.tenantId).order("id").range(a, b),
+                readAll<ProductRow>((a, b) =>
+                    caller.db.from("products").select("id, name, sku").eq("tenant_id", caller.tenantId).order("id").range(a, b),
                 ),
-                readAll<CostedVariant>((a, b) =>
-                    caller.db.from("product_variants").select("id, product_id, cost").eq("tenant_id", caller.tenantId).order("id").range(a, b),
-                ),
+                // Cost is not in the member column grant; product_costs() hands it to admins. Read-only, so GET keeps it on the guard's read path.
+                caller.db.rpc("product_costs", { p_tenant_id: caller.tenantId }, { get: true }).then(({ data, error }) => {
+                    if (error) throw error;
+                    return (data ?? []) as CostRow[];
+                }),
                 readAll<{ category: string; amount: number }>((a, b) =>
                     caller.db
                         .from("expenses")
@@ -139,6 +144,12 @@ export function registerFinanceTools(server: McpServer): void {
                         .range(a, b),
                 ),
             ]);
+
+            const productCosts = new Map(costRows.filter((c) => c.variant_id === null).map((c) => [c.product_id, c.cost]));
+            const products: CostedProduct[] = productRows.map((p) => ({ ...p, cost: productCosts.get(p.id) ?? null }));
+            const variants: CostedVariant[] = costRows
+                .filter((c) => c.variant_id !== null)
+                .map((c) => ({ id: c.variant_id as string, product_id: c.product_id, cost: c.cost }));
 
             const s = summarizeProfit([...sales, ...refunds], products, variants, expenses);
             const lines = [

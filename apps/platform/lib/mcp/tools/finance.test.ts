@@ -52,15 +52,18 @@ beforeEach(() => {
             order("o5", OTHER, "delivered", 99999),
         ].map((o) => ({ is_archived: false, ...o })),
         products: [
-            { id: SERUM, tenant_id: STORE, name: "Serum", sku: "SR-1", cost: 10000 },
-            { id: "foreign", tenant_id: OTHER, name: "Other", sku: null, cost: 1 },
+            { id: SERUM, tenant_id: STORE, name: "Serum", sku: "SR-1" },
+            { id: "foreign", tenant_id: OTHER, name: "Other", sku: null },
         ],
-        product_variants: [],
         expenses: [
             { id: EXPENSE, tenant_id: STORE, expense_date: "2026-10-05", category: "marketing", amount: 8000, description: "Meta ads", notes: null },
             { id: "e-other", tenant_id: OTHER, expense_date: "2026-10-05", category: "other", amount: 777, description: "x", notes: null },
         ],
         activity_logs: [],
+    }, {
+        // product_costs(): the store's costs, one row per product and variant.
+        product_costs: (args) =>
+            args.p_tenant_id === STORE ? [{ product_id: SERUM, variant_id: null, cost: 10000 }] : [{ product_id: "foreign", variant_id: null, cost: 1 }],
     });
     asCaller();
 });
