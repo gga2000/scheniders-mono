@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import type { Order } from "@/lib/supabase";
-import { normalizeGovernorate, governorateLabel } from "@/lib/governorate-normalize";
-import { baghdadDayKey } from "@/lib/order-window";
+import { normalizeGovernorate } from "@/lib/governorate-normalize";
+import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 
 export interface AgingBucket {
     id: "fresh" | "aging" | "stale" | "stuck";
@@ -104,8 +104,9 @@ export function useCashPosition(
         // may count them (a live return row in transit read as -44,750 IQD).
         const sales = orders.filter((o) => !o.is_return);
         const now = Date.now();
-        const earliest = new Date(now - 29 * MS_PER_DAY);
-        earliest.setHours(0, 0, 0, 0);
+        // The chart covers the last 30 Baghdad days, whatever the viewer's own time zone.
+        const firstDay = addDaysToDayKey(baghdadDayKey(now), -29);
+        const earliest = new Date(baghdadDayStart(firstDay));
 
         let cashCollected = 0;
         let cashInTransit = 0;
@@ -277,12 +278,9 @@ export function useCashPosition(
             .sort((a, b) => b.delivered_value - a.delivered_value);
 
         const cashSeries: CashPositionResult["cashSeries"] = [];
-        const cursor = new Date(earliest);
-        while (cursor.getTime() <= now) {
-            const key = baghdadDayKey(cursor);
+        for (let key = firstDay; key <= baghdadDayKey(now); key = addDaysToDayKey(key, 1)) {
             const entry = daily.get(key) || { collected: 0, float: 0 };
-            cashSeries.push({ date: key, ts: cursor.getTime(), collected: entry.collected, float: entry.float });
-            cursor.setDate(cursor.getDate() + 1);
+            cashSeries.push({ date: key, ts: baghdadDayStart(key), collected: entry.collected, float: entry.float });
         }
 
         return {
