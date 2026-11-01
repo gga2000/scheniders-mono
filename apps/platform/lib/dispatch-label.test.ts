@@ -82,10 +82,44 @@ describe("generateDispatchLabelHTML", () => {
         expect(html).not.toContain("dl-notes");
         expect(html).not.toContain("dl-bc");
     });
-    it("marks refunds so the courier does not collect", () => {
-        const html = generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), { showBarcode: true });
-        expect(html).toContain("لا تستلم مبلغاً من الزبون");
-        expect(html).toContain("ادفع للزبون");
+    it("puts رقم الوصل over the order number, beside a large QR", () => {
+        const html = generateDispatchLabelHTML(order(), { showBarcode: true });
+        expect(html).toContain("رقم الوصل");
+        expect(html).toMatch(/class="dl-qr"><svg[^>]*width="25\.4mm"/);
+    });
+    it("shows the Prime logo only when the courier logo is on", () => {
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: true } })).toContain('class="dl-courier" src="data:image/png;base64,');
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: false } })).not.toContain("dl-courier");
+    });
+});
+
+describe("refund and replacement labels", () => {
+    const refund = order({ id: "r1", order_id: "RTN-4030-1", is_return: true, price: -36750, delivery_fee: 5000, items: [{ name: "فيوجن", quantity: 1, price: 36750 }] } as Partial<Order>);
+    it("keeps the whole after-sale number and pays the customer from an outlined box", () => {
+        const html = generateDispatchLabelHTML(refund, { showBarcode: true });
+        expect(html).toContain('aria-label="RTN-4030-1"');
+        expect(html).toContain("استرجاع");
+        expect(html).toContain('class="dl-cod dl-cod-out"');
+        expect(html).toContain("31,750");
+        expect(html).toContain("لا تستلم مبلغاً");
+    });
+    it("lists what to take back and the original order", () => {
+        const html = generateDispatchLabelHTML(refund, { showBarcode: true, pickup: { originalOrderNumber: "7616", items: [{ name: "فيوجن", qty: 1 }] } });
+        expect(html).toContain("استلم من الزبون");
+        expect(html).toContain('عن <bdi dir="ltr">#7616</bdi>');
+    });
+    it("says nothing comes back when the customer keeps the item", () => {
+        const html = generateDispatchLabelHTML(refund, { showBarcode: true, pickup: { originalOrderNumber: "7616", items: [] } });
+        expect(html).toContain("لا شيء — الزبون يحتفظ بالمنتج");
+    });
+    it("shows both directions on a replacement, with a fallback for old orders", () => {
+        const rpl = order({ order_id: "RPL-3902-1", is_replacement: true, price: 7000, delivery_fee: 5000, items: [{ name: "فيوجن", quantity: 1, price: 36750 }] } as Partial<Order>);
+        const withPickup = generateDispatchLabelHTML(rpl, { showBarcode: true, pickup: { originalOrderNumber: null, items: [{ name: "انفوي", qty: 2 }] } });
+        expect(withPickup).toContain("سلّم للزبون");
+        expect(withPickup).toContain("انفوي × 2");
+        expect(withPickup).toContain("12,000");
+        expect(withPickup).not.toContain("dl-cod-out");
+        expect(generateDispatchLabelHTML(rpl, { showBarcode: true })).toContain("المنتج القديم (حسب الطلب الأصلي)");
     });
     it("tightens long orders so the barcode keeps its space", () => {
         expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain("dl-dense");
