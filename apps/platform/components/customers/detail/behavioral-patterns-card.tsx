@@ -9,16 +9,16 @@ import {
     PieChart,
     MapPin,
     Phone,
-    Users,
     Sparkles,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
-import { formatPhoneDisplay } from "@/lib/customer-format";
 import { CustomerPlace } from "@/components/customers/customer-place";
-import { useCustomerLinks } from "@/hooks/use-customer-links";
 
 type Order = { created_at: string; status: string };
+
+/** Buying patterns need this many orders; below it the card is a one-line snapshot. */
+export const PATTERNS_FROM_ORDERS = 3;
 
 interface BehavioralPatternsCardProps {
     orders: Order[];
@@ -97,9 +97,8 @@ export function BehavioralPatternsCard({
     phone,
 }: BehavioralPatternsCardProps) {
     const { t, language } = useLanguage();
-    const { data: links = [] } = useCustomerLinks(phone);
 
-    const mode: "patterns" | "snapshot" = orders.length >= 3 ? "patterns" : "snapshot";
+    const mode: "patterns" | "snapshot" = orders.length >= PATTERNS_FROM_ORDERS ? "patterns" : "snapshot";
 
     // ----- Pattern computations (only meaningful when mode === "patterns") -----
     const patterns = useMemo(() => {
@@ -179,33 +178,42 @@ export function BehavioralPatternsCard({
 
         const phoneValid = isValidIraqiMobile(phone);
 
-        const linkCount = links.length;
-        const linksLabel =
-            linkCount === 0
-                ? t("customers.snapshot.linksNone")
-                : linkCount === 1
-                ? t("customers.snapshot.linksOne")
-                : t("customers.snapshot.linksMany", { count: linkCount.toString() });
+        return { locationLabel, phoneValid };
+    }, [mode, city, governorate, phone, t, language]);
 
-        return { locationLabel, phoneValid, linksLabel };
-    }, [mode, city, governorate, phone, links, t, language]);
+    // Too few orders for patterns: one line, like the Ratings and Link strips. Linked
+    // customers are the Link strip's to show, so the snapshot does not repeat them.
+    if (snapshot) {
+        return (
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 min-h-14 py-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                <Sparkles className="w-4 h-4 text-foreground shrink-0" />
+                <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.snapshot.title")}</span>
+                <span className="text-sm text-muted-foreground" aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
+                    <MapPin className="w-3.5 h-3.5 shrink-0" aria-label={t("customers.snapshot.location")} />
+                    {snapshot.locationLabel}
+                </span>
+                {/* A valid number is the norm and says nothing; only a bad one earns a mark, in caution amber. */}
+                {!snapshot.phoneValid && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                        <Phone className="w-3.5 h-3.5" />
+                        {t("customers.snapshot.phoneInvalid")}
+                    </span>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] h-full">
             <div className="flex items-center gap-2.5 mb-5">
-                {mode === "patterns" ? (
-                    <BrainCircuit className="w-5 h-5 text-foreground shrink-0" />
-                ) : (
-                    <Sparkles className="w-5 h-5 text-foreground shrink-0" />
-                )}
+                <BrainCircuit className="w-5 h-5 text-foreground shrink-0" />
                 <h3 className="font-headline font-extrabold text-lg leading-none">
-                    {mode === "patterns"
-                        ? t("customers.behavioral.title")
-                        : t("customers.snapshot.title")}
+                    {t("customers.behavioral.title")}
                 </h3>
             </div>
 
-            {mode === "patterns" && patterns ? (
+            {patterns && (
                 <div className="space-y-4">
                     {patterns.timeLabel && (
                         <Row
@@ -233,30 +241,7 @@ export function BehavioralPatternsCard({
                         value={<OutcomeMix segments={patterns.statusMix} />}
                     />
                 </div>
-            ) : snapshot ? (
-                <div className="space-y-4">
-                    {/* Tenure and "new customer" are already in the hero and the banner: the snapshot adds only what they don't say. */}
-                    <Row
-                        icon={<MapPin className="w-4.5 h-4.5" />}
-                        title={t("customers.snapshot.location")}
-                        value={snapshot.locationLabel}
-                    />
-                    {/* A valid number is the norm and says nothing; only a bad one earns a row, in caution amber. */}
-                    {!snapshot.phoneValid && (
-                        <Row
-                            icon={<Phone className="w-4.5 h-4.5" />}
-                            tone="bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
-                            title={t("customers.snapshot.phoneInvalid")}
-                            value={formatPhoneDisplay(phone)}
-                        />
-                    )}
-                    <Row
-                        icon={<Users className="w-4.5 h-4.5" />}
-                        title={snapshot.linksLabel}
-                        value=""
-                    />
-                </div>
-            ) : null}
+            )}
         </div>
     );
 }

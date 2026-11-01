@@ -80,13 +80,15 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
                 <CustomerStatusFlags customer={reliability} surface="tinted" className="mt-1.5" />
             </div>
 
-            {/* What Value, COD risk, the rate and the score mean, the same popover as the list and the drawer.
+            {/* What Value, COD risk, the rate and the score mean, the same rules as the list and the drawer.
                 It drops below the figures block, over Order history, so neither the hero's trust score
-                nor its action buttons above are covered. It keeps that side on a short screen and its body scrolls. */}
+                nor its action buttons above are covered. In two columns it is short enough to fit
+                under the banner whole, without scrolling, on a 1280x800 screen. */}
             <CustomerRatingHelp
                 side="bottom"
                 align="end"
                 keepSide
+                layout="wide"
                 className="self-center text-current opacity-75 hover:opacity-100 hover:text-current"
                 anchor={(trigger) => (
                     <div className={cn("flex items-end gap-6 ml-auto", accent.surfaceText)}>

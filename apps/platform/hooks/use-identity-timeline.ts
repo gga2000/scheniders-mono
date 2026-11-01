@@ -71,7 +71,9 @@ export function useIdentityTimeline(phone: string | undefined) {
                 }
             }
 
-            return events;
+            // Walked oldest first to find when each name or place first appeared; shown
+            // newest first, like the drawer's identity list, so "Show all" hides the oldest.
+            return events.reverse();
         },
         enabled: !!phone && !!tenantId,
         staleTime: 5 * 60 * 1000,
