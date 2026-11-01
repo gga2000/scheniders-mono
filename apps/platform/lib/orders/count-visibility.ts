@@ -36,6 +36,8 @@ export interface CountContext {
     duplicatesOnly: boolean;
     /** The due-today toggle (deferred). */
     dueToday: boolean;
+    /** The stuck-in-transit toggle (deferred). Optional: mobile has no such list filter. */
+    stuckTransit?: boolean;
 }
 
 export interface CountVisibility {
@@ -50,7 +52,7 @@ export interface CountVisibility {
 export function countVisibility(c: CountContext): CountVisibility {
     const base = c.facts.ready && !c.archived;
     const refined = ({ exceptDue = false, exceptRisk = false } = {}) =>
-        c.columnFilter || c.duplicatesOnly || (!exceptDue && c.dueToday) || (!exceptRisk && c.riskLevel !== undefined);
+        c.columnFilter || c.duplicatesOnly || !!c.stuckTransit || (!exceptDue && c.dueToday) || (!exceptRisk && c.riskLevel !== undefined);
     return {
         chips: base && !refined(),
         dueTodayBadge: base && !refined({ exceptDue: true }),

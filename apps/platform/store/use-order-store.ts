@@ -57,6 +57,8 @@ interface FilterUISlice {
   filterDuplicatesOnly: boolean;
   /** Show only orders whose scheduled day has arrived and that still need work. */
   filterDueToday: boolean;
+  /** Show only orders in transit 7+ days (lib/orders/stuck-in-transit.ts). */
+  filterStuckTransit: boolean;
   sortConfig: { key: string; direction: "asc" | "desc" } | null;
   sortConfigs: Array<{ key: string; direction: "asc" | "desc" }>;
   columnFilters: Record<string, string>;
@@ -72,6 +74,7 @@ interface FilterUISlice {
   setGroupBy: (val: "none" | "status" | "city" | "verified") => void;
   setFilterDuplicatesOnly: (val: boolean) => void;
   setFilterDueToday: (val: boolean) => void;
+  setFilterStuckTransit: (val: boolean) => void;
   toggleSort: (key: string, shiftKey?: boolean) => void;
   setColumnFilters: (filters: Record<string, string>) => void;
   setOpenFilterColumn: (val: string | null) => void;
@@ -222,6 +225,7 @@ export const useOrderStore = create<OrderStore>()(
       groupBy: "none",
       filterDuplicatesOnly: false,
       filterDueToday: false,
+      filterStuckTransit: false,
       sortConfig: null,
       sortConfigs: [],
       columnFilters: {},
@@ -237,6 +241,7 @@ export const useOrderStore = create<OrderStore>()(
       setGroupBy: (val) => set({ groupBy: val }),
       setFilterDuplicatesOnly: (val) => set({ filterDuplicatesOnly: val }),
       setFilterDueToday: (val) => set({ filterDueToday: val }),
+      setFilterStuckTransit: (val) => set({ filterStuckTransit: val }),
       toggleSort: (key, shiftKey) =>
         set((s) => {
           if (shiftKey) {
