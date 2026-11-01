@@ -130,6 +130,9 @@ describe.each(LAYOUTS)("pdp_direct_order %s — never lose the buyer", (_layout,
       fireEvent.submit(v.form());
     });
     await waitFor(() => expect(orderKeys(fetchFn)).toEqual(["restored-key-0001"]));
+    // The placed-order flow ends by clearing the draft. Waiting for that keeps
+    // this component from clearing the NEXT test's draft after cleanup.
+    await waitFor(() => expect(readOrderDraft(TENANT, PRODUCT)).toBeNull());
   });
 
   it("resends once with the same key after a timeout, then offers the order on WhatsApp", async () => {
