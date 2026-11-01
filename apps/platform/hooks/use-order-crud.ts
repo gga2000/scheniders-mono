@@ -128,8 +128,12 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
     const statusMutationSeqRef = useRef(new Map<string, number>());
 
     // Per-order debounce timers: coalesces rapid-fire status changes (300ms)
-    // so only the final status is sent to Supabase.
-    const statusDebounceRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+    // so only the final status is sent to Supabase. The pending call's resolve
+    // is kept so a cancelled call settles as superseded instead of never.
+    const statusDebounceRef = useRef(new Map<string, {
+        timer: ReturnType<typeof setTimeout>;
+        resolve: (result: { success: boolean; superseded: true }) => void;
+    }>());
 
     // Per-order catch-up after a status change (see updateOrderStatus). The
     // next change to the same order waits for it before reading its version.
@@ -223,12 +227,15 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         // If another status change for the same order arrives within 300ms,
         // cancel the previous timer and only send the latest status.
         const debounceMap = statusDebounceRef.current;
-        const existingTimer = debounceMap.get(orderId);
-        if (existingTimer) clearTimeout(existingTimer);
-        diag.log(`[Diag:StatusUpdate] DEBOUNCE orderId=${orderId} cancelledPrevious=${!!existingTimer}`);
+        const pending = debounceMap.get(orderId);
+        if (pending) {
+            clearTimeout(pending.timer);
+            pending.resolve({ success: false, superseded: true });
+        }
+        diag.log(`[Diag:StatusUpdate] DEBOUNCE orderId=${orderId} cancelledPrevious=${!!pending}`);
 
         return new Promise<{ success: boolean; error?: string; superseded?: boolean }>((resolve) => {
-            debounceMap.set(orderId, setTimeout(async () => {
+            const timer = setTimeout(async () => {
                 debounceMap.delete(orderId);
 
                 // Latest-wins gate
@@ -340,7 +347,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     toast.error(msg);
                     resolve({ success: false, error: msg });
                 }
-            }, 300));
+            }, 300);
+            debounceMap.set(orderId, { timer, resolve });
         });
     }
 
