@@ -76,7 +76,7 @@ export function KpiStrip({ analytics, isLoading, isError = false, locale }: KpiS
                 value={isLoading || isError ? "—" : aov !== null ? formatIQD(aov) : "—"}
                 icon={<TrendingUp className="h-4 w-4" />}
                 tint="bg-violet-100 text-violet-700"
-                sub={isError ? undefined : orderCount === 0 ? t(STRINGS.command_center.kpi_no_orders_yet, locale) : undefined}
+                sub={isError ? undefined : orderCount === 0 ? t(STRINGS.command_center.kpi_no_orders_yet, locale) : last7Days}
                 loading={isLoading}
             />
         </div>

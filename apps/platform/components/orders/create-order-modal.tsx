@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
     Dialog,
     DialogContent,
@@ -109,6 +110,7 @@ export function CreateOrderModal({
     getBlacklistEntry,
 }: CreateOrderModalProps) {
     const { t } = useLanguage();
+    const router = useRouter();
     const { session } = useAuth();
     const [limitWarning, setLimitWarning] = useState<string | null>(null);
     const [limitBlocked, setLimitBlocked] = useState<string | null>(null);
@@ -498,7 +500,7 @@ export function CreateOrderModal({
                 toast.success(orderId ? t("orders.create.createdNumbered", { id: orderId }) : t("orders.create.created"), {
                     action: createdOrderId ? {
                         label: t("orders.create.viewOrder"),
-                        onClick: () => { window.location.href = `/orders?highlight=${createdOrderId}`; }
+                        onClick: () => { router.push(`/orders?order=${createdOrderId}`); }
                     } : undefined,
                 });
 
