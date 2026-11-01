@@ -66,6 +66,7 @@ export function calculateSourcePerformance(
         ordersProcessed: number;
         ordersDelivered: number;
         ordersConfirmed: number;
+        ordersRejected: number;
         processingTimes: number[];
         totalValue: number;
     }>();
@@ -78,6 +79,7 @@ export function calculateSourcePerformance(
                 ordersProcessed: 0,
                 ordersDelivered: 0,
                 ordersConfirmed: 0,
+                ordersRejected: 0,
                 processingTimes: [],
                 totalValue: 0,
             });
@@ -90,6 +92,7 @@ export function calculateSourcePerformance(
         if (order.status === 'delivered' || order.status === 'completed') {
             stats.ordersDelivered++;
         }
+        if (order.status === 'rejected') stats.ordersRejected++;
         if (order.status === 'confirmed' || order.status === 'in_transit' ||
             order.status === 'delivered' || order.status === 'completed') {
             stats.ordersConfirmed++;
@@ -131,8 +134,11 @@ export function calculateSourcePerformance(
             ordersDelivered: stats.ordersDelivered,
             ordersConfirmed: stats.ordersConfirmed,
             avgProcessingTime: avgTime,
-            deliveryRate: stats.ordersProcessed > 0
-                ? (stats.ordersDelivered / stats.ordersProcessed) * 100
+            // Same rule as the KPI cards and the city table: of the orders that reached an
+            // outcome (delivered or rejected), the share delivered. Orders still in flight
+            // are neither a success nor a failure yet.
+            deliveryRate: stats.ordersDelivered + stats.ordersRejected > 0
+                ? (stats.ordersDelivered / (stats.ordersDelivered + stats.ordersRejected)) * 100
                 : 0,
             confirmationRate: stats.ordersProcessed > 0
                 ? (stats.ordersConfirmed / stats.ordersProcessed) * 100
