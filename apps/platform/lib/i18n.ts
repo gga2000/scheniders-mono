@@ -2112,7 +2112,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "finances.products.q.star": "Stars",
         "finances.products.q.cow": "Cash cows",
         "finances.products.q.question": "Question marks",
-        "finances.products.q.dog": "Dogs",
+        "finances.products.q.dog": "Weak sellers",
         "finances.products.q.starSub": "High volume · high margin",
         "finances.products.q.cowSub": "High volume · low margin",
         "finances.products.q.questionSub": "Low volume · high margin",
