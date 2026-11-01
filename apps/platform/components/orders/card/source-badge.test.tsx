@@ -21,6 +21,16 @@ describe("SourceBadge", () => {
         expect(container.textContent).toMatch(/Excel|إكسل/);
     });
 
+    it("labels manual orders", () => {
+        const { container } = show("manual");
+        expect(container.textContent).toMatch(/Manual|يدوي/);
+    });
+
+    it("labels storefront orders", () => {
+        const { container } = show("storefront");
+        expect(container.textContent).toMatch(/Storefront|واجهة المتجر/);
+    });
+
     it("shows nothing for an order with no source", () => {
         const { container } = render(<LanguageProvider><SourceBadge source={undefined} /></LanguageProvider>);
         expect(container.textContent).toBe("");
