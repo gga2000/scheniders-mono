@@ -39,7 +39,9 @@ function describeError(err: unknown): string {
 }
 
 // Reusable CSV Generator
-function generateCsv(data: any[]): string {
+type CsvRow = Record<string, unknown>;
+
+function generateCsv(data: CsvRow[]): string {
     if (!data || data.length === 0) return '';
     const headers = Object.keys(data[0]);
     const csvRows = [headers.join(',')];
@@ -57,14 +59,13 @@ function generateCsv(data: any[]): string {
 }
 
 // Fetches all rows from a table using chunked pagination with retry logic
- 
 async function fetchAllInBatches(
-    supabase: any,
+    supabase: SupabaseClient,
     tableName: string,
     tenantId: string,
     orderBy: string
-): Promise<any[]> {
-    let allRows: any[] = [];
+): Promise<CsvRow[]> {
+    const allRows: CsvRow[] = [];
     let hasMore = true;
     let pageIndex = 0;
     let retryCount = 0;
@@ -89,7 +90,7 @@ async function fetchAllInBatches(
 
         retryCount = 0;
         if (data && data.length > 0) {
-            allRows = [...allRows, ...data];
+            allRows.push(...(data as CsvRow[]));
             pageIndex++;
         } else {
             hasMore = false;
