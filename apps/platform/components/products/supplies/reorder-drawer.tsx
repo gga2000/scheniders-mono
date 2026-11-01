@@ -390,12 +390,12 @@ export function ReorderDrawer({
                                         return (
                                             <div key={group.supplierName}>
                                                 {/* Group header */}
-                                                <button
+                                                <div role="button" tabIndex={0}
                                                     onClick={() =>
                                                         toggleGroup(group.supplierName)
                                                     }
                                                     className={cn(
-                                                        "w-full px-5 py-3 flex items-center justify-between gap-3 hover:bg-[var(--background)]/50 transition-colors text-left",
+                                                        "w-full px-5 py-3 flex items-center justify-between gap-3 hover:bg-[var(--background)]/50 transition-colors text-left cursor-pointer",
                                                         hasCritical &&
                                                             "bg-rose-50/40"
                                                     )}
@@ -470,7 +470,7 @@ export function ReorderDrawer({
                                                             <ChevronDown className="w-4 h-4 text-muted" />
                                                         )}
                                                     </div>
-                                                </button>
+                                                </div>
 
                                                 {/* Group items */}
                                                 {isExpanded && (

@@ -96,6 +96,9 @@ function costMaps(rows: ProductCostRow[]) {
  */
 const BULK_ID_CHUNK = 100;
 
+/** Rows of per-product history the editor loads (newest first). */
+const HISTORY_LIMIT = 300;
+
 async function inChunks(
     op: string,
     ids: string[],
@@ -511,7 +514,9 @@ export const productRepository = {
                 .from("product_price_history")
                 .select("*")
                 .eq("product_id", productId)
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                // The editor shows the recent trail; a hot product has tens of thousands of rows.
+                .limit(HISTORY_LIMIT);
 
             if (error) throw error;
             return data || [];
@@ -665,7 +670,8 @@ export const productRepository = {
                 .from("inventory_history")
                 .select("*")
                 .eq("product_id", productId)
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .limit(HISTORY_LIMIT);
 
             if (error) throw error;
             return data || [];

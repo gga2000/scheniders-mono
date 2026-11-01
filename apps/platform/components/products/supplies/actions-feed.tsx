@@ -63,23 +63,23 @@ const TONE_CLASSES: Record<
     { card: string; iconWrap: string; cta: string }
 > = {
     rose: {
-        card: "bg-gradient-to-br from-rose-50 to-rose-50/30 border-rose-200/70",
-        iconWrap: "bg-rose-100 text-rose-600",
+        card: "bg-gradient-to-br from-rose-50 to-rose-50/30 border-rose-200/70 dark:from-rose-950/40 dark:to-rose-950/10 dark:border-rose-900/50",
+        iconWrap: "bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-300",
         cta: "bg-rose-500 hover:bg-rose-600 text-white",
     },
     amber: {
-        card: "bg-gradient-to-br from-amber-50 to-amber-50/30 border-amber-200/70",
-        iconWrap: "bg-amber-100 text-amber-600",
+        card: "bg-gradient-to-br from-amber-50 to-amber-50/30 border-amber-200/70 dark:from-amber-950/40 dark:to-amber-950/10 dark:border-amber-900/50",
+        iconWrap: "bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-300",
         cta: "bg-amber-500 hover:bg-amber-600 text-white",
     },
     slate: {
-        card: "bg-gradient-to-br from-slate-50 to-slate-50/30 border-slate-200/70",
-        iconWrap: "bg-slate-200 text-slate-600",
+        card: "bg-gradient-to-br from-slate-50 to-slate-50/30 border-slate-200/70 dark:from-slate-950/40 dark:to-slate-950/10 dark:border-slate-900/50",
+        iconWrap: "bg-slate-200 text-slate-600 dark:bg-slate-900/50 dark:text-slate-300",
         cta: "bg-slate-600 hover:bg-slate-700 text-white",
     },
     sky: {
-        card: "bg-gradient-to-br from-sky-50 to-sky-50/30 border-sky-200/70",
-        iconWrap: "bg-sky-100 text-sky-600",
+        card: "bg-gradient-to-br from-sky-50 to-sky-50/30 border-sky-200/70 dark:from-sky-950/40 dark:to-sky-950/10 dark:border-sky-900/50",
+        iconWrap: "bg-sky-100 text-sky-600 dark:bg-sky-900/50 dark:text-sky-300",
         cta: "bg-sky-500 hover:bg-sky-600 text-white",
     },
 };
@@ -284,9 +284,9 @@ export function ActionsFeed({
 
     if (actions.length === 0) {
         return (
-            <div className="rounded-2xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50 to-emerald-50/30 px-4 py-2.5 flex items-center gap-2">
+            <div className="rounded-2xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50 to-emerald-50/30 dark:from-emerald-950/40 dark:to-emerald-950/10 dark:border-emerald-900/50 px-4 py-2.5 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <p className="text-xs font-medium text-emerald-800">
+                <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
                     All clear — no urgent supply actions right now.
                 </p>
             </div>
@@ -365,7 +365,7 @@ export function ActionsFeed({
                                     </div>
                                 </div>
 
-                                <p className="text-[11px] text-foreground/70 line-clamp-2 min-h-[28px]">
+                                <p className="text-[11px] text-foreground/80 line-clamp-2 min-h-[28px]">
                                     {a.detail}
                                 </p>
 

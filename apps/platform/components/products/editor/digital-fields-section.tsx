@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Download, Key, FileText, Upload, Loader2, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 
@@ -14,12 +15,13 @@ interface DigitalFieldsSectionProps {
 }
 
 export function DigitalFieldsSection({ formData, updateField, productId }: DigitalFieldsSectionProps) {
+    const { t } = useLanguage();
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileUpload = async (file: File) => {
         if (file.size > 100 * 1024 * 1024) {
-            toast.error("File must be under 100MB");
+            toast.error(t("products.digital.tooBig"));
             return;
         }
 
@@ -43,10 +45,10 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
 
             updateField("download_url", urlData.publicUrl);
             updateField("file_size", formatFileSize(file.size));
-            toast.success("File uploaded successfully");
+            toast.success(t("products.digital.uploaded"));
         } catch (err) {
             console.error("Upload error:", err);
-            toast.error("Failed to upload file");
+            toast.error(t("products.digital.uploadFailed"));
         } finally {
             setUploading(false);
         }
@@ -56,13 +58,13 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                 <Download className="w-4 h-4" />
-                Digital Product
+                {t("products.digital.title")}
             </h2>
 
             {/* File Upload / URL */}
             <div className="space-y-3">
                 <label className="block text-sm font-medium text-foreground">
-                    Downloadable File
+                    {t("products.digital.file")}
                 </label>
 
                 {formData.download_url ? (
@@ -92,7 +94,7 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
                             }}
                             className="text-xs text-green-700 hover:text-green-900 font-medium"
                         >
-                            Remove
+                            {t("products.digital.remove")}
                         </button>
                     </div>
                 ) : (
@@ -106,7 +108,7 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
                             <Upload className="w-6 h-6 text-muted" />
                         )}
                         <p className="text-sm text-muted">
-                            {uploading ? "Uploading..." : "Click to upload file (max 100MB)"}
+                            {uploading ? t("products.digital.uploading") : t("products.digital.clickUpload")}
                         </p>
                     </div>
                 )}
@@ -123,7 +125,7 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
 
                 {/* Or paste URL */}
                 <div>
-                    <label className="block text-xs text-muted mb-1">Or paste a download URL</label>
+                    <label className="block text-xs text-muted mb-1">{t("products.digital.pasteUrl")}</label>
                     <input
                         type="url"
                         value={formData.download_url || ""}
@@ -138,18 +140,18 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
             <div>
                 <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
                     <Key className="w-4 h-4 text-muted" />
-                    License Key Pattern
-                    <span className="text-xs text-muted">(optional)</span>
+                    {t("products.digital.licensePattern")}
+                    <span className="text-xs text-muted">{t("products.digital.optional")}</span>
                 </label>
                 <input
                     type="text"
                     value={formData.license_key_pattern || ""}
                     onChange={(e) => updateField("license_key_pattern", e.target.value)}
-                    placeholder="e.g., XXXX-XXXX-XXXX-XXXX"
+                    placeholder={t("products.digital.licensePh")}
                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 />
                 <p className="text-xs text-muted mt-1">
-                    Use X for random characters. Keys will be auto-generated for each purchase.
+                    {t("products.digital.licenseHint")}
                 </p>
             </div>
         </div>

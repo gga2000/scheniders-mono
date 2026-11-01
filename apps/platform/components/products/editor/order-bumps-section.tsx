@@ -168,7 +168,14 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
 
             {/* Bump cards */}
             <AnimatePresence>
-                {bumps.map((bump, index) => {
+                {bumps.map((saved, index) => {
+                    const live = products.find((p) => p.id === saved.bump_product_id);
+                    const bump = {
+                        ...saved,
+                        bump_product_name: saved.bump_product_name || live?.name,
+                        bump_product_price: saved.bump_product_price ?? live?.price,
+                        bump_product_image: saved.bump_product_image || live?.image_url || undefined,
+                    };
                     const originalPrice = bump.bump_product_price || 0;
                     const discountedPrice = getDiscountedPrice(originalPrice, bump.discount_percentage);
 
@@ -217,7 +224,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                 {/* Product name */}
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-foreground truncate">
-                                        {bump.bump_product_name || "Unknown Product"}
+                                        {bump.bump_product_name || t("products.ed.related.unknown")}
                                     </p>
                                 </div>
 
