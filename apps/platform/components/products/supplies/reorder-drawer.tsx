@@ -22,6 +22,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
+import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import type { PoStatusInfo } from "./po-status-chip";
 
@@ -92,22 +93,13 @@ export function ReorderDrawer({
         staleTime: 60_000,
         queryFn: async () => {
             if (!tenantId) return new Map<string, number>();
-            const since = new Date();
-            since.setDate(since.getDate() - 30);
-            const { data, error } = await supabase
-                .from("inventory_history")
-                .select("product_id, quantity_change, change_type")
-                .eq("tenant_id", tenantId)
-                // Supplies are used, not sold (reason supply_used): count every
-                // stock-out movement except a recount, which is a correction.
-                .lt("quantity_change", 0)
-                .not("change_type", "in", "(count,written_off,returned_to_supplier,open_box_count,qc_undo)")
-                .gte("created_at", since.toISOString());
+            // Grouped in the database: reading raw history rows stops silently at
+            // the API row cap and makes busy stores look slower than they are.
+            const { data, error } = await supabase.rpc("supply_usage_30d", { p_tenant_id: tenantId });
             if (error) throw error;
             const m = new Map<string, number>();
-            for (const row of data ?? []) {
-                const qty = Math.abs(row.quantity_change ?? 0);
-                m.set(row.product_id, (m.get(row.product_id) ?? 0) + qty);
+            for (const row of (data ?? []) as { product_id: string; used: number | string }[]) {
+                m.set(row.product_id, Number(row.used));
             }
             return m;
         },
@@ -139,7 +131,7 @@ export function ReorderDrawer({
             const primary = suppliers.find((x) => x.is_primary) ?? suppliers[0] ?? null;
             const leadTimeDays = primary?.lead_time_days ?? 7;
             const moq = primary?.minimum_order_quantity ?? 1;
-            const unitCost = primary?.unit_cost ?? s.cost ?? 0;
+            const unitCost = Math.round(primary?.unit_cost ?? s.cost ?? 0);
 
             const belowReorder = stock <= reorderPoint;
             const atRisk =
@@ -244,7 +236,6 @@ export function ReorderDrawer({
                 supplierName: group.supplierName,
                 supplierContact: group.supplierContact || null,
                 supplierEmail: group.supplierEmail || null,
-                notes: t("supplies.ro.poNote", { count: lines.length }),
                 expectedDate: new Date(Date.now() + maxLeadTime * 86_400_000)
                     .toISOString()
                     .split("T")[0],
@@ -259,13 +250,23 @@ export function ReorderDrawer({
             queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] });
             queryClient.invalidateQueries({ queryKey: ["supplier-pos"] });
         },
-        onError: (err: Error) => {
-            toast.error(t("supplies.ro.poFailed", { message: err.message }));
+        onError: (err: unknown) => {
+            toast.error(t("supplies.ro.poFailed", { message: t(purchaseOrderErrorKey(err)) }));
         },
     });
 
     const handleGenerate = useCallback(
         async (group: SupplierGroup) => {
+            const uncosted = group.items.filter((i) => i.unitCost <= 0);
+            if (uncosted.length > 0) {
+                // A zero-cost line would create a PO that understates what is owed.
+                toast.error(
+                    t("supplies.ro.missingCost", {
+                        names: uncosted.map((i) => i.supply.name).join(", "),
+                    })
+                );
+                return;
+            }
             setGenerating((prev) => new Set(prev).add(group.supplierName));
             try {
                 await generatePO.mutateAsync(group);
@@ -277,7 +278,7 @@ export function ReorderDrawer({
                 });
             }
         },
-        [generatePO]
+        [generatePO, t]
     );
 
     return (
@@ -611,7 +612,7 @@ function ReorderItemRow({
                                 className="w-20 px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-200"
                             />
                             <span className="text-[11px] text-muted tabular-nums">
-                                × {formatIQD(item.unitCost)}
+                                {item.unitCost > 0 ? `× ${formatIQD(item.unitCost)}` : t("supplies.ro.noCost")}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">

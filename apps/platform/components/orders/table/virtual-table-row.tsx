@@ -22,6 +22,7 @@ import { getAvatarColor, getInitials, formatDateShort, DENSITY_CONFIG } from './
 import { StatusDropdown } from './status-dropdown';
 import { ColorTagPicker } from './color-tag-picker';
 import { copyToClipboard } from './copy-to-clipboard';
+import { EnteredByMark } from '../card/entered-by-mark';
 
 export type UpdateOrderFn = ReturnType<typeof useOrdersContext>["updateOrder"];
 
@@ -356,6 +357,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                 </span>
                 {/* The ad network the customer clicked, beside the system that sent it. */}
                 <AdChannelBadge attribution={order.attribution} channel={order.ad_channel} iconOnly className="ms-1" />
+                <EnteredByMark enteredBy={order.entered_by} source={order.source} className="ms-1 h-5 w-5" />
             </div>
 
             {/* Date - Recency + M-D + Time */}

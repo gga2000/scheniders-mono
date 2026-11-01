@@ -417,6 +417,7 @@ export function registerOrderWriteTools(server: McpServer): void {
                 is_shop_order: false,
                 is_replacement: false,
                 source: input.source,
+                entered_by: caller.userId,
             };
             // The service behind the New order form's server action, given the
             // store that resolveMcpCaller verified: plan limits, the pause

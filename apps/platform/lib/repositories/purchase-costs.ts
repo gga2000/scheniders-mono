@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "./fetch-all-pages";
 
 interface BatchCostRow {
     id: string;
@@ -37,7 +38,8 @@ export async function fetchBatchCosts(productId: string): Promise<Map<string, nu
 
 /** Total cost of each purchase order of the store, by purchase order id. */
 export async function fetchPurchaseOrderCosts(tenantId: string): Promise<Map<string, number | null>> {
-    const { data, error } = await supabase.rpc("purchase_order_costs", { p_tenant_id: tenantId });
-    if (error) throw error;
-    return new Map(((data ?? []) as PurchaseOrderCostRow[]).map((row) => [row.id, row.total_cost]));
+    const rows = await fetchAllPages<PurchaseOrderCostRow>((from, to) =>
+        supabase.rpc("purchase_order_costs", { p_tenant_id: tenantId }).order("id").range(from, to)
+    );
+    return new Map(rows.map((row) => [row.id, row.total_cost]));
 }

@@ -918,7 +918,7 @@ export function VariantMatrixTable({
                                             type="button"
                                             onClick={toggleSelectAll}
                                             className="text-muted hover:text-foreground transition-colors"
-                                            aria-label="Select all"
+                                            aria-label={t("products.variants.selectAll")}
                                         >
                                             {selectedIndices.size === variants.length &&
                                             variants.length > 0 ? (
@@ -1249,7 +1249,7 @@ export function VariantMatrixTable({
                                                             onKeyDown={(e) =>
                                                                 handleCellKeyDown(e, index, "sku")
                                                             }
-                                                            placeholder="SKU"
+                                                            placeholder={t("products.variants.sku")}
                                                             disabled={disabled}
                                                             className={cn(
                                                                 INPUT_BASE,
@@ -1313,7 +1313,7 @@ export function VariantMatrixTable({
                                                                     "barcode",
                                                                 )
                                                             }
-                                                            placeholder="Barcode"
+                                                            placeholder={t("products.variants.barcode")}
                                                             disabled={disabled}
                                                             className={cn(
                                                                 INPUT_BASE,

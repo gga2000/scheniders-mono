@@ -100,25 +100,29 @@ export function useDispatchRun({ printing, bulkUpdateStatus }: DispatchRunOption
     };
 
     /**
-     * Ship the run the hand-off dialog settled on: the labels PDF, then the Prime
-     * file, then the run is saved and the orders move to in transit. The PDF goes
-     * first because it is the step that can fail on the server; if it does,
-     * nothing has left the app and nothing moves. Returns true when shipped.
+     * Ship the run the ship dialog settled on: the labels PDF, then the Prime
+     * file, then (unless `moveToTransit` is off) the orders move to in transit,
+     * and last the run is saved. The PDF goes first because it is the step that
+     * can fail on the server; if it does, nothing has left the app and nothing
+     * moves. The run is saved after the move because saving bumps each order's
+     * version, and the move checks versions. Returns true when done.
      */
-    const ship = async (orders: Order[]): Promise<boolean> => {
+    const ship = async (orders: Order[], { moveToTransit }: { moveToTransit: boolean }): Promise<boolean> => {
         if (orders.length === 0 || !checkPrintable(orders)) return false;
         const names = runFileNames(orders.length);
         setShipping(true);
         try {
             if (!(await renderPdf(orders, names.labels))) return false;
-            const result = await printing.exportPrime(orders, { record: true, filename: names.prime });
-            if (!result.success) {
+            const file = await printing.downloadPrimeFile(orders, names.prime);
+            if (!file.success) {
                 toast.error(t("printing.exportFailedTitle"), t("printing.exportFailedAfterPdf"));
                 return false;
             }
-            if (!result.recorded) toast.warning(t("printing.exportNotRecordedTitle"), t("printing.exportNotRecordedBody"));
-            const moved = await bulkUpdateStatus(orders.map((o) => o.id), "in_transit");
-            if (moved.count > 0) toast.success(t("printing.handedOffTitle", { count: moved.count }), t("printing.handedOffBody"));
+            const moved = moveToTransit ? (await bulkUpdateStatus(orders.map((o) => o.id), "in_transit")).count : 0;
+            const recorded = await printing.recordPrimeRun(orders);
+            if (!recorded) toast.warning(t("printing.exportNotRecordedTitle"), t("printing.exportNotRecordedBody"));
+            if (!moveToTransit) toast.success(t("printing.filesOnlyTitle", { count: orders.length }), t("printing.handedOffBody"));
+            else if (moved > 0) toast.success(t("printing.handedOffTitle", { count: moved }), t("printing.handedOffBody"));
             return true;
         } finally {
             setShipping(false);
@@ -128,7 +132,7 @@ export function useDispatchRun({ printing, bulkUpdateStatus }: DispatchRunOption
     /** The Prime file of an old run again. Nothing is recorded and no order moves. */
     const primeFileAgain = async (orders: Order[]) => {
         if (orders.length === 0) return;
-        const result = await printing.exportPrime(orders, { record: false, filename: runFileNames(orders.length).prime });
+        const result = await printing.downloadPrimeFile(orders, runFileNames(orders.length).prime);
         if (!result.success) toast.error(t("printing.exportFailedTitle"), result.error);
     };
 

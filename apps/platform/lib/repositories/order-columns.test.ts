@@ -46,7 +46,7 @@ const ORDERS_TABLE_COLUMNS = new Set([
     "last_followup_by_name", "last_followup_by_avatar", "last_followup_at",
     "last_followup_type", "attribution", "ad_channel", "confirmation_dispatched_at",
     "abandoned_cart_at", "abandoned_cart_outcome", "abandoned_cart_resolved_at",
-    "abandoned_cart_resolved_by_name", "abandoned_cart_order_id",
+    "abandoned_cart_resolved_by_name", "abandoned_cart_order_id", "entered_by",
 ]);
 
 /** Masked by `v_orders_with_risk` for non-admins; the table does not mask them. */
