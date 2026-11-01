@@ -240,11 +240,12 @@ export function ReorderDrawer({
     }, []);
 
     const generatePONumber = useCallback(async (): Promise<string> => {
+        if (!tenantId) throw new Error("No tenant");
         const year = new Date().getFullYear();
         const { data } = await supabase
             .from("purchase_orders")
             .select("po_number")
-            .eq("tenant_id", tenantId!)
+            .eq("tenant_id", tenantId)
             .like("po_number", `PO-${year}-%`)
             .order("po_number", { ascending: false })
             .limit(1);
@@ -260,7 +261,6 @@ export function ReorderDrawer({
     const generatePO = useMutation({
         mutationFn: async (group: SupplierGroup) => {
             if (!tenantId) throw new Error("No tenant");
-            const poNumber = await generatePONumber();
             const items = group.items.map((item) => ({
                 product_id: item.supply.id,
                 product_name: item.supply.name,
@@ -274,29 +274,46 @@ export function ReorderDrawer({
             );
             const maxLeadTime = Math.max(...group.items.map((i) => i.leadTimeDays));
 
-            const { data: po, error: poError } = await supabase
-                .from("purchase_orders")
-                .insert({
-                    tenant_id: tenantId,
-                    po_number: poNumber,
-                    supplier_name: group.supplierName,
-                    status: "draft",
-                    total_cost: totalCost,
-                    notes: `Auto-generated supplies reorder (${items.length} item${items.length === 1 ? "" : "s"})`,
-                    expected_date: new Date(
-                        Date.now() + maxLeadTime * 86_400_000
-                    )
-                        .toISOString()
-                        .split("T")[0],
-                })
-                .select("id")
-                .single();
-            if (poError) throw poError;
+            // The store has one number per PO (unique index): a second buyer who
+            // read the same highest number gets a conflict and takes the next one.
+            let poNumber = await generatePONumber();
+            let po: { id: string } | null = null;
+            for (let attempt = 0; attempt < 3 && !po; attempt++) {
+                const { data, error: poError } = await supabase
+                    .from("purchase_orders")
+                    .insert({
+                        tenant_id: tenantId,
+                        po_number: poNumber,
+                        supplier_name: group.supplierName,
+                        status: "draft",
+                        total_cost: totalCost,
+                        notes: `Auto-generated supplies reorder (${items.length} item${items.length === 1 ? "" : "s"})`,
+                        expected_date: new Date(
+                            Date.now() + maxLeadTime * 86_400_000
+                        )
+                            .toISOString()
+                            .split("T")[0],
+                    })
+                    .select("id")
+                    .single();
+                if (!poError) {
+                    po = data;
+                } else if (poError.code === "23505") {
+                    poNumber = await generatePONumber();
+                } else {
+                    throw poError;
+                }
+            }
+            if (!po) throw new Error("Could not get a free PO number, try again");
 
             const { error: itemsError } = await supabase
                 .from("purchase_order_items")
                 .insert(items.map((i) => ({ po_id: po.id, ...i })));
-            if (itemsError) throw itemsError;
+            if (itemsError) {
+                // No header without lines: drop the empty draft so it is not left priced and empty.
+                await supabase.from("purchase_orders").delete().eq("id", po.id);
+                throw itemsError;
+            }
             return { poNumber, itemCount: items.length };
         },
         onSuccess: (result) => {
