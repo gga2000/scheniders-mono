@@ -119,7 +119,10 @@ export function DeliveryTab({
                     .filter(i => i.accepted < i.quantity)
                     .map(i => `${i.name}: ${i.accepted}/${i.quantity}`)
                     .join(", ");
-                await onUpdate(order.id, { notes: `Partial: ${partialInfo}` } as Partial<Order>);
+                // Append: this used to replace the order's notes, wiping
+                // whatever the team had written there before.
+                const partialNote = `Partial: ${partialInfo}`;
+                await onUpdate(order.id, { notes: order.notes ? `${order.notes}\n${partialNote}` : partialNote });
             }
             setPartialModal(null);
         } finally {
