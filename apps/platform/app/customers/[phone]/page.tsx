@@ -333,11 +333,12 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                                 #{order.order_id}
                                             </Link>
                                         </td>
+                                        {/* <bdi>: an Arabic date or count ("22 آب 2026", "1 منتج") reads as one right-to-left run inside the LTR table. */}
                                         <td className="py-2.5 px-3 text-muted-foreground text-[13px] tabular-nums whitespace-nowrap">
-                                            {formatBaghdadDate(order.created_at, language)}
+                                            <bdi>{formatBaghdadDate(order.created_at, language)}</bdi>
                                         </td>
-                                        <td className="py-2.5 px-3 text-muted-foreground text-[13px]">
-                                            {unitCount === null ? "—" : `${unitCount} ${t(unitCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}
+                                        <td className="py-2.5 px-3 text-muted-foreground text-[13px] whitespace-nowrap">
+                                            {unitCount === null ? "—" : <bdi>{`${unitCount} ${t(unitCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}</bdi>}
                                         </td>
                                         {/* The same total as the drawer's receipt: items less discount, plus delivery. */}
                                         <td className="py-2.5 px-3 font-mono font-semibold text-sm tabular-nums text-foreground text-right whitespace-nowrap">
@@ -362,11 +363,9 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <div className="col-span-12 xl:col-span-5">
                     <BehavioralPatternsCard
                         orders={profile.orders}
-                        firstOrderDate={profile.firstOrderDate}
                         city={profile.city}
                         governorate={profile.governorate}
                         phone={profile.phone}
-                        trustTier={profile.trustTier}
                     />
                 </div>
                 <div className="col-span-12">
@@ -376,14 +375,13 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     />
                 </div>
 
-                {/* Ratings, links and identity changes: one line each while empty */}
-                <div className="col-span-12 lg:col-span-4">
+                {/* Ratings and links (one line each while empty) stacked in one column, the identity
+                    timeline beside them, so the page does not end in a wide empty strip. */}
+                <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
                     <RatingsCard ratings={profile.ratings} />
-                </div>
-                <div className="col-span-12 lg:col-span-4">
                     <LinkedPeopleSection phone={profile.phone} />
                 </div>
-                <div className="col-span-12 lg:col-span-4">
+                <div className="col-span-12 lg:col-span-8">
                     <IdentityTimeline phone={profile.phone} />
                 </div>
             </div>
@@ -405,7 +403,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             )}
 
             {/* Modals */}
-            <ScoreBreakdownModal score={profile.trustScore} blocked={blocked} />
+            <ScoreBreakdownModal score={profile.trustScore} blocked={blocked} scored={scored} />
             <CommunityRatingModal />
             <LinkCustomersModal />
             <AddNoteModal phone={profile.phone} />

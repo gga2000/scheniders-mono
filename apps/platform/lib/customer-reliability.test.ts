@@ -15,6 +15,7 @@ import {
     recencyStatus,
     daysAgoLabel,
     buildScoreBreakdown,
+    tagNameMatchesRating,
     SCORE_FACTOR_TONE,
     firstDeliveryPending,
     statusFlags,
@@ -177,6 +178,11 @@ describe('buildScoreBreakdown (Trust factors card and breakdown modal)', () => {
         expect(view.rated).toBe(true);
         const up = buildScoreBreakdown(items, { storedScore: 97, blocked: false, tier: 'gold' });
         expect(up.factors.at(-1)).toEqual({ label: 'adjustments', value: 2, type: 'positive' });
+    });
+
+    it('names a gap that rounding each line explains "Rounding"', () => {
+        const view = buildScoreBreakdown(items, { storedScore: 94, blocked: false, tier: 'gold' });
+        expect(view.factors.at(-1)).toEqual({ label: 'rounding', value: -1, type: 'negative' });
     });
 
     it('adds no gap row when the factors already add up', () => {
@@ -349,6 +355,10 @@ describe('one outcome, one colour and one word on the customers pages', () => {
         const cancelledAr = customerOrderStatusLabel('cancelled', false, 'ar');
         expect(t('ar', 'customers.flag.cancelled')).toBe(cancelledAr);
         expect(t('ar', 'customers.behavioral.mix.cancelled')).toContain(cancelledAr);
+
+        // A purchase coming back: the pill and the "1 returned" flag say one word.
+        expect(customerOrderStatusLabel('return_pending', false, 'en').toLowerCase()).toBe(t('en', 'customers.flag.returned'));
+        expect(customerOrderStatusLabel('return_pending', false, 'ar')).toBe(t('ar', 'customers.flag.returned'));
     });
 
     it('a refund order keeps its refund wording', () => {
@@ -382,5 +392,18 @@ describe('monthlyScoreSeries', () => {
     it('uses the Baghdad month at a month boundary', () => {
         // 22:30 UTC on Oct 31 is already Nov 1 in Baghdad (UTC+3).
         expect(monthlyScoreSeries([], 1, new Date('2026-10-31T22:30:00Z'))[0].month).toBe('2026-11');
+    });
+});
+
+describe('tagNameMatchesRating (a tag named like a value tier or COD risk)', () => {
+    it('matches a rating label in any language, ignoring case and spaces', () => {
+        expect(tagNameMatchesRating(' vip ')).toBe(true);
+        expect(tagNameMatchesRating('محظور')).toBe(true);
+        expect(tagNameMatchesRating('blocked')).toBe(true);
+        expect(tagNameMatchesRating('Needs confirming')).toBe(true);
+    });
+    it('leaves other names alone', () => {
+        expect(tagNameMatchesRating('Wholesale')).toBe(false);
+        expect(tagNameMatchesRating('  ')).toBe(false);
     });
 });

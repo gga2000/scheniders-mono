@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tag as TagIcon, Search, Plus, Loader2 } from "lucide-react";
+import { Tag as TagIcon, Search, Plus, Loader2, Info } from "lucide-react";
 import { useCustomerTags } from "@/hooks/use-customer-management";
-import { tagColorClasses } from "@/types/customer";
+import { tagNameMatchesRating } from "@/lib/customer-reliability";
+import { CustomerTagChip } from "@/components/customers/customer-tag-chip";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
@@ -36,6 +37,8 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
     );
     const newTagName = search.trim();
     const canCreate = newTagName.length > 0 && !tags.some((tag) => tag.name.trim().toLowerCase() === newTagName.toLowerCase());
+    // A tag named "VIP" or "Blocked" changes neither the rating nor its saved view: say so before it is made.
+    const clashesWithRating = canCreate && tagNameMatchesRating(newTagName);
 
     // Same create-and-pick the customer drawer offers, so a store with no
     // tags yet can tag a selection without leaving the list.
@@ -121,6 +124,12 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                         {t("customers.bulkTag.create", { name: newTagName })}
                     </button>
                 )}
+                {clashesWithRating && (
+                    <p role="status" className="flex items-start gap-2 px-3 py-2 rounded-xl bg-muted/40 text-xs text-muted-foreground">
+                        <Info className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
+                        <span dir="auto">{t("customers.tag.ratingClash", { name: newTagName })}</span>
+                    </p>
+                )}
                 {filteredTags.length === 0 ? (
                     !canCreate && (
                         <div className="text-center py-8 text-muted-foreground text-sm">
@@ -130,7 +139,6 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                 ) : (
                     filteredTags.map((tag) => {
                         const isSelected = selectedTagIds.has(tag.id);
-                        const colorTheme = tagColorClasses[tag.color] ?? tagColorClasses.gray;
                         return (
                             <button
                                 key={tag.id}
@@ -148,9 +156,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                                 )}>
                                     {isSelected && <span className="w-2 h-2 bg-background rounded-full" />}
                                 </span>
-                                <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", colorTheme.bg, colorTheme.text)}>
-                                    <bdi>{tag.name}</bdi>
-                                </span>
+                                <CustomerTagChip name={tag.name} color={tag.color} />
                             </button>
                         );
                     })

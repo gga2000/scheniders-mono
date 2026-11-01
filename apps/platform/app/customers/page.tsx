@@ -26,6 +26,7 @@ import { CustomerBulkBar } from "@/components/customers/list/customer-bulk-bar";
 import { CustomerDetailDialog } from "@/components/customers/customer-detail-dialog";
 import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
+import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
 import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
 import { pct } from "@/lib/customer-format";
 import { displayScore } from "@/lib/customer-reliability";
@@ -277,6 +278,8 @@ function CustomersPageContent() {
                     <div className="flex items-baseline gap-x-4 gap-y-1 flex-wrap min-w-0">
                         <h1 className="text-3xl font-bold tracking-tight text-foreground">{t("customers.title")}</h1>
                         {subtitle && <p dir="auto" className="text-muted-foreground text-sm tabular-nums">{subtitle}</p>}
+                        {/* What the pills, the score, the dot and the views below mean */}
+                        <CustomerRatingHelp showLabel className="self-center" />
                     </div>
                     {canExport && (
                         <button

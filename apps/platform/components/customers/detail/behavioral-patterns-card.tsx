@@ -10,7 +10,6 @@ import {
     MapPin,
     Phone,
     Users,
-    ShieldCheck,
     Sparkles,
 } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
@@ -18,17 +17,14 @@ import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import { formatPhoneDisplay } from "@/lib/customer-format";
 import { useCustomerLinks } from "@/hooks/use-customer-links";
-import type { TrustTier } from "@/types/customer";
 
 type Order = { created_at: string; status: string };
 
 interface BehavioralPatternsCardProps {
     orders: Order[];
-    firstOrderDate?: string | null;
     city?: string | null;
     governorate?: string | null;
     phone: string;
-    trustTier: TrustTier;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,26 +86,15 @@ function isValidIraqiMobile(phone: string): boolean {
     return /^7[789]\d{8}$/.test(digits) || /^07[789]\d{8}$/.test(digits) || /^9647[789]\d{8}$/.test(digits);
 }
 
-function trustSignalKey(tier: TrustTier, orderCount: number): string {
-    if (tier === "watch") return "customers.snapshot.trustWatch";
-    if (tier === "risky" || tier === "critical" || tier === "blocked")
-        return "customers.snapshot.trustRisky";
-    if (tier === "platinum" || tier === "gold") return "customers.snapshot.trustHigh";
-    if (orderCount === 0 || tier === "new") return "customers.snapshot.trustNew";
-    return "customers.snapshot.trustNew";
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function BehavioralPatternsCard({
     orders,
-    firstOrderDate,
     city,
     governorate,
     phone,
-    trustTier,
 }: BehavioralPatternsCardProps) {
     const { t, language } = useLanguage();
     const { data: links = [] } = useCustomerLinks(phone);
@@ -185,19 +170,6 @@ export function BehavioralPatternsCard({
     const snapshot = useMemo(() => {
         if (mode !== "snapshot") return null;
 
-        const joinedDays = firstOrderDate
-            ? Math.max(0, Math.floor((Date.now() - new Date(firstOrderDate).getTime()) / 86_400_000))
-            : null;
-
-        const joinedLabel =
-            joinedDays === null
-                ? t("customers.snapshot.joinedNew")
-                : joinedDays === 0
-                ? t("customers.snapshot.joinedToday")
-                : joinedDays === 1
-                ? t("customers.snapshot.joinedYesterday")
-                : t("customers.snapshot.joined", { days: joinedDays.toString() });
-
         // The governorate is stored as a code ("BG"): shown by its name, like the list and the drawer.
         const govName = governorate ? governorateLabel(governorate, language) || governorate : null;
         const locationLabel =
@@ -215,10 +187,8 @@ export function BehavioralPatternsCard({
                 ? t("customers.snapshot.linksOne")
                 : t("customers.snapshot.linksMany", { count: linkCount.toString() });
 
-        const trustLabel = t(trustSignalKey(trustTier, orders.length));
-
-        return { joinedLabel, locationLabel, phoneValid, linksLabel, trustLabel };
-    }, [mode, firstOrderDate, city, governorate, phone, trustTier, orders.length, links, t, language]);
+        return { locationLabel, phoneValid, linksLabel };
+    }, [mode, city, governorate, phone, links, t, language]);
 
     return (
         <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] h-full">
@@ -265,11 +235,7 @@ export function BehavioralPatternsCard({
                 </div>
             ) : snapshot ? (
                 <div className="space-y-4">
-                    <Row
-                        icon={<Calendar className="w-4.5 h-4.5" />}
-                        title={t("customers.snapshot.customerSince")}
-                        value={snapshot.joinedLabel}
-                    />
+                    {/* Tenure and "new customer" are already in the hero and the banner: the snapshot adds only what they don't say. */}
                     <Row
                         icon={<MapPin className="w-4.5 h-4.5" />}
                         title={t("customers.snapshot.location")}
@@ -287,11 +253,6 @@ export function BehavioralPatternsCard({
                     <Row
                         icon={<Users className="w-4.5 h-4.5" />}
                         title={snapshot.linksLabel}
-                        value=""
-                    />
-                    <Row
-                        icon={<ShieldCheck className="w-4.5 h-4.5" />}
-                        title={snapshot.trustLabel}
                         value=""
                     />
                 </div>
