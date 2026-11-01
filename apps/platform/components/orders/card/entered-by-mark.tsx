@@ -18,10 +18,17 @@ export function EnteredByMark({ enteredBy, source, className }: {
     source: Order["source"];
     className?: string;
 }) {
+    if (!enteredBy || (source && IMPORT_SOURCES.has(source))) return null;
+    return <EnteredByPill enteredBy={enteredBy} className={className} />;
+}
+
+/**
+ * Split out so only cards that carry the mark subscribe to the team list; a
+ * long list of unmarked orders renders without touching the query.
+ */
+function EnteredByPill({ enteredBy, className }: { enteredBy: string; className?: string }) {
     const { t } = useLanguage();
     const { data: members } = useTenantMembers();
-    if (!enteredBy || (source && IMPORT_SOURCES.has(source))) return null;
-
     const name = members?.find((m) => m.user_id === enteredBy)?.display_name;
     const label = name ? t("orders.enteredBy.named").replace("{name}", name) : t("orders.enteredBy.staff");
 

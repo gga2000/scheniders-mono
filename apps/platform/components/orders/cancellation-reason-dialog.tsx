@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { X, XCircle, PackageX, MessageSquare, Pencil, Check, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { useOrderReasons, useReasonUsage } from "@/hooks/use-order-reasons";
@@ -73,15 +74,14 @@ export function CancellationReasonDialog({
         return best > 0 ? bestId : null;
     }, [activeReasons, counts]);
 
+    const { t } = useLanguage();
     const accent: "rose" | "orange" = isReject ? "orange" : "rose";
-    const headerTitle = isReject ? "رفض الطلب" : "إلغاء الطلب";
-    const stageBadge = isReject ? "بعد الشحن" : "قبل الشحن";
-    const description = isReject
-        ? "يُستخدم عند رفض الطلب أو إرجاعه بعد شحنه — عند التسليم."
-        : "يُستخدم عند إلغاء الطلب قبل شحنه.";
-    const confirmButtonText = isReject ? "تأكيد الرفض" : "تأكيد الإلغاء";
-    const promptText = isReject ? "اختر سبب الرفض" : "اختر سبب الإلغاء";
-    const customPlaceholder = isReject ? "اكتب سبب الرفض..." : "اكتب سبب الإلغاء...";
+    const headerTitle = t(isReject ? "orders.cxl.rejectTitle" : "orders.cxl.cancelTitle");
+    const stageBadge = t(isReject ? "orders.cxl.afterShip" : "orders.cxl.beforeShip");
+    const description = t(isReject ? "orders.cxl.rejectDesc" : "orders.cxl.cancelDesc");
+    const confirmButtonText = t(isReject ? "orders.cxl.confirmReject" : "orders.cxl.confirmCancel");
+    const promptText = t(isReject ? "orders.cxl.pickReject" : "orders.cxl.pickCancel");
+    const customPlaceholder = t(isReject ? "orders.cxl.typeReject" : "orders.cxl.typeCancel");
     const StageIcon = isReject ? PackageX : XCircle;
 
     const handleClose = () => {
@@ -182,7 +182,7 @@ export function CancellationReasonDialog({
                                     </span>
                                 </div>
                                 {orderId && (
-                                    <p className="text-xs text-muted mt-0.5">الطلب #{orderId}</p>
+                                    <p className="text-xs text-muted mt-0.5">{t("orders.cxl.orderNo", { id: orderId })}</p>
                                 )}
                             </div>
                         </div>
@@ -191,8 +191,8 @@ export function CancellationReasonDialog({
                             {isAdmin && (
                                 <button
                                     onClick={() => setEditMode((v) => !v)}
-                                    title={editMode ? "تم" : "تعديل الأسباب"}
-                                    aria-label={editMode ? "إنهاء التعديل" : "تعديل الأسباب"}
+                                    title={editMode ? t("orders.cxl.done") : t("orders.cxl.editReasons")}
+                                    aria-label={editMode ? t("orders.cxl.finishEditing") : t("orders.cxl.editReasons")}
                                     aria-pressed={editMode}
                                     className={cn(
                                         "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
@@ -210,7 +210,7 @@ export function CancellationReasonDialog({
                             )}
                             <button
                                 onClick={handleClose}
-                                aria-label="إغلاق"
+                                aria-label={t("common.close")}
                                 className={cn(
                                     "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
                                     isReject
@@ -247,7 +247,7 @@ export function CancellationReasonDialog({
                                 </div>
                             ) : activeReasons.length === 0 ? (
                                 <div className="py-10 text-center">
-                                    <p className="text-sm text-muted">لا توجد أسباب متاحة.</p>
+                                    <p className="text-sm text-muted">{t("orders.cxl.noReasons")}</p>
                                     {isAdmin && (
                                         <button
                                             onClick={() => setEditMode(true)}
@@ -258,7 +258,7 @@ export function CancellationReasonDialog({
                                                     : "text-rose-600 dark:text-rose-400",
                                             )}
                                         >
-                                            + إضافة سبب
+                                            {t("orders.cxl.addReason")}
                                         </button>
                                     )}
                                 </div>
@@ -266,7 +266,7 @@ export function CancellationReasonDialog({
                                 <>
                                     <p className="text-sm text-muted mb-2.5">
                                         {promptText}
-                                        {customerName ? ` للعميل ${customerName}` : ""}:
+                                        {customerName ? t("orders.cxl.forCustomer", { name: customerName }) : ""}:
                                     </p>
 
                                     <div className="space-y-1.5" role="radiogroup" aria-label={promptText}>
@@ -334,7 +334,7 @@ export function CancellationReasonDialog({
                                                     {!reason.requires_note && count > 0 && (
                                                         <span
                                                             className="flex items-center gap-1.5 shrink-0 w-20"
-                                                            title={`${count} مرة`}
+                                                            title={t("orders.cxl.timesUsed", { count })}
                                                         >
                                                             <span
                                                                 className={cn(
@@ -409,7 +409,7 @@ export function CancellationReasonDialog({
                                 onClick={handleClose}
                                 className="px-4 py-2.5 text-sm font-medium text-muted hover:text-foreground transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5"
                             >
-                                إلغاء
+                                {t("common.cancel")}
                             </button>
                             <button
                                 onClick={handleConfirm}

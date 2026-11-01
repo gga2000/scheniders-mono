@@ -160,6 +160,7 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                                 }
                             }}
                             disabled={!isValidPhone}
+                            aria-label={t("orders.ctx.openWhatsapp")}
                             className={cn(
                                 "flex-1 h-7 rounded-lg transition-all flex items-center justify-center gap-1 text-xs font-medium",
                                 isValidPhone
@@ -172,6 +173,8 @@ export function SemiCompactGridCard(props: OrderCardProps) {
 
                         {/* View Details */}
                         <button
+                            type="button"
+                            aria-label={t("orders.wf.details")}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onViewDetails(order);

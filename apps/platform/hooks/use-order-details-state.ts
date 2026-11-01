@@ -120,14 +120,14 @@ export function useOrderDetailsState({
     };
 
     const handleSplitOrder = async (kept: OrderItem[], returned: OrderItem[]) => {
-        if (!order || !splitOrder) return;
+        if (!order || !splitOrder) return false;
         const result = await splitOrder(order.id, kept, returned);
         if (result.success) {
             onClose();
-            toast.success(t("toast.orderSplit"), t("toast.orderSplitDesc"));
         } else {
             toast.error(t("toast.splitFailed"), result.error || t("toast.splitFailedDesc"));
         }
+        return result.success;
     };
 
 

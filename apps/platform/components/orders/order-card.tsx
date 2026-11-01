@@ -14,6 +14,7 @@ import { HighlightedText } from "@scheniders/ui/highlighted-text";
 import { HighlightedPhone } from "./highlighted-phone";
 
 import { formatIQD, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 import { validatePhoneDetailed } from "@/lib/order-utils";
 import { formatShortDate, formatTime, getStatusColor, getStatusBadgeStyle, getDisplayOrderId } from "@/lib/order-format-utils";
 
@@ -247,9 +248,8 @@ function FullOrderCard(props: OrderCardProps) {
                                                     // Copy order ID to clipboard
                                                     try {
                                                         await navigator.clipboard.writeText(order.order_id);
-                                                        // Visual feedback would be nice here
-                                                    } catch (err) {
-                                                        console.error('Failed to copy:', err);
+                                                    } catch {
+                                                        toast.error(t("orders.toast.copyFailed"));
                                                     }
                                                 }}
                                                 title={t("orders.card.clickToCopy")}

@@ -79,7 +79,7 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                 formData.append('image', file);
 
                 // The route requires a bearer token. Without it every image came
-                // back 401 and the tile just showed "فشل التحليل", so bulk image
+                // back 401 and the tile just showed "analysis failed", so bulk image
                 // extraction has never actually worked.
                 const response = await fetch('/api/orders/analyze-image', {
                     method: 'POST',
@@ -108,14 +108,14 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                 } else {
                     setExtractedData(prev => prev.map(item =>
                         item.id === dataId
-                            ? { ...item, status: 'error' as const, error: result.error || 'فشل التحليل' }
+                            ? { ...item, status: 'error' as const, error: result.error || t("orders.bulk.analyzeFailed") }
                             : item
                     ));
                 }
             } catch {
                 setExtractedData(prev => prev.map(item =>
                     item.id === dataId
-                        ? { ...item, status: 'error' as const, error: 'خطأ في الاتصال' }
+                        ? { ...item, status: 'error' as const, error: t("orders.bulk.connectionError") }
                         : item
                 ));
             }
@@ -175,8 +175,8 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                                 <Sparkles className="h-5 w-5 text-white" />
                             </div>
                             <div>
-                                <span className="text-xl font-bold">رفع طلبات متعددة</span>
-                                <p className="text-xs font-normal text-muted mt-0.5">ارفع عدة صور واستخرج البيانات تلقائياً</p>
+                                <span className="text-xl font-bold">{t("orders.bulk.title")}</span>
+                                <p className="text-xs font-normal text-muted mt-0.5">{t("orders.bulk.subtitle")}</p>
                             </div>
                         </div>
                         {extractedData.length > 0 && (
@@ -228,10 +228,10 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                                 </div>
                                 <div className="text-center">
                                     <p className="text-lg font-bold text-gray-800 mb-2">
-                                        اسحب الصور هنا أو اضغط للاختيار
+                                        {t("orders.bulk.dropHere")}
                                     </p>
                                     <p className="text-sm text-gray-500">
-                                        يمكنك رفع عدة صور دفعة واحدة • سيتم استخراج البيانات تلقائياً
+                                        {t("orders.bulk.dropHint")}
                                     </p>
                                 </div>
                             </label>
@@ -279,7 +279,7 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                                                 <Input
                                                     value={item.customer_name}
                                                     onChange={(e) => handleUpdateField(item.id, 'customer_name', e.target.value)}
-                                                    placeholder="اسم العميل"
+                                                    placeholder={t("orders.bulk.customerName")}
                                                     className="h-9 text-sm"
                                                     disabled={item.status === 'processing'}
                                                 />
@@ -294,14 +294,14 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                                                 <Input
                                                     value={item.city}
                                                     onChange={(e) => handleUpdateField(item.id, 'city', e.target.value)}
-                                                    placeholder="المحافظة"
+                                                    placeholder={t("orders.bulk.governorate")}
                                                     className="h-9 text-sm"
                                                     disabled={item.status === 'processing'}
                                                 />
                                                 <Input
                                                     value={item.address}
                                                     onChange={(e) => handleUpdateField(item.id, 'address', e.target.value)}
-                                                    placeholder="العنوان التفصيلي"
+                                                    placeholder={t("orders.bulk.address")}
                                                     className="h-9 text-sm col-span-2"
                                                     disabled={item.status === 'processing'}
                                                 />
@@ -330,7 +330,7 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                                 <label htmlFor="bulk-image-upload" className="cursor-pointer">
                                     <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-xl hover:bg-purple-100 transition-all">
                                         <Upload className="h-4 w-4" />
-                                        إضافة المزيد
+                                        {t("orders.bulk.addMore")}
                                     </div>
                                 </label>
 
@@ -340,7 +340,7 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                                         className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
                                         disabled={isProcessing}
                                     >
-                                        إلغاء
+                                        {t("common.cancel")}
                                     </button>
                                     <button
                                         onClick={handleBulkCreate}
@@ -348,7 +348,7 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
                                         className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Package className="h-4 w-4" />
-                                        إنشاء {successCount} طلب
+                                        {t("orders.bulk.create", { count: successCount })}
                                     </button>
                                 </div>
                             </div>
