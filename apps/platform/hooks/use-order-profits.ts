@@ -2,6 +2,7 @@
 
 import { useMemo, useCallback } from "react";
 import { Order, Product } from "@/lib/supabase";
+import { resolveOrderLineCost, type CostSnapshots } from "@/lib/finance/item-cost";
 import {
     ORDER_FIXED_COSTS,
     OrderCostBreakdown,
@@ -17,7 +18,8 @@ import {
 export function useOrderProfits(
     orders: Order[],
     products: Product[],
-    marketingCost: number = 0
+    marketingCost: number = 0,
+    snapshots?: CostSnapshots,
 ) {
     /**
      * Find product by name, SKU, or alias
@@ -67,6 +69,18 @@ export function useOrderProfits(
     }, [products]);
 
     /**
+     * What one line of goods cost: the unit cost frozen when the order was
+     * delivered, else the cost on file now (variant first). Only a line the
+     * shared resolver cannot place falls back to this hook's looser name match.
+     */
+    const lineCost = useCallback((order: Order, index: number, item: NonNullable<Order["items"]>[number]): number => {
+        const resolved = resolveOrderLineCost(order, index, item, products, snapshots);
+        if (resolved.known) return resolved.cost;
+        const product = findProduct(item.name, item.sku, item.product_id);
+        return (product?.cost || 0) * item.quantity;
+    }, [products, snapshots, findProduct]);
+
+    /**
      * Calculate cost breakdown for a single order
      */
     const calculateOrderCost = useCallback((order: Order): OrderCostBreakdown => {
@@ -81,13 +95,11 @@ export function useOrderProfits(
         let productCost = 0;
         const matchedProducts: Product[] = [];
 
-        items.forEach(item => {
+        items.forEach((item, index) => {
+            productCost += lineCost(order, index, item);
             const product = findProduct(item.name, item.sku, item.product_id);
-            if (product) {
-                productCost += (product.cost || 0) * item.quantity;
-                if (!matchedProducts.find(p => p.id === product.id)) {
-                    matchedProducts.push(product);
-                }
+            if (product && !matchedProducts.find(p => p.id === product.id)) {
+                matchedProducts.push(product);
             }
         });
 
@@ -133,7 +145,7 @@ export function useOrderProfits(
             itemCount,
             uniqueProductCount,
         };
-    }, [findProduct]);
+    }, [findProduct, lineCost]);
 
     /**
      * Calculate cost breakdowns for delivered/completed orders only
@@ -315,7 +327,7 @@ export function useOrderProfits(
             const originalOrder = orders.find(o => o.id === order.orderId);
             if (!originalOrder?.items) return;
 
-            originalOrder.items.forEach(item => {
+            originalOrder.items.forEach((item, index) => {
                 const product = findProduct(item.name, item.sku, item.product_id);
                 const key = product?.name || item.name;
 
@@ -329,7 +341,7 @@ export function useOrderProfits(
 
                 existing.sold += item.quantity;
                 existing.revenue += item.price * item.quantity;
-                existing.cost += (product?.cost || 0) * item.quantity;
+                existing.cost += lineCost(originalOrder, index, item);
                 existing.profit = existing.revenue - existing.cost;
 
                 productStats.set(key, existing);
@@ -338,7 +350,7 @@ export function useOrderProfits(
 
         return Array.from(productStats.values())
             .sort((a, b) => b.profit - a.profit);
-    }, [orderCostBreakdowns, orders, findProduct]);
+    }, [orderCostBreakdowns, orders, findProduct, lineCost]);
 
     /**
      * Pipeline summary for confirmed + in_transit orders
