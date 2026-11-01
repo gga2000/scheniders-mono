@@ -199,7 +199,7 @@ function NoteCardRow({
                             ) : (
                                 <>
                                     <Upload className="w-4 h-4" />
-                                    <span className="text-[10px]">Image</span>
+                                    <span className="text-[10px]">{t("products.notes.image")}</span>
                                 </>
                             )}
                         </button>

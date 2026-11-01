@@ -416,7 +416,7 @@ export function ReorderDrawer({
                                                     className={cn(
                                                         "w-full px-5 py-3 flex items-center justify-between gap-3 hover:bg-[var(--background)]/50 transition-colors text-left cursor-pointer",
                                                         hasCritical &&
-                                                            "bg-rose-50/40"
+                                                            "bg-rose-50/40 dark:bg-rose-950/30"
                                                     )}
                                                 >
                                                     <div className="flex items-center gap-3 min-w-0">
@@ -434,7 +434,7 @@ export function ReorderDrawer({
                                                             <div className="font-semibold text-sm truncate">
                                                                 {group.supplierName === NO_SUPPLIER_KEY ? t("supplies.ro.noSupplier") : group.supplierName}
                                                             </div>
-                                                            <div className="text-[11px] text-muted flex items-center gap-2 mt-0.5">
+                                                            <div className="text-[11px] text-muted flex items-center gap-2 mt-0.5 whitespace-nowrap">
                                                                 <span>
                                                                     {group.items.length === 1
                                                                         ? t("supplies.ro.itemOne")
@@ -460,7 +460,7 @@ export function ReorderDrawer({
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
                                                         {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
-                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
                                                                 {t("supplies.ro.draftExists", { number: draftBySupplier.get(group.supplierName.trim().toLowerCase()) ?? "" })}
                                                             </span>
                                                         )}

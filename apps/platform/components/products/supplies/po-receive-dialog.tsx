@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import {
@@ -49,6 +49,19 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
             ),
         [lines]
     );
+
+    // Start from "everything outstanding arrived": the common case is one click
+    // (Add to stock); a short delivery is edited down instead of typed in.
+    useEffect(() => {
+        if (!lines) return;
+        setEntered(
+            Object.fromEntries(
+                lines
+                    .filter((l) => l.quantityOrdered - l.quantityReceived > 0)
+                    .map((l) => [l.id, String(l.quantityOrdered - l.quantityReceived)])
+            )
+        );
+    }, [lines]);
 
     const quantities = useMemo(
         () =>
@@ -146,6 +159,14 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                         </div>
                         {lines.map((line) => {
                             const max = outstanding.get(line.id) ?? 0;
+                            const rawQty = Number.parseInt(entered[line.id] ?? "", 10);
+                            const qtyOver = Number.isFinite(rawQty) && rawQty > max;
+                            const rawLineCost = (costs[line.id] ?? "").trim();
+                            const costBad =
+                                canSetCost &&
+                                rawLineCost !== "" &&
+                                !(Number.isInteger(Number(rawLineCost)) && Number(rawLineCost) >= 0);
+                            const errorBorder = "border-rose-400 focus:outline-rose-500";
                             return (
                                 <div
                                     key={line.id}
@@ -172,7 +193,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                             placeholder={t("supplies.po.sameAsPo")}
                                             aria-label={t("supplies.po.invoiceCost")}
                                             onChange={(e) => setCosts((prev) => ({ ...prev, [line.id]: e.target.value }))}
-                                            className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50"
+                                            className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 ${costBad ? errorBorder : "border-[var(--card-border)]"}`}
                                         />
                                     )}
                                     <input
@@ -183,25 +204,20 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                         value={entered[line.id] ?? ""}
                                         placeholder={String(max)}
                                         onChange={(e) => setEntered((prev) => ({ ...prev, [line.id]: e.target.value }))}
-                                        className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50"
+                                        className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 ${qtyOver ? errorBorder : "border-[var(--card-border)]"}`}
                                     />
+                                    {(qtyOver || costBad) && (
+                                        <p role="alert" className="col-span-full text-xs text-rose-600">
+                                            {qtyOver ? t("supplies.po.overOrdered") : t("supplies.po.badCost")}
+                                        </p>
+                                    )}
                                 </div>
                             );
                         })}
                     </div>
                 )}
 
-                {overOrdered && (
-                    <p role="alert" className="text-xs text-rose-600">
-                        {t("supplies.po.overOrdered")}
-                    </p>
-                )}
 
-                {badCost && (
-                    <p role="alert" className="text-xs text-rose-600">
-                        {t("supplies.po.badCost")}
-                    </p>
-                )}
 
                 <DialogFooter className="gap-2">
                     <button
