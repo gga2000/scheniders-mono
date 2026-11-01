@@ -99,9 +99,8 @@ describe("update_order_status", () => {
         const patch = env.calls.find((c) => c.table === "orders" && c.op === "update");
         expect(patch?.filters).toEqual(expect.arrayContaining([`tenant_id=${STORE}`, "id=o1", "version=3"]));
 
-        expect(env.tables.order_status_history).toEqual([
-            expect.objectContaining({ order_id: "o1", from_status: "confirmed", to_status: "in_transit", tenant_id: STORE }),
-        ]);
+        // The history row is the database trigger's (trg_log_order_status_change), not the tool's.
+        expect(env.tables.order_status_history).toEqual([]);
         expect(applyStatusSideEffect).toHaveBeenCalledWith(env.db, expect.objectContaining({ orderId: "o1", tenantId: STORE, from: "confirmed", to: "in_transit" }));
         const actions = env.tables.activity_logs.map((r) => r.action);
         expect(actions).toEqual(["order.status_change", "mcp.tool_call"]);
@@ -130,7 +129,6 @@ describe("update_order_status", () => {
         const res = await call("update_order_status", { orders: ["1003"], status: "delivered", confirm: false });
         expect(res.text).toContain("in_transit → refund_delivered");
         expect(env.tables.orders[3].status).toBe("refund_delivered");
-        expect(env.tables.order_status_history).toEqual([expect.objectContaining({ order_id: "r1", to_status: "refund_delivered" })]);
     });
 
     it("cannot reach another store's order", async () => {

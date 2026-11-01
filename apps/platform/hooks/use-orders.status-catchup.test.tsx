@@ -9,9 +9,12 @@ import type { Order } from "@/types/order";
  * catches up with one delta from the sync watermark, merged into the main list
  * and the duplicate margin, then marks the search stale. These drive the real useOrderCrud.updateOrderStatus,
  * useUpdateStatusMutation, useOrdersQuery and RealtimeBatcher over a fake DB
- * that reproduces the two writes a status change makes: the PATCH
- * (version base+1) and the order_status_history insert, whose trigger
+ * that reproduces the two writes a status change makes, both in the PATCH's
+ * transaction: the PATCH (version base+1, which is what it returns) and the
+ * history row trg_log_order_status_change inserts, whose trigger
  * (update_order_last_actor) writes the row again (base+2, updated_at moves).
+ * `historyInsert` stands for that database trigger; the client inserts no
+ * history row for a status change (`clientHistoryInsert`).
  */
 
 const TENANT = "tenant-1";
@@ -27,6 +30,7 @@ const H = vi.hoisted(() => ({
     findLatestUpdatedAt: vi.fn(),
     updateStatus: vi.fn(),
     historyInsert: vi.fn(),
+    clientHistoryInsert: vi.fn(),
     holdDelta: null as null | Promise<void>,
 }));
 
@@ -58,7 +62,7 @@ vi.mock("@/lib/supabase", () => ({
     supabase: {
         from: (table: string) => ({
             insert: async (rows: Record<string, unknown>[]) => {
-                if (table === "order_status_history") return H.historyInsert(rows);
+                if (table === "order_status_history") return H.clientHistoryInsert(rows);
                 return { error: null };
             },
         }),
@@ -155,8 +159,11 @@ beforeEach(() => {
         const row = dbRow(id);
         if (typeof expectedVersion === "number" && row.version !== expectedVersion) throw new Error("CONFLICT_DETECTED");
         Object.assign(row, { status, version: (row.version as number) + 1, updated_at: tick(), last_status_changed_by_name: by });
-        return { ...row } as unknown as Order; // select(): every column, net_profit included
+        const returned = { ...row } as unknown as Order; // select(): every column, net_profit included
+        await H.historyInsert([{ order_id: id, changed_by: by }]); // the DB trigger, after RETURNING
+        return returned;
     });
+    H.clientHistoryInsert.mockReset().mockImplementation(async () => ({ error: null }));
     H.historyInsert.mockReset().mockImplementation(async (rows: Record<string, unknown>[]) => {
         // trigger_update_order_last_actor: a second UPDATE of the order.
         const row = dbRow(rows[0].order_id as string);
@@ -287,12 +294,27 @@ describe("status change catch-up (replaces the 2s full refetch)", () => {
         act(() => { result.current.status.mutate({ orderId: "o1", status: "confirmed", expectedVersion: 4 }); });
 
         await waitFor(() => expect(cached(qc, "o2")).toMatchObject({ status: "rejected", version: 2 }));
-        expect(cached(qc, "o1")).toMatchObject({ status: "confirmed", version: 5 });
+        // The catch-up carries the history trigger's second write (base+2) too.
+        expect(cached(qc, "o1")).toMatchObject({ status: "confirmed", version: 6 });
         await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
         expect(H.findChangedSince).toHaveBeenCalledTimes(1);
         // The delta started at or below our own write.
         expect(Date.parse(H.findChangedSince.mock.calls[0][1] as string)).toBeLessThanOrEqual(Date.parse(dbRow("o1").updated_at as string));
-        expect(H.historyInsert).not.toHaveBeenCalled();
+        expect(H.clientHistoryInsert).not.toHaveBeenCalled();
+    });
+
+    it("a change replaced inside the 300ms window settles as superseded instead of hanging", async () => {
+        const { qc, result } = await mount();
+        let first: Promise<{ success: boolean; superseded?: boolean }> | undefined;
+        let second: { success: boolean; superseded?: boolean } | undefined;
+        await act(async () => {
+            first = result.current.crud.updateOrderStatus("o1", "confirmed");
+            second = await result.current.crud.updateOrderStatus("o1", "in_transit");
+        });
+        await expect(first).resolves.toEqual({ success: false, superseded: true });
+        expect(second?.success).toBe(true);
+        expect(H.updateStatus).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(cached(qc, "o1")?.status).toBe("in_transit"));
     });
 
     it("a response older than the cache does not roll the row back", async () => {

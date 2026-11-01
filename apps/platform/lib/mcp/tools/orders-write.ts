@@ -126,8 +126,9 @@ type StatusOutcome = { order: Order; result: "changed" | "unchanged"; warning?: 
 
 /**
  * Change one order's status the way the orders page does: the guarded PATCH
- * (pinned to the version we read), the status-history row, the supplies / QC
- * side effects the trigger does not cover, and the activity log entry.
+ * (pinned to the version we read), the supplies / QC side effects the trigger
+ * does not cover, and the activity log entry. The status-history row is written
+ * by the database (trg_log_order_status_change).
  */
 async function changeOrderStatus(
     caller: McpCaller,
@@ -150,16 +151,6 @@ async function changeOrderStatus(
         throw new McpToolError(`Order #${order.order_id} changed while Claude was working on it. Open it again and retry.`);
     }
 
-    const { error: historyError } = await caller.db.from("order_status_history").insert({
-        order_id: order.id,
-        from_status: order.status,
-        to_status: status,
-        changed_at: new Date().toISOString(),
-        notes: reason ?? null,
-        changed_by: actorName(caller),
-        tenant_id: caller.tenantId,
-    });
-
     const effect = await applyStatusSideEffect(caller.db, {
         orderId: order.id,
         tenantId: caller.tenantId,
@@ -176,7 +167,6 @@ async function changeOrderStatus(
     });
 
     const warnings = [
-        historyError ? `status history was not recorded (${historyError.message})` : null,
         effect.success ? null : `supplies/QC update failed (${effect.error})`,
         logWarning,
     ].filter(Boolean);
