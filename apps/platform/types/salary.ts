@@ -53,6 +53,8 @@ export interface PerformanceBonus {
     created_at: string;
     payroll_id?: string;
     is_applied: boolean;
+    /** Set on a "still owed" row left by a part-paid payroll; counted as carried-in pay, not a bonus. */
+    carried_from_payroll_id?: string | null;
 }
 
 export interface PayrollRecord {
@@ -69,7 +71,11 @@ export interface PayrollRecord {
     absence_days: number;
     absence_deduction: number;
     gross_salary: number;
+    /** Unpaid rest of earlier payrolls added to this net. */
+    carried_in?: number;
     net_salary: number;
+    /** What was handed over when less than net_salary; null/absent = paid in full. */
+    amount_paid?: number | null;
     status: "pending" | "paid" | "voided";
     paid_at?: string;
     paid_by?: string;
@@ -164,6 +170,8 @@ export interface PayrollCalculation {
     orderBonus: number;
     pendingBonuses: PerformanceBonus[];
     performanceBonusesTotal: number;
+    /** Still owed from part-paid earlier payrolls; added to net, not to gross. */
+    carriedIn: number;
     pendingAdvances: SalaryAdvance[];
     advancesTotal: number;
     pendingPenalties: SalaryPenalty[];

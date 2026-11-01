@@ -144,6 +144,8 @@ export function buildPayslipHTML(data: PayslipData): string {
     if (record.performance_bonuses_total > 0) {
         earnings.push(ledgerRow("مكافآت الأداء", "+ " + fmtIQD(record.performance_bonuses_total), { valueColor: C.emerald }));
     }
+    // Still owed from a part-paid earlier payroll: added to this net, not part of gross.
+    const carriedIn = record.carried_in ?? 0;
 
     const deductions: string[] = [];
     if (record.absence_deduction > 0) {
@@ -486,11 +488,19 @@ export function buildPayslipHTML(data: PayslipData): string {
       </section>
     </div>
 
+    ${carriedIn > 0 ? `
+    <div class="ledger" style="margin-top:4mm;">${ledgerRow("متبقٍّ من راتب سابق (مُضاف إلى الصافي)", "+ " + fmtIQD(carriedIn), { valueColor: C.emerald })}</div>` : ""}
+
     <!-- Net payable hero banner -->
     <div class="net-banner">
       <div class="lbl">صافي الراتب المستحق</div>
       <div class="amt">${fmtIQD(record.net_salary)}</div>
     </div>
+    ${record.amount_paid != null ? `
+    <div class="ledger" style="margin-top:3mm;">
+      ${ledgerRow("المبلغ المصروف الآن", fmtIQD(record.amount_paid))}
+      ${ledgerRow("المتبقي له (يُضاف إلى الراتب القادم)", fmtIQD(record.net_salary - record.amount_paid), { valueColor: C.clay })}
+    </div>` : ""}
 
     ${pipelineSection}
 

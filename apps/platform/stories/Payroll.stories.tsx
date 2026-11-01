@@ -7,6 +7,7 @@ import { SalaryDeductionsTab } from "@/components/salary/salary-deductions-tab";
 import { PayrollHistoryTable } from "@/components/salary/payroll-history-table";
 import { SalariesCommandBar } from "@/components/salary/salaries-command-bar";
 import { SalariesTabBar, type SalariesSort, type SalariesSubTab } from "@/components/salary/salaries-tab-bar";
+import { ConfirmPayrollDialog } from "@/components/salary/confirm-payroll-dialog";
 import type { OrderAttributionMode, PeriodMode } from "@/hooks/use-salaries";
 import { payrollHistory, payrollAdvances, payrollBonuses, payrollBreakdown, payrollEmployees, payrollPenalties, payrollPeriod, recentPayment } from "./payroll-fixtures";
 
@@ -125,3 +126,11 @@ export default meta;
 export const Current: StoryObj = { render: () => <CurrentPeriod /> };
 export const Advances: StoryObj = { render: () => <Deductions /> };
 export const PayrollHistory: StoryObj = { render: () => <History /> };
+/** Mark paid with a part-payment typed in: 500,000 of 762,000 now, the rest owed. */
+export const MarkPaid: StoryObj = {
+    render: () => (
+        <div className="min-h-screen bg-[var(--background)]">
+            <ConfirmPayrollDialog isOpen data={payrollEmployees[0]} onConfirm={() => undefined} onClose={() => undefined} />
+        </div>
+    ),
+};

@@ -239,14 +239,16 @@ export function EmployeePayrollCard({
     // Paid order units (fractional when a refund was partial), shown in the Orders line.
     const paidUnits = perOrderBonus > 0 ? Math.round((orderBonus / perOrderBonus) * 10) / 10 : calculation.completedOrdersCount;
     const notCounted = breakdown.replacements + breakdown.refunds;
+    // Still owed from a part-paid earlier payroll is money in, so it sits with the earnings.
     const preDeductions =
-        calculation.baseSalary + orderBonus + calculation.performanceBonusesTotal;
+        calculation.baseSalary + orderBonus + calculation.performanceBonusesTotal + calculation.carriedIn;
     // Count of non-zero earning lines — a "Before deductions" subtotal is only worth showing
     // when it sums more than one (otherwise it just repeats the single earning line above it).
     const earningLines =
         (calculation.baseSalary > 0 ? 1 : 0) +
         (orderBonus > 0 ? 1 : 0) +
-        (calculation.performanceBonusesTotal > 0 ? 1 : 0);
+        (calculation.performanceBonusesTotal > 0 ? 1 : 0) +
+        (calculation.carriedIn > 0 ? 1 : 0);
     const hasEarnings = earningLines > 0;
     const hasAnyDeduction =
         calculation.absenceDeduction > 0 || calculation.advancesTotal > 0 ||
@@ -531,6 +533,14 @@ export function EmployeePayrollCard({
                                     type="positive"
                                 />
                             )}
+                            {calculation.carriedIn > 0 && (
+                                <CompactLineItem
+                                    unit={iqd}
+                                    label={t("payroll.card.carriedInLine")}
+                                    value={calculation.carriedIn}
+                                    type="positive"
+                                />
+                            )}
                             {!hasEarnings && (
                                 <p className="text-xs text-muted py-0.5">{t("payroll.card.noEarnings")}</p>
                             )}
@@ -706,7 +716,10 @@ export function EmployeePayrollCard({
                                 )}
                                 {lastPayment && (
                                     <p className="text-xs text-muted mt-2 tabular-nums">
-                                        <bdi>{t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{fmtIQD(lastPayment.net_salary)} {iqd}</bdi></bdi>
+                                        <bdi>
+                                            {t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{fmtIQD(lastPayment.amount_paid ?? lastPayment.net_salary)} {iqd}</bdi>
+                                            {lastPayment.amount_paid != null && <> {t("payroll.card.ofNet", { amount: fmtIQD(lastPayment.net_salary) })}</>}
+                                        </bdi>
                                     </p>
                                 )}
                             </>

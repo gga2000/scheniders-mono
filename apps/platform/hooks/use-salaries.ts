@@ -644,7 +644,9 @@ export function useSalaries(
 
             const pendingAdvances = advances.filter(a => a.employee_id === emp.id);
             const pendingPenalties = penalties.filter(p => p.employee_id === emp.id);
-            const pendingBonuses = bonuses.filter(b => b.employee_id === emp.id);
+            const memberBonuses = bonuses.filter(b => b.employee_id === emp.id);
+            const pendingBonuses = memberBonuses.filter(b => !b.carried_from_payroll_id);
+            const carriedIn = memberBonuses.filter(b => b.carried_from_payroll_id).reduce((s, b) => s + b.amount, 0);
 
             const advancesTotal = pendingAdvances.reduce((s, a) => s + a.amount, 0);
             const penaltiesTotal = pendingPenalties.reduce((s, p) => s + p.amount, 0);
@@ -652,12 +654,12 @@ export function useSalaries(
             const orderBonus = Math.round(payableUnits * effectiveRate.perOrderBonus);
 
             const grossSalary = effectiveRate.baseMonthlySalary + orderBonus + performanceBonusesTotal;
-            const netSalary = Math.max(0, grossSalary - absenceDeduction - advancesTotal - penaltiesTotal);
+            const netSalary = Math.max(0, grossSalary + carriedIn - absenceDeduction - advancesTotal - penaltiesTotal);
             const inTransitCount = attributionMode === "all"
                 ? inTransitOrderIds.length
                 : inTransitOrderIds.filter(id => orderLastTouchedBy.get(id) === emp.id).length;
             const inTransit = projectInTransit(
-                { grossSalary, absenceDeduction, advancesTotal, penaltiesTotal },
+                { grossSalary, carriedIn, absenceDeduction, advancesTotal, penaltiesTotal },
                 inTransitCount,
                 effectiveRate.perOrderBonus,
             );
@@ -673,6 +675,7 @@ export function useSalaries(
                 orderBonus,
                 pendingBonuses,
                 performanceBonusesTotal,
+                carriedIn,
                 pendingAdvances,
                 advancesTotal,
                 pendingPenalties,

@@ -23,6 +23,11 @@ import { PayslipPreviewModal } from "./payslip-preview-modal";
 import { ComparePayrollModal } from "./compare-payroll-modal";
 import { formatPayrollDate } from "@/lib/payroll-date";
 
+/** Cash handed over for a record: the part paid, or the full net. */
+function paidOut(r: PayrollRecord): number {
+    return r.amount_paid ?? r.net_salary;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtIQD(n: number) {
@@ -132,7 +137,7 @@ export function PayrollHistoryTable({ records: payrollHistory, loading: isLoadin
                 id: r.employee_id,
                 name,
                 count: existing.count + 1,
-                totalNet: existing.totalNet + r.net_salary,
+                totalNet: existing.totalNet + paidOut(r),
                 totalOrders: existing.totalOrders + r.completed_orders_count,
             });
         }
@@ -305,7 +310,7 @@ export function PayrollHistoryTable({ records: payrollHistory, loading: isLoadin
                 <div className="space-y-4">
                     {[...groupedByMonth.entries()].map(([monthKey, records]) => {
                         const isCollapsed = collapsedMonths.has(monthKey);
-                        const monthTotal = records.filter(r => r.status === "paid").reduce((s, r) => s + r.net_salary, 0);
+                        const monthTotal = records.filter(r => r.status === "paid").reduce((s, r) => s + paidOut(r), 0);
                         return (
                             <div key={monthKey}>
                                 {/* Month header */}
@@ -541,7 +546,12 @@ function RecordRow({
 
                 {/* Amount */}
                 <div className="text-right ml-1 min-w-[80px]">
-                    <p className={cn("font-bold text-sm tabular-nums", isVoided ? "text-muted line-through" : "text-foreground")}>{fmtIQD(record.net_salary)} {t("common.iqd")}</p>
+                    <p className={cn("font-bold text-sm tabular-nums", isVoided ? "text-muted line-through" : "text-foreground")}><bdi>{fmtIQD(paidOut(record))} {t("common.iqd")}</bdi></p>
+                    {record.amount_paid != null && (
+                        <p className="text-[11px] text-amber-700 dark:text-amber-400 tabular-nums">
+                            <bdi>{t("payroll.card.ofNet", { amount: fmtIQD(record.net_salary) })}</bdi>
+                        </p>
+                    )}
                     <p className="text-xs text-muted">{t("payroll.history.orders", { count: record.completed_orders_count })}</p>
                 </div>
             </div>
@@ -577,7 +587,7 @@ function CalendarView({ history, employeeNames, locale }: { history: PayrollReco
             const dateStr = toBaghdadDayKey(r.paid_at);
             if (!dateStr) continue;
             const list = map.get(dateStr) ?? [];
-            list.push({ id: r.id, name: employeeNames.get(r.employee_id) ?? t("payroll.history.unknown"), amount: r.net_salary });
+            list.push({ id: r.id, name: employeeNames.get(r.employee_id) ?? t("payroll.history.unknown"), amount: paidOut(r) });
             map.set(dateStr, list);
         }
         return map;

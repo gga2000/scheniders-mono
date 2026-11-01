@@ -90,9 +90,13 @@ export function SalaryDeductionsTab({
                     amount={item.amount}
                     label={
                         item.itemType === "bonus"
-                            ? ((item as PerformanceBonus).reason ?? t("payroll.ded.bonus"))
+                            ? ((item as PerformanceBonus).carried_from_payroll_id
+                                ? t("payroll.card.carriedInLine")
+                                : ((item as PerformanceBonus).reason ?? t("payroll.ded.bonus")))
                             : (item as SalaryPenalty).reason
                     }
+                    // Pay still owed from a part-paid payroll is not deleted here: void that payroll instead.
+                    locked={item.itemType === "bonus" && !!(item as PerformanceBonus).carried_from_payroll_id}
                     date={item.created_at}
                     isApplied={item.itemType === "bonus" ? (item as PerformanceBonus).is_applied : (item as SalaryPenalty).is_applied}
                     onDelete={() =>
@@ -118,6 +122,7 @@ function DeductionRow({
     isApplied,
     onDelete,
     isBonus = false,
+    locked = false,
 }: {
     icon: React.ElementType;
     iconBg: string;
@@ -129,6 +134,7 @@ function DeductionRow({
     isApplied: boolean;
     onDelete: () => void;
     isBonus?: boolean;
+    locked?: boolean;
 }) {
     const { t, language } = useLanguage();
     const [confirming, setConfirming] = useState(false);
@@ -153,7 +159,7 @@ function DeductionRow({
                 <p className={cn("font-semibold text-sm tabular-nums", isBonus ? "text-violet-600" : "text-rose-600")}>
                     {isBonus ? "+" : "−"}{fmtIQD(amount)} {t("common.iqd")}
                 </p>
-                {!isApplied && (confirming ? (
+                {!isApplied && !locked && (confirming ? (
                     <div className="mt-1 flex items-center justify-end gap-1">
                         <span className="text-xs text-rose-600 font-medium">{t("payroll.ded.confirmDelete")}</span>
                         <button
