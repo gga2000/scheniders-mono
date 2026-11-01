@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface FinanceValueProps {
     value: number;
@@ -45,7 +46,10 @@ export function FinanceValue({
     className,
     decimals,
 }: FinanceValueProps) {
-    const { body, unit } = formatFinance(value, { currency, abbreviate, signed, decimals });
+    const { t } = useLanguage();
+    const { body, unit: code } = formatFinance(value, { currency, abbreviate, signed, decimals });
+    // The dinar is written د.ع in Arabic; other currency codes stay as they are.
+    const unit = code === "IQD" ? t("common.iqd") : code;
 
     return (
         <span
