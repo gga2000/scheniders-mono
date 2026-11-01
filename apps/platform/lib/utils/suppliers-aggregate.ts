@@ -1,4 +1,5 @@
 import type { Product } from "@/lib/supabase";
+import { OPEN_PO_STATUSES } from "@/components/products/supplies/po-status-chip";
 
 export interface SupplyLink {
     product: Product;
@@ -57,7 +58,7 @@ interface PoRaw {
     supplier_email?: string | null;
 }
 
-const OPEN_STATUSES = new Set(["draft", "sent", "confirmed"]);
+const OPEN_STATUSES = new Set(OPEN_PO_STATUSES);
 
 function keyOf(name: string): string {
     return name.trim().toLowerCase();

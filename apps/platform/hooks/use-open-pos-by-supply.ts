@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
-import type { PoStatus, PoStatusInfo } from "@/components/products/supplies/po-status-chip";
+import { OPEN_PO_STATUSES, type PoStatus, type PoStatusInfo } from "@/components/products/supplies/po-status-chip";
 
 /**
  * Fetches purchase orders that are still in-flight (draft/sent/confirmed) and maps
@@ -22,7 +22,7 @@ export function useOpenPosBySupply() {
                 .from("purchase_orders")
                 .select("id, po_number, status, expected_date, received_at")
                 .eq("tenant_id", tenantId)
-                .in("status", ["draft", "sent", "confirmed"])
+                .in("status", OPEN_PO_STATUSES)
                 .is("received_at", null);
 
             if (error) throw error;

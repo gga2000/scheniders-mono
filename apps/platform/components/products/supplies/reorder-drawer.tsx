@@ -333,6 +333,8 @@ export function ReorderDrawer({
             toast.success(t("supplies.ro.poCreated", { number: result.poNumber, count: result.itemCount }));
             queryClient.invalidateQueries({ queryKey: ["supplies-reorder-sales"] });
             queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] });
+            queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] });
+            queryClient.invalidateQueries({ queryKey: ["supplier-pos"] });
         },
         onError: (err: Error) => {
             toast.error(t("supplies.ro.poFailed", { message: err.message }));

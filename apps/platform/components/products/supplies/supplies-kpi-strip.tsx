@@ -15,6 +15,7 @@ import { supabase, Product } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { fetchPurchaseOrderCosts } from "@/lib/repositories/purchase-costs";
 import { useLanguage } from "@/hooks/use-language";
+import { OPEN_PO_STATUSES } from "./po-status-chip";
 
 interface SuppliesKpiStripProps {
     supplies: Product[];
@@ -224,7 +225,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 .from("purchase_orders")
                 .select("id,status")
                 .eq("tenant_id", tenantId)
-                .in("status", ["draft", "sent", "partial"]);
+                .in("status", OPEN_PO_STATUSES);
             if (error) throw error;
             const list = data ?? [];
             // total_cost is not a readable column. A member who may not see

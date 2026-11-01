@@ -6,6 +6,9 @@ import { useLanguage } from "@/hooks/use-language";
 
 export type PoStatus = "draft" | "sent" | "confirmed" | "received";
 
+/** Purchase order statuses that still count as open (not received or cancelled). */
+export const OPEN_PO_STATUSES = ["draft", "sent", "confirmed", "partial"];
+
 export interface PoStatusInfo {
     poNumber: string;
     status: PoStatus;
