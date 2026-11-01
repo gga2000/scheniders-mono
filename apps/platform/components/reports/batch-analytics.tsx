@@ -2,7 +2,7 @@
 
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
-import { BatchMetrics, BatchAnalyticsSummary } from "@/hooks/use-batch-analytics";
+import type { BatchMetrics, BatchAnalyticsSummary } from "@/lib/analytics/batch-metrics";
 import {
     Package, Truck, Receipt, TrendingUp, MapPin, Calendar,
     CheckCircle2, XCircle, Clock, Loader2, RefreshCw, ChevronRight,
