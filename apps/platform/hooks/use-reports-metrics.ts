@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Order } from "@/lib/supabase";
+import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 import {
     calculateStatusFlow,
     calculateKPIs,
@@ -34,52 +34,32 @@ export interface DateRange {
     to: Date;
 }
 
-function filterOrdersByDateRange(orders: Order[], range: DateRange): Order[] {
-    return orders.filter(order => {
-        const orderDate = new Date(order.created_at);
-        return orderDate >= range.from && orderDate <= range.to;
-    });
-}
-
-function getPreviousPeriodRange(range: DateRange): DateRange {
-    const duration = range.to.getTime() - range.from.getTime();
-    return {
-        from: new Date(range.from.getTime() - duration),
-        to: new Date(range.from.getTime() - 1),
-    };
-}
-
+/**
+ * Metrics for the report's orders. `current` and `previous` are already split by
+ * range (see splitReportOrders), so the numbers cover the whole range, not
+ * whatever the shared orders list happened to load.
+ */
 export function useReportsMetrics(
-    orders: Order[],
-    dateRange?: DateRange
-): ReportsMetrics | null {
-    return useMemo(() => {
-        if (!orders.length) return null;
-
-        // Filter orders by date range if provided
-        const currentOrders = dateRange
-            ? filterOrdersByDateRange(orders, dateRange)
-            : orders;
-
-        // Get previous period orders for comparison
-        const previousOrders = dateRange
-            ? filterOrdersByDateRange(orders, getPreviousPeriodRange(dateRange))
-            : [];
-
-        return {
-            statusFlow: calculateStatusFlow(currentOrders),
-            kpis: calculateKPIs(currentOrders, previousOrders),
-            contactAttempts: calculateContactAttempts(currentOrders),
-            cityPerformance: calculateCityPerformance(currentOrders),
-            rejectionReasons: calculateRejectionReasons(currentOrders),
-            timeAnalysis: calculateTimeAnalysis(currentOrders),
-            attentionFlags: calculateAttentionFlags(currentOrders),
-        };
-    }, [orders, dateRange]);
+    current: ReportOrder[],
+    previous: ReportOrder[]
+): ReportsMetrics {
+    return useMemo(() => ({
+        statusFlow: calculateStatusFlow(current),
+        kpis: calculateKPIs(current, previous),
+        contactAttempts: calculateContactAttempts(current),
+        cityPerformance: calculateCityPerformance(current),
+        rejectionReasons: calculateRejectionReasons(current),
+        timeAnalysis: calculateTimeAnalysis(current),
+        attentionFlags: calculateAttentionFlags(current),
+    }), [current, previous]);
 }
 
 // Helper hook for common date ranges
 export function useDateRangePresets() {
+    return useMemo(() => buildDateRangePresets(), []);
+}
+
+function buildDateRangePresets() {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
 

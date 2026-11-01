@@ -1,5 +1,4 @@
-import { Order } from "@/lib/supabase";
-import { DateRange } from "@/hooks/use-reports-metrics";
+import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 
 /**
  * Source performance metrics, plus period comparison.
@@ -59,15 +58,8 @@ export interface PeriodComparisonMetrics {
  * For more accurate tracking, we'd need to integrate with activity_logs
  */
 export function calculateSourcePerformance(
-    orders: Order[],
-    dateRange: DateRange
+    filteredOrders: ReportOrder[]
 ): SourcePerformanceMetrics[] {
-    // Filter orders by date range
-    const filteredOrders = orders.filter(o => {
-        const created = new Date(o.created_at);
-        return created >= dateRange.from && created <= dateRange.to;
-    });
-
     // Aggregate by acquisition source. Per-staff attribution lives in
     // useEmployeeMetrics, which reads activity events.
     const sourceMap = new Map<string, {
@@ -161,29 +153,11 @@ export function calculateSourcePerformance(
  * Calculate period comparison metrics
  */
 export function calculatePeriodComparison(
-    orders: Order[],
-    currentRange: DateRange
+    currentOrders: ReportOrder[],
+    previousOrders: ReportOrder[]
 ): PeriodComparisonMetrics {
-    // Calculate previous period (same duration, immediately before)
-    const duration = currentRange.to.getTime() - currentRange.from.getTime();
-    const previousRange: DateRange = {
-        from: new Date(currentRange.from.getTime() - duration),
-        to: new Date(currentRange.from.getTime() - 1), // End 1ms before current starts
-    };
-
-    // Filter orders for each period
-    const currentOrders = orders.filter(o => {
-        const created = new Date(o.created_at);
-        return created >= currentRange.from && created <= currentRange.to;
-    });
-
-    const previousOrders = orders.filter(o => {
-        const created = new Date(o.created_at);
-        return created >= previousRange.from && created <= previousRange.to;
-    });
-
     // Calculate metrics for each period
-    const calculateMetrics = (orderList: Order[]) => {
+    const calculateMetrics = (orderList: ReportOrder[]) => {
         const total = orderList.length;
         const delivered = orderList.filter(o =>
             o.status === 'delivered' || o.status === 'completed'

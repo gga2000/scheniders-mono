@@ -1,6 +1,6 @@
 "use client";
 
-import { Order } from "@/lib/supabase";
+import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 
 // ============================================
 // TYPE DEFINITIONS
@@ -90,7 +90,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; order: numbe
     pending_checkout: { label: "Pending Checkout", color: "#A855F7", order: -1 },
 };
 
-export function calculateStatusFlow(orders: Order[]): StatusFlowMetrics[] {
+export function calculateStatusFlow(orders: ReportOrder[]): StatusFlowMetrics[] {
     const statusCounts: Record<string, number> = {};
     const total = orders.length;
 
@@ -119,8 +119,8 @@ export function calculateStatusFlow(orders: Order[]): StatusFlowMetrics[] {
 // KPI CALCULATIONS
 // ============================================
 
-export function calculateKPIs(currentOrders: Order[], previousOrders: Order[] = []): KPIMetrics {
-    const calcMetrics = (orders: Order[]) => {
+export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: ReportOrder[] = []): KPIMetrics {
+    const calcMetrics = (orders: ReportOrder[]) => {
         const total = orders.length;
         const delivered = orders.filter(o => o.status === 'delivered' || o.status === 'completed').length;
         const rejected = orders.filter(o => o.status === 'rejected').length;
@@ -179,7 +179,7 @@ export function calculateKPIs(currentOrders: Order[], previousOrders: Order[] = 
 // CONTACT ATTEMPT ANALYSIS
 // ============================================
 
-export function calculateContactAttempts(orders: Order[]): ContactAttemptMetrics[] {
+export function calculateContactAttempts(orders: ReportOrder[]): ContactAttemptMetrics[] {
     const buckets: Record<number, { count: number; confirmed: number }> = {
         0: { count: 0, confirmed: 0 },
         1: { count: 0, confirmed: 0 },
@@ -211,7 +211,7 @@ export function calculateContactAttempts(orders: Order[]): ContactAttemptMetrics
 // CITY PERFORMANCE ANALYSIS
 // ============================================
 
-export function calculateCityPerformance(orders: Order[]): CityPerformanceMetrics[] {
+export function calculateCityPerformance(orders: ReportOrder[]): CityPerformanceMetrics[] {
     const cityData: Record<string, {
         total: number;
         delivered: number;
@@ -278,7 +278,7 @@ export function calculateCityPerformance(orders: Order[]): CityPerformanceMetric
 // REJECTION REASON ANALYSIS
 // ============================================
 
-export function calculateRejectionReasons(orders: Order[]): RejectionReasonMetrics[] {
+export function calculateRejectionReasons(orders: ReportOrder[]): RejectionReasonMetrics[] {
     const rejectedOrders = orders.filter(o => o.status === 'rejected');
     const reasonCounts: Record<string, { count: number; cities: Record<string, number> }> = {};
 
@@ -313,7 +313,7 @@ export function calculateRejectionReasons(orders: Order[]): RejectionReasonMetri
 // TIME-BASED ANALYSIS
 // ============================================
 
-export function calculateTimeAnalysis(orders: Order[]): TimeAnalysisMetrics {
+export function calculateTimeAnalysis(orders: ReportOrder[]): TimeAnalysisMetrics {
     // Hourly distribution
     const hourlyData: Record<number, number> = {};
     for (let i = 0; i < 24; i++) hourlyData[i] = 0;
@@ -373,7 +373,7 @@ export function calculateTimeAnalysis(orders: Order[]): TimeAnalysisMetrics {
 // ATTENTION FLAGS ANALYSIS
 // ============================================
 
-export function calculateAttentionFlags(orders: Order[]): AttentionFlagMetrics[] {
+export function calculateAttentionFlags(orders: ReportOrder[]): AttentionFlagMetrics[] {
     let missingPhone = 0;
     let missingProduct = 0;
     let invalidAddress = 0;
@@ -424,15 +424,15 @@ export interface ReturnAnalyticsMetrics {
 }
 
 /**
- * Calculate comprehensive return/refund analytics
+ * Return/refund analytics for one range: `returnOrders` are the range's return orders, `salesOrders` its sales orders.
  */
-export function calculateReturnAnalytics(orders: Order[]): ReturnAnalyticsMetrics {
-    // Get all return orders (is_return = true)
-    const returnOrders = orders.filter(o => o.is_return === true);
-
-    // Get delivered/completed orders for return rate calculation
-    const deliveredOrders = orders.filter(o =>
-        (o.status === 'delivered' || o.status === 'completed') && !o.is_return
+export function calculateReturnAnalytics(
+    returnOrders: ReportOrder[],
+    salesOrders: ReportOrder[]
+): ReturnAnalyticsMetrics {
+    // Delivered/completed sales orders of the same range, for the return rate
+    const deliveredOrders = salesOrders.filter(o =>
+        o.status === 'delivered' || o.status === 'completed'
     );
 
     const totalReturns = returnOrders.length;
