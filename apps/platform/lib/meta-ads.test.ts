@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchCampaignInsights, MetaAdsError } from "./meta-ads";
+import { fetchCampaignInsights, fetchTokenHealth, MetaAdsError } from "./meta-ads";
 
 const params = { adAccountId: "936978227928994", accessToken: "t".repeat(30), since: "2026-10-25", until: "2026-11-01" };
 
@@ -38,5 +38,24 @@ describe("fetchCampaignInsights", () => {
     it("rejects off-host paging links", async () => {
         mockFetch({ data: [], paging: { next: "https://evil.example/steal" } });
         await expect(fetchCampaignInsights(params)).rejects.toThrow("off-host");
+    });
+});
+
+describe("fetchTokenHealth", () => {
+    it("reads validity, expiry and ads_read scope", async () => {
+        mockFetch({ data: { is_valid: true, expires_at: 1793577600, scopes: ["ads_read", "public_profile"] } });
+        await expect(fetchTokenHealth("tok-12345678901234567890")).resolves.toEqual({
+            isValid: true, expiresAt: "2026-11-02T00:00:00.000Z", hasAdsRead: true,
+        });
+    });
+
+    it("treats expires_at 0 as never expiring and flags a missing ads_read scope", async () => {
+        mockFetch({ data: { is_valid: true, expires_at: 0, scopes: ["public_profile"] } });
+        await expect(fetchTokenHealth("tok-12345678901234567890")).resolves.toEqual({ isValid: true, expiresAt: null, hasAdsRead: false });
+    });
+
+    it("surfaces Meta errors", async () => {
+        mockFetch({ error: { message: "Invalid OAuth access token", code: 190 } }, false);
+        await expect(fetchTokenHealth("tok-12345678901234567890")).rejects.toThrow("Invalid OAuth access token");
     });
 });

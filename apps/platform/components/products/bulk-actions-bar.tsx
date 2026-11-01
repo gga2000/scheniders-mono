@@ -26,7 +26,7 @@ interface BulkActionsBarProps {
     /** Absent when the user's role may not bulk-change prices. */
     onUpdatePrice?: (newPrice: number) => Promise<void> | void;
     /** Side effects of a bulk price, shown under the input before Apply. */
-    describePrice?: (newPrice: number) => { clearsCompareAt: number; keepsStorePrice: number };
+    describePrice?: (newPrice: number) => { clearsCompareAt: number; keepsStorePrice: number; belowCost: number };
     onArchive: () => Promise<void> | void;
     onExport: () => void;
     onShowOnStore?: () => Promise<void> | void;
@@ -144,8 +144,9 @@ export function BulkActionsBar({
     const priceImpact = useMemo(() => {
         const price = parseWholeNumber(newPrice);
         if (!describePrice || price === null || price <= 0) return null;
-        const { clearsCompareAt, keepsStorePrice } = describePrice(price);
+        const { clearsCompareAt, keepsStorePrice, belowCost } = describePrice(price);
         const parts: string[] = [];
+        if (belowCost > 0) parts.push(t("products.bulk.priceBelowCost", { count: belowCost }));
         if (clearsCompareAt > 0) parts.push(t("products.bulk.priceClearsCompare", { count: clearsCompareAt }));
         if (keepsStorePrice > 0) parts.push(t("products.bulk.priceKeepsStore", { count: keepsStorePrice }));
         return parts.length > 0 ? parts.join(" ") : null;

@@ -386,25 +386,22 @@ export function calculateAttentionFlags(orders: ReportOrder[]): AttentionFlagMet
     let missingPhone = 0;
     let missingProduct = 0;
     let invalidAddress = 0;
-    let needsReview = 0;
     let priceIssues = 0;
 
     orders.forEach(order => {
         if (!order.phone || order.phone.trim() === '') missingPhone++;
-        if (order.needs_attention) {
-            const reasons = order.attention_reasons || [];
-            if (reasons.includes('missing_product')) missingProduct++;
-            if (reasons.includes('price_changed')) priceIssues++;
-        }
-        if (order.address_status === 'invalid' || order.address_status === 'incomplete') invalidAddress++;
-        if (order.address_status === 'needs_review') needsReview++;
+        // `attention_reasons` is the real signal. `orders.address_status` is never written (every order
+        // keeps the column default), so counting it flagged every order as needing review.
+        const reasons = order.attention_reasons || [];
+        if (reasons.includes('missing_product')) missingProduct++;
+        if (reasons.includes('price_changed')) priceIssues++;
+        if (reasons.includes('address_issue')) invalidAddress++;
     });
 
     return [
         { flagType: 'missing_phone', label: 'Missing Phone', count: missingPhone, severity: 'high' as const },
         { flagType: 'missing_product', label: 'Missing Product', count: missingProduct, severity: 'high' as const },
         { flagType: 'invalid_address', label: 'Invalid Address', count: invalidAddress, severity: 'medium' as const },
-        { flagType: 'needs_review', label: 'Needs Review', count: needsReview, severity: 'low' as const },
         { flagType: 'price_issues', label: 'Price Issues', count: priceIssues, severity: 'medium' as const },
     ].filter(flag => flag.count > 0);
 }

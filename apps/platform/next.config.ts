@@ -9,6 +9,9 @@ const withSerwist = withSerwistInit({
   register: false, // We register manually in PWAProvider
 });
 
+// pnpm keeps the real package under the workspace root's .pnpm store.
+const SPARTICUZ_CHROMIUM_BIN = "../../node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**";
+
 const nextConfig: NextConfig = {
   // StrictMode helps catch bugs in development
   reactStrictMode: true,
@@ -19,6 +22,13 @@ const nextConfig: NextConfig = {
   // Externalize pdf-parse and pdfjs-dist from the server bundle
   // so Node.js resolves them natively (avoids Turbopack worker issues)
   serverExternalPackages: ["pdf-parse", "pdfjs-dist", "puppeteer-core", "@sparticuz/chromium"],
+
+  // @sparticuz/chromium reads its compressed browser from bin/ with fs at
+  // runtime, so the file tracer never sees it. Ship it with the PDF routes.
+  outputFileTracingIncludes: {
+    "/api/generate-batch-pdf": [SPARTICUZ_CHROMIUM_BIN],
+    "/api/payslip-pdf": [SPARTICUZ_CHROMIUM_BIN],
+  },
 
   // Image hosts — Supabase Storage serves through a CDN, but we still
   // want Next's optimizer for avif/webp + responsive sizes. The

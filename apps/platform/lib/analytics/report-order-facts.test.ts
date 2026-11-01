@@ -8,7 +8,7 @@ function order(over: Partial<ReportOrder>): ReportOrder {
         created_at: "2026-10-15T10:00:00.000Z", status: "delivered", delivered_at: null,
         contact_count: 1, city: "Baghdad", governorate_code: "BG", validated_governorate_code: null,
         rejection_reason: null, phone: "0770", needs_attention: false, attention_reasons: null,
-        address_status: null, source: "manual", is_return: false, notes: null, price: 10000, ...over,
+        source: "manual", is_return: false, notes: null, price: 10000, ...over,
     };
 }
 
