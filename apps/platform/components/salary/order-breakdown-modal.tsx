@@ -8,13 +8,14 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useLanguage } from "@/hooks/use-language";
 import type { OrderBreakdown, CountedOrderDetail, ReturnedAfterPayment, OrderBucket } from "@/types/salary";
+import { formatPayrollDate } from "@/lib/payroll-date";
 
 function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
 }
 
 function fmtDate(d: string, isArabic: boolean) {
-    try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), "MMM d, yyyy", { locale: isArabic ? ar : undefined }); } catch { return d; }
+    return formatPayrollDate(d, isArabic ? "d MMM yyyy" : "MMM d, yyyy", isArabic ? ar : undefined);
 }
 
 const BUCKET_META: Record<OrderBucket, { labelKey: string; cls: string }> = {
