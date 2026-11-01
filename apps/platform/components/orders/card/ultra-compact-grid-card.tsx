@@ -80,7 +80,7 @@ export function UltraCompactGridCard(props: OrderCardProps) {
                     </div>
 
                     {/* Row 3: Items */}
-                    <p className="text-xs text-foreground/60 truncate" title={itemsText}>
+                    <p className="text-xs text-foreground/70 truncate" title={itemsText}>
                         {itemsText}
                     </p>
 

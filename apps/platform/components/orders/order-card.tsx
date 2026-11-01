@@ -329,9 +329,9 @@ function FullOrderCard(props: OrderCardProps) {
                         {/* Date & Time with Age Badge - visible in normal and semi-compact */}
                         {(
                             <div className="flex items-center gap-2 text-xs">
-                                <span className="font-semibold text-subtle">{formatShortDate(order.created_at)}</span>
+                                <span className="font-semibold text-muted">{formatShortDate(order.created_at)}</span>
                                 <span className="text-[var(--card-border)]">|</span>
-                                <span className="font-mono text-subtle">{formatTime(order.created_at)}</span>
+                                <span className="font-mono text-muted">{formatTime(order.created_at)}</span>
 
                                 {/* Date Modified Indicator */}
                                 {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
