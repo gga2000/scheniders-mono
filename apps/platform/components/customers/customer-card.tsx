@@ -118,15 +118,16 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 outcome flags. Two chips fit a card, so the rest is a counted "+N" (named in its
                 tooltip). Caution keeps its full words, as on every other surface; on a card too
                 narrow for both words (under 16rem, the 4-column grid at 1280) the value pill
-                gives way instead and shows its icon alone, its name on hover and for screen
-                readers. Every chip but the "+N" may still shrink (min-w-0, its word truncated),
+                gives way instead and shows its icon alone. Only then does it carry a tooltip
+                with the tier's name (and the name stays for screen readers); a pill that shows
+                its word needs none. Every chip but the "+N" may still shrink (min-w-0, its word truncated),
                 so the "+N" is never pushed off the row. Clipped sideways only, so the tooltips
                 can open above the row. */}
             <div className="mt-3 flex items-center gap-1.5 h-6 overflow-x-clip">
                 {unsafe ? (
                     <RiskChip risk={risk} className="min-w-0" />
                 ) : risk === "caution" ? (
-                    <Tooltip content={t(valueTierKey(value))} align="start" className="min-w-0" contentClassName={CARD_TOOLTIP}>
+                    <Tooltip content={t(valueTierKey(value))} align="start" className="min-w-0" contentClassName={cn(CARD_TOOLTIP, "@min-[16rem]:hidden")}>
                         <ValuePill tier={value} variant="compact" className="min-w-0 @max-[16rem]:px-1.5" labelClassName="@max-[16rem]:sr-only" />
                     </Tooltip>
                 ) : (

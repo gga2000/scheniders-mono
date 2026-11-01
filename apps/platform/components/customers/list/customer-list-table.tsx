@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { MessageCircle, Phone, Check, User } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
@@ -14,8 +15,8 @@ import {
     customerAccent,
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
-import { TOOLBAR_STICKY_TOP } from "@/components/customers/list/customer-toolbar";
 import { formatPhoneDisplay, monogram, spentLabel, toIraqE164 } from "@/lib/customer-format";
+import { useBorderBoxHeight } from "@/hooks/use-border-box-height";
 
 function successTone(rate: number): string {
     if (rate >= 80) return "text-lime-700 dark:text-lime-300";
@@ -23,14 +24,12 @@ function successTone(rate: number): string {
     return "text-rose-600 dark:text-rose-300";
 }
 
-/** Header cells stick under the sticky toolbar, so column names stay while scrolling. */
-function Th({ children, right, className }: { children?: React.ReactNode; right?: boolean; className?: string }) {
+/** Header cells stick right under the sticky toolbar (`top`, its measured height), so column names stay while scrolling. */
+function Th({ children, right, top }: { children?: React.ReactNode; right?: boolean; top: number }) {
     return (
-        <th className={cn(
+        <th style={{ top }} className={cn(
             "sticky z-10 bg-background px-3 h-11 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-(--card-border)",
-            TOOLBAR_STICKY_TOP,
             right ? "text-right" : "text-left",
-            className,
         )}>
             {children}
         </th>
@@ -46,19 +45,34 @@ export function CustomerListTable({
     onRowClick,
     selectedPhones,
     onToggleSelect,
+    stickyTop,
 }: {
     customers: PaginatedCustomer[];
     onRowClick: (phone: string) => void;
     selectedPhones?: Set<string>;
     onToggleSelect?: (phone: string) => void;
+    /** The sticky toolbar's measured height: the header sticks right under it. */
+    stickyTop: number;
 }) {
     const { t, language } = useLanguage();
+    // The toolbar and the header are one sticky block. A row brought into view (a focused
+    // checkbox, scrollIntoView) stops under the whole block, never half behind the header.
+    const { height: headHeight, ref: headRef } = useBorderBoxHeight<HTMLTableSectionElement>();
+    const stackHeight = stickyTop + headHeight;
+    useEffect(() => {
+        const root = document.documentElement;
+        root.style.scrollPaddingTop = `${stackHeight}px`;
+        return () => { root.style.scrollPaddingTop = ""; };
+    }, [stackHeight]);
     const allSelected = customers.length > 0 && customers.every((c) => selectedPhones?.has(c.phone));
     // Once something is selected, tapping a row adds or removes it, like the grid.
     const selecting = !!onToggleSelect && (selectedPhones?.size ?? 0) > 0;
 
     return (
-        <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)]">
+        // overflow-clip rounds the header's corners at rest without making a scroll container,
+        // so the header still sticks to the page. Once stuck it is square, with no corner gaps
+        // for the rows under it to show through.
+        <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) overflow-clip shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)]">
             <table className="w-full table-fixed border-separate border-spacing-0">
                 <colgroup>
                     {onToggleSelect && <col className="w-11" />}
@@ -71,10 +85,10 @@ export function CustomerListTable({
                     <col className="w-40" />
                     <col className="w-24" />
                 </colgroup>
-                <thead>
+                <thead ref={headRef}>
                     <tr>
                         {onToggleSelect && (
-                            <Th className="rounded-tl-2xl">
+                            <Th top={stickyTop}>
                                 <button
                                     onClick={() => customers.forEach((c) => {
                                         const on = selectedPhones?.has(c.phone);
@@ -88,15 +102,15 @@ export function CustomerListTable({
                                 </button>
                             </Th>
                         )}
-                        <Th className={onToggleSelect ? undefined : "rounded-tl-2xl"}>{t("customers.table.customer", "Customer")}</Th>
-                        <Th>{t("customers.table.governorate")}</Th>
-                        <Th>{t("customers.value.label", "Value")}</Th>
-                        <Th>{t("customers.risk.label", "COD risk")}</Th>
-                        <Th right>{t("customers.table.ordersRate", "Orders · rate")}</Th>
+                        <Th top={stickyTop}>{t("customers.table.customer", "Customer")}</Th>
+                        <Th top={stickyTop}>{t("customers.table.governorate")}</Th>
+                        <Th top={stickyTop}>{t("customers.value.label", "Value")}</Th>
+                        <Th top={stickyTop}>{t("customers.risk.label", "COD risk")}</Th>
+                        <Th top={stickyTop} right>{t("customers.table.ordersRate", "Orders · rate")}</Th>
                         {/* What the figure leaves out (delivery, undelivered orders) is on hover, so the header stays short. */}
-                        <Th right><span title={t("customers.spentOnItemsHint")}>{t("customers.spentOnItems")}</span></Th>
-                        <Th>{t("customers.lastOrder")}</Th>
-                        <Th className="rounded-tr-2xl"><span className="sr-only">{t("customers.actions.whatsapp")}</span></Th>
+                        <Th top={stickyTop} right><span title={t("customers.spentOnItemsHint")}>{t("customers.spentOnItems")}</span></Th>
+                        <Th top={stickyTop}>{t("customers.lastOrder")}</Th>
+                        <Th top={stickyTop}><span className="sr-only">{t("customers.actions.whatsapp")}</span></Th>
                     </tr>
                 </thead>
                 <tbody>

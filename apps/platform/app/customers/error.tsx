@@ -23,9 +23,9 @@ export default function CustomersError({
                 <AlertTriangle className="h-8 w-8 text-rose-600" />
             </div>
 
-            <h2 className="mb-2 text-xl font-bold text-foreground">{t("customers.loadFailed")}</h2>
+            <h2 dir="auto" className="mb-2 text-xl font-bold text-foreground">{t("customers.loadFailed")}</h2>
 
-            <p className="mb-6 max-w-md text-muted-foreground">{t("customers.loadFailedHint")}</p>
+            <p dir="auto" className="mb-6 max-w-md text-muted-foreground">{t("customers.loadFailedHint")}</p>
 
             <button
                 onClick={reset}
