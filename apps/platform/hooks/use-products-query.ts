@@ -205,6 +205,16 @@ export function useBulkUpdatePricesMutation() {
     });
 }
 
+export function useRestorePricesMutation() {
+    const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
+    return useMutation({
+        mutationFn: (previous: Parameters<typeof productRepository.restorePrices>[0]) =>
+            productRepository.restorePrices(previous, tenantId),
+        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
+    });
+}
+
 export function useBulkArchiveMutation() {
     const queryClient = useQueryClient();
     return useMutation({

@@ -13,6 +13,7 @@ import {
     useRestoreProductMutation,
     useDeleteProductMutation,
     useBulkUpdatePricesMutation,
+    useRestorePricesMutation,
     useBulkArchiveMutation,
     useBulkRestoreMutation,
     useBulkDeleteMutation,
@@ -82,6 +83,7 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     const restoreProductMutation = useRestoreProductMutation();
     const deleteProductMutation = useDeleteProductMutation();
     const bulkUpdatePricesMutation = useBulkUpdatePricesMutation();
+    const restorePricesMutation = useRestorePricesMutation();
     const bulkArchiveMutation = useBulkArchiveMutation();
     const bulkRestoreMutation = useBulkRestoreMutation();
     const bulkDeleteMutation = useBulkDeleteMutation();
@@ -141,6 +143,12 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
         await deleteProductMutation.mutateAsync(id);
     };
 
+    const restorePrices = async (
+        previous: Parameters<typeof restorePricesMutation.mutateAsync>[0],
+    ): Promise<void> => {
+        await restorePricesMutation.mutateAsync(previous);
+    };
+
     const bulkUpdatePrices = async (changes: BulkPriceChange[], newPrice: number): Promise<void> => {
         await bulkUpdatePricesMutation.mutateAsync({ changes, price: newPrice });
     };
@@ -197,6 +205,7 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
         deleteProduct,
         // Bulk operations
         bulkUpdatePrices,
+        restorePrices,
         bulkArchive,
         bulkRestore,
         bulkDelete,

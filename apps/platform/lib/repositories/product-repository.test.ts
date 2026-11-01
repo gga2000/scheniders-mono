@@ -153,3 +153,31 @@ describe("productRepository SKU persistence", () => {
         expect(updateSpy).not.toHaveBeenCalled();
     });
 });
+
+describe("productRepository.restorePrices", () => {
+    it("puts each product back to its own price and 'was' price, and logs the reversal", async () => {
+        await productRepository.restorePrices(
+            [
+                { id: "p1", price: 20000, compare_at_price: 25000, currentPrice: 30000 },
+                { id: "p2", price: 15000, compare_at_price: null, currentPrice: 30000 },
+            ],
+            "tenant-1",
+        );
+
+        expect(updateSpy).toHaveBeenCalledTimes(2);
+        expect(updateSpy).toHaveBeenCalledWith({ price: 20000, compare_at_price: 25000 });
+        expect(updateSpy).toHaveBeenCalledWith({ price: 15000, compare_at_price: null });
+        expect(insertSpy).toHaveBeenCalledTimes(1);
+        expect(insertSpy.mock.calls[0][0]).toEqual([
+            expect.objectContaining({ product_id: "p1", old_price: 30000, new_price: 20000, tenant_id: "tenant-1" }),
+            expect.objectContaining({ product_id: "p2", old_price: 30000, new_price: 15000, tenant_id: "tenant-1" }),
+        ]);
+    });
+
+    it("rejects when a product could not be written, instead of reporting an undo", async () => {
+        updatedRows = [];
+        await expect(
+            productRepository.restorePrices([{ id: "p1", price: 1000, compare_at_price: null, currentPrice: 2000 }], "tenant-1"),
+        ).rejects.toBeInstanceOf(ProductWriteDeniedError);
+    });
+});
