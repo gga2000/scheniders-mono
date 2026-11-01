@@ -120,7 +120,41 @@ export function codRiskKey(risk: RiskLevel): string {
     }
 }
 
+/**
+ * The COD verdict for the drawer and the profile banner. A clean customer whose
+ * first delivery is still on the road has no history yet: "safe to ship" would
+ * claim more than is known, so they get a neutral line instead.
+ */
+export function codVerdictKey(risk: RiskLevel, firstDeliveryIsPending: boolean): string {
+    if (risk === 'clean' && firstDeliveryIsPending) return 'customers.codRisk.pending';
+    return codRiskKey(risk);
+}
+
 // ───────────────────────── shared helpers ─────────────────────────
+
+export interface BlockInput {
+    is_blacklisted?: boolean | null;
+    risk_level?: RiskLevel | null;
+    trust_tier?: TrustTier | string | null;
+}
+
+/**
+ * The one rule for "this customer is blocked", shared by the profile hero, the
+ * drawer and the score breakdown: on the store's blacklist, or blocked by
+ * either the risk model or the trust engine.
+ */
+export function isBlockedCustomer(c: BlockInput): boolean {
+    return !!c.is_blacklisted || c.risk_level === 'blocked' || c.trust_tier === 'blocked';
+}
+
+/**
+ * Whether a numeric trust score is shown for this customer. Every surface
+ * applies the same rule: a blocked customer shows no score (the instruction
+ * is "do not ship", not a number), and an unrated customer has none yet.
+ */
+export function showsTrustScore(c: BlockInput): boolean {
+    return !isBlockedCustomer(c) && hasRatedScore(c.trust_tier ?? 'new');
+}
 
 /**
  * Whether to show a numeric engine score: only proven customers have one.

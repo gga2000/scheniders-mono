@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import {
-    statusFlags, codRiskKey, customerAccent, isFinishedOrder, RISK_META, type ValueTier, type RiskLevel,
+    statusFlags, codVerdictKey, customerAccent, firstDeliveryPending, isFinishedOrder, RISK_META, type ValueTier, type RiskLevel,
 } from "@/lib/customer-reliability";
 import { Clock } from "lucide-react";
 import { CustomerHeroBand } from "@/components/customers/reliability-pill";
@@ -61,6 +61,7 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
     const finished = orders.filter((o) => isFinishedOrder(o.status)).length;
     const flags = statusFlags(reliability);
     const recent = orders.slice(0, 6).reverse();
+    const verdictKey = codVerdictKey(risk, firstDeliveryPending({ ...reliability, last_order_status: orders[0]?.status }));
 
     return (
         <div className={cn("rounded-2xl border border-(--card-border) px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-3", accent.surfaceBg)}>
@@ -71,9 +72,9 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
                 {/* Caution is an instruction: amber, not the value colour. */}
                 {risk === "caution" ? (
                     <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold", RISK_META.caution.chipBg, RISK_META.caution.chipText)}>
-                        <Clock className="w-3.5 h-3.5" />{t(codRiskKey(risk))}
+                        <Clock className="w-3.5 h-3.5" />{t(verdictKey)}
                     </span>
-                ) : t(codRiskKey(risk))}
+                ) : t(verdictKey)}
                 {flags.length > 0 && (
                     <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
                         {flags.map((f) => (
@@ -93,7 +94,7 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
                 </div>
                 <div>
                     <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{reliability.completed_count.toLocaleString("en-US")}</div>
-                    <div className="text-xs opacity-75 mt-1">{t("customers.card.delivered", "Delivered")}</div>
+                    <div className="text-xs opacity-75 mt-1">{t("customers.stat.delivered")}</div>
                 </div>
                 <div>
                     <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{finished > 0 ? `${Math.round(successRate)}%` : "—"}</div>
@@ -104,7 +105,7 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
                         <div className="flex items-center gap-1 h-6" aria-hidden>
                             {recent.map((o) => <span key={o.id} className={cn("w-2.5 h-5 rounded-sm", OUTCOME_DOT[outcomeTone(o.status)])} />)}
                         </div>
-                        <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{t("customers.banner.lastOutcomes", { count: String(recent.length) })}</div>
+                        <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{recent.length === 1 ? t("customers.banner.lastOutcomesOne") : t("customers.banner.lastOutcomes", { count: String(recent.length) })}</div>
                     </div>
                 )}
             </div>

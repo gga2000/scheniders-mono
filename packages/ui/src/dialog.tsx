@@ -227,6 +227,52 @@ const BottomSheetContent = forwardRef<
 });
 BottomSheetContent.displayName = "BottomSheetContent";
 
+/**
+ * Side sheet: a full-height panel anchored to the right edge (the app is LTR in
+ * every locale), with the same dialog semantics as DialogContent: role="dialog",
+ * aria-modal, a focus trap, Escape and outside-click to close, and focus handed
+ * back on close. It is force-mounted so the caller drives the enter and exit
+ * animation: render it inside <AnimatePresence> while the dialog is open.
+ */
+interface SheetContentProps extends ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+    overlayClassName?: string;
+}
+
+const SheetContent = forwardRef<
+    ElementRef<typeof DialogPrimitive.Content>,
+    SheetContentProps
+>(({ className, children, overlayClassName, ...props }, ref) => (
+    <DialogPortal forceMount>
+        <DialogPrimitive.Overlay forceMount asChild>
+            <motion.div
+                // Light and unblurred: the page behind a side sheet stays readable.
+                className={cn("fixed inset-0 z-50 bg-black/25", overlayClassName)}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+            />
+        </DialogPrimitive.Overlay>
+        <DialogPrimitive.Content ref={ref} forceMount asChild aria-modal="true" {...props}>
+            <motion.div
+                className={cn(
+                    "fixed inset-y-0 right-0 z-50 flex flex-col w-full max-w-[600px] overflow-hidden",
+                    "bg-[var(--card-bg)] border-l border-[var(--card-border)] shadow-[0_0_60px_-10px_rgba(0,0,0,0.35)]",
+                    "focus:outline-none",
+                    className
+                )}
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", stiffness: 380, damping: 40 }}
+            >
+                {children}
+            </motion.div>
+        </DialogPrimitive.Content>
+    </DialogPortal>
+));
+SheetContent.displayName = "SheetContent";
+
 const DialogHeader = ({
     className,
     ...props
@@ -290,6 +336,7 @@ export {
     DialogTrigger,
     DialogContent,
     BottomSheetContent,
+    SheetContent,
     DialogHeader,
     DialogFooter,
     DialogTitle,

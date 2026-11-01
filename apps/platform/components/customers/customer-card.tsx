@@ -9,12 +9,12 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
-    VALUE_META,
+    customerAccent,
     recencyStatus,
     firstDeliveryPending,
     effectiveSuccessRate,
 } from "@/lib/customer-reliability";
-import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
+import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
@@ -42,7 +42,8 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
     const value = customer.value_tier;
     const risk = customer.risk_level;
     const unsafe = risk === "blocked" || risk === "high";
-    const meta = VALUE_META[value];
+    // The avatar takes the risk colour when COD is unsafe, never a green value tier.
+    const accent = customerAccent(value, risk);
     const pending = firstDeliveryPending(customer);
     const recency = recencyStatus(customer.last_order_date, risk, t);
     const success = effectiveSuccessRate(customer);
@@ -68,7 +69,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 <span className="relative w-10 h-10 shrink-0">
                     <span className={cn(
                         "absolute inset-0 rounded-xl flex items-center justify-center font-bold text-sm transition-opacity",
-                        meta.pillBg, meta.pillText,
+                        accent.surfaceBg, accent.surfaceText,
                         onToggleSelect && (isSelected ? "opacity-0" : "group-hover:opacity-0"),
                     )}>
                         {customer.has_name ? monogram(customer.name) : <User className="w-4 h-4" />}
@@ -115,11 +116,11 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
             </div>
 
             {/* One status row: value tier (or the risk when COD is unsafe), caution, outcome flags.
-                A pill that does not fit wraps onto a hidden second line, so none is cut mid-word. */}
+                Flags past what fits are counted as "+N" rather than silently hidden. */}
             <div className="mt-3 flex flex-wrap items-center gap-1.5 h-6 overflow-hidden">
                 {unsafe ? <RiskChip risk={risk} /> : <ValuePill tier={value} variant="compact" />}
                 {risk === "caution" && <RiskChip risk={risk} />}
-                <CustomerStatusFlags customer={customer} max={2} className="contents" />
+                <CustomerStatusFlags customer={customer} max={risk === "caution" ? 1 : 2} className="contents" />
             </div>
 
             {/* The three numbers */}
@@ -157,7 +158,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                         )}
                         <button
                             onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${e164}`, "_blank"); }}
-                            className="w-9 h-9 rounded-lg bg-lime-50 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300 flex items-center justify-center hover:bg-lime-100 dark:hover:bg-lime-400/25 transition-colors"
+                            className={cn("w-9 h-9 rounded-lg flex items-center justify-center transition-colors", WHATSAPP_TONE)}
                             aria-label={t("customers.actions.whatsapp")}
                         >
                             <MessageCircle className="w-4 h-4" />

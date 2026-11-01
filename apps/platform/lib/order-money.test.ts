@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeCodAmount, computeRefundPayout, courierAmount, toWholeIqd } from "./order-money";
+import { computeCodAmount, computeRefundPayout, courierAmount, orderReceipt, toWholeIqd } from "./order-money";
 
 // Canonical convention, established from live data (2026-08-22):
 //   orders.price = line-item subtotal MINUS discount  (delivery NOT included)
@@ -95,5 +95,39 @@ describe("toWholeIqd", () => {
 
     it("ignores a value that cannot be a price", () => {
         expect(toWholeIqd(Number.POSITIVE_INFINITY)).toBe(0);
+    });
+});
+
+describe("orderReceipt", () => {
+    const adds = (r: ReturnType<typeof orderReceipt>) => r.subtotal - r.discount + r.delivery;
+
+    it("includes delivery in the total, so the receipt adds up", () => {
+        const r = orderReceipt({ price: 85000, delivery_fee: 5000, discount_amount: 0 });
+        expect(r).toEqual({ subtotal: 85000, discount: 0, delivery: 5000, total: 90000, collect: 90000 });
+        expect(adds(r)).toBe(r.total);
+    });
+
+    it("rebuilds the pre-discount subtotal from the already-discounted price", () => {
+        // items 125,000 − discount 10,000 = price 115,000; + delivery 6,000 = 121,000
+        const r = orderReceipt({ price: 115000, delivery_fee: 6000, discount_amount: 10000 });
+        expect(r.subtotal).toBe(125000);
+        expect(r.total).toBe(121000);
+        expect(adds(r)).toBe(r.total);
+    });
+
+    it("totals the same amount the courier collects on a COD order", () => {
+        const order = { price: 45000, delivery_fee: 5000, discount_amount: 5000, payment_status: "cod" };
+        expect(orderReceipt(order).total).toBe(computeCodAmount(order));
+    });
+
+    it("keeps the total but collects nothing on a prepaid order", () => {
+        const r = orderReceipt({ price: 27000, delivery_fee: 5000, payment_status: "prepaid" });
+        expect(r.total).toBe(32000);
+        expect(r.collect).toBe(0);
+    });
+
+    it("treats missing fields as zero", () => {
+        expect(orderReceipt({})).toEqual({ subtotal: 0, discount: 0, delivery: 0, total: 0, collect: 0 });
+        expect(orderReceipt({ price: 64000, delivery_fee: null, discount_amount: null }).total).toBe(64000);
     });
 });

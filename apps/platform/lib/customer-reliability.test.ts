@@ -4,7 +4,11 @@ import {
     valueTier,
     riskLevel,
     codRiskKey,
+    codVerdictKey,
     hasRatedScore,
+    isBlockedCustomer,
+    showsTrustScore,
+    customerAccent,
     averageBasket,
     displayScore,
     effectiveSuccessRate,
@@ -184,5 +188,41 @@ describe('statusFlags', () => {
     });
     it('returns empty when the customer has no flagged outcomes', () => {
         expect(statusFlags({ rejected_count: 0, cancelled_count: 0, no_response_count: 0, returned_count: 0, refund_count: 0 })).toEqual([]);
+    });
+});
+
+describe('isBlockedCustomer / showsTrustScore', () => {
+    it('a blacklisted customer is blocked whatever the trust tier says', () => {
+        const c = { is_blacklisted: true, risk_level: 'high' as const, trust_tier: 'risky' };
+        expect(isBlockedCustomer(c)).toBe(true);
+        expect(showsTrustScore(c)).toBe(false);
+    });
+    it('the risk model or the trust engine can each block', () => {
+        expect(isBlockedCustomer({ risk_level: 'blocked' })).toBe(true);
+        expect(isBlockedCustomer({ trust_tier: 'blocked' })).toBe(true);
+        expect(isBlockedCustomer({ risk_level: 'high', trust_tier: 'risky' })).toBe(false);
+    });
+    it('a rated, unblocked customer shows a score; an unrated one does not', () => {
+        expect(showsTrustScore({ risk_level: 'high', trust_tier: 'bronze' })).toBe(true);
+        expect(showsTrustScore({ risk_level: 'clean', trust_tier: 'new' })).toBe(false);
+    });
+});
+
+describe('codVerdictKey', () => {
+    it('a clean customer with the first delivery pending gets the neutral line', () => {
+        expect(codVerdictKey('clean', true)).toBe('customers.codRisk.pending');
+        expect(codVerdictKey('clean', false)).toBe('customers.codRisk.clean');
+        expect(codVerdictKey('high', true)).toBe('customers.codRisk.high');
+    });
+    it('every verdict key is translated in both locales', () => {
+        for (const l of ['en', 'ar'] as Locale[]) expect(translations[l]['customers.codRisk.pending']).toBeTruthy();
+    });
+});
+
+describe('customerAccent', () => {
+    it('never paints an unsafe customer in the value colour', () => {
+        expect(customerAccent('good', 'blocked').surfaceBg).toContain('rose');
+        expect(customerAccent('vip', 'high').surfaceBg).toContain('rose');
+        expect(customerAccent('good', 'clean').surfaceBg).toBe(VALUE_META.good.pillBg);
     });
 });

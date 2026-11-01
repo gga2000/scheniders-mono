@@ -12,6 +12,7 @@ export {
   DialogClose,
   DialogContent,
   BottomSheetContent,
+  SheetContent,
   DialogHeader,
   DialogFooter,
   DialogTitle,

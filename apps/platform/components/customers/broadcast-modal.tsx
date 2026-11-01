@@ -8,8 +8,9 @@ import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
 
-// The 10-digit key customers are stored under: 7XXXXXXXXX. Anything else has no WhatsApp account to open.
-const IRAQ_MOBILE = /^7\d{9}$/;
+// An Iraqi mobile in E.164 (9647XXXXXXXXX). Phones are normalized first, so a number
+// stored as 07…, 7… or +964… is judged by the digits, not by how it was typed.
+const IRAQ_MOBILE_E164 = /^9647\d{9}$/;
 
 export interface BroadcastRecipient {
     phone: string;
@@ -43,7 +44,7 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
     const [step, setStep] = useState<"compose" | "send">("compose");
     const [sent, setSent] = useState<Set<string>>(new Set());
 
-    const sendable = useMemo(() => recipients.filter((r) => !r.is_blacklisted && IRAQ_MOBILE.test(r.phone)), [recipients]);
+    const sendable = useMemo(() => recipients.filter((r) => !r.is_blacklisted && IRAQ_MOBILE_E164.test(toIraqE164(r.phone))), [recipients]);
     const blockedCount = recipients.filter((r) => r.is_blacklisted).length;
     const invalidCount = recipients.length - blockedCount - sendable.length;
 

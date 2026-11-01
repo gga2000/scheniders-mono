@@ -1673,8 +1673,11 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
   border-color: #3F3F3F !important;
 }
 
-/* Active state (ink bg) → neon yellow */
-.dark [role="dialog"] button[class*="bg-"][class*="ink"] {
+/* Active state (ink bg) → neon yellow. Matched on the ink background classes
+   themselves: a bare [class*="ink"] also matched "inline-flex", so every
+   inline-flex button with any hover:bg-* in a dark dialog turned neon. */
+.dark [role="dialog"] button[class*="bg-(--ink)"],
+.dark [role="dialog"] button[class*="bg-[var(--ink)]"] {
   background: var(--primary) !important;
   color: var(--primary-fg) !important;
 }

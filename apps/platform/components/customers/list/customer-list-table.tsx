@@ -10,9 +10,9 @@ import {
     firstDeliveryPending,
     effectiveSuccessRate,
     statusFlags,
-    VALUE_META,
+    customerAccent,
 } from "@/lib/customer-reliability";
-import { ValuePill, RiskChip } from "@/components/customers/reliability-pill";
+import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { TOOLBAR_STICKY_TOP } from "@/components/customers/list/customer-toolbar";
 import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 
@@ -99,7 +99,7 @@ export function CustomerListTable({
                 </thead>
                 <tbody>
                     {customers.map((c, i) => {
-                        const meta = VALUE_META[c.value_tier];
+                        const accent = customerAccent(c.value_tier, c.risk_level);
                         const unsafe = c.risk_level === "blocked" || c.risk_level === "high";
                         const pending = firstDeliveryPending(c);
                         const recency = recencyStatus(c.last_order_date, c.risk_level, t);
@@ -135,7 +135,7 @@ export function CustomerListTable({
                                 {/* Customer */}
                                 <td className={td}>
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-bold text-[13px] shrink-0", meta.pillBg, meta.pillText)}>
+                                        <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center font-bold text-[13px] shrink-0", accent.surfaceBg, accent.surfaceText)}>
                                             {c.has_name ? monogram(c.name) : <User className="w-4 h-4" />}
                                         </span>
                                         <div className="min-w-0">
@@ -147,7 +147,7 @@ export function CustomerListTable({
                                 </td>
                                 {/* Governorate */}
                                 <td className={cn(td, "text-[13px] text-muted-foreground")}>
-                                    <span dir="auto" className="block truncate">{gov || "—"}</span>
+                                    <span dir="auto" className="block truncate text-left">{gov || "—"}</span>
                                 </td>
                                 {/* Value: an unsafe customer leads with the risk, so no value pill */}
                                 <td className={td}>
@@ -182,7 +182,7 @@ export function CustomerListTable({
                                     <div className="flex items-center gap-1.5 justify-end">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/${e164}`, "_blank"); }}
-                                            className="w-9 h-9 rounded-lg bg-lime-50 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300 flex items-center justify-center hover:bg-lime-100 dark:hover:bg-lime-400/25 transition-colors"
+                                            className={cn("w-9 h-9 rounded-lg flex items-center justify-center transition-colors", WHATSAPP_TONE)}
                                             aria-label={t("customers.actions.whatsapp")}
                                         >
                                             <MessageCircle className="w-4 h-4" />

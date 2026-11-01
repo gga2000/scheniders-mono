@@ -44,6 +44,37 @@ export function computeCodAmount(order: OrderMoneyFields): number {
     return Math.max(0, Math.round(price + deliveryFee));
 }
 
+/** The lines of an order receipt, in whole IQD. */
+export interface OrderReceipt {
+    /** Line items before the discount: `price + discount_amount`. */
+    subtotal: number;
+    discount: number;
+    delivery: number;
+    /** What the order is worth with delivery: `subtotal − discount + delivery` = `price + delivery_fee`. */
+    total: number;
+    /** What the courier collects at the door (0 when prepaid). */
+    collect: number;
+}
+
+/**
+ * An order's receipt, built from the canonical money fields so it always adds
+ * up: Subtotal − Discount + Delivery = Total. The subtotal is derived from
+ * `price` (already net of the discount) rather than re-summed from the line
+ * items, so the total is the same `price + delivery_fee` the courier collects.
+ */
+export function orderReceipt(order: OrderMoneyFields): OrderReceipt {
+    const price = Number(order.price) || 0;
+    const discount = Math.max(0, Number(order.discount_amount) || 0);
+    const delivery = Number(order.delivery_fee) || 0;
+    return {
+        subtotal: Math.round(price + discount),
+        discount: Math.round(discount),
+        delivery: Math.round(delivery),
+        total: Math.round(price + delivery),
+        collect: computeCodAmount(order),
+    };
+}
+
 /**
  * Cash the courier hands TO the customer on a refund order, in whole IQD.
  * A refund order stores `price` = minus the items refunded and
