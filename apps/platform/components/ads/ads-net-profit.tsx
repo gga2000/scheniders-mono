@@ -2,17 +2,15 @@
 
 import Link from "next/link";
 import { useLanguage } from "@/hooks/use-language";
-import { useNetProfitForRange } from "@/hooks/use-net-profit-for-range";
+import type { NetProfitForRange } from "@/hooks/use-net-profit-for-range";
 import { cn, formatIQD } from "@/lib/utils";
-import type { DayRange } from "@/lib/ads-report";
 
 /**
  * Net profit for the selected range straight from Finances (same number as its Overview).
  * Ad spend is already inside it as a marketing expense, so nothing is subtracted twice.
  */
-export function AdsNetProfit({ range }: { range: DayRange }) {
+export function AdsNetProfit({ profit, breakEven }: { profit: NetProfitForRange; breakEven: number | null }) {
     const { t } = useLanguage();
-    const profit = useNetProfitForRange(range);
 
     return (
         <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5">
@@ -29,6 +27,9 @@ export function AdsNetProfit({ range }: { range: DayRange }) {
                     <p className="mt-1 text-xs text-muted">
                         {t("ads.netProfitHint").replace("{ads}", formatIQD(profit.marketingCost))}
                     </p>
+                ) : null}
+                {!profit.loading && !profit.error && breakEven !== null ? (
+                    <p className="mt-1 text-xs text-muted">{t("ads.breakEven").replace("{amount}", formatIQD(breakEven))}</p>
                 ) : null}
             </div>
             <Link href="/finances" className="text-sm font-medium text-foreground underline underline-offset-4">

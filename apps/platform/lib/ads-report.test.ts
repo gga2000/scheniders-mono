@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+    breakEvenCostPerDelivered,
+    campaignVerdict,
     attributionCoverage,
     buildDailySeries,
     matchOrdersToCampaigns,
@@ -120,5 +122,22 @@ describe("matchOrdersToCampaigns", () => {
         expect(r.byCampaign.get("2")).toBe(1);
         expect(r.byCampaign.get("1")).toBeUndefined();
         expect(r.unmatched).toBe(1);
+    });
+});
+
+describe("break-even cost per delivered order", () => {
+    it("is profit before marketing per delivered order", () => {
+        // 1,000,000 net after 400,000 of marketing over 100 delivered = 14,000 each
+        expect(breakEvenCostPerDelivered(1_000_000, 400_000, 100)).toBe(14_000);
+    });
+    it("is unknown with nothing delivered or nothing earned before ads", () => {
+        expect(breakEvenCostPerDelivered(500, 0, 0)).toBeNull();
+        expect(breakEvenCostPerDelivered(-900_000, 100_000, 40)).toBeNull();
+    });
+    it("judges a campaign at or under break-even as profitable", () => {
+        expect(campaignVerdict(14_000, 14_000)).toBe("profitable");
+        expect(campaignVerdict(14_001, 14_000)).toBe("losing");
+        expect(campaignVerdict(null, 14_000)).toBe("unknown");
+        expect(campaignVerdict(9_000, null)).toBe("unknown");
     });
 });
