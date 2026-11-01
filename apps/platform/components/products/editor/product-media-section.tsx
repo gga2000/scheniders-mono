@@ -5,6 +5,7 @@ import { Image as ImageIcon, Pencil } from "lucide-react";
 import { ProductImageUpload } from "../product-image-upload";
 import { ProductGallerySection } from "../product-gallery-section";
 import { ImageEditorModal } from "./image-editor-modal";
+import { uploadProductImage } from "@/lib/upload-product-image";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -49,13 +50,16 @@ export function ProductMediaSection({ formData, updateField, productId }: Produc
                 </div>
             )}
 
-            <ImageEditorModal
-                isOpen={editorOpen}
-                onClose={() => setEditorOpen(false)}
-                imageUrl={formData.image_url}
-                onSave={(newUrl) => updateField("image_url", newUrl)}
-                productId={productId}
-            />
+            {editorOpen && (
+                <ImageEditorModal
+                    onClose={() => setEditorOpen(false)}
+                    imageUrl={formData.image_url}
+                    onSave={async (edited) => {
+                        updateField("image_url", await uploadProductImage(edited, productId));
+                        setEditorOpen(false);
+                    }}
+                />
+            )}
         </div>
     );
 }
