@@ -297,7 +297,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                             })
                         ).then(result => {
                             if (!result.success) {
-                                toast.error(`Status updated, but supplies or the QC queue were not updated: ${result.error ?? "unknown error"}`);
+                                toast.error(tRef.current("orders.toast.sideEffectFailed", { error: result.error ?? tRef.current("orders.toast.unknownError") }));
                             }
                         }).catch(console.error);
                     }
@@ -457,7 +457,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
                 if (detailHistoryError) {
                     console.error("Failed to record detail history:", detailHistoryError);
-                    toast.error("Changes saved, but the audit entry could not be recorded");
+                    toast.error(tRef.current("orders.toast.auditFailed"));
                 }
             }
 
@@ -607,8 +607,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 } catch (dateErr) {
                     reportOrderError(dateErr, { operation: "createOrder-date", orderId: data.id });
                     toast.warning(
-                        postponedTo ? "Order created, but not scheduled" : "Order created, but its date was not changed",
-                        dateErr instanceof Error ? dateErr.message : "Set the date from the order's details.",
+                        postponedTo ? tRef.current("orders.toast.createdNotScheduled") : tRef.current("orders.toast.createdDateUnchanged"),
+                        dateErr instanceof Error ? dateErr.message : tRef.current("orders.toast.setDateFromDetails"),
                     );
                 }
             }
@@ -712,20 +712,20 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 const splitLogId = (result.data as (Order & { split_log_id?: string }) | undefined)?.split_log_id;
                 if (splitLogId) {
                     toast({
-                        title: "Order split",
+                        title: tRef.current("orders.toast.split"),
                         variant: "success",
-                        description: `A return order was created for ${returnedItems.length} item(s)`,
+                        description: tRef.current("orders.toast.splitDesc", { count: returnedItems.length }),
                         duration: 20000,
                         action: {
-                            label: "Undo",
+                            label: tRef.current("orders.toast.undo"),
                             onClick: async () => {
                                 const undo = await unsplitOrderAction(splitLogId, session?.access_token ?? "");
                                 if (!undo.success) {
-                                    toast.error("Could not undo the split", undo.error);
+                                    toast.error(tRef.current("orders.toast.splitUndoFailed"), undo.error);
                                     return;
                                 }
                                 await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-                                toast.success("Split undone", "The order is back as it was");
+                                toast.success(tRef.current("orders.toast.splitUndone"), tRef.current("orders.toast.splitUndoneDesc"));
                             },
                         },
                     });
@@ -1048,7 +1048,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 }));
                 const failed = results.filter(r => !r.success).length;
                 if (failed > 0) {
-                    toast.error(`Statuses updated, but supplies or the QC queue were not updated for ${failed} order(s)`);
+                    toast.error(tRef.current("orders.toast.sideEffectFailedBulk", { count: failed }));
                 }
             }).catch(console.error);
         };
@@ -1194,8 +1194,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const skipped = findUnaffectedIds(orderIds, archivedIds);
             if (skipped.length > 0) {
                 toast.warning(
-                    `${skipped.length} of ${orderIds.length} orders were not archived`,
-                    `Not archived: ${formatFailedOrderList(skipped, orders)}`,
+                    tRef.current("orders.toast.notArchived", { skipped: skipped.length, total: orderIds.length }),
+                    tRef.current("orders.toast.notArchivedDesc", { list: formatFailedOrderList(skipped, orders) }),
                 );
             }
 
@@ -1234,8 +1234,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             const skipped = findUnaffectedIds(orderIds, unarchivedIds);
             if (skipped.length > 0) {
                 toast.warning(
-                    `${skipped.length} of ${orderIds.length} orders were not unarchived`,
-                    `Not unarchived: ${formatFailedOrderList(skipped, orders)}`,
+                    tRef.current("orders.toast.notUnarchived", { skipped: skipped.length, total: orderIds.length }),
+                    tRef.current("orders.toast.notUnarchivedDesc", { list: formatFailedOrderList(skipped, orders) }),
                 );
             }
 
@@ -1428,23 +1428,23 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             // an undo instead of sending the operator to support.
             if (mergeLogId) {
                 toast({
-                    title: "Orders merged",
+                    title: tRef.current("orders.toast.merged"),
                     variant: "success",
-                    description: `${archiveOrder.order_id} merged into ${keepOrder.order_id}`,
+                    description: tRef.current("orders.toast.mergedDesc", { from: archiveOrder.order_id, to: keepOrder.order_id }),
                     duration: 20000,
                     action: {
-                        label: "Undo",
+                        label: tRef.current("orders.toast.undo"),
                         onClick: async () => {
                             const { error: undoError } = await supabase.rpc("unmerge_orders_atomic", {
                                 _merge_log_id: mergeLogId,
                                 _tenant_id: tenantId,
                             });
                             if (undoError) {
-                                toast.error("Could not undo the merge", undoError.message);
+                                toast.error(tRef.current("orders.toast.mergeUndoFailed"), undoError.message);
                                 return;
                             }
                             await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-                            toast.success("Merge undone", "Both orders are back as they were");
+                            toast.success(tRef.current("orders.toast.mergeUndone"), tRef.current("orders.toast.mergeUndoneDesc"));
                         },
                     },
                 });
