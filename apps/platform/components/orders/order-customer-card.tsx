@@ -9,6 +9,8 @@ import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-valida
 import { cn } from "@/lib/utils";
 import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X, ArrowUpDown, BadgeCheck } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
+import { DeliverySlotPicker } from "./delivery-slot-picker";
+import { formatDeliverySlot, parseDeliverySlot } from "@/lib/orders/delivery-slot";
 import type { OrderStatus } from "@/lib/supabase";
 import type { Order } from "@/types/order";
 import { isWhatsAppSlot, swapPhones, type WhatsAppSlot } from "@/lib/whatsapp-contact";
@@ -98,7 +100,7 @@ export function OrderCustomerCard({
     onRequestEdit,
     onContactRecorded,
 }: OrderCustomerCardProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const governorates = getAllGovernorateCodes();
 
     // Postponing is `scheduled_date`, never a forward-dated `created_at` — the
@@ -711,35 +713,17 @@ export function OrderCustomerCard({
                             {t("orderDetail.preferredDelivery")}
                         </span>
                         {isEditing ? (
-                            <div className="flex bg-[var(--background)] rounded-lg border border-[var(--card-border)] p-1">
-                                {[
-                                    { id: "morning", label: t("orderDetail.slot.morning") },
-                                    { id: "afternoon", label: t("orderDetail.slot.afternoon") },
-                                    { id: "evening", label: t("orderDetail.slot.evening") }
-                                ].map((slot) => (
-                                    <button
-                                        key={slot.id}
-                                        onClick={() => updateFormData("delivery_slot", slot.id)}
-                                        className={cn(
-                                            "flex-1 text-[11px] py-1.5 rounded-md transition-all font-medium mx-0.5 whitespace-nowrap",
-                                            (formData.delivery_slot || order.delivery_slot) === slot.id
-                                                ? "bg-white shadow-sm text-foreground ring-1 ring-black/5"
-                                                : "text-muted hover:text-foreground hover:bg-white/50"
-                                        )}
-                                    >
-                                        {slot.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <DeliverySlotPicker
+                                value={parseDeliverySlot((formData.delivery_slot ?? order.delivery_slot) as string | undefined)}
+                                onChange={(slot) => updateFormData("delivery_slot", slot ?? null)}
+                            />
                         ) : (
                             <div className="h-[38px] flex items-center px-3 bg-[var(--background)] border border-[var(--card-border)] rounded-lg">
                                 <span className="text-sm text-foreground font-medium">
-                                    {order.delivery_slot ?
-                                        (order.delivery_slot === "morning" ? t("orderDetail.slot.morningFull") :
-                                            order.delivery_slot === "afternoon" ? t("orderDetail.slot.afternoonFull") :
-                                                t("orderDetail.slot.eveningFull"))
-                                        : t("orderDetail.unspecified")
-                                    }
+                                    {(() => {
+                                        const slot = parseDeliverySlot(order.delivery_slot);
+                                        return slot ? formatDeliverySlot(slot, language === "ar" ? "ar" : "en") : t("orderDetail.unspecified");
+                                    })()}
                                 </span>
                             </div>
                         )}

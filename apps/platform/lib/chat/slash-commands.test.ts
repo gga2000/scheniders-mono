@@ -11,9 +11,8 @@ describe("slash commands", () => {
     it("order commands are only available in order threads", () => {
         const channel = slashCommandsFor("channel").map((c) => c.name);
         const order = slashCommandsFor("order").map((c) => c.name);
-        expect(order).toContain("assign");
+        expect(order).not.toContain("assign");
         expect(order).toContain("status");
-        expect(channel).not.toContain("assign");
         expect(channel).not.toContain("status");
     });
     it("shrug is available everywhere", () => {

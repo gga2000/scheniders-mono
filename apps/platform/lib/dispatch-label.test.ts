@@ -151,3 +151,20 @@ describe("perfume warning", () => {
         expect(generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), { showBarcode: true })).not.toContain(WARNING);
     });
 });
+
+describe("delivery time", () => {
+    it("shows a default window or the customer's exact time next to the city", () => {
+        expect(generateDispatchLabelHTML(order({ delivery_slot: "evening" }), { showBarcode: true })).toMatch(/class="dl-dest"><b>[^<]*<\/b><span class="dl-slot"><small>وقت التوصيل<\/small><b>مساءً 4–8<\/b>/);
+        expect(generateDispatchLabelHTML(order({ delivery_slot: "16:30" }), { showBarcode: true })).toContain("<b>4:30 م</b>");
+    });
+
+    it("stacks the window name over the hours beside an after-sale pill, and shrinks the city", () => {
+        const html = generateDispatchLabelHTML(order({ delivery_slot: "morning", is_replacement: true }), { showBarcode: true });
+        expect(html).toContain('class="dl-dest dl-dest-tight"');
+        expect(html).toContain('<span class="dl-slot"><small>صباحاً</small><b>9–12</b></span>');
+    });
+
+    it("is left off when no time was agreed", () => {
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain("dl-slot\"");
+    });
+});

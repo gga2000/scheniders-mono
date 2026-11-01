@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bold, Check, ChevronDown, CornerUpLeft, FileText, Italic, Link2, Paperclip, Send, Smile, UserPlus, X } from "lucide-react";
+import { Bold, Check, ChevronDown, CornerUpLeft, FileText, Italic, Link2, Paperclip, Send, Smile, X } from "lucide-react";
 import { Textarea } from "@scheniders/ui/textarea";
 import { Button } from "@scheniders/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -15,7 +15,6 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { useReferenceSearch } from "@/hooks/chat/use-reference-search";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import { chatKeys, useConversations } from "@/hooks/chat/use-conversations";
-import { useAssignOrder } from "@/hooks/chat/use-order-actions";
 import { useUpdateStatusMutation } from "@/hooks/use-orders-query";
 import { useChatStore } from "@/store/use-chat-store";
 import { parseSlash, slashCommandsFor } from "@/lib/chat/slash-commands";
@@ -84,8 +83,7 @@ export function Composer({
     const [mentionQuery, setMentionQuery] = useState<string | null>(null);
     // Slash-command menu: non-null when body starts with "/"
     const [slashQuery, setSlashQuery] = useState<string | null>(null);
-    // Sub-menus for /assign and /status
-    const [slashAssignOpen, setSlashAssignOpen] = useState(false);
+    // Sub-menu for /status
     const [slashStatusOpen, setSlashStatusOpen] = useState(false);
 
     const fileRef = useRef<HTMLInputElement>(null);
@@ -96,7 +94,6 @@ export function Composer({
     const { data: members = [] } = useTenantMembers();
     const { data: conversations = [] } = useConversations();
     const { toast: toastHook } = useToast();
-    const assignOrder = useAssignOrder();
     const updateStatus = useUpdateStatusMutation();
     const { profile } = useAuth();
 
@@ -142,7 +139,6 @@ export function Composer({
         setRefQuery(null);
         setMentionQuery(null);
         setSlashQuery(null);
-        setSlashAssignOpen(false);
         setSlashStatusOpen(false);
         setReplyTo(null);
         textareaRef.current?.focus();
@@ -397,7 +393,6 @@ export function Composer({
      * - shrug: inserts the shrug text and clears the composer body.
      * - order: triggers the existing # reference-search flow by inserting "#"
      *   (which opens the ref autocomplete on the next keystroke).
-     * - assign: opens the inline assign sub-menu (order threads only).
      * - status: opens the inline status sub-menu (order threads only).
      */
     const selectSlashCommand = (name: string) => {
@@ -416,37 +411,10 @@ export function Composer({
             textareaRef.current?.focus();
             return;
         }
-        if (name === "assign") {
-            setSlashAssignOpen(true);
-            setSlashStatusOpen(false);
-            return;
-        }
         if (name === "status") {
             setSlashStatusOpen(true);
-            setSlashAssignOpen(false);
             return;
         }
-    };
-
-    /** Execute assign from the slash /assign sub-menu. */
-    const handleSlashAssign = (userId: string | null) => {
-        if (!convOrderId) return;
-        setSlashAssignOpen(false);
-        setSlashQuery(null);
-        setBody("");
-        assignOrder.mutate(
-            { orderId: convOrderId, userId },
-            {
-                onError: (err) => {
-                    toastHook({
-                        title: t("chat.assign", "Assign"),
-                        description: err instanceof Error ? err.message : String(err),
-                        variant: "error",
-                    });
-                },
-            }
-        );
-        textareaRef.current?.focus();
     };
 
     /** Execute status change from the slash /status sub-menu. */
@@ -577,7 +545,7 @@ export function Composer({
         const q = slashQuery.toLowerCase();
         return slashCommandsFor(convKind).filter((cmd) => cmd.name.startsWith(q));
     }, [slashQuery, convKind]);
-    const showSlashDropdown = slashQuery !== null && (slashResults.length > 0 || slashAssignOpen || slashStatusOpen);
+    const showSlashDropdown = slashQuery !== null && (slashResults.length > 0 || slashStatusOpen);
 
     const canSend = (body.trim().length > 0 || pendingFiles.length > 0) && !isUploading;
 
@@ -843,7 +811,7 @@ export function Composer({
                                 className="absolute bottom-full left-0 z-10 mb-1.5 w-full overflow-hidden rounded-xl border border-(--card-border) bg-(--card-bg) p-1 shadow-xl"
                             >
                                 {/* Command list — hidden when a sub-menu is active */}
-                                {!slashAssignOpen && !slashStatusOpen && slashResults.map((cmd) => (
+                                {!slashStatusOpen && slashResults.map((cmd) => (
                                     <button
                                         key={cmd.name}
                                         type="button"
@@ -852,39 +820,11 @@ export function Composer({
                                     >
                                         <span className="font-semibold text-foreground">/{cmd.name}</span>
                                         <span className="text-muted-foreground">{t(cmd.descriptionKey, cmd.name)}</span>
-                                        {(cmd.name === "assign" || cmd.name === "status") && (
+                                        {cmd.name === "status" && (
                                             <ChevronDown className="ml-auto h-3 w-3 shrink-0 text-muted-foreground" />
                                         )}
                                     </button>
                                 ))}
-
-                                {/* /assign sub-menu */}
-                                {slashAssignOpen && (
-                                    <>
-                                        <p className="px-2 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                            {t("chat.assignTo", "Assign to…")}
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleSlashAssign(null)}
-                                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-muted-foreground hover:bg-foreground/5"
-                                        >
-                                            <UserPlus className="h-3.5 w-3.5 shrink-0" />
-                                            {t("chat.unassigned", "Unassigned")}
-                                        </button>
-                                        {members.map((m) => (
-                                            <button
-                                                key={m.user_id}
-                                                type="button"
-                                                onClick={() => handleSlashAssign(m.user_id)}
-                                                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-foreground hover:bg-foreground/5"
-                                            >
-                                                <ChatAvatar userId={m.user_id} name={m.display_name} avatarUrl={m.avatar_url} size="sm" />
-                                                <span className="min-w-0 flex-1 truncate">{m.display_name}</span>
-                                            </button>
-                                        ))}
-                                    </>
-                                )}
 
                                 {/* /status sub-menu */}
                                 {slashStatusOpen && (
