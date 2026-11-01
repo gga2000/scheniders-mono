@@ -8960,6 +8960,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      product_batch_costs: {
+        Args: { p_product_id: string }
+        Returns: {
+          cost_per_unit: number | null
+          id: string
+        }[]
+      }
       product_costs: {
         Args: { p_tenant_id: string }
         Returns: {
@@ -8974,6 +8981,13 @@ export type Database = {
         Returns: {
           id: string
           unit_cost: number | null
+        }[]
+      }
+      purchase_order_costs: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          id: string
+          total_cost: number | null
         }[]
       }
       run_payroll: {

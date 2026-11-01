@@ -13,6 +13,7 @@ import {
 import { cn, formatIQD } from "@/lib/utils";
 import { supabase, Product } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { fetchPurchaseOrderCosts } from "@/lib/repositories/purchase-costs";
 
 interface SuppliesKpiStripProps {
     supplies: Product[];
@@ -216,17 +217,21 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
     const { data: poData } = useQuery({
         queryKey: ["supplies-open-pos", tenantId],
         queryFn: async () => {
-            if (!tenantId) return { count: 0, totalCost: 0 };
+            if (!tenantId) return { count: 0, totalCost: null };
             const { data, error } = await supabase
                 .from("purchase_orders")
-                .select("id,total_cost,status")
+                .select("id,status")
                 .eq("tenant_id", tenantId)
                 .in("status", ["draft", "sent", "partial"]);
             if (error) throw error;
-            const list = (data as { id: string; total_cost: number | null; status: string }[]) ?? [];
+            const list = data ?? [];
+            // total_cost is not a readable column. A member who may not see
+            // cost gets no totals back, which must read as unknown, not 0.
+            const costs = await fetchPurchaseOrderCosts(tenantId);
+            const known = list.filter((po) => costs.get(po.id) != null);
             return {
                 count: list.length,
-                totalCost: list.reduce((s, r) => s + (r.total_cost ?? 0), 0),
+                totalCost: known.length > 0 ? known.reduce((sum, po) => sum + (costs.get(po.id) ?? 0), 0) : null,
             };
         },
         enabled: !!tenantId,
@@ -315,7 +320,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
             <Tile
                 label="Open POs"
                 value={(poData?.count ?? 0).toString()}
-                sub={poData && poData.totalCost > 0 ? formatIQD(poData.totalCost) : "No open orders"}
+                sub={poData && poData.totalCost !== null && poData.totalCost > 0 ? formatIQD(poData.totalCost) : poData && poData.count > 0 ? undefined : "No open orders"}
                 icon={Truck}
                 iconBg="bg-indigo-500/15"
                 iconColor="text-indigo-600"

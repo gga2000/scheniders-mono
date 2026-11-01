@@ -21,6 +21,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/use-permission";
+import { BATCH_READ_COLUMNS, fetchBatchCosts } from "@/lib/repositories/purchase-costs";
 import { PERMISSIONS } from "@/lib/permissions";
 
 interface BatchManagerProps {
@@ -121,13 +122,15 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("product_batches")
-                .select("*")
+                .select(BATCH_READ_COLUMNS)
                 .eq("product_id", productId)
                 .eq("tenant_id", tenantId)
                 .order("created_at", { ascending: false });
 
             if (error) throw error;
-            return (data ?? []) as ProductBatch[];
+            // Cost is not a readable column; members who may see it get it here.
+            const costs = showCost ? await fetchBatchCosts(productId) : new Map<string, number | null>();
+            return (data ?? []).map((row) => ({ ...row, cost_per_unit: costs.get(row.id) ?? null })) as ProductBatch[];
         },
         enabled: !!productId && !!tenantId,
     });
@@ -138,7 +141,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
             const { data, error } = await supabase
                 .from("product_batches")
                 .insert(newBatch)
-                .select()
+                .select("id")
                 .single();
             if (error) throw error;
             return data;
