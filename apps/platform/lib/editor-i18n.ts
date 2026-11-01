@@ -1111,6 +1111,7 @@ export const STRINGS = {
         kpi_revenue: { en: "Revenue", ar: "الإيرادات", ku: "داهات" },
         kpi_aov: { en: "Avg. order value", ar: "متوسط قيمة الطلب", ku: "ناوەندی بەهای داواکاری" },
         kpi_last_7_days: { en: "Last 7 days", ar: "آخر 7 أيام", ku: "٧ ڕۆژی ڕابردوو" },
+        kpi_error: { en: "Couldn't load. Refresh to retry.", ar: "ما كدرنا نحمّل. حدّث وجرّب.", ku: "نەتوانرا باربکرێت. نوێ بکەرەوە." },
         kpi_no_orders_yet: { en: "No orders yet", ar: "لا توجد طلبات بعد", ku: "هێشتا داواکاری نییە" },
         funnel_title: { en: "Storefront funnel", ar: "مسار الزبون بالمتجر", ku: "ڕێڕەوی کڕیار" },
         funnel_visitors: { en: "Visitors", ar: "زوّار", ku: "سەردانکەران" },
