@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
+import type { Order } from "@/types/order";
 
 type SessionClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 
@@ -23,7 +24,12 @@ async function sessionTenantId(supabase: SessionClient): Promise<string | null> 
     return (data as { current_tenant_id: string | null } | null)?.current_tenant_id ?? null;
 }
 
-export async function getDeletedOrders() {
+export type DeletedOrderRow = Pick<
+    Order,
+    "id" | "order_id" | "sequence_number" | "customer_name" | "phone" | "price" | "status" | "created_at" | "deleted_at" | "items"
+>;
+
+export async function getDeletedOrders(): Promise<{ success: boolean; data?: DeletedOrderRow[]; error?: string }> {
     const supabase = await createSupabaseServerClient();
     const tenantId = await sessionTenantId(supabase);
     if (!tenantId) return { success: false, error: "No active tenant" };
@@ -41,20 +47,27 @@ export async function getDeletedOrders() {
         return { success: false, error: error.message };
     }
 
-    return { success: true, data };
+    return { success: true, data: (data ?? []) as DeletedOrderRow[] };
 }
 
 export async function restoreDeletedOrder(orderId: string) {
     const supabase = await createSupabaseServerClient();
     
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from("orders")
         .update({ deleted_at: null })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .not("deleted_at", "is", null)
+        .select("id");
 
     if (error) {
         console.error("Failed to restore order:", error);
         return { success: false, error: error.message };
+    }
+    // RLS filters a row the caller may not touch instead of raising, so an
+    // empty result is a refusal (or an order already restored), not a success.
+    if (!data || data.length === 0) {
+        return { success: false, error: "Order not found or not allowed" };
     }
 
     revalidatePath("/orders");

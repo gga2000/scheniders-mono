@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Order, OrderStatusHistory, OrderNote } from "@/lib/supabase";
+import { Order, OrderItem, OrderStatusHistory, OrderNote } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { getBaseOrderId } from "@/lib/utils";
@@ -13,7 +13,7 @@ interface UseOrderDetailsStateProps {
     onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
     onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
-    splitOrder?: (orderId: string, keptItems: any[], returnedItems: any[]) => Promise<{ success: boolean; error?: string }>;
+    splitOrder?: (orderId: string, keptItems: OrderItem[], returnedItems: OrderItem[]) => Promise<{ success: boolean; error?: string }>;
     promptUser: (options: { title: string; description?: string; placeholder?: string }) => Promise<string | null>;
     t: (key: string) => string;
 }
@@ -119,7 +119,7 @@ export function useOrderDetailsState({
         setDeleteCountdown(5);
     };
 
-    const handleSplitOrder = async (kept: any[], returned: any[]) => {
+    const handleSplitOrder = async (kept: OrderItem[], returned: OrderItem[]) => {
         if (!order || !splitOrder) return;
         const result = await splitOrder(order.id, kept, returned);
         if (result.success) {
