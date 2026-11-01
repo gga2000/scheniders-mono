@@ -10,8 +10,9 @@ import { cn } from "@/lib/utils";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
-import { customerAccent, displayScore, isBlockedCustomer, showsTrustScore, VALUE_META, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
+import { codRiskKey, customerAccent, displayScore, isBlockedCustomer, showsTrustScore, VALUE_META, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
 import { RiskChip, ValuePill, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
+import { CustomerBlockAction } from "@/components/customers/customer-block-action";
 
 interface HeroIdentityBannerProps {
     name: string;
@@ -158,7 +159,7 @@ export function HeroIdentityBanner({
                         </div>
                     )}
 
-                    {/* Actions: the same WhatsApp and Call as the drawer, and New order as the one filled button */}
+                    {/* Actions: the same WhatsApp, Call and Block as the drawer, and New order as the one filled button */}
                     <div className="flex flex-wrap items-center gap-2 mt-3">
                         <a
                             href={`https://wa.me/${toIraqE164(phone)}`}
@@ -189,6 +190,8 @@ export function HeroIdentityBanner({
                                 {t("customers.actions.rate")}
                             </button>
                         )}
+                        {/* Block or unblock, the drawer's flow: an outline, never the filled primary. */}
+                        <CustomerBlockAction phone={phone} name={name} isBlacklisted={!!isBlacklisted} className="h-10 px-4 text-sm" />
                         {onNewOrder && !blocked && (
                             <button
                                 onClick={onNewOrder}
@@ -236,7 +239,8 @@ export function HeroIdentityBanner({
                         : "text-muted-foreground",
                 )}>
                     <ShieldIcon className="w-4 h-4 shrink-0" />
-                    {t(TRUST_SCORE_SUBTITLE_KEY[tier])}
+                    {/* Blocked reads the same instruction as the band, never a tier's "Handle with care". */}
+                    {blocked ? t(codRiskKey("blocked")) : t(TRUST_SCORE_SUBTITLE_KEY[tier])}
                 </p>
             </button>
         </motion.div>

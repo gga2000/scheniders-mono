@@ -102,11 +102,11 @@ export function CustomerListTable({
                         const accent = customerAccent(c.value_tier, c.risk_level);
                         const unsafe = c.risk_level === "blocked" || c.risk_level === "high";
                         const pending = firstDeliveryPending(c);
-                        const recency = recencyStatus(c.last_order_date, c.risk_level, t);
+                        const recency = recencyStatus(c.last_order_date, t);
                         const success = effectiveSuccessRate(c);
                         const e164 = toIraqE164(c.phone);
                         const gov = c.governorate ? governorateLabel(c.governorate, language) || c.governorate : null;
-                        const flags = statusFlags(c).map((f) => `${f.count} ${t(f.i18nKey)}`).join(" · ");
+                        const flags = statusFlags(c).map((f) => `${f.count} ${t(f.i18nKey)}`);
                         const isSelected = selectedPhones?.has(c.phone);
                         const last = i === customers.length - 1;
                         const td = cn("px-3 py-2 border-(--card-border)", !last && "border-b");
@@ -156,7 +156,14 @@ export function CustomerListTable({
                                 {/* Risk, with the order outcomes behind it */}
                                 <td className={td}>
                                     <RiskChip risk={c.risk_level} showClean />
-                                    {flags && <div className="mt-0.5 text-xs text-muted-foreground truncate" title={flags}>{flags}</div>}
+                                    {/* Wraps onto a second line rather than clipping a flag. */}
+                                    {flags.length > 0 && (
+                                        <div className="mt-0.5 flex flex-wrap gap-x-1 text-xs text-muted-foreground leading-snug">
+                                            {flags.map((f, fi) => (
+                                                <span key={f} className="whitespace-nowrap">{fi > 0 && <span aria-hidden>· </span>}{f}</span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </td>
                                 {/* Orders · delivery rate */}
                                 <td className={cn(td, "text-right text-sm tabular-nums whitespace-nowrap")}>
@@ -172,9 +179,12 @@ export function CustomerListTable({
                                 </td>
                                 {/* Last order: one line, the full recency in the tooltip */}
                                 <td className={td}>
+                                    {/* The dot is recency only (active, cooling, dormant); risk has its own column. */}
                                     <span className="flex items-center gap-2 text-[13px] text-muted-foreground min-w-0" title={pending ? t("customers.card.firstDeliveryPending") : recency.label}>
-                                        <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} />
-                                        <span dir="auto" className="truncate">{pending ? t("customers.card.firstDeliveryPending") : recency.ago}</span>
+                                        <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} aria-hidden />
+                                        <span dir="auto" className="truncate">
+                                            {pending ? t("customers.card.firstDelivery") : <><span className="sr-only">{recency.stateLabel}: </span>{recency.ago}</>}
+                                        </span>
                                     </span>
                                 </td>
                                 {/* Actions */}

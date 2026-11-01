@@ -42,6 +42,7 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
                     value={text}
                     onChange={(e) => setText(e.target.value.slice(0, 1000))}
                     placeholder={t("customers.notes.placeholder")}
+                    dir="auto"
                     autoFocus
                     rows={6}
                     className="w-full bg-muted/20 border border-(--card-border) rounded-xl p-3 text-sm resize-none focus:ring-2 focus:ring-foreground/10 focus:outline-none"

@@ -41,18 +41,18 @@ export const ORDER_STATUS_LABELS: Record<Locale, Record<OrderStatusKey, string>>
         contacted: "Contacted",
         confirmed: "Confirmed",
         cancelled: "Canceled",
-        in_transit: "In Transit",
+        in_transit: "In transit",
         rejected: "Rejected",
         delivered: "Delivered",
         completed: "Completed",
-        no_response: "No Response",
-        return_pending: "Return Pending",
+        no_response: "No response",
+        return_pending: "Return pending",
         suspended: "Suspended",
         // `pending_checkout` is an abandoned cart, not a checkout in progress —
         // one of the two English spellings said the opposite of the other.
         pending_checkout: "Abandoned",
-        refund_delivered: "Refund Delivered",
-        refund_failed: "Refund Failed",
+        refund_delivered: "Refund delivered",
+        refund_failed: "Refund failed",
     },
     ar: {
         new: "جديد",
@@ -71,6 +71,36 @@ export const ORDER_STATUS_LABELS: Record<Locale, Record<OrderStatusKey, string>>
         refund_failed: "فشل الاسترجاع",
     },
 };
+
+const NEUTRAL_TONE = "bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-300";
+
+/**
+ * The pill colour for an order status on the customer drawer and the customer
+ * profile, so the same order reads the same in both. Every tone has a dark
+ * variant. Delivered outcomes are teal/green, failures rose, returns fuchsia,
+ * in-flight states orange/amber/blue, and cancelled or unanswered neutral.
+ */
+export const ORDER_STATUS_TONE: Record<OrderStatusKey, string> = {
+    new: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200",
+    contacted: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200",
+    confirmed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200",
+    in_transit: "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-200",
+    delivered: "bg-teal-100 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200",
+    completed: "bg-emerald-200 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-100",
+    rejected: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200",
+    no_response: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300",
+    cancelled: NEUTRAL_TONE,
+    return_pending: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-500/15 dark:text-fuchsia-200",
+    refund_delivered: "bg-pink-200 text-pink-900 dark:bg-pink-500/15 dark:text-pink-200",
+    refund_failed: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200",
+    suspended: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200",
+    pending_checkout: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-200",
+};
+
+export function orderStatusTone(status: string | null | undefined): string {
+    const key = status?.toLowerCase();
+    return key && key in ORDER_STATUS_TONE ? ORDER_STATUS_TONE[key as OrderStatusKey] : NEUTRAL_TONE;
+}
 
 /**
  * A refund order (RTN) moves the other way: the courier takes cash to the

@@ -134,6 +134,7 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                         maxLength={1000}
                         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submitNote(); }}
                         placeholder={t("customers.quick.notePlaceholder", "Add a quick note…")}
+                        dir="auto"
                         className="flex-1 min-h-11 rounded-xl bg-background border border-(--card-border) px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-foreground/10 resize-none"
                     />
                     <button

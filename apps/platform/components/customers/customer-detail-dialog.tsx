@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { useCustomerStore } from "@/store/use-customer-store";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
     X, Phone, MapPin, Calendar, MessageCircle, Plus, ExternalLink, Tag,
-    Package, ChevronDown, User, Home, ShoppingBag, StickyNote, CreditCard, Truck, Ban, Clock,
+    Package, ChevronDown, User, Home, ShoppingBag, StickyNote, CreditCard, Truck, Clock,
 } from "lucide-react";
 import { cn, formatIQD, getStatusLabel } from "@/lib/utils";
+import { orderStatusTone } from "@/lib/order-status-labels";
 import type { Locale } from "@/lib/i18n";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { supabase } from "@/lib/supabase";
@@ -28,8 +29,9 @@ import { computeRefundPayout, orderReceipt } from "@/lib/order-money";
 import { ValueIcon, RiskIcon, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
+import { CustomerBlockAction } from "@/components/customers/customer-block-action";
 import { monogram, formatPhoneDisplay, formatBaghdadDate, formatBaghdadMonthYear, toIraqE164 } from "@/lib/customer-format";
-import { addToBlacklist, removeFromBlacklist, fetchBlacklistEntry } from "@/lib/blacklist";
+import { fetchBlacklistEntry } from "@/lib/blacklist";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useOrderCrud } from "@/hooks/use-order-crud";
 import { usePermission } from "@/hooks/use-permission";
@@ -37,7 +39,6 @@ import { toast } from "@/hooks/use-toast";
 import { PERMISSIONS } from "@/lib/permissions";
 
 // Opened on demand from the footer; kept out of the customers page bundle.
-const BlacklistDialog = dynamic(() => import("@/components/orders/blacklist-dialog").then((m) => m.BlacklistDialog), { ssr: false });
 const CreateOrderModal = dynamic(() => import("@/components/orders/create-order-modal").then((m) => m.CreateOrderModal), { ssr: false });
 
 interface OrderItem { name?: string; price?: number; quantity?: number; image_url?: string }
@@ -60,22 +61,6 @@ interface DialogOrder {
     secondary_phone: string | null;
 }
 type IdentityEvent = { type: "name" | "city" | "address" | "phone"; value: string; at: string };
-
-const STATUS_CLS: Record<string, string> = {
-    new: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200",
-    contacted: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200",
-    confirmed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200",
-    in_transit: "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-200",
-    delivered: "bg-teal-100 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200",
-    completed: "bg-emerald-200 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-100",
-    rejected: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200",
-    no_response: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300",
-    cancelled: "bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-300",
-    return_pending: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-500/15 dark:text-fuchsia-200",
-    refund_delivered: "bg-pink-200 text-pink-900 dark:bg-pink-500/15 dark:text-pink-200",
-    suspended: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200",
-    pending_checkout: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-200",
-};
 
 const PAYMENT_KEY: Record<string, string> = {
     cod: "orderDetail.payment.cod",
@@ -194,7 +179,7 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
     // `price` is already net of the discount and leaves delivery out (lib/order-money),
     // so the receipt is built from the shared helper: Subtotal − Discount + Delivery = Total.
     const receipt = orderReceipt(order);
-    const pillCls = STATUS_CLS[order.status] ?? "bg-zinc-100 text-zinc-700";
+    const pillCls = orderStatusTone(order.status);
     const itemCount = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
     const lines = mergeOrderItems(items);
 
@@ -281,11 +266,9 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
     const { can } = usePermission();
     const router = useRouter();
     const setProfileFromList = useCustomerStore((s) => s.setProfileFromList);
-    const queryClient = useQueryClient();
-    const { tenantId, profile, user } = useAuth();
+    const { tenantId } = useAuth();
     const { createOrder } = useOrderCrud();
     const [limit, setLimit] = useState(60);
-    const [blacklistMode, setBlacklistMode] = useState<"add" | "remove" | null>(null);
     const [creatingOrder, setCreatingOrder] = useState(false);
     const data = useCustomerDialogData(customer?.phone ?? null, limit);
     const blockedEntry = useQuery({
@@ -307,30 +290,10 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
     const customerPhone = customer?.phone;
     useEffect(() => {
         setLimit(60);
-        setBlacklistMode(null);
         setCreatingOrder(false);
     }, [customerPhone]);
 
-    const onBlacklistConfirm = async (reason?: string, notes?: string) => {
-        if (!customer || !tenantId) throw new Error("No active store");
-        if (blacklistMode === "add") {
-            await addToBlacklist({
-                tenantId, phone: customer.phone, reason: reason ?? "", notes,
-                addedBy: profile?.display_name || user?.email || null,
-            });
-        } else {
-            await removeFromBlacklist(tenantId, customer.phone);
-        }
-        await Promise.all([
-            queryClient.invalidateQueries({ queryKey: ["customers"] }),
-            queryClient.invalidateQueries({ queryKey: ["customer-profile"] }),
-            queryClient.invalidateQueries({ queryKey: ["customer-dialog"] }),
-        ]);
-    };
-
     const loadedAll = !data.data?.hasMore;
-    const canUnblock = can(PERMISSIONS.UNBLOCK_CUSTOMERS);
-    const canBlock = can(PERMISSIONS.BLOCK_CUSTOMERS);
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
 
     return (
@@ -351,7 +314,6 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                                 onOpenFull={() => { setProfileFromList(customer.phone); router.push(`/customers/${encodeURIComponent(customer.phone)}`); }}
                                 onNewOrder={() => setCreatingOrder(true)}
                                 canEdit={canEdit}
-                                onToggleBlock={(customer.is_blacklisted ? !canUnblock : !canBlock) ? undefined : () => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}
                                 t={t}
                                 locale={language}
                             />
@@ -359,16 +321,6 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     )}
                 </AnimatePresence>
             </Dialog>
-            {customer && blacklistMode && (
-                <BlacklistDialog
-                    open
-                    onClose={() => setBlacklistMode(null)}
-                    mode={blacklistMode}
-                    customerName={customer.name}
-                    customerPhone={formatPhoneDisplay(customer.phone)}
-                    onConfirm={onBlacklistConfirm}
-                />
-            )}
             {customer && creatingOrder && (
                 <CreateOrderModal
                     open
@@ -392,7 +344,7 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
 }
 
 function Body({
-    customer, data, loading, failed, onRetry, fetchingMore, canLoadMore, onLoadMore, onOpenFull, onNewOrder, onToggleBlock, canEdit, t, locale,
+    customer, data, loading, failed, onRetry, fetchingMore, canLoadMore, onLoadMore, onOpenFull, onNewOrder, canEdit, t, locale,
 }: {
     customer: PaginatedCustomer;
     data: ReturnType<typeof useCustomerDialogData>["data"];
@@ -404,8 +356,6 @@ function Body({
     onLoadMore: () => void;
     onOpenFull: () => void;
     onNewOrder: () => void;
-    /** Omitted when the customer is blocked and the user may not unblock. */
-    onToggleBlock?: () => void;
     canEdit: boolean;
     t: Translate;
     locale: Locale;
@@ -424,7 +374,9 @@ function Body({
     const totalOrders = data?.totalOrders ?? customer.total_orders;
     const completed = data?.completedCount ?? customer.completed_count;
     const spent = data?.totalSpent ?? customer.total_spent;
-    const avgBasket = averageBasket(spent, completed) ?? 0;
+    // Nothing delivered yet: no rate and no basket to show, the same "—" as the card, table and profile.
+    const pending = firstDeliveryPending({ ...customer, total_orders: totalOrders, completed_count: completed });
+    const avgBasket = averageBasket(spent, completed);
     const successRate = effectiveSuccessRate(customer);
 
     // History rows that only repeat what the header already shows are left out:
@@ -439,9 +391,9 @@ function Body({
     const stats: { v: string; k: string; span: string }[] = [
         { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders"), span: "col-span-2" },
         { v: completed.toLocaleString("en-US"), k: t("customers.stat.delivered"), span: "col-span-2" },
-        { v: `${successRate}%`, k: t("customers.table.success", "Delivery rate"), span: "col-span-2" },
-        { v: formatIQD(spent), k: t("customers.drawer.lifetime"), span: "col-span-3" },
-        { v: formatIQD(avgBasket), k: t("customers.drawer.avgBasket"), span: "col-span-3" },
+        { v: pending ? "—" : `${successRate}%`, k: pending ? t("customers.card.firstDeliveryPending") : t("customers.table.success", "Delivery rate"), span: "col-span-2" },
+        { v: pending && spent === 0 ? "—" : formatIQD(spent), k: t("customers.drawer.lifetime"), span: "col-span-3" },
+        { v: avgBasket === null ? "—" : formatIQD(avgBasket), k: t("customers.drawer.avgBasket"), span: "col-span-3" },
     ];
 
     return (
@@ -598,8 +550,8 @@ function Body({
                 </section>
             </div>
 
-            {/* Footer: one filled primary. New order for a customer you may ship to;
-                for a blocked one there is no new order (as on the profile), and Unblock leads. */}
+            {/* Footer: New order is the one filled primary, for a customer you may ship to.
+                A blocked customer has no primary at all: Unblock is a quiet outline behind a confirm. */}
             <div className="flex items-center gap-2 px-5 py-3 border-t border-(--card-border) shrink-0">
                 <a href={`https://wa.me/${e164}`} target="_blank" rel="noopener noreferrer" className={cn("h-11 px-4 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-colors", WHATSAPP_TONE)}>
                     <MessageCircle className="w-4 h-4" /> {t("customers.actions.whatsapp")}
@@ -608,20 +560,7 @@ function Body({
                     <Phone className="w-4 h-4" /> {t("customers.drawer.call", "Call")}
                 </a>
                 <span className="flex-1" />
-                {onToggleBlock && (
-                    <button
-                        onClick={onToggleBlock}
-                        className={cn(
-                            "h-11 px-4 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-colors",
-                            customer.is_blacklisted
-                                ? "bg-foreground text-background hover:opacity-90 min-w-36"
-                                : "border border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/40",
-                        )}
-                    >
-                        <Ban className="w-4 h-4" />
-                        {customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}
-                    </button>
-                )}
+                <CustomerBlockAction phone={customer.phone} name={customer.name} isBlacklisted={customer.is_blacklisted} className="h-11 px-4" />
                 {!blocked && (
                     <button onClick={onNewOrder} className="h-11 px-5 rounded-xl bg-foreground text-background font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
                         <Plus className="w-4 h-4" /> {t("customers.drawer.newOrder", "New order")}

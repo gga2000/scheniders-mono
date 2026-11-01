@@ -116,9 +116,10 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 placeholder={t("customers.broadcast.placeholder")}
+                                dir="auto"
                                 className="w-full p-4 bg-background border border-(--card-border) rounded-xl text-sm min-h-40 resize-y focus:outline-none focus:ring-2 focus:ring-foreground/30"
                             />
-                            <p className="text-xs text-muted-foreground mt-2">{t("customers.broadcast.nameHint")}</p>
+                            <p dir="auto" className="text-xs text-muted-foreground mt-2 text-start">{t("customers.broadcast.nameHint")}</p>
                         </div>
                     ) : (
                         <ul className="flex-1 overflow-y-auto divide-y divide-(--card-border)">

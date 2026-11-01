@@ -18,6 +18,7 @@ import { storedPhoneVariants } from "@/lib/order-server-search";
 import type { Database } from "@scheniders/supabase/database.types";
 import { formatIQD, getStatusLabel } from "@/lib/utils";
 import { orderReceipt } from "@/lib/order-money";
+import { orderStatusTone } from "@/lib/order-status-labels";
 import { isBlockedCustomer } from "@/lib/customer-reliability";
 import { formatBaghdadDate, formatPhoneDisplay } from "@/lib/customer-format";
 import { toast } from "@/hooks/use-toast";
@@ -141,23 +142,10 @@ function useCustomerProfile(phone: string) {
     });
 }
 
-const STATUS_TONE: Record<string, string> = {
-    delivered: "bg-[#c7f8ef] text-[#33605a] dark:bg-emerald-500/15 dark:text-emerald-200",
-    completed: "bg-[#c7f8ef] text-[#33605a] dark:bg-emerald-500/15 dark:text-emerald-200",
-    rejected: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
-    returned: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
-    return_pending: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
-    cancelled: "bg-muted/50 text-muted-foreground",
-    in_transit: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
-    shipping: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
-    confirmed: "bg-[#FBE38E]/30 text-foreground",
-};
-
 function OrderStatusBadge({ status, isReturn }: { status: string; isReturn: boolean }) {
     const { language } = useLanguage();
-    const tone = STATUS_TONE[status?.toLowerCase()] ?? "bg-muted/50 text-muted-foreground";
     return (
-        <span className={`${tone} px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap`}>
+        <span className={`${orderStatusTone(status)} px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap`}>
             {getStatusLabel(status, isReturn, language)}
         </span>
     );
@@ -366,7 +354,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             {/* Trust trend, buying patterns, notes */}
             <div className="grid grid-cols-12 gap-4">
                 <div className="col-span-12 xl:col-span-7">
-                    <TrustHistoryCard data={historyData || []} phone={profile.phone} />
+                    <TrustHistoryCard data={historyData || []} phone={profile.phone} score={profile.trustScore} blocked={blocked} />
                 </div>
                 <div className="col-span-12 xl:col-span-5">
                     <BehavioralPatternsCard

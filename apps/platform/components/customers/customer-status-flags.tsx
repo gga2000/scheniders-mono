@@ -7,7 +7,8 @@ import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 
 /**
  * Factual order-outcome chips — "1 cancelled", "2 no-response", "1 refunded".
- * Renders nothing when the customer has no flagged outcomes.
+ * Renders nothing when the customer has no flagged outcomes. With `max`, the
+ * rest are counted as "+N" and named in its tooltip.
  */
 export function CustomerStatusFlags({
     customer,
@@ -22,8 +23,8 @@ export function CustomerStatusFlags({
     const flags = statusFlags(customer);
     if (flags.length === 0) return null;
 
-    const shown = max ? flags.slice(0, max) : flags;
-    const extra = max ? flags.length - shown.length : 0;
+    const shown = max === undefined ? flags : flags.slice(0, max);
+    const hidden = flags.slice(shown.length);
 
     return (
         <div className={cn("flex items-center gap-1.5 flex-wrap", className)}>
@@ -33,7 +34,15 @@ export function CustomerStatusFlags({
                     {t(f.i18nKey)}
                 </span>
             ))}
-            {extra > 0 && <span className="text-xs text-muted-foreground font-medium shrink-0">+{extra}</span>}
+            {hidden.length > 0 && (
+                <span
+                    className="text-xs text-muted-foreground font-semibold px-1.5 py-0.5 rounded-full bg-muted/40 shrink-0 tabular-nums"
+                    title={hidden.map((f) => `${f.count} ${t(f.i18nKey)}`).join(" · ")}
+                >
+                    +{hidden.length}
+                    <span className="sr-only"> {hidden.map((f) => `${f.count} ${t(f.i18nKey)}`).join(", ")}</span>
+                </span>
+            )}
         </div>
     );
 }

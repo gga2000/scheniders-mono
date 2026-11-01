@@ -13,6 +13,9 @@ import {
     displayScore,
     effectiveSuccessRate,
     recencyStatus,
+    daysAgoLabel,
+    buildScoreBreakdown,
+    SCORE_FACTOR_TONE,
     firstDeliveryPending,
     statusFlags,
     isFinishedOrder,
@@ -103,32 +106,107 @@ const tIn = (locale: Locale) => (key: string, vars?: Record<string, string | num
 const tStub = tIn('en');
 
 describe('recencyStatus', () => {
-    it('high/blocked always reads red', () => {
-        expect(recencyStatus(daysAgo(3), 'high', tStub).dot).toBe('bg-rose-600');
-        expect(recencyStatus(daysAgo(3), 'blocked', tStub).dot).toBe('bg-rose-600');
+    it('the dot means recency only, whatever the risk', () => {
+        expect(recencyStatus(daysAgo(2), tStub).dot).toBe('bg-emerald-500');
+        expect(recencyStatus(daysAgo(20), tStub).dot).toBe('bg-amber-500');
+        expect(recencyStatus(daysAgo(60), tStub).dot).toBe('bg-zinc-400');
+        expect(recencyStatus(daysAgo(2), tStub).state).toBe('active');
+        expect(recencyStatus(daysAgo(20), tStub).state).toBe('cooling');
+        expect(recencyStatus(daysAgo(60), tStub).state).toBe('dormant');
     });
-    it('buckets active / cooling / dormant for healthy customers', () => {
-        expect(recencyStatus(daysAgo(2), 'clean', tStub).dot).toBe('bg-emerald-500');
-        expect(recencyStatus(daysAgo(20), 'clean', tStub).dot).toBe('bg-amber-500');
-        expect(recencyStatus(daysAgo(60), 'caution', tStub).dot).toBe('bg-zinc-400');
+    it('names what the dot means', () => {
+        expect(recencyStatus(daysAgo(2), tStub).stateLabel).toBe('Active');
+        expect(recencyStatus(daysAgo(20), tStub).stateLabel).toBe('Cooling');
+        expect(recencyStatus(daysAgo(60), tIn('ar')).stateLabel).toBe('منقطع');
     });
     it('handles missing date', () => {
-        expect(recencyStatus(null, 'clean', tStub).label).toBe('No orders yet');
+        expect(recencyStatus(null, tStub).label).toBe('No orders yet');
+        expect(recencyStatus(null, tStub).state).toBe('none');
     });
     it('writes the label in the active language', () => {
-        expect(recencyStatus(daysAgo(20), 'clean', tStub).label).toBe('Cooling · last order 20 days ago');
-        expect(recencyStatus(daysAgo(20), 'clean', tIn('ar')).label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوماً');
-        expect(recencyStatus(daysAgo(1), 'clean', tIn('ar')).label).toBe('آخر طلب أمس');
+        expect(recencyStatus(daysAgo(20), tStub).label).toBe('Cooling · last order 20 days ago');
+        expect(recencyStatus(daysAgo(20), tIn('ar')).label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوماً');
+        expect(recencyStatus(daysAgo(1), tIn('ar')).label).toBe('آخر طلب أمس');
     });
     it('counts days the Arabic way (dual, few, many)', () => {
-        expect(recencyStatus(daysAgo(2), 'clean', tIn('ar')).ago).toBe('قبل يومين');
-        expect(recencyStatus(daysAgo(5), 'clean', tIn('ar')).ago).toBe('قبل 5 أيام');
-        expect(recencyStatus(daysAgo(12), 'clean', tIn('ar')).ago).toBe('قبل 12 يوماً');
-        expect(recencyStatus(daysAgo(5), 'clean', tStub).ago).toBe('5 days ago');
+        expect(recencyStatus(daysAgo(2), tIn('ar')).ago).toBe('قبل يومين');
+        expect(recencyStatus(daysAgo(5), tIn('ar')).ago).toBe('قبل 5 أيام');
+        expect(recencyStatus(daysAgo(12), tIn('ar')).ago).toBe('قبل 12 يوماً');
+        expect(recencyStatus(daysAgo(5), tStub).ago).toBe('5 days ago');
     });
     it('gives the bare time since the last order for one-line cells', () => {
-        expect(recencyStatus(daysAgo(20), 'clean', tStub).ago).toBe('20 days ago');
-        expect(recencyStatus(null, 'clean', tStub).ago).toBe('—');
+        expect(recencyStatus(daysAgo(20), tStub).ago).toBe('20 days ago');
+        expect(recencyStatus(null, tStub).ago).toBe('—');
+    });
+});
+
+describe('daysAgoLabel', () => {
+    it('never abbreviates Arabic (no "قبل 1 ي")', () => {
+        expect(daysAgoLabel(0, tIn('ar'))).toBe('اليوم');
+        expect(daysAgoLabel(1, tIn('ar'))).toBe('أمس');
+        expect(daysAgoLabel(25, tIn('ar'))).toBe('قبل 25 يوماً');
+        expect(daysAgoLabel(1, tStub)).toBe('yesterday');
+    });
+});
+
+describe('buildScoreBreakdown (Trust factors card and breakdown modal)', () => {
+    const items = [
+        { label: 'base', value: 50, type: 'neutral' as const },
+        { label: 'delivery', value: 45, type: 'positive' as const },
+        { label: 'rejected', value: 0, type: 'negative' as const },
+        { label: 'no_response', value: 0, type: 'negative' as const },
+    ];
+
+    it('drops zero factors but always keeps the base', () => {
+        const zeroBase = buildScoreBreakdown([{ label: 'base', value: 0, type: 'neutral' }, { label: 'cancelled', value: 0, type: 'negative' }], { storedScore: 0, blocked: false, tier: 'gold' });
+        expect(zeroBase.factors.map((f) => f.label)).toEqual(['base']);
+        const view = buildScoreBreakdown(items, { storedScore: 95, blocked: false, tier: 'gold' });
+        expect(view.factors.map((f) => f.label)).toEqual(['base', 'delivery']);
+    });
+
+    it('closes the gap to the stored score with "Other adjustments"', () => {
+        const view = buildScoreBreakdown(items, { storedScore: 92, blocked: false, tier: 'gold' });
+        expect(view.factors.at(-1)).toEqual({ label: 'adjustments', value: -3, type: 'negative' });
+        expect(view.factors.reduce((sum, f) => sum + f.value, 0)).toBe(92);
+        expect(view.score).toBe(92);
+        expect(view.rated).toBe(true);
+        const up = buildScoreBreakdown(items, { storedScore: 97, blocked: false, tier: 'gold' });
+        expect(up.factors.at(-1)).toEqual({ label: 'adjustments', value: 2, type: 'positive' });
+    });
+
+    it('adds no gap row when the factors already add up', () => {
+        const view = buildScoreBreakdown(items, { storedScore: 95, blocked: false, tier: 'gold' });
+        expect(view.factors.some((f) => f.label === 'adjustments')).toBe(false);
+    });
+
+    it('uses the factor sum before a score is stored, without a number', () => {
+        const view = buildScoreBreakdown(items, { storedScore: null, blocked: false, tier: 'new' });
+        expect(view.raw).toBe(95);
+        expect(view.rated).toBe(false);
+    });
+
+    it('shows no factors and no score for a blocked customer', () => {
+        const view = buildScoreBreakdown(items, { storedScore: 12, blocked: true, tier: 'risky' });
+        expect(view.factors).toEqual([]);
+        expect(view.rated).toBe(false);
+        expect(view.blocked).toBe(true);
+    });
+
+    it('a new customer has factors but no rated total', () => {
+        const view = buildScoreBreakdown(items, { storedScore: 50, blocked: false, tier: 'new' });
+        expect(view.rated).toBe(false);
+        expect(view.factors.length).toBeGreaterThan(0);
+    });
+
+    it('clamps the shown total to 0–100 but keeps the raw sum', () => {
+        const view = buildScoreBreakdown(items, { storedScore: 130, blocked: false, tier: 'platinum' });
+        expect(view.raw).toBe(130);
+        expect(view.score).toBe(100);
+        expect(view.factors.reduce((sum, f) => sum + f.value, 0)).toBe(130);
+    });
+
+    it('draws the base neutral, never green', () => {
+        expect(SCORE_FACTOR_TONE.neutral.bar).not.toMatch(/emerald|green/);
     });
 });
 
