@@ -1271,7 +1271,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 throw new Error("Not authenticated. Please sign in again.");
             }
 
-            const t1 = performance.now();
             // The delete route caps a single request at MAX_ORDER_IDS_PER_REQUEST
             // ids, so "select all" over a large book is sent in chunks. Each chunk
             // is independent: a later failure does not undo earlier deletions, and
@@ -1298,8 +1297,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 for (const id of (result.deletedIds || []) as string[]) deletedIds.add(id);
             }
 
-            const t2 = performance.now();
-            console.log(`[Perf] Frontend fetch to /api/orders/delete took: ${(t2 - t1).toFixed(2)}ms`);
 
             // Only fail outright if nothing at all was deleted; otherwise report
             // the partial result so the UI can show what actually happened.
@@ -1311,17 +1308,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 throw new Error("No orders were deleted.");
             }
 
-            const t3 = performance.now();
             optimisticUpdate((prev) => prev.filter((order) => !deletedIds.has(order.id)));
-            const t4 = performance.now();
-            console.log(`[Perf] Frontend optimistic update took: ${(t4 - t3).toFixed(2)}ms`);
 
-            const t5 = performance.now();
             // Invalidate React Query cache so stale data doesn't reappear
             queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-            const t6 = performance.now();
-            console.log(`[Perf] Frontend query invalidation took: ${(t6 - t5).toFixed(2)}ms`);
-            console.log(`[Perf] Total frontend bulkDelete time: ${(performance.now() - t1).toFixed(2)}ms`);
 
             return {
                 success: deletedIds.size === uniqueOrderIds.length,

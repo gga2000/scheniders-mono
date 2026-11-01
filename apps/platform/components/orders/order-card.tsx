@@ -7,7 +7,8 @@ import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
-import { RiskLevel, RiskAssessment } from "@/lib/fraud-detector";
+import type { RiskLevel } from "@/lib/fraud-detector";
+import type { OrderRiskData } from "@/lib/customer-trust-risk";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
@@ -90,7 +91,7 @@ interface OrderCardProps {
     onViewDetails: (order: Order) => void;
     isBlacklisted?: boolean;
     riskLevel?: RiskLevel;
-    riskAssessment?: RiskAssessment;
+    riskAssessment?: OrderRiskData;
     // Duplicate detection props
     customerOrderCount?: number;
     hasDuplicates?: boolean;
