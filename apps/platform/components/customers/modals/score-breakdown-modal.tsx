@@ -4,6 +4,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadDate } from "@/lib/customer-format";
 import { buildScoreBreakdown } from "@/lib/customer-reliability";
 import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
+import { ScoreTotalRow } from "@/components/customers/detail/score-total-row";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import { ModalShell } from "./modal-shell";
@@ -68,25 +69,7 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
                         <ScoreFactorBars factors={items} rated={rated} />
 
                         {/* The stored score, the number the user clicked; the bars above add up to it */}
-                        <div className="flex items-center gap-3 pt-3 mt-1 border-t border-(--card-border)">
-                            <span className="text-sm font-semibold text-foreground w-36 shrink-0 text-start">
-                                {t("customers.scoreBreakdown.total")}
-                            </span>
-                            {rated ? (
-                                <div className="flex items-baseline gap-3 min-w-0">
-                                    <span className="text-3xl font-headline font-black tabular-nums text-foreground leading-none">
-                                        {score}<span className="text-base font-semibold text-muted-foreground">/100</span>
-                                    </span>
-                                    {raw !== score && (
-                                        <span className="text-xs text-muted-foreground">
-                                            {t("customers.scoreBreakdown.capped", { raw: String(raw) })}
-                                        </span>
-                                    )}
-                                </div>
-                            ) : (
-                                <span className="text-sm text-muted-foreground">{t("customers.trust.notScored")}</span>
-                            )}
-                        </div>
+                        <ScoreTotalRow score={score} raw={raw} rated={rated} />
                     </div>
                 )}
 

@@ -256,7 +256,8 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             <HeroIdentityBanner
                 name={displayName}
                 phone={profile.phone}
-                city={profile.city ?? undefined}
+                city={profile.city}
+                governorate={profile.governorate}
                 tier={profile.trustTier}
                 valueTier={profile.reliability ? profile.reliability.value_tier : null}
                 riskLevel={profile.reliability ? profile.reliability.risk_level : null}

@@ -12,10 +12,10 @@ import {
     Users,
     Sparkles,
 } from "lucide-react";
-import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import { formatPhoneDisplay } from "@/lib/customer-format";
+import { CustomerPlace } from "@/components/customers/customer-place";
 import { useCustomerLinks } from "@/hooks/use-customer-links";
 
 type Order = { created_at: string; status: string };
@@ -170,12 +170,10 @@ export function BehavioralPatternsCard({
     const snapshot = useMemo(() => {
         if (mode !== "snapshot") return null;
 
-        // The governorate is stored as a code ("BG"): shown by its name, like the list and the drawer.
-        const govName = governorate ? governorateLabel(governorate, language) || governorate : null;
-        const locationLabel =
-            city || govName
-                ? [city, govName].filter(Boolean).join(language === "ar" ? "، " : ", ")
-                : t("customers.snapshot.locationUnknown");
+        // The same place line as the hero and the drawer: governorate, then the neighbourhood.
+        const locationLabel = city || governorate
+            ? <CustomerPlace governorate={governorate} city={city} locale={language} />
+            : t("customers.snapshot.locationUnknown");
 
         const phoneValid = isValidIraqiMobile(phone);
 
@@ -274,7 +272,7 @@ function Row({
     /** Tile colours when the row carries a meaning; neutral otherwise. */
     tone?: string;
     title: string;
-    value: string;
+    value: React.ReactNode;
 }) {
     return (
         <div className="flex items-start gap-4">

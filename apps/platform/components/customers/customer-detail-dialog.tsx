@@ -31,6 +31,7 @@ import { CustomerStatusFlags } from "@/components/customers/customer-status-flag
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { CustomerBlockAction } from "@/components/customers/customer-block-action";
 import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
+import { CustomerPlace } from "@/components/customers/customer-place";
 import { monogram, formatPhoneDisplay, formatBaghdadDate, formatBaghdadMonthYear, toIraqE164 } from "@/lib/customer-format";
 import { fetchBlacklistEntry } from "@/lib/blacklist";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
@@ -372,7 +373,6 @@ function Body({
     const accent = customerAccent(value, risk);
     const unsafe = risk === "blocked" || risk === "high";
     const e164 = toIraqE164(customer.phone);
-    const gov = customer.governorate ? governorateLabel(customer.governorate, locale) || customer.governorate : null;
     const codKey = codVerdictKey(risk, firstDeliveryPending(customer));
     // Once the live read is in, every stat comes from it, not from the list's cached row.
     const totalOrders = data?.totalOrders ?? customer.total_orders;
@@ -413,7 +413,8 @@ function Body({
                     <DialogTitle dir="auto" className="text-xl font-extrabold tracking-tight leading-tight truncate min-w-0 text-left">{customer.name}</DialogTitle>
                     <div className="flex items-center gap-x-3.5 gap-y-1 mt-1 text-[13px] text-muted-foreground flex-wrap">
                         {customer.has_name && <span className="font-mono tabular-nums inline-flex items-center gap-1.5 whitespace-nowrap"><Phone className="w-3.5 h-3.5" />{formatPhoneDisplay(customer.phone)}</span>}
-                        {gov && <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /><bdi>{gov}</bdi></span>}
+                        {/* The same place as the profile hero: governorate, then the neighbourhood */}
+                        {(customer.governorate || customer.city) && <span className="inline-flex items-center gap-1.5 min-w-0"><MapPin className="w-3.5 h-3.5 shrink-0" /><CustomerPlace governorate={customer.governorate} city={customer.city} locale={locale} /></span>}
                         <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><Calendar className="w-3.5 h-3.5" />{t("customers.drawer.since", { date: monthYear(locale, data?.firstOrderDate ?? customer.first_order_date) })}</span>
                     </div>
                 </div>
@@ -449,19 +450,28 @@ function Body({
                                 )}
                             </div>
                         </div>
-                        {/* The score is named, as on the profile; the ⓘ explains it with the value and risk above. */}
-                        <div className={cn("flex flex-col items-end shrink-0", accent.surfaceText)}>
-                            <div className="flex items-center gap-0.5 -me-1.5">
-                                {/* A blocked customer has no score: "Do not ship" is the whole instruction. */}
-                                {!blocked && <span className="text-xs font-medium opacity-75">{t("customers.trust.score")}</span>}
-                                <CustomerRatingHelp align="end" className="text-current opacity-75 hover:opacity-100 hover:text-current" />
-                            </div>
-                            {!blocked && (rated
-                                ? <div className="font-mono text-3xl font-semibold tabular-nums leading-none">{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>
-                                : <div className="text-sm font-semibold opacity-75">{t("customers.trust.notScored")}</div>)}
-                        </div>
+                        {/* The score is named, as on the profile; the ⓘ explains it with the value and risk.
+                            The popover is placed against the whole score block and opens to its left,
+                            so it never covers the number it explains. */}
+                        <CustomerRatingHelp
+                            side="left"
+                            align="start"
+                            className="text-current opacity-75 hover:opacity-100 hover:text-current"
+                            anchor={(trigger) => (
+                                <div className={cn("flex flex-col items-end shrink-0", accent.surfaceText)}>
+                                    <div className="flex items-center gap-0.5 -me-1.5">
+                                        {/* A blocked customer has no score: "Do not ship" is the whole instruction. */}
+                                        {!blocked && <span className="text-xs font-medium opacity-75">{t("customers.trust.score")}</span>}
+                                        {trigger}
+                                    </div>
+                                    {!blocked && (rated
+                                        ? <div className="font-mono text-3xl font-semibold tabular-nums leading-none">{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>
+                                        : <div className="text-sm font-semibold opacity-75">{t("customers.trust.notScored")}</div>)}
+                                </div>
+                            )}
+                        />
                     </div>
-                    {flagged && <CustomerStatusFlags customer={customer} max={4} className="mt-3 ps-12" />}
+                    {flagged && <CustomerStatusFlags customer={customer} max={4} className="mt-3 pl-12" />}
                 </div>
 
                 {/* Stat strip */}
