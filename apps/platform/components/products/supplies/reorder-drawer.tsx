@@ -120,7 +120,7 @@ export function ReorderDrawer({
                 // Supplies are used, not sold (reason supply_used): count every
                 // stock-out movement except a recount, which is a correction.
                 .lt("quantity_change", 0)
-                .neq("change_type", "count")
+                .not("change_type", "in", "(count,written_off,returned_to_supplier,open_box_count,qc_undo)")
                 .gte("created_at", since.toISOString());
             if (error) throw error;
             const m = new Map<string, number>();

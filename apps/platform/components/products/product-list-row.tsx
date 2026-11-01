@@ -79,7 +79,7 @@ export const ProductListRow = React.memo(function ProductListRow({
     const threshold = product.low_stock_threshold || 5;
     const stockRatio = Math.min(availableStock / threshold, 2);
     const hasReserved = (product.reserved_quantity || 0) > 0;
-    const margin = canSeeCost && product.cost && product.cost > 0
+    const margin = canSeeCost && product.cost && product.cost > 0 && product.price > 0
         ? Math.round(((product.price - product.cost) / product.price) * 100)
         : null;
     const dailyRate = computeDailySalesRate(product.times_sold_30d || 0);
