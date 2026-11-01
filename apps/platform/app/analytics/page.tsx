@@ -1,5 +1,6 @@
 "use client";
 
+import { useOrderCostSnapshots } from "@/hooks/use-order-cost-snapshots";
 import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -276,6 +277,8 @@ function AnalyticsContent() {
         return { startDate: "", endDate: "" };
     }, [dateRange, isEpochSet, eraMode, getEraDateRange]);
 
+    const costSnapshots = useOrderCostSnapshots();
+
     // useFinances now receives orders and products as props (no duplicate fetching)
     const {
         revenueStats,
@@ -285,7 +288,7 @@ function AnalyticsContent() {
         expensesByCategory,
         comparePeriods,
         rejectionStats,
-    } = useFinances(orders, products, effectiveDateRange);
+    } = useFinances(orders, products, effectiveDateRange, costSnapshots);
 
     const {
         expenses,
