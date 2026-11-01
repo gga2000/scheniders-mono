@@ -13,7 +13,7 @@ import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
 import { cn } from "@/lib/utils";
 import type { FinancePeriod, Granularity } from "@/hooks/use-finance-period";
-import { resolveItemCost } from "@/lib/finance/item-cost";
+import { resolveOrderLineCost, type CostSnapshots } from "@/lib/finance/item-cost";
 import { isRealizedRevenue } from "@/lib/order-revenue";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -22,6 +22,8 @@ interface Props {
     products: Product[];
     period: FinancePeriod;
     granularity: Granularity;
+    /** Unit costs frozen at delivery; absent lines use the cost on file now. */
+    snapshots?: CostSnapshots;
 }
 
 interface SkuRow {
@@ -43,7 +45,7 @@ interface SkuRow {
 
 const REFUND_STATUSES = new Set(["refund_delivered", "refund_failed", "return_pending"]);
 
-export function ProductsFinanceTab({ orders, products, period, granularity }: Props) {
+export function ProductsFinanceTab({ orders, products, period, granularity, snapshots }: Props) {
     const range = useMemo(() => ({ start: period.start, end: period.end }), [period.start, period.end]);
     const revenue = useFinanceRevenue(orders, products, range, null, granularity);
 
@@ -51,8 +53,6 @@ export function ProductsFinanceTab({ orders, products, period, granularity }: Pr
         const start = period.start.getTime();
         const end = period.end.getTime();
         const map = new Map<string, SkuRow>();
-
-        const productCost = (item: Parameters<typeof resolveItemCost>[0]): number => resolveItemCost(item, products).cost;
 
         const productLink = (item: { name?: string; sku?: string }): string | undefined => {
             if (item.sku) {
@@ -73,7 +73,7 @@ export function ProductsFinanceTab({ orders, products, period, granularity }: Pr
             const isRefund = REFUND_STATUSES.has(o.status);
             if (!isRevenue && !isRefund) continue;
 
-            for (const item of o.items || []) {
+            for (const [index, item] of (o.items || []).entries()) {
                 // Prefer the canonical product id so the same product collapses
                 // even when one order line carries an SKU and another only a name.
                 const productId = productLink(item);
@@ -98,7 +98,7 @@ export function ProductsFinanceTab({ orders, products, period, granularity }: Pr
                     row.revenue += (Number(item.price) || 0) * item.quantity;
                     row.units += item.quantity;
                     row.orders += 1;
-                    row.cogs += productCost(item);
+                    row.cogs += resolveOrderLineCost(o, index, item, products, snapshots).cost;
                 }
                 if (isRefund) {
                     row.returnedUnits += item.quantity;
@@ -134,7 +134,7 @@ export function ProductsFinanceTab({ orders, products, period, granularity }: Pr
         }
 
         return rows.sort((a, b) => b.revenue - a.revenue);
-    }, [orders, products, period.start, period.end]);
+    }, [orders, products, snapshots, period.start, period.end]);
 
     const quadrantCounts = useMemo(() => ({
         star: skuRows.filter(r => r.quadrant === "star").length,

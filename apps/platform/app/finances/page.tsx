@@ -13,6 +13,7 @@ import { useFinanceInsights } from "@/hooks/use-finance-insights";
 import { useFinanceRevenue } from "@/hooks/use-finance-revenue";
 import { useCashPosition } from "@/hooks/use-cash-position";
 import { useInTransitSince } from "@/hooks/use-in-transit-since";
+import { useOrderCostSnapshots } from "@/hooks/use-order-cost-snapshots";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { PageHeader } from "@/components/finances/hub/page-header";
 import { TabsShell, type FinanceTabId } from "@/components/finances/hub/tabs-shell";
@@ -203,6 +204,7 @@ function FinancesContent() {
         endDate: dateRangeStrings.endDate,
     });
 
+    const costSnapshots = useOrderCostSnapshots();
     const overview = useFinanceOverview(
         orders,
         products,
@@ -210,6 +212,7 @@ function FinancesContent() {
         { start: period.start, end: period.end },
         compareRange,
         granularity,
+        costSnapshots,
     );
 
     const insights = useFinanceInsights(overview);
@@ -221,6 +224,8 @@ function FinancesContent() {
         { start: period.start, end: period.end },
         compareRange,
         granularity,
+        undefined,
+        costSnapshots,
     );
 
     const handleExport = () => {
@@ -359,7 +364,7 @@ function FinancesContent() {
                     {activeTab === "print" && <PrintShipTab />}
 
                     {activeTab === "products" && (
-                        <ProductsFinanceTab orders={orders} products={products} period={period} granularity={granularity} />
+                        <ProductsFinanceTab orders={orders} products={products} period={period} granularity={granularity} snapshots={costSnapshots} />
                     )}
 
                     {activeTab === "forecasts" && (

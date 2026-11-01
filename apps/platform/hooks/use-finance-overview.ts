@@ -6,7 +6,7 @@ import type { Order, Product } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
 import type { Granularity } from "./use-finance-period";
 import { isRealizedRevenue, isSaleOrder, NON_SALE_STATUSES } from "@/lib/order-revenue";
-import { resolveItemCost } from "@/lib/finance/item-cost";
+import { resolveOrderLineCost, type CostSnapshots } from "@/lib/finance/item-cost";
 import { isRefundRow, reportDate } from "@/lib/refunds/refund-reporting";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 
@@ -116,7 +116,9 @@ export function useFinanceOverview(
     expenses: Expense[],
     current: DateInterval,
     previous: DateInterval | null,
-    granularity: Granularity
+    granularity: Granularity,
+    /** Unit costs frozen at delivery; absent lines use the cost on file now. */
+    snapshots?: CostSnapshots,
 ): FinanceOverviewResult {
     return useMemo(() => {
         const toDate = (s: string) => new Date(s);
@@ -167,8 +169,8 @@ export function useFinanceOverview(
                     delivered_revenue += value;
                     delivered_count++;
                     if (o.items) {
-                        for (const it of o.items) {
-                            const line = resolveItemCost(it, products);
+                        for (const [i, it] of o.items.entries()) {
+                            const line = resolveOrderLineCost(o, i, it, products, snapshots);
                             product_cost += line.cost;
                             if (!line.known) missing_cost_units += it.quantity;
                         }
@@ -216,7 +218,7 @@ export function useFinanceOverview(
                     b.delivered_revenue += o.price || 0;
                     b.delivered++;
                     if (o.items) {
-                        for (const it of o.items) b.product_cost += resolveItemCost(it, products).cost;
+                        for (const [i, it] of o.items.entries()) b.product_cost += resolveOrderLineCost(o, i, it, products, snapshots).cost;
                     }
                 }
                 if (o.status === "refund_delivered") b.refunds += Math.abs(o.price || 0);
@@ -305,9 +307,9 @@ export function useFinanceOverview(
             payEntry.orders++;
             byPayment.set(pay, payEntry);
             // product
-            for (const it of o.items || []) {
+            for (const [i, it] of (o.items || []).entries()) {
                 const key = it.name || "Unknown";
-                const cost = resolveItemCost(it, products).cost;
+                const cost = resolveOrderLineCost(o, i, it, products, snapshots).cost;
                 const profit = (it.price || 0) * it.quantity - cost;
                 const prod = byProduct.get(key) || { revenue: 0, units: 0, profit: 0 };
                 prod.revenue += (it.price || 0) * it.quantity;
@@ -429,5 +431,5 @@ export function useFinanceOverview(
             top_gainer_channel: topGainerChannel,
             top_loser_channel: topLoserChannel,
         };
-    }, [orders, products, expenses, current, previous, granularity]);
+    }, [orders, products, expenses, current, previous, granularity, snapshots]);
 }
