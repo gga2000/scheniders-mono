@@ -5495,6 +5495,7 @@ export type Database = {
           slug: string | null
           status: string
           stock_quantity: number | null
+          storefront_stock: number | null
           tag_color: string | null
           tenant_id: string | null
           updated_at: string | null
@@ -5543,6 +5544,7 @@ export type Database = {
           slug?: string | null
           status?: string
           stock_quantity?: number | null
+          storefront_stock?: number | null
           tag_color?: string | null
           tenant_id?: string | null
           updated_at?: string | null
@@ -5591,6 +5593,7 @@ export type Database = {
           slug?: string | null
           status?: string
           stock_quantity?: number | null
+          storefront_stock?: number | null
           tag_color?: string | null
           tenant_id?: string | null
           updated_at?: string | null

@@ -19,6 +19,7 @@ import {
 } from "@/lib/order-upsell-proof";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
+import { storefrontAvailable } from "@/lib/storefront-stock";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -169,7 +170,7 @@ async function loadOffers(svc: Svc, order: OwnedOrder): Promise<PricedOffer[]> {
   // supply bar the checkout applies to a cart line, plus stock on hand.
   const { data: products, error: productsErr } = await svc
     .from("products")
-    .select("id, name, short_name, image_url, price, website_price, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
+    .select("id, name, short_name, image_url, price, website_price, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity, storefront_stock")
     .in("id", offerIds)
     .eq("tenant_id", order.tenantId)
     .eq("is_visible", true)
@@ -202,7 +203,7 @@ async function loadOffers(svc: Svc, order: OwnedOrder): Promise<PricedOffer[]> {
   return offers.flatMap((offer) => {
     const p = byId.get(offer.product_id);
     if (!p || hasVariants.has(p.id)) return [];
-    if ((p.stock_quantity ?? 0) - (p.reserved_quantity ?? 0) <= 0) return [];
+    if (storefrontAvailable(p) <= 0) return [];
     const listed = Number(p.website_price ?? p.price) || 0;
     if (listed <= 0) return [];
     const base = resolveTierPrice(tiersByProduct.get(p.id), 1, listed);
