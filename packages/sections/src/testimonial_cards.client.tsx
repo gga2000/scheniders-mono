@@ -210,7 +210,7 @@ export function TestimonialStage({
             aria-label={label("prev", locale)}
             onClick={() => go(active - 1)}
             className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-full font-body text-lg leading-none",
+              "flex h-11 w-11 items-center justify-center rounded-full font-body text-lg leading-none",
               PRESSABLE,
             )}
             style={{
@@ -268,7 +268,7 @@ export function TestimonialStage({
             aria-label={label("next", locale)}
             onClick={() => go(active + 1)}
             className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-full font-body text-lg leading-none",
+              "flex h-11 w-11 items-center justify-center rounded-full font-body text-lg leading-none",
               PRESSABLE,
             )}
             style={{
