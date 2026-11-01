@@ -61,9 +61,9 @@ export function CityPerformance({ data }: CityPerformanceProps) {
     };
 
     const getDeliveryRateColor = (rate: number) => {
-        if (rate >= 85) return { bg: "bg-emerald-100", text: "text-emerald-700" };
-        if (rate >= 70) return { bg: "bg-amber-100", text: "text-amber-700" };
-        return { bg: "bg-rose-100", text: "text-rose-700" };
+        if (rate >= 85) return { bg: "bg-emerald-100 dark:bg-emerald-500/20", text: "text-emerald-700 dark:text-emerald-300" };
+        if (rate >= 70) return { bg: "bg-amber-100 dark:bg-amber-500/20", text: "text-amber-700 dark:text-amber-300" };
+        return { bg: "bg-rose-100 dark:bg-rose-500/20", text: "text-rose-700 dark:text-rose-300" };
     };
 
     const SortHeader = ({ label, sortKey: key }: { label: string; sortKey: keyof CityPerformanceMetrics }) => (
@@ -95,7 +95,7 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-cyan-100 rounded-xl text-cyan-600">
+                        <div className="p-2 bg-cyan-100 dark:bg-cyan-500/20 rounded-xl text-cyan-600 dark:text-cyan-300">
                             <MapPin className="w-5 h-5" />
                         </div>
                         <div>
@@ -140,7 +140,7 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                 {/* Table */}
                 <div className="overflow-x-auto rounded-xl border border-border">
                     <table className="w-full">
-                        <thead className="bg-gray-50/50">
+                        <thead className="bg-gray-50/50 dark:bg-white/5">
                             <tr className="text-xs text-muted">
                                 <th className="py-3 px-4 text-left font-semibold">{t("reports.city.col.city")}</th>
                                 <SortHeader label={t("reports.common.ordersCap")} sortKey="totalOrders" />
@@ -161,13 +161,13 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                     <motion.tr
                                         key={city.city}
                                         variants={item}
-                                        className="border-t border-border hover:bg-gray-50/50 transition-colors"
+                                        className="border-t border-border hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors"
                                     >
                                         <td className="py-3 px-4">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-medium text-foreground">{city.city}</span>
                                                 {city.governorateCode && (
-                                                    <span className="text-[10px] text-muted bg-gray-100 px-1.5 py-0.5 rounded">
+                                                    <span className="text-[10px] text-muted bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
                                                         {city.governorateCode}
                                                     </span>
                                                 )}
@@ -176,10 +176,10 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                         <td className="py-3 px-4 font-bold text-foreground">
                                             {city.totalOrders.toLocaleString()}
                                         </td>
-                                        <td className="py-3 px-4 text-emerald-600 font-medium">
+                                        <td className="py-3 px-4 text-emerald-600 dark:text-emerald-300 font-medium">
                                             {city.delivered.toLocaleString()}
                                         </td>
-                                        <td className="py-3 px-4 text-rose-600 font-medium">
+                                        <td className="py-3 px-4 text-rose-600 dark:text-rose-300 font-medium">
                                             {city.rejected.toLocaleString()}
                                         </td>
                                         <td className="py-3 px-4">

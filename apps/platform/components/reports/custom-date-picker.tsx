@@ -134,13 +134,13 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                         transition={{ duration: 0.15 }}
                         className={cn(
                             "absolute right-0 top-full mt-2 z-50",
-                            "bg-white border border-border rounded-2xl shadow-2xl",
+                            "bg-white dark:bg-neutral-900 border border-border rounded-2xl shadow-2xl",
                             "overflow-hidden"
                         )}
                     >
                         <div className="flex">
                             {/* Presets Sidebar */}
-                            <div className="w-40 border-r border-border p-2 bg-gray-50/50">
+                            <div className="w-40 border-r border-border p-2 bg-gray-50/50 dark:bg-white/5">
                                 <p className="text-xs font-medium text-muted px-2 py-1.5 mb-1">{t("reports.picker.quick")}</p>
                                 {presets.map((preset) => (
                                     <button
@@ -162,7 +162,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                 <div className="flex items-center justify-between mb-4">
                                     <button
                                         onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                     >
                                         <ChevronLeft className="w-5 h-5" />
                                     </button>
@@ -171,7 +171,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                     </h3>
                                     <button
                                         onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                     >
                                         <ChevronRight className="w-5 h-5" />
                                     </button>
@@ -205,7 +205,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                                     !isCurrentMonth && "text-gray-300 cursor-not-allowed hover:bg-transparent",
                                                     isCurrentMonth && "text-foreground",
                                                     isToday && !isSelected && "ring-1 ring-indigo-500",
-                                                    inRange && !isSelected && "bg-indigo-50",
+                                                    inRange && !isSelected && "bg-indigo-50 dark:bg-indigo-500/10",
                                                     isSelected && "bg-indigo-500 text-white hover:bg-indigo-600",
                                                     isRangeStart(day) && tempTo && "rounded-r-none",
                                                     isRangeEnd(day) && tempFrom && "rounded-l-none",
@@ -239,7 +239,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => setIsOpen(false)}
-                                            className="flex-1 py-2 px-3 text-sm font-medium text-muted hover:text-foreground rounded-lg hover:bg-gray-100 transition-colors"
+                                            className="flex-1 py-2 px-3 text-sm font-medium text-muted hover:text-foreground rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                         >
                                             {t("reports.common.cancel")}
                                         </button>
@@ -250,7 +250,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                                 "flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-colors",
                                                 tempFrom && tempTo
                                                     ? "bg-indigo-500 text-white hover:bg-indigo-600"
-                                                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                                    : "bg-gray-100 dark:bg-white/10 text-gray-400 cursor-not-allowed"
                                             )}
                                         >
                                             {t("reports.common.apply")}

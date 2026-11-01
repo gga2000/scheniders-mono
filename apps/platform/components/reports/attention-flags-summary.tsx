@@ -39,13 +39,13 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
     const getSeverityStyles = (severity: string) => {
         switch (severity) {
             case 'high':
-                return { card: 'bg-rose-50 border-rose-200 text-rose-900', badge: 'bg-rose-100 text-rose-800' };
+                return { card: 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-900 dark:text-rose-300', badge: 'bg-rose-100 dark:bg-rose-500/20 text-rose-800 dark:text-rose-300' };
             case 'medium':
-                return { card: 'bg-amber-50 border-amber-200 text-amber-900', badge: 'bg-amber-100 text-amber-800' };
+                return { card: 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-900 dark:text-amber-300', badge: 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300' };
             case 'low':
-                return { card: 'bg-blue-50 border-blue-200 text-blue-900', badge: 'bg-blue-100 text-blue-800' };
+                return { card: 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30 text-blue-900 dark:text-blue-300', badge: 'bg-blue-100 dark:bg-blue-500/20 text-blue-800 dark:text-blue-300' };
             default:
-                return { card: 'bg-gray-50 border-gray-200 text-gray-900', badge: 'bg-gray-100 text-gray-800' };
+                return { card: 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-900', badge: 'bg-gray-100 dark:bg-white/10 text-gray-800 dark:text-gray-100' };
         }
     };
 
@@ -56,15 +56,15 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="pastel-card p-6 bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200"
+                className="pastel-card p-6 bg-gradient-to-br from-emerald-50 dark:from-emerald-500/10 to-green-50 dark:to-green-500/10 border-emerald-200 dark:border-emerald-500/30"
             >
                 <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center">
-                        <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
+                        <CheckCircle2 className="w-7 h-7 text-emerald-600 dark:text-emerald-300" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-emerald-900">{t("reports.attention.clear")}</h3>
-                        <p className="text-sm text-emerald-700">{t("reports.attention.clearDesc")}</p>
+                        <h3 className="text-xl font-bold text-emerald-900 dark:text-emerald-300">{t("reports.attention.clear")}</h3>
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300">{t("reports.attention.clearDesc")}</p>
                     </div>
                 </div>
             </motion.div>
@@ -75,16 +75,16 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="pastel-card p-6 border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/50"
+            className="pastel-card p-6 border-amber-200 dark:border-amber-500/30 bg-gradient-to-br from-amber-50/50 to-orange-50/50"
         >
             <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
+                    <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-xl text-amber-600 dark:text-amber-300">
                         <AlertTriangle className="w-6 h-6" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-amber-900">{t("reports.attention.title")}</h3>
-                        <p className="text-sm text-amber-700">{t("reports.attention.count", { n: totalFlags })}</p>
+                        <h3 className="text-xl font-bold text-amber-900 dark:text-amber-300">{t("reports.attention.title")}</h3>
+                        <p className="text-sm text-amber-700 dark:text-amber-300">{t("reports.attention.count", { n: totalFlags })}</p>
                     </div>
                 </div>
                 <Link

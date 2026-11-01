@@ -25,14 +25,14 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="pastel-card p-6 h-full bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200"
+                className="pastel-card p-6 h-full bg-gradient-to-br from-emerald-50 dark:from-emerald-500/10 to-green-50 dark:to-green-500/10 border-emerald-200 dark:border-emerald-500/30"
             >
                 <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center mb-4">
+                        <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-300" />
                     </div>
-                    <h3 className="text-xl font-bold text-emerald-900">{t("reports.rejection.none")}</h3>
-                    <p className="text-sm text-emerald-700 mt-2">{t("reports.rejection.noneDesc")}</p>
+                    <h3 className="text-xl font-bold text-emerald-900 dark:text-emerald-300">{t("reports.rejection.none")}</h3>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-2">{t("reports.rejection.noneDesc")}</p>
                 </div>
             </motion.div>
         );
@@ -66,7 +66,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
             <div className="relative z-10">
                 <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-rose-100 rounded-xl text-rose-600">
+                        <div className="p-2 bg-rose-100 dark:bg-rose-500/20 rounded-xl text-rose-600 dark:text-rose-300">
                             <XOctagon className="w-5 h-5" />
                         </div>
                         <div>
@@ -76,8 +76,8 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                     </div>
 
                     {/* Total badge */}
-                    <div className="px-3 py-1.5 bg-rose-100 rounded-full">
-                        <span className="text-sm font-bold text-rose-700">{total}</span>
+                    <div className="px-3 py-1.5 bg-rose-100 dark:bg-rose-500/20 rounded-full">
+                        <span className="text-sm font-bold text-rose-700 dark:text-rose-300">{total}</span>
                     </div>
                 </div>
 
@@ -105,7 +105,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                                         if (active && payload && payload.length) {
                                             const d = payload[0].payload;
                                             return (
-                                                <div className="bg-white/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
+                                                <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
                                                     <p className="font-bold mb-1">{d.name}</p>
                                                     <p>{t("reports.common.count")}: {d.value} ({d.percentage.toFixed(1)}%)</p>
                                                     {d.topCity && <p>{t("reports.common.topCity")}: {d.topCity}</p>}
@@ -120,7 +120,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
 
                         {/* Center info */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-3xl font-bold text-rose-600">{total}</span>
+                            <span className="text-3xl font-bold text-rose-600 dark:text-rose-300">{total}</span>
                             <span className="text-xs text-muted">{t("reports.rejection.rejections")}</span>
                         </div>
                     </div>
@@ -133,7 +133,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                                 initial={{ opacity: 0, x: 10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200"
+                                className="p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-white/20"
                             >
                                 <div className="flex items-center gap-3">
                                     <div
@@ -165,15 +165,15 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
-                        className="mt-6 p-4 bg-gradient-to-r from-rose-50 to-red-50 border border-rose-200 rounded-2xl"
+                        className="mt-6 p-4 bg-gradient-to-r from-rose-50 dark:from-rose-500/10 to-red-50 dark:to-red-500/10 border border-rose-200 dark:border-rose-500/30 rounded-2xl"
                     >
                         <div className="flex items-start gap-3">
-                            <div className="p-1.5 bg-rose-100 rounded-lg text-rose-600">
+                            <div className="p-1.5 bg-rose-100 dark:bg-rose-500/20 rounded-lg text-rose-600 dark:text-rose-300">
                                 <AlertCircle className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-rose-900">{t("reports.rejection.topIssue", { reason: reasonLabel(data[0]?.reason) })}</p>
-                                <p className="text-xs text-rose-700 mt-0.5">
+                                <p className="text-sm font-semibold text-rose-900 dark:text-rose-300">{t("reports.rejection.topIssue", { reason: reasonLabel(data[0]?.reason) })}</p>
+                                <p className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
                                     {data[0]?.topCity
                                         ? t("reports.rejection.topIssueCity", { pct: data[0].percentage.toFixed(0), city: data[0].topCity })
                                         : t("reports.rejection.topIssueDesc", { pct: data[0]?.percentage.toFixed(0) ?? "0" })}

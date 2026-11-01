@@ -68,12 +68,12 @@ export function TrueEmployeePerformance({
     // Error state
     if (error) {
         return (
-            <div className="pastel-card p-8 text-center bg-gradient-to-br from-rose-50 to-red-50">
-                <p className="text-rose-700 mb-2">{error}</p>
+            <div className="pastel-card p-8 text-center bg-gradient-to-br from-rose-50 dark:from-rose-500/10 to-red-50 dark:to-red-500/10">
+                <p className="text-rose-700 dark:text-rose-300 mb-2">{error}</p>
                 {onRefresh && (
                     <button
                         onClick={onRefresh}
-                        className="text-sm text-rose-600 hover:text-rose-800 underline"
+                        className="text-sm text-rose-600 dark:text-rose-300 hover:text-rose-800 underline"
                     >
                         {t("reports.common.retry")}
                     </button>
@@ -90,7 +90,7 @@ export function TrueEmployeePerformance({
                 animate={{ opacity: 1, y: 0 }}
                 className="pastel-card p-8 text-center"
             >
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mx-auto mb-4">
                     <Users className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">{t("reports.team.empty")}</h3>
@@ -118,7 +118,7 @@ export function TrueEmployeePerformance({
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
+                        <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-xl text-amber-600 dark:text-amber-300">
                             <Trophy className="w-5 h-5" />
                         </div>
                         <div>
@@ -129,15 +129,15 @@ export function TrueEmployeePerformance({
 
                     <div className="flex items-center gap-2">
                         {/* Online indicator */}
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-full">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-xs font-medium text-emerald-700">{t("reports.team.online", { n: onlineCount })}</span>
+                            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{t("reports.team.online", { n: onlineCount })}</span>
                         </div>
 
                         {onRefresh && (
                             <button
                                 onClick={onRefresh}
-                                className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+                                className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                 title={t("reports.common.refresh")}
                             >
                                 <RefreshCw className="w-4 h-4 text-muted" />
@@ -149,12 +149,12 @@ export function TrueEmployeePerformance({
                 {/* Summary stats */}
                 <div className="grid grid-cols-4 gap-3 mb-6">
                     {[
-                        { icon: Activity, label: t("reports.team.totalActions"), value: totalActions, color: "text-violet-600", bg: "bg-violet-100" },
-                        { icon: Package, label: t("reports.team.created"), value: data.reduce((s, e) => s + e.ordersCreated, 0), color: "text-emerald-600", bg: "bg-emerald-100" },
-                        { icon: CheckCircle2, label: t("reports.team.confirmed"), value: data.reduce((s, e) => s + e.confirmedOrders, 0), color: "text-blue-600", bg: "bg-blue-100" },
-                        { icon: Truck, label: t("reports.common.delivered"), value: data.reduce((s, e) => s + e.deliveredOrders, 0), color: "text-amber-600", bg: "bg-amber-100" },
+                        { icon: Activity, label: t("reports.team.totalActions"), value: totalActions, color: "text-violet-600 dark:text-violet-300", bg: "bg-violet-100 dark:bg-violet-500/20" },
+                        { icon: Package, label: t("reports.team.created"), value: data.reduce((s, e) => s + e.ordersCreated, 0), color: "text-emerald-600 dark:text-emerald-300", bg: "bg-emerald-100 dark:bg-emerald-500/20" },
+                        { icon: CheckCircle2, label: t("reports.team.confirmed"), value: data.reduce((s, e) => s + e.confirmedOrders, 0), color: "text-blue-600 dark:text-blue-300", bg: "bg-blue-100 dark:bg-blue-500/20" },
+                        { icon: Truck, label: t("reports.common.delivered"), value: data.reduce((s, e) => s + e.deliveredOrders, 0), color: "text-amber-600 dark:text-amber-300", bg: "bg-amber-100 dark:bg-amber-500/20" },
                     ].map((stat, i) => (
-                        <div key={i} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div key={i} className="text-center p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
                             <div className={cn("w-8 h-8 rounded-lg mx-auto mb-2 flex items-center justify-center", stat.bg)}>
                                 <stat.icon className={cn("w-4 h-4", stat.color)} />
                             </div>
@@ -188,7 +188,7 @@ export function TrueEmployeePerformance({
                             {/* Online indicator */}
                             {emp.isOnline && (
                                 <div className="absolute top-2 left-2">
-                                    <span className="w-2 h-2 rounded-full bg-white animate-pulse inline-block" />
+                                    <span className="w-2 h-2 rounded-full bg-white dark:bg-neutral-900 animate-pulse inline-block" />
                                 </div>
                             )}
 
@@ -225,9 +225,9 @@ export function TrueEmployeePerformance({
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.3 + index * 0.05 }}
-                                className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                             >
-                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 relative">
+                                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-white/15 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300 relative">
                                     {emp.rank}
                                     {emp.isOnline && (
                                         <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" />
@@ -254,7 +254,7 @@ export function TrueEmployeePerformance({
 
                 {/* Last updated */}
                 {data[0]?.mostRecentAction && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-muted flex items-center gap-1">
+                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/10 text-xs text-muted flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {t("reports.team.lastActivity", { when: formatDistanceToNow(data[0].mostRecentAction, { addSuffix: true, locale: language === "ar" ? arLocale : undefined }) })}
                     </div>

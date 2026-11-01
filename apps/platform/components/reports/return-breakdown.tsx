@@ -29,14 +29,14 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="pastel-card p-6 h-full bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200"
+                className="pastel-card p-6 h-full bg-gradient-to-br from-emerald-50 dark:from-emerald-500/10 to-green-50 dark:to-green-500/10 border-emerald-200 dark:border-emerald-500/30"
             >
                 <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                    <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center mb-4">
+                        <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-300" />
                     </div>
-                    <h3 className="text-xl font-bold text-emerald-900">{t("reports.returns.none")}</h3>
-                    <p className="text-sm text-emerald-700 mt-2">{t("reports.returns.noneDesc")}</p>
+                    <h3 className="text-xl font-bold text-emerald-900 dark:text-emerald-300">{t("reports.returns.none")}</h3>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-2">{t("reports.returns.noneDesc")}</p>
                 </div>
             </motion.div>
         );
@@ -73,7 +73,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
             <div className="relative z-10">
                 <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-orange-100 rounded-xl text-orange-600">
+                        <div className="p-2 bg-orange-100 dark:bg-orange-500/20 rounded-xl text-orange-600 dark:text-orange-300">
                             <RotateCcw className="w-5 h-5" />
                         </div>
                         <div>
@@ -83,9 +83,9 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                     </div>
 
                     {/* Return rate badge */}
-                    <div className="px-3 py-1.5 bg-orange-100 rounded-full flex items-center gap-1.5">
-                        <TrendingDown className="w-3 h-3 text-orange-700" />
-                        <span className="text-sm font-bold text-orange-700">{returnRate.toFixed(1)}%</span>
+                    <div className="px-3 py-1.5 bg-orange-100 dark:bg-orange-500/20 rounded-full flex items-center gap-1.5">
+                        <TrendingDown className="w-3 h-3 text-orange-700 dark:text-orange-300" />
+                        <span className="text-sm font-bold text-orange-700 dark:text-orange-300">{returnRate.toFixed(1)}%</span>
                     </div>
                 </div>
 
@@ -113,7 +113,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                                         if (active && payload && payload.length) {
                                             const d = payload[0].payload;
                                             return (
-                                                <div className="bg-white/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
+                                                <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
                                                     <p className="font-bold mb-1">{d.name}</p>
                                                     <p>العدد: {d.value} ({d.percentage.toFixed(1)}%)</p>
                                                     <p className="flex items-center gap-1">
@@ -135,7 +135,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
 
                         {/* Center info */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-3xl font-bold text-orange-600">{totalReturns}</span>
+                            <span className="text-3xl font-bold text-orange-600 dark:text-orange-300">{totalReturns}</span>
                             <span className="text-xs text-muted">{t("reports.returns.unit")}</span>
                         </div>
                     </div>
@@ -148,7 +148,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                                 initial={{ opacity: 0, x: 10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                className="p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200"
+                                className="p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-white/20"
                             >
                                 <div className="flex items-center gap-3">
                                     <div
@@ -180,17 +180,17 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
-                        className="mt-6 p-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-2xl"
+                        className="mt-6 p-4 bg-gradient-to-r from-orange-50 dark:from-orange-500/10 to-amber-50 dark:to-amber-500/10 border border-orange-200 dark:border-orange-500/30 rounded-2xl"
                     >
                         <div className="flex items-start gap-3">
-                            <div className="p-1.5 bg-orange-100 rounded-lg text-orange-600">
+                            <div className="p-1.5 bg-orange-100 dark:bg-orange-500/20 rounded-lg text-orange-600 dark:text-orange-300">
                                 <RotateCcw className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-orange-900">
+                                <p className="text-sm font-semibold text-orange-900 dark:text-orange-300">
                                     {t("reports.returns.topReason", { reason: returnsByReason[0]?.reason ?? "" })}
                                 </p>
-                                <p className="text-xs text-orange-700 mt-0.5">
+                                <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
                                     {returnsByReason[0]?.topCity
                                         ? t("reports.returns.topReasonCity", { pct: returnsByReason[0].percentage.toFixed(0), city: returnsByReason[0].topCity })
                                         : t("reports.returns.topReasonDesc", { pct: returnsByReason[0]?.percentage.toFixed(0) ?? "0" })}

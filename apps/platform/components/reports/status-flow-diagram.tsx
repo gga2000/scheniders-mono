@@ -53,7 +53,7 @@ export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
                 <div className="flex items-start justify-between mb-6">
                     <div>
                         <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                            <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+                            <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-300">
                                 <Zap className="w-5 h-5" />
                             </div>
                             {t("reports.pipeline.title")}
@@ -91,7 +91,7 @@ export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
                                             {status.count.toLocaleString()} <span className="text-xs">({status.percentage.toFixed(1)}%)</span>
                                         </span>
                                     </div>
-                                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${width}%` }}

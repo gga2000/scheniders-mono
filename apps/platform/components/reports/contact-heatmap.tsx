@@ -56,7 +56,7 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
             <div className="relative z-10">
                 <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-violet-100 rounded-xl text-violet-600">
+                        <div className="p-2 bg-violet-100 dark:bg-violet-500/20 rounded-xl text-violet-600 dark:text-violet-300">
                             <MessageCircle className="w-5 h-5" />
                         </div>
                         <div>
@@ -91,7 +91,7 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                                         if (active && payload && payload.length) {
                                             const d = payload[0].payload;
                                             return (
-                                                <div className="bg-white/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
+                                                <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
                                                     <p className="font-bold mb-1">{d.name}</p>
                                                     <p>Orders: {d.value}</p>
                                                     <p>Confirmation: {d.confirmationRate.toFixed(0)}%</p>
@@ -121,7 +121,7 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                             <motion.div
                                 key={d.attempts}
                                 variants={item}
-                                className="p-3 rounded-xl border border-gray-200 bg-gray-50"
+                                className="p-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5"
                             >
                                 <div className="flex items-center gap-2 text-xs font-bold mb-1 text-foreground">
                                     <span
@@ -148,15 +148,15 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5 }}
-                        className="mt-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl"
+                        className="mt-6 p-4 bg-gradient-to-r from-amber-50 dark:from-amber-500/10 to-orange-50 dark:to-orange-500/10 border border-amber-200 dark:border-amber-500/30 rounded-2xl"
                     >
                         <div className="flex items-start gap-3">
-                            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
+                            <div className="p-1.5 bg-amber-100 dark:bg-amber-500/20 rounded-lg text-amber-600 dark:text-amber-300">
                                 <Zap className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-amber-900">{t("reports.common.insight")}</p>
-                                <p className="text-xs text-amber-700 mt-0.5">
+                                <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">{t("reports.common.insight")}</p>
+                                <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
                                     {t("reports.contact.insight", { label: t(`reports.contact.bucket.${best.attempts}`, best.label), pct: best.confirmationRate.toFixed(0) })}
                                 </p>
                             </div>
