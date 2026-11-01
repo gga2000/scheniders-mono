@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import { ExpenseCategory, expenseCategoryLabels, expenseCategoryColors } from "@/types/expense";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { ExpenseCategory, expenseCategoryColors } from "@/types/expense";
+import { useLanguage } from "@/hooks/use-language";
+import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
 import { formatIQD } from "@/lib/utils";
 
 interface ExpenseBreakdownProps {
@@ -10,16 +12,18 @@ interface ExpenseBreakdownProps {
 }
 
 export function ExpenseBreakdown({ data }: ExpenseBreakdownProps) {
+    const { t } = useLanguage();
+    const categoryLabel = useExpenseCategoryLabel();
     const chartData = useMemo(() => {
         return Object.entries(data)
-            .filter(([_, value]) => value > 0)
+            .filter(([, value]) => value > 0)
             .map(([category, value]) => ({
-                name: expenseCategoryLabels[category as ExpenseCategory],
+                name: categoryLabel(category as ExpenseCategory),
                 value,
                 color: expenseCategoryColors[category as ExpenseCategory],
             }))
             .sort((a, b) => b.value - a.value);
-    }, [data]);
+    }, [data, categoryLabel]);
 
     const total = useMemo(() => {
         return Object.values(data).reduce((sum, val) => sum + val, 0);
@@ -28,7 +32,7 @@ export function ExpenseBreakdown({ data }: ExpenseBreakdownProps) {
     if (chartData.length === 0) {
         return (
             <div className="h-[250px] flex items-center justify-center text-muted">
-                No expenses recorded
+                {t("finances.expense.breakdown.none")}
             </div>
         );
     }

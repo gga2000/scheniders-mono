@@ -36,7 +36,9 @@ export interface MarginHeatmapCell {
 
 export interface MarginHeatmap {
     products: Array<{ name: string; total_revenue: number; total_margin_pct: number }>;
-    buckets: Array<{ key: string; ts: number; label: string }>;
+    granularity: Granularity;
+    /** Labelled by the view, so they follow the app language. */
+    buckets: Array<{ key: string; ts: number }>;
     cells: MarginHeatmapCell[];
 }
 
@@ -102,16 +104,6 @@ function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number
     const y = dd.getFullYear();
     const m = String(dd.getMonth() + 1).padStart(2, "0");
     return { key: `${y}-${m}`, ts: new Date(y, dd.getMonth(), 1).getTime() };
-}
-
-function labelBucket(key: string, ts: number, granularity: Granularity): string {
-    const d = new Date(ts);
-    const baghdad = { month: "short", day: "numeric", timeZone: "Asia/Baghdad" } as const;
-    if (granularity === "day") return d.toLocaleDateString("en-US", baghdad);
-    if (granularity === "week") return `Wk ${d.toLocaleDateString("en-US", baghdad)}`;
-    if (granularity === "quarter") return key;
-    if (granularity === "year") return key;
-    return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 }
 
 export function useFinanceRevenue(
@@ -257,10 +249,10 @@ export function useFinanceRevenue(
 
         const buckets = Array.from(fullBuckets.values())
             .sort((a, b) => a.ts - b.ts)
-            .map((b) => ({ key: b.key, ts: b.ts, label: labelBucket(b.key, b.ts, granularity) }));
+            .map((b) => ({ key: b.key, ts: b.ts }));
         const cells = Array.from(cellMap.values()).filter((c) => topProductNames.has(c.product));
 
-        const heatmap: MarginHeatmap = { products: topProducts, buckets, cells };
+        const heatmap: MarginHeatmap = { products: topProducts, granularity, buckets, cells };
 
         // ── Channel P&L ──
         // Margin is computed against delivered_revenue so it's not inflated when

@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Edit2, Trash2, MoreVertical, Calendar, Filter } from "lucide-react";
-import { Expense, ExpenseCategory, expenseCategoryLabels, expenseCategoryColors } from "@/types/expense";
+import { Edit2, Trash2, MoreVertical, Calendar } from "lucide-react";
+import { Expense, EXPENSE_CATEGORIES, ExpenseCategory, expenseCategoryColors } from "@/types/expense";
+import { useLanguage } from "@/hooks/use-language";
+import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
 import { formatIQD } from "@/lib/utils";
 
 interface ExpenseListProps {
@@ -12,9 +14,15 @@ interface ExpenseListProps {
     onDelete: (id: string) => void;
 }
 
+const DAYS_SHOWN = 10;
+
 export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
+    const { t, language } = useLanguage();
+    const categoryLabel = useExpenseCategoryLabel();
+    const dateLocale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
     const [filterCategory, setFilterCategory] = useState<ExpenseCategory | "all">("all");
     const [menuOpen, setMenuOpen] = useState<string | null>(null);
+    const [showAllDays, setShowAllDays] = useState(false);
 
     const filteredExpenses = filterCategory === "all"
         ? expenses
@@ -30,6 +38,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
     }, {} as Record<string, Expense[]>);
 
     const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
+    const visibleDates = showAllDays ? sortedDates : sortedDates.slice(0, DAYS_SHOWN);
 
     return (
         <div className="space-y-4">
@@ -42,9 +51,9 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                             : "bg-[var(--background)] text-muted hover:text-foreground"
                         }`}
                 >
-                    All
+                    {t("finances.expense.list.all")}
                 </button>
-                {(Object.keys(expenseCategoryLabels) as ExpenseCategory[]).map((cat) => (
+                {EXPENSE_CATEGORIES.map((cat) => (
                     <button
                         key={cat}
                         onClick={() => setFilterCategory(cat)}
@@ -53,7 +62,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                 : "bg-[var(--background)] text-muted hover:text-foreground"
                             }`}
                     >
-                        {expenseCategoryLabels[cat]}
+                        {categoryLabel(cat)}
                     </button>
                 ))}
             </div>
@@ -61,17 +70,18 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
             {/* Expenses grouped by date */}
             {sortedDates.length === 0 ? (
                 <div className="py-12 text-center text-muted">
-                    No expenses found
+                    {t("finances.expense.list.none")}
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {sortedDates.map((date) => (
+                    {visibleDates.map((date) => (
                         <div key={date}>
                             {/* Date header */}
                             <div className="flex items-center gap-2 mb-3">
                                 <Calendar className="w-4 h-4 text-muted" />
                                 <span className="text-sm font-medium text-muted">
-                                    {new Date(date).toLocaleDateString("en-US", {
+                                    {new Date(`${date}T00:00:00Z`).toLocaleDateString(dateLocale, {
+                                        timeZone: "UTC",
                                         weekday: "long",
                                         year: "numeric",
                                         month: "long",
@@ -104,13 +114,13 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                             </div>
                                             <div>
                                                 <p className="font-medium text-foreground">
-                                                    {expense.description || expenseCategoryLabels[expense.category]}
+                                                    {expense.description || categoryLabel(expense.category)}
                                                 </p>
                                                 <p className="text-xs text-muted">
-                                                    {expenseCategoryLabels[expense.category]}
+                                                    {categoryLabel(expense.category)}
                                                     {expense.is_recurring && (
                                                         <span className="ml-2 px-1.5 py-0.5 bg-[var(--pastel-blue)] text-blue-700 rounded text-[10px]">
-                                                            Recurring
+                                                            {t("finances.expense.list.recurring")}
                                                         </span>
                                                     )}
                                                 </p>
@@ -147,7 +157,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                                                 className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-[var(--background)] transition-colors"
                                                             >
                                                                 <Edit2 className="w-4 h-4" />
-                                                                Edit
+                                                                {t("finances.expense.list.edit")}
                                                             </button>
                                                             <button
                                                                 onClick={() => {
@@ -157,7 +167,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                                                 className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
-                                                                Delete
+                                                                {t("finances.expense.list.delete")}
                                                             </button>
                                                         </motion.div>
                                                     )}
@@ -169,6 +179,18 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                             </div>
                         </div>
                     ))}
+                    {sortedDates.length > DAYS_SHOWN && (
+                        <div className="flex justify-center">
+                            <button
+                                onClick={() => setShowAllDays((v) => !v)}
+                                className="text-[12px] text-muted hover:text-foreground font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--background)] transition-colors"
+                            >
+                                {showAllDays
+                                    ? t("finances.expense.list.showLess")
+                                    : t("finances.expense.list.showMore", { count: sortedDates.length })}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
