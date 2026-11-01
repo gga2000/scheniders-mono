@@ -51,7 +51,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
 
             <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+                    <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-300">
                         <Clock className="w-5 h-5" />
                     </div>
                     <div>
@@ -61,7 +61,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-2 mb-6 p-1 bg-gray-100/80 rounded-2xl">
+                <div className="flex gap-2 mb-6 p-1 bg-gray-100/80 dark:bg-white/10 rounded-2xl">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
@@ -69,7 +69,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                             className={cn(
                                 "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-medium transition-all",
                                 activeTab === tab.id
-                                    ? "bg-white text-foreground shadow-sm"
+                                    ? "bg-white dark:bg-neutral-900 text-foreground shadow-sm"
                                     : "text-muted hover:text-foreground"
                             )}
                         >
@@ -97,7 +97,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                             if (active && payload && payload.length) {
                                                 const d = payload[0].payload;
                                                 return (
-                                                    <div className="bg-white/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
+                                                    <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
                                                         <p className="font-bold">{d.name}</p>
                                                         <p>{d.value} orders</p>
                                                     </div>
@@ -119,13 +119,13 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                         </div>
 
                         {/* Peak insight */}
-                        <div className="mt-4 p-3 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-100 rounded-xl flex items-center gap-3">
-                            <div className="p-2 bg-indigo-100 rounded-lg">
-                                <Zap className="w-4 h-4 text-indigo-600" />
+                        <div className="mt-4 p-3 bg-gradient-to-r from-indigo-50 dark:from-indigo-500/10 to-violet-50 dark:to-violet-500/10 border border-indigo-100 dark:border-indigo-500/30 rounded-xl flex items-center gap-3">
+                            <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg">
+                                <Zap className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-indigo-900">{t("reports.time.peak", { hour: peakHour.hour })}</p>
-                                <p className="text-xs text-indigo-700">{t("reports.time.received", { n: peakHour.count })}</p>
+                                <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-300">{t("reports.time.peak", { hour: peakHour.hour })}</p>
+                                <p className="text-xs text-indigo-700 dark:text-indigo-300">{t("reports.time.received", { n: peakHour.count })}</p>
                             </div>
                         </div>
                     </div>
@@ -148,21 +148,21 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                     className={cn(
                                         "p-3 rounded-xl border-2 transition-all",
                                         isBest
-                                            ? "bg-emerald-50 border-emerald-200"
-                                            : "bg-gray-50 border-transparent hover:border-gray-200"
+                                            ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30"
+                                            : "bg-gray-50 dark:bg-white/5 border-transparent hover:border-gray-200 dark:hover:border-white/20"
                                     )}
                                 >
                                     <div className="flex items-center justify-between mb-2">
                                         <span className={cn(
                                             "font-bold",
-                                            isBest ? "text-emerald-700" : "text-foreground"
+                                            isBest ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"
                                         )}>
                                             {t(`reports.time.day.${d.day}`, d.day)}
                                             {isBest && <span className="ml-2 text-xs">{t("reports.time.best")}</span>}
                                         </span>
                                         <span className="font-bold text-foreground">{d.count}</span>
                                     </div>
-                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-gray-200 dark:bg-white/15 rounded-full overflow-hidden">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${width}%` }}
@@ -194,18 +194,18 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                     className={cn(
                                         "p-3 rounded-xl border-2 transition-all",
                                         isFast
-                                            ? "bg-cyan-50 border-cyan-200"
-                                            : "bg-gray-50 border-transparent"
+                                            ? "bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/30"
+                                            : "bg-gray-50 dark:bg-white/5 border-transparent"
                                     )}
                                 >
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className={cn("font-medium", isFast ? "text-cyan-700" : "text-foreground")}>
+                                        <span className={cn("font-medium", isFast ? "text-cyan-700 dark:text-cyan-300" : "text-foreground")}>
                                             {t(`reports.time.bucket.${d.bucket}`, d.bucket)}
                                             {isFast && <span className="ml-2 text-xs">{t("reports.time.fastest")}</span>}
                                         </span>
                                         <span className="font-bold text-foreground">{d.count}</span>
                                     </div>
-                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-gray-200 dark:bg-white/15 rounded-full overflow-hidden">
                                         <motion.div
                                             initial={{ width: 0 }}
                                             animate={{ width: `${width}%` }}

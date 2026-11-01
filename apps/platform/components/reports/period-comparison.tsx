@@ -107,7 +107,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+                        <div className="p-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl text-indigo-600 dark:text-indigo-300">
                             <TrendingUp className="w-5 h-5" />
                         </div>
                         <div>
@@ -150,10 +150,10 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                 className="pastel-card p-4"
                             >
                                 <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-50 text-indigo-600">
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
                                         <metric.icon className="w-4 h-4" aria-hidden />
                                     </div>
-                                    <span className="text-xs font-medium text-gray-600">{metric.label}</span>
+                                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{metric.label}</span>
                                 </div>
 
                                 {/* Current vs Previous */}
@@ -165,7 +165,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                         {showChip && change !== null && (
                                             <div className={cn(
                                                 "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold",
-                                                isGood ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                                                isGood ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
                                             )}>
                                                 {isUp ? <ArrowUpRight className="w-3 h-3" aria-hidden /> : <ArrowDownRight className="w-3 h-3" aria-hidden />}
                                                 {Math.abs(change).toFixed(1)}{metric.unit === "pp" ? ` ${t("reports.kpi.pp")}` : "%"}
@@ -184,7 +184,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
 
                 {/* Summary Banner: only when there is a previous period and the volume actually moved. */}
                 {!hasBaseline ? (
-                    <p className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                    <p className="mt-6 rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-4 text-sm text-gray-600 dark:text-gray-300">
                         {t("reports.period.noBaseline")}
                     </p>
                 ) : Math.abs(data.changes.orders) >= 0.05 ? (
@@ -194,20 +194,20 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                         transition={{ delay: 0.4 }}
                         className={cn(
                             "mt-6 p-4 rounded-2xl border",
-                            data.changes.orders > 0 ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"
+                            data.changes.orders > 0 ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30" : "bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30"
                         )}
                     >
                         <div className="flex items-center gap-3">
                             {data.changes.orders > 0 ? (
-                                <TrendingUp className="w-5 h-5 text-emerald-600" aria-hidden />
+                                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-300" aria-hidden />
                             ) : (
-                                <TrendingDown className="w-5 h-5 text-rose-600" aria-hidden />
+                                <TrendingDown className="w-5 h-5 text-rose-600 dark:text-rose-300" aria-hidden />
                             )}
                             <div>
-                                <p className={cn("font-semibold", data.changes.orders > 0 ? "text-emerald-900" : "text-rose-900")}>
+                                <p className={cn("font-semibold", data.changes.orders > 0 ? "text-emerald-900 dark:text-emerald-300" : "text-rose-900 dark:text-rose-300")}>
                                     {data.changes.orders > 0 ? t("reports.period.increased") : t("reports.period.decreased")}
                                 </p>
-                                <p className={cn("text-sm", data.changes.orders > 0 ? "text-emerald-700" : "text-rose-700")}>
+                                <p className={cn("text-sm", data.changes.orders > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300")}>
                                     {t(data.changes.orders > 0 ? "reports.period.moreDesc" : "reports.period.fewerDesc", { pct: Math.abs(data.changes.orders).toFixed(1), n: days })}
                                 </p>
                             </div>

@@ -36,11 +36,11 @@ const item = {
 
 const getStatusColor = (status: BatchMetrics['status']) => {
     switch (status) {
-        case 'completed': return 'text-emerald-600 bg-emerald-50';
-        case 'in_progress': return 'text-amber-600 bg-amber-50';
-        case 'pending': return 'text-blue-600 bg-blue-50';
-        case 'mixed': return 'text-violet-600 bg-violet-50';
-        default: return 'text-gray-600 bg-gray-50';
+        case 'completed': return 'text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10';
+        case 'in_progress': return 'text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10';
+        case 'pending': return 'text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10';
+        case 'mixed': return 'text-violet-600 dark:text-violet-300 bg-violet-50 dark:bg-violet-500/10';
+        default: return 'text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-white/5';
     }
 };
 
@@ -68,12 +68,12 @@ export function BatchAnalytics({
     // Error state
     if (error) {
         return (
-            <div className="pastel-card p-8 text-center bg-gradient-to-br from-rose-50 to-red-50">
-                <p className="text-rose-700 mb-2">{error}</p>
+            <div className="pastel-card p-8 text-center bg-gradient-to-br from-rose-50 dark:from-rose-500/10 to-red-50 dark:to-red-500/10">
+                <p className="text-rose-700 dark:text-rose-300 mb-2">{error}</p>
                 {onRefresh && (
                     <button
                         onClick={onRefresh}
-                        className="text-sm text-rose-600 hover:text-rose-800 underline"
+                        className="text-sm text-rose-600 dark:text-rose-300 hover:text-rose-800 underline"
                     >
                         {t("reports.common.retry")}
                     </button>
@@ -90,7 +90,7 @@ export function BatchAnalytics({
                 animate={{ opacity: 1, y: 0 }}
                 className="pastel-card p-8 text-center"
             >
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mx-auto mb-4">
                     <Boxes className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">{t("reports.batch.empty")}</h3>
@@ -115,7 +115,7 @@ export function BatchAnalytics({
                 {/* Header */}
                 <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-violet-100 rounded-xl text-violet-600">
+                        <div className="p-2 bg-violet-100 dark:bg-violet-500/20 rounded-xl text-violet-600 dark:text-violet-300">
                             <Boxes className="w-5 h-5" />
                         </div>
                         <div>
@@ -127,7 +127,7 @@ export function BatchAnalytics({
                     {onRefresh && (
                         <button
                             onClick={onRefresh}
-                            className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+                            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                             title={t("reports.common.refresh")}
                         >
                             <RefreshCw className="w-4 h-4 text-muted" />
@@ -147,35 +147,35 @@ export function BatchAnalytics({
                             icon: Boxes,
                             label: t("reports.batch.total"),
                             value: summary.totalBatches.toString(),
-                            color: "text-violet-600",
-                            bg: "bg-violet-100"
+                            color: "text-violet-600 dark:text-violet-300",
+                            bg: "bg-violet-100 dark:bg-violet-500/20"
                         },
                         {
                             icon: Package,
                             label: t("reports.batch.orders"),
                             value: summary.totalOrders.toString(),
-                            color: "text-blue-600",
-                            bg: "bg-blue-100"
+                            color: "text-blue-600 dark:text-blue-300",
+                            bg: "bg-blue-100 dark:bg-blue-500/20"
                         },
                         {
                             icon: Banknote,
                             label: t("reports.batch.value"),
                             value: formatIQD(summary.totalValue),
-                            color: "text-emerald-600",
-                            bg: "bg-emerald-100"
+                            color: "text-emerald-600 dark:text-emerald-300",
+                            bg: "bg-emerald-100 dark:bg-emerald-500/20"
                         },
                         {
                             icon: TrendingUp,
                             label: t("reports.batch.avgDelivery"),
                             value: `${summary.avgDeliveryRate.toFixed(0)}%`,
-                            color: "text-amber-600",
-                            bg: "bg-amber-100"
+                            color: "text-amber-600 dark:text-amber-300",
+                            bg: "bg-amber-100 dark:bg-amber-500/20"
                         },
                     ].map((stat, i) => (
                         <motion.div
                             key={i}
                             variants={item}
-                            className="text-center p-4 rounded-xl bg-gray-50 border border-gray-100"
+                            className="text-center p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10"
                         >
                             <div className={cn("w-10 h-10 rounded-lg mx-auto mb-2 flex items-center justify-center", stat.bg)}>
                                 <stat.icon className={cn("w-5 h-5", stat.color)} />
@@ -199,10 +199,10 @@ export function BatchAnalytics({
                                     key={city.city}
                                     className={cn(
                                         "px-3 py-1.5 rounded-full text-sm font-medium",
-                                        i === 0 ? "bg-violet-100 text-violet-700" :
-                                            i === 1 ? "bg-blue-100 text-blue-700" :
-                                                i === 2 ? "bg-emerald-100 text-emerald-700" :
-                                                    "bg-gray-100 text-gray-700"
+                                        i === 0 ? "bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300" :
+                                            i === 1 ? "bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300" :
+                                                i === 2 ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" :
+                                                    "bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200"
                                     )}
                                 >
                                     {city.city} ({city.count})
@@ -225,7 +225,7 @@ export function BatchAnalytics({
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.1 + index * 0.05 }}
-                                className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group"
+                                className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors group"
                             >
                                 {/* Batch info */}
                                 <div className="flex-1 min-w-0">
@@ -253,9 +253,9 @@ export function BatchAnalytics({
                                 <div className="text-right">
                                     <div className={cn(
                                         "text-lg font-bold",
-                                        batch.deliveryRate >= 80 ? "text-emerald-600" :
-                                            batch.deliveryRate >= 60 ? "text-amber-600" :
-                                                batch.deliveryRate > 0 ? "text-rose-600" :
+                                        batch.deliveryRate >= 80 ? "text-emerald-600 dark:text-emerald-300" :
+                                            batch.deliveryRate >= 60 ? "text-amber-600 dark:text-amber-300" :
+                                                batch.deliveryRate > 0 ? "text-rose-600 dark:text-rose-300" :
                                                     "text-gray-400"
                                     )}>
                                         {batch.deliveryRate > 0 ? `${batch.deliveryRate.toFixed(0)}%` : '-'}
@@ -275,13 +275,13 @@ export function BatchAnalytics({
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}
-                        className="mt-6 p-4 rounded-2xl bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200"
+                        className="mt-6 p-4 rounded-2xl bg-gradient-to-r from-violet-50 dark:from-violet-500/10 to-purple-50 dark:to-purple-500/10 border border-violet-200 dark:border-violet-500/30"
                     >
                         <div className="flex items-center gap-3">
-                            <Receipt className="w-5 h-5 text-violet-600" />
+                            <Receipt className="w-5 h-5 text-violet-600 dark:text-violet-300" />
                             <div>
-                                <p className="font-semibold text-violet-900">{t("reports.batch.insights")}</p>
-                                <p className="text-sm text-violet-700">
+                                <p className="font-semibold text-violet-900 dark:text-violet-300">{t("reports.batch.insights")}</p>
+                                <p className="text-sm text-violet-700 dark:text-violet-300">
                                     {t("reports.batch.avgLine", { orders: summary.avgOrdersPerBatch.toFixed(1), value: formatIQD(summary.avgBatchValue) })}
                                 </p>
                             </div>

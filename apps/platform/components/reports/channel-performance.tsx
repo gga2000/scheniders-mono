@@ -30,7 +30,7 @@ const cardMotion = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0
 function EmptyState({ title, description }: { title: string; description: string }) {
     return (
         <motion.div {...cardMotion} className="pastel-card p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/10 dark:bg-white/5 flex items-center justify-center mx-auto mb-4">
                 <Megaphone className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-bold text-foreground">{title}</h3>

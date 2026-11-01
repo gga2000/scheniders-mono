@@ -99,7 +99,7 @@ export function KPICards({ metrics }: KPICardsProps) {
                         className="pastel-card p-4"
                     >
                         <div className="flex items-center justify-between mb-3">
-                            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
                                 <Icon className="w-5 h-5" aria-hidden />
                             </div>
                             {showTrend && (
@@ -108,7 +108,7 @@ export function KPICards({ metrics }: KPICardsProps) {
                                         "flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full",
                                         // Colour says good/bad, the arrow says up/down: a falling rejection
                                         // rate is a falling arrow in the good colour.
-                                        isGood ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                                        isGood ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300"
                                     )}
                                 >
                                     {kpi.change > 0 ? <TrendingUp className="w-3 h-3" aria-hidden /> : <TrendingDown className="w-3 h-3" aria-hidden />}

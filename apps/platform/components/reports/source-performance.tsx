@@ -47,7 +47,7 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                 animate={{ opacity: 1, y: 0 }}
                 className="pastel-card p-8 text-center"
             >
-                <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center mx-auto mb-4">
                     <Trophy className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">{t("reports.source.empty")}</h3>
@@ -72,7 +72,7 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
             <div className="relative z-10">
                 <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
+                        <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-xl text-amber-600 dark:text-amber-300">
                             <Trophy className="w-5 h-5" />
                         </div>
                         <div>
@@ -130,9 +130,9 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: 0.3 + index * 0.05 }}
-                                className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                                className="flex items-center gap-4 p-3 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                             >
-                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">
+                                <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-white/15 flex items-center justify-center text-sm font-bold text-gray-600 dark:text-gray-300">
                                     {emp.rank}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -145,9 +145,9 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                                     </div>
                                     <div className={cn(
                                         "px-2 py-1 rounded-full text-xs font-bold",
-                                        emp.deliveryRate >= 80 ? "bg-emerald-100 text-emerald-700" :
-                                            emp.deliveryRate >= 60 ? "bg-amber-100 text-amber-700" :
-                                                "bg-rose-100 text-rose-700"
+                                        emp.deliveryRate >= 80 ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" :
+                                            emp.deliveryRate >= 60 ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300" :
+                                                "bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300"
                                     )}>
                                         {emp.deliveryRate.toFixed(0)}%
                                     </div>
