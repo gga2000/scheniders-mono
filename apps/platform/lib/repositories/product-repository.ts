@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { withRetry, NonRetryableError } from "./with-retry";
-import type { Product, ProductVariant, ProductPriceHistory } from "@/types/product";
+import type { Product, ProductSupplier, ProductVariant, ProductPriceHistory } from "@/types/product";
 import { diag } from "@/lib/diag";
 import type { Json } from "@scheniders/supabase";
 import { PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
@@ -96,21 +96,42 @@ export const productRepository = {
             // Cost is not a readable column: product_costs returns it, and only
             // what this member may see (everything for admins, supplies only
             // for other editors, nothing otherwise).
-            const [{ data, error }, { data: costs, error: costError }] = await Promise.all([
+            const [
+                { data, error },
+                { data: costs, error: costError },
+                { data: supplierRows, error: supplierError },
+            ] = await Promise.all([
                 supabase
                     .from("products")
                     .select(PRODUCT_WITH_VARIANTS_COLUMNS)
                     .eq("tenant_id", tenantId)
                     .order("created_at", { ascending: false }),
                 supabase.rpc("product_costs", { p_tenant_id: tenantId }),
+                // The Supplies tab and reorder drawer group by supplier; without
+                // these rows every supply lands in "no supplier" and cannot get a PO.
+                supabase
+                    .from("product_suppliers")
+                    .select(SUPPLIER_READ_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .order("is_primary", { ascending: false })
+                    .order("created_at", { ascending: true }),
             ]);
 
             diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);
             if (error) throw error;
             if (costError) throw costError;
+            if (supplierError) throw supplierError;
             const { productCost, variantCost } = costMaps(costs ?? []);
+            const suppliersByProduct = new Map<string, ProductSupplier[]>();
+            for (const row of (supplierRows ?? []) as ProductSupplier[]) {
+                if (!row.product_id) continue;
+                const list = suppliersByProduct.get(row.product_id);
+                if (list) list.push(row);
+                else suppliersByProduct.set(row.product_id, [row]);
+            }
             return (data ?? []).map((product) => ({
                 ...product,
+                suppliers: suppliersByProduct.get(product.id) ?? [],
                 cost: productCost.get(product.id)?.cost ?? null,
                 cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
                 variants: (product.variants ?? []).map((variant) => ({
