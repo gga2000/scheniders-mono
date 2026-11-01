@@ -132,8 +132,10 @@ function TimelineItem({
     const Icon = config.icon;
     const details = activity.details as Record<string, unknown>;
     const name = showUserInfo ? resolveName(activity) : null;
+    // Claude tool ids (e.g. sales_summary) read as words in the reader's language; unknown ids stay as sent.
+    const toolLabel = (tool: string) => (tool ? t(`team.timeline.tool.${tool}`, tool) : tool);
     const label = ACTION_CONFIG[activity.action]
-        ? t(config.labelKey, activity.action === "mcp.tool_call" ? { tool: String(details?.tool ?? "") } : undefined)
+        ? t(config.labelKey, activity.action === "mcp.tool_call" ? { tool: toolLabel(String(details?.tool ?? "")) } : undefined)
         : activity.action;
     const reason = typeof details?.reason === "string" && details.reason.trim() ? details.reason : null;
 

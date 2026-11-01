@@ -639,12 +639,12 @@ function MonthCalendar({
     const { t, language } = useLanguage();
     const iqd = t("common.iqd");
     const days = eachDayOfInterval({ start: startOfMonth(monthStart), end: endOfMonth(monthStart) });
-    // Monday = 0, ..., Sunday = 6
-    const firstDayOfWeek = (getDay(days[0]) + 6) % 7;
+    // The Iraqi week starts on Saturday: Saturday = 0, ..., Friday = 6.
+    const firstDayOfWeek = (getDay(days[0]) + 1) % 7;
 
-    // Monday-first headers, localized.
+    // Saturday-first headers, localized.
     const WEEK_DAYS = Array.from({ length: 7 }, (_, i) =>
-        format(new Date(2024, 0, 1 + i), "EEEEEE", { locale }), // 2024-01-01 is a Monday
+        format(new Date(2024, 0, 6 + i), "EEEEEE", { locale }), // 2024-01-06 is a Saturday
     );
 
     const monthPayments = days.flatMap((day) => {

@@ -32,29 +32,30 @@ interface PerformanceTrendsChartProps {
     className?: string;
 }
 
+/** One accent (new orders) on a neutral base: total in ink, the rest in warm greys. */
 const METRIC_CONFIG = {
     totalActions: {
         key: "totalActions",
         labelKey: "team.stats.totalActions",
-        color: "#F59E0B",
+        color: "var(--foreground)",
         gradientId: "totalActionsGradient",
     },
     ordersCreated: {
         key: "ordersCreated",
         labelKey: "team.stats.newOrders",
-        color: "#10B981",
+        color: "#059669",
         gradientId: "ordersCreatedGradient",
     },
     statusChanges: {
         key: "statusChanges",
         labelKey: "team.stats.statusChanges",
-        color: "#6366F1",
+        color: "#A39B8B",
         gradientId: "statusChangesGradient",
     },
     ordersPrinted: {
         key: "ordersPrinted",
         labelKey: "team.stats.printOps",
-        color: "#8B5CF6",
+        color: "#C9C1B1",
         gradientId: "ordersPrintedGradient",
     },
 };

@@ -28,6 +28,8 @@ describe("PayrollHistoryTable calendar", () => {
         fireEvent.click(screen.getByTitle("Calendar"));
         // Latest fixture payments are on 30 September 2026; August is shown beside it.
         expect(calendarMonths()).toEqual(["August 2026", "September 2026"]);
+        // Weeks start on Saturday (Iraq).
+        expect(screen.getAllByText("Sa").length).toBe(2);
         expect(screen.getByText("3 paid")).toBeTruthy();
         // The voided August record is not listed; two paid ones are.
         expect(screen.getByText("2 paid")).toBeTruthy();
