@@ -6,12 +6,12 @@ import { RejectionReasonMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { XOctagon, MapPin, AlertCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { foldTail, seriesColor } from "@/lib/analytics/chart-categories";
 
 interface RejectionBreakdownProps {
     data: RejectionReasonMetrics[];
 }
 
-const COLORS = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899'];
 
 export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
     const { t } = useLanguage();
@@ -38,12 +38,20 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
         );
     }
 
-    const pieData = data.map((d, i) => ({
-        name: d.reason,
+    // Top five reasons plus one neutral "Other": the donut and the list show the same rows.
+    const rows = foldTail(data, 5, tail => ({
+        reason: t("reports.common.other"),
+        count: tail.reduce((sum, r) => sum + r.count, 0),
+        percentage: tail.reduce((sum, r) => sum + r.percentage, 0),
+        topCity: undefined,
+    }));
+    const hasOther = rows.length !== data.length;
+    const pieData = rows.map((d, i) => ({
+        name: d.reason === "Unknown" ? t("reports.reason.unknown") : d.reason,
         value: d.count,
         percentage: d.percentage,
         topCity: d.topCity,
-        color: COLORS[i % COLORS.length],
+        color: seriesColor(i, rows.length, hasOther),
     }));
 
     return (
@@ -75,7 +83,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Donut Chart */}
-                    <div className="relative h-[220px]">
+                    <div className="relative h-[220px]" role="img" aria-label={`${t("reports.rejection.title")}: ${pieData.map(d => `${d.name} ${d.value}`).join(", ")}`}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -99,8 +107,8 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                                             return (
                                                 <div className="bg-white/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
                                                     <p className="font-bold mb-1">{d.name}</p>
-                                                    <p>Count: {d.value} ({d.percentage.toFixed(1)}%)</p>
-                                                    {d.topCity && <p>Top City: {d.topCity}</p>}
+                                                    <p>{t("reports.common.count")}: {d.value} ({d.percentage.toFixed(1)}%)</p>
+                                                    {d.topCity && <p>{t("reports.common.topCity")}: {d.topCity}</p>}
                                                 </div>
                                             );
                                         }
@@ -119,7 +127,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
 
                     {/* Legend & Details */}
                     <div className="space-y-2 max-h-[220px] overflow-y-auto scrollbar-hide">
-                        {data.slice(0, 6).map((item, index) => (
+                        {rows.map((item, index) => (
                             <motion.div
                                 key={item.reason}
                                 initial={{ opacity: 0, x: 10 }}
@@ -130,10 +138,10 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                                 <div className="flex items-center gap-3">
                                     <div
                                         className="w-3 h-3 rounded-full flex-shrink-0"
-                                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                        style={{ backgroundColor: seriesColor(index, rows.length, hasOther) }}
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">{item.reason}</p>
+                                        <p className="text-sm font-medium text-foreground truncate" title={item.reason}>{item.reason === "Unknown" ? t("reports.reason.unknown") : item.reason}</p>
                                         {item.topCity && (
                                             <p className="text-xs text-muted flex items-center gap-1 mt-0.5">
                                                 <MapPin className="w-3 h-3" />

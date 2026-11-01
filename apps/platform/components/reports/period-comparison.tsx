@@ -3,7 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
-import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, DollarSign, Clock } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, Banknote, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { DateRange } from "@/hooks/use-reports-metrics";
@@ -78,7 +78,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
         },
         {
             label: t("reports.period.revenue"),
-            icon: DollarSign,
+            icon: Banknote,
             current: data.current.totalRevenue,
             previous: data.previous.totalRevenue,
             change: data.changes.revenue,

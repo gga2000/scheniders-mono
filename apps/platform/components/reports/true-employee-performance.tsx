@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { ar as arLocale } from "date-fns/locale";
 
 interface TrueEmployeePerformanceProps {
     data: EmployeeActivityMetrics[];
@@ -51,7 +52,7 @@ export function TrueEmployeePerformance({
     error,
     onRefresh
 }: TrueEmployeePerformanceProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     // Loading state
     if (loading) {
         return (
@@ -122,7 +123,7 @@ export function TrueEmployeePerformance({
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-foreground">{t("reports.team.title")}</h3>
-                            <p className="text-sm text-muted">{data.length} active members</p>
+                            <p className="text-sm text-muted">{t("reports.team.activeMembers", { n: data.length })}</p>
                         </div>
                     </div>
 
@@ -130,7 +131,7 @@ export function TrueEmployeePerformance({
                         {/* Online indicator */}
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-xs font-medium text-emerald-700">{onlineCount} online</span>
+                            <span className="text-xs font-medium text-emerald-700">{t("reports.team.online", { n: onlineCount })}</span>
                         </div>
 
                         {onRefresh && (
@@ -255,7 +256,7 @@ export function TrueEmployeePerformance({
                 {data[0]?.mostRecentAction && (
                     <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-muted flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        Last activity: {formatDistanceToNow(data[0].mostRecentAction, { addSuffix: true })}
+                        {t("reports.team.lastActivity", { when: formatDistanceToNow(data[0].mostRecentAction, { addSuffix: true, locale: language === "ar" ? arLocale : undefined }) })}
                     </div>
                 )}
             </div>
