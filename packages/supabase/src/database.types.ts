@@ -222,6 +222,56 @@ export type Database = {
           },
         ]
       }
+      ad_spend_daily: {
+        Row: {
+          campaign_id: string
+          campaign_name: string
+          clicks: number
+          impressions: number
+          results: number
+          spend_date: string
+          spend_iqd: number
+          spend_usd: number
+          synced_at: string
+          tenant_id: string
+          usd_to_iqd: number
+        }
+        Insert: {
+          campaign_id: string
+          campaign_name: string
+          clicks?: number
+          impressions?: number
+          results?: number
+          spend_date: string
+          spend_iqd: number
+          spend_usd: number
+          synced_at?: string
+          tenant_id: string
+          usd_to_iqd: number
+        }
+        Update: {
+          campaign_id?: string
+          campaign_name?: string
+          clicks?: number
+          impressions?: number
+          results?: number
+          spend_date?: string
+          spend_iqd?: number
+          spend_usd?: number
+          synced_at?: string
+          tenant_id?: string
+          usd_to_iqd?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_spend_daily_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_activity_logs: {
         Row: {
           action: string
@@ -3226,6 +3276,50 @@ export type Database = {
             foreignKeyName: "message_templates_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_ads_connections: {
+        Row: {
+          access_token: string
+          ad_account_id: string
+          created_at: string
+          is_active: boolean
+          last_error: string | null
+          last_synced_at: string | null
+          tenant_id: string
+          updated_at: string
+          usd_to_iqd: number
+        }
+        Insert: {
+          access_token: string
+          ad_account_id: string
+          created_at?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_synced_at?: string | null
+          tenant_id: string
+          updated_at?: string
+          usd_to_iqd: number
+        }
+        Update: {
+          access_token?: string
+          ad_account_id?: string
+          created_at?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_synced_at?: string | null
+          tenant_id?: string
+          updated_at?: string
+          usd_to_iqd?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_ads_connections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
