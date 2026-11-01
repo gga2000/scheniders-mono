@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
-import { fetchAllPages } from "@/lib/analytics/dashboard-order-facts";
+import { FACTS_PAGE_SIZE } from "@/lib/analytics/dashboard-order-facts";
 import {
     REPORT_ORDER_COLUMNS,
     previousPeriod,
@@ -30,10 +30,13 @@ export function useReportOrders(range: ReportRange) {
         queryKey: ["reports", "orders", tenantId, from, to],
         queryFn: async () => {
             if (!tenantId) throw new Error("report orders requested without a tenant");
-            const rows = await fetchAllPages(async (start, end) => {
-                const { data, error } = await supabase
+            // One page with an exact count, then the remaining pages in parallel: a 60-day window
+            // is several thousand rows, and fetching the pages one after another made the page wait
+            // for the sum of every round trip.
+            const fetchPage = async (start: number, end: number, withCount: boolean) => {
+                const { data, error, count } = await supabase
                     .from("orders")
-                    .select(REPORT_ORDER_COLUMNS)
+                    .select(REPORT_ORDER_COLUMNS, withCount ? { count: "exact" } : undefined)
                     .eq("tenant_id", tenantId)
                     .eq("is_archived", false)
                     .is("deleted_at", null)
@@ -44,8 +47,15 @@ export function useReportOrders(range: ReportRange) {
                     .order("id", { ascending: true })
                     .range(start, end);
                 if (error) throw error;
-                return data ?? [];
-            });
+                return { rows: data ?? [], count };
+            };
+            const first = await fetchPage(0, FACTS_PAGE_SIZE - 1, true);
+            const rest: Promise<{ rows: unknown[] }>[] = [];
+            for (let start = FACTS_PAGE_SIZE; start < (first.count ?? 0); start += FACTS_PAGE_SIZE) {
+                rest.push(fetchPage(start, start + FACTS_PAGE_SIZE - 1, false));
+            }
+            const later = await Promise.all(rest);
+            const rows = [first.rows, ...later.map(r => r.rows)].flat();
             return reportOrderSchema.array().parse(rows);
         },
         // Changing the range keeps the last report on screen (dimmed by the page) instead of

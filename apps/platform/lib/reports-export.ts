@@ -32,6 +32,16 @@ export interface ReportsExportData {
     attentionFlags: AttentionFlagMetrics[];
 }
 
+/** A report date as DD/MM/YYYY on the Baghdad calendar, the same on every device. */
+export function formatReportDate(date: Date): string {
+    return new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Baghdad",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+    }).format(date);
+}
+
 // =============================================
 // ESCAPING
 // =============================================
@@ -58,8 +68,8 @@ export function csvCell(value: string): string {
 
 export function exportReportsToCSV(data: ReportsExportData): { success: boolean } {
     const rows: string[][] = [];
-    const dateFrom = data.dateRange.from.toLocaleDateString();
-    const dateTo = data.dateRange.to.toLocaleDateString();
+    const dateFrom = formatReportDate(data.dateRange.from);
+    const dateTo = formatReportDate(data.dateRange.to);
 
     // Header
     rows.push(["OPERATIONAL REPORTS"]);
@@ -145,8 +155,8 @@ export function exportReportsToCSV(data: ReportsExportData): { success: boolean 
 // =============================================
 
 export function exportReportsToExcel(data: ReportsExportData): { success: boolean } {
-    const dateFrom = data.dateRange.from.toLocaleDateString();
-    const dateTo = data.dateRange.to.toLocaleDateString();
+    const dateFrom = formatReportDate(data.dateRange.from);
+    const dateTo = formatReportDate(data.dateRange.to);
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
     xml += '<?mso-application progid="Excel.Sheet"?>\n';
@@ -249,8 +259,8 @@ export function exportReportsToExcel(data: ReportsExportData): { success: boolea
 // =============================================
 
 export function printOperationalReport(data: ReportsExportData) {
-    const dateFrom = data.dateRange.from.toLocaleDateString();
-    const dateTo = data.dateRange.to.toLocaleDateString();
+    const dateFrom = formatReportDate(data.dateRange.from);
+    const dateTo = formatReportDate(data.dateRange.to);
 
     const html = `
 <!DOCTYPE html>
@@ -313,7 +323,7 @@ export function printOperationalReport(data: ReportsExportData) {
         <h2>Key Performance Indicators</h2>
         <div class="kpi-grid">
             <div class="kpi-card">
-                <div class="value">${data.kpis.totalOrders.toLocaleString()}</div>
+                <div class="value">${data.kpis.totalOrders.toLocaleString("en-US")}</div>
                 <div class="label">Total Orders</div>
                 <div class="change ${data.kpis.totalOrdersChange >= 0 ? 'positive' : 'negative'}">${data.kpis.totalOrdersChange >= 0 ? '+' : ''}${data.kpis.totalOrdersChange.toFixed(1)}%</div>
             </div>
@@ -411,7 +421,7 @@ export function printOperationalReport(data: ReportsExportData) {
                 ${data.statusFlow.map(status => `
                     <tr>
                         <td><strong>${status.label}</strong></td>
-                        <td>${status.count.toLocaleString()}</td>
+                        <td>${status.count.toLocaleString("en-US")}</td>
                         <td>${status.percentage.toFixed(1)}%</td>
                     </tr>
                 `).join('')}

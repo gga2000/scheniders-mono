@@ -78,3 +78,10 @@ describe("Baghdad buckets", () => {
         expect(t.dailyDistribution.find(d => d.day === "Sun")?.count).toBe(1);
     });
 });
+
+describe("formatReportDate", () => {
+    it("uses the Baghdad calendar, not the device's", async () => {
+        const { formatReportDate } = await import("@/lib/reports-export");
+        expect(formatReportDate(new Date("2026-10-31T22:30:00Z"))).toBe("01/11/2026");
+    });
+});
