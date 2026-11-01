@@ -1,9 +1,9 @@
 "use client";
 
-import { X } from "lucide-react";
+import { Ban, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import type { ValueTier, RiskLevel } from "@/lib/customer-reliability";
+import { FIRST_DELIVERY_DOT, type ValueTier, type RiskLevel } from "@/lib/customer-reliability";
 import type { useCustomerDashboardStats } from "@/hooks/use-paginated-customers";
 
 type Stats = NonNullable<ReturnType<typeof useCustomerDashboardStats>["data"]>;
@@ -27,6 +27,8 @@ interface SegDef {
     id: SegmentId;
     /** Colour dot; the same colour the value/risk pills use. */
     dot?: string;
+    /** A glyph instead of a dot, where a dot would be too close to a neighbour's (Blocked next to High risk). */
+    glyph?: React.ComponentType<{ className?: string }>;
     state: SegmentState;
     count: (s: Stats) => number;
 }
@@ -38,9 +40,9 @@ const SEGMENTS: SegDef[] = [
     { id: "dormantVips", dot: "bg-indigo-400", state: { value: "vip", risk: "all", lane: "vipsQuiet", sort: { by: "last_order_date", order: "asc" } }, count: (s) => s.vips_quiet_count },
     { id: "highRisk", dot: "bg-rose-500", state: { value: "all", risk: "high", lane: null }, count: (s) => s.risk_high },
     { id: "caution", dot: "bg-amber-500", state: { value: "all", risk: "caution", lane: null }, count: (s) => s.risk_caution },
-    { id: "blocked", dot: "bg-rose-700", state: { value: "all", risk: "blocked", lane: null }, count: (s) => s.risk_blocked },
+    { id: "blocked", glyph: Ban, state: { value: "all", risk: "blocked", lane: null }, count: (s) => s.risk_blocked },
     { id: "newThisMonth", dot: "bg-blue-500", state: { value: "all", risk: "all", lane: "new" }, count: (s) => s.new_this_month },
-    { id: "firstDelivery", dot: "bg-teal-500", state: { value: "all", risk: "all", lane: "firstDelivery" }, count: (s) => s.first_delivery_pending_count },
+    { id: "firstDelivery", dot: FIRST_DELIVERY_DOT, state: { value: "all", risk: "all", lane: "firstDelivery" }, count: (s) => s.first_delivery_pending_count },
 ];
 
 /** Which saved view (if any) the current filter state corresponds to. */
@@ -113,7 +115,9 @@ export function CustomerSegmentTabs({
                                 : "bg-(--card-bg) text-foreground border-(--card-border) hover:bg-muted/30",
                         )}
                     >
-                        {seg.dot && <span className={cn("w-2 h-2 rounded-full shrink-0", seg.dot)} aria-hidden />}
+                        {seg.glyph ? (
+                            <seg.glyph className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-background" : "text-rose-700 dark:text-rose-400")} aria-hidden />
+                        ) : seg.dot && <span className={cn("w-2 h-2 rounded-full shrink-0", seg.dot)} aria-hidden />}
                         {label(seg.id)}
                         <span className={cn("text-xs tabular-nums font-medium", isActive ? "text-background/70" : "text-muted-foreground")}>
                             {count.toLocaleString("en-US")}

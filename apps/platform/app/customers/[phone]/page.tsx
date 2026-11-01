@@ -10,16 +10,16 @@ import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
-import { mergeOrderItems } from "@/lib/merge-order-items";
+import { orderUnitCount } from "@/lib/merge-order-items";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { storedPhoneVariants } from "@/lib/order-server-search";
 import type { Database } from "@scheniders/supabase/database.types";
-import { formatIQD, getStatusLabel } from "@/lib/utils";
+import { formatIQD } from "@/lib/utils";
 import { orderReceipt } from "@/lib/order-money";
 import { orderStatusTone } from "@/lib/order-status-labels";
-import { isBlockedCustomer } from "@/lib/customer-reliability";
+import { customerOrderStatusLabel, isBlockedCustomer, showsTrustScore } from "@/lib/customer-reliability";
 import { formatBaghdadDate, formatPhoneDisplay } from "@/lib/customer-format";
 import { toast } from "@/hooks/use-toast";
 import { useOrderCrud } from "@/hooks/use-order-crud";
@@ -146,7 +146,7 @@ function OrderStatusBadge({ status, isReturn }: { status: string; isReturn: bool
     const { language } = useLanguage();
     return (
         <span className={`${orderStatusTone(status)} px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap`}>
-            {getStatusLabel(status, isReturn, language)}
+            {customerOrderStatusLabel(status, isReturn, language)}
         </span>
     );
 }
@@ -209,11 +209,14 @@ function CustomerProfileContent({ phone }: { phone: string }) {
 
     const displayName = profile.name ?? formatPhoneDisplay(profile.phone);
     // One rule for "blocked" on the hero, the score breakdown and the new-order action.
-    const blocked = isBlockedCustomer({
+    const block = {
         is_blacklisted: profile.isBlacklisted,
         risk_level: profile.reliability?.risk_level ?? null,
         trust_tier: profile.trustTier,
-    });
+    };
+    const blocked = isBlockedCustomer(block);
+    // The hero's rule for showing a score; the Trust history chart follows it, so an unrated customer shows no monthly scores either.
+    const scored = showsTrustScore(block);
 
     return (
         <div className="customers-page customer-profile relative min-h-screen px-6 md:px-8 pt-4 pb-10 space-y-4">
@@ -310,8 +313,8 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                             </tr>
                         ) : (
                             profile.orders.slice(0, HISTORY_ROWS).map((order) => {
-                                const parsed = Array.isArray(order.items) ? order.items : null;
-                                const lineCount = parsed ? mergeOrderItems(parsed).length : null;
+                                // Units, the same count the drawer prints for this order.
+                                const unitCount = orderUnitCount(Array.isArray(order.items) ? order.items : null);
                                 const href = `/orders?search=${encodeURIComponent(order.order_id)}`;
                                 return (
                                     // The whole row opens the order; the order number is a real link for a new tab.
@@ -334,7 +337,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                             {formatBaghdadDate(order.created_at, language)}
                                         </td>
                                         <td className="py-2.5 px-3 text-muted-foreground text-[13px]">
-                                            {lineCount === null ? "—" : `${lineCount} ${t(lineCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}
+                                            {unitCount === null ? "—" : `${unitCount} ${t(unitCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}
                                         </td>
                                         {/* The same total as the drawer's receipt: items less discount, plus delivery. */}
                                         <td className="py-2.5 px-3 font-mono font-semibold text-sm tabular-nums text-foreground text-right whitespace-nowrap">
@@ -354,7 +357,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             {/* Trust trend, buying patterns, notes */}
             <div className="grid grid-cols-12 gap-4">
                 <div className="col-span-12 xl:col-span-7">
-                    <TrustHistoryCard data={historyData || []} phone={profile.phone} score={profile.trustScore} blocked={blocked} />
+                    <TrustHistoryCard data={historyData || []} phone={profile.phone} score={profile.trustScore} blocked={blocked} scored={scored} />
                 </div>
                 <div className="col-span-12 xl:col-span-5">
                     <BehavioralPatternsCard

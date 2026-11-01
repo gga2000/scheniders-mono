@@ -1242,8 +1242,40 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
 }
 
 .dark .customer-modal-surface textarea:focus {
-  border-color: rgba(0, 255, 255, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.1) !important;
+  border-color: color-mix(in oklab, var(--foreground) 45%, transparent) !important;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--foreground) 12%, transparent) !important;
+}
+
+/* The textarea draws its own focus border and halo above, so the global outline
+   would be a second ring on top of it. */
+.customer-modal-surface textarea:focus-visible {
+  outline: none;
+}
+
+/* Dark customer dialogs: the global pastel-yellow outline reads as neon on these
+   near-black surfaces, so they get a lower-chroma ring of the same weight. Scoped
+   to the customers dialogs; every other focus ring in the app is unchanged. */
+.dark :is(.customer-modal-surface, .customer-confirm-dialog) :focus-visible {
+  outline-color: color-mix(in oklab, var(--foreground) 60%, transparent);
+}
+
+/* In dark, two attribute rules further down this file ("Pastel action buttons" and
+   "Current status ring", both for any button inside a [role=dialog]) also match the
+   shared dialog's close button through its focus-ring classes, so the X wears a
+   permanent neon-yellow tile, icon and ring. In the customers' confirm the X is a
+   plain muted icon with a quiet ring on keyboard focus. Other dialogs (the Orders
+   page's included) are unchanged. */
+.dark [role="dialog"].customer-confirm-dialog button[class*="ring-"][class*="foreground"] {
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--foreground-muted) !important;
+}
+.dark [role="dialog"].customer-confirm-dialog button[class*="ring-"][class*="foreground"]:hover {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+}
+.dark [role="dialog"].customer-confirm-dialog button[class*="ring-"][class*="foreground"]:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--foreground) 45%, transparent) !important;
 }
 
 /* Modal primary action buttons → neon yellow */

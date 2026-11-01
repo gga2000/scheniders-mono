@@ -8,6 +8,7 @@ import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
     recencyStatus,
     firstDeliveryPending,
+    FIRST_DELIVERY_DOT,
     effectiveSuccessRate,
     statusFlags,
     customerAccent,
@@ -156,12 +157,16 @@ export function CustomerListTable({
                                 {/* Risk, with the order outcomes behind it */}
                                 <td className={td}>
                                     <RiskChip risk={c.risk_level} showClean />
-                                    {/* Wraps onto a second line rather than clipping a flag. */}
+                                    {/* Wraps onto a second line rather than clipping a flag. Each flag after the
+                                        first carries its "·" in a 0.75rem lead; the row is pulled back by that lead
+                                        and clipped, so a flag that starts a line never shows a dangling separator. */}
                                     {flags.length > 0 && (
-                                        <div className="mt-0.5 flex flex-wrap gap-x-1 text-xs text-muted-foreground leading-snug">
-                                            {flags.map((f, fi) => (
-                                                <span key={f} className="whitespace-nowrap">{fi > 0 && <span aria-hidden>· </span>}{f}</span>
-                                            ))}
+                                        <div className="mt-0.5 overflow-hidden">
+                                            <ul className="-ms-3 flex flex-wrap text-xs text-muted-foreground leading-snug">
+                                                {flags.map((f) => (
+                                                    <li key={f} className="whitespace-nowrap before:content-['·'] before:inline-block before:w-3 before:text-center">{f}</li>
+                                                ))}
+                                            </ul>
                                         </div>
                                     )}
                                 </td>
@@ -181,7 +186,7 @@ export function CustomerListTable({
                                 <td className={td}>
                                     {/* The dot is recency only (active, cooling, dormant); risk has its own column. */}
                                     <span className="flex items-center gap-2 text-[13px] text-muted-foreground min-w-0" title={pending ? t("customers.card.firstDeliveryPending") : recency.label}>
-                                        <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} aria-hidden />
+                                        <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? FIRST_DELIVERY_DOT : recency.dot)} aria-hidden />
                                         <span dir="auto" className="truncate">
                                             {pending ? t("customers.card.firstDelivery") : <><span className="sr-only">{recency.stateLabel}: </span>{recency.ago}</>}
                                         </span>

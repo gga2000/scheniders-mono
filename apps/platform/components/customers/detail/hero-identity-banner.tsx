@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MessageCircle, Phone, Plus, ShieldAlert, ShieldCheck, Star } from "lucide-react";
+import { Ban, MessageCircle, Phone, Plus, ShieldAlert, ShieldCheck, Star } from "lucide-react";
 import { formatBaghdadMonthYear, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
@@ -114,8 +114,10 @@ export function HeroIdentityBanner({
 
                     {totalOrders >= 10 && (
                         <span
-                            className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#c7f8ef] text-[#1f4e48] dark:bg-emerald-500/20 dark:text-emerald-200 text-[11px] font-bold px-1.5 rounded-full border-2 border-(--card-bg) leading-tight whitespace-nowrap"
+                            title={t("customers.profile.verifiedHint")}
+                            className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-teal-100 text-teal-900 dark:bg-teal-500/20 dark:text-teal-200 text-[11px] font-bold px-1.5 rounded-full border-2 border-(--card-bg) leading-tight whitespace-nowrap cursor-help"
                         >
+                            <span className="sr-only">{t("customers.profile.verifiedHint")}: </span>
                             {t("customers.profile.verified")}
                         </span>
                     )}
@@ -205,44 +207,54 @@ export function HeroIdentityBanner({
                 </div>
             </div>
 
-            {/* RIGHT — trust score (clickable → opens score breakdown) */}
-            <button
-                onClick={() => {
-                    store.setScoreBreakdownPhone(phone);
-                    store.setScoreBreakdownModalOpen(true);
-                }}
-                className="flex flex-col items-end shrink-0 gap-1 cursor-pointer group"
-            >
-                <span className="text-muted-foreground font-semibold text-xs">
-                    {t("customers.profile.trustScore")}
-                </span>
+            {/* RIGHT — trust score (clickable → opens score breakdown). A blocked customer has
+                no score: the value/risk banner below says "Do not ship" once, so the hero adds
+                nothing; without that banner (no orders yet) the hero carries the one stamp, beside the Blocked chip. */}
+            {blocked ? (
+                showAxes && (
+                    <p className="inline-flex items-center gap-2 shrink-0 rounded-xl px-3.5 py-2 text-sm font-bold bg-rose-700 text-white">
+                        <Ban className="w-4 h-4 shrink-0" />
+                        {t(codRiskKey("blocked"))}
+                    </p>
+                )
+            ) : (
+                <button
+                    onClick={() => {
+                        store.setScoreBreakdownPhone(phone);
+                        store.setScoreBreakdownModalOpen(true);
+                    }}
+                    className="flex flex-col items-end shrink-0 gap-1 cursor-pointer group"
+                >
+                    <span className="text-muted-foreground font-semibold text-xs">
+                        {t("customers.profile.trustScore")}
+                    </span>
 
-                <div className="flex items-end gap-1.5">
-                    {shownScore === null ? (
-                        <span className="text-2xl font-semibold text-muted-foreground leading-none">—</span>
-                    ) : (
-                        <>
-                            <span className="text-4xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
-                                {shownScore.toLocaleString("en-US")}
-                            </span>
-                            <span className="text-lg text-muted-foreground mb-0.5">/100</span>
-                        </>
-                    )}
-                </div>
+                    <div className="flex items-end gap-1.5">
+                        {shownScore === null ? (
+                            <span className="text-2xl font-semibold text-muted-foreground leading-none">—</span>
+                        ) : (
+                            <>
+                                <span className="text-4xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
+                                    {shownScore.toLocaleString("en-US")}
+                                </span>
+                                <span className="text-lg text-muted-foreground mb-0.5">/100</span>
+                            </>
+                        )}
+                    </div>
 
-                {/* Shield icon */}
-                {/* Green for a strong score; amber reads as a warning. */}
-                <p className={cn(
-                    "inline-flex items-center gap-1.5 text-xs font-medium",
-                    unsafe ? "text-rose-600 dark:text-rose-400"
-                        : shownScore !== null && shownScore >= 80 ? "text-emerald-700 dark:text-emerald-300"
-                        : "text-muted-foreground",
-                )}>
-                    <ShieldIcon className="w-4 h-4 shrink-0" />
-                    {/* Blocked reads the same instruction as the band, never a tier's "Handle with care". */}
-                    {blocked ? t(codRiskKey("blocked")) : t(TRUST_SCORE_SUBTITLE_KEY[tier])}
-                </p>
-            </button>
+                    {/* Shield icon */}
+                    {/* Green for a strong score; amber reads as a warning. */}
+                    <p className={cn(
+                        "inline-flex items-center gap-1.5 text-xs font-medium",
+                        unsafe ? "text-rose-600 dark:text-rose-400"
+                            : shownScore !== null && shownScore >= 80 ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-muted-foreground",
+                    )}>
+                        <ShieldIcon className="w-4 h-4 shrink-0" />
+                        {t(TRUST_SCORE_SUBTITLE_KEY[tier])}
+                    </p>
+                </button>
+            )}
         </motion.div>
     );
 }
