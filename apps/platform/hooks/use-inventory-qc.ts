@@ -310,14 +310,19 @@ export function useInventoryQC() {
             }>;
         }) => {
             for (const snap of snapshots) {
-                const { error } = await supabase
+                // Only an item still in the state the bulk action put it in: a double
+                // click on Undo finds none and must not add the stock back twice.
+                const { data: reverted, error } = await supabase
                     .from("qc_quarantine")
                     .update({
                         status: snap.previousStatus,
                         resolved_at: null,
                     })
-                    .eq("id", snap.id);
+                    .eq("id", snap.id)
+                    .eq("status", snap.appliedResolution)
+                    .select("id");
                 if (error) throw error;
+                if (!reverted || reverted.length === 0) continue;
 
                 const restoresPhysical =
                     snap.appliedResolution === "written_off" ||
