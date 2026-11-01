@@ -13,18 +13,18 @@ import {
 import { useLanguage } from "@/hooks/use-language";
 
 interface ImageEditorModalProps {
-    isOpen: boolean;
     imageUrl: string;
-    onSave: (editedDataUrl: string) => void;
+    /** Receives the edited image to store; rejects if it cannot be saved. */
+    onSave: (edited: File) => Promise<void>;
     onClose: () => void;
-    productId?: string;
 }
 
-export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEditorModalProps) {
+export function ImageEditorModal({ imageUrl, onSave, onClose }: ImageEditorModalProps) {
     const { t } = useLanguage();
-    if (!isOpen) return null;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const previewContainerRef = useRef<HTMLDivElement>(null);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     // Source image (original for reset, current for after crops)
     const [originalImage, setOriginalImage] = useState<HTMLImageElement | null>(null);
@@ -281,7 +281,7 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
     };
 
     // ---- Apply (save) ----
-    const handleApply = () => {
+    const handleApply = async () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -306,8 +306,18 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
         ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
         ctx.drawImage(img, -img.width / 2, -img.height / 2, img.width, img.height);
 
-        const dataUrl = outCanvas.toDataURL("image/jpeg", 0.9);
-        onSave(dataUrl);
+        setSaving(true);
+        setSaveError(null);
+        try {
+            const blob = await new Promise<Blob | null>((resolve) => outCanvas.toBlob(resolve, "image/jpeg", 0.9));
+            if (!blob) throw new Error(t("products.image.uploadFailed"));
+            await onSave(new File([blob], "edited.jpg", { type: "image/jpeg" }));
+        } catch (err) {
+            // A cross-origin image taints the canvas and the upload can fail:
+            // the merchant sees the reason and keeps their edits.
+            setSaveError(err instanceof Error ? err.message : t("products.image.uploadFailed"));
+            setSaving(false);
+        }
     };
 
     // ---- Toolbar buttons config ----
@@ -437,6 +447,9 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
                 )}
 
                 {/* Footer */}
+                {saveError && (
+                    <p role="alert" className="px-5 pb-3 text-sm text-destructive">{saveError}</p>
+                )}
                 <div className="flex items-center justify-between p-5 border-t border-[var(--card-border)]">
                     <button
                         onClick={handleReset}
@@ -454,7 +467,8 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
                         </button>
                         <button
                             onClick={handleApply}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all"
+                            disabled={saving}
+                            className="disabled:opacity-60 flex items-center gap-2 px-5 py-2.5 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all"
                         >
                             <Check className="w-4 h-4" />
                             {t("products.img.apply")}

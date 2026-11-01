@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, Image as ImageIcon, Link, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { uploadProductImage } from "@/lib/upload-product-image";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -47,33 +47,16 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
         setError(null);
 
         try {
-            const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-            const fileName = `${productId || "temp"}-${Date.now()}.${fileExt}`;
-            const filePath = `products/${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from("product-images")
-                .upload(filePath, file, {
-                    cacheControl: "3600",
-                    upsert: true,
-                });
-
-            if (uploadError) {
-                // If bucket doesn't exist, show helpful error
-                if (uploadError.message.includes("not found")) {
-                    throw new Error(t("products.image.bucketMissing"));
-                }
-                throw uploadError;
-            }
-
-            const { data: urlData } = supabase.storage
-                .from("product-images")
-                .getPublicUrl(filePath);
-
-            onChange(urlData.publicUrl);
+            onChange(await uploadProductImage(file, productId));
         } catch (err) {
             console.error("Upload error:", err);
-            setError(err instanceof Error ? err.message : t("products.image.uploadFailed"));
+            setError(
+                err instanceof Error && err.message.includes("not found")
+                    ? t("products.image.bucketMissing")
+                    : err instanceof Error
+                      ? err.message
+                      : t("products.image.uploadFailed"),
+            );
         } finally {
             setUploading(false);
         }
