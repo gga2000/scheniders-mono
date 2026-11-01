@@ -21,6 +21,8 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
+import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
+import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import type { PoStatusInfo } from "./po-status-chip";
 
 interface SupplySupplierRaw {
@@ -54,33 +56,6 @@ interface SupplierGroup {
 }
 
 const NO_SUPPLIER_KEY = "__no_supplier__";
-
-function urgencyFor(days: number | null, leadTime: number): ReorderItem["urgency"] {
-    if (days === null) return "ok";
-    if (days <= leadTime) return "critical";
-    if (days <= leadTime * 2) return "warning";
-    return "ok";
-}
-
-function calcSuggestedQty({
-    leadTimeDays,
-    dailyRate,
-    reorderPoint,
-    stock,
-    moq,
-}: {
-    leadTimeDays: number;
-    dailyRate: number;
-    reorderPoint: number;
-    stock: number;
-    moq: number;
-}): number {
-    // Cover lead time × 1.3 safety factor, land at reorder point after receipt.
-    const raw = leadTimeDays * dailyRate * 1.3 + (reorderPoint - stock);
-    const needed = Math.max(moq, Math.ceil(raw));
-    if (moq <= 1) return needed;
-    return Math.ceil(needed / moq) * moq;
-}
 
 interface ReorderDrawerProps {
     open: boolean;
@@ -252,82 +227,30 @@ export function ReorderDrawer({
         });
     }, []);
 
-    const generatePONumber = useCallback(async (): Promise<string> => {
-        if (!tenantId) throw new Error("No tenant");
-        const year = new Date().getFullYear();
-        const { data } = await supabase
-            .from("purchase_orders")
-            .select("po_number")
-            .eq("tenant_id", tenantId)
-            .like("po_number", `PO-${year}-%`)
-            .order("po_number", { ascending: false })
-            .limit(1);
-        let seq = 1;
-        if (data && data.length > 0) {
-            const last = data[0].po_number as string;
-            const parts = last.split("-");
-            seq = (parseInt(parts[2] ?? "0", 10) || 0) + 1;
-        }
-        return `PO-${year}-${String(seq).padStart(3, "0")}`;
-    }, [tenantId]);
-
     const generatePO = useMutation({
         mutationFn: async (group: SupplierGroup) => {
             if (!tenantId) throw new Error("No tenant");
-            const items = group.items.map((item) => ({
-                product_id: item.supply.id,
-                product_name: item.supply.name,
-                sku: item.supply.sku ?? null,
-                quantity_ordered: editedQty[item.supply.id] ?? item.suggestedQty,
-                unit_cost: item.unitCost,
+            const lines = group.items.map((item) => ({
+                productId: item.supply.id,
+                quantityOrdered: editedQty[item.supply.id] ?? item.suggestedQty,
+                unitCost: item.unitCost,
             }));
-            const totalCost = items.reduce(
-                (sum, i) => sum + i.quantity_ordered * i.unit_cost,
-                0
-            );
             const maxLeadTime = Math.max(...group.items.map((i) => i.leadTimeDays));
 
-            // The store has one number per PO (unique index): a second buyer who
-            // read the same highest number gets a conflict and takes the next one.
-            let poNumber = await generatePONumber();
-            let po: { id: string } | null = null;
-            for (let attempt = 0; attempt < 3 && !po; attempt++) {
-                const { data, error: poError } = await supabase
-                    .from("purchase_orders")
-                    .insert({
-                        tenant_id: tenantId,
-                        po_number: poNumber,
-                        supplier_name: group.supplierName,
-                        status: "draft",
-                        total_cost: totalCost,
-                        notes: t("supplies.ro.poNote", { count: items.length }),
-                        expected_date: new Date(
-                            Date.now() + maxLeadTime * 86_400_000
-                        )
-                            .toISOString()
-                            .split("T")[0],
-                    })
-                    .select("id")
-                    .single();
-                if (!poError) {
-                    po = data;
-                } else if (poError.code === "23505") {
-                    poNumber = await generatePONumber();
-                } else {
-                    throw poError;
-                }
-            }
-            if (!po) throw new Error("Could not get a free PO number, try again");
-
-            const { error: itemsError } = await supabase
-                .from("purchase_order_items")
-                .insert(items.map((i) => ({ po_id: po.id, ...i })));
-            if (itemsError) {
-                // No header without lines: drop the empty draft so it is not left priced and empty.
-                await supabase.from("purchase_orders").delete().eq("id", po.id);
-                throw itemsError;
-            }
-            return { poNumber, itemCount: items.length };
+            // One database call: number, header, lines and total in a single
+            // transaction, so a failure never leaves an empty or half-priced draft.
+            const created = await createPurchaseOrder({
+                tenantId,
+                supplierName: group.supplierName,
+                supplierContact: group.supplierContact || null,
+                supplierEmail: group.supplierEmail || null,
+                notes: t("supplies.ro.poNote", { count: lines.length }),
+                expectedDate: new Date(Date.now() + maxLeadTime * 86_400_000)
+                    .toISOString()
+                    .split("T")[0],
+                lines,
+            });
+            return { poNumber: created.poNumber, itemCount: lines.length };
         },
         onSuccess: (result) => {
             toast.success(t("supplies.ro.poCreated", { number: result.poNumber, count: result.itemCount }));
@@ -490,7 +413,7 @@ export function ReorderDrawer({
                                                                         <span>·</span>
                                                                         <span className="inline-flex items-center gap-1 text-rose-600 font-medium">
                                                                             <AlertTriangle className="w-3 h-3" />
-                                                                            critical
+                                                                            {t("supplies.ro.critical")}
                                                                         </span>
                                                                     </>
                                                                 )}
@@ -657,14 +580,14 @@ function ReorderItemRow({
                             label={t("supplies.ro.velocity")}
                             value={
                                 item.dailyRate > 0
-                                    ? `${item.dailyRate.toFixed(1)}/d`
+                                    ? t("supplies.ro.perDay", { n: item.dailyRate.toFixed(1) })
                                     : "—"
                             }
                             tone="muted"
                         />
                         <Stat
                             label={t("supplies.ro.leadTime")}
-                            value={`${item.leadTimeDays}d`}
+                            value={t("supplies.ro.leadDaysShort", { n: item.leadTimeDays })}
                             tone="muted"
                         />
                     </div>

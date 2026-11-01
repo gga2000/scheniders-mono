@@ -157,7 +157,8 @@ export function aggregateSuppliers({
                 agg.lastOrderAt = p.createdAt;
             }
             if (OPEN_STATUSES.has(p.status)) openCount += 1;
-            if (p.createdAt) {
+            // Spend is what was actually ordered: not a draft, not a cancelled PO.
+            if (p.createdAt && p.status !== "draft" && p.status !== "cancelled") {
                 const year = new Date(p.createdAt).getFullYear();
                 if (year === currentYear) ytdSpend += p.totalCost ?? 0;
             }

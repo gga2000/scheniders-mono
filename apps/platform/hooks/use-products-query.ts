@@ -79,7 +79,7 @@ export function useAddProductMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async (productData: any) => {
+        mutationFn: async (productData: Parameters<typeof productRepository.create>[0]) => {
             return productRepository.create(productData, tenantId);
         },
         onSuccess: () => {
@@ -195,10 +195,9 @@ export function useDeleteProductMutation() {
 
 export function useBulkUpdatePricesMutation() {
     const queryClient = useQueryClient();
-    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ changes, price }: { changes: BulkPriceChange[]; price: number }) => {
-            await productRepository.bulkChangePrice(changes, price, tenantId);
+            await productRepository.bulkChangePrice(changes, price);
             return { ids: changes.map((c) => c.id), price };
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
@@ -207,10 +206,9 @@ export function useBulkUpdatePricesMutation() {
 
 export function useRestorePricesMutation() {
     const queryClient = useQueryClient();
-    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: (previous: Parameters<typeof productRepository.restorePrices>[0]) =>
-            productRepository.restorePrices(previous, tenantId),
+            productRepository.restorePrices(previous),
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
     });
 }
@@ -397,7 +395,7 @@ export function useAddVariantMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ productId, data }: { productId: string; data: any }) => {
+        mutationFn: async ({ productId, data }: { productId: string; data: Partial<ProductVariant> }) => {
             return productRepository.addVariant(productId, data, tenantId);
         },
         onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })

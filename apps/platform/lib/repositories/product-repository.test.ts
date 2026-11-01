@@ -23,9 +23,15 @@ let updatedRows: { id: string; updated_at?: string }[] = [{ id: "prod-1" }];
 // The row as a plain SELECT sees it (for telling a lost race from a denial).
 let currentRow: { updated_at: string } | null = null;
 const updateFilters: [string, unknown][] = [];
+const rpcSpy = vi.fn<(fn: string, args: Record<string, unknown>) => void>();
+let rpcResult: { data: unknown; error: { code: string; message: string } | null } = { data: 2, error: null };
 
 vi.mock("@/lib/supabase", () => ({
     supabase: {
+        rpc: async (fn: string, args: Record<string, unknown>) => {
+            rpcSpy(fn, args);
+            return rpcResult;
+        },
         from: () => ({
             insert: (rows: Record<string, unknown>[]) => {
                 insertSpy(rows);
@@ -64,6 +70,8 @@ beforeEach(() => {
     updatedRows = [{ id: "prod-1" }];
     currentRow = null;
     updateFilters.length = 0;
+    rpcSpy.mockClear();
+    rpcResult = { data: 2, error: null };
 });
 
 describe("productRepository.update edit-conflict guard", () => {
@@ -154,30 +162,46 @@ describe("productRepository SKU persistence", () => {
     });
 });
 
-describe("productRepository.restorePrices", () => {
-    it("puts each product back to its own price and 'was' price, and logs the reversal", async () => {
-        await productRepository.restorePrices(
-            [
-                { id: "p1", price: 20000, compare_at_price: 25000, currentPrice: 30000 },
-                { id: "p2", price: 15000, compare_at_price: null, currentPrice: 30000 },
-            ],
-            "tenant-1",
-        );
-
-        expect(updateSpy).toHaveBeenCalledTimes(2);
-        expect(updateSpy).toHaveBeenCalledWith({ price: 20000, compare_at_price: 25000 });
-        expect(updateSpy).toHaveBeenCalledWith({ price: 15000, compare_at_price: null });
-        expect(insertSpy).toHaveBeenCalledTimes(1);
-        expect(insertSpy.mock.calls[0][0]).toEqual([
-            expect.objectContaining({ product_id: "p1", old_price: 30000, new_price: 20000, tenant_id: "tenant-1" }),
-            expect.objectContaining({ product_id: "p2", old_price: 30000, new_price: 15000, tenant_id: "tenant-1" }),
+describe("productRepository price changes", () => {
+    it("restores each product's own price and 'was' price in one database call", async () => {
+        await productRepository.restorePrices([
+            { id: "p1", price: 20000, compare_at_price: 25000, currentPrice: 30000 },
+            { id: "p2", price: 15000, compare_at_price: null, currentPrice: 30000 },
         ]);
+
+        expect(rpcSpy).toHaveBeenCalledTimes(1);
+        expect(rpcSpy).toHaveBeenCalledWith("set_product_prices", {
+            p_changes: [
+                { id: "p1", price: 20000, set_compare_at: true, compare_at_price: 25000 },
+                { id: "p2", price: 15000, set_compare_at: true, compare_at_price: null },
+            ],
+            p_reason: "Bulk price change undone",
+        });
+        expect(updateSpy).not.toHaveBeenCalled();
     });
 
-    it("rejects when a product could not be written, instead of reporting an undo", async () => {
-        updatedRows = [];
+    it("changes the price and clears compare-at only where asked, in one call", async () => {
+        await productRepository.bulkChangePrice(
+            [
+                { id: "p1", oldPrice: 30000, clearCompareAt: true },
+                { id: "p2", oldPrice: 30000, clearCompareAt: false },
+            ],
+            20000,
+        );
+        expect(rpcSpy).toHaveBeenCalledWith("set_product_prices", {
+            p_changes: [
+                { id: "p1", price: 20000, set_compare_at: true, compare_at_price: null },
+                { id: "p2", price: 20000, set_compare_at: false, compare_at_price: null },
+            ],
+            p_reason: "Bulk price change",
+        });
+    });
+
+    it("reports a refused change as a permission problem, not a success", async () => {
+        rpcResult = { data: null, error: { code: "42501", message: "product not found or not allowed" } };
         await expect(
-            productRepository.restorePrices([{ id: "p1", price: 1000, compare_at_price: null, currentPrice: 2000 }], "tenant-1"),
+            productRepository.restorePrices([{ id: "p1", price: 1000, compare_at_price: null, currentPrice: 2000 }]),
         ).rejects.toBeInstanceOf(ProductWriteDeniedError);
     });
 });
+
