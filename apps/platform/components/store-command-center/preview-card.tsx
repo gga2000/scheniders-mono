@@ -37,7 +37,9 @@ export function PreviewCard({
     slug,
 }: PreviewCardProps) {
     const [mode, setMode] = useState<ViewMode>("desktop");
-    const [loaded, setLoaded] = useState(false);
+    // Which URL has finished loading — a new handle/domain shows the spinner again.
+    const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+    const loaded = loadedUrl === storefrontUrl;
     const [claimOpen, setClaimOpen] = useState(false);
 
     return (
@@ -166,9 +168,11 @@ export function PreviewCard({
                              * storefront's client session/cart — and cannot reach the
                              * platform DOM. `allow-scripts` is required for hydration. */}
                             <iframe
+                                key={storefrontUrl}
                                 src={storefrontUrl}
+                                loading="lazy"
                                 className="w-full h-full"
-                                onLoad={() => setLoaded(true)}
+                                onLoad={() => setLoadedUrl(storefrontUrl)}
                                 title={t(STRINGS.command_center.preview_iframe_title, locale)}
                                 sandbox="allow-scripts allow-same-origin allow-forms"
                             />
