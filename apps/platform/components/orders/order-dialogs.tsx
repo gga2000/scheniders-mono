@@ -81,7 +81,7 @@ interface OrderDialogsProps {
     workflowTemplates: MessageTemplate[];
     /** The rows currently on screen — what a bulk WhatsApp send applies to. */
     displayedOrders: Order[];
-    onSplitConfirm: (keptItems: OrderItem[], returnedItems: OrderItem[]) => Promise<void>;
+    onSplitConfirm: (keptItems: OrderItem[], returnedItems: OrderItem[]) => Promise<boolean>;
     onStatusUpdate: (id: string, status: Order["status"], reason?: string, reasonId?: string) => Promise<unknown> | unknown;
 }
 

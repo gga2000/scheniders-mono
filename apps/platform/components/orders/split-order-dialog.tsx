@@ -9,12 +9,14 @@ import { formatIQD } from "@/lib/utils";
 import { ArrowRightLeft, AlertTriangle, Package, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 
 interface SplitOrderDialogProps {
     order: Order;
     open: boolean;
     onClose: () => void;
-    onConfirm: (keptItems: OrderItem[], returnedItems: OrderItem[]) => Promise<void>;
+    /** Resolves true when the split went through; false keeps the dialog open with the items as arranged. */
+    onConfirm: (keptItems: OrderItem[], returnedItems: OrderItem[]) => Promise<boolean>;
 }
 
 export function SplitOrderDialog({ order, open, onClose, onConfirm }: SplitOrderDialogProps) {
@@ -106,10 +108,10 @@ export function SplitOrderDialog({ order, open, onClose, onConfirm }: SplitOrder
         if (returnedItems.length === 0) return;
         setIsSubmitting(true);
         try {
-            await onConfirm(keptItems, returnedItems);
-            onClose();
+            if (await onConfirm(keptItems, returnedItems)) onClose();
         } catch (error) {
             console.error("Split failed", error);
+            toast.error(t("orders.toast.splitFailed"), error instanceof Error ? error.message : t("orderDetail.splitError"));
         } finally {
             setIsSubmitting(false);
         }

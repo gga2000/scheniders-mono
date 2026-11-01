@@ -176,7 +176,6 @@ export default function OrdersPage() {
         getCustomerHistory,
         getCustomerOrderCount,
         mergeOrders,
-        fetchOrders: refreshOrders,
         // Pin & Clone
         togglePin,
         toggleReviewed,
@@ -388,27 +387,18 @@ export default function OrdersPage() {
     const { splitOrder } = useOrdersContext();
 
     const handleSplitOrder = async (keptItems: OrderItem[], returnedItems: OrderItem[]) => {
-        if (!splitOrderDialog.order) return;
-
-        // Show loading state could be nice here if dialog supported it
+        if (!splitOrderDialog.order) return false;
+        // splitOrder shows the success toast (with undo) and refreshes the list.
         const result = await splitOrder(splitOrderDialog.order.id, keptItems, returnedItems);
-
         if (result.success) {
             setSplitOrderDialog({ open: false, order: null });
-
-            // Force data refresh to show new orders
-            await refreshOrders();
-
-            toast.success(
-                t("orders.toast.splitDone"),
-                t("orders.toast.splitDoneDesc")
-            );
         } else {
             toast.error(
                 t("orders.toast.splitFailed"),
                 result.error || t("orderDetail.splitError")
             );
         }
+        return result.success;
     };
 
     /**
