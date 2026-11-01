@@ -14,8 +14,9 @@ interface Props {
 
 export function CustomersSummary({ data }: Props) {
     const { t } = useLanguage();
-    const repeatTone = data.repeat_rate_pct >= 35 ? "emerald" : data.repeat_rate_pct >= 20 ? "amber" : "rose";
-    const concentrationTone = data.revenue_concentration_top10_pct >= 50 ? "rose" : data.revenue_concentration_top10_pct >= 30 ? "amber" : "emerald";
+    const hasCustomers = data.total_customers > 0;
+    const repeatTone = !hasCustomers ? "slate" : data.repeat_rate_pct >= 35 ? "emerald" : data.repeat_rate_pct >= 20 ? "amber" : "rose";
+    const concentrationTone = !hasCustomers ? "slate" : data.revenue_concentration_top10_pct >= 50 ? "rose" : data.revenue_concentration_top10_pct >= 30 ? "amber" : "emerald";
 
     return (
         <SectionCard
@@ -35,9 +36,11 @@ export function CustomersSummary({ data }: Props) {
                 <StatTile
                     icon={Repeat}
                     label={t("finances.cust.repeat")}
-                    value={`${data.repeat_rate_pct.toFixed(1)}%`}
+                    value={hasCustomers ? `${data.repeat_rate_pct.toFixed(1)}%` : "—"}
                     sublabel={
-                        repeatTone === "emerald"
+                        repeatTone === "slate"
+                            ? t("finances.cust.noData")
+                            : repeatTone === "emerald"
                             ? t("finances.cust.repeatGood")
                             : repeatTone === "amber"
                                 ? t("finances.cust.repeatMid")
@@ -79,9 +82,11 @@ export function CustomersSummary({ data }: Props) {
                 <StatTile
                     icon={PieChart}
                     label={t("finances.cust.top10")}
-                    value={`${data.revenue_concentration_top10_pct.toFixed(1)}%`}
+                    value={hasCustomers ? `${data.revenue_concentration_top10_pct.toFixed(1)}%` : "—"}
                     sublabel={
-                        concentrationTone === "rose"
+                        concentrationTone === "slate"
+                            ? t("finances.cust.noData")
+                            : concentrationTone === "rose"
                             ? t("finances.cust.top10High")
                             : concentrationTone === "amber"
                                 ? t("finances.cust.top10Mid")
