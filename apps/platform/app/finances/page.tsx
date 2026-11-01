@@ -383,6 +383,7 @@ function FinancesContent() {
                             period={period}
                             dateRange={dateRangeStrings}
                             addExpense={addExpense}
+                            costSnapshots={costSnapshots}
                         />
                     )}
 

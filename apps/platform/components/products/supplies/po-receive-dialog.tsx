@@ -15,6 +15,9 @@ import { fetchPurchaseOrderLines } from "@/lib/repositories/purchase-orders";
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
+import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 
 interface PoReceiveDialogProps {
     open: boolean;
@@ -27,7 +30,11 @@ interface PoReceiveDialogProps {
 export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiveDialogProps) {
     const { t } = useLanguage();
     const { receive } = usePurchaseOrderActions();
+    const { can } = usePermission();
+    // The database refuses a cost from anyone who cannot see cost, so only offer the field to them.
+    const canSetCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS);
     const [entered, setEntered] = useState<Record<string, string>>({});
+    const [costs, setCosts] = useState<Record<string, string>>({});
 
     const { data: lines, isLoading } = useQuery({
         queryKey: ["po-lines", poId],
@@ -49,10 +56,15 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                 .map((line) => {
                     const raw = Number.parseInt(entered[line.id] ?? "", 10);
                     const max = outstanding.get(line.id) ?? 0;
-                    return { itemId: line.id, quantity: Number.isFinite(raw) ? Math.min(Math.max(raw, 0), max) : 0 };
+                    const cost = Number.parseInt(costs[line.id] ?? "", 10);
+                    return {
+                        itemId: line.id,
+                        quantity: Number.isFinite(raw) ? Math.min(Math.max(raw, 0), max) : 0,
+                        ...(canSetCost && Number.isFinite(cost) && cost >= 0 ? { unitCost: cost } : {}),
+                    };
                 })
                 .filter((line) => line.quantity > 0),
-        [lines, entered, outstanding]
+        [lines, entered, costs, canSetCost, outstanding]
     );
 
     const fillAll = () =>
@@ -77,9 +89,10 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                         })
                     );
                     setEntered({});
+                    setCosts({});
                     onOpenChange(false);
                 },
-                onError: (err: Error) => toast.error(t("supplies.po.failed", { message: err.message })),
+                onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
             }
         );
     };
@@ -89,7 +102,10 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
             <DialogContent className="max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{t("supplies.po.receiveTitle", { number: poNumber })}</DialogTitle>
-                    <DialogDescription>{t("supplies.po.receiveHint")}</DialogDescription>
+                    <DialogDescription>
+                        {t("supplies.po.receiveHint")}
+                        {canSetCost && ` ${t("supplies.po.invoiceCostHint")}`}
+                    </DialogDescription>
                 </DialogHeader>
 
                 {isLoading || !lines ? (
@@ -117,6 +133,19 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                                 ` · ${t("supplies.po.alreadyReceived", { n: line.quantityReceived })}`}
                                         </p>
                                     </div>
+                                    {canSetCost && (
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            step={1}
+                                            disabled={max === 0}
+                                            value={costs[line.id] ?? ""}
+                                            placeholder={t("supplies.po.invoiceCost")}
+                                            aria-label={t("supplies.po.invoiceCost")}
+                                            onChange={(e) => setCosts((prev) => ({ ...prev, [line.id]: e.target.value }))}
+                                            className="w-28 rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50"
+                                        />
+                                    )}
                                     <input
                                         type="number"
                                         min={0}
