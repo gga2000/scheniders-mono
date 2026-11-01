@@ -7,10 +7,12 @@ import {
     Plus, AlertCircle, Download, Wallet,
 } from "lucide-react";
 import { useExpenses } from "@/hooks/use-expenses";
+import { useLanguage } from "@/hooks/use-language";
+import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
 import { supabase } from "@/lib/supabase";
 import {
     Expense, ExpenseCategory,
-    expenseCategoryLabels, expenseCategoryColors,
+    expenseCategoryColors,
 } from "@/types/expense";
 import { ExpenseFormModal, type ExpenseFormData } from "@/components/finances/expense-form-modal";
 import { ExpenseList } from "@/components/finances/expense-list";
@@ -21,7 +23,7 @@ import { Delta } from "@/components/finances/hub/primitives/delta";
 import { Sparkline } from "@/components/finances/hub/primitives/sparkline";
 import type { FinancePeriod } from "@/hooks/use-finance-period";
 import { cn } from "@/lib/utils";
-import { baghdadDayKey } from "@/lib/order-window";
+import { addDaysToDayKey, baghdadDayKey } from "@/lib/order-window";
 
 interface ExpensesTabProps {
     period: FinancePeriod;
@@ -38,6 +40,8 @@ function diffDays(a: Date, b: Date): number {
 }
 
 export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: ExpensesTabProps) {
+    const { t } = useLanguage();
+    const categoryLabel = useExpenseCategoryLabel();
     const { expenses, loading, addExpense, updateExpense, deleteExpense } = useExpenses({
         startDate: dateRangeStrings.startDate,
         endDate: dateRangeStrings.endDate,
@@ -48,26 +52,28 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
     const [editing, setEditing] = useState<Expense | null>(null);
 
     // Fetch previous-period expenses for comparison
+    const prevStartDay = comparePeriod ? fmtDate(comparePeriod.start) : null;
+    const prevEndDay = comparePeriod ? fmtDate(comparePeriod.end) : null;
     useEffect(() => {
-        if (!comparePeriod) {
-            setPrevExpenses([]);
-            return;
-        }
+        if (!prevStartDay || !prevEndDay) return;
         let cancelled = false;
         (async () => {
             const { data, error } = await supabase
                 .from("expenses")
                 .select("*")
-                .gte("expense_date", fmtDate(comparePeriod.start))
-                .lte("expense_date", fmtDate(comparePeriod.end));
+                .gte("expense_date", prevStartDay)
+                .lte("expense_date", prevEndDay);
             if (!cancelled && !error) setPrevExpenses(data || []);
         })();
         return () => { cancelled = true; };
-    }, [comparePeriod?.start.getTime(), comparePeriod?.end.getTime()]);
+    }, [prevStartDay, prevEndDay]);
+
+    const periodStartDay = baghdadDayKey(period.start);
+    const periodEndDay = baghdadDayKey(period.end);
 
     const totals = useMemo(() => {
         const current = expenses.reduce((s, e) => s + e.amount, 0);
-        const prev = prevExpenses.reduce((s, e) => s + e.amount, 0);
+        const prev = prevStartDay ? prevExpenses.reduce((s, e) => s + e.amount, 0) : 0;
         const days = diffDays(period.start, period.end);
         const dailyAvg = current / days;
 
@@ -93,7 +99,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
             count: expenses.length,
             days,
         };
-    }, [expenses, prevExpenses, period.start.getTime(), period.end.getTime()]);
+    }, [expenses, prevExpenses, prevStartDay, period.start, period.end]);
 
     // Daily series for sparkline
     const dailySeries = useMemo(() => {
@@ -102,14 +108,11 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
             buckets.set(e.expense_date, (buckets.get(e.expense_date) ?? 0) + e.amount);
         });
         const out: number[] = [];
-        const cur = new Date(period.start);
-        const end = new Date(period.end);
-        while (cur <= end) {
-            out.push(buckets.get(fmtDate(cur)) ?? 0);
-            cur.setDate(cur.getDate() + 1);
+        for (let day = periodStartDay; day <= periodEndDay; day = addDaysToDayKey(day, 1)) {
+            out.push(buckets.get(day) ?? 0);
         }
         return out;
-    }, [expenses, period.start.getTime(), period.end.getTime()]);
+    }, [expenses, periodStartDay, periodEndDay]);
 
     // Recurring detection: explicitly flagged + repeated patterns
     const recurringGroups = useMemo(() => {
@@ -125,7 +128,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
 
         const map = new Map<string, Row>();
         expenses.forEach((e) => {
-            const desc = (e.description || expenseCategoryLabels[e.category]).trim().toLowerCase();
+            const desc = (e.description || categoryLabel(e.category)).trim().toLowerCase();
             const key = `${e.category}::${desc}`;
             const prev = map.get(key);
             if (prev) {
@@ -136,7 +139,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
             } else {
                 map.set(key, {
                     key,
-                    description: e.description || expenseCategoryLabels[e.category],
+                    description: e.description || categoryLabel(e.category),
                     category: e.category,
                     occurrences: 1,
                     totalSpent: e.amount,
@@ -149,12 +152,12 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
         return Array.from(map.values())
             .filter((r) => r.isFlagged || r.occurrences >= 2)
             .sort((a, b) => b.totalSpent - a.totalSpent);
-    }, [expenses]);
+    }, [expenses, categoryLabel]);
 
     const handleSubmit = async (data: ExpenseFormData) => {
         const saved = editing ? await updateExpense(editing.id, data) : (await addExpense(data)) !== null;
         // Throwing keeps the form open with what was typed; the hook already showed the error.
-        if (!saved) throw new Error("Expense not saved");
+        if (!saved) throw new Error(t("finances.expense.saveFailed"));
         setEditing(null);
         setModalOpen(false);
     };
@@ -165,19 +168,23 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Delete this expense?")) return;
+        if (!confirm(t("finances.expense.confirmDelete"))) return;
         await deleteExpense(id);
     };
 
     const handleExport = () => {
         const rows = [
-            ["Date", "Category", "Description", "Amount (IQD)", "Recurring", "Notes"],
+            [
+                t("finances.expense.csv.date"), t("finances.expense.csv.category"),
+                t("finances.expense.csv.description"), t("finances.expense.csv.amount"),
+                t("finances.expense.csv.recurring"), t("finances.expense.csv.notes"),
+            ],
             ...expenses.map((e) => [
                 e.expense_date,
-                expenseCategoryLabels[e.category],
+                categoryLabel(e.category),
                 e.description ?? "",
                 e.amount.toString(),
-                e.is_recurring ? "yes" : "no",
+                e.is_recurring ? t("finances.expense.csv.yes") : t("finances.expense.csv.no"),
                 (e.notes ?? "").replace(/[\n\r]/g, " "),
             ]),
         ];
@@ -210,9 +217,9 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
             {/* Action bar */}
             <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                    <h2 className="text-lg font-bold text-foreground">Expense ledger</h2>
+                    <h2 className="text-lg font-bold text-foreground">{t("finances.expense.ledger")}</h2>
                     <p className="text-xs text-muted">
-                        {totals.count} {totals.count === 1 ? "entry" : "entries"} · {totals.days} {totals.days === 1 ? "day" : "days"}
+                        {t(totals.count === 1 ? "finances.expense.entryCountOne" : "finances.expense.entryCount", { count: totals.count, days: totals.days })}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -222,14 +229,14 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                         className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-[var(--card-bg)] border border-[var(--card-border)] text-foreground hover:border-[var(--ink)] transition-colors disabled:opacity-50"
                     >
                         <Download className="w-4 h-4" />
-                        Export CSV
+                        {t("finances.expense.exportCsv")}
                     </button>
                     <button
                         onClick={() => { setEditing(null); setModalOpen(true); }}
                         className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--ink)] text-white hover:opacity-90 transition-opacity"
                     >
                         <Plus className="w-4 h-4" />
-                        Add expense
+                        {t("finances.expense.add")}
                     </button>
                 </div>
             </div>
@@ -250,20 +257,19 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                 <SectionCard
                     icon={Receipt}
                     accent="amber"
-                    title="No expenses recorded yet"
-                    subtitle="Track every IQD that leaves your business — packaging, ads, samples, shipping."
+                    title={t("finances.expense.emptyTitle")}
+                    subtitle={t("finances.expense.emptySub")}
                 >
                     <div className="text-center py-8">
                         <p className="text-sm text-muted mb-4 max-w-md mx-auto">
-                            Logging expenses unlocks accurate net profit, per-order economics,
-                            and the recurring-cost radar.
+                            {t("finances.expense.emptyBody")}
                         </p>
                         <button
                             onClick={() => { setEditing(null); setModalOpen(true); }}
                             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold bg-[var(--ink)] text-white hover:opacity-90"
                         >
                             <Plus className="w-4 h-4" />
-                            Log your first expense
+                            {t("finances.expense.logFirst")}
                         </button>
                     </div>
                 </SectionCard>
@@ -274,8 +280,8 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                             <SectionCard
                                 icon={Tag}
                                 accent="violet"
-                                title="Where your money goes"
-                                subtitle="Spending by category for the selected period"
+                                title={t("finances.expense.whereTitle")}
+                                subtitle={t("finances.expense.whereSub")}
                             >
                                 <ExpenseBreakdown data={totals.byCategory} />
                             </SectionCard>
@@ -301,10 +307,10 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                             <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                             <div className="text-[13px]">
                                 <span className="font-semibold text-amber-700 dark:text-amber-300">
-                                    {expenseCategoryLabels[totals.topCategory.category]} is {totals.topShare.toFixed(0)}% of all spend.
+                                    {t("finances.expense.concentration", { category: categoryLabel(totals.topCategory.category), pct: totals.topShare.toFixed(0) })}
                                 </span>{" "}
                                 <span className="text-muted">
-                                    Consider negotiating with suppliers or exploring alternatives to reduce concentration risk.
+                                    {t("finances.expense.concentrationHint")}
                                 </span>
                             </div>
                         </motion.div>
@@ -313,8 +319,8 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                     <SectionCard
                         icon={Receipt}
                         accent="slate"
-                        title="All expenses"
-                        subtitle="Filter by category, edit, or delete entries"
+                        title={t("finances.expense.allTitle")}
+                        subtitle={t("finances.expense.allSub")}
                     >
                         <ExpenseList
                             expenses={expenses}
@@ -353,6 +359,8 @@ interface SummaryStripProps {
 function ExpensesSummaryStrip({
     total, prev, dailyAvg, count, topCategory, topShare, recurringCount, series,
 }: SummaryStripProps) {
+    const { t } = useLanguage();
+    const categoryLabel = useExpenseCategoryLabel();
     const trend = prev > 0 ? ((total - prev) / prev) * 100 : null;
 
     return (
@@ -370,13 +378,13 @@ function ExpensesSummaryStrip({
                     </div>
                     {trend !== null && <Delta value={trend} size="sm" inverse />}
                 </div>
-                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">Total Spent</div>
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">{t("finances.expense.kpi.total")}</div>
                 <div className="mt-1">
                     <FinanceValue value={total} currency="IQD" abbreviate
                         className={cn("text-[22px] leading-none", accentText("rose"))} />
                 </div>
                 <div className="text-[11px] text-muted mt-1 truncate">
-                    {count} {count === 1 ? "entry" : "entries"}
+                    {t(count === 1 ? "finances.expense.entryShortOne" : "finances.expense.entriesShort", { count })}
                 </div>
                 {series.length > 0 && (
                     <div className={cn("mt-2 -mb-1", accentText("rose"))}>
@@ -395,13 +403,13 @@ function ExpensesSummaryStrip({
                             : <TrendingUp className={cn("w-4 h-4", accentText("violet"))} />}
                     </div>
                 </div>
-                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">vs Previous</div>
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">{t("finances.expense.kpi.prev")}</div>
                 <div className="mt-1">
                     <FinanceValue value={prev} currency="IQD" abbreviate
                         className={cn("text-[22px] leading-none", accentText("violet"))} />
                 </div>
                 <div className="text-[11px] text-muted mt-1 truncate">
-                    {prev > 0 ? "Same length window" : "No prior data"}
+                    {prev > 0 ? t("finances.expense.kpi.sameWindow") : t("finances.expense.kpi.noPrior")}
                 </div>
             </div>
 
@@ -412,12 +420,12 @@ function ExpensesSummaryStrip({
                         <Calendar className={cn("w-4 h-4", accentText("amber"))} />
                     </div>
                 </div>
-                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">Daily Burn</div>
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">{t("finances.expense.kpi.burn")}</div>
                 <div className="mt-1">
                     <FinanceValue value={dailyAvg} currency="IQD" abbreviate
                         className={cn("text-[22px] leading-none", accentText("amber"))} />
                 </div>
-                <div className="text-[11px] text-muted mt-1">Average per day</div>
+                <div className="text-[11px] text-muted mt-1">{t("finances.expense.kpi.perDay")}</div>
             </div>
 
             {/* Top Category */}
@@ -441,7 +449,7 @@ function ExpensesSummaryStrip({
                         />
                     </div>
                 </div>
-                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">Top Category</div>
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">{t("finances.expense.kpi.top")}</div>
                 <div className="mt-1">
                     <FinanceValue
                         value={topCategory?.amount ?? 0}
@@ -452,7 +460,7 @@ function ExpensesSummaryStrip({
                 </div>
                 <div className="text-[11px] text-muted mt-1 truncate">
                     {topCategory
-                        ? `${expenseCategoryLabels[topCategory.category]} · ${topShare.toFixed(0)}%`
+                        ? <bdi>{`${categoryLabel(topCategory.category)} · ${topShare.toFixed(0)}%`}</bdi>
                         : "—"}
                 </div>
             </div>
@@ -464,16 +472,18 @@ function ExpensesSummaryStrip({
                         <Repeat className={cn("w-4 h-4", accentText("emerald"))} />
                     </div>
                 </div>
-                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">Recurring</div>
+                <div className="text-[11px] font-semibold text-muted uppercase tracking-wider">{t("finances.expense.kpi.recurring")}</div>
                 <div className="mt-1">
                     <span className="text-[22px] leading-none font-bold tabular-nums text-foreground">
                         {recurringCount}
                     </span>
                 </div>
                 <div className="text-[11px] text-muted mt-1 truncate">
-                    {recurringCount > 0
-                        ? `pattern${recurringCount === 1 ? "" : "s"} detected`
-                        : "None detected"}
+                    {recurringCount === 0
+                        ? t("finances.expense.kpi.none")
+                        : recurringCount === 1
+                            ? t("finances.expense.kpi.patternOne")
+                            : t("finances.expense.kpi.patterns", { count: recurringCount })}
                 </div>
             </div>
         </motion.div>
@@ -490,18 +500,20 @@ function CategoryShareCard({
     sorted: { category: ExpenseCategory; amount: number }[];
     total: number;
 }) {
+    const { t } = useLanguage();
+    const categoryLabel = useExpenseCategoryLabel();
     const visible = sorted.filter((c) => c.amount > 0).slice(0, 6);
 
     return (
         <SectionCard
             icon={Wallet}
             accent="emerald"
-            title="Category share"
-            subtitle="Where each dinar lands"
+            title={t("finances.expense.share.title")}
+            subtitle={t("finances.expense.share.sub")}
         >
             <div className="space-y-3">
                 {visible.length === 0 ? (
-                    <p className="text-sm text-muted text-center py-8">No categorized spend yet.</p>
+                    <p className="text-sm text-muted text-center py-8">{t("finances.expense.share.empty")}</p>
                 ) : (
                     visible.map((row) => {
                         const pct = total > 0 ? (row.amount / total) * 100 : 0;
@@ -515,7 +527,7 @@ function CategoryShareCard({
                                             style={{ backgroundColor: color }}
                                         />
                                         <span className="text-[13px] text-foreground truncate">
-                                            {expenseCategoryLabels[row.category]}
+                                            {categoryLabel(row.category)}
                                         </span>
                                     </div>
                                     <div className="flex items-baseline gap-2 shrink-0">
@@ -563,14 +575,15 @@ interface RecurringRow {
 }
 
 function RecurringRadar({ groups }: { groups: RecurringRow[] }) {
+    const { t } = useLanguage();
     const top = groups.slice(0, 6);
 
     return (
         <SectionCard
             icon={Repeat}
             accent="cyan"
-            title="Recurring expense radar"
-            subtitle="Patterns that keep showing up — flag the rest as recurring"
+            title={t("finances.expense.radar.title")}
+            subtitle={t("finances.expense.radar.sub")}
         >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {top.map((row) => (
@@ -595,12 +608,12 @@ function RecurringRadar({ groups }: { groups: RecurringRow[] }) {
                                     </p>
                                     {row.isFlagged && (
                                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-                                            Flagged
+                                            {t("finances.expense.radar.flagged")}
                                         </span>
                                     )}
                                 </div>
                                 <p className="text-[11px] text-muted">
-                                    {row.occurrences}× · last {row.lastDate}
+                                    {t("finances.expense.radar.last", { count: row.occurrences, date: row.lastDate })}
                                 </p>
                             </div>
                         </div>
@@ -616,7 +629,9 @@ function RecurringRadar({ groups }: { groups: RecurringRow[] }) {
             </div>
             {groups.length > top.length && (
                 <p className="text-[11px] text-muted text-center mt-3">
-                    + {groups.length - top.length} more pattern{groups.length - top.length === 1 ? "" : "s"}
+                    {groups.length - top.length === 1
+                        ? t("finances.expense.radar.moreOne")
+                        : t("finances.expense.radar.more", { count: groups.length - top.length })}
                 </p>
             )}
         </SectionCard>

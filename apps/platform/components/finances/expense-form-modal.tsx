@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Calendar, DollarSign } from "lucide-react";
-import { Expense, ExpenseCategory, expenseCategoryLabels } from "@/types/expense";
+import { Expense, EXPENSE_CATEGORIES, ExpenseCategory } from "@/types/expense";
+import { useLanguage } from "@/hooks/use-language";
+import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
+import { baghdadDayKey } from "@/lib/order-window";
 
 interface ExpenseFormModalProps {
     isOpen: boolean;
@@ -23,18 +26,6 @@ export interface ExpenseFormData {
     recurring_period?: string;
 }
 
-const categories: ExpenseCategory[] = [
-    "product_cost",
-    "packaging",
-    "sample_vial",
-    "sample_perfume",
-    "thank_you_cards",
-    "sweets",
-    "marketing",
-    "shipping",
-    "other",
-];
-
 export function ExpenseFormModal({
     isOpen,
     onClose,
@@ -42,9 +33,11 @@ export function ExpenseFormModal({
     expense,
     mode,
 }: ExpenseFormModalProps) {
+    const { t } = useLanguage();
+    const categoryLabel = useExpenseCategoryLabel();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<ExpenseFormData>({
-        expense_date: new Date().toISOString().split("T")[0],
+        expense_date: baghdadDayKey(),
         category: "marketing",
         description: "",
         amount: 0,
@@ -74,7 +67,7 @@ export function ExpenseFormModal({
             });
         } else {
             setFormData({
-                expense_date: new Date().toISOString().split("T")[0],
+                expense_date: baghdadDayKey(),
                 category: "marketing",
                 description: "",
                 amount: 0,
@@ -123,7 +116,7 @@ export function ExpenseFormModal({
                                 <DollarSign className="w-5 h-5 text-rose-700" />
                             </div>
                             <h2 className="text-xl font-bold text-foreground">
-                                {mode === "add" ? "Add Expense" : "Edit Expense"}
+                                {mode === "add" ? t("finances.expense.form.add") : t("finances.expense.form.edit")}
                             </h2>
                         </div>
                         <button
@@ -140,7 +133,7 @@ export function ExpenseFormModal({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-2">
-                                    Date *
+                                    {t("finances.expense.form.date")}
                                 </label>
                                 <div className="relative">
                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
@@ -156,7 +149,7 @@ export function ExpenseFormModal({
 
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-2">
-                                    Amount (IQD) *
+                                    {t("finances.expense.form.amount")}
                                 </label>
                                 <input
                                     type="number"
@@ -172,7 +165,7 @@ export function ExpenseFormModal({
                         {/* Category */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
-                                Category *
+                                {t("finances.expense.form.category")}
                             </label>
                             <select
                                 value={formData.category}
@@ -180,9 +173,9 @@ export function ExpenseFormModal({
                                 required
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             >
-                                {categories.map((cat) => (
+                                {EXPENSE_CATEGORIES.map((cat) => (
                                     <option key={cat} value={cat}>
-                                        {expenseCategoryLabels[cat]}
+                                        {categoryLabel(cat)}
                                     </option>
                                 ))}
                             </select>
@@ -191,13 +184,13 @@ export function ExpenseFormModal({
                         {/* Description */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
-                                Description
+                                {t("finances.expense.form.description")}
                             </label>
                             <input
                                 type="text"
                                 value={formData.description}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                                placeholder="e.g., Facebook Ads - December Campaign"
+                                placeholder={t("finances.expense.form.descriptionPh")}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
                         </div>
@@ -205,12 +198,12 @@ export function ExpenseFormModal({
                         {/* Notes */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
-                                Notes
+                                {t("finances.expense.form.notes")}
                             </label>
                             <textarea
                                 value={formData.notes}
                                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                                placeholder="Additional notes..."
+                                placeholder={t("finances.expense.form.notesPh")}
                                 rows={2}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all resize-none"
                             />
@@ -226,7 +219,7 @@ export function ExpenseFormModal({
                                 className="w-4 h-4 rounded border-[var(--card-border)] text-[var(--foreground)] focus:ring-[var(--pastel-yellow)]"
                             />
                             <label htmlFor="isRecurring" className="text-sm text-foreground">
-                                This is a recurring expense
+                                {t("finances.expense.form.recurring")}
                             </label>
                         </div>
 
@@ -236,9 +229,9 @@ export function ExpenseFormModal({
                                 onChange={(e) => setFormData((prev) => ({ ...prev, recurring_period: e.target.value }))}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             >
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                                <option value="monthly">Monthly</option>
+                                <option value="daily">{t("finances.expense.form.daily")}</option>
+                                <option value="weekly">{t("finances.expense.form.weekly")}</option>
+                                <option value="monthly">{t("finances.expense.form.monthly")}</option>
                             </select>
                         )}
 
@@ -249,7 +242,7 @@ export function ExpenseFormModal({
                                 onClick={onClose}
                                 className="flex-1 px-6 py-3 bg-[var(--background)] text-foreground rounded-xl font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Cancel
+                                {t("finances.expense.form.cancel")}
                             </button>
                             <button
                                 type="submit"
@@ -259,12 +252,12 @@ export function ExpenseFormModal({
                                 {loading ? (
                                     <>
                                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        Saving...
+                                        {t("finances.expense.form.saving")}
                                     </>
                                 ) : (
                                     <>
                                         <Plus className="w-4 h-4" />
-                                        {mode === "add" ? "Add Expense" : "Save Changes"}
+                                        {mode === "add" ? t("finances.expense.form.add") : t("finances.expense.form.save")}
                                     </>
                                 )}
                             </button>
