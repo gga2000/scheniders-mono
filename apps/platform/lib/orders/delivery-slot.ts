@@ -67,10 +67,19 @@ function presetRange(slot: DeliverySlotPreset): string {
 }
 
 /**
+ * The slot split for a stacked pill: the window's name over its hours
+ * ("مساءً" / "4–8"), or no name over an exact time ("" / "4:30 م").
+ */
+export function deliverySlotParts(slot: DeliverySlot, lang: Lang): { name: string; time: string } {
+    if (isPresetSlot(slot)) return { name: PRESET_NAME[lang][slot], time: presetRange(slot) };
+    return { name: "", time: formatExactTime(slot, lang) };
+}
+
+/**
  * Short text for chips and the shipping label: "مساءً 4–8" or "4:30 م"
  * ("Evening 4–8" / "4:30 PM").
  */
 export function formatDeliverySlot(slot: DeliverySlot, lang: Lang): string {
-    if (isPresetSlot(slot)) return `${PRESET_NAME[lang][slot]} ${presetRange(slot)}`;
-    return formatExactTime(slot, lang);
+    const { name, time } = deliverySlotParts(slot, lang);
+    return name ? `${name} ${time}` : time;
 }
