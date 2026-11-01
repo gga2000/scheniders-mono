@@ -17,6 +17,7 @@ const overview = {
 } as unknown as FinanceOverviewResult;
 
 const ctx: FinanceExportContext = {
+    language: "en",
     overview,
     revenue: { refunds: { top_refunded: [] } } as unknown as FinanceRevenueResult,
     cash: {
@@ -54,5 +55,33 @@ describe("buildFinanceHubPrintHtml", () => {
 
     it("titles the report with the Baghdad period", () => {
         expect(html).toContain("2026-10-01 to 2026-10-31");
+    });
+});
+
+describe("Arabic export", () => {
+    const ar: FinanceExportContext = { ...ctx, language: "ar" };
+
+    it("words the CSV in Arabic and still guards data cells", () => {
+        const csv = buildFinanceHubCsv(ar, "2026-11-01T00:00:00.000Z");
+        expect(csv).toContain('"تقرير المالية"');
+        expect(csv).toContain('"صافي الربح"');
+        expect(csv).not.toContain('"Net Profit"');
+        expect(csv).toContain("\"'=HYPERLINK");
+    });
+
+    it("prints right-to-left with Arabic labels, only in the print document", () => {
+        const html = buildFinanceHubPrintHtml(ar, "2026-11-01");
+        expect(html).toContain('<html lang="ar" dir="rtl">');
+        expect(html).toContain("ملخص المؤشرات");
+        expect(html).not.toContain("Gross Revenue");
+        expect(html).toContain("د.ع");
+        expect(html).not.toContain("IQD");
+        expect(html).not.toContain("<img src=x");
+    });
+
+    it("keeps English printing left-to-right", () => {
+        const html = buildFinanceHubPrintHtml(ctx, "2026-11-01");
+        expect(html).toContain('<html lang="en">');
+        expect(html).not.toContain("dir=");
     });
 });

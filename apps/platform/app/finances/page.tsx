@@ -170,7 +170,7 @@ export default function FinancesPage() {
 }
 
 function FinancesContent() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const searchParams = useSearchParams();
     const router = useRouter();
     const rawTab = searchParams?.get("tab");
@@ -226,6 +226,7 @@ function FinancesContent() {
     const handleExport = () => {
         if (ordersLoading) return;
         exportFinanceHubToCSV({
+            language,
             overview,
             revenue,
             cash,
@@ -236,6 +237,7 @@ function FinancesContent() {
     const handlePrint = () => {
         if (ordersLoading) return;
         printFinanceHubReport({
+            language,
             overview,
             revenue,
             cash,
