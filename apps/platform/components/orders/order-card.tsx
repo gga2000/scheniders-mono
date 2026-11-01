@@ -27,6 +27,7 @@ import { motion } from "framer-motion";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { PriorityBadge } from "./card/priority-badge";
 import { SourceBadge } from "./card/source-badge";
+import { StuckTransitBadge } from "./card/stuck-transit-badge";
 import { EnteredByMark } from "./card/entered-by-mark";
 import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
@@ -391,6 +392,8 @@ function FullOrderCard(props: OrderCardProps) {
                                     {orderStatusLabel(order.status, isReturn)}
                                 </motion.span>
                             </CardStatusMenu>
+
+                            <StuckTransitBadge order={order} />
 
                             {/* Delivery Company Badge */}
                             {order.delivery_company === 'waseet' && (

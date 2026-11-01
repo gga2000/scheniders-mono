@@ -23,6 +23,7 @@ import { EASE_PANEL } from "@/components/layout/page-transition";
 import { GlobalSearchField } from "@/components/orders/global-search-field";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
 import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
+import { StuckTransitChip } from "@/components/orders/stuck-transit-chip";
 import type { PaymentStatus } from "@/lib/supabase";
 
 /**
@@ -188,6 +189,7 @@ export function OrdersFilterBar({
                                 filterDuplicatesOnly={filterDuplicatesOnly}
                                 setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                 filterDueToday={filterDueToday}
+                                queueChips={<StuckTransitChip filters={filters} setFilters={setFilters} />}
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}
                                 countsHidden={countsHidden}
