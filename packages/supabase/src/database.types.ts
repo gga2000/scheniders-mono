@@ -4287,7 +4287,9 @@ export type Database = {
           absence_days: number
           absence_deduction: number
           advances_deducted: number
+          amount_paid: number | null
           base_salary: number
+          carried_in: number
           completed_orders_count: number
           created_at: string
           employee_id: string
@@ -4311,7 +4313,9 @@ export type Database = {
           absence_days?: number
           absence_deduction?: number
           advances_deducted?: number
+          amount_paid?: number | null
           base_salary?: number
+          carried_in?: number
           completed_orders_count?: number
           created_at?: string
           employee_id: string
@@ -4335,7 +4339,9 @@ export type Database = {
           absence_days?: number
           absence_deduction?: number
           advances_deducted?: number
+          amount_paid?: number | null
           base_salary?: number
+          carried_in?: number
           completed_orders_count?: number
           created_at?: string
           employee_id?: string
@@ -4382,6 +4388,7 @@ export type Database = {
       performance_bonuses: {
         Row: {
           amount: number
+          carried_from_payroll_id: string | null
           created_at: string
           created_by: string | null
           employee_id: string
@@ -4393,6 +4400,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          carried_from_payroll_id?: string | null
           created_at?: string
           created_by?: string | null
           employee_id: string
@@ -4404,6 +4412,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          carried_from_payroll_id?: string | null
           created_at?: string
           created_by?: string | null
           employee_id?: string
@@ -9101,6 +9110,7 @@ export type Database = {
         Args: {
           p_absence_days: number
           p_absence_deduction: number
+          p_amount_paid?: number
           p_base_salary: number
           p_completed_orders_count: number
           p_employee_id: string

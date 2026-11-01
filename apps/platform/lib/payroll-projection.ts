@@ -16,14 +16,14 @@ export const IN_TRANSIT_STATUSES = ["in_transit", "delivered"] as const;
  * by the caller because they never earn order pay.
  */
 export function projectInTransit(
-    calc: { grossSalary: number; absenceDeduction: number; advancesTotal: number; penaltiesTotal: number },
+    calc: { grossSalary: number; carriedIn?: number; absenceDeduction: number; advancesTotal: number; penaltiesTotal: number },
     inTransitOrders: number,
     perOrderBonus: number,
 ): InTransitProjection {
     const extraOrderBonus = Math.round(inTransitOrders * perOrderBonus);
     const projectedNet = Math.max(
         0,
-        calc.grossSalary + extraOrderBonus - calc.absenceDeduction - calc.advancesTotal - calc.penaltiesTotal,
+        calc.grossSalary + (calc.carriedIn ?? 0) + extraOrderBonus - calc.absenceDeduction - calc.advancesTotal - calc.penaltiesTotal,
     );
     return { orders: inTransitOrders, extraOrderBonus, projectedNet };
 }

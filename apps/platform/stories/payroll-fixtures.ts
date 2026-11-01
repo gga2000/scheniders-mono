@@ -12,7 +12,7 @@ const breakdown = (genuine: number, replacements: number, refunds: number): Orde
 function employee(
     id: string, name: string | null, email: string, role: string,
     base: number, perOrder: number, b: OrderBreakdown,
-    extras: { advances?: SalaryAdvance[]; penalties?: SalaryPenalty[]; bonuses?: PerformanceBonus[]; lastPaid?: string | null; inTransit?: number } = {},
+    extras: { advances?: SalaryAdvance[]; penalties?: SalaryPenalty[]; bonuses?: PerformanceBonus[]; lastPaid?: string | null; inTransit?: number; carriedIn?: number } = {},
 ): EmployeePayrollData {
     const advances = extras.advances ?? [];
     const penalties = extras.penalties ?? [];
@@ -22,6 +22,7 @@ function employee(
     const penaltiesTotal = penalties.reduce((s, a) => s + a.amount, 0);
     const bonusTotal = bonuses.reduce((s, a) => s + a.amount, 0);
     const gross = base + orderBonus + bonusTotal;
+    const carriedIn = extras.carriedIn ?? 0;
     return {
         employee: { id, displayName: name, email, role, avatarUrl: null, isActive: true },
         effectiveRate: { baseMonthlySalary: base, perOrderBonus: perOrder, source: "role_default" },
@@ -29,10 +30,10 @@ function employee(
             employeeId: id, periodStart: START, periodEnd: END, baseSalary: base,
             completedOrdersCount: b.genuine, orderBreakdown: b,
             orderStatusBreakdown: { total: b.completedTotal + 40, completed: b.completedTotal, inTransit: 18, cancelled: 9, rejected: 5, noResponse: 6, pending: 2, returns: b.refunds },
-            orderBonus, pendingBonuses: bonuses, performanceBonusesTotal: bonusTotal,
+            orderBonus, pendingBonuses: bonuses, performanceBonusesTotal: bonusTotal, carriedIn,
             pendingAdvances: advances, advancesTotal, pendingPenalties: penalties, penaltiesTotal,
-            absenceDays: 0, absenceDeduction: 0, grossSalary: gross, netSalary: gross - advancesTotal - penaltiesTotal,
-            inTransit: projectInTransit({ grossSalary: gross, absenceDeduction: 0, advancesTotal, penaltiesTotal }, extras.inTransit ?? 0, perOrder),
+            absenceDays: 0, absenceDeduction: 0, grossSalary: gross, netSalary: gross + carriedIn - advancesTotal - penaltiesTotal,
+            inTransit: projectInTransit({ grossSalary: gross, carriedIn, absenceDeduction: 0, advancesTotal, penaltiesTotal }, extras.inTransit ?? 0, perOrder),
         },
         lastPayrollDate: extras.lastPaid ?? "2026-09-30",
         overlappingPayroll: null,
@@ -51,7 +52,7 @@ export const payrollEmployees: EmployeePayrollData[] = [
         penalties: [{ id: "p1", employee_id: "u3", amount: 25000, reason: "تأخير", created_at: "2026-10-20T09:00:00Z", is_applied: false }],
         inTransit: 18,
     }),
-    employee("u4", "حسن (التغليف)", "hassan.packing@perfumes.com", "employee", 450000, 0, breakdown(0, 0, 0)),
+    employee("u4", "حسن (التغليف)", "hassan.packing@perfumes.com", "employee", 450000, 0, breakdown(0, 0, 0), { carriedIn: 150000 }),
 ];
 
 export const payrollAdvances: SalaryAdvance[] = payrollEmployees.flatMap((e) => e.calculation.pendingAdvances);
@@ -77,7 +78,7 @@ const paid = (id: string, employee_id: string, start: string, end: string, base:
 export const payrollHistory: PayrollRecord[] = [
     paid("h1", "u2", "2026-09-01", "2026-09-30", 600000, 190, 790000),
     paid("h2", "u3", "2026-09-01", "2026-09-30", 550000, 128, 653000),
-    paid("h3", "u4", "2026-09-01", "2026-09-30", 450000, 0, 450000),
+    { ...paid("h3", "u4", "2026-09-01", "2026-09-30", 450000, 0, 450000), amount_paid: 300000 },
     paid("h4", "u2", "2026-08-01", "2026-08-31", 600000, 176, 726000),
     paid("h5", "u3", "2026-08-01", "2026-08-31", 550000, 119, 669000, "voided"),
     paid("h6", "u3", "2026-08-01", "2026-08-31", 550000, 119, 644000),

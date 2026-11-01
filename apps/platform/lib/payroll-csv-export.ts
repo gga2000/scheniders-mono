@@ -21,7 +21,7 @@ export function exportCurrentPeriodCSV(data: EmployeePayrollData[], periodStart:
         "Base Salary", "Order Bonus",
         "Completed Orders", "Payable Orders", "Replacements", "Refunds", "Quality %",
         "Performance Bonuses", "Absence Days", "Absence Deduction",
-        "Advances", "Penalties", "Gross Salary", "Net Salary"
+        "Advances", "Penalties", "Gross Salary", "Still Owed From Last", "Net Salary"
     );
 
     const rows = data.map(d => {
@@ -44,6 +44,7 @@ export function exportCurrentPeriodCSV(data: EmployeePayrollData[], periodStart:
             d.calculation.advancesTotal,
             d.calculation.penaltiesTotal,
             d.calculation.grossSalary,
+            d.calculation.carriedIn,
             d.calculation.netSalary,
         );
     });
@@ -61,8 +62,8 @@ export function exportHistoryCSV(
         "Employee", "Period Start", "Period End", "Status",
         "Base Salary", "Order Bonus", "Orders Completed",
         "Performance Bonuses", "Absence Days", "Absence Deduction",
-        "Advances Deducted", "Penalties Deducted", "Gross Salary", "Net Salary",
-        "Payment Method", "Paid At", "Notes"
+        "Advances Deducted", "Penalties Deducted", "Gross Salary", "Carried In", "Net Salary",
+        "Amount Paid", "Still Owed", "Payment Method", "Paid At", "Notes"
     );
 
     const rows = records.map(r => row(
@@ -79,7 +80,10 @@ export function exportHistoryCSV(
         r.advances_deducted,
         r.penalties_deducted,
         r.gross_salary,
+        r.carried_in ?? 0,
         r.net_salary,
+        r.amount_paid ?? r.net_salary,
+        r.net_salary - (r.amount_paid ?? r.net_salary),
         r.payment_method ?? "cash",
         r.paid_at ?? "",
         r.notes ?? "",
