@@ -40,11 +40,12 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
                 <span className="text-sm text-muted-foreground" aria-hidden>·</span>
                 <span className="text-sm text-muted-foreground truncate">{t("customers.profile.noNotes")}</span>
                 {onAddNote && (
+                    // The strip's compact action, the same size as "+ Link" on the Link customers strip.
                     <button
                         onClick={onAddNote}
-                        className="ml-auto inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--card-border) text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors shrink-0"
+                        className="ml-auto shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-(--card-border) text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
                     >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3.5 h-3.5" />
                         {t("customers.profile.addNote")}
                     </button>
                 )}

@@ -12,7 +12,8 @@ vi.mock("@/hooks/use-language", () => ({
     }),
 }));
 
-import { TrustEventDate, RELATIVE_EVENT_DAYS } from "./trust-event-date";
+import { RELATIVE_DAYS } from "@/lib/customer-reliability";
+import { TrustEventDate } from "./trust-event-date";
 
 const NOW = new Date("2026-11-01T09:00:00Z");
 const daysBefore = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOString();
@@ -28,8 +29,8 @@ afterEach(() => {
 
 describe("TrustEventDate", () => {
     it("is relative up to a month", () => {
-        const { container } = render(<TrustEventDate date={daysBefore(RELATIVE_EVENT_DAYS)} />);
-        expect(container.textContent).toBe(`${RELATIVE_EVENT_DAYS} days ago`);
+        const { container } = render(<TrustEventDate date={daysBefore(RELATIVE_DAYS)} />);
+        expect(container.textContent).toBe(`${RELATIVE_DAYS} days ago`);
     });
 
     it("is the short day past a month, with the full day on hover", () => {

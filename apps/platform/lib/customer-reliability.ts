@@ -18,7 +18,7 @@
 
 import type { TrustTier } from '@/types/customer';
 import { translations, type Locale } from '@/lib/i18n';
-import { baghdadMonthKey } from '@/lib/customer-format';
+import { baghdadMonthKey, formatBaghdadShortDate } from '@/lib/customer-format';
 import {
     ORDER_STATUS_TONE, REFUND_ORDER_STATUS_LABELS, getOrderStatusLabel, orderStatusTone, type OrderStatusKey,
 } from '@/lib/order-status-labels';
@@ -28,7 +28,7 @@ import {
 export type ValueTier = 'vip' | 'good' | 'newcomer';
 
 export interface ValueMeta {
-    /** Human label (fallback; i18n key `customers.value.<tier>` overrides). */
+    /** Human label (fallback; i18n key `valueTierKey(tier)` overrides). */
     label: string;
     pillBg: string;
     pillText: string;
@@ -42,6 +42,15 @@ export const VALUE_META: Record<ValueTier, ValueMeta> = {
     // No value proven yet, so no colour: neutral ink, which also keeps sky "Good" from reading as a second blue.
     newcomer: { label: 'Newcomer', pillBg: 'bg-zinc-100 dark:bg-white/10', pillText: 'text-zinc-700 dark:text-zinc-200', dot: 'bg-zinc-400' },
 };
+
+/**
+ * The i18n key for a value tier's name on the customers screens. The Orders risk
+ * panel keeps its own `customers.value.<tier>` wording; these say "customer" the
+ * way the rest of the customers screens do.
+ */
+export function valueTierKey(tier: ValueTier): string {
+    return `customers.tier.${tier}`;
+}
 
 /** Mirror of value_tier_calc: VALUE by completed (delivered) orders. */
 export function valueTier(c: { completed_count: number }): ValueTier {
@@ -212,7 +221,7 @@ export type RecencyState = 'active' | 'cooling' | 'dormant' | 'none';
 export interface RecencyStatus {
     /** The full line, e.g. "Cooling · last order 12 days ago". */
     label: string;
-    /** Just the time since the last order ("12 days ago"), for one-line table cells. */
+    /** Just when the last order was, for one-line cells: "12 days ago" up to a month, then "Sep 14" (relativeOrShortDate). */
     ago: string;
     /** What the dot means, in words: "Active", "Cooling", "Dormant". */
     stateLabel: string;
@@ -232,6 +241,19 @@ export function daysAgoLabel(days: number, t: RecencyTranslate): string {
     if (days === 2) return t('customers.recency.daysAgoTwo');
     if (days <= 10) return t('customers.recency.daysAgoFew', { days });
     return t('customers.recency.daysAgo', { days });
+}
+
+/** Up to this many days a date reads relative ("20 days ago"); older, as its short day ("Jul 12"). */
+export const RELATIVE_DAYS = 30;
+
+/**
+ * When something happened, the one way the customers screens write it (last order on the card
+ * and the table, trust-score events on the profile): relative up to a month, then the short
+ * Baghdad day ("Jul 12", or "Jul 12, 2025" before this year), so nobody counts back from
+ * "117 days ago". `days` is daysSince(iso).
+ */
+export function relativeOrShortDate(iso: string, days: number, language: string, t: RecencyTranslate): string {
+    return days <= RELATIVE_DAYS ? daysAgoLabel(days, t) : formatBaghdadShortDate(iso, language);
 }
 
 /**
@@ -256,12 +278,12 @@ export const FIRST_DELIVERY_DOT = 'bg-teal-500';
  * customer ordered (active ≤ 7 days, cooling ≤ 30, dormant after); COD risk
  * has its own pill and is never folded into it.
  */
-export function recencyStatus(lastOrderDate: string | null | undefined, t: RecencyTranslate): RecencyStatus {
+export function recencyStatus(lastOrderDate: string | null | undefined, t: RecencyTranslate, language: string): RecencyStatus {
     const d = daysSince(lastOrderDate);
-    if (d === null) {
+    if (d === null || !lastOrderDate) {
         return { label: t('customers.recency.none'), ago: '—', stateLabel: t('customers.recency.none'), state: 'none', dot: RECENCY_DOT.none };
     }
-    const ago = daysAgoLabel(d, t);
+    const ago = relativeOrShortDate(lastOrderDate, d, language, t);
     const state: RecencyState = d <= 7 ? 'active' : d <= 30 ? 'cooling' : 'dormant';
     const label = state === 'active' ? t('customers.recency.last', { ago }) : t(`customers.recency.${state}`, { ago });
     return { label, ago, stateLabel: t(`customers.recency.state.${state}`), state, dot: RECENCY_DOT[state] };
@@ -478,6 +500,7 @@ export const SCORE_FACTOR_TONE: Record<ScoreFactor['type'], { bar: string; text:
 /** The labels the store computes for a customer; a merchant tag with one of these names reads as the rating itself. */
 const RATING_LABEL_KEYS = [
     'customers.value.vip', 'customers.value.good', 'customers.value.newcomer',
+    'customers.tier.vip', 'customers.tier.good', 'customers.tier.newcomer',
     'customers.risk.clean', 'customers.risk.caution', 'customers.risk.high', 'customers.risk.blocked',
 ] as const;
 

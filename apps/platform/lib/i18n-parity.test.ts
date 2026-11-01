@@ -7,8 +7,9 @@ import { translations } from "./i18n";
  * forgotten in `ar` shipped silently. This checks the real dictionaries.
  */
 describe("i18n dictionaries are in parity", () => {
-    // `<key>.one` is an optional singular form: a language that needs none omits it.
-    const required = (k: string) => !k.endsWith(".one");
+    // `<key>.one`, `.two`, `.few`, `.many` and `.zero` are optional plural forms
+    // (Arabic needs all of them, English only `.one`): a language that needs none omits it.
+    const required = (k: string) => !/\.(one|two|few|many|zero)$/.test(k);
     const en = Object.keys(translations.en).filter(required);
     const ar = Object.keys(translations.ar).filter(required);
 
@@ -26,5 +27,14 @@ describe("i18n dictionaries are in parity", () => {
                 .filter(([, v]) => typeof v === "string" && v.trim() === "")
                 .map(([k]) => `${loc}:${k}`);
         expect([...blank("en"), ...blank("ar")]).toEqual([]);
+    });
+
+    it("every plural form has its plain entry in the same language", () => {
+        const orphans = (loc: "en" | "ar") =>
+            Object.keys(translations[loc])
+                .filter((k) => !required(k))
+                .filter((k) => !(k.replace(/\.(one|two|few|many|zero)$/, "") in translations[loc]))
+                .map((k) => `${loc}:${k}`);
+        expect([...orphans("en"), ...orphans("ar")]).toEqual([]);
     });
 });

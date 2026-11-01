@@ -62,7 +62,8 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
     // The rate's base: orders with a final outcome. Orders still on the road
     // have neither succeeded nor failed, so with none finished there is no rate yet.
     const finished = orders.filter((o) => isFinishedOrder(o.status)).length;
-    const recent = orders.slice(0, 6).reverse();
+    // Newest first, left to right, like Order history and the identity timeline.
+    const recent = orders.slice(0, 6);
     const verdictKey = codVerdictKey(risk, firstDeliveryPending({ ...reliability, last_order_status: orders[0]?.status }));
 
     return (
@@ -102,14 +103,14 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
                         </div>
                         <div>
                             <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{finished > 0 ? `${Math.round(successRate)}%` : "—"}</div>
-                            <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{t("customers.banner.rateBase", { count: finished.toLocaleString("en-US") })}</div>
+                            <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{t("customers.banner.rateBase", { count: finished })}</div>
                         </div>
                         {recent.length > 0 && (
-                            <div>
+                            <div title={t("customers.identity.order")}>
                                 <div className="flex items-center gap-1 h-6" aria-hidden>
                                     {recent.map((o) => <span key={o.id} className={cn("w-2.5 h-5 rounded-sm", OUTCOME_DOT[outcomeTone(o.status)])} />)}
                                 </div>
-                                <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{recent.length === 1 ? t("customers.banner.lastOutcomesOne") : t("customers.banner.lastOutcomes", { count: String(recent.length) })}</div>
+                                <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{t("customers.banner.lastOutcomes", { count: recent.length })}</div>
                             </div>
                         )}
                         {trigger}

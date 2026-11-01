@@ -11,12 +11,14 @@ import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
     customerAccent,
     recencyStatus,
+    valueTierKey,
     firstDeliveryPending,
     FIRST_DELIVERY_DOT,
     effectiveSuccessRate,
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
-import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
+import { CustomerStatusFlags, CARD_TOOLTIP } from "@/components/customers/customer-status-flags";
+import { Tooltip } from "@/components/ui/tooltip";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { formatPhoneDisplay, monogram, spentLabel, toIraqE164 } from "@/lib/customer-format";
 import { usePermission } from "@/hooks/use-permission";
@@ -46,7 +48,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
     // The avatar takes the risk colour when COD is unsafe, never a green value tier.
     const accent = customerAccent(value, risk);
     const pending = firstDeliveryPending(customer);
-    const recency = recencyStatus(customer.last_order_date, t);
+    const recency = recencyStatus(customer.last_order_date, t, language);
     const success = effectiveSuccessRate(customer);
     const e164 = toIraqE164(customer.phone);
     const gov = customer.governorate ? governorateLabel(customer.governorate, language) || customer.governorate : null;
@@ -114,12 +116,23 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
 
             {/* One status row: value tier (or the risk when COD is unsafe), caution, then the
                 outcome flags. Two chips fit a card, so the rest is a counted "+N" (named in its
-                tooltip). Caution takes its short word here, and every chip but the "+N" may
-                shrink (min-w-0, its word truncated), so the "+N" is never pushed off the row.
-                Clipped sideways only, so the "+N" tooltip can drop below the row. */}
+                tooltip). Caution keeps its full words, as on every other surface; on a card too
+                narrow for both words (under 16rem, the 4-column grid at 1280) the value pill
+                gives way instead and shows its icon alone, its name on hover and for screen
+                readers. Every chip but the "+N" may still shrink (min-w-0, its word truncated),
+                so the "+N" is never pushed off the row. Clipped sideways only, so the tooltips
+                can open above the row. */}
             <div className="mt-3 flex items-center gap-1.5 h-6 overflow-x-clip">
-                {unsafe ? <RiskChip risk={risk} className="min-w-0" /> : <ValuePill tier={value} variant="compact" className="min-w-0" />}
-                {risk === "caution" && <RiskChip risk={risk} short className="min-w-0" />}
+                {unsafe ? (
+                    <RiskChip risk={risk} className="min-w-0" />
+                ) : risk === "caution" ? (
+                    <Tooltip content={t(valueTierKey(value))} align="start" className="min-w-0" contentClassName={CARD_TOOLTIP}>
+                        <ValuePill tier={value} variant="compact" className="min-w-0 @max-[16rem]:px-1.5" labelClassName="@max-[16rem]:sr-only" />
+                    </Tooltip>
+                ) : (
+                    <ValuePill tier={value} variant="compact" className="min-w-0" />
+                )}
+                {risk === "caution" && <RiskChip risk={risk} className="min-w-0" />}
                 <CustomerStatusFlags customer={customer} max={risk === "caution" ? 0 : 1} className="contents" />
             </div>
 
