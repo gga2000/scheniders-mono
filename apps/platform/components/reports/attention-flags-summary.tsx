@@ -3,7 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { AttentionFlagMetrics } from "@/lib/analytics/reports-calculations";
-import { AlertTriangle, CheckCircle2, ArrowRight, Phone, Package, MapPin, Eye, Coins, type LucideIcon } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ArrowRight, Phone, Package, MapPin, Coins, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,6 @@ const FLAG_ICONS: Record<string, LucideIcon> = {
     missing_phone: Phone,
     missing_product: Package,
     invalid_address: MapPin,
-    needs_review: Eye,
     price_issues: Coins,
 };
 
