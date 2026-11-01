@@ -10,6 +10,7 @@ import type { Order } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
 import type { FinancePeriod } from "@/hooks/use-finance-period";
 import { useCashPosition } from "@/hooks/use-cash-position";
+import { useInTransitSince } from "@/hooks/use-in-transit-since";
 import { useLanguage } from "@/hooks/use-language";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
@@ -25,7 +26,7 @@ interface Props {
 }
 
 export function ForecastsTab({ orders, expenses, period }: Props) {
-    const cash = useCashPosition(orders);
+    const cash = useCashPosition(orders, useInTransitSince(orders));
 
     const forecast = useMemo(() => buildForecast(orders), [orders]);
 

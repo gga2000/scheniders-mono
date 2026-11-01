@@ -77,11 +77,15 @@ function ageInDays(isoDate: string | undefined, now: number): number {
     return Math.max(0, Math.floor((now - then) / MS_PER_DAY));
 }
 
-function statusReference(o: Order): string {
-    return o.updated_at || o.created_at;
+/**
+ * When the order entered its current status. Real history when we have it;
+ * otherwise `updated_at`, which any later edit resets, so it can understate age.
+ */
+function statusReference(o: Order, inTransitSince?: ReadonlyMap<string, string>): string {
+    return inTransitSince?.get(o.id) || o.updated_at || o.created_at;
 }
 
-export function useCashPosition(orders: Order[]): CashPositionResult {
+export function useCashPosition(orders: Order[], inTransitSince?: ReadonlyMap<string, string>): CashPositionResult {
     return useMemo(() => {
         // Refund and return rows are money going back to the customer. They are
         // not sales in flight, so no cash figure, aging bucket, or delivery rate
@@ -146,7 +150,7 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
             // In-transit: age bucketing
             if (o.status === "in_transit") {
                 cashInTransit += value;
-                const days = ageInDays(statusReference(o), now);
+                const days = ageInDays(statusReference(o, inTransitSince), now);
 
                 let bucketId: AgingBucket["id"];
                 if (days <= 3) bucketId = "fresh";
@@ -168,7 +172,7 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
                         price: value,
                         status: o.status,
                         created_at: o.created_at,
-                        shipped_at: statusReference(o),
+                        shipped_at: statusReference(o, inTransitSince),
                         days_in_transit: days,
                         delivery_company: o.delivery_company,
                     });
@@ -181,7 +185,7 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
                     govMap.set(gov, g);
                 }
 
-                const ref = new Date(statusReference(o));
+                const ref = new Date(statusReference(o, inTransitSince));
                 if (ref >= earliest) {
                     const key = baghdadDayKey(ref);
                     const entry = daily.get(key) || { collected: 0, float: 0 };
@@ -285,5 +289,5 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
             byGovernorate,
             cashSeries,
         };
-    }, [orders]);
+    }, [orders, inTransitSince]);
 }

@@ -553,6 +553,19 @@ describe("free gift", () => {
     }
   });
 
+  it("follows the storefront stock the merchant set, not the real count", async () => {
+    // Real stock 0, shown as 12 on the store: the store offers it, so the gift is added.
+    let fake = install(giftTables({ stock_quantity: 0, storefront_stock: 12 }));
+    let res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 32500, 2)] });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items).toHaveLength(2);
+    // Real stock 50, shown as out of stock: the store does not offer it.
+    fake = install(giftTables({ stock_quantity: 50, storefront_stock: 0 }));
+    res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 32500, 2)] });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items).toHaveLength(1);
+  });
+
   it("does not complete a bundle the shopper never paid into", async () => {
     // A merchant bundle naming the gift product would otherwise complete the
     // moment the server appended the gift, and pay out 2,000 nobody earned.

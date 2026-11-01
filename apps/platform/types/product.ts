@@ -63,6 +63,8 @@ export interface Product {
     display_order?: number;
     category_id?: string | null;
     website_price?: number | null;
+    // Count the public store shows and sells against; null = real stock minus reserved.
+    storefront_stock?: number | null;
     short_description?: string | null;
     // Funnel PDP note-highlight cards (products.feature_cards jsonb).
     // Rendered by the storefront pdp_direct_order section; empty/null = feature off.
@@ -157,72 +159,6 @@ export interface ProductPriceHistory {
     new_price: number;
     changed_by?: string;
     reason?: string;
-}
-
-export type QCStatus =
-    | 'pending_inspection'
-    | 'in_inspection'
-    | 'restocked'
-    | 'written_off'
-    | 'returned_to_supplier';
-
-export type QCReasonCategory =
-    | 'damaged'
-    | 'expired'
-    | 'defective'
-    | 'wrong_item'
-    | 'returned'
-    | 'other';
-
-export type QCResolution = 'restocked' | 'written_off' | 'returned_to_supplier';
-
-export interface QCChecklistItem {
-    id: string;
-    label: string;
-    checked: boolean;
-}
-
-export interface QCItem {
-    id: string;
-    order_id?: string;
-    product_id: string;
-    quantity: number;
-    status: QCStatus;
-    reason: string;
-    created_at: string;
-    resolved_at?: string;
-    resolved_by?: string;
-    notes?: string;
-    // v2 fields (optional until migration applied)
-    assigned_to?: string | null;
-    reason_category?: QCReasonCategory | null;
-    photos?: string[];
-    rma_number?: string | null;
-    credit_expected?: number | null;
-    inspection_checklist?: QCChecklistItem[] | null;
-    tenant_id?: string | null;
-    // Joined fields
-    product?: Product;
-    /** The columns use-inventory-qc.ts embeds (QC_ORDER_COLUMNS). */
-    order?: Pick<Order, 'id' | 'order_id' | 'customer_name' | 'phone' | 'status' | 'created_at' | 'tenant_id'>;
-}
-
-export interface QCEvent {
-    id: string;
-    qc_item_id: string;
-    event_type:
-        | 'created'
-        | 'status_changed'
-        | 'assigned'
-        | 'photo_added'
-        | 'photo_removed'
-        | 'note_added'
-        | 'checklist_updated'
-        | 'reason_updated'
-        | 'bulk_action';
-    actor_id?: string | null;
-    payload?: Record<string, any> | null;
-    created_at: string;
 }
 
 export interface BundleItem {

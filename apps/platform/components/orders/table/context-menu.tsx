@@ -6,18 +6,20 @@ import { Copy, MessageCircle, ExternalLink, ChevronRight, Archive, Trash2, Phone
 import type { Order, OrderStatus } from "@/lib/supabase";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/components/providers/language-provider";
+import { getOrderStatusLabel } from "@/lib/order-status-labels";
 
-const STATUS_OPTIONS: Array<{ value: OrderStatus; label: string; dot: string }> = [
-    { value: "new", label: "جديد", dot: "bg-orange-400" },
-    { value: "contacted", label: "تم الاتصال", dot: "bg-yellow-400" },
-    { value: "confirmed", label: "مؤكد", dot: "bg-green-400" },
-    { value: "in_transit", label: "قيد التوصيل", dot: "bg-blue-400" },
-    { value: "delivered", label: "تم التسليم", dot: "bg-teal-400" },
-    { value: "completed", label: "مكتمل", dot: "bg-emerald-400" },
-    { value: "no_response", label: "لم يرد", dot: "bg-gray-400" },
-    { value: "suspended", label: "طلب معلق", dot: "bg-orange-300" },
-    { value: "rejected", label: "مرفوض", dot: "bg-rose-400" },
-    { value: "cancelled", label: "ملغي", dot: "bg-red-400" },
+const STATUS_OPTIONS: Array<{ value: OrderStatus; dot: string }> = [
+    { value: "new", dot: "bg-orange-400" },
+    { value: "contacted", dot: "bg-yellow-400" },
+    { value: "confirmed", dot: "bg-green-400" },
+    { value: "in_transit", dot: "bg-blue-400" },
+    { value: "delivered", dot: "bg-teal-400" },
+    { value: "completed", dot: "bg-emerald-400" },
+    { value: "no_response", dot: "bg-gray-400" },
+    { value: "suspended", dot: "bg-orange-300" },
+    { value: "rejected", dot: "bg-rose-400" },
+    { value: "cancelled", dot: "bg-red-400" },
 ];
 
 interface ContextMenuProps {
@@ -25,7 +27,7 @@ interface ContextMenuProps {
     y: number;
     order: Order;
     onClose: () => void;
-    onStatusChange: (orderId: string, status: OrderStatus) => Promise<any>;
+    onStatusChange: (orderId: string, status: OrderStatus) => Promise<unknown>;
     onOpenDetails: (order: Order) => void;
     onArchive?: (orderId: string) => void;
     onDelete?: (orderId: string) => void;
@@ -35,6 +37,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
     x, y, order, onClose, onStatusChange, onOpenDetails, onArchive, onDelete
 }: ContextMenuProps) {
     const ref = useRef<HTMLDivElement>(null);
+    const { t, language } = useLanguage();
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -65,9 +68,9 @@ export const OrderContextMenu = memo(function OrderContextMenu({
 
     const copyToClipboard = (text: string, label: string) => {
         navigator.clipboard.writeText(text).then(() => {
-            toast.success(`Copied ${label}`);
+            toast.success(t("orders.toast.copied", { label }));
             onClose();
-        }).catch(() => toast.error("Failed to copy"));
+        }).catch(() => toast.error(t("orders.toast.copyFailed")));
     };
 
     const phone = order.phone?.replace(/^\+964/, "0").replace(/^964/, "0") || "";
@@ -85,30 +88,30 @@ export const OrderContextMenu = memo(function OrderContextMenu({
         >
             {/* Copy actions */}
             <button
-                onClick={() => copyToClipboard(phone, "phone")}
+                onClick={() => copyToClipboard(phone, t("orders.ctx.phone"))}
                 className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors text-gray-700"
             >
                 <Phone className="w-3.5 h-3.5 text-gray-400" />
-                Copy Phone
+                {t("orders.ctx.copyPhone")}
                 <span className="ml-auto text-[10px] text-gray-400 font-mono">⌘C</span>
             </button>
             <button
-                onClick={() => copyToClipboard(`#${orderId}`, "order ID")}
+                onClick={() => copyToClipboard(`#${orderId}`, t("orders.ctx.orderId"))}
                 className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors text-gray-700"
             >
                 <Copy className="w-3.5 h-3.5 text-gray-400" />
-                Copy Order ID
+                {t("orders.ctx.copyOrderId")}
             </button>
             {order.address_details && (
                 <button
                     onClick={() => copyToClipboard(
                         [order.city, order.address_details].filter(Boolean).join(" - "),
-                        "address"
+                        t("orders.ctx.address")
                     )}
                     className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors text-gray-700"
                 >
                     <Copy className="w-3.5 h-3.5 text-gray-400" />
-                    Copy Address
+                    {t("orders.ctx.copyAddress")}
                 </button>
             )}
             <button
@@ -119,7 +122,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
                 className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors text-green-600"
             >
                 <MessageCircle className="w-3.5 h-3.5" />
-                Open WhatsApp
+                {t("orders.ctx.openWhatsapp")}
             </button>
 
             <div className="h-px bg-gray-100 my-1" />
@@ -130,7 +133,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
                     <div className={cn("w-2 h-2 rounded-full",
                         STATUS_OPTIONS.find(s => s.value === order.status)?.dot || "bg-gray-400"
                     )} />
-                    Change Status
+                    {t("orders.ctx.changeStatus")}
                     <ChevronRight className="w-3 h-3 ml-auto text-gray-400" />
                 </button>
                 <div className="absolute left-full top-0 ml-1 w-40 py-1 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-200 hidden group-hover/status:block">
@@ -149,7 +152,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
                             )}
                         >
                             <span className={cn("w-2 h-2 rounded-full shrink-0", opt.dot)} />
-                            {opt.label}
+                            {getOrderStatusLabel(opt.value, language)}
                         </button>
                     ))}
                 </div>
@@ -163,7 +166,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
                 className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors text-gray-700"
             >
                 <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
-                Open Details
+                {t("orders.ctx.openDetails")}
                 <span className="ml-auto text-[10px] text-gray-400 font-mono">Enter</span>
             </button>
 
@@ -173,7 +176,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
                     className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors text-gray-500"
                 >
                     <Archive className="w-3.5 h-3.5" />
-                    Archive
+                    {t("orders.ctx.archive")}
                 </button>
             )}
 
@@ -185,7 +188,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
                         className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-red-50 transition-colors text-red-500"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
-                        Delete
+                        {t("orders.ctx.delete")}
                     </button>
                 </>
             )}

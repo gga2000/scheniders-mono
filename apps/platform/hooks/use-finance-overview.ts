@@ -1,5 +1,6 @@
 "use client";
 
+import { bucketsBetween, periodBucket } from "@/lib/finance/buckets";
 import { useMemo } from "react";
 import type { Order, Product } from "@/lib/supabase";
 import type { Expense } from "@/types/expense";
@@ -79,31 +80,6 @@ export interface FinanceOverviewResult {
     top_loser_product: { name: string; delta: number; revenue: number } | null;
     top_gainer_channel: { name: string; delta: number; revenue: number } | null;
     top_loser_channel: { name: string; delta: number; revenue: number } | null;
-}
-
-export function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number } {
-    const dd = new Date(d);
-    dd.setHours(0, 0, 0, 0);
-    if (granularity === "day" || granularity === "week") {
-        const dayKey = baghdadDayKey(d);
-        if (granularity === "day") return { key: dayKey, ts: baghdadDayStart(dayKey) };
-        const weekday = new Date(`${dayKey}T00:00:00.000Z`).getUTCDay();
-        const mondayKey = addDaysToDayKey(dayKey, -((weekday + 6) % 7));
-        return { key: mondayKey, ts: baghdadDayStart(mondayKey) };
-    }
-    if (granularity === "quarter") {
-        const q = Math.floor(dd.getMonth() / 3);
-        const firstOfQuarter = new Date(dd.getFullYear(), q * 3, 1);
-        return { key: `${dd.getFullYear()}-Q${q + 1}`, ts: firstOfQuarter.getTime() };
-    }
-    if (granularity === "year") {
-        const firstOfYear = new Date(dd.getFullYear(), 0, 1);
-        return { key: `${dd.getFullYear()}`, ts: firstOfYear.getTime() };
-    }
-    const y = dd.getFullYear();
-    const m = String(dd.getMonth() + 1).padStart(2, "0");
-    const firstOfMonth = new Date(y, dd.getMonth(), 1);
-    return { key: `${y}-${m}`, ts: firstOfMonth.getTime() };
 }
 
 /** An expense is dated by calendar day; file it at the start of that Baghdad day, not UTC midnight. */
@@ -224,7 +200,7 @@ export function useFinanceOverview(
             const map = new Map<string, BucketPoint>();
             for (const o of oList) {
                 const d = reportDate(o) ?? toDate(o.created_at);
-                const { key, ts } = bucketKey(d, granularity);
+                const { key, ts } = periodBucket(d, granularity);
                 if (!map.has(key)) {
                     map.set(key, {
                         bucket: key, ts, revenue: 0, delivered_revenue: 0, orders: 0, delivered: 0,
@@ -249,7 +225,7 @@ export function useFinanceOverview(
             }
             for (const e of eList) {
                 const d = expenseInstant(e);
-                const { key, ts } = bucketKey(d, granularity);
+                const { key, ts } = periodBucket(d, granularity);
                 if (!map.has(key)) {
                     map.set(key, {
                         bucket: key, ts, revenue: 0, delivered_revenue: 0, orders: 0, delivered: 0,
@@ -259,23 +235,13 @@ export function useFinanceOverview(
                 map.get(key)!.expenses += e.amount;
             }
             // fill zero buckets across the interval (nicer charts)
-            const cursor = new Date(interval.start);
-            cursor.setHours(0, 0, 0, 0);
-            const end = new Date(interval.end);
-            end.setHours(0, 0, 0, 0);
-            while (cursor <= end) {
-                const { key, ts } = bucketKey(cursor, granularity);
+            for (const { key, ts } of bucketsBetween(interval.start, interval.end, granularity)) {
                 if (!map.has(key)) {
                     map.set(key, {
                         bucket: key, ts, revenue: 0, delivered_revenue: 0, orders: 0, delivered: 0,
                         product_cost: 0, delivery_cost: 0, discount: 0, refunds: 0, expenses: 0, profit: 0,
                     });
                 }
-                if (granularity === "day") cursor.setDate(cursor.getDate() + 1);
-                else if (granularity === "week") cursor.setDate(cursor.getDate() + 7);
-                else if (granularity === "quarter") cursor.setMonth(cursor.getMonth() + 3);
-                else if (granularity === "year") cursor.setFullYear(cursor.getFullYear() + 1);
-                else cursor.setMonth(cursor.getMonth() + 1);
             }
             const series = Array.from(map.values()).sort((a, b) => a.ts - b.ts);
             for (const s of series) s.profit = s.delivered_revenue - s.product_cost - s.refunds - s.expenses;

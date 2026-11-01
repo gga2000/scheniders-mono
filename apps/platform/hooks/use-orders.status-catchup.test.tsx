@@ -80,7 +80,7 @@ vi.mock("@/components/auth/auth-provider", () => ({
 }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn(), splitOrderAction: vi.fn(), unsplitOrderAction: vi.fn() }));
 vi.mock("@/lib/activity-logger", () => ({ activityLogger: { log: vi.fn(), logStatusChange: vi.fn(), logOrderCreate: vi.fn() } }));
-vi.mock("@/lib/inventory-engine", () => ({ deductSupplies: vi.fn(), quarantineOrder: vi.fn(), removeFromQuarantine: vi.fn() }));
+vi.mock("@/lib/inventory-engine", () => ({ deductSupplies: vi.fn() }));
 vi.mock("@/hooks/use-toast", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn(), warning: vi.fn() }) }));
 
 import { RealtimeBatcher } from "@/lib/realtime-batcher";

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/components/providers/language-provider";
 import { reportOrderError } from "@/lib/order-telemetry";
 
 interface InlineEditCellProps {
@@ -22,6 +23,7 @@ interface InlineEditCellProps {
 export const InlineEditCell = memo(function InlineEditCell({
     value, orderId, field, onSave, onClose, className, validate
 }: InlineEditCellProps) {
+    const { t } = useLanguage();
     const [editValue, setEditValue] = useState(value || "");
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -46,7 +48,7 @@ export const InlineEditCell = memo(function InlineEditCell({
 
         try {
             await onSave(orderId, { [field]: trimmed });
-            toast.success("Updated");
+            toast.success(t("orders.toast.updated"));
             onClose();
         } catch (err) {
             // Was a bare `catch {}`: the edit failed, the operator saw a generic
@@ -54,7 +56,7 @@ export const InlineEditCell = memo(function InlineEditCell({
             // is not lost, and record why it failed.
             reportOrderError(err, { operation: "orders-inline-edit", orderId, extra: { field } });
             toast.error(
-                "Could not save",
+                t("orders.toast.saveFailed"),
                 err instanceof Error ? err.message : undefined,
             );
         }

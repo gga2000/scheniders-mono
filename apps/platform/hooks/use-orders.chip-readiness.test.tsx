@@ -96,7 +96,7 @@ vi.mock("@/hooks/use-duplicate-window-alerts", () => ({
     duplicateCandidateKeys: { all: ["orders", "list", "duplicate-candidates"] },
     useDuplicateWindowAlerts: () => ({ getDuplicateWindowAlert: () => null, getConfirmBlockingTwin: () => null, duplicateCandidates: [] }),
 }));
-vi.mock("@/lib/inventory-engine", () => ({ deductSupplies: () => undefined, quarantineOrder: () => undefined, removeFromQuarantine: () => undefined }));
+vi.mock("@/lib/inventory-engine", () => ({ deductSupplies: () => undefined }));
 vi.mock("@/app/actions/orders", () => ({ createOrderAction: vi.fn(), splitOrderAction: vi.fn(), unsplitOrderAction: vi.fn() }));
 vi.mock("@/hooks/use-toast", () => ({ toast: { error: vi.fn(), warning: vi.fn(), success: vi.fn(), info: vi.fn() } }));
 

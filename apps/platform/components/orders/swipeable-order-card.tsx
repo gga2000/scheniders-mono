@@ -2,23 +2,13 @@
 
 import React, { useState, useRef, useCallback, memo } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { Order, MessageTemplate } from "@/lib/supabase";
-import { RiskLevel } from "@/lib/fraud-detector";
+import type { Order } from "@/lib/supabase";
 import { OrderCard } from "./order-card";
 import { CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-interface SwipeableOrderCardProps {
-    order: Order;
-    loadingId: string | null;
-    onStatusUpdate: (id: string, status: Order["status"], reason?: string) => void;
-    onViewDetails: (order: Order) => void;
-    riskLevel?: RiskLevel;
-    riskAssessment?: any; // Pass through risk assessment
-    // ... all other props pass through
-    [key: string]: any;
-}
+type SwipeableOrderCardProps = React.ComponentProps<typeof OrderCard>;
 
 const SWIPE_THRESHOLD = 80;
 

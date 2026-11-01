@@ -26,6 +26,7 @@ import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products"
 import { catalogueUnitPrice } from "@/lib/catalogue-line";
 import { signUpsellProof, upsellProofSecret } from "@/lib/order-upsell-proof";
 import { isTransientDbError } from "@/lib/transient-db-error";
+import { storefrontAvailable } from "@/lib/storefront-stock";
 import { DUPLICATE_ORDER_WINDOW_MINUTES, isDuplicateGuardRow } from "@/lib/order-duplicate-guard";
 import { queueOrderConfirmation } from "@/lib/order-confirmation-queue";
 import { checkoutRateLimited } from "@/lib/checkout-rate-limit";
@@ -475,7 +476,7 @@ export async function submitCheckout(
     if (!alreadyInOrder) {
       const { data: gift, error: giftErr } = await supabase
         .from("products")
-        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity, image_url, tag_color")
+        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity, storefront_stock, image_url, tag_color")
         .eq("id", giftId)
         .eq("tenant_id", payload.tenantId)
         .maybeSingle();
@@ -492,7 +493,7 @@ export async function submitCheckout(
         !gift.is_archived &&
         gift.is_visible &&
         !gift.is_supply &&
-        (gift.stock_quantity ?? 0) - (gift.reserved_quantity ?? 0) > 0;
+        storefrontAvailable(gift) > 0;
       if (gift && giftOrderable) {
         verifiedItems.push({
           product_id: gift.id,

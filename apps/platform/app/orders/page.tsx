@@ -470,7 +470,7 @@ export default function OrdersPage() {
                 setIsModalOpen(true);
             } else {
                 // Order was deleted or doesn't exist
-                toast.error("Order not found", "This order may have been deleted.");
+                toast.error(t("orders.toast.notFound"), t("orders.toast.notFoundDesc"));
             }
         } catch (err) {
             // Falling back to the list row is better than refusing to open, but
@@ -484,7 +484,7 @@ export default function OrdersPage() {
             setSelectedOrder(order);
             setIsModalOpen(true);
         }
-    }, [setSelectedOrder, setIsModalOpen]);
+    }, [setSelectedOrder, setIsModalOpen, t]);
 
     /**
      * Wrapper for setSelectedOrder that lazy-fetches full order data.
@@ -1050,7 +1050,7 @@ export default function OrdersPage() {
                                                                 ? "bg-[var(--ink)] border-[var(--ink)] text-white"
                                                                 : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
                                                         )}
-                                                        title="Select all"
+                                                        title={t("orders.tip.selectAll")}
                                                     >
                                                         {selectedOrders.size === filteredOrders.length && filteredOrders.length > 0 && (
                                                             <CheckSquare className="w-3 h-3" />
@@ -1084,7 +1084,7 @@ export default function OrdersPage() {
                                                     <button
                                                         onClick={() => setIsReturnsOpen(true)}
                                                         className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-500 text-white shadow-sm hover:bg-orange-600 transition-all text-sm font-semibold"
-                                                        title="Returns cockpit (scan returned packages)"
+                                                        title={t("orders.tip.returnsCockpit")}
                                                     >
                                                         <PackageX className="w-4 h-4" />
                                                         <span className="hidden sm:inline">Returns</span>
@@ -1103,7 +1103,7 @@ export default function OrdersPage() {
                                                     <button
                                                         onClick={toggleToolbarCollapse}
                                                         className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-muted hover:text-foreground hover:bg-[var(--card-bg)] transition-all text-sm font-medium"
-                                                        title="Expand toolbar (⌘\\)"
+                                                        title={t("orders.tip.expandToolbar")}
                                                     >
                                                         <Maximize2 className="w-4 h-4" />
                                                         <span className="hidden lg:inline">{t("orders.filter.expand")}</span>
@@ -1148,7 +1148,7 @@ export default function OrdersPage() {
                                                                     ? "border-transparent text-white"
                                                                     : "border-muted-foreground/30 hover:border-primary/50"
                                                             )}
-                                                            title="Select all"
+                                                            title={t("orders.tip.selectAll")}
                                                         >
                                                             {selectedOrders.size === filteredOrders.length && filteredOrders.length > 0 && (
                                                                 <div className="absolute inset-0 bg-gradient-to-br from-primary to-violet-600 opacity-100" />
@@ -1358,7 +1358,7 @@ export default function OrdersPage() {
                                                             <button
                                                                 onClick={toggleToolbarCollapse}
                                                                 className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300 hover:rotate-90 active:scale-95"
-                                                                title="Collapse toolbar"
+                                                                title={t("orders.tip.collapseToolbar")}
                                                             >
                                                                 <Minimize2 className="w-4 h-4" />
                                                             </button>
@@ -1485,7 +1485,7 @@ export default function OrdersPage() {
                                                                         ? "bg-blue-100 text-blue-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
                                                                         : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                                 )}
-                                                                title="Advanced Filters"
+                                                                title={t("orders.tip.advancedFilters")}
                                                             >
                                                                 <SlidersHorizontal className="w-4 h-4" />
                                                             </button>
@@ -1532,8 +1532,8 @@ export default function OrdersPage() {
                                                             {/* Trash Page Button */}
                                                             <Link
                                                                 href="/orders/trash"
-                                                                title="Trash"
-                                                                aria-label="View soft-deleted orders"
+                                                                title={t("orders.tip.trash")}
+                                                                aria-label={t("orders.tip.viewTrash")}
                                                                 className="p-2.5 rounded-xl transition-all duration-300 text-muted-foreground hover:bg-red-100/40 hover:text-red-600 flex items-center justify-center"
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
@@ -1572,7 +1572,7 @@ export default function OrdersPage() {
                                                                         ? "bg-green-100 text-green-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
                                                                         : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                                 )}
-                                                                title="Notifications"
+                                                                title={t("orders.tip.notifications")}
                                                             >
                                                                 {notificationsEnabled ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
                                                             </button>
@@ -1590,7 +1590,7 @@ export default function OrdersPage() {
                                                                         ? "bg-indigo-100 text-indigo-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
                                                                         : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
                                                                 )}
-                                                                title="Analytics"
+                                                                title={t("orders.tip.analytics")}
                                                             >
                                                                 <BarChart3 className="w-4 h-4" />
                                                             </button>
@@ -1621,13 +1621,13 @@ export default function OrdersPage() {
                                                                             // identical to a successful one.
                                                                             const result = await undoLastAction();
                                                                             if (result.success) {
-                                                                                toast.success("Undone", result.undoneAction);
+                                                                                toast.success(t("orders.toast.undone"), result.undoneAction);
                                                                             } else if (result.error) {
-                                                                                toast.warning("Nothing was undone", result.error);
+                                                                                toast.warning(t("orders.toast.nothingUndone"), result.error);
                                                                             }
                                                                         }}
                                                                         className="p-2.5 rounded-xl bg-lime-100/50 text-lime-700 hover:bg-lime-100 transition-all shadow-sm"
-                                                                        title="Undo Last Action"
+                                                                        title={t("orders.tip.undoLast")}
                                                                     >
                                                                         <RotateCcw className="w-4 h-4" />
                                                                     </motion.button>
@@ -1669,7 +1669,7 @@ export default function OrdersPage() {
                                                             <button
                                                                 onClick={() => setIsReturnsOpen(true)}
                                                                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 hover:-translate-y-0.5 transition-all duration-300 font-bold text-sm"
-                                                                title="Returns cockpit (scan returned packages)"
+                                                                title={t("orders.tip.returnsCockpit")}
                                                             >
                                                                 <PackageX className="w-4 h-4" />
                                                                 <span className="whitespace-nowrap hidden lg:inline">Returns</span>

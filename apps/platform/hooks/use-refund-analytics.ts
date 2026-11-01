@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { Order } from "@/lib/supabase";
 import { normalizeGovernorate, governorateLabel } from "@/lib/governorate-normalize";
 import { refundPaidAt } from "@/lib/refunds/refund-reporting";
+import { addDaysToDayKey, baghdadDayKey } from "@/lib/order-window";
 
 export interface RefundReasonRow {
     reason: string;
@@ -147,37 +148,41 @@ export function useRefundAnalytics(
             // Daily aggregation, on the day the customer was paid
             const paidAt = refundPaidAt(o);
             if (paidAt) {
-                const dateKey = paidAt.toISOString().split("T")[0];
+                const dateKey = baghdadDayKey(paidAt);
                 const day = dailyMap.get(dateKey) || { value: 0, count: 0 };
                 day.value += value;
                 day.count += 1;
                 dailyMap.set(dateKey, day);
             }
 
-            // Reason aggregation — prefer short categorical reasons; fall back to a
-            // truncated first line of notes so the UI doesn't render a paragraph.
-            const reason = normalizeReason(o.rejection_reason || o.notes || "");
-            const r = reasonMap.get(reason) || { count: 0, value: 0 };
-            r.count += 1;
-            r.value += value;
-            reasonMap.set(reason, r);
+            // Open and failed refunds have moved no money: they stay out of the
+            // breakdowns below so every share adds up to the paid total.
+            if (paid) {
+                // Reason aggregation — prefer short categorical reasons; fall back to a
+                // truncated first line of notes so the UI doesn't render a paragraph.
+                const reason = normalizeReason(o.rejection_reason || o.notes || "");
+                const r = reasonMap.get(reason) || { count: 0, value: 0 };
+                r.count += 1;
+                r.value += value;
+                reasonMap.set(reason, r);
 
-            // City aggregation — normalize so Arabic / 3-letter / canonical codes
-            // collapse into one row per governorate.
-            const govKey = normalizeGovernorate(o.governorate_code || o.city);
-            const c = cityMap.get(govKey) || { count: 0, value: 0 };
-            c.count += 1;
-            c.value += value;
-            cityMap.set(govKey, c);
+                // City aggregation — normalize so Arabic / 3-letter / canonical codes
+                // collapse into one row per governorate.
+                const govKey = normalizeGovernorate(o.governorate_code || o.city);
+                const c = cityMap.get(govKey) || { count: 0, value: 0 };
+                c.count += 1;
+                c.value += value;
+                cityMap.set(govKey, c);
 
-            // Product breakdown
-            for (const it of o.items || []) {
-                const name = it.name || "Unknown";
-                const p = productMap.get(name) || { units: 0, value: 0, orders: 0 };
-                p.units += it.quantity;
-                p.value += Math.abs((it.price || 0) * it.quantity);
-                p.orders += 1;
-                productMap.set(name, p);
+                // Product breakdown
+                for (const it of o.items || []) {
+                    const name = it.name || "Unknown";
+                    const p = productMap.get(name) || { units: 0, value: 0, orders: 0 };
+                    p.units += it.quantity;
+                    p.value += Math.abs((it.price || 0) * it.quantity);
+                    p.orders += 1;
+                    productMap.set(name, p);
+                }
             }
 
             // Order row
@@ -222,18 +227,12 @@ export function useRefundAnalytics(
             }
         }
 
-        // Build daily series — fill gaps
-        const dayMs = 24 * 3600 * 1000;
+        // Daily series on Baghdad days, one point per day of the period.
         const daily: RefundDailyPoint[] = [];
-        for (let t = startMs; t <= endMs; t += dayMs) {
-            const d = new Date(t);
-            const key = d.toISOString().split("T")[0];
+        const lastKey = baghdadDayKey(period.end);
+        for (let key = baghdadDayKey(period.start); key <= lastKey; key = addDaysToDayKey(key, 1)) {
             const entry = dailyMap.get(key) || { value: 0, count: 0 };
-            daily.push({
-                date: key,
-                value: entry.value,
-                count: entry.count,
-            });
+            daily.push({ date: key, value: entry.value, count: entry.count });
         }
 
         const reasons: RefundReasonRow[] = Array.from(reasonMap.entries())
