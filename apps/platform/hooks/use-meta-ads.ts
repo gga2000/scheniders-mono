@@ -6,6 +6,17 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
+import {
+    attributionCoverage,
+    buildDailySeries,
+    previousRange,
+    rangeForPreset,
+    type AdRangePreset,
+    type AdsOrderRow,
+    type AttributionCoverage,
+    type DailyAdsPoint,
+    type DayRange,
+} from "@/lib/ads-report";
 
 const connectionSchema = z.object({
     success: z.literal(true),
@@ -32,52 +43,89 @@ export interface CampaignTotals {
     results: number;
 }
 
-export interface DailyPoint {
-    date: string;
-    spendIqd: number;
-    results: number;
-}
-
 export interface MetaAdsReport {
     spendUsd: number;
     spendIqd: number;
     impressions: number;
     clicks: number;
     results: number;
+    /** New customer orders placed in the range (no returns, replacements or tests). */
+    orders: number;
     deliveredOrders: number;
     campaigns: CampaignTotals[];
-    daily: DailyPoint[];
+    daily: DailyAdsPoint[];
+    coverage: AttributionCoverage;
 }
 
-/** Inclusive Baghdad day range ending today. */
-export function dayRange(days: number): { since: string; until: string } {
-    const until = baghdadDayKey();
-    return { since: addDaysToDayKey(until, -(days - 1)), until };
+/** Supabase returns at most 1000 rows per request; walk the pages. */
+const PAGE = 1000;
+
+/** Real customer orders only: a return, a replacement or a test order was never bought through an ad. */
+function realOrders<T extends { or: (filters: string) => T }>(query: T): T {
+    return query.or("is_return.is.null,is_return.eq.false").or("is_replacement.is.null,is_replacement.eq.false").or("is_test.is.null,is_test.eq.false");
 }
 
-async function fetchReport(since: string, until: string): Promise<MetaAdsReport> {
-    const [spend, delivered] = await Promise.all([
+async function fetchOrdersPlaced(range: DayRange): Promise<AdsOrderRow[]> {
+    const rows: AdsOrderRow[] = [];
+    for (let from = 0; ; from += PAGE) {
+        const { data, error } = await realOrders(
+            supabase
+                .from("orders")
+                .select("created_at, status, ad_channel, attribution")
+                .gte("created_at", new Date(baghdadDayStart(range.since)).toISOString())
+                .lt("created_at", new Date(baghdadDayStart(addDaysToDayKey(range.until, 1))).toISOString()),
+        ).range(from, from + PAGE - 1);
+        if (error) throw new Error(error.message);
+        rows.push(...(data ?? []));
+        if ((data?.length ?? 0) < PAGE) return rows;
+    }
+}
+
+async function fetchDeliveredAt(range: DayRange): Promise<string[]> {
+    const stamps: string[] = [];
+    for (let from = 0; ; from += PAGE) {
+        const { data, error } = await realOrders(
+            supabase
+                .from("orders")
+                .select("delivered_at")
+                .in("status", ["delivered", "completed"])
+                .gte("delivered_at", new Date(baghdadDayStart(range.since)).toISOString())
+                .lt("delivered_at", new Date(baghdadDayStart(addDaysToDayKey(range.until, 1))).toISOString()),
+        ).range(from, from + PAGE - 1);
+        if (error) throw new Error(error.message);
+        for (const r of data ?? []) if (r.delivered_at) stamps.push(r.delivered_at);
+        if ((data?.length ?? 0) < PAGE) return stamps;
+    }
+}
+
+function countByDay(stamps: readonly string[]): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const s of stamps) {
+        const day = baghdadDayKey(new Date(s));
+        counts.set(day, (counts.get(day) ?? 0) + 1);
+    }
+    return counts;
+}
+
+async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
+    const [spend, placed, deliveredStamps] = await Promise.all([
         supabase
             .from("ad_spend_daily")
             .select("spend_date, campaign_id, campaign_name, spend_usd, spend_iqd, impressions, clicks, results")
-            .gte("spend_date", since)
-            .lte("spend_date", until)
+            .gte("spend_date", range.since)
+            .lte("spend_date", range.until)
             .limit(10000),
-        supabase
-            .from("orders")
-            .select("id", { count: "exact", head: true })
-            .in("status", ["delivered", "completed"])
-            .gte("delivered_at", new Date(baghdadDayStart(since)).toISOString())
-            .lt("delivered_at", new Date(baghdadDayStart(addDaysToDayKey(until, 1))).toISOString()),
+        fetchOrdersPlaced(range),
+        fetchDeliveredAt(range),
     ]);
     if (spend.error) throw new Error(spend.error.message);
-    if (delivered.error) throw new Error(delivered.error.message);
 
     const byCampaign = new Map<string, CampaignTotals>();
-    const byDay = new Map<string, DailyPoint>();
+    const spendByDay = new Map<string, number>();
     const report: MetaAdsReport = {
         spendUsd: 0, spendIqd: 0, impressions: 0, clicks: 0, results: 0,
-        deliveredOrders: delivered.count ?? 0, campaigns: [], daily: [],
+        orders: placed.length, deliveredOrders: deliveredStamps.length,
+        campaigns: [], daily: [], coverage: attributionCoverage(placed),
     };
 
     for (const r of spend.data ?? []) {
@@ -99,23 +147,32 @@ async function fetchReport(since: string, until: string): Promise<MetaAdsReport>
         c.results += r.results;
         byCampaign.set(r.campaign_id, c);
 
-        const d = byDay.get(r.spend_date) ?? { date: r.spend_date, spendIqd: 0, results: 0 };
-        d.spendIqd += Number(r.spend_iqd);
-        d.results += r.results;
-        byDay.set(r.spend_date, d);
+        spendByDay.set(r.spend_date, (spendByDay.get(r.spend_date) ?? 0) + Number(r.spend_iqd));
     }
     report.campaigns = [...byCampaign.values()].sort((a, b) => b.spendIqd - a.spendIqd);
-    report.daily = [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+    report.daily = buildDailySeries(
+        range,
+        spendByDay,
+        countByDay(placed.map((o) => o.created_at)),
+        countByDay(deliveredStamps),
+    );
     return report;
 }
 
-export function useMetaAdsReport(days: number) {
-    const range = useMemo(() => dayRange(days), [days]);
+function useReportFor(range: DayRange, enabled: boolean) {
     return useQuery({
         queryKey: ["meta-ads", "report", range.since, range.until],
-        queryFn: () => fetchReport(range.since, range.until),
+        queryFn: () => fetchReport(range),
         staleTime: 60_000,
+        enabled,
     });
+}
+
+/** The selected range, plus the same-length window before it when `compare` is on. */
+export function useMetaAdsReport(preset: AdRangePreset, compare: boolean) {
+    const range = useMemo(() => rangeForPreset(preset), [preset]);
+    const previous = useMemo(() => previousRange(range), [range]);
+    return { current: useReportFor(range, true), previous: useReportFor(previous, compare), range };
 }
 
 export function useMetaAdsConnection() {
