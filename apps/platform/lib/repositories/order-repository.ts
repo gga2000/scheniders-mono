@@ -461,13 +461,15 @@ export const orderRepository = {
      * count: two small parallel reads.
      */
     /**
-     * The dispatch desk's queue: every live confirmed order, oldest first, with
+     * The dispatch desk's queue: every live confirmed order and refund pickup, oldest first, with
      * no date window (a confirmed order from last week still has to ship).
      */
     async findConfirmed(tenantId: string): Promise<Order[]> {
         // The full read: labels need print_count, which list rows do not carry.
+        // Refund pickups wait in return_pending (create_after_sale_order), not confirmed,
+        // but go out with the same courier run. Replacements are created confirmed.
         const { data, error } = await listQuery(tenantId, null, ORDER_READ_COLUMNS)
-            .eq("status", "confirmed")
+            .or("status.eq.confirmed,and(status.eq.return_pending,is_return.eq.true)")
             .order("created_at", { ascending: true })
             .order("id", { ascending: true })
             .limit(DESK_QUEUE_MAX);
