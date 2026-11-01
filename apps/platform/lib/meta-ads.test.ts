@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchCampaignInsights, fetchTokenHealth, MetaAdsError } from "./meta-ads";
+import { fetchAdInsights, fetchCampaignInsights, fetchTokenHealth, MetaAdsError } from "./meta-ads";
 
 const params = { adAccountId: "936978227928994", accessToken: "t".repeat(30), since: "2026-10-25", until: "2026-11-01" };
 
@@ -57,5 +57,27 @@ describe("fetchTokenHealth", () => {
     it("surfaces Meta errors", async () => {
         mockFetch({ error: { message: "Invalid OAuth access token", code: 190 } }, false);
         await expect(fetchTokenHealth("tok-12345678901234567890")).rejects.toThrow("Invalid OAuth access token");
+    });
+});
+
+describe("fetchAdInsights", () => {
+    it("maps ad rows with ad set, campaign and frequency", async () => {
+        mockFetch({
+            data: [{
+                date_start: "2026-10-31", campaign_id: "1", campaign_name: "Perfume", adset_id: "5", adset_name: "Baghdad",
+                ad_id: "9", ad_name: "Reel A", spend: "3.00", impressions: "2000", clicks: "40", frequency: "1.8",
+                actions: [{ action_type: "omni_purchase", value: "2" }],
+            }],
+        });
+        const rows = await fetchAdInsights(params);
+        expect(rows).toEqual([{
+            spendDate: "2026-10-31", campaignId: "1", campaignName: "Perfume", spendUsd: 3, impressions: 2000, clicks: 40, results: 2,
+            adId: "9", adName: "Reel A", adsetId: "5", adsetName: "Baghdad", frequency: 1.8,
+        }]);
+    });
+
+    it("rejects rows without an ad id", async () => {
+        mockFetch({ data: [{ date_start: "2026-10-31", campaign_id: "1", campaign_name: "P", spend: "1" }] });
+        await expect(fetchAdInsights(params)).rejects.toThrow("Unexpected response");
     });
 });

@@ -4,21 +4,17 @@ import { useState } from "react";
 import { Megaphone, RefreshCw } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import { useMetaAdsAutoRefresh, useMetaAdsConnection, useMetaAdsReport, useMetaAdsSyncNow, type CampaignTotals } from "@/hooks/use-meta-ads";
+import { useMetaAdsAutoRefresh, useMetaAdsConnection, useMetaAdsReport, useMetaAdsSyncNow } from "@/hooks/use-meta-ads";
 import { MetaAdsConnectCard } from "@/components/ads/meta-ads-connect-card";
+import { AdsCampaignTable } from "@/components/ads/ads-campaign-table";
 import { AdsNetProfit } from "@/components/ads/ads-net-profit";
 import { MetaTokenBanner } from "@/components/ads/meta-token-banner";
 import { tokenWarning } from "@/lib/meta-token-warning";
 import { AdLinkCard } from "@/components/ads/ad-link-card";
 import { AdsDailyChart } from "@/components/ads/ads-daily-chart";
-import { AD_RANGE_PRESETS, breakEvenCostPerDelivered, campaignVerdict, pctChange, type AdRangePreset } from "@/lib/ads-report";
+import { AD_RANGE_PRESETS, breakEvenCostPerDelivered, pctChange, ratio, type AdRangePreset } from "@/lib/ads-report";
 import { useNetProfitForRange } from "@/hooks/use-net-profit-for-range";
 
-function ratio(numerator: number, denominator: number): number | null {
-    return denominator > 0 ? Math.round(numerator / denominator) : null;
-}
-
-/** `lowerIsBetter`: a falling cost is good news, so the colours flip. */
 function Kpi({ label, value, hint, change, lowerIsBetter }: { label: string; value: string; hint?: string; change?: number | null; lowerIsBetter?: boolean }) {
     const good = change === undefined || change === null || change === 0 ? null : lowerIsBetter ? change < 0 : change > 0;
     return (
@@ -32,27 +28,6 @@ function Kpi({ label, value, hint, change, lowerIsBetter }: { label: string; val
                 </p>
             ) : null}
         </div>
-    );
-}
-
-function CampaignRow({ c, breakEven }: { c: CampaignTotals; breakEven: number | null }) {
-    const costPerResult = ratio(c.spendIqd, c.results);
-    const costPerDelivered = ratio(c.spendIqd, c.delivered);
-    const verdict = campaignVerdict(costPerDelivered, breakEven);
-    return (
-        <tr className="border-t border-[var(--card-border)]">
-            <td className="py-3 pe-4 font-medium text-foreground">{c.campaignName}</td>
-            <td className="py-3 pe-4 tabular-nums">{formatIQD(c.spendIqd)}</td>
-            <td className="py-3 pe-4 tabular-nums text-muted">${c.spendUsd.toFixed(2)}</td>
-            <td className="py-3 pe-4 tabular-nums">{c.results}</td>
-            <td className="py-3 pe-4 tabular-nums">{costPerResult === null ? "—" : formatIQD(costPerResult)}</td>
-            <td className="py-3 pe-4 tabular-nums">{c.orders}</td>
-            <td className="py-3 pe-4 tabular-nums">{c.delivered}</td>
-            <td className={cn("py-3 pe-4 font-medium tabular-nums", verdict === "profitable" && "text-emerald-600", verdict === "losing" && "text-red-600")}>
-                {costPerDelivered === null ? "—" : formatIQD(costPerDelivered)}
-            </td>
-            <td className="py-3 pe-4 tabular-nums text-muted">{c.clicks.toLocaleString()}</td>
-        </tr>
     );
 }
 
@@ -186,28 +161,7 @@ export default function AdsPage() {
                         {data.campaigns.length === 0 ? (
                             <p className="py-8 text-center text-sm text-muted">{t("ads.empty")}</p>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-start text-sm">
-                                    <thead className="text-xs text-muted">
-                                        <tr>
-                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.campaign")}</th>
-                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.spend")}</th>
-                                            <th className="pb-2 pe-4 text-start font-medium">USD</th>
-                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.results")}</th>
-                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.costPerResult")}</th>
-                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.campaignOrders")}</th>
-                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.chartDelivered")}</th>
-                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.costPerDelivered")}</th>
-                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.clicks")}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {data.campaigns.map((c) => (
-                                            <CampaignRow key={c.campaignId} c={c} breakEven={breakEven} />
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <AdsCampaignTable campaigns={data.campaigns} breakEven={breakEven} range={range} />
                         )}
                         {data.campaigns.length > 0 ? (
                             <p className="mt-3 text-xs text-muted">
