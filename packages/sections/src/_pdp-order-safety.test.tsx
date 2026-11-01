@@ -130,11 +130,11 @@ describe.each(LAYOUTS)("pdp_direct_order %s — never lose the buyer", (_layout,
       fireEvent.submit(v.form());
     });
     await waitFor(() => expect(orderKeys(fetchFn)).toEqual(["restored-key-0001"]));
-    // Placing the order ends by clearing the draft, after an async buyer-hash
-    // handoff. Let that tail finish inside this test: left running, it clears
-    // the NEXT test's draft (same tenant + product key) whenever the machine
-    // is slow, and "resends once…" then finds no draft to check.
-    await waitFor(() => expect(window.sessionStorage.getItem(orderDraftKey(TENANT, PRODUCT))).toBeNull());
+    // Let the placed order finish here: its clean-up (clearing the draft)
+    // must not land in the next test's storage.
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(orderDraftKey(TENANT, PRODUCT))).toBeNull(),
+    );
   });
 
   it("resends once with the same key after a timeout, then offers the order on WhatsApp", async () => {
