@@ -13,7 +13,7 @@ import { getQueueFlags, groupForPacking, hasBlockingFlag, type PackGroup } from 
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { ordersOfRun } from "@/lib/print-runs";
 import type { Order, PrintBatch } from "@/lib/supabase";
-import { QueueRow } from "@/components/printing/queue-row";
+import { OrderCard } from "@/components/printing/order-card";
 import { DeskToolbar, type DeskIssue } from "@/components/printing/desk-toolbar";
 import { LabelPreviewRail } from "@/components/printing/label-preview-rail";
 import { DispatchActionBar } from "@/components/printing/dispatch-action-bar";
@@ -198,7 +198,7 @@ export default function PrintingPage() {
                 ) : (
                     <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
                         <div className="flex min-w-0 flex-col gap-3">
-                            <section className="overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]">
+                            <section className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]">
                                 <DeskToolbar
                                     selectedCount={selected.length}
                                     query={query}
@@ -239,16 +239,19 @@ export default function PrintingPage() {
                                                     canTick={printable.length > 0}
                                                     onToggle={() => setTick(printable.map((o) => o.id), !allTicked)}
                                                 />
-                                                {g.orders.map((order) => (
-                                                    <QueueRow
-                                                        key={order.id}
-                                                        order={order}
-                                                        selected={isTicked(order)}
-                                                        focused={focused?.id === order.id}
-                                                        onToggle={() => setTick([order.id], !isTicked(order))}
-                                                        onFocus={() => setFocusId(order.id)}
-                                                    />
-                                                ))}
+                                                <div className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-2 p-3">
+                                                    {g.orders.map((order) => (
+                                                        <OrderCard
+                                                            key={order.id}
+                                                            order={order}
+                                                            selected={isTicked(order)}
+                                                            focused={focused?.id === order.id}
+                                                            showItems={g.kind !== "item"}
+                                                            onToggle={() => setTick([order.id], !isTicked(order))}
+                                                            onFocus={() => setFocusId(order.id)}
+                                                        />
+                                                    ))}
+                                                </div>
                                             </div>
                                         );
                                     })
