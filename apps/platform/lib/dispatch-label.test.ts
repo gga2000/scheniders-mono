@@ -106,7 +106,7 @@ describe("refund and replacement labels", () => {
     it("lists what to take back and the original order", () => {
         const html = generateDispatchLabelHTML(refund, { showBarcode: true, pickup: { originalOrderNumber: "7616", items: [{ name: "فيوجن", qty: 1 }] } });
         expect(html).toContain("استلم من الزبون");
-        expect(html).toContain("عن الطلب #7616");
+        expect(html).toContain('عن <bdi dir="ltr">#7616</bdi>');
     });
     it("says nothing comes back when the customer keeps the item", () => {
         const html = generateDispatchLabelHTML(refund, { showBarcode: true, pickup: { originalOrderNumber: "7616", items: [] } });

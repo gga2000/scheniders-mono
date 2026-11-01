@@ -87,19 +87,15 @@ const itemList = (items: { name: string; qty: number }[]): string =>
  * coming back; on a replacement they are the new items going out, and the old
  * ones come from the after-sale pickup lines.
  */
-function afterSaleBlock(order: Order, items: { name: string; qty: number }[], pickup: AfterSalePickup | undefined): string {
+function afterSaleLines(order: Order, items: { name: string; qty: number }[], pickup: AfterSalePickup | undefined): string {
     const isRefund = Boolean(order.is_return);
     const back = pickup ? pickup.items : isRefund ? items : null;
     const backText = back === null ? "المنتج القديم (حسب الطلب الأصلي)" : back.length === 0 ? "لا شيء — الزبون يحتفظ بالمنتج" : itemList(back);
-    const original = pickup?.originalOrderNumber ? `<span class="dl-as-o">عن الطلب #${escapeHtml(pickup.originalOrderNumber)}</span>` : "";
     const lines = isRefund
         ? `<div class="dl-as-l"><span class="dl-as-k">${BACK_SIGN}استلم من الزبون</span><span class="dl-as-v">${backText}</span></div>`
         : `<div class="dl-as-l"><span class="dl-as-k">${OUT_SIGN}سلّم للزبون</span><span class="dl-as-v">${itemList(items) || "—"}</span></div>
         <div class="dl-as-l"><span class="dl-as-k">${BACK_SIGN}استلم منه</span><span class="dl-as-v">${backText}</span></div>`;
-    return `<div class="dl-as">
-        <div class="dl-as-h"><b>${isRefund ? "استرجاع" : "استبدال"}</b>${original}</div>
-        ${lines}
-    </div>`;
+    return `<div class="dl-as">${lines}</div>`;
 }
 
 export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOptions): string {
@@ -115,6 +111,19 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
         ? `<img class="dl-courier" src="${e(options.courierLogo.url || PRIME_LOGO_PNG)}" alt="">`
         : "";
 
+    const original = options.pickup?.originalOrderNumber;
+    const kindPill = afterSale
+        ? `<span class="dl-kind"><b>${order.is_return ? "استرجاع" : "استبدال"}</b>${original ? `<small>عن <bdi dir="ltr">#${e(original)}</bdi></small>` : ""}</span>`
+        : "";
+    // Notes never get cut mid-line: each long block above them takes a line off their clamp.
+    const noteLines = Math.max(
+        1,
+        (afterSale ? 3 : 2) -
+            Number((order.customer_name ?? "").length > DENSE_NAME_CHARS) -
+            Number((order.address_details ?? "").length > DENSE_ADDRESS_CHARS) -
+            Number(Boolean(order.is_replacement)),
+    );
+
     // Long orders switch to a tighter type scale so the barcode always keeps its full space.
     const dense =
         afterSale ||
@@ -128,14 +137,13 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
         <div class="dl-idc">
             <div class="dl-k">رقم الوصل</div>
             <div class="dl-oid${id.length > 11 ? " dl-oid-long" : ""}">${e(id)}</div>
-            <div class="dl-date">${formatLabelDate(order.created_at)}</div>
-            <div class="dl-logos">${courierLogo}<div class="dl-brand">${SCHNEIDERS_LOGO_SVG}<span>SCHNEIDERS</span></div></div>
+            ${courierLogo}
         </div>
         <div class="dl-qr">${qrSvg(id, { moduleSteps: 4, maxSizeMm: 27 })}</div>
     </div>
-    <div class="dl-dest"><b>${e(order.city) || "—"}</b></div>
+    <div class="dl-dest"><b>${e(order.city) || "—"}</b>${kindPill}</div>
     <div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>زجاج · قابل للكسر · يُحمل بعناية</span>${GLASS_SIGN}</div></div>
-    ${afterSale ? afterSaleBlock(order, items, options.pickup) : ""}
+    ${afterSale ? afterSaleLines(order, items, options.pickup) : ""}
     <div class="dl-cust">
         <div class="dl-who">
             <div class="dl-nm"><div class="dl-k">اسم الزبون</div><div class="dl-name">${e(order.customer_name)}</div></div>
@@ -145,9 +153,10 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
         <div class="dl-cod${payOut ? " dl-cod-out" : ""}"><div class="dl-k">${cash.label}</div><div class="dl-v">${amountFormat.format(cash.amount)}</div><div class="dl-c">${payOut ? "لا تستلم مبلغاً" : "دينار عراقي"}</div></div>
     </div>
     <div class="dl-addr${order.notes ? " dl-addr-short" : ""}"><div class="dl-k">العنوان</div><div class="dl-addr-t">${e(order.address_details) || "—"}</div></div>
-    ${order.notes ? `<div class="dl-notes${afterSale ? " dl-notes-rule" : ""}"><b>${afterSale ? "تعليمات" : "ملاحظة"}:</b> ${e(order.notes)}</div>` : ""}
-    ${afterSale ? "" : `<div class="dl-row"><span class="dl-items">${itemList(items) || "—"}</span><span>القطع: ${pieces}</span></div>`}
-    ${options.showBarcode ? `<div class="dl-foot"><div class="dl-bc">${code128Svg(id, { heightMm: dense ? 7 : 9, maxWidthMm: 74 })}</div></div>` : ""}
+    ${order.notes ? `<div class="dl-notes" style="-webkit-line-clamp: ${noteLines}"><b>${afterSale ? "تعليمات" : "ملاحظة"}:</b> ${e(order.notes)}</div>` : ""}
+    ${afterSale ? "" : `<div class="dl-row"><span class="dl-items"><span class="dl-k">المنتج</span> ${itemList(items) || "—"}</span><span class="dl-pcs">${pieces} قطعة</span></div>`}
+    ${options.showBarcode ? `<div class="dl-foot"><div class="dl-bc">${code128Svg(id, { heightMm: dense ? 7 : 8, maxWidthMm: 74 })}</div></div>` : ""}
+    <div class="dl-meta"><span class="dl-brand">${SCHNEIDERS_LOGO_SVG}SCHNEIDERS</span><span class="dl-date">${formatLabelDate(order.created_at)}</span></div>
 </div>`;
 }
 
@@ -156,7 +165,7 @@ export const DISPATCH_LABEL_FONTS = "family=IBM+Plex+Sans+Arabic:wght@400;600;70
 export const DISPATCH_LABEL_CSS = `
     .dispatch-label {
         width: 80mm; height: 120mm; padding: 3mm; overflow: hidden; box-sizing: border-box;
-        display: flex; flex-direction: column; gap: 2mm;
+        display: flex; flex-direction: column; gap: 1.5mm;
         background: #fff; color: #000; direction: rtl;
         font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
     }
@@ -164,29 +173,26 @@ export const DISPATCH_LABEL_CSS = `
     .dispatch-label > * { flex-shrink: 0; }
     /* When a long order still runs out of room, the notes give way first, then the barcode's
        height (a 1D code still scans when shorter); the address and the QR never shrink. */
-    .dispatch-label > .dl-notes { flex-shrink: 1; min-height: 4mm; }
     .dispatch-label > .dl-foot { flex-shrink: 2; min-height: 5mm; overflow: hidden; align-items: flex-start; }
     .dl-top { display: flex; align-items: center; justify-content: space-between; gap: 2mm; border-bottom: .6mm solid #000; padding-bottom: 1.2mm; }
     .dl-idc { min-width: 0; display: flex; flex-direction: column; gap: .6mm; }
     .dl-idc > .dl-k { font-size: 8pt; font-weight: 700; }
     .dl-oid { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 17pt; line-height: 1; direction: ltr; text-align: right; white-space: nowrap; }
     .dl-oid-long { font-size: 12pt; }
-    .dl-logos { display: flex; align-items: center; gap: 2.4mm; margin-top: .6mm; }
-    .dl-courier { height: 7mm; width: auto; max-width: 24mm; object-fit: contain; }
-    .dl-brand { display: flex; align-items: center; gap: 1mm; font-weight: 700; font-size: 7pt; letter-spacing: .2pt; }
-    .dl-brand svg { width: 4.6mm; height: 4.6mm; }
+    .dl-courier { height: 9.5mm; width: auto; max-width: 30mm; object-fit: contain; align-self: flex-end; margin-top: 1mm; }
     .dl-qr { flex-shrink: 0; }
-    .dl-dest { background: #000; color: #fff; padding: 2.4mm 3mm; }
-    .dl-dest b { display: block; font-size: 27pt; line-height: 1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dl-dest { background: #000; color: #fff; padding: 2.4mm 3mm; display: flex; align-items: center; justify-content: space-between; gap: 2mm; }
+    .dl-kind { flex-shrink: 0; background: #fff; color: #000; padding: .6mm 2.4mm; display: flex; flex-direction: column; align-items: center; line-height: 1.1;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .dl-kind b { font-size: 13pt; }
+    .dl-kind small { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 700; }
+    .dl-dest > b { display: block; min-width: 0; font-size: 27pt; line-height: 1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dl-tape { display: flex; align-items: center; justify-content: center; height: 8.4mm; margin-top: -1mm;
         background: repeating-linear-gradient(-45deg, #000 0 1.5mm, #fff 1.5mm 3mm); border-bottom: .5mm solid #000;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .dl-tape-in { background: #fff; display: flex; align-items: center; gap: 1.6mm; padding: 0 2.2mm; height: 6.8mm; border: .4mm solid #000; font-weight: 700; font-size: 9pt; }
     .dl-ico { height: 5.4mm; width: auto; }
     .dl-as { border: .7mm solid #000; }
-    .dl-as-h { display: flex; align-items: center; gap: 2mm; background: #000; color: #fff; padding: .4mm 2mm; font-size: 7.5pt; font-weight: 600;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .dl-as-h b { font-size: 12pt; line-height: 1.25; }
     .dl-as-l { display: flex; align-items: baseline; gap: 1.6mm; padding: .5mm 2mm; font-size: 9pt; font-weight: 700; line-height: 1.3; }
     .dl-as-l + .dl-as-l { border-top: .3mm dashed #000; }
     .dl-as-k { flex-shrink: 0; display: flex; align-items: center; gap: 1mm; font-size: 7.5pt; }
@@ -216,7 +222,7 @@ export const DISPATCH_LABEL_CSS = `
     .dl-addr-short .dl-addr-t { -webkit-line-clamp: 2; }
     .dl-dense { gap: 1mm; }
     .dl-dense .dl-dest { padding: 1.6mm 3mm; }
-    .dl-dense .dl-dest b { font-size: 22pt; }
+    .dl-dense .dl-dest > b { font-size: 22pt; }
     .dl-dense .dl-name { font-size: 12pt; }
     .dl-dense .dl-tape { height: 6.6mm; margin-top: -.6mm; }
     .dl-dense .dl-tape-in { height: 5.4mm; font-size: 8pt; }
@@ -227,12 +233,16 @@ export const DISPATCH_LABEL_CSS = `
     .dl-dense .dl-addr-t { font-size: 9pt; line-height: 1.3; min-width: 0; }
     .dl-dense .dl-notes { padding: .5mm 1.6mm; font-size: 8pt; }
     .dl-dense .dl-row { padding: .8mm 0; }
-    .dl-dense .dl-notes.dl-notes-rule { font-size: 7.5pt; -webkit-line-clamp: 3; }
     .dl-notes { border: .3mm solid #000; padding: .8mm 1.6mm; font-size: 8.5pt; font-weight: 600; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .dl-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 8pt; font-weight: 600; border-top: .3mm solid #000; border-bottom: .3mm solid #000; padding: 1.2mm 0; }
+    .dl-row { display: flex; justify-content: space-between; align-items: baseline; gap: 2mm; font-size: 10.5pt; font-weight: 700; border-top: .3mm solid #000; border-bottom: .3mm solid #000; padding: 1.2mm 0; }
     .dl-items { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .dl-row > span:not(.dl-items) { white-space: nowrap; }
-    .dl-date { font-family: 'IBM Plex Mono', monospace; font-size: 8pt; font-weight: 500; direction: ltr; text-align: right; }
+    .dl-items .dl-k { margin-inline-end: 1mm; }
+    .dl-pcs { font-size: 8.5pt; }
+    .dl-meta { display: flex; justify-content: space-between; align-items: center; font-size: 6.5pt; margin-top: -.6mm; }
+    .dl-brand { display: flex; align-items: center; gap: .8mm; font-weight: 700; letter-spacing: .3pt; }
+    .dl-brand svg { width: 3mm; height: 3mm; }
+    .dl-date { font-family: 'IBM Plex Mono', monospace; font-weight: 500; direction: ltr; }
     .dl-foot { margin-top: auto; display: flex; justify-content: center; }
     .dl-bc { text-align: center; }
 `;
