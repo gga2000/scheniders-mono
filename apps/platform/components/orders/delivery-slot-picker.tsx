@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Clock, Sun, CloudSun, Moon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -34,26 +34,23 @@ export function DeliverySlotPicker({ value, onChange, className }: DeliverySlotP
     const { t, language } = useLanguage();
     const lang = language === "ar" ? "ar" : "en";
     const exact = isExactTime(value) ? value : undefined;
-    const [timeOpen, setTimeOpen] = useState(!!exact);
+    const [fieldOpen, setFieldOpen] = useState(false);
+    // A saved exact time always shows its field, wherever it was set.
+    const timeOpen = fieldOpen || !!exact;
     const timeRef = useRef<HTMLInputElement>(null);
 
-    // An exact time set elsewhere (another tab, realtime) opens the field.
-    useEffect(() => {
-        if (exact) setTimeOpen(true);
-    }, [exact]);
-
     const pickPreset = (preset: DeliverySlotPreset) => {
-        setTimeOpen(false);
+        setFieldOpen(false);
         onChange(value === preset ? undefined : preset);
     };
 
     const openTime = () => {
         if (timeOpen) {
-            setTimeOpen(false);
+            setFieldOpen(false);
             if (exact) onChange(undefined);
             return;
         }
-        setTimeOpen(true);
+        setFieldOpen(true);
         requestAnimationFrame(() => timeRef.current?.focus());
     };
 
@@ -106,7 +103,7 @@ export function DeliverySlotPicker({ value, onChange, className }: DeliverySlotP
                     {exact && (
                         <button
                             type="button"
-                            onClick={() => { onChange(undefined); setTimeOpen(false); }}
+                            onClick={() => { onChange(undefined); setFieldOpen(false); }}
                             aria-label={t("orders.slot.clear")}
                             className="p-1 rounded-md text-muted hover:text-foreground hover:bg-black/5"
                         >
