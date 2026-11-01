@@ -141,6 +141,8 @@ export interface OrderResult {
 
 /** One row of a phone-only lookup: masked, nothing that names the buyer. */
 export interface PhoneOrder {
+  /** Masked (only the tail): a full number plus the phone is the loyalty
+   *  proof, so a phone alone never gets one back. */
   order_number: string;
   stage: string;
   /** ISO timestamp the order was placed. */
@@ -166,9 +168,21 @@ export function phoneOrderAsResult(row: PhoneOrder): OrderResult {
   return { order_number: row.order_number, status: row.stage, stage: row.stage };
 }
 
-/** Every order the result shows, as panel orders. */
+/** A list row's identity. The number is masked, so two orders can share
+ *  it; the placement time tells them apart. */
+export function phoneRowKey(row: PhoneOrder): string {
+  return `${row.placed_at}|${row.order_number}`;
+}
+
+/** Every order the result shows, as panel orders, by identity. */
+function keyedOrders(result: LookupResult): [string, OrderResult][] {
+  return result.kind === "single"
+    ? [[result.order.order_number, result.order]]
+    : result.orders.map((row) => [phoneRowKey(row), phoneOrderAsResult(row)]);
+}
+
 function ordersOf(result: LookupResult): OrderResult[] {
-  return result.kind === "single" ? [result.order] : result.orders.map(phoneOrderAsResult);
+  return keyedOrders(result).map(([, order]) => order);
 }
 
 /** True while any order shown can still move. */
@@ -178,11 +192,12 @@ export function isLive(result: LookupResult | null): boolean {
 
 /** The first order whose stage differs between two answers, as it is now. */
 export function firstStageChange(before: LookupResult, after: LookupResult): OrderResult | null {
-  const was = new Map(ordersOf(before).map((o) => [o.order_number, stageOf(o)]));
-  return ordersOf(after).find((o) => {
-    const prev = was.get(o.order_number);
+  const was = new Map(keyedOrders(before).map(([key, o]) => [key, stageOf(o)]));
+  const changed = keyedOrders(after).find(([key, o]) => {
+    const prev = was.get(key);
     return prev !== undefined && prev !== stageOf(o);
-  }) ?? null;
+  });
+  return changed ? changed[1] : null;
 }
 
 /** Parse the API's 200 body into a result; null when it is neither shape. */
@@ -456,12 +471,14 @@ export function OrderTrackerRender({
     void search({ phone, orderNumber: orderNumber.trim() || null });
   }
 
+  const shownRow: PhoneOrder | null =
+    result?.kind === "list"
+      ? result.orders.find((o) => phoneRowKey(o) === selected) ?? result.orders[0]
+      : null;
   const shown: OrderResult | null = result
     ? result.kind === "single"
       ? result.order
-      : phoneOrderAsResult(
-          result.orders.find((o) => o.order_number === selected) ?? result.orders[0],
-        )
+      : shownRow && phoneOrderAsResult(shownRow)
     : null;
 
   const inputCls =
@@ -579,7 +596,7 @@ export function OrderTrackerRender({
             {result.kind === "list" && (
               <PhoneOrderList
                 orders={result.orders}
-                selected={shown.order_number}
+                selected={shownRow ? phoneRowKey(shownRow) : ""}
                 onSelect={setSelected}
                 locale={locale}
                 titleOf={(row) => narrative(phoneOrderAsResult(row)).title}
@@ -632,9 +649,9 @@ export function PhoneOrderList({
   titleOf,
 }: {
   orders: PhoneOrder[];
-  /** The order the panel below shows. */
+  /** The row (phoneRowKey) the panel below shows. */
   selected: string;
-  onSelect: (orderNumber: string) => void;
+  onSelect: (rowKey: string) => void;
   locale: LocaleCode;
   /** The merchant's short title for a row's stage. */
   titleOf: (row: PhoneOrder) => string;
@@ -647,12 +664,13 @@ export function PhoneOrderList({
       </p>
       <ul className="space-y-2" data-tracker-orders="">
         {orders.map((row) => {
-          const current = row.order_number === selected;
+          const key = phoneRowKey(row);
+          const current = key === selected;
           return (
-            <li key={row.order_number}>
+            <li key={key}>
               <button
                 type="button"
-                onClick={() => onSelect(row.order_number)}
+                onClick={() => onSelect(key)}
                 aria-pressed={current}
                 data-tracker-order={row.order_number}
                 className={cn(

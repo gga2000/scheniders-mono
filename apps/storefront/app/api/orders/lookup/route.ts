@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 // Bounded so a limiter key, and the RPC input, stay small.
 // `order_number` is optional: with it the lookup answers one order (and,
 // because phone AND number match, may name the customer); without it the
-// phone alone lists its latest orders, masked (see lookup_orders_by_phone).
+// phone alone lists its latest orders, masked (see lookup_orders_by_phone
+// and maskOrderNumber below).
 const querySchema = z.object({
   tenant_id: z.string().uuid(),
   order_number: z
@@ -39,6 +40,19 @@ const lookupRowSchema = z.object({
   /** First ordered product's slug, for a "rate your order" link. */
   review_product_slug: z.string().nullish(),
 });
+
+/**
+ * A phone-only answer never carries a full order number. Phone + order
+ * number is the second factor that unlocks loyalty points
+ * (lib/loyalty-proof.ts) and the one-order view with the customer's name,
+ * so handing the number back to anyone who knows the phone would turn the
+ * phone alone into that proof. The tail is enough for the shopper to tell
+ * their orders apart; at most half of a short number is shown.
+ */
+function maskOrderNumber(orderNumber: string): string {
+  const visible = Math.min(4, Math.floor(orderNumber.length / 2));
+  return `•••${orderNumber.slice(orderNumber.length - visible)}`;
+}
 
 // lookup_order is EXECUTE-granted to service_role only (migration
 // 20261021090300). With the anon key anyone could call it straight against
@@ -140,7 +154,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       if (rows.data.length === 0) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
-      return NextResponse.json({ orders: rows.data });
+      return NextResponse.json({
+        orders: rows.data.map((row) => ({ ...row, order_number: maskOrderNumber(row.order_number) })),
+      });
     }
 
     const { data, error } = await supabase.rpc("lookup_order", {

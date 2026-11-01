@@ -129,6 +129,17 @@ describe("POST /api/orders/lookup", () => {
       expect(Object.keys(body.orders[0] ?? {}).sort()).toEqual(["item_count", "order_number", "placed_at", "stage"]);
     });
 
+    it("never returns a full order number: phone + number is the loyalty proof", async () => {
+      rpc.mockResolvedValue({
+        data: [PHONE_ROW, { ...PHONE_ROW, order_number: "RTN-4260910007-1" }, { ...PHONE_ROW, order_number: "12" }],
+        error: null,
+      });
+      const res = await POST(req({ tenant_id: TENANT, phone: "07701234567" }));
+      const body = (await res.json()) as { orders: { order_number: string }[] };
+      expect(body.orders.map((o) => o.order_number)).toEqual(["•••0007", "•••07-1", "•••2"]);
+      expect(JSON.stringify(body)).not.toContain("4260910007");
+    });
+
     it("treats a blank order number as phone only", async () => {
       rpc.mockResolvedValue({ data: [PHONE_ROW], error: null });
       await POST(req({ tenant_id: TENANT, order_number: "   ", phone: "07701234567" }));
