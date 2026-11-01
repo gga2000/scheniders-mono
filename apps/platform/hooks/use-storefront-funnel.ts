@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
+import { storeHubWindow } from "@/lib/store-hub-window";
 
 // storefront_funnel returns jsonb, so the generated types say only `Json`.
 // Every field falls back on its own: a missing or malformed count is a zero
@@ -49,9 +50,7 @@ export function useStorefrontFunnel(tenantId: string, days = 7) {
     return useQuery<StorefrontFunnel>({
         queryKey: ["storefront-funnel", tenantId, days],
         queryFn: async () => {
-            const to = new Date();
-            const from = new Date(to);
-            from.setDate(from.getDate() - days);
+            const { from, to } = storeHubWindow(days);
             const { data, error } = await supabase.rpc("storefront_funnel", {
                 _tenant_id: tenantId,
                 _from: from.toISOString(),

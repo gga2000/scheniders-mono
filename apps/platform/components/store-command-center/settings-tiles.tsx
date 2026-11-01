@@ -40,7 +40,7 @@ function Tile({ icon, label, description, onClick, href }: TileProps) {
         return <Link href={href} className="block">{inner}</Link>;
     }
     return (
-        <button onClick={onClick} className="text-left block w-full">
+        <button type="button" onClick={onClick} className="text-left block w-full">
             {inner}
         </button>
     );

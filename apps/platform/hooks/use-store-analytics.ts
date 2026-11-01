@@ -2,53 +2,50 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
+import { isSaleOrder } from "@/lib/order-revenue";
+import { storeHubWindow } from "@/lib/store-hub-window";
+import type { Order } from "@/types/order";
 
 export interface StoreAnalytics {
     orderCount: number;
     revenue: number;
-    topProduct: string | null;
 }
 
+const PAGE = 1000;
+
+type OrderRow = Pick<Order, "status" | "is_return" | "price">;
+
+/**
+ * Orders placed and their value over the hub's 7-day window. Only real sales
+ * count: refused / cancelled / abandoned checkouts and return rows are not
+ * orders sold (lib/order-revenue), and a failed read throws instead of
+ * showing a believable zero.
+ */
 export function useStoreAnalytics(tenantId: string) {
     return useQuery<StoreAnalytics>({
         queryKey: ["store-analytics", tenantId],
         queryFn: async () => {
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            const since = sevenDaysAgo.toISOString();
-
-            // Fetch order count and revenue
-            const { data: orders } = await supabase
-                .from("orders")
-                .select("id, total_amount")
-                .eq("tenant_id", tenantId)
-                .gte("created_at", since);
-
-            const orderCount = orders?.length || 0;
-            const revenue = orders?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
-
-            // Fetch top product (most ordered in last 7 days)
-            let topProduct: string | null = null;
-            const { data: items } = await supabase
-                .from("order_items")
-                .select("product_name, quantity, order_id")
-                .in(
-                    "order_id",
-                    (orders || []).map((o) => o.id)
-                );
-
-            if (items && items.length > 0) {
-                const counts: Record<string, number> = {};
-                for (const item of items) {
-                    const name = item.product_name || "Unknown";
-                    counts[name] = (counts[name] || 0) + (item.quantity || 1);
-                }
-                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-                topProduct = sorted[0]?.[0] || null;
-            }
-
-            return { orderCount, revenue, topProduct };
+            const { from } = storeHubWindow();
+            const rows = await fetchAllPages<OrderRow>(async (offset) => {
+                const { data, error, count } = await supabase
+                    .from("orders")
+                    .select("status, is_return, price", { count: "exact" })
+                    .eq("tenant_id", tenantId)
+                    .is("deleted_at", null)
+                    .gte("created_at", from.toISOString())
+                    .order("created_at", { ascending: false })
+                    .order("id", { ascending: false })
+                    .range(offset, offset + PAGE - 1);
+                if (error) throw error;
+                return { rows: (data ?? []) as OrderRow[], total: count ?? 0 };
+            });
+            const sales = rows.filter(isSaleOrder);
+            return {
+                orderCount: sales.length,
+                revenue: sales.reduce((sum, o) => sum + (o.price ?? 0), 0),
+            };
         },
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 5 * 60 * 1000,
     });
 }
