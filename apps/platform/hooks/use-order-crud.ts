@@ -284,16 +284,13 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     // Reserved/stock math is owned by the DB trigger on `orders`.
                     // Here we only fire side-effects the trigger does NOT cover:
                     //   - supplies/BOM deduction
-                    //   - QC quarantine queue population for returns
                     if (previousOrder && previousOrder.status !== status && tenantId) {
                         import("@/lib/orders/status-side-effects").then(effects =>
                             effects.applyStatusSideEffect(supabase, {
-                                orderId,
                                 tenantId,
                                 items: previousOrder.items || [],
                                 from: previousOrder.status,
                                 to: status,
-                                reason: rejectionReason || `Changed to ${status}`,
                             })
                         ).then(result => {
                             if (!result.success) {
@@ -1038,12 +1035,10 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     const previousOrder = previousById.get(id);
                     if (!previousOrder) return { success: true };
                     return effects.applyStatusSideEffect(supabase, {
-                        orderId: id,
                         tenantId,
                         items: previousOrder.items || [],
                         from: previousOrder.status,
                         to: status,
-                        reason: `Bulk changed to ${status}`,
                     });
                 }));
                 const failed = results.filter(r => !r.success).length;

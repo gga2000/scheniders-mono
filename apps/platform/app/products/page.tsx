@@ -53,14 +53,13 @@ import { AbcTierProvider } from "@/components/products/abc-tier-context";
 import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-utils";
 import { PageSkeleton, TableSkeleton } from "@scheniders/ui/skeletons";
 
-const PRODUCTS_TABS = ["products", "categories", "attributes", "quarantine", "supplies"] as const;
+const PRODUCTS_TABS = ["products", "categories", "attributes", "supplies"] as const;
 type ProductsTab = (typeof PRODUCTS_TABS)[number];
 
 // Tabs and views other than the default grid load on first use, so opening
 // /products does not parse their code (supplies, QC, categories, attributes,
 // grouped/kanban/heatmap views: tens of thousands of lines).
 const tabFallback = () => <TableSkeleton rows={6} cols={4} />;
-const QCQuarantineTab = dynamic(() => import("@/components/products/qc-quarantine-tab").then((m) => m.QCQuarantineTab), { loading: tabFallback });
 const SuppliesTab = dynamic(() => import("@/components/products/supplies-tab").then((m) => m.SuppliesTab), { loading: tabFallback });
 const CategoriesTab = dynamic(() => import("@/components/products/categories-tab").then((m) => m.CategoriesTab), { loading: tabFallback });
 const AttributesTab = dynamic(() => import("@/components/products/attributes-tab").then((m) => m.AttributesTab), { loading: tabFallback });
@@ -930,7 +929,7 @@ function ProductsContent() {
 
                     {/* Mobile Tabs */}
                     <div className="md:hidden flex bg-[var(--background)] p-1 rounded-2xl border border-[var(--card-border)] w-fit max-w-full overflow-x-auto scrollbar-hide">
-                        {(["products", "categories", "attributes", "quarantine", "supplies"] as const).map((tab) => (
+                        {(["products", "categories", "attributes", "supplies"] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => router.push(tab === "products" ? "/products" : `/products?tab=${tab}`)}
@@ -948,7 +947,6 @@ function ProductsContent() {
 
                     {activeTab === "categories" && (CATEGORIES_V2_ENABLED ? <CategoriesTabV2 /> : <CategoriesTab />)}
                     {activeTab === "attributes" && <AttributesTab />}
-                    {activeTab === "quarantine" && <QCQuarantineTab />}
                     {activeTab === "supplies" && <SuppliesTab onEdit={handleEditProduct} onAdd={handleAddSupply} />}
 
                     {activeTab === "products" && (
