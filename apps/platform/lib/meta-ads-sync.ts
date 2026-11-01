@@ -1,5 +1,6 @@
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { fetchCampaignInsights, MetaAdsError } from "@/lib/meta-ads";
+import { META_EXPENSE_CATEGORY, META_EXPENSE_SOURCE, planMetaExpenses } from "@/lib/meta-ads-expenses";
 
 /** Meta revises recent days (late conversions, refunds), so re-pull a rolling window. */
 const SYNC_WINDOW_DAYS = 7;
@@ -19,6 +20,51 @@ export interface SyncOutcome {
 
 function isoDay(d: Date): string {
     return d.toISOString().slice(0, 10);
+}
+
+type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
+
+/**
+ * Keeps one auto "marketing" expense per day in step with synced ad spend (F1).
+ * Manual marketing expenses are never touched; a day that has one is not auto-posted,
+ * and an auto row for that day is removed so the spend is counted once.
+ */
+async function postAdSpendExpenses(db: ServiceDb, tenantId: string, since: string, until: string): Promise<void> {
+    const [spend, manual, auto] = await Promise.all([
+        db.from("ad_spend_daily").select("spend_date, spend_iqd").eq("tenant_id", tenantId).gte("spend_date", since).lte("spend_date", until),
+        db.from("expenses").select("expense_date").eq("tenant_id", tenantId).eq("category", META_EXPENSE_CATEGORY).is("source", null).gte("expense_date", since).lte("expense_date", until),
+        db.from("expenses").select("id, external_key, amount").eq("tenant_id", tenantId).eq("source", META_EXPENSE_SOURCE).gte("expense_date", since).lte("expense_date", until),
+    ]);
+    if (spend.error) throw new Error(spend.error.message);
+    if (manual.error) throw new Error(manual.error.message);
+    if (auto.error) throw new Error(auto.error.message);
+
+    const planned = planMetaExpenses(
+        tenantId,
+        spend.data.map((r) => ({ spendDate: r.spend_date, spendIqd: Number(r.spend_iqd) })),
+        new Set(manual.data.map((r) => r.expense_date)),
+    );
+    const existing = new Map(auto.data.map((r) => [r.external_key, r]));
+    const plannedKeys = new Set(planned.map((r) => r.external_key));
+
+    const stale = auto.data.filter((r) => r.external_key !== null && !plannedKeys.has(r.external_key)).map((r) => r.id);
+    if (stale.length > 0) {
+        const { error } = await db.from("expenses").delete().eq("tenant_id", tenantId).in("id", stale);
+        if (error) throw new Error(error.message);
+    }
+
+    const toInsert = planned.filter((r) => !existing.has(r.external_key));
+    if (toInsert.length > 0) {
+        const { error } = await db.from("expenses").insert(toInsert);
+        if (error) throw new Error(error.message);
+    }
+    for (const row of planned) {
+        const found = existing.get(row.external_key);
+        if (found && Number(found.amount) !== row.amount) {
+            const { error } = await db.from("expenses").update({ amount: row.amount }).eq("tenant_id", tenantId).eq("id", found.id);
+            if (error) throw new Error(error.message);
+        }
+    }
 }
 
 /** Pull the rolling window for one tenant and upsert it. Service-role client only. */
@@ -57,6 +103,8 @@ export async function syncMetaAdsForTenant(
             );
             if (error) throw new Error(error.message);
         }
+
+        await postAdSpendExpenses(db, conn.tenant_id, since, until);
 
         await db
             .from("meta_ads_connections")

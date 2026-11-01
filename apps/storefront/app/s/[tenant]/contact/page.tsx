@@ -8,6 +8,7 @@ import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { BentoCard, ChunkyLink, MaterialIcon, WhatsAppIcon } from "@/components/schneiders/primitives";
+import { storeCanonical } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -19,7 +20,14 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return { title: "Contact — Schneiders", ...resolveV2PageMetadata(v2, "contact", v2?.default_locale ?? "ar") };
+  const locale = v2?.default_locale ?? "ar";
+  // Fallback title: localised page name + the tenant's own name.
+  const pageName = locale === "en" ? "Contact" : "تواصل معنا";
+  return {
+    title: tenant ? `${pageName} — ${tenant.business_name}` : pageName,
+    ...(await storeCanonical(tenantParam, "/contact")),
+    ...resolveV2PageMetadata(v2, "contact", locale),
+  };
 }
 
 export default async function ContactPage({ params }: { params: Promise<{ tenant: string }> }) {

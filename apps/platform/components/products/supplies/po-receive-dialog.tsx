@@ -82,7 +82,19 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
         return trimmed !== "" && !(Number.isInteger(Number(trimmed)) && Number(trimmed) >= 0);
     });
 
+    const gridCols = canSetCost ? "grid-cols-[1fr_7rem_6rem]" : "grid-cols-[1fr_6rem]";
+
+    // More than was ordered would be clamped silently and the extra never reach stock.
+    const overOrdered = (lines ?? []).some((line) => {
+        const raw = Number.parseInt(entered[line.id] ?? "", 10);
+        return Number.isFinite(raw) && raw > (outstanding.get(line.id) ?? 0);
+    });
+
     const submit = () => {
+        if (overOrdered) {
+            toast.error(t("supplies.po.overOrdered"));
+            return;
+        }
         if (badCost) {
             toast.error(t("supplies.po.badCost"));
             return;
@@ -127,12 +139,17 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     </div>
                 ) : (
                     <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                        <div className={`grid ${gridCols} items-center gap-3 px-3 text-[11px] font-medium uppercase tracking-wide text-muted`}>
+                            <span>{t("supplies.po.colItem")}</span>
+                            {canSetCost && <span>{t("supplies.po.colCost")}</span>}
+                            <span>{t("supplies.po.colQty")}</span>
+                        </div>
                         {lines.map((line) => {
                             const max = outstanding.get(line.id) ?? 0;
                             return (
                                 <div
                                     key={line.id}
-                                    className="flex items-center justify-between gap-3 rounded-xl border border-[var(--card-border)] px-3 py-2"
+                                    className={`grid ${gridCols} items-center gap-3 rounded-xl border border-[var(--card-border)] px-3 py-2`}
                                 >
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium truncate">
@@ -152,10 +169,10 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                             step={1}
                                             disabled={max === 0}
                                             value={costs[line.id] ?? ""}
-                                            placeholder={t("supplies.po.invoiceCost")}
+                                            placeholder={t("supplies.po.sameAsPo")}
                                             aria-label={t("supplies.po.invoiceCost")}
                                             onChange={(e) => setCosts((prev) => ({ ...prev, [line.id]: e.target.value }))}
-                                            className="w-28 rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50"
+                                            className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50"
                                         />
                                     )}
                                     <input
@@ -166,12 +183,24 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                         value={entered[line.id] ?? ""}
                                         placeholder={String(max)}
                                         onChange={(e) => setEntered((prev) => ({ ...prev, [line.id]: e.target.value }))}
-                                        className="w-24 rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50"
+                                        className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50"
                                     />
                                 </div>
                             );
                         })}
                     </div>
+                )}
+
+                {overOrdered && (
+                    <p role="alert" className="text-xs text-rose-600">
+                        {t("supplies.po.overOrdered")}
+                    </p>
+                )}
+
+                {badCost && (
+                    <p role="alert" className="text-xs text-rose-600">
+                        {t("supplies.po.badCost")}
+                    </p>
                 )}
 
                 <DialogFooter className="gap-2">
@@ -185,7 +214,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     <button
                         type="button"
                         onClick={submit}
-                        disabled={receive.isPending || quantities.length === 0 || badCost}
+                        disabled={receive.isPending || quantities.length === 0 || badCost || overOrdered}
                         className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
                     >
                         {receive.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("supplies.po.receiveSubmit")}

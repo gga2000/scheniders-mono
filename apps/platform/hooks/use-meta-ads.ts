@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 import {
     attributionCoverage,
+    matchOrdersToCampaigns,
     buildDailySeries,
     previousRange,
     rangeForPreset,
@@ -41,6 +42,9 @@ export interface CampaignTotals {
     impressions: number;
     clicks: number;
     results: number;
+    /** Orders matched to this campaign (see matchOrdersToCampaigns). */
+    orders: number;
+    delivered: number;
 }
 
 export interface MetaAdsReport {
@@ -55,6 +59,8 @@ export interface MetaAdsReport {
     campaigns: CampaignTotals[];
     daily: DailyAdsPoint[];
     coverage: AttributionCoverage;
+    /** Ad orders that could not be matched to any campaign. */
+    unmatched: { orders: number; delivered: number };
 }
 
 /** Supabase returns at most 1000 rows per request; walk the pages. */
@@ -81,20 +87,26 @@ async function fetchOrdersPlaced(range: DayRange): Promise<AdsOrderRow[]> {
     }
 }
 
-async function fetchDeliveredAt(range: DayRange): Promise<string[]> {
-    const stamps: string[] = [];
+interface DeliveredRow {
+    delivered_at: string;
+    ad_channel: string | null;
+    attribution: unknown;
+}
+
+async function fetchDelivered(range: DayRange): Promise<DeliveredRow[]> {
+    const rows: DeliveredRow[] = [];
     for (let from = 0; ; from += PAGE) {
         const { data, error } = await realOrders(
             supabase
                 .from("orders")
-                .select("delivered_at")
+                .select("delivered_at, ad_channel, attribution")
                 .in("status", ["delivered", "completed"])
                 .gte("delivered_at", new Date(baghdadDayStart(range.since)).toISOString())
                 .lt("delivered_at", new Date(baghdadDayStart(addDaysToDayKey(range.until, 1))).toISOString()),
         ).range(from, from + PAGE - 1);
         if (error) throw new Error(error.message);
-        for (const r of data ?? []) if (r.delivered_at) stamps.push(r.delivered_at);
-        if ((data?.length ?? 0) < PAGE) return stamps;
+        for (const r of data ?? []) if (r.delivered_at) rows.push({ ...r, delivered_at: r.delivered_at });
+        if ((data?.length ?? 0) < PAGE) return rows;
     }
 }
 
@@ -108,7 +120,7 @@ function countByDay(stamps: readonly string[]): Map<string, number> {
 }
 
 async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
-    const [spend, placed, deliveredStamps] = await Promise.all([
+    const [spend, placed, delivered] = await Promise.all([
         supabase
             .from("ad_spend_daily")
             .select("spend_date, campaign_id, campaign_name, spend_usd, spend_iqd, impressions, clicks, results")
@@ -116,7 +128,7 @@ async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
             .lte("spend_date", range.until)
             .limit(10000),
         fetchOrdersPlaced(range),
-        fetchDeliveredAt(range),
+        fetchDelivered(range),
     ]);
     if (spend.error) throw new Error(spend.error.message);
 
@@ -124,8 +136,8 @@ async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
     const spendByDay = new Map<string, number>();
     const report: MetaAdsReport = {
         spendUsd: 0, spendIqd: 0, impressions: 0, clicks: 0, results: 0,
-        orders: placed.length, deliveredOrders: deliveredStamps.length,
-        campaigns: [], daily: [], coverage: attributionCoverage(placed),
+        orders: placed.length, deliveredOrders: delivered.length,
+        campaigns: [], daily: [], coverage: attributionCoverage(placed), unmatched: { orders: 0, delivered: 0 },
     };
 
     for (const r of spend.data ?? []) {
@@ -138,7 +150,7 @@ async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
 
         const c = byCampaign.get(r.campaign_id) ?? {
             campaignId: r.campaign_id, campaignName: r.campaign_name,
-            spendUsd: 0, spendIqd: 0, impressions: 0, clicks: 0, results: 0,
+            spendUsd: 0, spendIqd: 0, impressions: 0, clicks: 0, results: 0, orders: 0, delivered: 0,
         };
         c.spendUsd += usd;
         c.spendIqd += Number(r.spend_iqd);
@@ -150,11 +162,18 @@ async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
         spendByDay.set(r.spend_date, (spendByDay.get(r.spend_date) ?? 0) + Number(r.spend_iqd));
     }
     report.campaigns = [...byCampaign.values()].sort((a, b) => b.spendIqd - a.spendIqd);
+    const placedMatch = matchOrdersToCampaigns(report.campaigns, placed);
+    const deliveredMatch = matchOrdersToCampaigns(report.campaigns, delivered);
+    for (const c of report.campaigns) {
+        c.orders = placedMatch.byCampaign.get(c.campaignId) ?? 0;
+        c.delivered = deliveredMatch.byCampaign.get(c.campaignId) ?? 0;
+    }
+    report.unmatched = { orders: placedMatch.unmatched, delivered: deliveredMatch.unmatched };
     report.daily = buildDailySeries(
         range,
         spendByDay,
         countByDay(placed.map((o) => o.created_at)),
-        countByDay(deliveredStamps),
+        countByDay(delivered.map((o) => o.delivered_at)),
     );
     return report;
 }

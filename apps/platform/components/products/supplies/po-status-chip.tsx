@@ -7,7 +7,8 @@ import { useLanguage } from "@/hooks/use-language";
 export type PoStatus = "draft" | "sent" | "confirmed" | "received";
 
 /** Purchase order statuses that still count as open (not received or cancelled). */
-export const OPEN_PO_STATUSES = ["draft", "sent", "confirmed", "partial"];
+// A draft is not ordered yet, so it is not "open" (matches the SQL on-order counts).
+export const OPEN_PO_STATUSES = ["sent", "confirmed", "partial"];
 
 export interface PoStatusInfo {
     poNumber: string;
@@ -68,7 +69,8 @@ export function PoStatusChip({ info, size = "sm", onClick }: PoStatusChipProps) 
         return null;
     }
 
-    const etaLabel = formatEta(eta, t);
+    // A draft has not been sent: an arrival estimate would read as already ordered.
+    const etaLabel = info.status === "draft" ? "" : formatEta(eta, t);
     const label = etaLabel ? `${prefix} · ${etaLabel}` : prefix;
 
     const sizing =

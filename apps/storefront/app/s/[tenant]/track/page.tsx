@@ -11,6 +11,7 @@ import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { SchneidersTrackForm } from "@/components/schneiders/track-form";
+import { storeCanonical } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -31,6 +32,7 @@ export async function generateMetadata({
     : pageName;
   return {
     title: fallbackTitle,
+    ...(await storeCanonical(tenantParam, "/track")),
     ...resolveV2PageMetadata(v2, "track", locale),
   };
 }

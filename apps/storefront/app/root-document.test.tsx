@@ -81,6 +81,12 @@ describe("storefront root document", () => {
     expect(tag).toContain(
       "--font-noto-arabic:noto-sans-arabic/latin, noto-sans-arabic/latin-ext, noto-sans-arabic/symbols, noto-sans-arabic/math, noto-sans-arabic/arabic, noto-sans-arabic/latin Fallback",
     );
+    expect(tag).toContain(
+      "--font-plex-arabic:ibm-plex-sans-arabic/latin-400, ibm-plex-sans-arabic/latin-ext-400, ibm-plex-sans-arabic/cyrillic-ext-400, ibm-plex-sans-arabic/arabic-400, ibm-plex-sans-arabic/latin-400 Fallback",
+    );
+    expect(tag).toContain(
+      "--font-readex-pro:readex-pro/latin, readex-pro/latin-ext, readex-pro/vietnamese, readex-pro/arabic, readex-pro/latin Fallback",
+    );
   });
 
   it("declares Bricolage's fallback with the regular-weight metrics", () => {

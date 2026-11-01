@@ -207,7 +207,7 @@ export function SuppliesBulkActionsBar({
                             title={t("supplies.bulk.export")}
                         >
                             <Download className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Export CSV</span>
+                            <span className="hidden sm:inline">{t("supplies.bulk.exportCsv")}</span>
                         </button>
 
                         <button

@@ -108,3 +108,56 @@ export function attributionCoverage(orders: readonly AdsOrderRow[]): Attribution
  */
 export const META_URL_PARAMETERS =
     "utm_source={{site_source_name}}&utm_medium={{placement}}&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_id={{ad.id}}&utm_term={{adset.id}}&campaign_id={{campaign.id}}";
+
+/** The parts of an order's attribution that name its campaign. */
+function campaignRefOf(attribution: unknown): { id: string | null; name: string | null } {
+    if (typeof attribution !== "object" || attribution === null) return { id: null, name: null };
+    const a = attribution as { campaignId?: unknown; campaign?: unknown };
+    const clean = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
+    return { id: clean(a.campaignId), name: clean(a.campaign) };
+}
+
+export interface MatchResult {
+    /** Matched orders per Meta campaign id. */
+    byCampaign: Map<string, number>;
+    /** Ad orders (ad channel set) that no campaign could be matched to. */
+    unmatched: number;
+}
+
+/**
+ * Credit each ad order to a Meta campaign. The campaign id wins when the
+ * order carries one (our own ad links); otherwise the campaign name from the
+ * link is compared with Meta's, ignoring case and spacing (LightFunnels
+ * orders). An order with neither, or a name Meta does not know, is counted as
+ * unmatched instead of being guessed onto a campaign.
+ */
+export function matchOrdersToCampaigns(
+    campaigns: ReadonlyArray<{ campaignId: string; campaignName: string }>,
+    orders: ReadonlyArray<{ ad_channel: string | null; attribution: unknown }>,
+): MatchResult {
+    const norm = (v: string) => v.trim().replace(/\s+/g, " ").toLowerCase();
+    const ids = new Set(campaigns.map((c) => c.campaignId));
+    const byName = new Map<string, string>();
+    const ambiguous = new Set<string>();
+    for (const c of campaigns) {
+        const key = norm(c.campaignName);
+        if (byName.has(key) && byName.get(key) !== c.campaignId) ambiguous.add(key);
+        byName.set(key, c.campaignId);
+    }
+
+    const byCampaign = new Map<string, number>();
+    let unmatched = 0;
+    for (const o of orders) {
+        if (!o.ad_channel) continue;
+        const ref = campaignRefOf(o.attribution);
+        let target: string | undefined;
+        if (ref.id && ids.has(ref.id)) target = ref.id;
+        else if (ref.name) {
+            const key = norm(ref.name);
+            if (!ambiguous.has(key)) target = byName.get(key);
+        }
+        if (target) byCampaign.set(target, (byCampaign.get(target) ?? 0) + 1);
+        else unmatched++;
+    }
+    return { byCampaign, unmatched };
+}

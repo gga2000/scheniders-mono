@@ -122,9 +122,9 @@ export function CategoriesTab() {
                         <Layers className="w-6 h-6 text-amber-700" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-foreground">Categories</h2>
+                        <h2 className="text-xl font-bold text-foreground">{t("products.cats.title")}</h2>
                         <p className="text-sm text-muted">
-                            {categories.length} categories &middot; {categorizedCount}/{totalProducts} products categorized
+                            {t("products.cats.summary", { n: categories.length, done: categorizedCount, total: totalProducts })}
                         </p>
                     </div>
                 </div>
@@ -133,7 +133,7 @@ export function CategoriesTab() {
                     className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Category
+                    {t("products.cats.add")}
                 </button>
             </div>
 
@@ -144,7 +144,7 @@ export function CategoriesTab() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search categories..."
+                    placeholder={t("products.cats.searchPh")}
                     className="w-full pl-12 pr-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 />
             </div>
@@ -159,16 +159,16 @@ export function CategoriesTab() {
                     <div className="w-16 h-16 rounded-2xl bg-[var(--pastel-yellow)] flex items-center justify-center mb-4">
                         <Layers className="w-8 h-8 text-amber-700" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">No categories yet</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">{t("products.cats.none")}</h3>
                     <p className="text-muted text-sm mb-6 max-w-sm">
-                        Create categories to organize products on your storefront. Customers can browse by category.
+                        {t("products.cats.noneHint")}
                     </p>
                     <button
                         onClick={handleAdd}
                         className="flex items-center gap-2 px-5 py-3 bg-[var(--ink)] text-white rounded-xl font-medium hover:opacity-90 transition-all"
                     >
                         <Plus className="w-4 h-4" />
-                        Create First Category
+                        {t("products.cats.createFirst")}
                     </button>
                 </div>
             ) : filteredCategories.length === 0 ? (
@@ -241,6 +241,7 @@ function CategoryRow({
     onScopeChange,
     depth,
 }: CategoryRowProps) {
+    const { t } = useLanguage();
     const [expanded, setExpanded] = useState(true);
     const hasChildren = children.length > 0;
     const isConfirming = deleteConfirmId === category.id;
@@ -328,23 +329,30 @@ function CategoryRow({
                     {/* Actions */}
                     {isConfirming ? (
                         <div className="flex items-center gap-2">
+                            {(hasChildren || productCount > 0) && (
+                                <span className="text-xs text-rose-600 max-w-[16rem]">
+                                    {t("products.cats.deleteWarn", { subs: children.length, products: productCount })}
+                                </span>
+                            )}
                             <button
                                 onClick={() => onConfirmDelete(category.id)}
                                 className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-medium hover:bg-rose-600 transition-colors"
                             >
-                                Delete
+                                {t("products.cats.delete")}
                             </button>
                             <button
                                 onClick={onCancelDelete}
                                 className="px-3 py-1.5 bg-[var(--background)] text-foreground rounded-lg text-xs font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Cancel
+                                {t("products.cats.cancel")}
                             </button>
                         </div>
                     ) : (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                                 onClick={() => onEdit(category)}
+                                aria-label={t("products.cats.edit")}
+                                title={t("products.cats.edit")}
                                 className="p-2 rounded-lg hover:bg-[var(--background)] text-muted hover:text-foreground transition-colors"
                             >
                                 <Pencil className="w-4 h-4" />
@@ -352,6 +360,8 @@ function CategoryRow({
                             {onDelete && (
                                 <button
                                     onClick={() => onDelete(category.id)}
+                                    aria-label={t("products.cats.delete")}
+                                    title={t("products.cats.delete")}
                                     className="p-2 rounded-lg hover:bg-rose-50 text-muted hover:text-rose-500 transition-colors"
                                 >
                                     <Trash2 className="w-4 h-4" />

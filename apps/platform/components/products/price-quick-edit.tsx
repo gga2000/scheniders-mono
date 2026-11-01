@@ -61,16 +61,23 @@ export function PriceQuickEdit({ product, cost, onClose }: PriceQuickEditProps) 
                         : { price },
                 expectedUpdatedAt: product.updated_at,
             });
+        } catch (err) {
+            toast.error(t(productWriteErrorKey(err)));
+            return;
+        }
+        // The price is saved. A failed history row must not read as a failed save
+        // (a retry would hit the stale-version guard), so it gets its own message.
+        try {
             await productRepository.addPriceHistoryEntry(
                 product.id,
                 { old_price: product.price, new_price: price, reason: "Manual price update" },
                 tenantId,
             );
             toast.success(t("products.priceEdit.saved", { name: product.name }));
-            onClose();
-        } catch (err) {
-            toast.error(t(productWriteErrorKey(err)));
+        } catch {
+            toast.warning(t("products.priceEdit.savedNoHistory", { name: product.name }));
         }
+        onClose();
     };
 
     return (

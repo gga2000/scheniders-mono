@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const headerStore = new Map<string, string>();
+vi.mock("next/headers", () => ({
+  headers: async () => ({ get: (k: string) => headerStore.get(k) ?? null }),
+}));
 import type { PageConfig } from "@scheniders/shared";
 import {
   articleJsonLd,
@@ -8,6 +13,7 @@ import {
   productJsonLd,
   returnPolicyJsonLd,
   shippingDetailsJsonLd,
+  storeCanonical,
 } from "./seo";
 
 describe("itemListJsonLd", () => {
@@ -398,5 +404,28 @@ describe("articleJsonLd", () => {
 
   it("emits nothing without a headline", () => {
     expect(articleJsonLd({ ...base, headline: "   " })).toBeUndefined();
+  });
+});
+
+describe("storeCanonical", () => {
+  beforeEach(() => headerStore.clear());
+
+  it("builds the absolute URL on a custom domain", async () => {
+    headerStore.set("host", "shop.example.iq");
+    headerStore.set("x-store-base", "");
+    expect(await storeCanonical("__domain__shop.example.iq", "/policies/returns")).toEqual({
+      alternates: { canonical: "https://shop.example.iq/policies/returns" },
+    });
+  });
+
+  it("keeps the /s/<slug> prefix in path mode", async () => {
+    headerStore.set("host", "scheniders-storefront.vercel.app");
+    expect(await storeCanonical("acme", "/about")).toEqual({
+      alternates: { canonical: "https://scheniders-storefront.vercel.app/s/acme/about" },
+    });
+  });
+
+  it("emits nothing without a host", async () => {
+    expect(await storeCanonical("acme", "/about")).toEqual({});
   });
 });
