@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { MapPin, MessageCircle, Phone, Tag, X, Check, User, Truck } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Tag, X, Check, User } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -50,9 +50,6 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
     const success = effectiveSuccessRate(customer);
     const e164 = toIraqE164(customer.phone);
     const gov = customer.governorate ? governorateLabel(customer.governorate, language) || customer.governorate : null;
-    const orders = customer.total_orders === 1
-        ? t("customers.card.orderOne", "1 order")
-        : t("customers.card.orderMany", { count: customer.total_orders.toLocaleString("en-US") });
 
     return (
         <div
@@ -124,21 +121,21 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 <CustomerStatusFlags customer={customer} max={risk === "caution" ? 0 : 1} className="contents" />
             </div>
 
-            {/* The three numbers */}
-            <div className="mt-2.5 flex items-center gap-1.5 text-[13px] text-muted-foreground whitespace-nowrap overflow-hidden">
-                <span className="text-foreground font-medium tabular-nums">{orders}</span>
-                <span className="text-(--card-border)">·</span>
-                <span className="font-medium text-foreground tabular-nums">
-                    {pending && customer.total_spent === 0 ? "—" : formatIQD(customer.total_spent)}
-                </span>
-                {!pending && (
-                    <>
-                        <span className="text-(--card-border)">·</span>
-                        {/* Delivery rate: the truck marks it; the word shows when the card is wide enough. */}
-                        <span className="inline-flex items-center gap-1 min-w-0" title={t("customers.card.delivered")}><Truck className="w-3.5 h-3.5 shrink-0" aria-hidden /><span className="font-medium text-foreground tabular-nums">{success}%</span><span className="sr-only @[19rem]:not-sr-only"> {t("customers.card.delivered")}</span></span>
-                    </>
-                )}
-            </div>
+            {/* The three numbers, each with its label, so the delivery rate is never a bare icon */}
+            <dl className="mt-2.5 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-4 text-[13px]">
+                <div className="min-w-0 flex flex-col-reverse">
+                    <dt className="text-xs text-muted-foreground truncate">{t("customers.orders")}</dt>
+                    <dd className="font-semibold text-foreground tabular-nums">{customer.total_orders.toLocaleString("en-US")}</dd>
+                </div>
+                <div className="min-w-0 flex flex-col-reverse">
+                    <dt className="text-xs text-muted-foreground truncate">{t("customers.card.statSpent")}</dt>
+                    <dd className="font-semibold text-foreground tabular-nums truncate">{formatIQD(customer.total_spent)}</dd>
+                </div>
+                <div className="min-w-0 flex flex-col-reverse">
+                    <dt className="text-xs text-muted-foreground truncate">{t("customers.table.success")}</dt>
+                    <dd className="font-semibold text-foreground tabular-nums">{pending ? "—" : `${success}%`}</dd>
+                </div>
+            </dl>
 
             {/* Recency + actions */}
             <div className="mt-auto pt-3">

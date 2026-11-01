@@ -7,6 +7,7 @@ import {
 } from "@/lib/customer-reliability";
 import { Clock } from "lucide-react";
 import { CustomerHeroBand } from "@/components/customers/reliability-pill";
+import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
 
 export interface CustomerReliability {
     total_orders: number;
@@ -109,6 +110,8 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
                         <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{recent.length === 1 ? t("customers.banner.lastOutcomesOne") : t("customers.banner.lastOutcomes", { count: String(recent.length) })}</div>
                     </div>
                 )}
+                {/* What Value, COD risk, the rate and the score mean, the same popover as the list and the drawer */}
+                <CustomerRatingHelp align="end" className="self-center text-current opacity-75 hover:opacity-100 hover:text-current" />
             </div>
         </div>
     );

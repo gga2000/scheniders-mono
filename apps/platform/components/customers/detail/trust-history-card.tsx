@@ -6,8 +6,9 @@ import { BarChart3, Layers } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import {
-    buildScoreBreakdown, daysAgoLabel, daysSince, monthlyScoreSeries, SCORE_FACTOR_TONE, type MonthlyScore, type ScoreFactor,
+    buildScoreBreakdown, daysAgoLabel, daysSince, monthlyScoreSeries, type MonthlyScore, type ScoreFactor,
 } from "@/lib/customer-reliability";
+import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
 import { formatMonthShort } from "@/lib/customer-format";
 import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
 import { cn } from "@/lib/utils";
@@ -134,8 +135,8 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
 /**
  * Monthly average score, one bar per calendar month (empty months stay as
  * gaps). Faint 0/50/100 guides give the scale; the first and the latest scored
- * months carry their value, any other shows it on hover. Bars use the theme's
- * pastel-yellow token, the latest at full strength.
+ * months carry their value, any other shows it on hover. Bars are neutral: the
+ * latest in ink, earlier months muted, at full opacity in both themes.
  */
 function HistoryChart({ series, language, t }: { series: MonthlyScore[]; language: string; t: Translate }) {
     const scored = series.flatMap((m, i) => (m.score === null ? [] : [i]));
@@ -187,7 +188,8 @@ function HistoryChart({ series, language, t }: { series: MonthlyScore[]; languag
                                                 aria-hidden
                                                 className={cn(
                                                     "w-full rounded-t-[4px]",
-                                                    i === latest ? "bg-(--pastel-yellow)" : "bg-(--pastel-yellow)/50 group-hover:bg-(--pastel-yellow)/80",
+                                                    // A neutral ramp, not a status colour: ink for the latest month, muted for the rest (amber means "Needs confirming").
+                                                    i === latest ? "bg-foreground/85" : "bg-muted-foreground/30 group-hover:bg-muted-foreground/50",
                                                 )}
                                                 initial={{ height: 0 }}
                                                 animate={{ height: `${Math.max(m.score, 2)}%` }}
@@ -227,11 +229,6 @@ interface FactorsViewProps {
 }
 
 function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsViewProps) {
-    const maxAbs = useMemo(
-        () => Math.max(1, ...breakdown.map((f) => Math.abs(f.value))),
-        [breakdown]
-    );
-
     if (!blocked && breakdown.length === 0 && recentEvents.length === 0) {
         return (
             <div className="py-8 text-center">
@@ -261,34 +258,7 @@ function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsView
                         {t("customers.trust.noFactors")}
                     </p>
                 ) : (
-                    <div className="space-y-2.5">
-                        {breakdown.map((factor, i) => {
-                            const widthPct = (Math.abs(factor.value) / maxAbs) * 100;
-                            const tone = SCORE_FACTOR_TONE[factor.type];
-                            return (
-                                <div key={factor.label} className="flex items-center gap-3">
-                                    <span className="text-xs font-medium text-foreground w-36 shrink-0 truncate">
-                                        {t(`customers.scoreBreakdown.${factor.label}`)}
-                                    </span>
-                                    <div className="flex-1 h-2 bg-muted/40 rounded-full overflow-hidden">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${widthPct}%` }}
-                                            transition={{ delay: i * 0.05, duration: 0.4 }}
-                                            className={cn("h-full rounded-full", rated ? tone.bar : "bg-muted-foreground/25")}
-                                        />
-                                    </div>
-                                    {/* No points before the first delivery: the hero shows no score either. */}
-                                    <span className={cn("text-xs font-bold tabular-nums w-9 text-end shrink-0", rated ? tone.text : "text-muted-foreground")}>
-                                        {rated ? `${factor.value > 0 ? "+" : ""}${factor.value}` : "—"}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                        {!rated && (
-                            <p className="text-xs text-muted-foreground pt-1">{t("customers.trust.scoredAfterFirstDelivery")}</p>
-                        )}
-                    </div>
+                    <ScoreFactorBars factors={breakdown} rated={rated} />
                 )}
             </div>
 
