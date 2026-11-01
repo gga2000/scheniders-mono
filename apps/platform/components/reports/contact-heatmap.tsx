@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { ContactAttemptMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
@@ -23,6 +24,12 @@ const item = {
 };
 
 export function ContactHeatmap({ data }: ContactHeatmapProps) {
+    const { t } = useLanguage();
+    // Best-converting bucket, among buckets with orders (needs 2+ to be a comparison).
+    const populated = data.filter(d => d.count > 0);
+    const best = populated.length > 1
+        ? populated.reduce((top, d) => (d.confirmationRate > top.confirmationRate ? d : top))
+        : null;
     const totalCount = data.reduce((sum, d) => sum + d.count, 0);
 
     // Calculate the best performing bucket
@@ -53,8 +60,8 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                             <MessageCircle className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-foreground">Contact Effectiveness</h3>
-                            <p className="text-xs text-muted">Analysis by attempt count</p>
+                            <h3 className="text-lg font-bold text-foreground">{t("reports.contact.title")}</h3>
+                            <p className="text-xs text-muted">{t("reports.contact.subtitle")}</p>
                         </div>
                     </div>
                 </div>
@@ -99,7 +106,7 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                         {/* Center stat */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className="text-2xl font-bold text-foreground">{totalCount}</span>
-                            <span className="text-xs text-muted">Orders</span>
+                            <span className="text-xs text-muted">{t("reports.contact.orders")}</span>
                         </div>
                     </div>
 
@@ -124,11 +131,11 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                                     className="text-xs font-bold mb-1"
                                     style={{ color: d.color }}
                                 >
-                                    {d.label}
+                                    {t(`reports.contact.bucket.${d.attempts}`, d.label)}
                                 </div>
                                 <div className="text-xl font-bold text-foreground">{d.count}</div>
                                 <div className="flex items-center gap-1 mt-1">
-                                    <span className="text-[10px] text-muted">Conv:</span>
+                                    <span className="text-[10px] text-muted">{t("reports.contact.conv")}</span>
                                     <span
                                         className="text-xs font-bold"
                                         style={{ color: d.confirmationRate >= 50 ? '#22C55E' : '#F59E0B' }}
@@ -141,26 +148,27 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                     </motion.div>
                 </div>
 
-                {/* Insight banner */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="mt-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl"
-                >
-                    <div className="flex items-start gap-3">
-                        <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
-                            <Zap className="w-4 h-4" />
+                {/* Insight: derived from the buckets, only when there is something to compare */}
+                {best && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl"
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
+                                <Zap className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-amber-900">{t("reports.common.insight")}</p>
+                                <p className="text-xs text-amber-700 mt-0.5">
+                                    {t("reports.contact.insight", { label: t(`reports.contact.bucket.${best.attempts}`, best.label), pct: best.confirmationRate.toFixed(0) })}
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-sm font-semibold text-amber-900">Insight</p>
-                            <p className="text-xs text-amber-700 mt-0.5">
-                                First-contact orders convert at the highest rate.
-                                Focus on quality over quantity for better results.
-                            </p>
-                        </div>
-                    </div>
-                </motion.div>
+                    </motion.div>
+                )}
             </div>
         </motion.div>
     );

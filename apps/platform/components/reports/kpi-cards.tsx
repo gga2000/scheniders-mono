@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import {
     TrendingUp,
@@ -9,8 +10,7 @@ import {
     Phone,
     XCircle,
     PhoneOff,
-    Clock,
-    ArrowRight
+    Clock
 } from "lucide-react";
 import { KPIMetrics } from "@/lib/analytics/reports-calculations";
 import { cn } from "@/lib/utils";
@@ -33,9 +33,10 @@ const item = {
 };
 
 export function KPICards({ metrics }: KPICardsProps) {
+    const { t } = useLanguage();
     const kpiData = [
         {
-            title: "Total Orders",
+            title: t("reports.kpi.total"),
             value: metrics.totalOrders,
             change: metrics.totalOrdersChange,
             icon: Package,
@@ -44,7 +45,8 @@ export function KPICards({ metrics }: KPICardsProps) {
             labelColor: "text-blue-100",
         },
         {
-            title: "Delivery Rate",
+            title: t("reports.kpi.delivery"),
+            unit: "pp",
             value: `${metrics.deliveryRate.toFixed(1)}%`,
             change: metrics.deliveryRateChange,
             icon: CheckCircle2,
@@ -53,7 +55,8 @@ export function KPICards({ metrics }: KPICardsProps) {
             labelColor: "text-emerald-100",
         },
         {
-            title: "Contact Success",
+            title: t("reports.kpi.contact"),
+            unit: "pp",
             value: `${metrics.contactSuccessRate.toFixed(1)}%`,
             change: metrics.contactSuccessChange,
             icon: Phone,
@@ -62,7 +65,8 @@ export function KPICards({ metrics }: KPICardsProps) {
             labelColor: "text-violet-100",
         },
         {
-            title: "Rejection Rate",
+            title: t("reports.kpi.rejection"),
+            unit: "pp",
             value: `${metrics.rejectionRate.toFixed(1)}%`,
             change: metrics.rejectionRateChange,
             icon: XCircle,
@@ -72,7 +76,8 @@ export function KPICards({ metrics }: KPICardsProps) {
             invertTrend: true,
         },
         {
-            title: "No Response",
+            title: t("reports.kpi.noResponse"),
+            unit: "pp",
             value: `${metrics.noResponseRate.toFixed(1)}%`,
             change: metrics.noResponseChange,
             icon: PhoneOff,
@@ -82,7 +87,7 @@ export function KPICards({ metrics }: KPICardsProps) {
             invertTrend: true,
         },
         {
-            title: "Avg Processing",
+            title: t("reports.kpi.processing"),
             value: `${metrics.avgProcessingTime.toFixed(0)}h`,
             change: metrics.avgProcessingTimeChange,
             icon: Clock,
@@ -102,7 +107,7 @@ export function KPICards({ metrics }: KPICardsProps) {
         >
             {kpiData.map((kpi) => {
                 const Icon = kpi.icon;
-                const isPositive = kpi.invertTrend ? kpi.change < 0 : kpi.change > 0;
+                const isGood = kpi.invertTrend ? kpi.change < 0 : kpi.change > 0;
                 const showTrend = Math.abs(kpi.change) >= 0.1;
 
                 return (
@@ -113,7 +118,7 @@ export function KPICards({ metrics }: KPICardsProps) {
                             "p-4 rounded-2xl bg-gradient-to-br text-white shadow-lg",
                             kpi.gradient,
                             kpi.shadow,
-                            "hover:scale-[1.02] transition-transform cursor-pointer group"
+                            "group"
                         )}
                     >
                         <div className="flex items-center justify-between mb-3">
@@ -123,22 +128,18 @@ export function KPICards({ metrics }: KPICardsProps) {
                             {showTrend && (
                                 <span className={cn(
                                     "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full",
-                                    isPositive
+                                    isGood
                                         ? "bg-white/20 text-white"
                                         : "bg-black/20 text-white"
                                 )}>
-                                    {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                    {Math.abs(kpi.change).toFixed(1)}%
+                                    {kpi.change > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                    {Math.abs(kpi.change).toFixed(1)}{kpi.unit === "pp" ? ` ${t("reports.kpi.pp")}` : "%"}
                                 </span>
                             )}
                         </div>
 
                         <h3 className="text-2xl md:text-3xl font-bold tracking-tight">{kpi.value}</h3>
                         <p className={cn("text-sm font-medium mt-1 opacity-90", kpi.labelColor)}>{kpi.title}</p>
-
-                        <div className="mt-3 text-xs opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all flex items-center gap-1">
-                            View details <ArrowRight className="w-3 h-3" />
-                        </div>
                     </motion.div>
                 );
             })}

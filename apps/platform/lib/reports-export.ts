@@ -33,6 +33,26 @@ export interface ReportsExportData {
 }
 
 // =============================================
+// ESCAPING
+// =============================================
+
+/** City names and rejection reasons are customer-supplied: escape them before they enter XML or print HTML. */
+function escapeMarkup(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+/** One CSV cell: quotes doubled, and a leading = + - @ neutralised so a spreadsheet never runs it as a formula. */
+export function csvCell(value: string): string {
+    const guarded = /^([=+@\t\r]|-(?!\d))/.test(value) ? `'${value}` : value;
+    return `"${guarded.replace(/"/g, '""')}"`;
+}
+
+// =============================================
 // CSV EXPORT
 // =============================================
 
@@ -108,7 +128,7 @@ export function exportReportsToCSV(data: ReportsExportData): { success: boolean 
     }
 
     // Convert to CSV
-    const csvContent = rows.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+    const csvContent = rows.map(row => row.map(csvCell).join(",")).join("\n");
 
     // Download with BOM for Excel compatibility
     downloadFile(
@@ -182,7 +202,7 @@ export function exportReportsToExcel(data: ReportsExportData): { success: boolea
 
     data.cityPerformance.forEach(city => {
         xml += `<Row>`;
-        xml += `<Cell><Data ss:Type="String">${city.city}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${escapeMarkup(city.city)}</Data></Cell>`;
         xml += `<Cell ss:StyleID="Number"><Data ss:Type="Number">${city.totalOrders}</Data></Cell>`;
         xml += `<Cell ss:StyleID="Number"><Data ss:Type="Number">${city.delivered}</Data></Cell>`;
         xml += `<Cell ss:StyleID="Number"><Data ss:Type="Number">${city.rejected}</Data></Cell>`;
@@ -274,7 +294,6 @@ export function printOperationalReport(data: ReportsExportData) {
         .flag-card.high { background: #fee2e2; border: 1px solid #fecaca; }
         .flag-card.medium { background: #fef3c7; border: 1px solid #fde68a; }
         .flag-card.low { background: #dbeafe; border: 1px solid #bfdbfe; }
-        .flag-card .icon { font-size: 20px; }
         .flag-card .count { font-size: 18px; font-weight: 700; margin: 5px 0; }
         .flag-card .label { font-size: 10px; color: #6b7280; }
         @media print { 
@@ -332,7 +351,6 @@ export function printOperationalReport(data: ReportsExportData) {
         <div class="flag-grid">
             ${data.attentionFlags.map(flag => `
                 <div class="flag-card ${flag.severity}">
-                    <div class="icon">${flag.icon}</div>
                     <div class="count">${flag.count}</div>
                     <div class="label">${flag.label}</div>
                 </div>
@@ -347,7 +365,7 @@ export function printOperationalReport(data: ReportsExportData) {
             ${data.cityPerformance.slice(0, 3).map((city, i) => `
                 <div class="podium-card ${i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze'}">
                     <div class="rank">#${i + 1}</div>
-                    <div class="city">${city.city}</div>
+                    <div class="city">${escapeMarkup(city.city)}</div>
                     <div class="orders">${city.totalOrders}</div>
                     <div class="rank">${city.deliveryRate.toFixed(0)}% delivered</div>
                 </div>
@@ -367,7 +385,7 @@ export function printOperationalReport(data: ReportsExportData) {
             <tbody>
                 ${data.cityPerformance.slice(0, 10).map(city => `
                     <tr>
-                        <td><strong>${city.city}</strong></td>
+                        <td><strong>${escapeMarkup(city.city)}</strong></td>
                         <td>${city.totalOrders}</td>
                         <td>${city.delivered}</td>
                         <td>${city.rejected}</td>
@@ -416,10 +434,10 @@ export function printOperationalReport(data: ReportsExportData) {
             <tbody>
                 ${data.rejectionReasons.map(r => `
                     <tr>
-                        <td><strong>${r.reason}</strong></td>
+                        <td><strong>${escapeMarkup(r.reason)}</strong></td>
                         <td>${r.count}</td>
                         <td>${r.percentage.toFixed(1)}%</td>
-                        <td>${r.topCity || '-'}</td>
+                        <td>${escapeMarkup(r.topCity || '-')}</td>
                     </tr>
                 `).join('')}
             </tbody>

@@ -19,7 +19,7 @@ const PLATFORM = path.resolve(__dirname, "../..");
 const APP = path.join(PLATFORM, "app");
 
 /** The routes that mount the order book. Adding one is a decision, not an accident. */
-const BOOK_ROUTES = ["/analytics", "/finances", "/orders", "/printing", "/reports"];
+const BOOK_ROUTES = ["/analytics", "/finances", "/orders", "/printing"];
 
 /**
  * Under a book-mounting layout, but the layout skips the book for them on

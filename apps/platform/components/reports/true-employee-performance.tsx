@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { EmployeeActivityMetrics } from "@/hooks/use-employee-metrics";
 import {
@@ -50,13 +51,14 @@ export function TrueEmployeePerformance({
     error,
     onRefresh
 }: TrueEmployeePerformanceProps) {
+    const { t } = useLanguage();
     // Loading state
     if (loading) {
         return (
             <div className="pastel-card p-8 flex items-center justify-center">
                 <div className="text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
-                    <p className="text-sm text-muted">Loading employee metrics...</p>
+                    <p className="text-sm text-muted">{t("reports.team.loading")}</p>
                 </div>
             </div>
         );
@@ -72,7 +74,7 @@ export function TrueEmployeePerformance({
                         onClick={onRefresh}
                         className="text-sm text-rose-600 hover:text-rose-800 underline"
                     >
-                        Try again
+                        {t("reports.common.retry")}
                     </button>
                 )}
             </div>
@@ -90,8 +92,8 @@ export function TrueEmployeePerformance({
                 <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
                     <Users className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">No Employee Activity</h3>
-                <p className="text-sm text-muted mt-1">No team activity recorded for this period</p>
+                <h3 className="text-lg font-bold text-foreground">{t("reports.team.empty")}</h3>
+                <p className="text-sm text-muted mt-1">{t("reports.team.emptyDesc")}</p>
             </motion.div>
         );
     }
@@ -119,7 +121,7 @@ export function TrueEmployeePerformance({
                             <Trophy className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-foreground">Team Performance</h3>
+                            <h3 className="text-xl font-bold text-foreground">{t("reports.team.title")}</h3>
                             <p className="text-sm text-muted">{data.length} active members</p>
                         </div>
                     </div>
@@ -135,7 +137,7 @@ export function TrueEmployeePerformance({
                             <button
                                 onClick={onRefresh}
                                 className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-                                title="Refresh"
+                                title={t("reports.common.refresh")}
                             >
                                 <RefreshCw className="w-4 h-4 text-muted" />
                             </button>
@@ -146,10 +148,10 @@ export function TrueEmployeePerformance({
                 {/* Summary stats */}
                 <div className="grid grid-cols-4 gap-3 mb-6">
                     {[
-                        { icon: Activity, label: "Total Actions", value: totalActions, color: "text-violet-600", bg: "bg-violet-100" },
-                        { icon: Package, label: "Orders Created", value: data.reduce((s, e) => s + e.ordersCreated, 0), color: "text-emerald-600", bg: "bg-emerald-100" },
-                        { icon: CheckCircle2, label: "Confirmed", value: data.reduce((s, e) => s + e.confirmedOrders, 0), color: "text-blue-600", bg: "bg-blue-100" },
-                        { icon: Truck, label: "Delivered", value: data.reduce((s, e) => s + e.deliveredOrders, 0), color: "text-amber-600", bg: "bg-amber-100" },
+                        { icon: Activity, label: t("reports.team.totalActions"), value: totalActions, color: "text-violet-600", bg: "bg-violet-100" },
+                        { icon: Package, label: t("reports.team.created"), value: data.reduce((s, e) => s + e.ordersCreated, 0), color: "text-emerald-600", bg: "bg-emerald-100" },
+                        { icon: CheckCircle2, label: t("reports.team.confirmed"), value: data.reduce((s, e) => s + e.confirmedOrders, 0), color: "text-blue-600", bg: "bg-blue-100" },
+                        { icon: Truck, label: t("reports.common.delivered"), value: data.reduce((s, e) => s + e.deliveredOrders, 0), color: "text-amber-600", bg: "bg-amber-100" },
                     ].map((stat, i) => (
                         <div key={i} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
                             <div className={cn("w-8 h-8 rounded-lg mx-auto mb-2 flex items-center justify-center", stat.bg)}>
@@ -195,15 +197,15 @@ export function TrueEmployeePerformance({
 
                                 <div className="mt-3 space-y-1.5">
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="opacity-80">Actions</span>
+                                        <span className="opacity-80">{t("reports.team.actions")}</span>
                                         <span className="font-bold">{emp.totalActions}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="opacity-80">Created</span>
+                                        <span className="opacity-80">{t("reports.team.createdShort")}</span>
                                         <span className="font-bold">{emp.ordersCreated}</span>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
-                                        <span className="opacity-80">Avg/Day</span>
+                                        <span className="opacity-80">{t("reports.team.avgDay")}</span>
                                         <span className="font-bold">{emp.avgActionsPerDay.toFixed(0)}</span>
                                     </div>
                                 </div>
@@ -215,7 +217,7 @@ export function TrueEmployeePerformance({
                 {/* Other employees list */}
                 {otherEmployees.length > 0 && (
                     <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-muted mb-2">Other Team Members</h4>
+                        <h4 className="text-sm font-medium text-muted mb-2">{t("reports.team.others")}</h4>
                         {otherEmployees.map((emp, index) => (
                             <motion.div
                                 key={emp.userId}
@@ -237,11 +239,11 @@ export function TrueEmployeePerformance({
                                 <div className="flex items-center gap-6 text-sm">
                                     <div className="text-center">
                                         <span className="font-bold text-foreground">{emp.totalActions}</span>
-                                        <span className="text-muted ml-1 text-xs">actions</span>
+                                        <span className="text-muted ml-1 text-xs">{t("reports.team.actions")}</span>
                                     </div>
                                     <div className="text-center hidden md:block">
                                         <span className="font-bold text-foreground">{emp.ordersCreated}</span>
-                                        <span className="text-muted ml-1 text-xs">created</span>
+                                        <span className="text-muted ml-1 text-xs">{t("reports.team.createdShort")}</span>
                                     </div>
                                 </div>
                             </motion.div>

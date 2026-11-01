@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
 import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, DollarSign, Clock } from "lucide-react";
@@ -19,6 +20,7 @@ const formatNumber = (num: number) => {
 };
 
 export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) {
+    const { t } = useLanguage();
     const duration = currentRange.to.getTime() - currentRange.from.getTime();
     const days = Math.ceil(duration / (1000 * 60 * 60 * 24));
 
@@ -31,7 +33,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
 
     const metrics = [
         {
-            label: "Total Orders",
+            label: t("reports.kpi.total"),
             icon: Package,
             current: data.current.totalOrders,
             previous: data.previous.totalOrders,
@@ -42,7 +44,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             bgGradient: "from-blue-50 to-blue-100",
         },
         {
-            label: "Delivered",
+            label: t("reports.common.delivered"),
             icon: CheckCircle2,
             current: data.current.deliveredOrders,
             previous: data.previous.deliveredOrders,
@@ -53,7 +55,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             bgGradient: "from-emerald-50 to-emerald-100",
         },
         {
-            label: "Rejected",
+            label: t("reports.common.rejected"),
             icon: XCircle,
             current: data.current.rejectedOrders,
             previous: data.previous.rejectedOrders,
@@ -64,7 +66,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             bgGradient: "from-rose-50 to-rose-100",
         },
         {
-            label: "Delivery Rate",
+            label: t("reports.kpi.delivery"),
             icon: TrendingUp,
             current: data.current.deliveryRate,
             previous: data.previous.deliveryRate,
@@ -75,7 +77,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             bgGradient: "from-violet-50 to-violet-100",
         },
         {
-            label: "Revenue",
+            label: t("reports.period.revenue"),
             icon: DollarSign,
             current: data.current.totalRevenue,
             previous: data.previous.totalRevenue,
@@ -86,7 +88,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             bgGradient: "from-amber-50 to-amber-100",
         },
         {
-            label: "Avg Processing",
+            label: t("reports.kpi.processing"),
             icon: Clock,
             current: data.current.avgProcessingTime,
             previous: data.previous.avgProcessingTime,
@@ -115,8 +117,8 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                             <TrendingUp className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-foreground">Period Comparison</h3>
-                            <p className="text-sm text-muted">{days} day comparison</p>
+                            <h3 className="text-xl font-bold text-foreground">{t("reports.period.title")}</h3>
+                            <p className="text-sm text-muted">{t("reports.period.subtitle", { n: days })}</p>
                         </div>
                     </div>
                 </div>
@@ -125,12 +127,12 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                 <div className="flex items-center justify-between mb-6 text-sm">
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                        <span className="font-medium text-foreground">Current</span>
+                        <span className="font-medium text-foreground">{t("reports.period.current")}</span>
                         <span className="text-muted">({formatDate(currentRange.from)} - {formatDate(currentRange.to)})</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded-full bg-gray-300" />
-                        <span className="font-medium text-foreground">Previous</span>
+                        <span className="font-medium text-foreground">{t("reports.period.previous")}</span>
                         <span className="text-muted">({formatDate(previousRange.from)} - {formatDate(previousRange.to)})</span>
                     </div>
                 </div>
@@ -185,7 +187,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1 text-xs text-muted">
-                                        <span>vs</span>
+                                        <span>{t("reports.period.vs")}</span>
                                         <span className="font-medium">{metric.format(metric.previous)}</span>
                                     </div>
                                 </div>
@@ -217,13 +219,13 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                 "font-semibold",
                                 data.changes.orders >= 0 ? "text-emerald-900" : "text-rose-900"
                             )}>
-                                {data.changes.orders >= 0 ? "📈 Performance Increased" : "📉 Performance Decreased"}
+                                {data.changes.orders >= 0 ? t("reports.period.increased") : t("reports.period.decreased")}
                             </p>
                             <p className={cn(
                                 "text-sm",
                                 data.changes.orders >= 0 ? "text-emerald-700" : "text-rose-700"
                             )}>
-                                {Math.abs(data.changes.orders).toFixed(1)}% {data.changes.orders >= 0 ? "more" : "fewer"} orders compared to the previous {days}-day period
+                                {t(data.changes.orders >= 0 ? "reports.period.moreDesc" : "reports.period.fewerDesc", { pct: Math.abs(data.changes.orders).toFixed(1), n: days })}
                             </p>
                         </div>
                     </div>
