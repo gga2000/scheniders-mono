@@ -4,7 +4,6 @@ import { memo, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Copy, MessageCircle, ExternalLink, ChevronRight, Archive, Trash2, Phone } from "lucide-react";
 import type { Order, OrderStatus } from "@/lib/supabase";
-import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { getOrderStatusLabel } from "@/lib/order-status-labels";

@@ -6,24 +6,21 @@ import { AbandonedCartAccent } from "@/components/orders/abandoned-cart-accent";
 import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { useState, useRef, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Order, OrderPriority, MessageTemplate } from "@/lib/supabase";
+import { Order, MessageTemplate } from "@/lib/supabase";
 import type { RiskLevel } from "@/lib/fraud-detector";
 import type { OrderRiskData } from "@/lib/customer-trust-risk";
 import { RiskBadge } from "@/components/orders/risk-badge";
 import { DiscountBadge } from "@/components/orders/discount-badge";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
-import { AvatarPill } from "@/components/ui/avatar-pill";
 
 import { useOrderStore } from "@/store/use-order-store";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
 import { HighlightedPhone } from "./highlighted-phone";
-// ... existing imports ...
 
 import { formatIQD, generateWhatsAppLink, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { validatePhoneDetailed } from "@/lib/order-utils";
-import { extractGovernorate } from "@/lib/address-validator";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
-import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, isScheduledToday, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDropdownItemStyle, getDisplayOrderId } from "@/lib/order-format-utils";
+import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, isScheduledToday, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDisplayOrderId } from "@/lib/order-format-utils";
 import { useLanguage } from "@/hooks/use-language";
 
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
@@ -52,8 +49,6 @@ import {
     RotateCcw,
     Flag,
     Flame,
-    Clipboard,
-    Store,
     FileText,
     Pin,
     Clock,
@@ -64,7 +59,6 @@ import {
     PhoneOff,
     History as HistoryIcon,
     Archive as ArchiveIcon,
-    ChevronDown,
     Scissors,
     ClipboardCopy,
     Bot,
@@ -75,12 +69,9 @@ import { useStatusLabel } from "@/hooks/use-status-label";
 import { useOrderInlineEdit, type InlineEditableField } from "@/hooks/use-order-inline-edit";
 import { OrderInlineEdit } from "@/components/orders/table/order-inline-edit";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@scheniders/ui/dropdown-menu";
+import { PriorityBadge } from "./card/priority-badge";
+import { SourceBadge } from "./card/source-badge";
+import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
 
 
@@ -157,7 +148,6 @@ export const OrderCard = memo(function OrderCard({
     riskAssessment,
     customerOrderCount = 1,
     previousOrder,
-    onMergeWithPrevious,
     onShowDuplicates,
     duplicateAlert,
     onTogglePin,
@@ -336,99 +326,26 @@ export const OrderCard = memo(function OrderCard({
     };
 
 
-    // Priority badge styling
-    const getPriorityBadge = () => {
-        if (order.priority === "urgent") {
-            return (
-                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-red-100 text-red-700 uppercase tracking-wider animate-pulse">
-                    <Flame className="w-3 h-3" />
-                    Urgent
-                </span>
-            );
-        }
-        if (order.priority === "high") {
-            return (
-                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-amber-100 text-amber-700 uppercase tracking-wider">
-                    <Flag className="w-3 h-3" />
-                    High
-                </span>
-            );
-        }
-        return null;
-    };
 
-    // Source badge with icons
-    const getSourceBadge = () => {
-        if (!order.source) return null;
+    // Every WhatsApp button on the card opens the chat the same way: a greeting
+    // in Arabic (the customer's language), the contact recorded, and the link
+    // copied when the browser blocks the new tab.
+    const openWhatsApp = (phone: string | null | undefined, shortError = false) => {
+        if (!phone) return;
+        try {
+            const link = generateWhatsAppLink(phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
+            const newWindow = window.open(link, "_blank");
+            onContactRecorded?.(order.id);
 
-        switch (order.source) {
-            case "whatsapp":
-                return (
-                    <span className="inline-flex h-6 items-center gap-1.5 px-2 text-[10px] font-semibold rounded-full bg-green-100 text-green-700">
-                        {/* WhatsApp official logo - green circle with phone */}
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="#25D366">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                        </svg>
-                        WhatsApp
-                    </span>
-                );
-            case "lightfunnels":
-                return (
-                    <span className="inline-flex h-6 items-center gap-1.5 px-2 text-[10px] font-semibold rounded-full bg-gradient-to-r from-pink-50 via-purple-50 to-blue-50 text-purple-700 border border-purple-200">
-                        {/* LightFunnels logo - colorful arrow shape */}
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                            <path d="M3 21L9 3L15 15L21 3" stroke="url(#lf-gradient-badge)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                            <defs>
-                                <linearGradient id="lf-gradient-badge" x1="3" y1="12" x2="21" y2="12" gradientUnits="userSpaceOnUse">
-                                    <stop stopColor="#EC4899" />
-                                    <stop offset="0.5" stopColor="#8B5CF6" />
-                                    <stop offset="1" stopColor="#3B82F6" />
-                                </linearGradient>
-                            </defs>
-                        </svg>
-                        LightFunnels
-                    </span>
-                );
-            case "meta":
-                return (
-                    <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 text-white">
-                        {/* Instagram logo */}
-                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                        </svg>
-                        Instagram
-                    </span>
-                );
-            case "other":
-                return (
-                    <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-600 border border-gray-200">
-                        {/* Globe icon */}
-                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="2" y1="12" x2="22" y2="12" />
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                        </svg>
-                        Other
-                    </span>
-                );
-            case "tiktok":
-                return (
-                    <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-gray-900 text-white">
-                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />
-                        </svg>
-                        TikTok
-                    </span>
-                );
-            case "shop":
-                return (
-                    <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-[var(--pastel-yellow)] text-amber-900 border border-[var(--primary)]/30 dark:bg-[#EFFF00]/20 dark:text-[#EFFF00] dark:border-[#EFFF00]/30">
-                        <Store className="w-3 h-3" />
-                        {t("orders.card.shopOrder")}
-                    </span>
-                );
-            default:
-                return null;
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                navigator.clipboard.writeText(link).then(() => {
+                    alert(t("orders.card.popupBlocked"));
+                }).catch(() => {
+                    alert(`Popup blocked. Link: ${link}`);
+                });
+            }
+        } catch {
+            alert(t(shortError ? "orders.card.whatsappOpenFailedShort" : "orders.card.whatsappOpenFailed"));
         }
     };
 
@@ -436,83 +353,6 @@ export const OrderCard = memo(function OrderCard({
     const firstImageUrl = items[0]?.image_url;
     const thumbnailUrl = firstImageUrl && !failedImageUrls.has(firstImageUrl) ? firstImageUrl : null;
     const statusAvatarUrl = order.last_status_changed_by_avatar && !failedImageUrls.has(order.last_status_changed_by_avatar) ? order.last_status_changed_by_avatar : null;
-
-    const ORDER_STATUSES = [
-        "new",
-        "pending_checkout",
-        "contacted",
-        "confirmed",
-        "in_transit",
-        "delivered",
-        "completed",
-        "cancelled",
-        "rejected",
-        "no_response",
-        "return_pending",
-        "suspended"
-    ] as const;
-
-    // Map statuses to icons
-    const getStatusIcon = (status: Order["status"]) => {
-        switch (status) {
-            case "new": return <Sparkles className="w-3 h-3" />;
-            case "contacted": return <PhoneCall className="w-3 h-3" />;
-            case "confirmed": return <CheckCircle className="w-3 h-3" />;
-            case "in_transit": return <Truck className="w-3 h-3" />;
-            case "delivered": return <CheckCircle className="w-3 h-3" />;
-            case "completed": return <CheckCircle className="w-3 h-3" />;
-            case "cancelled": return <Ban className="w-3 h-3" />;
-            case "rejected": return <XCircle className="w-3 h-3" />;
-            case "no_response": return <PhoneCall className="w-3 h-3" />;
-            case "return_pending": return <RotateCcw className="w-3 h-3" />;
-            default: return null;
-        }
-    };
-
-    const handleInlineStatusUpdate = (newStatus: Order["status"]) => {
-        if (newStatus === "cancelled" && onCancelWithReason) {
-            onCancelWithReason(order);
-        } else if (newStatus === "rejected" && onRejectWithReason) {
-            onRejectWithReason(order);
-        } else {
-            onStatusUpdate(order.id, newStatus);
-        }
-    };
-
-    const renderStatusBadgeWithDropdown = (triggerElement: React.ReactNode) => {
-        return (
-            <div onClick={(e) => e.stopPropagation()}>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <div className="cursor-pointer hover:opacity-80 hover:scale-105 active:scale-95 transition-all outline-none">
-                            {triggerElement}
-                        </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-[180px] p-2 space-y-1 rounded-xl bg-[var(--card-bg)] border-[var(--card-border)] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.8)] dark:border-[#333]">
-                        <div className="text-xs font-semibold text-muted px-2 py-1 mb-1">{t("orders.card.changeStatus")}</div>
-                        {ORDER_STATUSES.map((status) => (
-                            <DropdownMenuItem
-                                key={status}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleInlineStatusUpdate(status);
-                                }}
-                                className={cn(
-                                    "flex items-center gap-2 cursor-pointer rounded-lg px-2.5 py-2 text-xs font-bold transition-colors outline-none",
-                                    getDropdownItemStyle(status),
-                                    order.status === status && "ring-2 ring-black/10 dark:ring-white/10"
-                                )}
-                            >
-                                {getStatusIcon(status)}
-                                {orderStatusLabel(status, isReturn)}
-                                {order.status === status && <CheckCircle className="w-3.5 h-3.5 ml-auto opacity-70" />}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-        );
-    };
 
     // ── ULTRA-COMPACT GRID (Level 2 + Grid) ── Stacked mini-card ──
     if (compact === 2 && gridMode) {
@@ -550,7 +390,7 @@ export const OrderCard = memo(function OrderCard({
                             )}>
                                 {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />)}
                             </span>
-                            {renderStatusBadgeWithDropdown(
+                            <CardStatusMenu order={order} onStatusUpdate={onStatusUpdate} onCancelWithReason={onCancelWithReason} onRejectWithReason={onRejectWithReason}>
                                 <span className={cn(
                                     "inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
                                     getStatusBadgeStyle(order.status),
@@ -558,7 +398,7 @@ export const OrderCard = memo(function OrderCard({
                                 )}>
                                     {orderStatusLabel(order.status, isReturn)}
                                 </span>
-                            )}
+                            </CardStatusMenu>
                         </div>
 
                         {/* Row 2: Order ID + Priority */}
@@ -669,7 +509,7 @@ export const OrderCard = memo(function OrderCard({
                                     {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />)}
                                 </span>
                             </div>
-                            {renderStatusBadgeWithDropdown(
+                            <CardStatusMenu order={order} onStatusUpdate={onStatusUpdate} onCancelWithReason={onCancelWithReason} onRejectWithReason={onRejectWithReason}>
                                 <span className={cn(
                                     "inline-flex items-center gap-0.5 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
                                     getStatusBadgeStyle(order.status),
@@ -677,7 +517,7 @@ export const OrderCard = memo(function OrderCard({
                                 )}>
                                     {orderStatusLabel(order.status, isReturn)}
                                 </span>
-                            )}
+                            </CardStatusMenu>
                         </div>
 
                         {/* Row 2: Order ID + Date */}
@@ -775,24 +615,7 @@ export const OrderCard = memo(function OrderCard({
                                     if (onOpenTemplatePanel && messageTemplates?.length > 0) {
                                         onOpenTemplatePanel(order);
                                     } else {
-                                        try {
-                                            const link = generateWhatsAppLink(
-                                                order.phone,
-                                                `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-                                            );
-                                            const newWindow = window.open(link, "_blank");
-                                            onContactRecorded?.(order.id);
-
-                                            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                navigator.clipboard.writeText(link).then(() => {
-                                                    alert(t("orders.card.popupBlocked"));
-                                                }).catch(() => {
-                                                    alert(`Popup blocked. Link: ${link}`);
-                                                });
-                                            }
-                                        } catch (error) {
-                                            alert(t("orders.card.whatsappOpenFailed"));
-                                        }
+                                        openWhatsApp(order.phone);
                                     }
                                 }}
                                 disabled={!isValidPhone}
@@ -926,7 +749,7 @@ export const OrderCard = memo(function OrderCard({
 
                         {/* Status + Priority */}
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                            {renderStatusBadgeWithDropdown(
+                            <CardStatusMenu order={order} onStatusUpdate={onStatusUpdate} onCancelWithReason={onCancelWithReason} onRejectWithReason={onRejectWithReason}>
                                 <span className={cn(
                                     "inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider",
                                     getStatusBadgeStyle(order.status),
@@ -934,7 +757,7 @@ export const OrderCard = memo(function OrderCard({
                                 )}>
                                     {orderStatusLabel(order.status, isReturn)}
                                 </span>
-                            )}
+                            </CardStatusMenu>
                             {isUrgent && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
                                     <Flame className="w-2.5 h-2.5" />
@@ -1004,24 +827,7 @@ export const OrderCard = memo(function OrderCard({
                                 if (onOpenTemplatePanel && messageTemplates?.length > 0) {
                                     onOpenTemplatePanel(order);
                                 } else {
-                                    try {
-                                        const link = generateWhatsAppLink(
-                                            order.phone,
-                                            `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-                                        );
-                                        const newWindow = window.open(link, "_blank");
-                                        onContactRecorded?.(order.id);
-
-                                        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                            navigator.clipboard.writeText(link).then(() => {
-                                                alert(t("orders.card.popupBlocked"));
-                                            }).catch(() => {
-                                                alert(`Popup blocked. Link: ${link}`);
-                                            });
-                                        }
-                                    } catch (error) {
-                                        alert(t("orders.card.whatsappOpenFailed"));
-                                    }
+                                    openWhatsApp(order.phone);
                                 }
                             }}
                             disabled={!isValidPhone}
@@ -1388,7 +1194,7 @@ export const OrderCard = memo(function OrderCard({
                         {/* Tags Row - hidden in semi-compact */}
                         {compact === 0 && <div className="flex items-center gap-2 mt-2 flex-wrap">
                             {/* Status Badge */}
-                            {renderStatusBadgeWithDropdown(
+                            <CardStatusMenu order={order} onStatusUpdate={onStatusUpdate} onCancelWithReason={onCancelWithReason} onRejectWithReason={onRejectWithReason}>
                                 <motion.span
                                     layoutId={getLayoutId(`order-status-${order.id}-${order.status}`)}
                                     className={cn(
@@ -1401,7 +1207,7 @@ export const OrderCard = memo(function OrderCard({
                                     {isReturn && <RotateCcw className="w-3 h-3" />}
                                     {orderStatusLabel(order.status, isReturn)}
                                 </motion.span>
-                            )}
+                            </CardStatusMenu>
 
                             {/* Delivery Company Badge */}
                             {order.delivery_company === 'waseet' && (
@@ -1481,10 +1287,10 @@ export const OrderCard = memo(function OrderCard({
                             {/* Original Order Link for Returns - REMOVED: consolidated into single rose tag below */}
 
                             {/* Priority Badge */}
-                            {getPriorityBadge()}
+                            <PriorityBadge priority={order.priority} />
 
                             {/* Source Badge - hidden in semi-compact */}
-                            {compact === 0 && getSourceBadge()}
+                            {compact === 0 && <SourceBadge source={order.source} />}
 
                             {/* 7-Day Guarantee Countdown - hidden in semi-compact */}
                             {compact === 0 && order.status === 'delivered' && order.delivered_at && (() => {
@@ -1881,21 +1687,7 @@ export const OrderCard = memo(function OrderCard({
                                         e.stopPropagation();
                                         if (!validatePhoneDetailed(order.phone).isValid) return;
 
-                                        try {
-                                            const link = generateWhatsAppLink(order.phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
-                                            const newWindow = window.open(link, "_blank");
-                                            onContactRecorded?.(order.id);
-
-                                            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                navigator.clipboard.writeText(link).then(() => {
-                                                    alert(t("orders.card.popupBlocked"));
-                                                }).catch(() => {
-                                                    alert(`Popup blocked. Link: ${link}`);
-                                                });
-                                            }
-                                        } catch (error) {
-                                            alert(t("orders.card.whatsappOpenFailed"));
-                                        }
+                                        openWhatsApp(order.phone);
                                     }}
                                     className={cn(
                                         "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95 shadow-sm",
@@ -1916,23 +1708,9 @@ export const OrderCard = memo(function OrderCard({
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (!validatePhoneDetailed(order.secondary_phone!).isValid) return;
+                                            if (!validatePhoneDetailed(order.secondary_phone).isValid) return;
 
-                                            try {
-                                                const link = generateWhatsAppLink(order.secondary_phone!, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
-                                                const newWindow = window.open(link, "_blank");
-                                                onContactRecorded?.(order.id);
-
-                                                if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                    navigator.clipboard.writeText(link).then(() => {
-                                                        alert(t("orders.card.popupBlocked"));
-                                                    }).catch(() => {
-                                                        alert(`Popup blocked. Link: ${link}`);
-                                                    });
-                                                }
-                                            } catch (error) {
-                                                alert(t("orders.card.whatsappOpenFailedShort"));
-                                            }
+                                            openWhatsApp(order.secondary_phone, true);
                                         }}
                                         className={cn(
                                             "flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-all active:scale-95",
@@ -2105,24 +1883,7 @@ export const OrderCard = memo(function OrderCard({
                                         if (onOpenTemplatePanel && messageTemplates?.length > 0) {
                                             onOpenTemplatePanel(order);
                                         } else {
-                                            try {
-                                                const link = generateWhatsAppLink(
-                                                    order.phone,
-                                                    `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-                                                );
-                                                const newWindow = window.open(link, "_blank");
-                                                onContactRecorded?.(order.id);
-
-                                                if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                    navigator.clipboard.writeText(link).then(() => {
-                                                        alert(t("orders.card.popupBlocked"));
-                                                    }).catch(() => {
-                                                        alert(`Popup blocked. Link: ${link}`);
-                                                    });
-                                                }
-                                            } catch (error) {
-                                                alert(t("orders.card.whatsappOpenFailed"));
-                                            }
+                                            openWhatsApp(order.phone);
                                         }
                                     }}
                                     disabled={!isValidPhone}
@@ -2150,24 +1911,7 @@ export const OrderCard = memo(function OrderCard({
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    try {
-                                        const link = generateWhatsAppLink(
-                                            order.secondary_phone!,
-                                            `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-                                        );
-                                        const newWindow = window.open(link, "_blank");
-                                        onContactRecorded?.(order.id);
-
-                                        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                            navigator.clipboard.writeText(link).then(() => {
-                                                alert(t("orders.card.popupBlocked"));
-                                            }).catch(() => {
-                                                alert(`Popup blocked. Link: ${link}`);
-                                            });
-                                        }
-                                    } catch (error) {
-                                        alert(t("orders.card.whatsappOpenFailedShort"));
-                                    }
+                                    openWhatsApp(order.secondary_phone, true);
                                 }}
                                 className={cn(
                                     "w-10 h-10 bg-emerald-500 text-white hover:bg-emerald-600 transition-all flex items-center justify-center relative dark:bg-[rgba(0,255,100,0.15)] dark:text-[#00FFAA] dark:hover:bg-[rgba(0,255,100,0.25)]",
