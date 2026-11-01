@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { Product } from "@/lib/supabase";
+import type { ProductSupplier } from "@/types/product";
 import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
@@ -29,19 +30,9 @@ import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
 import type { PoStatusInfo } from "./po-status-chip";
 
-interface SupplySupplierRaw {
-    supplier_name?: string;
-    supplier_contact?: string;
-    supplier_email?: string;
-    lead_time_days?: number | null;
-    minimum_order_quantity?: number | null;
-    unit_cost?: number | null;
-    is_primary?: boolean;
-}
-
 interface ReorderItem {
     supply: Product;
-    primarySupplier: SupplySupplierRaw | null;
+    primarySupplier: ProductSupplier | null;
     dailyRate: number;
     daysUntilStockout: number | null;
     suggestedQty: number;
@@ -143,11 +134,7 @@ export function ReorderDrawer({
             const daysUntilStockout =
                 dailyRate > 0 ? Math.round(available / dailyRate) : null;
 
-            const suppliersRaw = (s as unknown as { suppliers?: SupplySupplierRaw[] })
-                .suppliers;
-            const suppliers: SupplySupplierRaw[] = Array.isArray(suppliersRaw)
-                ? suppliersRaw
-                : [];
+            const suppliers = Array.isArray(s.suppliers) ? s.suppliers : [];
             const primary = suppliers.find((x) => x.is_primary) ?? suppliers[0] ?? null;
             const leadTimeDays = primary?.lead_time_days ?? 7;
             const moq = primary?.minimum_order_quantity ?? 1;

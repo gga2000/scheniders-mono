@@ -4,6 +4,7 @@ import { formatIQD } from "@/lib/utils";
 
 import { useState, useMemo } from "react";
 import { Link2, Plus, Trash2, Search, Package } from "lucide-react";
+import type { Product } from "@/lib/supabase";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -58,7 +59,7 @@ export function RelatedProductsSection({
             );
     }, [products, currentProductId, addedIds, searchQuery]);
 
-    const addProduct = (product: any) => {
+    const addProduct = (product: Product) => {
         const newProducts: RelatedProductFormData[] = [
             ...relatedProducts,
             {
