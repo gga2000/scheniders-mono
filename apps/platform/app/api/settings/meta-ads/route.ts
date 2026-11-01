@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { syncMetaAdsForTenant } from "@/lib/meta-ads-sync";
+import { fetchTokenHealth, type TokenHealth } from "@/lib/meta-ads";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -13,18 +14,31 @@ const connectSchema = z.object({
     usdToIqd: z.number().int().min(1000).max(3000),
 });
 
-/** Masked status. The token is never returned. Any member may see it (page shows sync health). */
+/**
+ * Masked status. The token is never returned; only Meta's verdict on it (`tokenHealth`, null when Meta
+ * could not be asked). Any member may see it (page shows sync health).
+ */
 export async function GET(request: NextRequest) {
     const caller = await requireRequestCaller(request, "member");
     if (!caller.ok) return caller.response;
 
     const { data, error } = await createSupabaseServiceClient()
         .from("meta_ads_connections")
-        .select("ad_account_id, usd_to_iqd, is_active, last_synced_at, last_error")
+        .select("ad_account_id, access_token, usd_to_iqd, is_active, last_synced_at, last_error")
         .eq("tenant_id", caller.tenantId)
         .maybeSingle();
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    return NextResponse.json({ success: true, connection: data });
+    if (!data) return NextResponse.json({ success: true, connection: null, tokenHealth: null });
+
+    const { access_token: accessToken, ...connection } = data;
+    let tokenHealth: TokenHealth | null = null;
+    try {
+        tokenHealth = await fetchTokenHealth(accessToken);
+    } catch {
+        // Meta unreachable or refusing: report "unknown" rather than failing the status call.
+        tokenHealth = null;
+    }
+    return NextResponse.json({ success: true, connection, tokenHealth });
 }
 
 /** Save credentials (tenant admins only), then run a first sync so a bad token fails loudly now. */

@@ -96,3 +96,41 @@ export async function fetchCampaignInsights(params: {
     }
     return out;
 }
+
+const debugTokenSchema = z.object({
+    data: z.object({
+        is_valid: z.boolean(),
+        // Unix seconds; 0 means the token never expires (system user tokens).
+        expires_at: z.number().optional(),
+        scopes: z.array(z.string()).optional(),
+    }),
+});
+
+export interface TokenHealth {
+    isValid: boolean;
+    /** ISO time, or null when the token never expires. */
+    expiresAt: string | null;
+    hasAdsRead: boolean;
+}
+
+/** Meta's own view of the stored token (read-only, `/debug_token`). Throws MetaAdsError when Meta cannot say. */
+export async function fetchTokenHealth(accessToken: string): Promise<TokenHealth> {
+    const query = new URLSearchParams({ input_token: accessToken });
+    const res = await fetch(`${GRAPH_HOST}/${GRAPH_VERSION}/debug_token?${query}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+    });
+    const body: unknown = await res.json().catch(() => null);
+    if (!res.ok) {
+        const parsed = graphErrorSchema.safeParse(body);
+        throw new MetaAdsError(parsed.success ? parsed.data.error.message : `Meta API HTTP ${res.status}`);
+    }
+    const parsed = debugTokenSchema.safeParse(body);
+    if (!parsed.success) throw new MetaAdsError("Unexpected response from Meta API");
+    const { is_valid, expires_at, scopes } = parsed.data.data;
+    return {
+        isValid: is_valid,
+        expiresAt: expires_at ? new Date(expires_at * 1000).toISOString() : null,
+        hasAdsRead: (scopes ?? []).includes("ads_read"),
+    };
+}

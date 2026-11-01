@@ -19,8 +19,13 @@ import {
     type DayRange,
 } from "@/lib/ads-report";
 
+const tokenHealthSchema = z
+    .object({ isValid: z.boolean(), expiresAt: z.string().nullable(), hasAdsRead: z.boolean() })
+    .nullable();
+
 const connectionSchema = z.object({
     success: z.literal(true),
+    tokenHealth: tokenHealthSchema,
     connection: z
         .object({
             ad_account_id: z.string(),
@@ -32,7 +37,10 @@ const connectionSchema = z.object({
         .nullable(),
 });
 
-export type MetaAdsConnection = NonNullable<z.infer<typeof connectionSchema>["connection"]>;
+export type MetaAdsConnection = NonNullable<z.infer<typeof connectionSchema>["connection"]> & {
+    /** Meta's verdict on the stored token; null when Meta could not be asked. */
+    tokenHealth: z.infer<typeof tokenHealthSchema>;
+};
 
 export interface CampaignTotals {
     campaignId: string;
@@ -203,7 +211,8 @@ export function useMetaAdsConnection() {
         queryFn: async () => {
             const res = await fetch("/api/settings/meta-ads", { headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) throw new Error(`Meta Ads status failed: ${res.status}`);
-            return connectionSchema.parse(await res.json()).connection;
+            const parsed = connectionSchema.parse(await res.json());
+            return parsed.connection ? { ...parsed.connection, tokenHealth: parsed.tokenHealth } : null;
         },
     });
 }
