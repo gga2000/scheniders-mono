@@ -31,11 +31,8 @@ import { DASHBOARD_EVENTS, useTrackEvent } from "@/lib/analytics/track-event";
 import { buildDashboardCsv } from "@/lib/analytics/dashboard-export";
 
 // Dynamic imports — all chart + operational widgets
-const Leaderboard = dynamic(() => import("@/components/dashboard/widgets/leaderboard").then(mod => ({ default: mod.Leaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const IraqMap = dynamic(() => import("@/components/shared/iraq-map").then(mod => ({ default: mod.IraqMap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const RevenueTrendChart = dynamic(() => import("@/components/dashboard/widgets/revenue-trend-chart").then(mod => ({ default: mod.RevenueTrendChart })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const DeliverySuccessRate = dynamic(() => import("@/components/dashboard/widgets/delivery-success-rate").then(mod => ({ default: mod.DeliverySuccessRate })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
-const OrdersPerHour = dynamic(() => import("@/components/dashboard/widgets/orders-per-hour").then(mod => ({ default: mod.OrdersPerHour })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const PeakHoursHeatmap = dynamic(() => import("@/components/dashboard/widgets/peak-hours-heatmap").then(mod => ({ default: mod.PeakHoursHeatmap })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const AvgTimePerStage = dynamic(() => import("@/components/dashboard/widgets/avg-time-per-stage").then(mod => ({ default: mod.AvgTimePerStage })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const WeekOverWeek = dynamic(() => import("@/components/dashboard/widgets/week-over-week").then(mod => ({ default: mod.WeekOverWeek })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
@@ -44,6 +41,10 @@ const RejectionBreakdown = dynamic(() => import("@/components/dashboard/widgets/
 const ProductLeaderboard = dynamic(() => import("@/components/dashboard/widgets/product-leaderboard").then(mod => ({ default: mod.ProductLeaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const RecentOrdersFeed = dynamic(() => import("@/components/dashboard/widgets/recent-orders-feed").then(mod => ({ default: mod.RecentOrdersFeed })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const StaffLeaderboard = dynamic(() => import("@/components/dashboard/widgets/staff-leaderboard").then(mod => ({ default: mod.StaffLeaderboard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const RevenueCard = dynamic(() => import("@/components/dashboard/bento/revenue-card").then(mod => ({ default: mod.RevenueCard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const OrderWavesCard = dynamic(() => import("@/components/dashboard/bento/order-waves-card").then(mod => ({ default: mod.OrderWavesCard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const GovernorateCard = dynamic(() => import("@/components/dashboard/bento/governorate-card").then(mod => ({ default: mod.GovernorateCard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
+const SeasonalityCard = dynamic(() => import("@/components/dashboard/bento/seasonality-card").then(mod => ({ default: mod.SeasonalityCard })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 const TeamAnnouncements = dynamic(() => import("@/components/dashboard/widgets/team-announcements").then(mod => ({ default: mod.TeamAnnouncements })), { ssr: false, loading: () => <div className="h-full bg-[var(--card-bg)] rounded-3xl animate-pulse" /> });
 
 export default function Home() {
@@ -270,24 +271,27 @@ export default function Home() {
           ) : rangePlaceholder}
         </WidgetBoundary>
 
-        {/* Charts Row: Trend (7col) | Delivery Rate + Hourly (5col) */}
+        {/* Bento Row: how much (revenue / orders over time) | when (orders by hour).
+            Both cards carry their own window and read one shared 60-day facts query. */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-7 min-h-[320px]">
-            <WidgetBoundary label="revenue-trend"><RevenueTrendChart showRevenue={showFinancials} /></WidgetBoundary>
+          <div className="xl:col-span-5 min-h-[400px]">
+            <WidgetBoundary label="bento-revenue"><RevenueCard /></WidgetBoundary>
           </div>
-          <div className="xl:col-span-5 flex flex-col gap-6">
-            <WidgetBoundary label="delivery-rate"><DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} /></WidgetBoundary>
-            <WidgetBoundary label="orders-per-hour"><OrdersPerHour data={dashboardMetrics.ordersPerHour} /></WidgetBoundary>
+          <div className="xl:col-span-7 min-h-[400px]">
+            <WidgetBoundary label="bento-order-waves"><OrderWavesCard /></WidgetBoundary>
           </div>
         </div>
 
-        {/* Heatmap Row: Peak Hours (8col) | Avg Time Per Stage (4col) */}
+        {/* Timing Row: Peak Hours (8col) | Delivery Rate over Avg Time Per Stage (4col) */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-8 min-h-[280px]">
             <WidgetBoundary label="peak-heatmap">{rangeScoped ? <PeakHoursHeatmap data={rangeScoped.peakHeatmap} /> : rangePlaceholder}</WidgetBoundary>
           </div>
-          <div className="xl:col-span-4 min-h-[280px]">
-            <WidgetBoundary label="avg-time-per-stage">{rangeScoped ? <AvgTimePerStage metrics={rangeScoped.avgTimePerStage} /> : rangePlaceholder}</WidgetBoundary>
+          <div className="xl:col-span-4 flex flex-col gap-6">
+            <WidgetBoundary label="delivery-rate"><DeliverySuccessRate metrics={dashboardMetrics.deliveryRate} /></WidgetBoundary>
+            <div className="flex-1 min-h-[280px]">
+              <WidgetBoundary label="avg-time-per-stage">{rangeScoped ? <AvgTimePerStage metrics={rangeScoped.avgTimePerStage} /> : rangePlaceholder}</WidgetBoundary>
+            </div>
           </div>
         </div>
 
@@ -309,9 +313,19 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Map | Top Cities + Top Products (two tall columns to the right of the map) */}
+        {/* Bento Row: where orders come from (governorates) | the shape of the year */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-          <div className="xl:col-span-6 h-[400px] xl:h-[460px]">
+          <div className="xl:col-span-7">
+            <WidgetBoundary label="bento-governorates"><GovernorateCard /></WidgetBoundary>
+          </div>
+          <div className="xl:col-span-5">
+            <WidgetBoundary label="bento-seasonality"><SeasonalityCard /></WidgetBoundary>
+          </div>
+        </div>
+
+        {/* Map (header range) | Top Products */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-7 h-[400px] xl:h-[460px]">
             <WidgetBoundary label="iraq-map">{geoFacts.data ? (
               <IraqMap orders={geoFacts.data} />
             ) : geoFacts.isError ? (
@@ -320,13 +334,7 @@ export default function Home() {
               <WidgetPending />
             )}</WidgetBoundary>
           </div>
-          <div className="xl:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-6 xl:h-[460px]">
-            <WidgetBoundary label="city-leaderboard">{rangeScoped ? (
-              <Leaderboard
-                cities={rangeScoped.enhancedLeaderboard.topCities}
-                onCityClick={(city) => goToOrders({ city }, 'city-leaderboard')}
-              />
-            ) : rangePlaceholder}</WidgetBoundary>
+          <div className="xl:col-span-5 xl:h-[460px]">
             <WidgetBoundary label="product-leaderboard">{rangeScoped ? (
               <ProductLeaderboard
                 products={rangeScoped.enhancedLeaderboard.topProductsEnhanced}

@@ -44,7 +44,7 @@ describe("factColumns — money is only requested for viewers entitled to it (SE
     });
 
     it("selects only what each widget reads", () => {
-        expect(factColumns("trend", false)).toBe("created_at,status,delivered_at,completed_at");
+        expect(factColumns("trend", false)).toBe("created_at,status,delivered_at,completed_at,source,governorate_code,validated_governorate_code");
         expect(factColumns("geo", false)).toBe("status,governorate_code,validated_governorate_code");
     });
 });
@@ -54,6 +54,7 @@ describe("fact row contracts", () => {
         const row = {
             created_at: "2026-10-12T22:08:07.599627+00:00", status: "in_transit",
             delivered_at: null, completed_at: null,
+            source: "lightfunnels", governorate_code: "BGD", validated_governorate_code: null,
         };
         expect(trendFactSchema.parse(row)).toEqual(row);
         expect(trendFactSchema.parse({ ...row, price: 36750 }).price).toBe(36750);

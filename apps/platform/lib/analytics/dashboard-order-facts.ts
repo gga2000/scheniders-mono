@@ -7,8 +7,9 @@ import {
 } from "@/lib/analytics/dashboard-calculations";
 
 /**
- * Per-order facts for the two dashboard widgets `get_dashboard_metrics` does not
- * cover: the daily trend chart and the governorate map.
+ * Per-order facts for the dashboard widgets `get_dashboard_metrics` does not
+ * cover: the revenue / hourly / governorate bento cards (one shared "trend"
+ * read) and the governorate map.
  *
  * Both used to read the shared orders list (ORD-2). That list is a window of the
  * book, so the chart and map silently plotted whatever happened to be loaded. They
@@ -27,6 +28,10 @@ export const trendFactSchema = z.object({
     status: z.string(),
     delivered_at: z.string().nullable(),
     completed_at: z.string().nullable(),
+    /** Which system sent the order: splits the hourly waves into online vs chat. */
+    source: z.string().nullable(),
+    governorate_code: z.string().nullable(),
+    validated_governorate_code: z.string().nullable(),
     price,
 });
 export type TrendFact = z.infer<typeof trendFactSchema>;
@@ -44,7 +49,7 @@ export type OrderFactsWindow =
     | { kind: "trend"; days: TrendDays }
     | { kind: "geo"; range: DateRangeKey };
 
-const TREND_COLUMNS = "created_at,status,delivered_at,completed_at";
+const TREND_COLUMNS = "created_at,status,delivered_at,completed_at,source,governorate_code,validated_governorate_code";
 const GEO_COLUMNS = "status,governorate_code,validated_governorate_code";
 
 export function factColumns(kind: OrderFactsWindow["kind"], includePrice: boolean): string {

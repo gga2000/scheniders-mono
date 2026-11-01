@@ -243,7 +243,11 @@ export interface RevenueTrendPoint {
     revenue: number;
 }
 
-export type TrendDays = 7 | 14 | 30;
+/**
+ * Days of trend facts a widget can ask for. The revenue card plots up to 30 days
+ * and compares them with the 30 before, so the shared read is 60 days.
+ */
+export type TrendDays = 7 | 14 | 30 | 60;
 
 /**
  * The first instant the trend chart plots: the start of the Baghdad day `days - 1`
