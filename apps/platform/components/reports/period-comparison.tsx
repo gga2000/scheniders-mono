@@ -3,9 +3,8 @@
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { PeriodComparisonMetrics } from "@/lib/analytics/source-metrics";
-import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, Banknote, Clock } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Package, CheckCircle2, XCircle, Banknote, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatIQD } from "@/lib/utils";
 import { DateRange } from "@/hooks/use-reports-metrics";
 
 interface PeriodComparisonProps {
@@ -31,72 +30,67 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
 
     const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
+    // Without a previous period there is nothing to compare against: no chip, no verdict.
+    const hasBaseline = data.previous.totalOrders > 0;
+    const hasOutcomes = data.previous.deliveredOrders + data.previous.rejectedOrders > 0;
+    const relative = (curr: number, prev: number): number | null =>
+        prev > 0 ? ((curr - prev) / prev) * 100 : null;
+
     const metrics = [
         {
             label: t("reports.kpi.total"),
             icon: Package,
             current: data.current.totalOrders,
             previous: data.previous.totalOrders,
-            change: data.changes.orders,
+            change: hasBaseline ? data.changes.orders : null,
             format: (v: number) => v.toString(),
             goodWhenPositive: true,
-            gradient: "from-blue-500 to-blue-600",
-            bgGradient: "from-blue-50 to-blue-100",
         },
         {
             label: t("reports.common.delivered"),
             icon: CheckCircle2,
             current: data.current.deliveredOrders,
             previous: data.previous.deliveredOrders,
-            change: ((data.current.deliveredOrders - data.previous.deliveredOrders) / Math.max(data.previous.deliveredOrders, 1)) * 100,
+            change: relative(data.current.deliveredOrders, data.previous.deliveredOrders),
             format: (v: number) => v.toString(),
             goodWhenPositive: true,
-            gradient: "from-emerald-500 to-emerald-600",
-            bgGradient: "from-emerald-50 to-emerald-100",
         },
         {
             label: t("reports.common.rejected"),
             icon: XCircle,
             current: data.current.rejectedOrders,
             previous: data.previous.rejectedOrders,
-            change: ((data.current.rejectedOrders - data.previous.rejectedOrders) / Math.max(data.previous.rejectedOrders, 1)) * 100,
+            change: relative(data.current.rejectedOrders, data.previous.rejectedOrders),
             format: (v: number) => v.toString(),
             goodWhenPositive: false,
-            gradient: "from-rose-500 to-rose-600",
-            bgGradient: "from-rose-50 to-rose-100",
         },
         {
             label: t("reports.kpi.delivery"),
             icon: TrendingUp,
             current: data.current.deliveryRate,
             previous: data.previous.deliveryRate,
-            change: data.changes.deliveryRate,
+            change: hasOutcomes ? data.changes.deliveryRate : null,
+            unit: "pp",
             format: (v: number) => `${v.toFixed(1)}%`,
             goodWhenPositive: true,
-            gradient: "from-violet-500 to-violet-600",
-            bgGradient: "from-violet-50 to-violet-100",
         },
         {
             label: t("reports.period.revenue"),
             icon: Banknote,
             current: data.current.totalRevenue,
             previous: data.previous.totalRevenue,
-            change: data.changes.revenue,
+            change: relative(data.current.totalRevenue, data.previous.totalRevenue),
             format: (v: number) => formatNumber(v),
             goodWhenPositive: true,
-            gradient: "from-amber-500 to-amber-600",
-            bgGradient: "from-amber-50 to-amber-100",
         },
         {
             label: t("reports.kpi.processing"),
             icon: Clock,
             current: data.current.avgProcessingTime,
             previous: data.previous.avgProcessingTime,
-            change: data.changes.avgProcessingTime,
+            change: relative(data.current.avgProcessingTime, data.previous.avgProcessingTime),
             format: (v: number) => `${v.toFixed(0)}h`,
             goodWhenPositive: false, // Lower is better
-            gradient: "from-cyan-500 to-cyan-600",
-            bgGradient: "from-cyan-50 to-cyan-100",
         },
     ];
 
@@ -140,10 +134,12 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                 {/* Metrics Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     {metrics.map((metric, index) => {
-                        const isPositiveChange = metric.change > 0;
-                        const isGood = metric.goodWhenPositive ? isPositiveChange : !isPositiveChange;
-                        const changeColor = isGood ? "text-emerald-600" : "text-rose-600";
-                        const changeBg = isGood ? "bg-emerald-50" : "bg-rose-50";
+                        const change = metric.change;
+                        const showChip = change !== null && Math.abs(change) >= 0.05;
+                        const isUp = change !== null && change > 0;
+                        // Colour = good or bad, arrow = up or down (a falling rejection count is a down
+                        // arrow in the good colour).
+                        const isGood = metric.goodWhenPositive ? isUp : !isUp;
 
                         return (
                             <motion.div
@@ -151,44 +147,34 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.05 }}
-                                className={cn(
-                                    "p-4 rounded-2xl border border-gray-200",
-                                    `bg-gradient-to-br ${metric.bgGradient}`
-                                )}
+                                className="pastel-card p-4"
                             >
                                 <div className="flex items-center gap-2 mb-3">
-                                    <div className={cn(
-                                        "w-8 h-8 rounded-lg flex items-center justify-center text-white",
-                                        `bg-gradient-to-br ${metric.gradient}`
-                                    )}>
-                                        <metric.icon className="w-4 h-4" />
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-50 text-indigo-600">
+                                        <metric.icon className="w-4 h-4" aria-hidden />
                                     </div>
                                     <span className="text-xs font-medium text-gray-600">{metric.label}</span>
                                 </div>
 
                                 {/* Current vs Previous */}
                                 <div className="space-y-2">
-                                    <div className="flex items-baseline justify-between">
-                                        <span className="text-2xl font-bold text-foreground">
+                                    <div className="flex items-baseline justify-between gap-2">
+                                        <span className="text-2xl font-bold text-foreground tabular-nums">
                                             {metric.format(metric.current)}
                                         </span>
-                                        <div className={cn(
-                                            "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold",
-                                            changeBg, changeColor
-                                        )}>
-                                            {isPositiveChange ? (
-                                                <ArrowUpRight className="w-3 h-3" />
-                                            ) : metric.change < 0 ? (
-                                                <ArrowDownRight className="w-3 h-3" />
-                                            ) : (
-                                                <Minus className="w-3 h-3" />
-                                            )}
-                                            {Math.abs(metric.change).toFixed(1)}%
-                                        </div>
+                                        {showChip && change !== null && (
+                                            <div className={cn(
+                                                "flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold",
+                                                isGood ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                                            )}>
+                                                {isUp ? <ArrowUpRight className="w-3 h-3" aria-hidden /> : <ArrowDownRight className="w-3 h-3" aria-hidden />}
+                                                {Math.abs(change).toFixed(1)}{metric.unit === "pp" ? ` ${t("reports.kpi.pp")}` : "%"}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-1 text-xs text-muted">
                                         <span>{t("reports.period.vs")}</span>
-                                        <span className="font-medium">{metric.format(metric.previous)}</span>
+                                        <span className="font-medium tabular-nums">{metric.format(metric.previous)}</span>
                                     </div>
                                 </div>
                             </motion.div>
@@ -196,40 +182,38 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
                     })}
                 </div>
 
-                {/* Summary Banner */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className={cn(
-                        "mt-6 p-4 rounded-2xl border",
-                        data.changes.orders >= 0
-                            ? "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200"
-                            : "bg-gradient-to-r from-rose-50 to-red-50 border-rose-200"
-                    )}
-                >
-                    <div className="flex items-center gap-3">
-                        {data.changes.orders >= 0 ? (
-                            <TrendingUp className="w-5 h-5 text-emerald-600" />
-                        ) : (
-                            <TrendingDown className="w-5 h-5 text-rose-600" />
+                {/* Summary Banner: only when there is a previous period and the volume actually moved. */}
+                {!hasBaseline ? (
+                    <p className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        {t("reports.period.noBaseline")}
+                    </p>
+                ) : Math.abs(data.changes.orders) >= 0.05 ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className={cn(
+                            "mt-6 p-4 rounded-2xl border",
+                            data.changes.orders > 0 ? "bg-emerald-50 border-emerald-200" : "bg-rose-50 border-rose-200"
                         )}
-                        <div>
-                            <p className={cn(
-                                "font-semibold",
-                                data.changes.orders >= 0 ? "text-emerald-900" : "text-rose-900"
-                            )}>
-                                {data.changes.orders >= 0 ? t("reports.period.increased") : t("reports.period.decreased")}
-                            </p>
-                            <p className={cn(
-                                "text-sm",
-                                data.changes.orders >= 0 ? "text-emerald-700" : "text-rose-700"
-                            )}>
-                                {t(data.changes.orders >= 0 ? "reports.period.moreDesc" : "reports.period.fewerDesc", { pct: Math.abs(data.changes.orders).toFixed(1), n: days })}
-                            </p>
+                    >
+                        <div className="flex items-center gap-3">
+                            {data.changes.orders > 0 ? (
+                                <TrendingUp className="w-5 h-5 text-emerald-600" aria-hidden />
+                            ) : (
+                                <TrendingDown className="w-5 h-5 text-rose-600" aria-hidden />
+                            )}
+                            <div>
+                                <p className={cn("font-semibold", data.changes.orders > 0 ? "text-emerald-900" : "text-rose-900")}>
+                                    {data.changes.orders > 0 ? t("reports.period.increased") : t("reports.period.decreased")}
+                                </p>
+                                <p className={cn("text-sm", data.changes.orders > 0 ? "text-emerald-700" : "text-rose-700")}>
+                                    {t(data.changes.orders > 0 ? "reports.period.moreDesc" : "reports.period.fewerDesc", { pct: Math.abs(data.changes.orders).toFixed(1), n: days })}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                </motion.div>
+                    </motion.div>
+                ) : null}
             </div>
         </motion.div>
     );

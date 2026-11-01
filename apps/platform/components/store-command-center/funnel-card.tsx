@@ -84,7 +84,7 @@ export function FunnelCard({ funnel, isLoading, isError, locale }: FunnelCardPro
                                     <span className="truncate text-xs font-medium text-foreground">{stage.label}</span>
                                     <div className="relative h-6 overflow-hidden rounded-md bg-black/5" aria-hidden="true">
                                         <div
-                                            className={cn("absolute inset-y-0 start-0 rounded-md", i === 3 ? "bg-emerald-500" : "bg-primary/70")}
+                                            className={cn("absolute inset-y-0 start-0 rounded-md", i === 3 ? "bg-emerald-500" : "bg-primary/45")}
                                             style={{ width: `${Math.max(2, (stage.value / max) * 100)}%` }}
                                         />
                                     </div>

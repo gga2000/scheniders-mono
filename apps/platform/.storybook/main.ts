@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import type { StorybookConfig } from '@storybook/nextjs';
 
 const config: StorybookConfig = {
@@ -36,6 +37,9 @@ const config: StorybookConfig = {
       new NormalModuleReplacementPlugin(/^node:/, (resource) => {
         resource.request = resource.request.replace(/^node:/, "");
       }),
+      // Stories render dialogs that read the signed-in session; they have no
+      // AuthProvider, so the hook resolves to a signed-in stub.
+      new NormalModuleReplacementPlugin(/^@\/hooks\/use-auth$/, fileURLToPath(new URL("./use-auth.stub.ts", import.meta.url))),
     );
     config.resolve = config.resolve ?? {};
     config.resolve.fallback = {

@@ -252,6 +252,10 @@ export function useOrderBulkOperations() {
                 });
             }
             else if (result?.error) toast.error(t("toast.archiveFailed"), result.error);
+        } catch (error) {
+            // A thrown request used to leave the "Archiving…" toast up forever.
+            dismissToast(toastId);
+            toast.error(t("toast.archiveFailed"), error instanceof Error ? error.message : String(error));
         } finally {
             bulkRunningRef.current = false;
             setIsBulkProcessing(false);
@@ -287,12 +291,20 @@ export function useOrderBulkOperations() {
     const executeDelete = async () => {
         setIsDeleting(true);
         const ids = Array.from(selectedOrders);
-        const toastId = toast.loading(`Deleting ${ids.length} orders...`);
-        const result = await bulkDelete(ids);
-        dismissToast(toastId);
-        setIsDeleting(false);
-        setDeleteConfirmOpen(false);
-        setDeleteCountdown(5);
+        const toastId = toast.loading(t("orders.bulk.deleting", { count: ids.length }));
+        let result: Awaited<ReturnType<typeof bulkDelete>>;
+        try {
+            result = await bulkDelete(ids);
+        } catch (error) {
+            // Without this the dialog stayed on "deleting" with its toast up.
+            toast.error(t("toast.deleteFailed"), error instanceof Error ? error.message : String(error));
+            return;
+        } finally {
+            dismissToast(toastId);
+            setIsDeleting(false);
+            setDeleteConfirmOpen(false);
+            setDeleteCountdown(5);
+        }
 
         if (!result.success && (!result.count || result.count === 0)) {
             toast.error(t("toast.deleteFailed"), result.error || t("toast.deleteFailedDesc"));
@@ -305,8 +317,8 @@ export function useOrderBulkOperations() {
             setSelectedOrders(new Set(ids.filter(id => !deletedIdSet.has(id))));
 
             toast.warning(
-                `Partially deleted`,
-                `${deletedCount} of ${ids.length} orders were deleted. Remaining orders stayed selected.`
+                t("orders.bulk.partialDeleteTitle"),
+                t("orders.bulk.partialDeleteBody", { done: deletedCount, total: ids.length }),
             );
             return;
         }
@@ -359,8 +371,8 @@ export function useOrderBulkOperations() {
         const heldBack = new Set(scheduledLater.map(o => o.id));
         const ids = Array.from(selectedOrders).filter(id => !heldBack.has(id));
         toast.warning(
-            `${scheduledLater.length} scheduled for a later day kept back`,
-            "Orders postponed to a later day are not shipped in bulk. Open one to move it individually.",
+            t("orders.bulk.keptBackTitle", { count: scheduledLater.length }),
+            t("orders.bulk.keptBackBody"),
         );
         if (ids.length === 0) return;
         // Leave the held-back orders selected so the merchant sees which they were.

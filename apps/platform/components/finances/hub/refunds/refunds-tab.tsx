@@ -177,13 +177,13 @@ function RefundsTimeline({ data }: { data: ReturnType<typeof useRefundAnalytics>
                             <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" vertical={false} />
                             <XAxis
                                 dataKey="label"
-                                tick={{ fontSize: 11, fill: "var(--muted)" }}
+                                tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                                 axisLine={false}
                                 tickLine={false}
                                 interval="preserveStartEnd"
                             />
                             <YAxis
-                                tick={{ fontSize: 11, fill: "var(--muted)" }}
+                                tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                                 axisLine={false}
                                 tickLine={false}
                                 tickFormatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1000 ? `${Math.round(v / 1000)}K` : v}

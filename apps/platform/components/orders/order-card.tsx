@@ -14,6 +14,7 @@ import { HighlightedText } from "@scheniders/ui/highlighted-text";
 import { HighlightedPhone } from "./highlighted-phone";
 
 import { formatIQD, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 import { validatePhoneDetailed } from "@/lib/order-utils";
 import { formatShortDate, formatTime, getStatusColor, getStatusBadgeStyle, getDisplayOrderId } from "@/lib/order-format-utils";
 
@@ -247,9 +248,8 @@ function FullOrderCard(props: OrderCardProps) {
                                                     // Copy order ID to clipboard
                                                     try {
                                                         await navigator.clipboard.writeText(order.order_id);
-                                                        // Visual feedback would be nice here
-                                                    } catch (err) {
-                                                        console.error('Failed to copy:', err);
+                                                    } catch {
+                                                        toast.error(t("orders.toast.copyFailed"));
                                                     }
                                                 }}
                                                 title={t("orders.card.clickToCopy")}
@@ -329,9 +329,9 @@ function FullOrderCard(props: OrderCardProps) {
                         {/* Date & Time with Age Badge - visible in normal and semi-compact */}
                         {(
                             <div className="flex items-center gap-2 text-xs">
-                                <span className="font-semibold text-subtle">{formatShortDate(order.created_at)}</span>
+                                <span className="font-semibold text-muted">{formatShortDate(order.created_at)}</span>
                                 <span className="text-[var(--card-border)]">|</span>
-                                <span className="font-mono text-subtle">{formatTime(order.created_at)}</span>
+                                <span className="font-mono text-muted">{formatTime(order.created_at)}</span>
 
                                 {/* Date Modified Indicator */}
                                 {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (

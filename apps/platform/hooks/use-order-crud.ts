@@ -707,26 +707,26 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 // untouched — the RPC refuses once it has shipped or refunded,
                 // and says which, rather than silently doing nothing.
                 const splitLogId = (result.data as (Order & { split_log_id?: string }) | undefined)?.split_log_id;
-                if (splitLogId) {
-                    toast({
-                        title: tRef.current("orders.toast.split"),
-                        variant: "success",
-                        description: tRef.current("orders.toast.splitDesc", { count: returnedItems.length }),
-                        duration: 20000,
-                        action: {
-                            label: tRef.current("orders.toast.undo"),
-                            onClick: async () => {
-                                const undo = await unsplitOrderAction(splitLogId, session?.access_token ?? "");
-                                if (!undo.success) {
-                                    toast.error(tRef.current("orders.toast.splitUndoFailed"), undo.error);
-                                    return;
-                                }
-                                await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-                                toast.success(tRef.current("orders.toast.splitUndone"), tRef.current("orders.toast.splitUndoneDesc"));
-                            },
+                // The one success message for a split: callers no longer add
+                // their own, which used to stack a second toast on this one.
+                toast({
+                    title: tRef.current("orders.toast.split"),
+                    variant: "success",
+                    description: tRef.current("orders.toast.splitDesc", { count: returnedItems.length }),
+                    duration: splitLogId ? 20000 : undefined,
+                    action: splitLogId ? {
+                        label: tRef.current("orders.toast.undo"),
+                        onClick: async () => {
+                            const undo = await unsplitOrderAction(splitLogId, session?.access_token ?? "");
+                            if (!undo.success) {
+                                toast.error(tRef.current("orders.toast.splitUndoFailed"), undo.error);
+                                return;
+                            }
+                            await queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
+                            toast.success(tRef.current("orders.toast.splitUndone"), tRef.current("orders.toast.splitUndoneDesc"));
                         },
-                    });
-                }
+                    } : undefined,
+                });
 
                 return { success: true };
             } else {

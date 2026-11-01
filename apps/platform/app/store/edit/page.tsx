@@ -100,8 +100,7 @@ export default async function StoreV2Page({
         rawScreen && (DEEP_LINK_SCREENS as readonly string[]).includes(rawScreen)
             ? (rawScreen as SettingsSectionId)
             : undefined;
-    const initialPageId =
-        typeof sp.page === "string" ? (sp.page as PageId) : null;
+    const requestedPageId = typeof sp.page === "string" ? sp.page : null;
     const initialSectionId =
         typeof sp.section === "string" ? sp.section : null;
     const rawTab = typeof sp.tab === "string" ? sp.tab : undefined;
@@ -147,6 +146,10 @@ export default async function StoreV2Page({
     const published = t.store_config_v2;
 
     const initialConfig: StoreConfigV2 = draft ?? published ?? emptyStoreConfigV2();
+    // A deep-link naming a page this store does not have opens the default
+    // page, not a blank canvas.
+    const initialPageId: PageId | null =
+        initialConfig.pages.find((p) => p.page_id === requestedPageId)?.page_id ?? null;
     const hasPublished = !!published;
     // If we started from a draft, the editor begins in a dirty state so Publish enables.
     const initiallyDirty = !!draft;

@@ -86,8 +86,8 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                         <OrderPlacementBadge order={order} />
                         <AbandonedCartBadge order={order} />
                         <span className="text-[var(--card-border)]">·</span>
-                        <span className="text-subtle">{formatShortDate(order.created_at)}</span>
-                        <span className="text-subtle">{formatTime(order.created_at)}</span>
+                        <span className="text-muted">{formatShortDate(order.created_at)}</span>
+                        <span className="text-muted">{formatTime(order.created_at)}</span>
                         {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                             <span className="relative group/date-tag">
                                 <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-bold rounded">
@@ -160,6 +160,7 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                                 }
                             }}
                             disabled={!isValidPhone}
+                            aria-label={t("orders.ctx.openWhatsapp")}
                             className={cn(
                                 "flex-1 h-7 rounded-lg transition-all flex items-center justify-center gap-1 text-xs font-medium",
                                 isValidPhone
@@ -172,6 +173,8 @@ export function SemiCompactGridCard(props: OrderCardProps) {
 
                         {/* View Details */}
                         <button
+                            type="button"
+                            aria-label={t("orders.wf.details")}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 onViewDetails(order);

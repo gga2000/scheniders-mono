@@ -26,17 +26,16 @@ const item = {
 
 export function ContactHeatmap({ data }: ContactHeatmapProps) {
     const { t } = useLanguage();
-    // Best-converting bucket, among buckets with orders (needs 2+ to be a comparison).
-    const populated = data.filter(d => d.count > 0);
-    const best = populated.length > 1
-        ? populated.reduce((top, d) => (d.confirmationRate > top.confirmationRate ? d : top))
-        : null;
+    // Best-converting bucket. A claim like "X converts best" needs a real comparison: two or more
+    // populated buckets, a strict winner (a tie names nobody) and enough orders to mean something.
+    const MIN_ORDERS_FOR_INSIGHT = 10;
     const totalCount = data.reduce((sum, d) => sum + d.count, 0);
-
-    // Calculate the best performing bucket
-    const bestBucket = data.reduce((best, curr) =>
-        curr.confirmationRate > best.confirmationRate ? curr : best
-        , { confirmationRate: 0, label: '', attempts: 0, count: 0, color: '' });
+    const populated = data.filter(d => d.count > 0);
+    const ranked = [...populated].sort((a, b) => b.confirmationRate - a.confirmationRate);
+    const best = populated.length > 1 && totalCount >= MIN_ORDERS_FOR_INSIGHT
+        && ranked[0] && ranked[1] && ranked[0].confirmationRate > ranked[1].confirmationRate
+        ? ranked[0]
+        : null;
 
     const pieData = data.map(d => ({
         name: d.label,

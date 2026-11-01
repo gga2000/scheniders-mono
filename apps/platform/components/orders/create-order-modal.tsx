@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
     Dialog,
     DialogContent,
@@ -42,12 +43,9 @@ import {
     Truck,
     MoreHorizontal,
     Pencil,
-    Upload,
-    Image as ImageIcon,
     Loader2,
     Sparkles,
     RefreshCw,
-    XCircle,
     Banknote,
     CreditCard,
     Sun,
@@ -69,6 +67,7 @@ import { BulkUploadModal } from "./bulk-upload-modal";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import { routeCreateOrderDate } from "@/lib/order-date-guard";
 import { formatScheduledDate } from "@/lib/order-format-utils";
+import { useLanguage } from "@/hooks/use-language";
 
 // TikTok icon component
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -93,11 +92,11 @@ interface CreateOrderModalProps {
 }
 
 const ORDER_SOURCES = [
-    { id: "whatsapp", label: "واتساب", icon: MessageCircle, color: "text-green-600" },
-    { id: "meta", label: "Meta", icon: Instagram, color: "text-pink-600" },
-    { id: "tiktok", label: "TikTok", icon: TikTokIcon, color: "text-gray-800" },
-    { id: "shop", label: "المحل", icon: Store, color: "text-amber-600" },
-    { id: "other", label: "أخرى", icon: MoreHorizontal, color: "text-gray-500" },
+    { id: "whatsapp", labelKey: "orders.create.srcWhatsapp", icon: MessageCircle, color: "text-green-600" },
+    { id: "meta", labelKey: "orders.create.srcMeta", icon: Instagram, color: "text-pink-600" },
+    { id: "tiktok", labelKey: "orders.create.srcTiktok", icon: TikTokIcon, color: "text-gray-800" },
+    { id: "shop", labelKey: "orders.create.srcShop", icon: Store, color: "text-amber-600" },
+    { id: "other", labelKey: "orders.source.other", icon: MoreHorizontal, color: "text-gray-500" },
 ];
 
 type OrderType = "delivery" | "shop";
@@ -110,6 +109,8 @@ export function CreateOrderModal({
     initialData,
     getBlacklistEntry,
 }: CreateOrderModalProps) {
+    const { t } = useLanguage();
+    const router = useRouter();
     const { session } = useAuth();
     const [limitWarning, setLimitWarning] = useState<string | null>(null);
     const [limitBlocked, setLimitBlocked] = useState<string | null>(null);
@@ -339,7 +340,7 @@ export function CreateOrderModal({
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            toast.error('الرجاء اختيار صورة');
+            toast.error(t("orders.create.pickImage"));
             return;
         }
 
@@ -380,19 +381,16 @@ export function CreateOrderModal({
                         address_details: result.data.address || prev.address_details,
                     }));
 
-                    // Show success message
-                    console.log('✅ تم استخراج البيانات بنجاح:', result.data);
                 } else {
-                    console.warn('⚠️ لم يتم العثور على بيانات في الصورة');
-                    toast.warning('لم يتم العثور على بيانات في الصورة. الرجاء التحقق من الصورة والمحاولة مرة أخرى.');
+                    toast.warning(t("orders.create.noDataInImage"));
                 }
             } else {
                 console.error("Failed to analyze image:", result.error);
-                toast.error(`حدث خطأ أثناء تحليل الصورة: ${result.error || 'خطأ غير معروف'}`);
+                toast.error(t("orders.create.analyzeFailed", { error: result.error || t("orders.create.unknownError") }));
             }
         } catch (error) {
             console.error("Error uploading image:", error);
-            toast.error('حدث خطأ أثناء رفع الصورة. الرجاء المحاولة مرة أخرى.');
+            toast.error(t("orders.create.uploadFailed"));
         } finally {
             setIsAnalyzingImage(false);
         }
@@ -408,37 +406,37 @@ export function CreateOrderModal({
         const newErrors: ValidationErrors = {};
 
         if (orderIdStatus === "exists") {
-            newErrors.order_id = "رقم الطلب هذا موجود مسبقاً";
+            newErrors.order_id = t("orders.create.errIdExists");
         } else if (orderIdStatus === "checking") {
-            newErrors.order_id = "جاري التحقق من رقم الطلب...";
+            newErrors.order_id = t("orders.create.errIdChecking");
         }
 
         if (!formData.customer_name.trim()) {
-            newErrors.customer_name = "اسم العميل مطلوب";
+            newErrors.customer_name = t("orders.create.errName");
         }
         // Phone required only for delivery orders
         if (orderType === "delivery") {
             if (!normalizedPhone.trim()) {
-                newErrors.phone = "رقم الهاتف مطلوب";
+                newErrors.phone = t("orders.create.errPhone");
             } else if (!/^07\d{8,9}$/.test(normalizedPhone.trim())) {
-                newErrors.phone = "رقم الهاتف غير صحيح";
+                newErrors.phone = t("orders.create.errPhoneInvalid");
             }
         } else if (normalizedPhone.trim() && !/^07\d{8,9}$/.test(normalizedPhone.trim())) {
             // For shop orders, validate phone only if provided
-            newErrors.phone = "رقم الهاتف غير صحيح";
+            newErrors.phone = t("orders.create.errPhoneInvalid");
         }
         if (formData.items.length === 0) {
-            newErrors.items = "أضف منتج واحد على الأقل";
+            newErrors.items = t("orders.create.errNoItems");
         } else if (formData.items.some(item => !item.product_id)) {
-            newErrors.items = "كل منتج يجب اختياره من قائمة المنتجات (حتى يُحسب من المخزون)";
+            newErrors.items = t("orders.create.errItemNotPicked");
         }
 
         if (orderType === "delivery") {
             if (!formData.city) {
-                newErrors.city = "المحافظة مطلوبة";
+                newErrors.city = t("orders.create.errCity");
             }
             if (!formData.address_details?.trim()) {
-                newErrors.address_details = "العنوان مطلوب";
+                newErrors.address_details = t("orders.create.errAddress");
             }
         }
 
@@ -499,10 +497,10 @@ export function CreateOrderModal({
             if (result.success) {
                 const orderId = result.data?.order_id || '';
                 const createdOrderId = result.data?.id;
-                toast.success(`تم إنشاء الطلب ${orderId ? `#${orderId}` : 'بنجاح'}`, {
+                toast.success(orderId ? t("orders.create.createdNumbered", { id: orderId }) : t("orders.create.created"), {
                     action: createdOrderId ? {
-                        label: "عرض الطلب",
-                        onClick: () => { window.location.href = `/orders?highlight=${createdOrderId}`; }
+                        label: t("orders.create.viewOrder"),
+                        onClick: () => { router.push(`/orders?order=${createdOrderId}`); }
                     } : undefined,
                 });
 
@@ -513,10 +511,10 @@ export function CreateOrderModal({
                     handleClose();
                 }
             } else {
-                setErrors({ items: result.error || "حدث خطأ" });
+                setErrors({ items: result.error || t("orders.create.errGeneric") });
             }
         } catch {
-            setErrors({ items: "حدث خطأ غير متوقع" });
+            setErrors({ items: t("orders.create.errUnexpected") });
         } finally {
             setIsCreating(false);
             setCreateAndNew(false);
@@ -555,8 +553,8 @@ export function CreateOrderModal({
                                     <Package className="h-4 w-4 text-green-700" />
                                 </div>
                                 <div>
-                                    <span className="text-lg font-bold">طلب جديد</span>
-                                    <p className="text-xs font-normal text-muted mt-0.5">أضف تفاصيل الطلب والمنتجات</p>
+                                    <span className="text-lg font-bold">{t("orders.create.title")}</span>
+                                    <p className="text-xs font-normal text-muted mt-0.5">{t("orders.create.subtitle")}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -564,10 +562,10 @@ export function CreateOrderModal({
                                     type="button"
                                     onClick={handleClearFields}
                                     className="px-2 py-1 flex items-center gap-1 text-[11px] font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-all opacity-70 hover:opacity-100"
-                                    title="مسح جميع الحقول"
+                                    title={t("orders.create.clearAllTip")}
                                 >
                                     <RefreshCw className="h-3 w-3" />
-                                    مسح
+                                    {t("orders.create.clear")}
                                 </button>
                                 <button
                                     type="button"
@@ -587,7 +585,7 @@ export function CreateOrderModal({
 
                                         }}
                                         className="px-2 py-1 flex items-center gap-1 text-[11px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
-                                        title="تعبئة بيانات تجريبية"
+                                        title={t("orders.create.fillTestTip")}
                                     >
                                         Test
                                     </button>
@@ -601,7 +599,7 @@ export function CreateOrderModal({
                             <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-200">
                                 <Ban className="w-5 h-5 text-red-500 shrink-0" />
                                 <div>
-                                    <p className="text-sm font-medium text-red-800">Cannot create order</p>
+                                    <p className="text-sm font-medium text-red-800">{t("orders.create.blocked")}</p>
                                     <p className="text-xs text-red-600">{limitBlocked}</p>
                                 </div>
                             </div>
@@ -627,7 +625,7 @@ export function CreateOrderModal({
                                     )}
                                 >
                                     <Truck className="h-3.5 w-3.5" />
-                                    توصيل
+                                    {t("orders.create.typeDelivery")}
                                 </button>
                                 <button
                                     type="button"
@@ -640,7 +638,7 @@ export function CreateOrderModal({
                                     )}
                                 >
                                     <Store className="h-3.5 w-3.5" />
-                                    محل
+                                    {t("orders.create.typeShop")}
                                 </button>
                             </div>
                             <DateTimePicker
@@ -654,12 +652,12 @@ export function CreateOrderModal({
                         {postponeTo && (
                             <p className="text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg -mt-2 flex items-center gap-1.5">
                                 <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-                                سيُجدول الطلب ليوم {formatScheduledDate(postponeTo)} — يبقى تاريخ الطلب اليوم
+                                {t("orders.create.scheduledNote", { date: formatScheduledDate(postponeTo) })}
                             </p>
                         )}
                         {orderType === "shop" && (
                             <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg -mt-2">
-                                طلب المحل: رقم الهاتف اختياري، بدون رسوم توصيل
+                                {t("orders.create.shopNote")}
                             </p>
                         )}
 
@@ -669,14 +667,14 @@ export function CreateOrderModal({
                             <div className="space-y-1">
                                 <Label className="text-[11px] text-muted flex items-center gap-1">
                                     <Hash className="h-3 w-3" />
-                                    رقم الطلب (اختياري)
+                                    {t("orders.create.orderIdOptional")}
                                 </Label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm font-mono">#</span>
                                     <Input
                                         value={formData.order_id || ""}
                                         onChange={(e) => handleOrderIdChange(e.target.value)}
-                                        placeholder="تلقائي"
+                                        placeholder={t("orders.create.auto")}
                                         dir="ltr"
                                         className={cn(
                                             "h-9 pl-7 rounded-lg font-mono text-sm",
@@ -702,14 +700,14 @@ export function CreateOrderModal({
                                 {orderIdStatus === "exists" && (
                                     <p className="text-[11px] text-red-500 flex items-center gap-1">
                                         <AlertTriangle className="w-3 h-3" />
-                                        موجود مسبقاً
+                                        {t("orders.create.exists")}
                                     </p>
                                 )}
                             </div>
 
                             {/* Source - moved here from customer section */}
                             <div className="space-y-1">
-                                <Label className="text-[11px] text-muted">مصدر الطلب</Label>
+                                <Label className="text-[11px] text-muted">{t("orders.create.source")}</Label>
                                 <div className="flex flex-wrap gap-1">
                                     {ORDER_SOURCES.map((source) => (
                                         <button
@@ -722,10 +720,10 @@ export function CreateOrderModal({
                                                     ? "border-green-300 bg-green-50 text-green-700"
                                                     : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
                                             )}
-                                            title={source.label}
+                                            title={t(source.labelKey)}
                                         >
                                             <source.icon className={cn("h-3 w-3", formData.source === source.id ? source.color : "")} />
-                                            <span className="hidden sm:inline">{source.label}</span>
+                                            <span className="hidden sm:inline">{t(source.labelKey)}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -773,10 +771,10 @@ export function CreateOrderModal({
                                 )}
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-medium text-gray-700">
-                                        {isAnalyzingImage ? "جاري تحليل الصورة..." : uploadedImage ? "تم التحليل — اضغط لتغيير الصورة" : "ارفع صورة المحادثة للتعبئة التلقائية"}
+                                        {isAnalyzingImage ? t("orders.create.analyzing") : uploadedImage ? t("orders.create.analyzed") : t("orders.create.uploadChat")}
                                     </p>
                                     {!isAnalyzingImage && !uploadedImage && (
-                                        <p className="text-[11px] text-gray-400 mt-0.5">Instagram أو TikTok — استخراج تلقائي</p>
+                                        <p className="text-[11px] text-gray-400 mt-0.5">{t("orders.create.uploadChatHint")}</p>
                                     )}
                                 </div>
                                 {uploadedImage && !isAnalyzingImage && (
@@ -789,7 +787,7 @@ export function CreateOrderModal({
                                 className="text-[11px] text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 hover:underline transition-all"
                             >
                                 <Package className="h-3 w-3" />
-                                رفع طلبات متعددة دفعة واحدة
+                                {t("orders.create.bulkUpload")}
                             </button>
                         </div>
 
@@ -797,17 +795,17 @@ export function CreateOrderModal({
                         <div className="rounded-xl border border-[var(--card-border)] bg-white overflow-hidden">
                             <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50/80 border-b border-[var(--card-border)]">
                                 <User className="h-3.5 w-3.5 text-gray-500" />
-                                <span className="text-xs font-semibold text-foreground">معلومات العميل</span>
+                                <span className="text-xs font-semibold text-foreground">{t("orders.create.customerInfo")}</span>
                             </div>
                             <div className="p-4 space-y-3">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {/* Customer Name */}
                                     <div className="space-y-1">
-                                        <Label className="text-[11px] text-muted">اسم العميل <span className="text-red-500">*</span></Label>
+                                        <Label className="text-[11px] text-muted">{t("orders.create.customerName")} <span className="text-red-500">*</span></Label>
                                         <Input
                                             value={formData.customer_name}
                                             onChange={(e) => updateField("customer_name", e.target.value)}
-                                            placeholder="أحمد محمد"
+                                            placeholder={t("orders.create.namePlaceholder")}
                                             inputMode="text"
                                             autoComplete="name"
                                             className={cn(
@@ -823,7 +821,7 @@ export function CreateOrderModal({
                                     <div className="space-y-1">
                                         <Label className="text-[11px] text-muted flex items-center gap-1">
                                             <Phone className="h-3 w-3" />
-                                            رقم الهاتف {orderType === "delivery" ? <span className="text-red-500">*</span> : <span className="text-gray-400">(اختياري)</span>}
+                                            {t("orders.create.phone")} {orderType === "delivery" ? <span className="text-red-500">*</span> : <span className="text-gray-400">{t("orders.create.optional")}</span>}
                                         </Label>
                                         <Input
                                             {...phoneInput}
@@ -852,10 +850,10 @@ export function CreateOrderModal({
                                                 <div className="flex flex-row-reverse items-start gap-2 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-lg px-3 py-2.5 mt-1 text-right">
                                                     <Ban className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                                                     <div className="text-xs space-y-0.5">
-                                                        <p className="font-bold text-red-700 dark:text-red-400">⛔ هذا الرقم في القائمة السوداء</p>
-                                                        <p className="text-red-600/90 dark:text-red-400/80">السبب: {entry.reason}</p>
+                                                        <p className="font-bold text-red-700 dark:text-red-400">{t("orders.create.blacklisted")}</p>
+                                                        <p className="text-red-600/90 dark:text-red-400/80">{t("orders.create.reason", { reason: entry.reason ?? "" })}</p>
                                                         {entry.notes && <p className="text-red-500/80 dark:text-red-400/60">{entry.notes}</p>}
-                                                        {entry.added_by && <p className="text-muted text-[11px]">أضافه: {entry.added_by}</p>}
+                                                        {entry.added_by && <p className="text-muted text-[11px]">{t("orders.create.addedBy", { name: entry.added_by })}</p>}
                                                     </div>
                                                 </div>
                                             );
@@ -869,7 +867,7 @@ export function CreateOrderModal({
                                     <div className="space-y-1">
                                         <Label className="text-[11px] text-muted flex items-center gap-1">
                                             <Phone className="h-3 w-3" />
-                                            رقم إضافي <span className="text-gray-400">(اختياري)</span>
+                                            {t("orders.create.secondPhone")} <span className="text-gray-400">{t("orders.create.optional")}</span>
                                         </Label>
                                         <Input
                                             {...secondaryPhoneInput}
@@ -889,7 +887,7 @@ export function CreateOrderModal({
                                     {/* Governorate (City) - Hidden for shop orders */}
                                     {orderType === "delivery" && (
                                         <div className="space-y-1">
-                                            <Label className="text-[11px] text-muted">المحافظة</Label>
+                                            <Label className="text-[11px] text-muted">{t("orders.create.governorate")}</Label>
                                             <div className="relative">
                                                 <select
                                                     value={formData.city}
@@ -901,7 +899,7 @@ export function CreateOrderModal({
                                                     )}
                                                     data-error={!!errors.city}
                                                 >
-                                                    <option value="" disabled>اختر المحافظة...</option>
+                                                    <option value="" disabled>{t("orders.create.pickGovernorate")}</option>
                                                     <GovernorateOptions />
                                                 </select>
                                                 {errors.city && <p className="field-error-text">{errors.city}</p>}
@@ -918,12 +916,12 @@ export function CreateOrderModal({
                                     <div className="space-y-1">
                                         <Label className="text-[11px] text-muted flex items-center gap-1">
                                             <MapPin className="h-3 w-3" />
-                                            العنوان الكامل
+                                            {t("orders.create.fullAddress")}
                                         </Label>
                                         <Textarea
                                             value={formData.address_details}
                                             onChange={(e) => updateField("address_details", e.target.value)}
-                                            placeholder="أدخل العنوان التفصيلي..."
+                                            placeholder={t("orders.create.addressPlaceholder")}
                                             rows={2}
                                             className={cn(
                                                 "rounded-lg border-[var(--card-border)] bg-[var(--background)] resize-none transition-all text-sm",
@@ -939,7 +937,7 @@ export function CreateOrderModal({
                                 <div className="flex flex-wrap items-center gap-3 pt-1">
                                     {/* Payment Status */}
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-[11px] text-muted">الدفع:</span>
+                                        <span className="text-[11px] text-muted">{t("orders.create.payment")}</span>
                                         <div className="flex gap-1">
                                             <button
                                                 type="button"
@@ -952,7 +950,7 @@ export function CreateOrderModal({
                                                 )}
                                             >
                                                 <Banknote className="h-3 w-3" />
-                                                عند الاستلام
+                                                {t("orders.create.cod")}
                                             </button>
                                             <button
                                                 type="button"
@@ -965,7 +963,7 @@ export function CreateOrderModal({
                                                 )}
                                             >
                                                 <CreditCard className="h-3 w-3" />
-                                                دفع الكتروني
+                                                {t("orders.create.prepaid")}
                                             </button>
                                         </div>
                                     </div>
@@ -975,13 +973,13 @@ export function CreateOrderModal({
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-[11px] text-muted flex items-center gap-0.5">
                                                 <Clock className="h-2.5 w-2.5" />
-                                                التوصيل:
+                                                {t("orders.create.deliverySlot")}
                                             </span>
                                             <div className="flex gap-1">
                                                 {[
-                                                    { value: "morning" as const, label: "صباحي", icon: Sun, active: "bg-amber-50 border-amber-300 text-amber-700" },
-                                                    { value: "afternoon" as const, label: "ظهري", icon: CloudSun, active: "bg-orange-50 border-orange-300 text-orange-700" },
-                                                    { value: "evening" as const, label: "مسائي", icon: Moon, active: "bg-indigo-50 border-indigo-300 text-indigo-700" },
+                                                    { value: "morning" as const, label: t("orders.create.morning"), icon: Sun, active: "bg-amber-50 border-amber-300 text-amber-700" },
+                                                    { value: "afternoon" as const, label: t("orders.create.afternoon"), icon: CloudSun, active: "bg-orange-50 border-orange-300 text-orange-700" },
+                                                    { value: "evening" as const, label: t("orders.create.evening"), icon: Moon, active: "bg-indigo-50 border-indigo-300 text-indigo-700" },
                                                 ].map(({ value, label, icon: Icon, active }) => (
                                                     <button
                                                         key={value}
@@ -1010,7 +1008,7 @@ export function CreateOrderModal({
                             <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/80 border-b border-[var(--card-border)]">
                                 <div className="flex items-center gap-2">
                                     <Package className="h-3.5 w-3.5 text-gray-500" />
-                                    <span className="text-xs font-semibold text-foreground">المنتجات</span>
+                                    <span className="text-xs font-semibold text-foreground">{t("orders.create.products")}</span>
                                     {formData.items.length > 0 && (
                                         <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{formData.items.length}</span>
                                     )}
@@ -1020,7 +1018,7 @@ export function CreateOrderModal({
                                     onClick={() => setShowProductPicker(true)}
                                     className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition-all"
                                 >
-                                    + إضافة
+                                    {t("orders.create.add")}
                                 </button>
                             </div>
 
@@ -1042,7 +1040,7 @@ export function CreateOrderModal({
                                         data-error={!!errors.items}
                                     >
                                         <Package className="w-4 h-4" />
-                                        <span className="text-xs font-medium">اضغط لإضافة منتج</span>
+                                        <span className="text-xs font-medium">{t("orders.create.clickToAdd")}</span>
                                     </button>
                                 ) : (
                                     <div className="space-y-1.5">
@@ -1067,9 +1065,9 @@ export function CreateOrderModal({
                                                                     ? "bg-amber-100 text-amber-700"
                                                                     : "bg-gray-100 text-gray-400 hover:bg-gray-200"
                                                             )}
-                                                            title={item.is_open_box ? "علبة مفتوحة" : "جديد"}
+                                                            title={item.is_open_box ? t("orders.create.openBox") : t("orders.create.newItem")}
                                                         >
-                                                            {item.is_open_box ? "علبة مفتوحة" : "جديد"}
+                                                            {item.is_open_box ? t("orders.create.openBox") : t("orders.create.newItem")}
                                                         </button>
                                                     </div>
                                                     {editingPriceIndex === index ? (
@@ -1147,13 +1145,13 @@ export function CreateOrderModal({
 
                                         {/* Subtotal */}
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs text-muted">المجموع الفرعي</span>
+                                            <span className="text-xs text-muted">{t("orders.create.subtotal")}</span>
                                             <span className="text-xs font-mono font-medium">{formatIQD(subtotal)}</span>
                                         </div>
 
                                         {/* Manual Discount */}
                                         <div className="flex items-center justify-between gap-3">
-                                            <span className="text-xs text-muted">خصم</span>
+                                            <span className="text-xs text-muted">{t("orders.create.discount")}</span>
                                             <Input
                                                 type="number"
                                                 min="0"
@@ -1175,7 +1173,7 @@ export function CreateOrderModal({
                                                         className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                                     />
                                                     <Truck className="w-3 h-3 text-blue-500" />
-                                                    <span className="text-xs text-blue-700">توصيل</span>
+                                                    <span className="text-xs text-blue-700">{t("orders.create.typeDelivery")}</span>
                                                 </label>
                                                 {includeDeliveryFee && (
                                                     <Input
@@ -1191,7 +1189,7 @@ export function CreateOrderModal({
 
                                         {/* Total */}
                                         <div className="flex items-center justify-between pt-2 border-t border-[var(--card-border)]">
-                                            <span className="text-xs font-bold text-foreground">المجموع الكلي</span>
+                                            <span className="text-xs font-bold text-foreground">{t("orders.create.grandTotal")}</span>
                                             <div className="flex items-center gap-1.5">
                                                 <Input
                                                     type="number"
@@ -1217,13 +1215,13 @@ export function CreateOrderModal({
                             <div className="space-y-1">
                                 <div className="flex items-center gap-1.5 px-1">
                                     <FileText className="h-3 w-3 text-amber-500" />
-                                    <span className="text-[11px] font-semibold text-amber-700">ملاحظات الطلب</span>
-                                    <span className="text-[11px] text-amber-400">(الفاتورة)</span>
+                                    <span className="text-[11px] font-semibold text-amber-700">{t("orders.create.orderNotes")}</span>
+                                    <span className="text-[11px] text-amber-400">{t("orders.create.onInvoice")}</span>
                                 </div>
                                 <textarea
                                     value={formData.notes}
                                     onChange={(e) => updateField("notes", e.target.value)}
-                                    placeholder="ملاحظات تظهر على الفاتورة..."
+                                    placeholder={t("orders.create.orderNotesPlaceholder")}
                                     rows={2}
                                     className="w-full px-3 py-2 bg-amber-50/40 border border-amber-200/80 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none"
                                 />
@@ -1231,13 +1229,13 @@ export function CreateOrderModal({
                             <div className="space-y-1">
                                 <div className="flex items-center gap-1.5 px-1">
                                     <FileText className="h-3 w-3 text-blue-500" />
-                                    <span className="text-[11px] font-semibold text-blue-700">ملاحظات داخلية</span>
-                                    <span className="text-[11px] text-blue-400">(الموظفين)</span>
+                                    <span className="text-[11px] font-semibold text-blue-700">{t("orders.create.internalNotes")}</span>
+                                    <span className="text-[11px] text-blue-400">{t("orders.create.staffOnly")}</span>
                                 </div>
                                 <textarea
                                     value={formData.internal_notes || ""}
                                     onChange={(e) => updateField("internal_notes", e.target.value)}
-                                    placeholder="ملاحظات داخلية..."
+                                    placeholder={t("orders.create.internalNotesPlaceholder")}
                                     rows={2}
                                     className="w-full px-3 py-2 bg-blue-50/40 border border-blue-200/80 rounded-lg text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
                                 />
@@ -1247,12 +1245,12 @@ export function CreateOrderModal({
 
                     {stockWarning && (
                         <div role="alert" className="mx-6 mb-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-right text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                            <p className="font-bold">المخزون غير كافٍ. اضغط إنشاء مرة ثانية للمتابعة على أي حال.</p>
+                            <p className="font-bold">{t("orders.create.lowStock")}</p>
                             <ul className="mt-1 space-y-0.5">
                                 {stockWarning.shortfalls.map(s => (
                                     <li key={s.key}>
-                                        {s.name}{s.isOpenBox ? " (علبة مفتوحة)" : ""}: يحتاج {s.need}،{" "}
-                                        {s.left < 0 ? `مباع بزيادة ${Math.abs(s.left)} أصلاً` : `باقي ${s.left} فقط`}
+                                        {s.name}{s.isOpenBox ? ` (${t("orders.create.openBox")})` : ""}: {t("orders.create.needs", { count: s.need })}{" "}
+                                        {s.left < 0 ? t("orders.create.oversold", { count: Math.abs(s.left) }) : t("orders.create.onlyLeft", { count: s.left })}
                                     </li>
                                 ))}
                             </ul>
@@ -1268,12 +1266,12 @@ export function CreateOrderModal({
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors disabled:opacity-50"
                         >
                             <X className="h-4 w-4" />
-                            إلغاء
+                            {t("common.cancel")}
                         </button>
 
                         {/* Live Total */}
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50/80 rounded-lg border border-green-100">
-                            <span className="text-[11px] text-green-600">المجموع</span>
+                            <span className="text-[11px] text-green-600">{t("orders.create.total")}</span>
                             <span className="text-sm font-mono font-bold text-green-700">{formatIQD(total)}</span>
                         </div>
 
@@ -1290,7 +1288,7 @@ export function CreateOrderModal({
                                 ) : (
                                     <RefreshCw className="h-3.5 w-3.5" />
                                 )}
-                                إنشاء و جديد
+                                {t("orders.create.createAndNew")}
                             </button>
 
                             {/* Create */}
@@ -1305,7 +1303,7 @@ export function CreateOrderModal({
                                 ) : (
                                     <Save className="h-4 w-4" />
                                 )}
-                                إنشاء الطلب
+                                {t("orders.create.create")}
                             </button>
                         </div>
                     </DialogFooter>
@@ -1372,11 +1370,11 @@ export function CreateOrderModal({
                     }
                     
                     if (failCount === 0) {
-                        toast.success(`✅ تم إنشاء ${successCount} طلب بنجاح!`);
+                        toast.success(t("orders.create.bulkDone", { count: successCount }));
                     } else if (successCount > 0) {
-                        toast.warning(`تم إنشاء ${successCount} طلب بنجاح، وفشل ${failCount} طلب.`);
+                        toast.warning(t("orders.create.bulkPartial", { ok: successCount, failed: failCount }));
                     } else {
-                        toast.error(`❌ فشل إنشاء جميع الطلبات (${failCount}).`);
+                        toast.error(t("orders.create.bulkFailed", { count: failCount }));
                     }
                 }}
             />
