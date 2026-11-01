@@ -13,7 +13,7 @@ interface AddNoteModalProps {
 }
 
 export function AddNoteModal({ phone }: AddNoteModalProps) {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const { isAddNoteModalOpen, setAddNoteModalOpen } = useCustomerStore();
     const addNote = useAddCustomerNote(phone);
     const [text, setText] = useState("");
@@ -43,9 +43,10 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
                     value={text}
                     onChange={(e) => setText(e.target.value.slice(0, 1000))}
                     placeholder={t("customers.notes.placeholder")}
-                    // An empty dir="auto" box resolves to LTR, which puts an Arabic placeholder's
-                    // ellipsis on the wrong side; until there is text, follow the UI language.
-                    dir={text ? "auto" : language === "ar" ? "rtl" : "ltr"}
+                    // Left-set in every language, like the other customers fields; dir="auto" only
+                    // orders the words of what is typed. The placeholder has no end punctuation.
+                    dir="auto"
+                    className="text-left"
                     autoFocus
                     rows={6}
                 />
@@ -65,9 +66,12 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
                             disabled={!text.trim() || addNote.isPending}
                             className="bg-foreground text-background px-6 py-2.5 rounded-xl font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
                         >
-                            {addNote.isPending
-                                ? t("customers.notes.saving")
-                                : t("customers.notes.save")}
+                            {/* dir="auto": the Arabic "saving…" keeps its dots at the end. */}
+                            <span dir="auto">
+                                {addNote.isPending
+                                    ? t("customers.notes.saving")
+                                    : t("customers.notes.save")}
+                            </span>
                         </button>
                     </div>
                 </div>

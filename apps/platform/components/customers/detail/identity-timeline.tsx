@@ -131,7 +131,7 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                             aria-expanded={expanded}
                             className="mt-4 ml-14 text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline underline-offset-2"
                         >
-                            {expanded ? t("customers.identity.showLess") : t("customers.identity.showAll", { count: data.length.toLocaleString("en-US") })}
+                            <span dir="auto">{expanded ? t("customers.identity.showLess") : t("customers.identity.showAll", { count: data.length.toLocaleString("en-US") })}</span>
                         </button>
                     )}
                 </>

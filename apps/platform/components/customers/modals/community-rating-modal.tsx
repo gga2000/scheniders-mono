@@ -117,7 +117,7 @@ export function CommunityRatingModal() {
                     onChange={(e) => setComment(e.target.value.slice(0, 280))}
                     placeholder={t("customers.rating.comment")}
                     dir="auto"
-                    className="w-full bg-muted/20 border border-(--card-border) rounded-xl p-3 text-sm resize-none h-20 focus:ring-2 focus:ring-foreground/10"
+                    className="w-full text-left bg-muted/20 border border-(--card-border) rounded-xl p-3 text-sm resize-none h-20 focus:ring-2 focus:ring-foreground/10"
                 />
                 <p className="text-xs text-muted-foreground text-right tabular-nums">{comment.length}/280</p>
 

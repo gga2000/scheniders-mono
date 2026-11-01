@@ -145,6 +145,12 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
     );
 }
 
+/** Thin diagonal stripes in the ink colour at low strength, over a faint wash of it. */
+const UNSCORED_HATCH = [
+    "repeating-linear-gradient(135deg, color-mix(in oklab, var(--foreground) 14%, transparent) 0 1px, transparent 1px 7px)",
+    "linear-gradient(color-mix(in oklab, var(--foreground) 4%, transparent), color-mix(in oklab, var(--foreground) 4%, transparent))",
+].join(", ");
+
 /**
  * Monthly average score as a line over calendar months, oldest first. The axis
  * starts at 50 while every shown month is at 50 or more, so steady scores read
@@ -169,7 +175,9 @@ function HistoryChart({ series, language, t }: { series: MonthlyScore[]; languag
     const scoreAt = (i: number) => series[i].score ?? floor;
 
     return (
-        <figure aria-label={t("customers.trust.chartLabel")} className="flex gap-2">
+        // pt-5: room above the 100 line for the latest point's label, so a peak value never
+        // crowds the period toggle above the chart.
+        <figure aria-label={t("customers.trust.chartLabel")} className="flex gap-2 pt-5">
             {/* Y scale */}
             <div className="relative h-48 w-7 shrink-0 text-[11px] text-muted-foreground tabular-nums" aria-hidden>
                 {guides.map((g) => (
@@ -186,14 +194,17 @@ function HistoryChart({ series, language, t }: { series: MonthlyScore[]; languag
                             style={{ top: `${y(g)}%` }}
                         />
                     ))}
-                    {/* The months before the first score: said once, not left blank. */}
+                    {/* The months before the first score: said once, not left blank. A hatch mixed from the
+                        ink reads as "no data" on the white light card and the dark card alike; the
+                        caption sits on a card-coloured chip so the stripes never run through it. */}
                     {unscoredMonths > 0 && (
                         <div
                             aria-hidden
-                            className="absolute inset-y-0 left-0 flex items-center justify-center rounded-lg bg-muted/40 px-2"
-                            style={{ width: `${(unscoredMonths / count) * 100}%` }}
+                            data-unscored
+                            className="absolute inset-y-0 left-0 flex items-center justify-center rounded-lg border border-dashed border-(--card-border) px-2"
+                            style={{ width: `${(unscoredMonths / count) * 100}%`, backgroundImage: UNSCORED_HATCH }}
                         >
-                            <span className="text-center text-xs font-medium leading-tight text-muted-foreground">{t("customers.trust.notScored")}</span>
+                            <span className="rounded-full bg-(--card-bg) px-2 py-0.5 text-center text-xs font-medium leading-tight text-muted-foreground">{t("customers.trust.notScored")}</span>
                         </div>
                     )}
                     <svg aria-hidden className="absolute inset-0 h-full w-full overflow-visible text-muted-foreground" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -284,7 +295,7 @@ function FactorsView({ breakdown, rated, raw, score, recentEvents, blocked, t }:
     if (!blocked && breakdown.length === 0 && recentEvents.length === 0) {
         return (
             <div className="py-8 text-center">
-                <p className="text-sm text-muted-foreground">
+                <p dir="auto" className="text-sm text-muted-foreground">
                     {t("customers.trust.factorsEmpty")}
                 </p>
             </div>
@@ -302,7 +313,7 @@ function FactorsView({ breakdown, rated, raw, score, recentEvents, blocked, t }:
                     {t("customers.trust.factorsBreakdown")}
                 </p>
                 {blocked ? (
-                    <p className="text-sm text-muted-foreground">
+                    <p dir="auto" className="text-left text-sm text-muted-foreground">
                         {t("customers.scoreBreakdown.notScored")}
                     </p>
                 ) : breakdown.length === 0 ? (

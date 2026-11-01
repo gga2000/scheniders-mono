@@ -76,4 +76,18 @@ describe("CustomerQuickActions failures", () => {
         const note = screen.getByRole("tooltip", { hidden: true });
         expect(note.textContent).toBe("customers.tag.ratingClash");
     });
+
+    it("opens the rating-clash note below the tag, clear of the section heading above", () => {
+        renderActions();
+        const note = screen.getByRole("tooltip", { hidden: true });
+        expect(note.className).toContain("top-full");
+        expect(note.className).not.toContain("bottom-full");
+    });
+
+    it("keeps the note box left-set while dir=\"auto\" orders an Arabic note's words", () => {
+        renderActions();
+        const box = screen.getByPlaceholderText("Add a quick note…");
+        expect(box.getAttribute("dir")).toBe("auto");
+        expect(box.className).toContain("text-left");
+    });
 });

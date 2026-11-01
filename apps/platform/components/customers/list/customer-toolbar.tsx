@@ -120,6 +120,17 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, t
                         </div>
 
                         <div className="relative flex bg-background rounded-xl p-1 border border-(--card-border) h-10">
+                            {/* One thumb slid between two equal 40px buttons with a CSS transform. A shared-layout
+                                (layoutId) thumb re-measured itself whenever the sticky toolbar moved with the app
+                                header and trailed 86px behind it for half a second on every scroll. */}
+                            <span
+                                aria-hidden
+                                data-view-thumb
+                                className={cn(
+                                    "absolute top-1 bottom-1 left-1 w-10 rounded-lg bg-foreground transition-transform duration-200 ease-out motion-reduce:transition-none",
+                                    view === "list" ? "translate-x-10" : "translate-x-0",
+                                )}
+                            />
                             {(["grid", "list"] as const).map((mode) => {
                                 const isActive = view === mode;
                                 const Icon = mode === "grid" ? LayoutGrid : List;
@@ -127,16 +138,9 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, t
                                     <button
                                         key={mode}
                                         onClick={() => onView(mode)}
-                                        className="relative min-w-10 px-2.5 rounded-lg flex items-center justify-center"
+                                        className="relative w-10 rounded-lg flex items-center justify-center"
                                         aria-label={mode === "grid" ? t("customers.view.grid") : t("customers.view.list")}
                                     >
-                                        {isActive && (
-                                            <motion.div
-                                                layoutId="customer-view-thumb"
-                                                className="absolute inset-0 rounded-lg bg-foreground"
-                                                transition={{ type: "spring", stiffness: 500, damping: 38 }}
-                                            />
-                                        )}
                                         <Icon className={`relative w-4 h-4 ${isActive ? "text-background" : "text-muted-foreground"}`} />
                                     </button>
                                 );

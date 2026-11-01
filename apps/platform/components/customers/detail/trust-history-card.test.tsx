@@ -41,6 +41,21 @@ describe("TrustHistoryCard history chart", () => {
         expect(screen.getByText("Jun: 90")).toBeTruthy();
     });
 
+    it("gives the unscored span a visible hatch and leaves room above 100 for the peak label", () => {
+        const { container } = renderCard(months);
+        const figure = container.querySelector("figure") as HTMLElement;
+        expect(figure.className).toContain("pt-5");
+        const band = figure.querySelector("[data-unscored]") as HTMLElement;
+        expect(band.style.backgroundImage).toContain("repeating-linear-gradient");
+    });
+
+    it("keeps the blocked note's Arabic full stop at its end (dir=auto, left-set)", () => {
+        render(<TrustHistoryCard data={[]} phone="07701234567" score={null} blocked scored={false} />);
+        const note = screen.getByText("customers.scoreBreakdown.notScored");
+        expect(note.getAttribute("dir")).toBe("auto");
+        expect(note.className).toContain("text-left");
+    });
+
     it("keeps the axis from 0 once a month falls below 50", () => {
         const { container } = renderCard([{ month: "2026-09", avg_score: 40, event_count: 1 }, { month: "2026-10", avg_score: 70, event_count: 1 }]);
         const axis = container.querySelector("figure")?.firstElementChild as HTMLElement;

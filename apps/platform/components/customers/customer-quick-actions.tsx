@@ -113,7 +113,11 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                         return clash ? (
                             <Tooltip
                                 key={tag.id}
-                                side="top"
+                                // Below the tag: opening upward covered the "Tags & notes" heading. With the tag
+                                // at the drawer body's bottom edge it opens beside the tag instead, still clear
+                                // of the heading; above only when nothing else fits.
+                                side="bottom"
+                                fallbackSides={["right", "left", "top"]}
                                 content={<RatingClashNote name={tag.name} className="block" />}
                                 contentClassName="w-max max-w-64 rounded-lg bg-foreground text-background text-xs font-medium leading-snug px-2.5 py-1.5 shadow-lg"
                             >
@@ -159,7 +163,7 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submitNote(); }}
                         placeholder={t("customers.quick.notePlaceholder", "Add a quick note…")}
                         dir="auto"
-                        className="flex-1 min-h-11 rounded-xl bg-background border border-(--card-border) px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-foreground/10 resize-none"
+                        className="flex-1 min-h-11 text-left rounded-xl bg-background border border-(--card-border) px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-foreground/10 resize-none"
                     />
                     <button
                         onClick={submitNote}
