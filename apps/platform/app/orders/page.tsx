@@ -1,6 +1,7 @@
 "use client";
 
 import { usePersistedToggle } from "@/hooks/use-persisted-toggle";
+import { ordersDateLabel } from "@/lib/orders-date-label";
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
@@ -233,6 +234,7 @@ export default function OrdersPage() {
     );
     const isMobile = useIsMobile();
     const { t } = useLanguage();
+    const datePreset = useOrderStore((s) => s.datePreset);
     const { can } = usePermission();
     const canUnblock = can(PERMISSIONS.UNBLOCK_CUSTOMERS);
     const canBlock = can(PERMISSIONS.BLOCK_CUSTOMERS);
@@ -956,6 +958,43 @@ export default function OrdersPage() {
         if (orders.length === 0 && !previewing) perfTrace.markPainted("orders:list-painted", "orders", { empty: true });
     }, [isInitialLoading, orders.length, previewing]);
 
+    // Shared by both virtualised card lists (single column and compact grid).
+    const cardListProps = {
+        orders: listOrders,
+        loadingId,
+        selectedOrders,
+        messageTemplates: workflowTemplates,
+        onStatusUpdate: handleStatusUpdate,
+        onViewDetails: handleViewDetails,
+        onToggleSelection: toggleOrderSelection,
+        onTogglePin: togglePin,
+        onCloneOrder: cloneOrder,
+        onScreenshot: setScreenshotOrder,
+        onCancelWithReason: openCancelDialog,
+        onRejectWithReason: openRejectDialog,
+        onToggleReviewed: toggleReviewed,
+        onOpenTemplatePanel: openTemplatePanel,
+        onShowDuplicates: showDuplicates,
+        onMergeWithPrevious: mergeWithPrevious,
+        isBlacklisted,
+        getBlacklistEntry,
+        onAddToBlacklist: canBlock ? addToBlacklist : undefined,
+        onRemoveFromBlacklist: canUnblock ? removeFromBlacklist : undefined,
+        getRiskAssessment: getRiskAssessmentByPhone,
+        getCustomerOrderCount,
+        getCustomerArchivedCount,
+        getCustomerHistory,
+        getReturnOrderInfo,
+        getOriginalOrderInfo,
+        compactView,
+        actionDock,
+        getRiskLevel: getRiskLevelByPhone,
+        hasDuplicates,
+        getDuplicateWindowAlert,
+        onContactRecorded: recordContact,
+        onSplitOrder: openSplitDialog,
+    } satisfies Partial<React.ComponentProps<typeof VirtualizedOrderList>>;
+
     return (
         <AnimatePresence mode="wait">
             {isInitialLoading ? (
@@ -1368,69 +1407,7 @@ export default function OrdersPage() {
                                                                         (filters.dateFrom || filters.dateTo) ? "text-lime-600 dark:text-[#EFFF00]" : "text-muted-foreground group-hover:text-foreground"
                                                                     )} />
                                                                     <span className={cn("hidden", sidebarExpanded ? "xl:inline" : "lg:inline")}>
-                                                                        {(() => {
-                                                                            if (!filters.dateFrom) return "All Orders";
-                                                                            const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                                                                            const now = new Date();
-                                                                            const todayStr = fmt(now);
-                                                                            const df = filters.dateFrom;
-                                                                            const dt = filters.dateTo || df;
-
-                                                                            // A. Preset-First Logic (Definitive match)
-                                                                            const datePreset = useOrderStore.getState().datePreset;
-                                                                            if (datePreset) {
-                                                                                const presets: Record<string, { label: string; range: () => { f: string; t: string } }> = {
-                                                                                    today: { label: "Today", range: () => ({ f: todayStr, t: todayStr }) },
-                                                                                    yesterday: { label: "Yesterday", range: () => { const d = new Date(); d.setDate(d.getDate() - 1); const s = fmt(d); return { f: s, t: s }; } },
-                                                                                    thisWeek: { label: "This Week", range: () => { const d = new Date(now); d.setDate(now.getDate() - now.getDay()); return { f: fmt(d), t: todayStr }; } },
-                                                                                    thisMonth: { label: "This Month", range: () => { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { f: fmt(d), t: todayStr }; } },
-                                                                                    thisYear: { label: "This Year", range: () => { const d = new Date(now.getFullYear(), 0, 1); return { f: fmt(d), t: todayStr }; } },
-                                                                                    last7: { label: "Last 7 Days", range: () => { const d = new Date(); d.setDate(now.getDate() - 6); return { f: fmt(d), t: todayStr }; } },
-                                                                                    last30: { label: "Last 30 Days", range: () => { const d = new Date(); d.setDate(now.getDate() - 29); return { f: fmt(d), t: todayStr }; } },
-                                                                                    pastYear: { label: "Past Year", range: () => { const d = new Date(); d.setFullYear(now.getFullYear() - 1); return { f: fmt(d), t: todayStr }; } },
-                                                                                };
-
-                                                                                if (presets[datePreset]) {
-                                                                                    const { f, t } = presets[datePreset].range();
-                                                                                    if (df === f && dt === t) return presets[datePreset].label;
-                                                                                }
-                                                                            }
-
-                                                                            // B. Fallback Guessing Logic
-                                                                            // 1. Specific Days (Highest Priority)
-                                                                            // Today
-                                                                            if (df === todayStr && dt === todayStr) return "Today";
-                                                                            // Yesterday
-                                                                            const yest = new Date(); yest.setDate(yest.getDate() - 1);
-                                                                            const yesterdayStr = fmt(yest);
-                                                                            if (df === yesterdayStr && dt === yesterdayStr) return "Yesterday";
-
-                                                                            // 2. Calendar Ranges
-                                                                            // This Week
-                                                                            const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
-                                                                            if (df === fmt(weekStart) && dt === todayStr) return "This Week";
-                                                                            // This Month
-                                                                            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                                                                            if (df === fmt(monthStart) && dt === todayStr) return "This Month";
-                                                                            // This Year
-                                                                            const yearStart = new Date(now.getFullYear(), 0, 1);
-                                                                            if (df === fmt(yearStart) && dt === todayStr) return "This Year";
-
-                                                                            // 3. Rolling Ranges (Lower Priority)
-                                                                            // Last 7 Days
-                                                                            const d7 = new Date(); d7.setDate(now.getDate() - 7);
-                                                                            if (df === fmt(d7) && dt === todayStr) return "Last 7 Days";
-                                                                            // Last 30 Days
-                                                                            const d30 = new Date(); d30.setDate(now.getDate() - 30);
-                                                                            if (df === fmt(d30) && dt === todayStr) return "Last 30 Days";
-                                                                            // Past Year
-                                                                            const yearAgo = new Date(); yearAgo.setFullYear(now.getFullYear() - 1);
-                                                                            if (df === fmt(yearAgo) && dt === todayStr) return "Past Year";
-                                                                            // Custom range or single date
-                                                                            const fmtDisplay = (s: string) => new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                                                                            if (df === dt) return fmtDisplay(df);
-                                                                            return `${fmtDisplay(df)} — ${fmtDisplay(dt)}`;
-                                                                        })()}
+                                                                        {ordersDateLabel(filters.dateFrom, filters.dateTo, datePreset, t)}
                                                                     </span>
                                                                 </button>
                                                                 {showDatePicker && createPortal(
@@ -1896,7 +1873,7 @@ export default function OrdersPage() {
                                                            applied any more, because it would make the virtualizer
                                                            measure the placeholder height instead of the card. */
                                                         <VirtualizedOrderList
-                                                            orders={listOrders}
+                                                            {...cardListProps}
                                                             gridMode
                                                             gridClassName={cn(
                                                                 "grid gap-2",
@@ -1904,76 +1881,10 @@ export default function OrdersPage() {
                                                                     ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
                                                                     : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
                                                             )}
-                                                            loadingId={loadingId}
-                                                            selectedOrders={selectedOrders}
-                                                            messageTemplates={workflowTemplates}
-                                                            onStatusUpdate={handleStatusUpdate}
-                                                            onViewDetails={handleViewDetails}
-                                                            onToggleSelection={toggleOrderSelection}
-                                                            onTogglePin={togglePin}
-                                                            onCloneOrder={cloneOrder}
-                                                            onScreenshot={setScreenshotOrder}
-                                                            onCancelWithReason={openCancelDialog}
-                                                            onRejectWithReason={openRejectDialog}
-                                                            onToggleReviewed={toggleReviewed}
-                                                            onOpenTemplatePanel={openTemplatePanel}
-                                                            onShowDuplicates={showDuplicates}
-                                                            onMergeWithPrevious={mergeWithPrevious}
-                                                            isBlacklisted={isBlacklisted}
-                                                            getBlacklistEntry={getBlacklistEntry}
-                                                            onAddToBlacklist={canBlock ? addToBlacklist : undefined}
-                                                            onRemoveFromBlacklist={canUnblock ? removeFromBlacklist : undefined}
-                                                            getRiskAssessment={getRiskAssessmentByPhone}
-                                                            getCustomerOrderCount={getCustomerOrderCount}
-                                                            getCustomerArchivedCount={getCustomerArchivedCount}
-                                                            getCustomerHistory={getCustomerHistory}
-                                                            getReturnOrderInfo={getReturnOrderInfo}
-                                                            getOriginalOrderInfo={getOriginalOrderInfo}
-                                                            compactView={compactView}
-                                                            actionDock={actionDock}
-                                                            getRiskLevel={getRiskLevelByPhone}
-                                                            hasDuplicates={hasDuplicates}
-                                                            getDuplicateWindowAlert={getDuplicateWindowAlert}
-                                                            onContactRecorded={recordContact}
-                                                            onSplitOrder={openSplitDialog}
                                                         />
                                                     ) : listOrders.length >= 10 ? (
                                                         /* Use virtualized list for 50+ orders */
-                                                        <VirtualizedOrderList
-                                                            orders={listOrders}
-                                                            loadingId={loadingId}
-                                                            selectedOrders={selectedOrders}
-                                                            messageTemplates={workflowTemplates}
-                                                            onStatusUpdate={handleStatusUpdate}
-                                                            onViewDetails={handleViewDetails}
-                                                            onToggleSelection={toggleOrderSelection}
-                                                            onTogglePin={togglePin}
-                                                            onCloneOrder={cloneOrder}
-                                                            onScreenshot={setScreenshotOrder}
-                                                            onCancelWithReason={openCancelDialog}
-                                                            onRejectWithReason={openRejectDialog}
-                                                            onToggleReviewed={toggleReviewed}
-                                                            onOpenTemplatePanel={openTemplatePanel}
-                                                            onShowDuplicates={showDuplicates}
-                                                            onMergeWithPrevious={mergeWithPrevious}
-                                                            isBlacklisted={isBlacklisted}
-                                                            getBlacklistEntry={getBlacklistEntry}
-                                                            onAddToBlacklist={canBlock ? addToBlacklist : undefined}
-                                                            onRemoveFromBlacklist={canUnblock ? removeFromBlacklist : undefined}
-                                                            getRiskAssessment={getRiskAssessmentByPhone}
-                                                            getCustomerOrderCount={getCustomerOrderCount}
-                                                            getCustomerArchivedCount={getCustomerArchivedCount}
-                                                            getCustomerHistory={getCustomerHistory}
-                                                            getReturnOrderInfo={getReturnOrderInfo}
-                                                            getOriginalOrderInfo={getOriginalOrderInfo}
-                                                            compactView={compactView}
-                                                            actionDock={actionDock}
-                                                            getRiskLevel={getRiskLevelByPhone}
-                                                            hasDuplicates={hasDuplicates}
-                                                            getDuplicateWindowAlert={getDuplicateWindowAlert}
-                                                            onContactRecorded={recordContact}
-                                                            onSplitOrder={openSplitDialog}
-                                                        />
+                                                        <VirtualizedOrderList {...cardListProps} />
                                                     ) : (
                                                         /* Use animated list for <50 orders */
                                                         <StaggerContainer key="orders-list" className="space-y-3">
