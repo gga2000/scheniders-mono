@@ -22,6 +22,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
+import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import type { PoStatusInfo } from "./po-status-chip";
 
@@ -92,22 +93,13 @@ export function ReorderDrawer({
         staleTime: 60_000,
         queryFn: async () => {
             if (!tenantId) return new Map<string, number>();
-            const since = new Date();
-            since.setDate(since.getDate() - 30);
-            const { data, error } = await supabase
-                .from("inventory_history")
-                .select("product_id, quantity_change, change_type")
-                .eq("tenant_id", tenantId)
-                // Supplies are used, not sold (reason supply_used): count every
-                // stock-out movement except a recount, which is a correction.
-                .lt("quantity_change", 0)
-                .not("change_type", "in", "(count,written_off,returned_to_supplier,open_box_count,qc_undo)")
-                .gte("created_at", since.toISOString());
+            // Grouped in the database: reading raw history rows stops silently at
+            // the API row cap and makes busy stores look slower than they are.
+            const { data, error } = await supabase.rpc("supply_usage_30d", { p_tenant_id: tenantId });
             if (error) throw error;
             const m = new Map<string, number>();
-            for (const row of data ?? []) {
-                const qty = Math.abs(row.quantity_change ?? 0);
-                m.set(row.product_id, (m.get(row.product_id) ?? 0) + qty);
+            for (const row of (data ?? []) as { product_id: string; used: number | string }[]) {
+                m.set(row.product_id, Number(row.used));
             }
             return m;
         },
@@ -244,7 +236,6 @@ export function ReorderDrawer({
                 supplierName: group.supplierName,
                 supplierContact: group.supplierContact || null,
                 supplierEmail: group.supplierEmail || null,
-                notes: t("supplies.ro.poNote", { count: lines.length }),
                 expectedDate: new Date(Date.now() + maxLeadTime * 86_400_000)
                     .toISOString()
                     .split("T")[0],
@@ -259,8 +250,8 @@ export function ReorderDrawer({
             queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] });
             queryClient.invalidateQueries({ queryKey: ["supplier-pos"] });
         },
-        onError: (err: Error) => {
-            toast.error(t("supplies.ro.poFailed", { message: err.message }));
+        onError: (err: unknown) => {
+            toast.error(t("supplies.ro.poFailed", { message: t(purchaseOrderErrorKey(err)) }));
         },
     });
 

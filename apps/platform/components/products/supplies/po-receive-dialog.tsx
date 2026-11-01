@@ -15,6 +15,7 @@ import { fetchPurchaseOrderLines } from "@/lib/repositories/purchase-orders";
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
+import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 
 interface PoReceiveDialogProps {
     open: boolean;
@@ -79,7 +80,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     setEntered({});
                     onOpenChange(false);
                 },
-                onError: (err: Error) => toast.error(t("supplies.po.failed", { message: err.message })),
+                onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
             }
         );
     };
