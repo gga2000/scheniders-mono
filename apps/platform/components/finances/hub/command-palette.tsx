@@ -9,13 +9,13 @@ import {
     Undo2, Search, CalendarRange, ArrowRight, Command,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { LucideIcon } from "lucide-react";
 import type { FinanceTabId } from "./tabs-shell";
 
 type Action = {
     id: string;
     label: string;
-    hint?: string;
     icon: LucideIcon;
     group: "tabs" | "period" | "actions";
     onSelect: () => void;
@@ -36,6 +36,7 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
     const [active, setActive] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const router = useRouter();
+    const { t } = useLanguage();
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -59,33 +60,31 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
 
     const actions = useMemo<Action[]>(() => [
         // Tabs
-        { id: "tab-overview", label: "Go to Overview", icon: LayoutDashboard, group: "tabs", onSelect: () => onChangeTab("overview") },
-        { id: "tab-revenue", label: "Go to Revenue & Profit", icon: TrendingUp, group: "tabs", onSelect: () => onChangeTab("revenue") },
-        { id: "tab-cash", label: "Go to Cash & COD", icon: Landmark, group: "tabs", onSelect: () => onChangeTab("cash") },
-        { id: "tab-expenses", label: "Go to Expenses", icon: Receipt, group: "tabs", onSelect: () => onChangeTab("expenses") },
-        { id: "tab-payouts", label: "Go to Payouts", icon: Truck, group: "tabs", onSelect: () => onChangeTab("payouts") },
-        { id: "tab-invoices", label: "Go to Invoices", icon: FileText, group: "tabs", onSelect: () => onChangeTab("invoices") },
-        { id: "tab-refunds", label: "Go to Refunds & Returns", icon: Undo2, group: "tabs", onSelect: () => onChangeTab("refunds") },
-        { id: "tab-customers", label: "Go to Customers", icon: Users, group: "tabs", onSelect: () => onChangeTab("customers") },
-        { id: "tab-products", label: "Go to Products", icon: Package, group: "tabs", onSelect: () => onChangeTab("products") },
-        { id: "tab-print", label: "Go to Print & Ship", icon: Printer, group: "tabs", onSelect: () => onChangeTab("print") },
-        { id: "tab-forecasts", label: "Go to Forecasts", icon: Target, group: "tabs", onSelect: () => onChangeTab("forecasts") },
-        { id: "tab-reports", label: "Go to Exports", icon: FileSpreadsheet, group: "tabs", onSelect: () => onChangeTab("reports") },
-
-        // Period presets
-        { id: "p-today", label: "Period: Today", hint: "T", icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("today") },
-        { id: "p-yesterday", label: "Period: Yesterday", icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("yesterday") },
-        { id: "p-7", label: "Period: Last 7 days", hint: "7", icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("last7") },
-        { id: "p-30", label: "Period: Last 30 days", hint: "3", icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("last30") },
-        { id: "p-mtd", label: "Period: Month to date", icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("mtd") },
-        { id: "p-ytd", label: "Period: Year to date", icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("ytd") },
+        { id: "tab-overview", label: t("finances.palette.goTo", { tab: t("nav.financesOverview") }), icon: LayoutDashboard, group: "tabs", onSelect: () => onChangeTab("overview") },
+        { id: "tab-revenue", label: t("finances.palette.goTo", { tab: t("nav.financesRevenue") }), icon: TrendingUp, group: "tabs", onSelect: () => onChangeTab("revenue") },
+        { id: "tab-cash", label: t("finances.palette.goTo", { tab: t("nav.financesCash") }), icon: Landmark, group: "tabs", onSelect: () => onChangeTab("cash") },
+        { id: "tab-expenses", label: t("finances.palette.goTo", { tab: t("nav.financesExpenses") }), icon: Receipt, group: "tabs", onSelect: () => onChangeTab("expenses") },
+        { id: "tab-payouts", label: t("finances.palette.goTo", { tab: t("nav.financesPayouts") }), icon: Truck, group: "tabs", onSelect: () => onChangeTab("payouts") },
+        { id: "tab-invoices", label: t("finances.palette.goTo", { tab: t("nav.financesInvoices") }), icon: FileText, group: "tabs", onSelect: () => onChangeTab("invoices") },
+        { id: "tab-refunds", label: t("finances.palette.goTo", { tab: t("nav.financesRefunds") }), icon: Undo2, group: "tabs", onSelect: () => onChangeTab("refunds") },
+        { id: "tab-customers", label: t("finances.palette.goTo", { tab: t("nav.financesCustomers") }), icon: Users, group: "tabs", onSelect: () => onChangeTab("customers") },
+        { id: "tab-products", label: t("finances.palette.goTo", { tab: t("nav.financesProducts") }), icon: Package, group: "tabs", onSelect: () => onChangeTab("products") },
+        { id: "tab-print", label: t("finances.palette.goTo", { tab: t("nav.financesPrint") }), icon: Printer, group: "tabs", onSelect: () => onChangeTab("print") },
+        { id: "tab-forecasts", label: t("finances.palette.goTo", { tab: t("nav.financesForecasts") }), icon: Target, group: "tabs", onSelect: () => onChangeTab("forecasts") },
+        { id: "tab-reports", label: t("finances.palette.goTo", { tab: t("nav.financesReports") }), icon: FileSpreadsheet, group: "tabs", onSelect: () => onChangeTab("reports") },
+        { id: "p-today", label: t("finances.palette.period", { period: t("finances.period.today") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("today") },
+        { id: "p-yesterday", label: t("finances.palette.period", { period: t("finances.period.yesterday") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("yesterday") },
+        { id: "p-7", label: t("finances.palette.period", { period: t("finances.period.last7") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("last7") },
+        { id: "p-30", label: t("finances.palette.period", { period: t("finances.period.last30") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("last30") },
+        { id: "p-mtd", label: t("finances.palette.period", { period: t("finances.period.mtd") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("mtd") },
+        { id: "p-ytd", label: t("finances.palette.period", { period: t("finances.period.ytd") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("ytd") },
 
         // Actions
-        { id: "a-export", label: "Export current view", hint: "E", icon: ArrowRight, group: "actions", onSelect: onExport },
-        { id: "a-print", label: "Print current view", hint: "P", icon: Printer, group: "actions", onSelect: onPrint },
-        { id: "a-orders", label: "Open Orders page", icon: ArrowRight, group: "actions", onSelect: () => router.push("/orders") },
-        { id: "a-printing", label: "Open Printing queue", icon: Printer, group: "actions", onSelect: () => router.push("/printing") },
-    ], [onChangeTab, onApplyPreset, onExport, onPrint, router]);
+        { id: "a-export", label: t("finances.palette.export"), icon: ArrowRight, group: "actions", onSelect: onExport },
+        { id: "a-print", label: t("finances.palette.print"), icon: Printer, group: "actions", onSelect: onPrint },
+        { id: "a-orders", label: t("finances.palette.orders"), icon: ArrowRight, group: "actions", onSelect: () => router.push("/orders") },
+        { id: "a-printing", label: t("finances.palette.printing"), icon: Printer, group: "actions", onSelect: () => router.push("/printing") },
+    ], [t, onChangeTab, onApplyPreset, onExport, onPrint, router]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -148,7 +147,7 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={onKey}
-                                placeholder="Jump to a tab, change the period, or run an action…"
+                                placeholder={t("finances.palette.placeholder")}
                                 className="flex-1 bg-transparent text-[14px] text-foreground placeholder:text-muted focus:outline-none"
                             />
                             <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--card-border)] text-muted font-mono">ESC</kbd>
@@ -157,7 +156,7 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
                         <div className="max-h-[55vh] overflow-y-auto py-2">
                             {flat.length === 0 ? (
                                 <div className="px-4 py-8 text-center text-sm text-muted">
-                                    No matches for "{query}"
+                                    {t("finances.palette.noMatches", { query })}
                                 </div>
                             ) : (
                                 <>
@@ -166,7 +165,7 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
                                         return (
                                             <div key={g} className="px-2 py-1">
                                                 <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-muted font-semibold">
-                                                    {g === "tabs" ? "Tabs" : g === "period" ? "Time period" : "Actions"}
+                                                    {t(`finances.palette.group.${g}`)}
                                                 </div>
                                                 {grouped[g].map((a) => {
                                                     const idx = flat.indexOf(a);
@@ -187,11 +186,6 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
                                                                 isActive ? "text-violet-600 dark:text-violet-400" : "text-muted"
                                                             )} />
                                                             <span className="flex-1 text-[13px]">{a.label}</span>
-                                                            {a.hint && (
-                                                                <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--card-border)] text-muted font-mono">
-                                                                    {a.hint}
-                                                                </kbd>
-                                                            )}
                                                         </button>
                                                     );
                                                 })}
@@ -206,15 +200,15 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
                             <div className="flex items-center gap-3">
                                 <span className="flex items-center gap-1">
                                     <kbd className="px-1.5 py-0.5 rounded border border-[var(--card-border)] font-mono">↑↓</kbd>
-                                    navigate
+                                    {t("finances.palette.navigate")}
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <kbd className="px-1.5 py-0.5 rounded border border-[var(--card-border)] font-mono">↵</kbd>
-                                    select
+                                    {t("finances.palette.select")}
                                 </span>
                             </div>
                             <span className="flex items-center gap-1">
-                                <Command className="w-3 h-3" /> K to toggle
+                                <Command className="w-3 h-3" /> {t("finances.palette.toggle")}
                             </span>
                         </div>
                     </motion.div>
