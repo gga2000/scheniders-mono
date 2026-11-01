@@ -77,7 +77,16 @@ describe("TeamRosterTable", () => {
         const onSelect = vi.fn();
         render(<TeamRosterTable members={members} activeUserIds={new Set()} now={NOW} onSelect={onSelect} />);
         fireEvent.click(rowNamesButton("Huda"));
-        expect(onSelect).toHaveBeenCalledWith("c");
+        expect(onSelect.mock.calls[0][0]).toBe("c");
+    });
+
+    it("hands over the roster as sorted on screen, so the drawer's prev/next follows it", () => {
+        const onSelect = vi.fn();
+        render(<TeamRosterTable members={members} activeUserIds={new Set()} now={NOW} onSelect={onSelect} />);
+        fireEvent.click(screen.getByRole("button", { name: /team\.roster\.member/ }));
+        const visible = memberButtons().map((b) => members.find((m) => b.textContent?.includes(m.display_name ?? ""))?.user_id);
+        fireEvent.click(rowNamesButton("Huda"));
+        expect(onSelect.mock.calls[0][1]).toEqual(visible);
     });
 });
 

@@ -4,7 +4,8 @@ import { SalaryOverviewCards } from "@/components/salary/salary-overview-cards";
 import { OrderQualityStrip } from "@/components/salary/order-quality-strip";
 import { EmployeePayrollCard } from "@/components/salary/employee-payroll-card";
 import { SalaryDeductionsTab } from "@/components/salary/salary-deductions-tab";
-import { payrollAdvances, payrollBonuses, payrollBreakdown, payrollEmployees, payrollPenalties, payrollPeriod, recentPayment } from "./payroll-fixtures";
+import { PayrollHistoryTable } from "@/components/salary/payroll-history-table";
+import { payrollHistory, payrollAdvances, payrollBonuses, payrollBreakdown, payrollEmployees, payrollPenalties, payrollPeriod, recentPayment } from "./payroll-fixtures";
 
 const noop = async () => undefined;
 const names = new Map(payrollEmployees.map((e) => [e.employee.id, e.employee.displayName ?? e.employee.email]));
@@ -65,6 +66,14 @@ function Deductions() {
     );
 }
 
+function History() {
+    return (
+        <div className="min-h-screen bg-[var(--background)] p-6">
+            <PayrollHistoryTable records={payrollHistory} loading={false} failed={false} onVoid={async () => ({ error: null })} employeeNames={names} />
+        </div>
+    );
+}
+
 const meta: Meta = {
     title: "Payroll/Salaries",
     decorators: [(Story) => <LanguageProvider><Story /></LanguageProvider>],
@@ -74,3 +83,4 @@ export default meta;
 
 export const Current: StoryObj = { render: () => <CurrentPeriod /> };
 export const Advances: StoryObj = { render: () => <Deductions /> };
+export const PayrollHistory: StoryObj = { render: () => <History /> };

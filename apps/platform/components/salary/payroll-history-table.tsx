@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
     format, startOfMonth, endOfMonth, eachDayOfInterval,
     getDay, isSameDay,
@@ -15,10 +15,10 @@ import type { Locale } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toBaghdadDayKey } from "@/lib/order-window";
-import { usePayroll } from "@/hooks/use-payroll";
 import type { PayrollRecord } from "@/types/salary";
 import { exportHistoryCSV } from "@/lib/payroll-csv-export";
 import { toast } from "@/hooks/use-toast";
+import { downloadPayslipBlob } from "@/lib/payslip-download";
 import { PayslipPreviewModal } from "./payslip-preview-modal";
 import { ComparePayrollModal } from "./compare-payroll-modal";
 
@@ -37,10 +37,10 @@ function fmtMonth(ym: string, locale?: Locale) {
     try { return format(new Date(ym + "-01T00:00:00"), "MMMM yyyy", { locale }); } catch { return ym; }
 }
 
-const PAYMENT_METHOD_LABELS: Record<string, { labelKey: string; className: string }> = {
-    cash:      { labelKey: "payroll.method.cash",     className: "bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400" },
-    zain_cash: { labelKey: "payroll.method.zainCash", className: "bg-violet-100 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400" },
-    qi_card:   { labelKey: "payroll.method.qiCard",   className: "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400" },
+const PAYMENT_METHOD_LABELS: Record<string, { labelKey: string }> = {
+    cash:      { labelKey: "payroll.method.cash" },
+    zain_cash: { labelKey: "payroll.method.zainCash" },
+    qi_card:   { labelKey: "payroll.method.qiCard" },
 };
 
 // Avatar gradient per employee name (same hash as employee card)
@@ -58,6 +58,11 @@ function avatarColor(name: string): string {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface PayrollHistoryTableProps {
+    /** Every payroll record of the store, newest period first. */
+    records: PayrollRecord[];
+    loading: boolean;
+    failed: boolean;
+    onVoid: (recordId: string) => Promise<{ error: string | null }>;
     employeeNames: Map<string, string>;
     /** Called after a payroll is voided so other views (current period) reload. */
     onVoided?: () => void;
@@ -67,8 +72,7 @@ type ViewMode = "list" | "calendar" | "ytd";
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function PayrollHistoryTable({ employeeNames, onVoided }: PayrollHistoryTableProps) {
-    const { payrollHistory, isLoading, fetchAllHistory, voidPayroll } = usePayroll();
+export function PayrollHistoryTable({ records: payrollHistory, loading: isLoading, failed, onVoid: voidPayroll, employeeNames, onVoided }: PayrollHistoryTableProps) {
     const { t, language } = useLanguage();
     const locale = language === "ar" ? ar : undefined;
 
@@ -96,8 +100,6 @@ export function PayrollHistoryTable({ employeeNames, onVoided }: PayrollHistoryT
     // Comparison selection (#29)
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [compareOpen, setCompareOpen] = useState(false);
-
-    useEffect(() => { fetchAllHistory(); }, [fetchAllHistory]);
 
     // ── Filtered history (#16) ──────────────────────────────────────────────
     const filteredHistory = useMemo(() => {
@@ -193,16 +195,7 @@ export function PayrollHistoryTable({ employeeNames, onVoided }: PayrollHistoryT
             const response = await fetch(record.pdf_url);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const blob = await response.blob();
-            const name = employeeNames.get(record.employee_id) ?? t("payroll.history.employeeFallback");
-            const url = URL.createObjectURL(blob);
-            try {
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `Payslip_${name.replace(/\s+/g, "_")}_${record.period_end}.pdf`;
-                a.click();
-            } finally {
-                URL.revokeObjectURL(url);
-            }
+            downloadPayslipBlob(blob, employeeNames.get(record.employee_id) ?? t("payroll.history.employeeFallback"), record.period_end);
         } catch {
             toast({ title: t("payroll.history.downloadFailed"), description: t("payroll.history.downloadFailedDesc"), variant: "error" });
         }
@@ -225,6 +218,10 @@ export function PayrollHistoryTable({ employeeNames, onVoided }: PayrollHistoryT
                 {[1, 2, 3].map(i => <div key={i} className="h-16 skeleton rounded-xl" />)}
             </div>
         );
+    }
+
+    if (failed && payrollHistory.length === 0) {
+        return <p role="alert" className="py-12 text-center text-sm text-rose-600">{t("payroll.history.loadFailed")}</p>;
     }
 
     if (payrollHistory.length === 0) {
@@ -251,7 +248,7 @@ export function PayrollHistoryTable({ employeeNames, onVoided }: PayrollHistoryT
                         value={filterSearch}
                         onChange={e => setFilterSearch(e.target.value)}
                         placeholder={t("payroll.history.search")}
-                        className="pl-8 pr-3 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20 w-44"
+                        className="pl-8 pr-3 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[#8A8A8A] focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20 w-44"
                     />
                 </div>
 
@@ -336,12 +333,12 @@ export function PayrollHistoryTable({ employeeNames, onVoided }: PayrollHistoryT
                                         <span className="text-sm font-semibold text-foreground">{fmtMonth(monthKey, locale)}</span>
                                         <span className="text-xs text-muted">{t("payroll.history.records", { count: records.length })}</span>
                                     </div>
-                                    <span className="text-xs font-semibold text-foreground tabular-nums">{fmtIQD(monthTotal)} IQD</span>
+                                    <span className="text-xs font-semibold text-foreground tabular-nums">{fmtIQD(monthTotal)} {t("common.iqd")}</span>
                                 </button>
 
                                 {/* Records */}
                                 {!isCollapsed && (
-                                    <div className="mt-1.5 space-y-1.5 pl-2">
+                                    <div className="mt-1.5 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] divide-y divide-[var(--card-border)] overflow-hidden">
                                         {records.map(record => (
                                             <RecordRow
                                                 key={record.id}
@@ -466,20 +463,26 @@ function RecordRow({
 }: RecordRowProps) {
     const { t } = useLanguage();
     const methodInfo = record.payment_method ? PAYMENT_METHOD_LABELS[record.payment_method] : null;
+    const isVoided = record.status === "voided";
+    // Arabic reads day before month ("1 سبتمبر"); English keeps "Sep 1".
+    const dayFmt = locale ? "d MMM" : "MMM d";
+    const dayYearFmt = locale ? "d MMM yyyy" : "MMM d, yyyy";
 
     return (
         <div className={cn(
-            "flex items-center gap-3 p-3 bg-[var(--card-bg)] rounded-xl border transition-colors group",
-            isSelected
-                ? "border-[var(--ink)]/40 bg-[var(--ink)]/5"
-                : "border-[var(--card-border)] hover:border-[var(--ink)]/20"
+            "flex items-center gap-3 px-3 py-2.5 transition-colors group",
+            isSelected ? "bg-[var(--ink)]/5" : "hover:bg-[var(--background)]/60",
+            isVoided && "text-muted",
         )}>
             {/* Checkbox for comparison */}
             <button
                 onClick={onSelect}
+                aria-pressed={isSelected}
+                aria-label={t("payroll.history.compare")}
+                title={t("payroll.history.compareHint")}
                 className={cn(
                     "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
-                    "opacity-0 group-hover:opacity-100",
+                    "opacity-40 group-hover:opacity-100",
                     isSelected && "opacity-100 bg-[var(--ink)] border-[var(--ink)]",
                     !isSelected && "border-[var(--card-border)]"
                 )}
@@ -490,7 +493,7 @@ function RecordRow({
             {/* Left: info */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-sm text-foreground truncate">{empName}</p>
+                    <p className={cn("font-medium text-sm truncate", isVoided ? "text-muted line-through" : "text-foreground")}>{empName}</p>
                     {/* Status badge */}
                     <span className={cn(
                         "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
@@ -503,7 +506,7 @@ function RecordRow({
                     </span>
                     {/* Payment method */}
                     {methodInfo && (
-                        <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", methodInfo.className)}>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium text-muted bg-[var(--background)] border border-[var(--card-border)]">
                             {t(methodInfo.labelKey)}
                         </span>
                     )}
@@ -515,8 +518,9 @@ function RecordRow({
                     )}
                 </div>
                 <p className="text-xs text-muted mt-0.5">
-                    {fmtDate(record.period_start, "MMM d", locale)} — {fmtDate(record.period_end, "MMM d, yyyy", locale)}
-                    {record.paid_at && ` · ${t("payroll.history.paidOn", { date: fmtDate(record.paid_at, "MMM d", locale) })}`}
+                    {/* Each date isolated so Arabic month names don't reorder the line. */}
+                    <bdi>{fmtDate(record.period_start, dayFmt, locale)}</bdi> — <bdi>{fmtDate(record.period_end, dayYearFmt, locale)}</bdi>
+                    {record.paid_at && !isVoided && <> · <bdi>{t("payroll.history.paidOn", { date: fmtDate(record.paid_at, dayFmt, locale) })}</bdi></>}
                 </p>
             </div>
 
@@ -544,7 +548,7 @@ function RecordRow({
                             {t("common.no")}
                         </button>
                     </div>
-                ) : (
+                ) : !isVoided && (
                     <button onClick={onRequestVoid} className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 text-muted hover:text-rose-500 transition-colors" title={t("payroll.history.voidTitle")}>
                         <Undo2 className="w-3.5 h-3.5" />
                     </button>
@@ -552,7 +556,7 @@ function RecordRow({
 
                 {/* Amount */}
                 <div className="text-right ml-1 min-w-[80px]">
-                    <p className="font-bold text-sm text-foreground tabular-nums">{fmtIQD(record.net_salary)} IQD</p>
+                    <p className={cn("font-bold text-sm tabular-nums", isVoided ? "text-muted line-through" : "text-foreground")}>{fmtIQD(record.net_salary)} {t("common.iqd")}</p>
                     <p className="text-xs text-muted">{t("payroll.history.orders", { count: record.completed_orders_count })}</p>
                 </div>
             </div>
@@ -604,6 +608,7 @@ function MonthCalendar({
     paymentsByDate: Map<string, { name: string; amount: number; color: string }[]>;
     locale?: Locale;
 }) {
+    const { t } = useLanguage();
     const days = eachDayOfInterval({ start: startOfMonth(monthStart), end: endOfMonth(monthStart) });
     // Monday = 0, ..., Sunday = 6
     const firstDayOfWeek = (getDay(days[0]) + 6) % 7; // shift so Mon=0
@@ -640,7 +645,7 @@ function MonthCalendar({
                                 isToday && "bg-[var(--ink)]/10 ring-1 ring-[var(--ink)]/30",
                                 payments.length > 0 && "bg-emerald-50 dark:bg-emerald-900/10"
                             )}
-                            title={payments.map(p => `${p.name}: ${fmtIQD(p.amount)} IQD`).join("\n")}
+                            title={payments.map(p => `${p.name}: ${fmtIQD(p.amount)} ${t("common.iqd")}`).join("\n")}
                         >
                             <span className={cn("text-xs", isToday ? "font-bold text-foreground" : "text-muted")}>
                                 {format(day, "d")}
@@ -723,8 +728,8 @@ function YTDView({
                                     </div>
                                 </td>
                                 <td className="px-4 py-3 text-right text-sm text-foreground tabular-nums">{emp.count}</td>
-                                <td className="px-4 py-3 text-right text-sm font-semibold text-foreground tabular-nums">{fmtIQD(emp.totalNet)} IQD</td>
-                                <td className="px-4 py-3 text-right text-sm text-muted tabular-nums">{fmtIQD(emp.count > 0 ? emp.totalNet / emp.count : 0)} IQD</td>
+                                <td className="px-4 py-3 text-right text-sm font-semibold text-foreground tabular-nums">{fmtIQD(emp.totalNet)} {t("common.iqd")}</td>
+                                <td className="px-4 py-3 text-right text-sm text-muted tabular-nums">{fmtIQD(emp.count > 0 ? emp.totalNet / emp.count : 0)} {t("common.iqd")}</td>
                                 <td className="px-4 py-3 text-right text-sm text-foreground tabular-nums">{emp.totalOrders.toLocaleString()}</td>
                             </tr>
                         ))}
@@ -733,7 +738,7 @@ function YTDView({
                         <tr>
                             <td className="px-4 py-3 text-sm font-bold text-foreground">{t("payroll.history.total")}</td>
                             <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{grandCount}</td>
-                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{fmtIQD(grandTotal)} IQD</td>
+                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{fmtIQD(grandTotal)} {t("common.iqd")}</td>
                             <td className="px-4 py-3 text-right text-sm text-muted">—</td>
                             <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{grandOrders.toLocaleString()}</td>
                         </tr>
