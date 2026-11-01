@@ -349,13 +349,13 @@ function FinancesContent() {
                     )}
 
                     {activeTab === "customers" && (
-                        <CustomersFinanceTab orders={orders} period={period} compareRange={compareRange} />
+                        <CustomersFinanceTab orders={orders} period={period} compareRange={compareRange} granularity={granularity} />
                     )}
 
                     {activeTab === "print" && <PrintShipTab />}
 
                     {activeTab === "products" && (
-                        <ProductsFinanceTab orders={orders} products={products} period={period} />
+                        <ProductsFinanceTab orders={orders} products={products} period={period} granularity={granularity} />
                     )}
 
                     {activeTab === "forecasts" && (
@@ -363,7 +363,7 @@ function FinancesContent() {
                     )}
 
                     {activeTab === "reports" && (
-                        <ReportsTab orders={orders} period={period} dateRangeStrings={dateRangeStrings} />
+                        <ReportsTab period={period} onExport={ordersLoading ? undefined : handleExport} onPrint={ordersLoading ? undefined : handlePrint} />
                     )}
 
                     {activeTab === "profit_analysis" && (

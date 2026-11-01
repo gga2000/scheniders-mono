@@ -5,6 +5,7 @@ import { RotateCcw, AlertTriangle } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { RefundsImpact as RefundsData } from "@/hooks/use-finance-revenue";
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
 }
 
 export function RefundsImpact({ data }: Props) {
-    const healthy = data.refund_rate_pct < 2;
+    const { t } = useLanguage();
     const warning = data.refund_rate_pct >= 2 && data.refund_rate_pct < 5;
     const critical = data.refund_rate_pct >= 5;
 
@@ -24,20 +25,20 @@ export function RefundsImpact({ data }: Props) {
 
     return (
         <SectionCard
-            title="Refunds & Returns"
-            subtitle={data.refund_count === 0 ? "Clean period — no refunds" : `${data.refund_count} refund${data.refund_count === 1 ? "" : "s"} this period`}
+            title={t("finances.refunds.title")}
+            subtitle={data.refund_count === 0 ? t("finances.refunds.clean") : data.refund_count === 1 ? t("finances.refunds.countSubOne") : t("finances.refunds.countSub", { count: data.refund_count })}
             icon={RotateCcw}
             accent={tone === "rose" ? "rose" : tone === "amber" ? "amber" : "emerald"}
         >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
                 <StatTile
-                    label="Refund value"
+                    label={t("finances.refunds.value")}
                     value={
                         <FinanceValue value={data.refund_value} abbreviate className="text-xl font-bold text-foreground tabular-nums" />
                     }
                 />
                 <StatTile
-                    label="Refund count"
+                    label={t("finances.refunds.count")}
                     value={
                         <span className="text-xl font-bold text-foreground tabular-nums">
                             {data.refund_count}
@@ -45,7 +46,7 @@ export function RefundsImpact({ data }: Props) {
                     }
                 />
                 <StatTile
-                    label="Refund rate"
+                    label={t("finances.refunds.rate")}
                     highlight={tone}
                     value={
                         <span className={cn(
@@ -57,7 +58,7 @@ export function RefundsImpact({ data }: Props) {
                             {data.refund_rate_pct.toFixed(1)}%
                         </span>
                     }
-                    sublabel={critical ? "Above 5% — investigate" : warning ? "Above 2% — keep an eye" : "Healthy (< 2%)"}
+                    sublabel={critical ? t("finances.refunds.rateCritical") : warning ? t("finances.refunds.rateWarning") : t("finances.refunds.rateHealthy")}
                 />
             </div>
 
@@ -65,7 +66,7 @@ export function RefundsImpact({ data }: Props) {
                 <div>
                     <div className="text-[11px] uppercase tracking-wider text-muted font-semibold mb-2 flex items-center gap-1.5">
                         <AlertTriangle className="w-3 h-3" />
-                        Top refunded products
+                        {t("finances.refunds.top")}
                     </div>
                     <div className="space-y-1.5">
                         {data.top_refunded.map((p, i) => {
@@ -85,7 +86,7 @@ export function RefundsImpact({ data }: Props) {
                                     <div className="relative flex items-center justify-between px-3 py-2 gap-3">
                                         <div className="min-w-0 flex-1">
                                             <div className="text-[12.5px] font-medium text-foreground truncate">{p.name}</div>
-                                            <div className="text-[10.5px] text-muted">{p.count} unit{p.count === 1 ? "" : "s"} returned</div>
+                                            <div className="text-[10.5px] text-muted">{p.count === 1 ? t("finances.refunds.unitsOne") : t("finances.refunds.units", { count: p.count })}</div>
                                         </div>
                                         <FinanceValue
                                             value={p.value}

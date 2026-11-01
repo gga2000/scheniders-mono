@@ -1,4 +1,5 @@
 import { formatIQD } from "@/lib/utils";
+import { baghdadDayKey } from "@/lib/order-window";
 import type { FinanceOverviewResult } from "@/hooks/use-finance-overview";
 import type { FinanceRevenueResult } from "@/hooks/use-finance-revenue";
 import type { CashPositionResult } from "@/hooks/use-cash-position";
@@ -10,22 +11,41 @@ export interface FinanceExportContext {
     period: { start: Date; end: Date };
 }
 
+/** The period's Baghdad days. The UTC day would label a period that starts at Baghdad midnight with the day before. */
 function ymd(d: Date): string {
-    return d.toISOString().slice(0, 10);
+    return baghdadDayKey(d);
 }
 
 function csvEscape(cell: string | number): string {
-    const s = String(cell ?? "");
-    return `"${s.replace(/"/g, '""')}"`;
+    return `"${String(cell ?? "").replace(/"/g, '""')}"`;
 }
 
-export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
+/**
+ * A name from the store's data, safe to put in a CSV cell. A cell that starts
+ * with = + - or @ would run as a formula when the file is opened in a
+ * spreadsheet, and product, channel and city names are typed by merchants and
+ * customers, so those are written as plain text.
+ */
+function plainText(value: string): string {
+    return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
+function escapeHtml(value: string | number): string {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+export function buildFinanceHubCsv(ctx: FinanceExportContext, generatedAt: string): string {
     const { overview, revenue, cash, period } = ctx;
     const rows: (string | number)[][] = [];
 
     rows.push(["Finances Report"]);
     rows.push([`Period: ${ymd(period.start)} to ${ymd(period.end)}`]);
-    rows.push([`Generated: ${new Date().toISOString()}`]);
+    rows.push([`Generated: ${generatedAt}`]);
     rows.push([]);
 
     rows.push(["KPI SUMMARY"]);
@@ -73,7 +93,7 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
         rows.push(["BY CHANNEL"]);
         rows.push(["Channel", "Revenue (IQD)", "Orders", "Profit (IQD)"]);
         for (const c of overview.by_channel) {
-            rows.push([c.label, c.revenue, c.orders, c.profit]);
+            rows.push([plainText(c.label), c.revenue, c.orders, c.profit]);
         }
         rows.push([]);
     }
@@ -82,7 +102,7 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
         rows.push(["BY CITY"]);
         rows.push(["City", "Revenue (IQD)", "Orders", "Delivered", "Profit (IQD)"]);
         for (const c of overview.by_city) {
-            rows.push([c.label, c.revenue, c.orders, c.delivered, c.profit]);
+            rows.push([plainText(c.label), c.revenue, c.orders, c.delivered, c.profit]);
         }
         rows.push([]);
     }
@@ -91,7 +111,7 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
         rows.push(["BY PRODUCT"]);
         rows.push(["Product", "Revenue (IQD)", "Units", "Profit (IQD)", "Margin %"]);
         for (const p of overview.by_product) {
-            rows.push([p.label, p.revenue, p.units, p.profit, `${p.margin.toFixed(2)}%`]);
+            rows.push([plainText(p.label), p.revenue, p.units, p.profit, `${p.margin.toFixed(2)}%`]);
         }
         rows.push([]);
     }
@@ -100,7 +120,7 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
         rows.push(["BY PAYMENT"]);
         rows.push(["Method", "Revenue (IQD)", "Orders"]);
         for (const p of overview.by_payment) {
-            rows.push([p.label, p.revenue, p.orders]);
+            rows.push([plainText(p.label), p.revenue, p.orders]);
         }
         rows.push([]);
     }
@@ -109,7 +129,7 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
         rows.push(["TOP REFUNDED PRODUCTS"]);
         rows.push(["Product", "Refund Value (IQD)", "Units Returned"]);
         for (const p of revenue.refunds.top_refunded) {
-            rows.push([p.name, p.value, p.count]);
+            rows.push([plainText(p.name), p.value, p.count]);
         }
         rows.push([]);
     }
@@ -122,7 +142,12 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
         }
     }
 
-    const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+    return rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+}
+
+export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
+    const { period } = ctx;
+    const csv = buildFinanceHubCsv(ctx, new Date().toISOString());
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -134,7 +159,7 @@ export function exportFinanceHubToCSV(ctx: FinanceExportContext): void {
     URL.revokeObjectURL(url);
 }
 
-export function printFinanceHubReport(ctx: FinanceExportContext): void {
+export function buildFinanceHubPrintHtml(ctx: FinanceExportContext, generatedAt: string): string {
     const { overview, cash, period } = ctx;
     const tone = (n: number) => (n >= 0 ? "positive" : "negative");
     const html = `<!doctype html>
@@ -159,7 +184,7 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 @media print { body { padding: 16px; } section { page-break-inside: avoid; } }
 </style></head><body>
 <h1>Finances Report</h1>
-<div class="sub">${ymd(period.start)} to ${ymd(period.end)} · Generated ${new Date().toLocaleString()}</div>
+<div class="sub">${ymd(period.start)} to ${ymd(period.end)} · Generated ${escapeHtml(generatedAt)}</div>
 
 <section><h2>KPI Summary</h2>
 <div class="kpis">
@@ -192,16 +217,20 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 ${overview.by_channel.length > 0 ? `<section><h2>By Channel</h2><table>
 <tr><th>Channel</th><th class="num">Revenue</th><th class="num">Orders</th><th class="num">Profit</th></tr>
-${overview.by_channel.map(c => `<tr><td>${c.label}</td><td class="num">${formatIQD(c.revenue)}</td><td class="num">${c.orders}</td><td class="num ${tone(c.profit)}">${formatIQD(c.profit)}</td></tr>`).join("")}
+${overview.by_channel.map(c => `<tr><td>${escapeHtml(c.label)}</td><td class="num">${formatIQD(c.revenue)}</td><td class="num">${c.orders}</td><td class="num ${tone(c.profit)}">${formatIQD(c.profit)}</td></tr>`).join("")}
 </table></section>` : ""}
 
 ${overview.by_city.length > 0 ? `<section><h2>By City</h2><table>
 <tr><th>City</th><th class="num">Revenue</th><th class="num">Orders</th><th class="num">Delivered</th></tr>
-${overview.by_city.slice(0, 15).map(c => `<tr><td>${c.label}</td><td class="num">${formatIQD(c.revenue)}</td><td class="num">${c.orders}</td><td class="num">${c.delivered}</td></tr>`).join("")}
+${overview.by_city.slice(0, 15).map(c => `<tr><td>${escapeHtml(c.label)}</td><td class="num">${formatIQD(c.revenue)}</td><td class="num">${c.orders}</td><td class="num">${c.delivered}</td></tr>`).join("")}
 </table></section>` : ""}
 
 </body></html>`;
+    return html;
+}
 
+export function printFinanceHubReport(ctx: FinanceExportContext): void {
+    const html = buildFinanceHubPrintHtml(ctx, new Date().toLocaleString());
     const w = window.open("", "_blank");
     if (!w) return;
     w.document.write(html);

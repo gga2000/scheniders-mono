@@ -35,7 +35,6 @@ export interface RefundProductRow {
 
 export interface RefundDailyPoint {
     date: string;
-    label: string;
     value: number;
     count: number;
 }
@@ -64,9 +63,12 @@ function ageInDays(date: string, now: number): number {
     return Math.max(0, Math.floor((now - t) / (24 * 3600 * 1000)));
 }
 
+/** Reason key for refunds with no reason text; the UI words it in the active language. */
+export const UNSPECIFIED_REASON = "";
+
 function normalizeReason(raw: string): string {
     const trimmed = (raw || "").trim();
-    if (!trimmed) return "Unspecified";
+    if (!trimmed) return UNSPECIFIED_REASON;
     // Take first line, then first sentence-ish chunk, capped at 60 chars.
     const firstLine = trimmed.split(/\r?\n/)[0].trim();
     const firstChunk = firstLine.split(/[.،,;:|]/)[0].trim() || firstLine;
@@ -229,7 +231,6 @@ export function useRefundAnalytics(
             const entry = dailyMap.get(key) || { value: 0, count: 0 };
             daily.push({
                 date: key,
-                label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
                 value: entry.value,
                 count: entry.count,
             });

@@ -40,7 +40,7 @@ describe("ProductsFinanceTab", () => {
         render(
             <ProductsFinanceTab
                 products={products}
-                period={period}
+                period={period} granularity="week"
                 orders={[
                     order({ id: "a" }),
                     order({ id: "b", status: "cancelled" }),
@@ -61,7 +61,7 @@ describe("ProductsFinanceTab", () => {
     });
 
     it("shows the Arabic empty state when nothing sold", () => {
-        render(<ProductsFinanceTab products={products} period={period} orders={[]} />);
+        render(<ProductsFinanceTab products={products} period={period} granularity="week" orders={[]} />);
         expect(screen.getByText("لا نشاط للمنتجات في هذه الفترة.")).toBeTruthy();
     });
 });
