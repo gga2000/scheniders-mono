@@ -3,9 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
-import { isSaleOrder } from "@/lib/order-revenue";
+import { summarizeSales, type KpiOrderRow } from "@/lib/store-kpis";
 import { storeHubWindow } from "@/lib/store-hub-window";
-import type { Order } from "@/types/order";
 
 export interface StoreAnalytics {
     orderCount: number;
@@ -13,8 +12,6 @@ export interface StoreAnalytics {
 }
 
 const PAGE = 1000;
-
-type OrderRow = Pick<Order, "status" | "is_return" | "price">;
 
 /**
  * Orders placed and their value over the hub's 7-day window. Only real sales
@@ -27,7 +24,7 @@ export function useStoreAnalytics(tenantId: string) {
         queryKey: ["store-analytics", tenantId],
         queryFn: async () => {
             const { from } = storeHubWindow();
-            const rows = await fetchAllPages<OrderRow>(async (offset) => {
+            const rows = await fetchAllPages<KpiOrderRow>(async (offset) => {
                 const { data, error, count } = await supabase
                     .from("orders")
                     .select("status, is_return, price", { count: "exact" })
@@ -38,13 +35,9 @@ export function useStoreAnalytics(tenantId: string) {
                     .order("id", { ascending: false })
                     .range(offset, offset + PAGE - 1);
                 if (error) throw error;
-                return { rows: (data ?? []) as OrderRow[], total: count ?? 0 };
+                return { rows: (data ?? []) as KpiOrderRow[], total: count ?? 0 };
             });
-            const sales = rows.filter(isSaleOrder);
-            return {
-                orderCount: sales.length,
-                revenue: sales.reduce((sum, o) => sum + (o.price ?? 0), 0),
-            };
+            return summarizeSales(rows);
         },
         staleTime: 5 * 60 * 1000,
     });
