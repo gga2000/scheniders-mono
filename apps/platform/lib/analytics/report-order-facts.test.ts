@@ -69,3 +69,12 @@ describe("KPI change", () => {
         expect(none.deliveryRateChange).toBe(0);
     });
 });
+
+describe("Baghdad buckets", () => {
+    it("puts 22:30 UTC on the next Baghdad day, hour 1", async () => {
+        const { calculateTimeAnalysis } = await import("./reports-calculations");
+        const t = calculateTimeAnalysis([order({ created_at: "2026-10-31T22:30:00Z" })]); // Sat UTC -> Sun 01:30 Baghdad
+        expect(t.hourlyDistribution.find(h => h.hour === 1)?.count).toBe(1);
+        expect(t.dailyDistribution.find(d => d.day === "Sun")?.count).toBe(1);
+    });
+});

@@ -1,5 +1,6 @@
 "use client";
 
+import { baghdadHour, baghdadDayOfWeek } from "@/lib/analytics/dashboard-calculations";
 import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 
 // ============================================
@@ -341,8 +342,10 @@ export function calculateTimeAnalysis(orders: ReportOrder[]): TimeAnalysisMetric
 
     orders.forEach(order => {
         const createdDate = new Date(order.created_at);
-        hourlyData[createdDate.getHours()]++;
-        dailyData[createdDate.getDay()]++;
+        // Baghdad clock, like the dashboard and the server: the viewer's device zone must not move an order
+        // into another hour or day.
+        hourlyData[baghdadHour(createdDate)]++;
+        dailyData[baghdadDayOfWeek(createdDate)]++;
 
         // Processing time for delivered orders
         if (order.delivered_at) {

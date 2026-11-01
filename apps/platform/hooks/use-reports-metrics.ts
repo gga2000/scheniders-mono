@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { baghdadDayStart, baghdadMonthStart, baghdadDayOfWeek } from "@/lib/analytics/dashboard-calculations";
 import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 import {
     calculateStatusFlow,
@@ -59,29 +60,23 @@ export function useDateRangePresets() {
     return useMemo(() => buildDateRangePresets(), []);
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Preset ranges on the Baghdad calendar (the dashboard's and the server's), not the
+ * viewer's device clock. `to` is the last millisecond of the current Baghdad day.
+ */
 function buildDateRangePresets() {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const startOfWeek = new Date(startOfToday);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-    const last7Days = new Date(startOfToday);
-    last7Days.setDate(last7Days.getDate() - 6);
-
-    const last30Days = new Date(startOfToday);
-    last30Days.setDate(last30Days.getDate() - 29);
+    const now = new Date();
+    const startOfToday = baghdadDayStart(now);
+    const endOfToday = new Date(startOfToday.getTime() + DAY_MS - 1);
+    const startOfWeek = new Date(startOfToday.getTime() - baghdadDayOfWeek(now) * DAY_MS);
 
     return {
-        today: { from: startOfToday, to: today },
-        thisWeek: { from: startOfWeek, to: today },
-        thisMonth: { from: startOfMonth, to: today },
-        last7Days: { from: last7Days, to: today },
-        last30Days: { from: last30Days, to: today },
+        today: { from: startOfToday, to: endOfToday },
+        thisWeek: { from: startOfWeek, to: endOfToday },
+        thisMonth: { from: baghdadMonthStart(now), to: endOfToday },
+        last7Days: { from: new Date(startOfToday.getTime() - 6 * DAY_MS), to: endOfToday },
+        last30Days: { from: new Date(startOfToday.getTime() - 29 * DAY_MS), to: endOfToday },
     };
 }
