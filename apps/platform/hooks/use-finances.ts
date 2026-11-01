@@ -5,7 +5,7 @@ import { useExpenses } from "./use-expenses";
 import { ExpenseCategory } from "@/types/expense";
 import type { Order, Product } from "@/lib/supabase";
 import { isRealizedRevenue, isSaleOrder } from "@/lib/order-revenue";
-import { resolveItemCost } from "@/lib/finance/item-cost";
+import { resolveOrderLineCost, type CostSnapshots } from "@/lib/finance/item-cost";
 import { baghdadDayKey } from "@/lib/order-window";
 
 export interface DateRange {
@@ -66,8 +66,9 @@ export interface HourlyData {
  * @param orders - Orders array from useOrders() in parent component
  * @param products - Products array from useProductsCrud() in parent component
  * @param dateRange - Optional date range filter
+ * @param snapshots - Frozen per-line costs of delivered orders (see useOrderCostSnapshots)
  */
-export function useFinances(orders: Order[], products: Product[], dateRange?: DateRange) {
+export function useFinances(orders: Order[], products: Product[], dateRange?: DateRange, snapshots?: CostSnapshots) {
     const { expenses } = useExpenses();
 
     // Filter orders by date range
@@ -134,8 +135,8 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
         let productCosts = 0;
         filteredOrders.forEach((order) => {
             if (isRealizedRevenue(order) && order.items) {
-                order.items.forEach((item) => {
-                    productCosts += resolveItemCost(item, products).cost;
+                order.items.forEach((item, index) => {
+                    productCosts += resolveOrderLineCost(order, index, item, products, snapshots).cost;
                 });
             }
         });
@@ -152,7 +153,7 @@ export function useFinances(orders: Order[], products: Product[], dateRange?: Da
             netProfit,
             profitMargin,
         };
-    }, [filteredOrders, filteredExpenses, products, revenueStats]);
+    }, [filteredOrders, filteredExpenses, products, snapshots, revenueStats]);
 
     // Get daily data for charts
     const dailyData = useMemo((): DailyData[] => {
