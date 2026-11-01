@@ -3,17 +3,25 @@
 import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadDate } from "@/lib/customer-format";
-import { displayScore, hasRatedScore } from "@/lib/customer-reliability";
+import { displayScore, showsTrustScore } from "@/lib/customer-reliability";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import { ModalShell } from "./modal-shell";
 import { cn } from "@/lib/utils";
 
 /**
- * How the trust score adds up: one bar per factor, then the total the profile
- * shows. While loading it shows skeleton bars; with no stored breakdown it says so.
+ * How the trust score adds up: one bar per stored factor, then the stored score
+ * itself as the total, the same number the profile hero shows. When the factors
+ * do not add up to the stored score, the gap is shown as its own "Other
+ * adjustments" bar so the arithmetic closes. While loading it shows skeleton
+ * bars; with no stored breakdown it says so.
  */
-export function ScoreBreakdownModal() {
+export function ScoreBreakdownModal({ score: storedScore, blocked }: {
+    /** The customer's stored trust score (customer_trust.trust_score); null until scored. */
+    score: number | null;
+    /** From isBlockedCustomer: a blocked customer shows no score, as on the hero. */
+    blocked: boolean;
+}) {
     const { t, language } = useLanguage();
     const { isScoreBreakdownModalOpen, setScoreBreakdownModalOpen, scoreBreakdownPhone } = useCustomerStore();
     const { data: breakdown, isLoading } = useTrustScoreBreakdown(scoreBreakdownPhone || undefined);
@@ -21,13 +29,18 @@ export function ScoreBreakdownModal() {
 
     const handleClose = () => setScoreBreakdownModalOpen(false);
 
-    const items = (breakdown?.items ?? []).filter((item) => item.value !== 0 || item.label === "base");
+    const factors = (breakdown?.items ?? []).filter((item) => item.value !== 0 || item.label === "base");
+    const factorSum = factors.reduce((sum, item) => sum + item.value, 0);
+    // The stored score is the truth; the bars are what it is made of.
+    const raw = storedScore ?? factorSum;
+    const gap = Math.round(raw - factorSum);
+    const items = gap === 0 || factors.length === 0
+        ? factors
+        : [...factors, { label: "adjustments", value: gap, type: gap > 0 ? "positive" as const : "negative" as const }];
     const maxVal = Math.max(...items.map((b) => Math.abs(b.value)), 1);
-    const raw = items.reduce((sum, item) => sum + item.value, 0);
     const score = displayScore(raw);
-    // Same rule as the profile: a new or blocked customer has no score to show.
-    const rated = !!breakdown?.tier && hasRatedScore(breakdown.tier);
-    const blocked = breakdown?.tier === "blocked";
+    // Same rule as the profile hero: a new or blocked customer has no score to show.
+    const rated = storedScore !== null && showsTrustScore({ trust_tier: breakdown?.tier ?? "new" }) && !blocked;
 
     return (
         <ModalShell
@@ -80,7 +93,7 @@ export function ScoreBreakdownModal() {
                             );
                         })}
 
-                        {/* The total the bars add up to: the number the user clicked */}
+                        {/* The stored score, the number the user clicked; the bars above add up to it */}
                         <div className="flex items-center gap-3 pt-3 mt-1 border-t border-(--card-border)">
                             <span className="text-sm font-semibold text-foreground w-36 shrink-0 text-start">
                                 {t("customers.scoreBreakdown.total")}

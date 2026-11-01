@@ -248,7 +248,10 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => setIsOpen(true)}
                     placeholder={t("search.placeholder")}
-                    className="flex-1 bg-transparent text-foreground placeholder:text-muted focus:outline-none text-sm"
+                    // w-0 + flex-1: the input takes the space left over. Its intrinsic width
+                    // would otherwise set the bar's minimum and, at 1280px, push the bar
+                    // under the header actions.
+                    className="flex-1 w-0 min-w-0 bg-transparent text-foreground placeholder:text-muted focus:outline-none text-sm"
                 />
 
                 {/* Clear Button */}
@@ -271,7 +274,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                 <span className="text-xs text-muted font-medium">{t("search.in")}</span>
 
                 {/* Category Pills */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                     {categories.map((cat) => (
                         <button
                             key={cat.id}
@@ -413,12 +416,14 @@ export function TopBar({ onMenuClick, isMobile }: TopBarProps) {
                 </div>
 
                 {/* Global Search Centered - Hidden on mobile */}
-                <div className="hidden md:flex flex-1 justify-center w-full max-w-2xl mx-auto">
+                {/* Grows three times as fast as the sides, so the bar keeps room to type in once the actions take their width. */}
+                <div className="hidden md:flex flex-[3] justify-center w-full max-w-2xl mx-auto">
                     <GlobalSearch onOpenChange={setSearchOpen} />
                 </div>
 
-                {/* Right Side Actions */}
-                <div className="flex items-center justify-end gap-2 md:flex-1 md:min-w-[200px]">
+                {/* Right Side Actions: never narrower than its buttons, or at 1280px they
+                    overflow leftwards over the search bar (justify-end pushes them left). */}
+                <div className="flex items-center justify-end gap-2 md:flex-1 md:min-w-fit">
                     {/* Desktop Actions - Hidden on mobile */}
                     <div className="hidden md:flex items-center gap-2">
                         {/* Work tools */}

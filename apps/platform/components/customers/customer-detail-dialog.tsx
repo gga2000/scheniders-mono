@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Dialog, DialogClose, DialogTitle, SheetContent } from "@scheniders/ui/dialog";
 import { useRouter } from "next/navigation";
 import { useCustomerStore } from "@/store/use-customer-store";
 import dynamic from "next/dynamic";
@@ -20,9 +21,11 @@ import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
-    hasRatedScore, averageBasket, displayScore, effectiveSuccessRate, codRiskKey, VALUE_META, RISK_META, customerAccent, statusFlags,
+    averageBasket, displayScore, effectiveSuccessRate, codVerdictKey, firstDeliveryPending, isBlockedCustomer, showsTrustScore,
+    VALUE_META, RISK_META, customerAccent, statusFlags,
 } from "@/lib/customer-reliability";
-import { ValueIcon, RiskIcon } from "@/components/customers/reliability-pill";
+import { computeRefundPayout, orderReceipt } from "@/lib/order-money";
+import { ValueIcon, RiskIcon, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { monogram, formatPhoneDisplay, formatBaghdadDate, formatBaghdadMonthYear, toIraqE164 } from "@/lib/customer-format";
@@ -188,10 +191,9 @@ const IDENTITY_META: Record<IdentityEvent["type"], { icon: typeof User; cls: str
 function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defaultOpen?: boolean; t: Translate; locale: Locale }) {
     const [open, setOpen] = useState(!!defaultOpen);
     const items = (Array.isArray(order.items) ? order.items : []) as OrderItem[];
-    const subtotal = items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
-    const discount = Number(order.discount_amount) || 0;
-    const delivery = Number(order.delivery_fee) || 0;
-    const total = Number(order.price) || 0;
+    // `price` is already net of the discount and leaves delivery out (lib/order-money),
+    // so the receipt is built from the shared helper: Subtotal − Discount + Delivery = Total.
+    const receipt = orderReceipt(order);
     const pillCls = STATUS_CLS[order.status] ?? "bg-zinc-100 text-zinc-700";
     const itemCount = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
     const lines = mergeOrderItems(items);
@@ -200,11 +202,11 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
         <div className="rounded-2xl border border-(--card-border) overflow-hidden bg-(--card-bg)">
             {/* Header */}
             <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background transition-colors text-left">
-                <span className="text-xs text-muted-foreground w-24 shrink-0 tabular-nums whitespace-nowrap">{fmtDate(locale, order.created_at)}</span>
+                <span className="text-xs text-muted-foreground min-w-24 shrink-0 tabular-nums whitespace-nowrap">{fmtDate(locale, order.created_at)}</span>
                 <span className={cn("text-xs font-bold px-2.5 py-1 rounded-full shrink-0", pillCls)}>{getStatusLabel(order.status, !!order.is_return, locale)}</span>
                 {order.order_id && <span className="font-mono text-xs text-muted-foreground/70 hidden sm:inline">#{order.order_id}</span>}
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">{itemCount} {t(itemCount === 1 ? "customers.dialog.item" : "customers.dialog.items", itemCount === 1 ? "item" : "items")}</span>
-                <span className="font-mono font-bold text-sm shrink-0 tabular-nums">{formatIQD(total)}</span>
+                <span className="font-mono font-bold text-sm shrink-0 tabular-nums">{formatIQD(receipt.total)}</span>
                 <ChevronDown className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", open && "rotate-180")} />
             </button>
 
@@ -234,10 +236,16 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
 
                             {/* Money breakdown */}
                             <div className="mt-3 pt-3 border-t border-(--card-border) space-y-1.5 text-sm">
-                                <div className="flex items-center justify-between text-muted-foreground"><span>{t("customers.dialog.subtotal", "Subtotal")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(subtotal)}</span></div>
-                                {discount > 0 && <div className="flex items-center justify-between text-rose-600"><span>{t("customers.dialog.discount", "Discount")}</span><span className="font-mono tabular-nums">−{formatIQD(discount)}</span></div>}
-                                {delivery > 0 && <div className="flex items-center justify-between text-muted-foreground"><span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" />{t("customers.dialog.delivery", "Delivery")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(delivery)}</span></div>}
-                                <div className="flex items-center justify-between pt-1.5 border-t border-(--card-border) font-bold"><span>{t("customers.dialog.total", "Total")}</span><span className="font-mono tabular-nums">{formatIQD(total)}</span></div>
+                                <div className="flex items-center justify-between text-muted-foreground"><span>{t("customers.dialog.subtotal", "Subtotal")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(receipt.subtotal)}</span></div>
+                                {receipt.discount > 0 && <div className="flex items-center justify-between text-rose-600 dark:text-rose-300"><span>{t("customers.dialog.discount", "Discount")}</span><span className="font-mono tabular-nums">−{formatIQD(receipt.discount)}</span></div>}
+                                {receipt.delivery > 0 && <div className="flex items-center justify-between text-muted-foreground"><span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" />{t("customers.dialog.delivery", "Delivery")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(receipt.delivery)}</span></div>}
+                                <div className="flex items-center justify-between pt-1.5 border-t border-(--card-border) font-bold"><span>{t("customers.dialog.total", "Total")}</span><span className="font-mono tabular-nums">{formatIQD(receipt.total)}</span></div>
+                                {/* A refund order moves cash the other way; a prepaid order is worth its total, but the courier collects nothing. */}
+                                {order.is_return ? (
+                                    <div className="flex items-center justify-between text-muted-foreground"><span>{t("customers.dialog.refundPayout", "Paid to customer")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(computeRefundPayout(order))}</span></div>
+                                ) : receipt.collect !== receipt.total && (
+                                    <div className="flex items-center justify-between text-muted-foreground"><span>{t("customers.dialog.collect", "Courier collects")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(receipt.collect)}</span></div>
+                                )}
                             </div>
 
                             {/* Meta: payment + address + notes */}
@@ -280,7 +288,6 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
     const [blacklistMode, setBlacklistMode] = useState<"add" | "remove" | null>(null);
     const [creatingOrder, setCreatingOrder] = useState(false);
     const data = useCustomerDialogData(customer?.phone ?? null, limit);
-    const nestedOpen = blacklistMode !== null || creatingOrder;
     const blockedEntry = useQuery({
         queryKey: ["customer-blacklist-entry", tenantId, customer?.phone],
         queryFn: () => fetchBlacklistEntry(tenantId as string, customer?.phone as string),
@@ -295,22 +302,14 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
         }
     }, [blockedLookupFailed, t]);
 
+    // A different customer starts fresh: first page of orders, no nested dialog open.
+    // Scroll lock, the focus trap and Escape come from the Radix dialog.
     const customerPhone = customer?.phone;
     useEffect(() => {
+        setLimit(60);
         setBlacklistMode(null);
         setCreatingOrder(false);
     }, [customerPhone]);
-
-    useEffect(() => {
-        if (!customer) return;
-        setLimit(60); // reset paging each time a new customer opens
-        const prev = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-        // A nested dialog (block, new order) handles its own Escape.
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !nestedOpen) onClose(); };
-        window.addEventListener("keydown", onKey);
-        return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
-    }, [customer, onClose, nestedOpen]);
 
     const onBlacklistConfirm = async (reason?: string, notes?: string) => {
         if (!customer || !tenantId) throw new Error("No active store");
@@ -335,27 +334,31 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
 
     return (
-        <AnimatePresence>
-            {customer && (
-                <Body
-                    key={customer.phone}
-                    customer={customer}
-                    data={data.data}
-                    loading={data.isLoading}
-                    failed={data.isError}
-                    onRetry={() => data.refetch()}
-                    fetchingMore={data.isFetching && !data.isLoading}
-                    canLoadMore={!loadedAll}
-                    onLoadMore={() => setLimit((l) => l + 60)}
-                    onClose={onClose}
-                    onOpenFull={() => { setProfileFromList(customer.phone); router.push(`/customers/${encodeURIComponent(customer.phone)}`); }}
-                    onNewOrder={() => setCreatingOrder(true)}
-                    canEdit={canEdit}
-                    onToggleBlock={(customer.is_blacklisted ? !canUnblock : !canBlock) ? undefined : () => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}
-                    t={t}
-                    locale={language}
-                />
-            )}
+        <>
+            <Dialog open={!!customer} onOpenChange={(open) => { if (!open) onClose(); }}>
+                <AnimatePresence>
+                    {customer && (
+                        <SheetContent key={customer.phone} aria-describedby={undefined}>
+                            <Body
+                                customer={customer}
+                                data={data.data}
+                                loading={data.isLoading}
+                                failed={data.isError}
+                                onRetry={() => data.refetch()}
+                                fetchingMore={data.isFetching && !data.isLoading}
+                                canLoadMore={!loadedAll}
+                                onLoadMore={() => setLimit((l) => l + 60)}
+                                onOpenFull={() => { setProfileFromList(customer.phone); router.push(`/customers/${encodeURIComponent(customer.phone)}`); }}
+                                onNewOrder={() => setCreatingOrder(true)}
+                                canEdit={canEdit}
+                                onToggleBlock={(customer.is_blacklisted ? !canUnblock : !canBlock) ? undefined : () => setBlacklistMode(customer.is_blacklisted ? "remove" : "add")}
+                                t={t}
+                                locale={language}
+                            />
+                        </SheetContent>
+                    )}
+                </AnimatePresence>
+            </Dialog>
             {customer && blacklistMode && (
                 <BlacklistDialog
                     open
@@ -384,12 +387,12 @@ export function CustomerDetailDialog({ customer, onClose }: { customer: Paginate
                     }}
                 />
             )}
-        </AnimatePresence>
+        </>
     );
 }
 
 function Body({
-    customer, data, loading, failed, onRetry, fetchingMore, canLoadMore, onLoadMore, onClose, onOpenFull, onNewOrder, onToggleBlock, canEdit, t, locale,
+    customer, data, loading, failed, onRetry, fetchingMore, canLoadMore, onLoadMore, onOpenFull, onNewOrder, onToggleBlock, canEdit, t, locale,
 }: {
     customer: PaginatedCustomer;
     data: ReturnType<typeof useCustomerDialogData>["data"];
@@ -399,7 +402,6 @@ function Body({
     fetchingMore: boolean;
     canLoadMore: boolean;
     onLoadMore: () => void;
-    onClose: () => void;
     onOpenFull: () => void;
     onNewOrder: () => void;
     /** Omitted when the customer is blocked and the user may not unblock. */
@@ -410,14 +412,14 @@ function Body({
 }) {
     const value = customer.value_tier;
     const risk = customer.risk_level;
-    const blocked = customer.is_blacklisted || risk === "blocked";
-    const rated = hasRatedScore(customer.trust_tier);
+    const blocked = isBlockedCustomer(customer);
+    const rated = showsTrustScore(customer);
     const meta = VALUE_META[value];
     const accent = customerAccent(value, risk);
     const unsafe = risk === "blocked" || risk === "high";
     const e164 = toIraqE164(customer.phone);
     const gov = customer.governorate ? governorateLabel(customer.governorate, locale) || customer.governorate : null;
-    const codKey = codRiskKey(risk);
+    const codKey = codVerdictKey(risk, firstDeliveryPending(customer));
     // Once the live read is in, every stat comes from it, not from the list's cached row.
     const totalOrders = data?.totalOrders ?? customer.total_orders;
     const completed = data?.completedCount ?? customer.completed_count;
@@ -433,212 +435,199 @@ function Body({
         && !(ev.type === "phone" && customer.secondary_phone && formatPhoneDisplay(ev.value) === formatPhoneDisplay(customer.secondary_phone)));
     const flagged = statusFlags(customer).length > 0;
 
-    const stats: { v: string; k: string }[] = [
-        { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders") },
-        { v: completed.toLocaleString("en-US"), k: t("customers.card.delivered") },
-        { v: formatIQD(spent), k: t("customers.drawer.lifetime") },
-        { v: formatIQD(avgBasket), k: t("customers.drawer.avgBasket") },
-        { v: `${successRate}%`, k: t("customers.table.success", "Success") },
+    // Counts on the first row, money on the second: the sheet is too narrow for five across.
+    const stats: { v: string; k: string; span: string }[] = [
+        { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders"), span: "col-span-2" },
+        { v: completed.toLocaleString("en-US"), k: t("customers.stat.delivered"), span: "col-span-2" },
+        { v: `${successRate}%`, k: t("customers.table.success", "Delivery rate"), span: "col-span-2" },
+        { v: formatIQD(spent), k: t("customers.drawer.lifetime"), span: "col-span-3" },
+        { v: formatIQD(avgBasket), k: t("customers.drawer.avgBasket"), span: "col-span-3" },
     ];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
-                onClick={onClose} className="absolute inset-0 bg-zinc-900/45 backdrop-blur-[2px]"
-            />
-            <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97, y: 8 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="relative w-full max-w-[1080px] max-h-[88vh] bg-(--card-bg) rounded-3xl border border-(--card-border) shadow-[0_30px_90px_-20px_rgba(0,0,0,0.4)] flex flex-col overflow-hidden"
-            >
-                {/* Header */}
-                <div className="flex items-center gap-4 px-6 py-4 border-b border-(--card-border) shrink-0">
-                    <span className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-xl shrink-0", meta.pillBg, meta.pillText)}>
-                        {customer.has_name ? monogram(customer.name) : <User className="w-6 h-6" />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                        {/* Value and risk are said once, in the band below. */}
-                        <h2 dir="auto" className="text-xl font-extrabold tracking-tight truncate min-w-0 text-left">{customer.name}</h2>
-                        <div className="flex items-center gap-x-4 gap-y-1 mt-1 text-[13px] text-muted-foreground flex-wrap">
-                            {customer.has_name && <span className="font-mono tabular-nums inline-flex items-center gap-1.5 whitespace-nowrap"><Phone className="w-3.5 h-3.5" />{formatPhoneDisplay(customer.phone)}</span>}
-                            {gov && <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /><bdi>{gov}</bdi></span>}
-                            <span className="inline-flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{t("customers.drawer.since", { date: monthYear(locale, data?.firstOrderDate ?? customer.first_order_date) })}</span>
-                        </div>
+        <>
+            {/* Header */}
+            <div className="flex items-center gap-3.5 px-5 py-4 border-b border-(--card-border) shrink-0">
+                <span className={cn("w-12 h-12 rounded-2xl flex items-center justify-center font-extrabold text-lg shrink-0", accent.surfaceBg, accent.surfaceText)}>
+                    {customer.has_name ? monogram(customer.name) : <User className="w-5 h-5" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                    {/* Value and risk are said once, in the band below. */}
+                    <DialogTitle dir="auto" className="text-xl font-extrabold tracking-tight leading-tight truncate min-w-0 text-left">{customer.name}</DialogTitle>
+                    <div className="flex items-center gap-x-3.5 gap-y-1 mt-1 text-[13px] text-muted-foreground flex-wrap">
+                        {customer.has_name && <span className="font-mono tabular-nums inline-flex items-center gap-1.5 whitespace-nowrap"><Phone className="w-3.5 h-3.5" />{formatPhoneDisplay(customer.phone)}</span>}
+                        {gov && <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /><bdi>{gov}</bdi></span>}
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><Calendar className="w-3.5 h-3.5" />{t("customers.drawer.since", { date: monthYear(locale, data?.firstOrderDate ?? customer.first_order_date) })}</span>
                     </div>
-                    <button onClick={onClose} className="w-11 h-11 rounded-xl border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40 shrink-0" aria-label={t("common.close")}>
+                </div>
+                <button onClick={onOpenFull} className="h-10 px-3 rounded-xl border border-(--card-border) text-sm font-semibold text-muted-foreground inline-flex items-center gap-1.5 hover:bg-muted/40 hover:text-foreground transition-colors shrink-0">
+                    <ExternalLink className="w-4 h-4" /> {t("customers.drawer.openFull", "Full profile")}
+                </button>
+                <DialogClose asChild>
+                    <button className="w-10 h-10 rounded-xl border border-(--card-border) flex items-center justify-center text-muted-foreground hover:bg-muted/40 shrink-0" aria-label={t("common.close")}>
                         <X className="w-4 h-4" />
                     </button>
+                </DialogClose>
+            </div>
+
+            {/* Scroll body */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                {/* Value + COD-risk band, with the order outcomes behind the risk */}
+                <div className={cn("rounded-2xl p-4", accent.surfaceBg)}>
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <span className={cn("w-9 h-9 rounded-xl bg-white/60 dark:bg-white/10 flex items-center justify-center shrink-0", accent.surfaceText)}>
+                                {unsafe ? <RiskIcon risk={risk} className="w-5 h-5" /> : <ValueIcon tier={value} className="w-5 h-5" />}
+                            </span>
+                            <div className={cn("min-w-0", accent.surfaceText)}>
+                                <div className="text-xs font-medium opacity-75">{unsafe ? t("customers.risk.label", "COD risk") : t("customers.value.label", "Value")}</div>
+                                <div className="text-lg font-extrabold leading-tight">{unsafe ? t(`customers.risk.${risk}`) : t(`customers.value.${value}`, meta.label)}</div>
+                                {/* Caution is an instruction, so it reads amber, not in the value colour. */}
+                                {risk === "caution" ? (
+                                    <span className={cn("mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold", RISK_META.caution.chipBg, RISK_META.caution.chipText)}>
+                                        <Clock className="w-3.5 h-3.5" />{t(codKey)}
+                                    </span>
+                                ) : (
+                                    <div className="text-[13px] font-medium opacity-80">{t(codKey)}</div>
+                                )}
+                            </div>
+                        </div>
+                        {rated && <div className={cn("font-mono text-3xl font-semibold tabular-nums shrink-0", accent.surfaceText)}>{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>}
+                    </div>
+                    {flagged && <CustomerStatusFlags customer={customer} max={4} className="mt-3 ps-12" />}
                 </div>
 
-                {/* Scroll body */}
-                <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-                    {/* Value + COD-risk band */}
-                    <div className={cn("grid grid-cols-1 gap-3 items-stretch", flagged && "md:grid-cols-[minmax(0,1fr)_auto]")}>
-                        <div className={cn("min-w-0 rounded-2xl p-4 flex items-center justify-between gap-3", accent.surfaceBg)}>
-                            <div className="flex items-center gap-3 min-w-0">
-                                <span className={cn("w-9 h-9 rounded-xl bg-white/60 dark:bg-white/10 flex items-center justify-center shrink-0", accent.surfaceText)}>
-                                    {unsafe ? <RiskIcon risk={risk} className="w-5 h-5" /> : <ValueIcon tier={value} className="w-5 h-5" />}
-                                </span>
-                                <div className={cn("min-w-0", accent.surfaceText)}>
-                                    <div className="text-xs font-medium opacity-75">{unsafe ? t("customers.risk.label", "COD risk") : t("customers.value.label", "Value")}</div>
-                                    <div className="text-lg font-extrabold leading-tight">{unsafe ? t(`customers.risk.${risk}`) : t(`customers.value.${value}`, meta.label)}</div>
-                                    {/* Caution is an instruction, so it reads amber, not in the value colour. */}
-                                    {risk === "caution" ? (
-                                        <span className={cn("mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold", RISK_META.caution.chipBg, RISK_META.caution.chipText)}>
-                                            <Clock className="w-3.5 h-3.5" />{t(codKey)}
-                                        </span>
-                                    ) : (
-                                        <div className="text-[13px] font-medium opacity-80">{t(codKey)}</div>
-                                    )}
-                                </div>
-                            </div>
-                            {rated && <div className={cn("font-mono text-3xl font-semibold tabular-nums shrink-0", accent.surfaceText)}>{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>}
+                {/* Stat strip */}
+                <div className="grid grid-cols-6 gap-2.5">
+                    {stats.map((s) => (
+                        <div key={s.k} className={cn("rounded-2xl border border-(--card-border) p-3", s.span)}>
+                            <div className="font-mono text-lg font-extrabold tabular-nums tracking-tight whitespace-nowrap">{s.v}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{s.k}</div>
                         </div>
-                        {flagged && (
-                            <div className="rounded-2xl border border-(--card-border) bg-background p-3 flex items-center min-w-0 md:max-w-[260px]">
-                                <CustomerStatusFlags customer={customer} max={4} />
-                            </div>
-                        )}
-                    </div>
+                    ))}
+                </div>
 
-                    {/* Stat strip */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                        {stats.map((s) => (
-                            <div key={s.k} className="rounded-2xl border border-(--card-border) bg-background p-3.5">
-                                <div className="font-mono text-xl font-extrabold tabular-nums tracking-tight whitespace-nowrap">{s.v}</div>
-                                <div className="text-xs text-muted-foreground mt-0.5">{s.k}</div>
+                {/* Notes are instructions for whoever ships next: above the orders, not under them. */}
+                {data && data.notes.length > 0 && (
+                    <div className="space-y-2">
+                        {data.notes.map((n, i) => (
+                            <div key={i} className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[13px] text-amber-900 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-200">
+                                <StickyNote className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
+                                <span dir="auto" className="text-left">{n.note}</span>
                             </div>
                         ))}
                     </div>
+                )}
 
-                    {/* Two columns */}
-                    <div className="grid lg:grid-cols-[330px_1fr] gap-5">
-                        {/* Left: identity & history + tags/notes */}
-                        <div className="space-y-5">
-                            <section>
-                                <h3 className="text-[15px] font-bold flex items-center gap-2 mb-2.5"><User className="w-4 h-4 text-muted-foreground" />{t("customers.dialog.identity", "Identity & history")}</h3>
-                                <div className="rounded-2xl border border-(--card-border) p-3 space-y-3">
-                                    {/* The main phone is in the header; only the alternate one is new here. */}
-                                    {customer.secondary_phone && (
-                                        <div className="text-[13px]">
-                                            <div className="text-muted-foreground text-xs mb-1">{t("customers.dialog.altPhone", "Alternate phone")}</div>
-                                            <div className="font-mono tabular-nums whitespace-nowrap">{formatPhoneDisplay(customer.secondary_phone)}</div>
-                                        </div>
-                                    )}
-                                    {/* Change timeline */}
-                                    {identity.length > 0 && (
-                                        <div className={cn("space-y-2", customer.secondary_phone && "pt-2 border-t border-(--card-border)")}>
-                                            {identity.slice(0, 8).map((ev, i) => {
-                                                const im = IDENTITY_META[ev.type];
-                                                const Icon = im.icon;
-                                                return (
-                                                    <div key={i} className="flex items-start gap-2.5">
-                                                        <span className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", im.cls)}><Icon className="w-3.5 h-3.5" /></span>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="text-xs text-muted-foreground">{t(`customers.dialog.field.${ev.type}`, im.label)} · {fmtDate(locale, ev.at)}</div>
-                                                            <div dir="auto" className="text-[13px] truncate text-left">{ev.type === "phone" ? formatPhoneDisplay(ev.value) : ev.value}</div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                    {identity.length === 0 && !loading && (
-                                        <div className={cn("text-xs text-muted-foreground", customer.secondary_phone && "pt-2 border-t border-(--card-border)")}>{t("customers.dialog.noChanges", "No recorded changes.")}</div>
-                                    )}
-                                </div>
-                            </section>
-
-                            <section>
-                                <h3 className="text-[15px] font-bold flex items-center gap-2 mb-2.5"><Tag className="w-4 h-4 text-muted-foreground" />{t("customers.drawer.tagsNotes", "Tags & notes")}</h3>
-                                {data && data.notes.length > 0 && (
-                                    <div className="mb-3 space-y-2">
-                                        {data.notes.map((n, i) => (
-                                            <div key={i} dir="auto" className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[13px] text-amber-900 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-200">{n.note}</div>
-                                        ))}
-                                    </div>
-                                )}
-                                {canEdit && (
-                                    <div className="rounded-2xl border border-(--card-border) p-3">
-                                        <CustomerQuickActions phone={customer.phone} />
-                                    </div>
-                                )}
-                            </section>
+                {/* Order history: what the sheet is opened for */}
+                <section>
+                    <h3 className="text-[15px] font-bold flex items-center gap-2 mb-2.5">
+                        <ShoppingBag className="w-4 h-4 text-muted-foreground" />{t("customers.profile.orderHistory", "Order history")}
+                        {data && <span className="text-xs font-normal text-muted-foreground">({data.totalOrders.toLocaleString("en-US")})</span>}
+                    </h3>
+                    {loading ? (
+                        <div className="space-y-2.5">
+                            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-14 rounded-2xl border border-(--card-border) bg-background animate-pulse" />)}
                         </div>
-
-                        {/* Right: order history */}
-                        <section>
-                            <h3 className="text-[15px] font-bold flex items-center gap-2 mb-2.5">
-                                <ShoppingBag className="w-4 h-4 text-muted-foreground" />{t("customers.drawer.recentOrders", "Order history")}
-                                {data && <span className="text-xs font-normal text-muted-foreground">({data.totalOrders.toLocaleString("en-US")})</span>}
-                            </h3>
-                            {loading ? (
-                                <div className="space-y-2.5">
-                                    {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-14 rounded-2xl border border-(--card-border) bg-background animate-pulse" />)}
-                                </div>
-                            ) : data && data.orders.length > 0 ? (
-                                <div className="space-y-2.5">
-                                    {data.orders.map((o, i) => <OrderCard key={o.id} order={o} defaultOpen={i === 0} t={t} locale={locale} />)}
-                                    {canLoadMore && (
-                                        <button
-                                            onClick={onLoadMore}
-                                            disabled={fetchingMore}
-                                            className="w-full h-11 rounded-2xl border border-(--card-border) bg-background text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-50 transition-colors"
-                                        >
-                                            {fetchingMore ? "…" : t("common.loadMore", "Load more")}
-                                        </button>
-                                    )}
-                                </div>
-                            ) : failed ? (
-                                <div className="rounded-2xl border border-(--card-border) p-8 text-center">
-                                    <p className="text-sm text-foreground mb-4">{t("customers.dialog.loadFailed")}</p>
-                                    <button onClick={onRetry} className="h-11 px-5 rounded-xl bg-foreground text-background text-sm font-semibold">
-                                        {t("customers.profile.retry")}
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="rounded-2xl border border-(--card-border) p-8 text-center text-sm text-muted-foreground">{t("customers.dialog.noOrders", "No orders found.")}</div>
+                    ) : data && data.orders.length > 0 ? (
+                        <div className="space-y-2.5">
+                            {data.orders.map((o, i) => <OrderCard key={o.id} order={o} defaultOpen={i === 0} t={t} locale={locale} />)}
+                            {canLoadMore && (
+                                <button
+                                    onClick={onLoadMore}
+                                    disabled={fetchingMore}
+                                    className="w-full h-11 rounded-2xl border border-(--card-border) bg-background text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-50 transition-colors"
+                                >
+                                    {fetchingMore ? "…" : t("common.loadMore", "Load more")}
+                                </button>
                             )}
-                        </section>
+                        </div>
+                    ) : failed ? (
+                        <div className="rounded-2xl border border-(--card-border) p-8 text-center">
+                            <p className="text-sm text-foreground mb-4">{t("customers.dialog.loadFailed")}</p>
+                            <button onClick={onRetry} className="h-11 px-5 rounded-xl bg-foreground text-background text-sm font-semibold">
+                                {t("customers.profile.retry")}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-(--card-border) p-8 text-center text-sm text-muted-foreground">{t("customers.dialog.noOrders", "No orders found.")}</div>
+                    )}
+                </section>
+
+                {canEdit && (
+                    <section>
+                        <h3 className="text-[15px] font-bold flex items-center gap-2 mb-2.5"><Tag className="w-4 h-4 text-muted-foreground" />{t("customers.drawer.tagsNotes", "Tags & notes")}</h3>
+                        <div className="rounded-2xl border border-(--card-border) p-3">
+                            <CustomerQuickActions phone={customer.phone} />
+                        </div>
+                    </section>
+                )}
+
+                <section>
+                    <h3 className="text-[15px] font-bold flex items-center gap-2 mb-2.5"><User className="w-4 h-4 text-muted-foreground" />{t("customers.dialog.identity", "Identity & history")}</h3>
+                    <div className="rounded-2xl border border-(--card-border) p-3 space-y-3">
+                        {/* The main phone is in the header; only the alternate one is new here. */}
+                        {customer.secondary_phone && (
+                            <div className="text-[13px]">
+                                <div className="text-muted-foreground text-xs mb-1">{t("customers.dialog.altPhone", "Alternate phone")}</div>
+                                <div className="font-mono tabular-nums whitespace-nowrap">{formatPhoneDisplay(customer.secondary_phone)}</div>
+                            </div>
+                        )}
+                        {/* Change timeline */}
+                        {identity.length > 0 && (
+                            <div className={cn("space-y-2", customer.secondary_phone && "pt-2 border-t border-(--card-border)")}>
+                                {identity.slice(0, 8).map((ev, i) => {
+                                    const im = IDENTITY_META[ev.type];
+                                    const Icon = im.icon;
+                                    return (
+                                        <div key={i} className="flex items-start gap-2.5">
+                                            <span className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", im.cls)}><Icon className="w-3.5 h-3.5" /></span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="text-xs text-muted-foreground">{t(`customers.dialog.field.${ev.type}`, im.label)} · {fmtDate(locale, ev.at)}</div>
+                                                <div dir="auto" className="text-[13px] truncate text-left">{ev.type === "phone" ? formatPhoneDisplay(ev.value) : ev.value}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {identity.length === 0 && !loading && (
+                            <div className={cn("text-xs text-muted-foreground", customer.secondary_phone && "pt-2 border-t border-(--card-border)")}>{t("customers.dialog.noChanges", "No recorded changes.")}</div>
+                        )}
                     </div>
-                </div>
+                </section>
+            </div>
 
-                {/* Footer */}
-                {/* Footer: one filled primary. New order for a customer you may ship to;
-                    for a blocked one there is no new order (as on the profile), and Unblock leads. */}
-                <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-t border-(--card-border) shrink-0">
-                    <a href={`https://wa.me/${e164}`} target="_blank" rel="noopener noreferrer" className="h-11 px-4 rounded-xl bg-lime-50 text-lime-800 dark:bg-lime-400/15 dark:text-lime-200 font-semibold inline-flex items-center justify-center gap-2 hover:bg-lime-100 dark:hover:bg-lime-400/25 transition-colors">
-                        <MessageCircle className="w-4 h-4" /> {t("customers.actions.whatsapp")}
-                    </a>
-                    <a href={`tel:+${e164}`} className="h-11 px-4 rounded-xl border border-(--card-border) font-semibold inline-flex items-center justify-center gap-2 hover:bg-muted/40 transition-colors">
-                        <Phone className="w-4 h-4" /> {t("customers.drawer.call", "Call")}
-                    </a>
-                    <button onClick={onOpenFull} className="h-11 px-4 rounded-xl border border-(--card-border) font-semibold text-muted-foreground inline-flex items-center justify-center gap-2 hover:bg-muted/40 transition-colors">
-                        <ExternalLink className="w-4 h-4" /> {t("customers.drawer.openFull", "Full profile")}
+            {/* Footer: one filled primary. New order for a customer you may ship to;
+                for a blocked one there is no new order (as on the profile), and Unblock leads. */}
+            <div className="flex items-center gap-2 px-5 py-3 border-t border-(--card-border) shrink-0">
+                <a href={`https://wa.me/${e164}`} target="_blank" rel="noopener noreferrer" className={cn("h-11 px-4 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-colors", WHATSAPP_TONE)}>
+                    <MessageCircle className="w-4 h-4" /> {t("customers.actions.whatsapp")}
+                </a>
+                <a href={`tel:+${e164}`} className="h-11 px-4 rounded-xl border border-(--card-border) font-semibold inline-flex items-center justify-center gap-2 hover:bg-muted/40 transition-colors">
+                    <Phone className="w-4 h-4" /> {t("customers.drawer.call", "Call")}
+                </a>
+                <span className="flex-1" />
+                {onToggleBlock && (
+                    <button
+                        onClick={onToggleBlock}
+                        className={cn(
+                            "h-11 px-4 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-colors",
+                            customer.is_blacklisted
+                                ? "bg-foreground text-background hover:opacity-90 min-w-36"
+                                : "border border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/40",
+                        )}
+                    >
+                        <Ban className="w-4 h-4" />
+                        {customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}
                     </button>
-                    <span className="flex-1" />
-                    {onToggleBlock && (
-                        <button
-                            onClick={onToggleBlock}
-                            className={cn(
-                                "h-11 px-4 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-colors",
-                                customer.is_blacklisted
-                                    ? "bg-foreground text-background hover:opacity-90 min-w-40"
-                                    : "border border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300 dark:hover:bg-rose-950/40",
-                            )}
-                        >
-                            <Ban className="w-4 h-4" />
-                            {customer.is_blacklisted ? t("customers.details.unblock") : t("customers.drawer.block")}
-                        </button>
-                    )}
-                    {!blocked && (
-                        <button onClick={onNewOrder} className="h-11 px-5 min-w-40 rounded-xl bg-foreground text-background font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
-                            <Plus className="w-4 h-4" /> {t("customers.drawer.newOrder", "New order")}
-                        </button>
-                    )}
-                </div>
-            </motion.div>
-        </div>
+                )}
+                {!blocked && (
+                    <button onClick={onNewOrder} className="h-11 px-5 rounded-xl bg-foreground text-background font-bold inline-flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                        <Plus className="w-4 h-4" /> {t("customers.drawer.newOrder", "New order")}
+                    </button>
+                )}
+            </div>
+        </>
     );
 }

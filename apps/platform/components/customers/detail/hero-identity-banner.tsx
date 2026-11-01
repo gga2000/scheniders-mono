@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MessageCircle, Phone, ShieldAlert, ShieldCheck, Star } from "lucide-react";
+import { MessageCircle, Phone, Plus, ShieldAlert, ShieldCheck, Star } from "lucide-react";
 import { formatBaghdadMonthYear, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
-import { displayScore, hasRatedScore, VALUE_META, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
-import { RiskChip, ValuePill } from "@/components/customers/reliability-pill";
+import { customerAccent, displayScore, isBlockedCustomer, showsTrustScore, VALUE_META, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
+import { RiskChip, ValuePill, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 
 interface HeroIdentityBannerProps {
     name: string;
@@ -29,6 +29,8 @@ interface HeroIdentityBannerProps {
     firstOrderDate?: string | null;
     /** False when the value/risk banner right below already shows both pills. */
     showAxes?: boolean;
+    /** Starts a new order for this customer. Omitted for a blocked customer: the block means do not ship. */
+    onNewOrder?: () => void;
 }
 
 const TRUST_SCORE_SUBTITLE_KEY: Record<TrustTier, string> = {
@@ -56,6 +58,7 @@ export function HeroIdentityBanner({
     tags,
     firstOrderDate,
     showAxes = true,
+    onNewOrder,
 }: HeroIdentityBannerProps) {
     const { t, language } = useLanguage();
     const store = useCustomerStore();
@@ -63,8 +66,12 @@ export function HeroIdentityBanner({
     const canEdit = can(PERMISSIONS.EDIT_CUSTOMERS);
     const config = TRUST_TIER_CONFIG[tier];
 
-    const valueMeta = valueTier ? VALUE_META[valueTier] : null;
-    const blocked = isBlacklisted || riskLevel === "blocked" || tier === "blocked";
+    const block = { is_blacklisted: isBlacklisted, risk_level: riskLevel, trust_tier: tier };
+    const blocked = isBlockedCustomer(block);
+    // The avatar is tinted like the drawer band: the risk colour when COD is unsafe, never a green value tier.
+    const avatarTone = valueTier
+        ? customerAccent(valueTier, blocked ? "blocked" : riskLevel ?? "clean")
+        : { surfaceBg: config.bgClass, surfaceText: config.textClass };
     // A shield with a tick next to a failing score contradicts it.
     const unsafe = blocked || riskLevel === "high" || tier === "risky" || tier === "critical";
     const ShieldIcon = unsafe ? ShieldAlert : ShieldCheck;
@@ -72,10 +79,9 @@ export function HeroIdentityBanner({
     const valueLabel = valueTier ? t(`customers.value.${valueTier}`, VALUE_META[valueTier].label).trim().toLowerCase() : null;
     const shownTags = (tags ?? []).filter((tag) => tag.name.trim().toLowerCase() !== valueLabel);
 
-    // Shown out of 100 the same way the drawer shows it.
-    // Unrated ("new") customers have no proven score, same as the drawer.
-    // Blocked customers get no score either: "100/100" next to Blocked misleads.
-    const shownScore = trustScore === null || !hasRatedScore(tier) ? null : displayScore(trustScore);
+    // Shown out of 100 the same way the drawer shows it, under the same rule:
+    // no score for an unrated customer, nor for a blocked one.
+    const shownScore = trustScore === null || !showsTrustScore(block) ? null : displayScore(trustScore);
 
     const memberSince = firstOrderDate ? formatBaghdadMonthYear(firstOrderDate, language) : null;
 
@@ -98,8 +104,8 @@ export function HeroIdentityBanner({
                         className={cn(
                             "w-14 h-14 rounded-2xl flex items-center justify-center",
                             "text-xl font-bold select-none",
-                            valueMeta ? valueMeta.pillBg : config.bgClass,
-                            valueMeta ? valueMeta.pillText : config.textClass
+                            avatarTone.surfaceBg,
+                            avatarTone.surfaceText
                         )}
                     >
                         {monogram(name)}
@@ -152,54 +158,52 @@ export function HeroIdentityBanner({
                         </div>
                     )}
 
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-2 mt-3">
-                        <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.96 }}
-                            onClick={() =>
-                                window.open(`https://wa.me/${toIraqE164(phone)}`, "_blank")
-                            }
-                            className="w-11 h-11 flex items-center justify-center rounded-full bg-green-500 text-white hover:bg-green-600 transition-colors"
-                            aria-label={t("customers.actions.whatsapp")}
+                    {/* Actions: the same WhatsApp and Call as the drawer, and New order as the one filled button */}
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <a
+                            href={`https://wa.me/${toIraqE164(phone)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn("h-10 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors", WHATSAPP_TONE)}
                         >
                             <MessageCircle className="w-4 h-4" />
-                        </motion.button>
-
-                        <motion.a
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.96 }}
+                            {t("customers.actions.whatsapp")}
+                        </a>
+                        <a
                             href={`tel:+${toIraqE164(phone)}`}
-                            className="w-11 h-11 flex items-center justify-center rounded-full border border-(--card-border) text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label={t("customers.actions.call")}
+                            className="h-10 px-4 rounded-xl border border-(--card-border) text-sm font-semibold text-foreground inline-flex items-center gap-2 hover:bg-muted/40 transition-colors"
                         >
                             <Phone className="w-4 h-4" />
-                        </motion.a>
-
-
+                            {t("customers.actions.call")}
+                        </a>
                         {/* Rating a blocked customer changes nothing you would act on. */}
                         {canEdit && !blocked && (
-                            <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.96 }}
+                            <button
                                 onClick={() => {
                                     store.setCommunityRatingContext({ phone });
                                     store.setCommunityRatingModalOpen(true);
                                 }}
-                                className="flex items-center gap-1.5 min-h-11 px-4 rounded-full border border-(--card-border) text-foreground hover:bg-muted/40 transition-colors text-sm font-semibold"
+                                className="h-10 px-4 rounded-xl border border-(--card-border) text-sm font-semibold text-foreground inline-flex items-center gap-2 hover:bg-muted/40 transition-colors"
                             >
-                                <Star className="w-3.5 h-3.5 text-amber-500" />
+                                <Star className="w-4 h-4 text-amber-500" />
                                 {t("customers.actions.rate")}
-                            </motion.button>
+                            </button>
+                        )}
+                        {onNewOrder && !blocked && (
+                            <button
+                                onClick={onNewOrder}
+                                className="h-10 px-4 rounded-xl bg-foreground text-background text-sm font-bold inline-flex items-center gap-2 hover:opacity-90 transition-opacity"
+                            >
+                                <Plus className="w-4 h-4" />
+                                {t("customers.drawer.newOrder", "New order")}
+                            </button>
                         )}
                     </div>
                 </div>
             </div>
 
             {/* RIGHT — trust score (clickable → opens score breakdown) */}
-            <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
+            <button
                 onClick={() => {
                     store.setScoreBreakdownPhone(phone);
                     store.setScoreBreakdownModalOpen(true);
@@ -234,7 +238,7 @@ export function HeroIdentityBanner({
                     <ShieldIcon className="w-4 h-4 shrink-0" />
                     {t(TRUST_SCORE_SUBTITLE_KEY[tier])}
                 </p>
-            </motion.button>
+            </button>
         </motion.div>
     );
 }

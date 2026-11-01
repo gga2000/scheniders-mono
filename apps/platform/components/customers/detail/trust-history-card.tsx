@@ -77,7 +77,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
     const lastIndex = displayData.length - 1;
 
     return (
-        <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full min-h-[280px]">
+        <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col justify-start h-full min-h-[280px]">
             {/* Header */}
             <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                 <div className="flex items-center gap-2">

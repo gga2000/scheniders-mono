@@ -5,7 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Eye, Download } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -17,6 +17,8 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { storedPhoneVariants } from "@/lib/order-server-search";
 import type { Database } from "@scheniders/supabase/database.types";
 import { formatIQD, getStatusLabel } from "@/lib/utils";
+import { orderReceipt } from "@/lib/order-money";
+import { isBlockedCustomer } from "@/lib/customer-reliability";
 import { formatBaghdadDate, formatPhoneDisplay } from "@/lib/customer-format";
 import { toast } from "@/hooks/use-toast";
 import { useOrderCrud } from "@/hooks/use-order-crud";
@@ -28,7 +30,6 @@ import { TrustHistoryCard } from "@/components/customers/detail/trust-history-ca
 import { BehavioralPatternsCard } from "@/components/customers/detail/behavioral-patterns-card";
 import { DossierNotesCard } from "@/components/customers/detail/dossier-notes-card";
 import { RatingsCard } from "@/components/customers/detail/ratings-card";
-import { FabNewShipment } from "@/components/customers/detail/fab-new-shipment";
 import { ScoreBreakdownModal } from "@/components/customers/modals/score-breakdown-modal";
 import { CommunityRatingModal } from "@/components/customers/modals/community-rating-modal";
 import { LinkCustomersModal } from "@/components/customers/modals/link-customers-modal";
@@ -45,7 +46,9 @@ type ProfileOrder = {
     created_at: string;
     items: unknown;
     price: number | null;
-    total_price: number;
+    delivery_fee: number | null;
+    discount_amount: number | null;
+    payment_status: string | null;
     status: string;
     is_return: boolean | null;
     governorate_code: string | null;
@@ -99,7 +102,7 @@ function useCustomerProfile(phone: string) {
             const reliability = (reliabilityRes.data as CustomerReliability[] | null)?.[0] ?? null;
             const orders: ProfileOrder[] = ((ordersRes.data ?? []) as OrderHistoryRow[]).map((o) => ({
                 id: o.id, order_id: o.order_id, created_at: o.created_at, items: o.items, price: o.price,
-                total_price: o.price ?? 0, status: o.status, is_return: o.is_return, governorate_code: o.governorate_code,
+                delivery_fee: o.delivery_fee, discount_amount: o.discount_amount, payment_status: o.payment_status, status: o.status, is_return: o.is_return, governorate_code: o.governorate_code,
             }));
             const totalOrders = Number(reliability?.total_orders ?? 0);
             const completed = Number(reliability?.completed_count ?? 0);
@@ -217,9 +220,15 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     }
 
     const displayName = profile.name ?? formatPhoneDisplay(profile.phone);
+    // One rule for "blocked" on the hero, the score breakdown and the new-order action.
+    const blocked = isBlockedCustomer({
+        is_blacklisted: profile.isBlacklisted,
+        risk_level: profile.reliability?.risk_level ?? null,
+        trust_tier: profile.trustTier,
+    });
 
     return (
-        <div className="customers-page customer-profile relative min-h-screen px-6 md:px-8 pt-4 pb-24 space-y-4">
+        <div className="customers-page customer-profile relative min-h-screen px-6 md:px-8 pt-4 pb-10 space-y-4">
             {/* Back, and the JSON export */}
             <div className="flex items-center justify-between gap-4">
                 <motion.button
@@ -266,6 +275,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 tags={profile.tags}
                 firstOrderDate={profile.firstOrderDate}
                 showAxes={!profile.reliability || profile.reliability.total_orders === 0}
+                onNewOrder={blocked ? undefined : () => setCreatingOrder(true)}
             />
 
             {/* Value + risk, the order numbers and the last outcomes: the one place these figures live */}
@@ -301,13 +311,12 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                             <th className="py-2.5 px-3 font-semibold">{t("customers.profile.col.items")}</th>
                             <th className="py-2.5 px-3 font-semibold text-right">{t("customers.profile.col.amount")}</th>
                             <th className="py-2.5 px-3 font-semibold">{t("customers.profile.col.status")}</th>
-                            <th className="py-2.5 px-3 text-right"><span className="sr-only">{t("customers.profile.viewOrder")}</span></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-(--card-border)">
                         {profile.orders.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">
+                                <td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
                                     {t("customers.orders.noOrders")}
                                 </td>
                             </tr>
@@ -315,10 +324,23 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                             profile.orders.slice(0, HISTORY_ROWS).map((order) => {
                                 const parsed = Array.isArray(order.items) ? order.items : null;
                                 const lineCount = parsed ? mergeOrderItems(parsed).length : null;
+                                const href = `/orders?search=${encodeURIComponent(order.order_id)}`;
                                 return (
-                                    <tr key={order.id} className="hover:bg-muted/10 transition-colors">
+                                    // The whole row opens the order; the order number is a real link for a new tab.
+                                    <tr
+                                        key={order.id}
+                                        onClick={() => router.push(href)}
+                                        className="cursor-pointer hover:bg-muted/20 transition-colors"
+                                    >
                                         <td className="py-2.5 px-3 font-mono font-semibold text-sm tabular-nums text-foreground">
-                                            #{order.order_id}
+                                            <Link
+                                                href={href}
+                                                onClick={(e) => e.stopPropagation()}
+                                                aria-label={`${t("customers.profile.viewOrder")} #${order.order_id}`}
+                                                className="hover:underline underline-offset-2"
+                                            >
+                                                #{order.order_id}
+                                            </Link>
                                         </td>
                                         <td className="py-2.5 px-3 text-muted-foreground text-[13px] tabular-nums whitespace-nowrap">
                                             {formatBaghdadDate(order.created_at, language)}
@@ -326,20 +348,12 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                         <td className="py-2.5 px-3 text-muted-foreground text-[13px]">
                                             {lineCount === null ? "—" : `${lineCount} ${t(lineCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}
                                         </td>
+                                        {/* The same total as the drawer's receipt: items less discount, plus delivery. */}
                                         <td className="py-2.5 px-3 font-mono font-semibold text-sm tabular-nums text-foreground text-right whitespace-nowrap">
-                                            {formatIQD(Number(order.price || 0))}
+                                            {formatIQD(orderReceipt(order).total)}
                                         </td>
                                         <td className="py-2.5 px-3">
                                             <OrderStatusBadge status={order.status} isReturn={!!order.is_return} />
-                                        </td>
-                                        <td className="py-1 px-3 text-right">
-                                            <Link
-                                                href={`/orders?search=${encodeURIComponent(order.order_id)}`}
-                                                aria-label={t("customers.profile.viewOrder")}
-                                                className="inline-flex w-9 h-9 items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-colors"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </Link>
                                         </td>
                                     </tr>
                                 );
@@ -383,9 +397,6 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 </div>
             </div>
 
-            {/* No new-order shortcut on a blocked customer: the block means do not ship. */}
-            {!profile.isBlacklisted && <FabNewShipment onClick={() => setCreatingOrder(true)} />}
-
             {creatingOrder && (
                 <CreateOrderModal
                     open
@@ -403,7 +414,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             )}
 
             {/* Modals */}
-            <ScoreBreakdownModal />
+            <ScoreBreakdownModal score={profile.trustScore} blocked={blocked} />
             <CommunityRatingModal />
             <LinkCustomersModal />
             <AddNoteModal phone={profile.phone} />

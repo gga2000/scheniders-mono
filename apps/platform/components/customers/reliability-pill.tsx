@@ -61,6 +61,13 @@ export function ValuePill({
     );
 }
 
+/**
+ * The one WhatsApp button colour on every customer surface (card, table,
+ * drawer, profile): a soft lime that reads as "WhatsApp" without shouting
+ * louder than a do-not-ship warning next to it.
+ */
+export const WHATSAPP_TONE = "bg-lime-50 text-lime-800 hover:bg-lime-100 dark:bg-lime-400/15 dark:text-lime-200 dark:hover:bg-lime-400/25";
+
 /** The value icon, so every surface (pill, drawer band, profile) shows the same one. */
 export function ValueIcon({ tier, className }: { tier: ValueTier; className?: string }) {
     const Icon = VALUE_ICONS[tier];

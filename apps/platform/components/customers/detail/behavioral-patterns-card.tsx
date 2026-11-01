@@ -13,7 +13,9 @@ import {
     ShieldCheck,
     Sparkles,
 } from "lucide-react";
+import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
+import { formatPhoneDisplay } from "@/lib/customer-format";
 import { useCustomerLinks } from "@/hooks/use-customer-links";
 import type { TrustTier } from "@/types/customer";
 
@@ -108,7 +110,7 @@ export function BehavioralPatternsCard({
     phone,
     trustTier,
 }: BehavioralPatternsCardProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { data: links = [] } = useCustomerLinks(phone);
 
     const mode: "patterns" | "snapshot" = orders.length >= 3 ? "patterns" : "snapshot";
@@ -189,11 +191,15 @@ export function BehavioralPatternsCard({
                 ? t("customers.snapshot.joinedNew")
                 : joinedDays === 0
                 ? t("customers.snapshot.joinedToday")
+                : joinedDays === 1
+                ? t("customers.snapshot.joinedYesterday")
                 : t("customers.snapshot.joined", { days: joinedDays.toString() });
 
+        // The governorate is stored as a code ("BG"): shown by its name, like the list and the drawer.
+        const govName = governorate ? governorateLabel(governorate, language) || governorate : null;
         const locationLabel =
-            city || governorate
-                ? [city, governorate].filter(Boolean).join(", ")
+            city || govName
+                ? [city, govName].filter(Boolean).join(language === "ar" ? "، " : ", ")
                 : t("customers.snapshot.locationUnknown");
 
         const phoneValid = isValidIraqiMobile(phone);
@@ -209,7 +215,7 @@ export function BehavioralPatternsCard({
         const trustLabel = t(trustSignalKey(trustTier, orders.length));
 
         return { joinedLabel, locationLabel, phoneValid, linksLabel, trustLabel };
-    }, [mode, firstOrderDate, city, governorate, phone, trustTier, orders.length, links, t]);
+    }, [mode, firstOrderDate, city, governorate, phone, trustTier, orders.length, links, t, language]);
 
     return (
         <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] h-full">
@@ -262,7 +268,7 @@ export function BehavioralPatternsCard({
                     <Row
                         icon={<Calendar className="w-4.5 h-4.5" />}
                         iconBg="bg-blue-50 text-blue-500"
-                        title={t("customers.snapshot.title")}
+                        title={t("customers.snapshot.customerSince")}
                         value={snapshot.joinedLabel}
                     />
                     <Row
@@ -283,7 +289,7 @@ export function BehavioralPatternsCard({
                                 ? t("customers.snapshot.phoneValid")
                                 : t("customers.snapshot.phoneInvalid")
                         }
-                        value={phone}
+                        value={formatPhoneDisplay(phone)}
                     />
                     <Row
                         icon={<Users className="w-4.5 h-4.5" />}

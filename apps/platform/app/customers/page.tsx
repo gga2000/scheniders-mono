@@ -242,8 +242,10 @@ function CustomersPageContent() {
         }
     }, [fetchAllMatching, filtersKey, t]);
 
-    // One line of store-wide figures that no saved view already counts.
-    const subtitle = filtered
+    // One line of store-wide figures that no saved view already counts. When the
+    // list failed to load there is no "shown" count: say nothing rather than "0 of N".
+    const listFailed = isError && !data;
+    const subtitle = filtered && !listFailed
         ? t("customers.subtitleFiltered", {
             shown: totalCount.toLocaleString("en-US"),
             total: (stats?.total_customers ?? totalCount).toLocaleString("en-US"),
@@ -274,7 +276,7 @@ function CustomersPageContent() {
                     {canExport && (
                         <button
                             onClick={exportCsv}
-                            disabled={totalCount === 0 || exporting}
+                            disabled={listFailed || totalCount === 0 || exporting}
                             className="shrink-0 inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-(--card-border) bg-(--card-bg) text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-40 transition-colors"
                         >
                             <Download className="w-4 h-4" /> {t("customers.export")}
@@ -324,7 +326,7 @@ function CustomersPageContent() {
                             <div key={i} className="bg-(--card-bg) rounded-2xl border border-(--card-border) p-4 h-44 animate-pulse" />
                         ))}
                     </div>
-                ) : isError && !data ? (
+                ) : listFailed ? (
                     <div role="alert" className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-12 text-center">
                         <div className="mx-auto w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-500/15 flex items-center justify-center mb-4">
                             <AlertTriangle className="w-6 h-6 text-rose-600 dark:text-rose-300" />

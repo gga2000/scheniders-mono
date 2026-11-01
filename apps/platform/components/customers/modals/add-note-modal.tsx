@@ -50,15 +50,23 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
                     <p className="text-xs text-muted-foreground tabular-nums">
                         {text.length}/1000
                     </p>
-                    <button
-                        onClick={handleSave}
-                        disabled={!text.trim() || addNote.isPending}
-                        className="bg-foreground text-background px-6 py-2.5 rounded-xl font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
-                    >
-                        {addNote.isPending
-                            ? t("customers.notes.saving")
-                            : t("customers.notes.save")}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleClose}
+                            className="px-5 py-2.5 rounded-xl border border-(--card-border) font-semibold text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                        >
+                            {t("common.cancel")}
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            disabled={!text.trim() || addNote.isPending}
+                            className="bg-foreground text-background px-6 py-2.5 rounded-xl font-bold text-sm disabled:opacity-40 hover:opacity-90 transition-opacity"
+                        >
+                            {addNote.isPending
+                                ? t("customers.notes.saving")
+                                : t("customers.notes.save")}
+                        </button>
+                    </div>
                 </div>
             </div>
         </ModalShell>

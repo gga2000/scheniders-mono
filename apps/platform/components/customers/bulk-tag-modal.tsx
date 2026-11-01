@@ -137,8 +137,9 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                                 onClick={() => toggleTag(tag.id)}
                                 aria-pressed={isSelected}
                                 className={cn(
-                                    "w-full flex items-center gap-3 p-3 rounded-xl border bg-background transition-colors text-left",
-                                    isSelected ? "border-foreground" : "border-transparent hover:border-(--card-border)",
+                                    "w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left",
+                                    // Only a checked row is filled, so "filled" still means "selected".
+                                    isSelected ? "border-foreground bg-background" : "border-transparent hover:bg-muted/20",
                                 )}
                             >
                                 <span className={cn(
