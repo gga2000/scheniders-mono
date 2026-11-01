@@ -24,10 +24,8 @@ import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { HeroIdentityBanner } from "@/components/customers/detail/hero-identity-banner";
 import { CustomerValueRiskBanner, type CustomerReliability } from "@/components/customers/detail/value-risk-banner";
-import { DeliverySuccessCard } from "@/components/customers/detail/delivery-success-card";
 import { TrustHistoryCard } from "@/components/customers/detail/trust-history-card";
 import { BehavioralPatternsCard } from "@/components/customers/detail/behavioral-patterns-card";
-import { SummaryStatsCards } from "@/components/customers/detail/summary-stats-cards";
 import { DossierNotesCard } from "@/components/customers/detail/dossier-notes-card";
 import { RatingsCard } from "@/components/customers/detail/ratings-card";
 import { FabNewShipment } from "@/components/customers/detail/fab-new-shipment";
@@ -141,14 +139,14 @@ function useCustomerProfile(phone: string) {
 }
 
 const STATUS_TONE: Record<string, string> = {
-    delivered: "bg-[#c7f8ef] text-[#33605a]",
-    completed: "bg-[#c7f8ef] text-[#33605a]",
-    rejected: "bg-red-100 text-red-700",
-    returned: "bg-red-100 text-red-700",
-    return_pending: "bg-red-100 text-red-700",
+    delivered: "bg-[#c7f8ef] text-[#33605a] dark:bg-emerald-500/15 dark:text-emerald-200",
+    completed: "bg-[#c7f8ef] text-[#33605a] dark:bg-emerald-500/15 dark:text-emerald-200",
+    rejected: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+    returned: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+    return_pending: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
     cancelled: "bg-muted/50 text-muted-foreground",
-    in_transit: "bg-blue-100 text-blue-700",
-    shipping: "bg-blue-100 text-blue-700",
+    in_transit: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
+    shipping: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200",
     confirmed: "bg-[#FBE38E]/30 text-foreground",
 };
 
@@ -156,7 +154,7 @@ function OrderStatusBadge({ status, isReturn }: { status: string; isReturn: bool
     const { language } = useLanguage();
     const tone = STATUS_TONE[status?.toLowerCase()] ?? "bg-muted/50 text-muted-foreground";
     return (
-        <span className={`${tone} px-3 py-1.5 rounded-full text-[10px] font-bold uppercase`}>
+        <span className={`${tone} px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap`}>
             {getStatusLabel(status, isReturn, language)}
         </span>
     );
@@ -221,155 +219,142 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     const displayName = profile.name ?? formatPhoneDisplay(profile.phone);
 
     return (
-        <div className="customers-page customer-profile relative min-h-screen p-6 md:p-8 lg:p-10 pb-24">
-            {/* Back button */}
-            <motion.button
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                onClick={goBackToList}
-                className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors"
-            >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">{t("customers.title")}</span>
-            </motion.button>
-
-            {/* Floating export action (top-right). Lazy-loads customer-data-export to keep this route's bundle lean. */}
-            {canExport && (
-                <button
-                    onClick={async () => {
-                        if (!tenantId) return;
-                        try {
-                            const { customerDataExport } = await import("@/lib/customer-data-export");
-                            await customerDataExport.downloadAsJSON(tenantId, phone);
-                        } catch {
-                            toast({ variant: "error", title: t("customers.export.failed") });
-                        }
-                    }}
-                    title={t("customers.profile.exportJsonHint")}
-                    className="absolute right-6 top-6 z-10 inline-flex items-center gap-1.5 min-h-11 px-4 rounded-xl text-sm font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        <div className="customers-page customer-profile relative min-h-screen px-6 md:px-8 pt-4 pb-24 space-y-4">
+            {/* Back, and the JSON export */}
+            <div className="flex items-center justify-between gap-4">
+                <motion.button
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    onClick={goBackToList}
+                    className="flex items-center gap-2 h-10 text-muted-foreground hover:text-foreground transition-colors"
                 >
-                    <Download className="w-3.5 h-3.5" />
-                    {t("customers.profile.exportJson")}
-                </button>
-            )}
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="text-sm font-medium">{t("customers.title")}</span>
+                </motion.button>
 
-            {/* Hero Banner — peer badges + Rate button now live inside */}
-            <div className="mb-8">
-                <HeroIdentityBanner
-                    name={displayName}
-                    phone={profile.phone}
-                    city={profile.city ?? undefined}
-                    tier={profile.trustTier}
-                    valueTier={profile.reliability ? profile.reliability.value_tier : null}
-                    riskLevel={profile.reliability ? profile.reliability.risk_level : null}
-                    trustScore={profile.trustScore}
-                    totalOrders={profile.totalOrders}
-                    isBlacklisted={profile.isBlacklisted}
-                    tags={profile.tags}
-                    firstOrderDate={profile.firstOrderDate}
-                />
+                {/* Lazy-loads customer-data-export to keep this route's bundle lean. */}
+                {canExport && (
+                    <button
+                        onClick={async () => {
+                            if (!tenantId) return;
+                            try {
+                                const { customerDataExport } = await import("@/lib/customer-data-export");
+                                await customerDataExport.downloadAsJSON(tenantId, phone);
+                            } catch {
+                                toast({ variant: "error", title: t("customers.export.failed") });
+                            }
+                        }}
+                        title={t("customers.profile.exportJsonHint")}
+                        className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-sm font-medium bg-background border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                        <Download className="w-3.5 h-3.5" />
+                        {t("customers.profile.exportJson")}
+                    </button>
+                )}
             </div>
 
-            {/* Two-axis VALUE + RISK headline — keeps the full profile consistent with the list/dialog */}
+            <HeroIdentityBanner
+                name={displayName}
+                phone={profile.phone}
+                city={profile.city ?? undefined}
+                tier={profile.trustTier}
+                valueTier={profile.reliability ? profile.reliability.value_tier : null}
+                riskLevel={profile.reliability ? profile.reliability.risk_level : null}
+                trustScore={profile.trustScore}
+                totalOrders={profile.totalOrders}
+                isBlacklisted={profile.isBlacklisted}
+                tags={profile.tags}
+                firstOrderDate={profile.firstOrderDate}
+                showAxes={!profile.reliability || profile.reliability.total_orders === 0}
+            />
+
+            {/* Value + risk, the order numbers and the last outcomes: the one place these figures live */}
             {profile.reliability && (
-                <div className="mb-8">
-                    <CustomerValueRiskBanner reliability={profile.reliability} successRate={profile.deliverySuccessRate} />
-                </div>
+                <CustomerValueRiskBanner
+                    reliability={profile.reliability}
+                    successRate={profile.deliverySuccessRate}
+                    orders={profile.orders}
+                />
             )}
 
-            {/* Bento Grid — Stitch Layout */}
-            <div className="grid grid-cols-12 gap-6">
-                {/* Row 1: Delivery Success (col-span-4) + Trust History (col-span-8) */}
-                <div className="col-span-12 lg:col-span-4">
-                    <DeliverySuccessCard
-                        successRate={profile.deliverySuccessRate}
-                        recentOrders={profile.orders}
-                        totalCompletedFromTrust={profile.totalCompleted}
-                    />
+            {/* Order history: what staff open a profile for, in the first screen */}
+            <section className="bg-(--card-bg) rounded-2xl px-6 pt-5 pb-3 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                <div className="flex items-baseline justify-between gap-4 mb-2">
+                    <h3 className="font-headline font-extrabold text-lg text-foreground">
+                        {t("customers.profile.orderHistory")}
+                    </h3>
+                    {profile.orders.length > HISTORY_ROWS && (
+                        <Link
+                            href={`/orders?search=0${profile.phone}`}
+                            className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            {t("customers.profile.viewAll", { count: profile.totalOrders.toLocaleString("en-US") })}
+                        </Link>
+                    )}
                 </div>
-                <div className="col-span-12 lg:col-span-8">
+
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="text-muted-foreground text-xs font-semibold border-b border-(--card-border)">
+                            <th className="py-2.5 px-3 font-semibold">{t("customers.profile.col.order")}</th>
+                            <th className="py-2.5 px-3 font-semibold">{t("customers.profile.col.date")}</th>
+                            <th className="py-2.5 px-3 font-semibold">{t("customers.profile.col.items")}</th>
+                            <th className="py-2.5 px-3 font-semibold text-right">{t("customers.profile.col.amount")}</th>
+                            <th className="py-2.5 px-3 font-semibold">{t("customers.profile.col.status")}</th>
+                            <th className="py-2.5 px-3 text-right"><span className="sr-only">{t("customers.profile.viewOrder")}</span></th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-(--card-border)">
+                        {profile.orders.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">
+                                    {t("customers.orders.noOrders")}
+                                </td>
+                            </tr>
+                        ) : (
+                            profile.orders.slice(0, HISTORY_ROWS).map((order) => {
+                                const parsed = Array.isArray(order.items) ? order.items : null;
+                                const lineCount = parsed ? mergeOrderItems(parsed).length : null;
+                                return (
+                                    <tr key={order.id} className="hover:bg-muted/10 transition-colors">
+                                        <td className="py-2.5 px-3 font-mono font-semibold text-sm tabular-nums text-foreground">
+                                            #{order.order_id}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-muted-foreground text-[13px] tabular-nums whitespace-nowrap">
+                                            {formatBaghdadDate(order.created_at, language)}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-muted-foreground text-[13px]">
+                                            {lineCount === null ? "—" : `${lineCount} ${t(lineCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}
+                                        </td>
+                                        <td className="py-2.5 px-3 font-mono font-semibold text-sm tabular-nums text-foreground text-right whitespace-nowrap">
+                                            {formatIQD(Number(order.price || 0))}
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                            <OrderStatusBadge status={order.status} isReturn={!!order.is_return} />
+                                        </td>
+                                        <td className="py-1 px-3 text-right">
+                                            <Link
+                                                href={`/orders?search=${encodeURIComponent(order.order_id)}`}
+                                                aria-label={t("customers.profile.viewOrder")}
+                                                className="inline-flex w-9 h-9 items-center justify-center rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-colors"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                    </tbody>
+                </table>
+            </section>
+
+            {/* Trust trend, buying patterns, notes */}
+            <div className="grid grid-cols-12 gap-4">
+                <div className="col-span-12 xl:col-span-7">
                     <TrustHistoryCard data={historyData || []} phone={profile.phone} />
                 </div>
-
-                {/* Order history: the list staff open a profile for, right under the headline numbers */}
-                <div className="col-span-12">
-                    <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)] overflow-hidden">
-                        <h3 className="font-headline font-extrabold text-xl text-foreground mb-8">
-                            {t("customers.profile.orderHistory")}
-                        </h3>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest border-b border-muted/20">
-                                        <th className="pb-6 px-4">{t("customers.profile.col.order")}</th>
-                                        <th className="pb-6 px-4">{t("customers.profile.col.date")}</th>
-                                        <th className="pb-6 px-4">{t("customers.profile.col.items")}</th>
-                                        <th className="pb-6 px-4">{t("customers.profile.col.amount")}</th>
-                                        <th className="pb-6 px-4">{t("customers.profile.col.status")}</th>
-                                        <th className="pb-6 px-4 text-right"><span className="sr-only">{t("customers.profile.viewOrder")}</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-muted/10">
-                                    {profile.orders.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} className="py-12 text-center text-muted-foreground text-sm">
-                                                {t("customers.orders.noOrders")}
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        profile.orders.slice(0, HISTORY_ROWS).map((order) => {
-                                            const parsed = Array.isArray(order.items) ? order.items : null;
-                                            const lineCount = parsed ? mergeOrderItems(parsed).length : null;
-                                            return (
-                                                <tr key={order.id} className="group hover:bg-muted/10 transition-colors">
-                                                    <td className="py-4 px-4 font-headline font-bold text-sm tabular-nums text-foreground">
-                                                        #{order.order_id}
-                                                    </td>
-                                                    <td className="py-4 px-4 text-muted-foreground text-xs tabular-nums">
-                                                        {formatBaghdadDate(order.created_at, language)}
-                                                    </td>
-                                                    <td className="py-4 px-4 text-muted-foreground text-xs">
-                                                        {lineCount === null ? "—" : `${lineCount} ${t(lineCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}
-                                                    </td>
-                                                    <td className="py-4 px-4 font-bold text-sm tabular-nums text-foreground">
-                                                        {formatIQD(Number(order.price || 0))}
-                                                    </td>
-                                                    <td className="py-4 px-4">
-                                                        <OrderStatusBadge status={order.status} isReturn={!!order.is_return} />
-                                                    </td>
-                                                    <td className="py-4 px-4 text-right">
-                                                        <Link
-                                                            href={`/orders?search=${encodeURIComponent(order.order_id)}`}
-                                                            aria-label={t("customers.profile.viewOrder")}
-                                                            className="inline-flex text-muted-foreground/50 hover:text-foreground transition-colors"
-                                                        >
-                                                            <Eye className="w-5 h-5" />
-                                                        </Link>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {profile.orders.length > HISTORY_ROWS && (
-                            <div className="mt-10 flex justify-center">
-                                <Link
-                                    href={`/orders?search=0${profile.phone}`}
-                                    className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-[0.2em]"
-                                >
-                                    {t("customers.profile.viewAll", { count: profile.totalOrders.toLocaleString("en-US") })}
-                                </Link>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Row 2: Behavioral Patterns (col-span-5) + Dossier Notes (col-span-7) */}
-                <div className="col-span-12 lg:col-span-5">
+                <div className="col-span-12 xl:col-span-5">
                     <BehavioralPatternsCard
                         orders={profile.orders}
                         firstOrderDate={profile.firstOrderDate}
@@ -379,35 +364,23 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                         trustTier={profile.trustTier}
                     />
                 </div>
-                <div className="col-span-12 lg:col-span-7">
+                <div className="col-span-12">
                     <DossierNotesCard
                         notes={profile.notes}
                         onAddNote={canEdit ? () => store.setAddNoteModalOpen(true) : undefined}
                     />
                 </div>
 
-                <div className="col-span-12">
+                {/* Ratings, links and identity changes: one line each while empty */}
+                <div className="col-span-12 lg:col-span-4">
                     <RatingsCard ratings={profile.ratings} />
                 </div>
-
-                {/* Row 3: Summary Stats (col-span-7) + Linked People (col-span-5) */}
-                <div className="col-span-12 lg:col-span-7">
-                    <SummaryStatsCards
-                        totalOrders={profile.totalOrders}
-                        deliveredCount={profile.totalCompleted}
-                        totalSpent={profile.totalSpent}
-                        orders={profile.orders}
-                    />
-                </div>
-                <div className="col-span-12 lg:col-span-5">
+                <div className="col-span-12 lg:col-span-4">
                     <LinkedPeopleSection phone={profile.phone} />
                 </div>
-
-                {/* Row 4: Identity Timeline (col-span-12) */}
-                <div className="col-span-12">
+                <div className="col-span-12 lg:col-span-4">
                     <IdentityTimeline phone={profile.phone} />
                 </div>
-
             </div>
 
             {/* No new-order shortcut on a blocked customer: the block means do not ship. */}

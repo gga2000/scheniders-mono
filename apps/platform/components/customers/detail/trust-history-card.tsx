@@ -35,8 +35,8 @@ const EVENT_ICONS: Record<string, React.ElementType> = {
 };
 
 function eventIconColor(deltaSign: number): string {
-    if (deltaSign > 0) return "text-emerald-600 bg-emerald-50";
-    if (deltaSign < 0) return "text-rose-600 bg-rose-50";
+    if (deltaSign > 0) return "text-emerald-600 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-500/15";
+    if (deltaSign < 0) return "text-rose-600 bg-rose-50 dark:text-rose-300 dark:bg-rose-500/15";
     return "text-muted-foreground bg-muted/40";
 }
 
@@ -57,7 +57,8 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
     const { t, language } = useLanguage();
     const [period, setPeriod] = useState<6 | 12>(12);
 
-    const { data: breakdown = [] } = useTrustScoreBreakdown(phone);
+    const { data: breakdownData } = useTrustScoreBreakdown(phone);
+    const breakdown = breakdownData?.items ?? [];
     const { data: auditData } = useTrustAuditLog(phone, 5);
     const recentEvents = auditData?.events ?? [];
 
@@ -76,7 +77,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
     const lastIndex = displayData.length - 1;
 
     return (
-        <div className="bg-(--card-bg) rounded-[3rem] p-8 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.04)] flex flex-col justify-between min-h-[320px]">
+        <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col justify-between h-full min-h-[280px]">
             {/* Header */}
             <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
@@ -98,7 +99,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                         onClick={() => setView("history")}
                         disabled={!hasHistory}
                         className={cn(
-                            "relative px-3 py-1.5 rounded-full text-[10px] font-bold transition-colors",
+                            "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
                             view === "history"
                                 ? "bg-foreground text-background"
                                 : "text-muted-foreground hover:text-foreground",
@@ -111,7 +112,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                         onClick={() => setView("factors")}
                         disabled={!hasFactors}
                         className={cn(
-                            "relative px-3 py-1.5 rounded-full text-[10px] font-bold transition-colors",
+                            "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
                             view === "factors"
                                 ? "bg-foreground text-background"
                                 : "text-muted-foreground hover:text-foreground",
@@ -140,7 +141,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                                 )}
                                 <span
                                     className={cn(
-                                        "relative z-10 block px-4 py-1.5 rounded-full text-[10px] font-bold transition-colors",
+                                        "relative z-10 block px-4 py-1.5 rounded-full text-xs font-bold transition-colors",
                                         period === p ? "text-background" : "bg-muted/30 text-muted-foreground"
                                     )}
                                 >
@@ -182,7 +183,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                                                             isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                                                         )}
                                                     >
-                                                        <span className="text-[10px] font-bold text-foreground tabular-nums">{score}</span>
+                                                        <span className="text-xs font-bold text-foreground tabular-nums">{score}</span>
                                                     </div>
                                                     <motion.div
                                                         className={cn(
@@ -198,7 +199,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                                         );
                                     })}
                                 </div>
-                                <div className="flex justify-between mt-6 px-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                <div className="flex justify-between mt-6 px-4 text-xs font-medium text-muted-foreground">
                                     {displayData.map((entry, i) => (
                                         <span key={i} className="tabular-nums">
                                             {entry.month.slice(5)}
@@ -259,7 +260,7 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Score breakdown */}
             <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-3">
                     {t("customers.trust.factorsBreakdown")}
                 </p>
                 {breakdown.length === 0 ? (
@@ -274,7 +275,7 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
                             return (
                                 <div key={i} className="flex items-center gap-3">
                                     <span className="text-xs font-medium text-foreground flex-1 truncate">
-                                        {factor.label}
+                                        {t(`customers.scoreBreakdown.${factor.label}`)}
                                     </span>
                                     <div className="flex items-center gap-2 w-32">
                                         <div className="flex-1 h-2 bg-muted/30 rounded-full overflow-hidden">
@@ -291,7 +292,7 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
                                         <span
                                             className={cn(
                                                 "text-xs font-bold tabular-nums w-8 text-right",
-                                                isPositive ? "text-emerald-600" : "text-rose-600"
+                                                isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                                             )}
                                         >
                                             {isPositive ? "+" : ""}
@@ -307,7 +308,7 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
 
             {/* Recent events feed */}
             <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-3">
                     {t("customers.trust.recentEvents")}
                 </p>
                 {recentEvents.length === 0 ? (
@@ -333,7 +334,7 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
                                         <p className="text-xs font-medium text-foreground truncate">
                                             {t(`customers.trust.event.${evt.event_type}`)}
                                         </p>
-                                        <p className="text-[10px] text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground">
                                             {relativeTime(evt.event_date, language)}
                                         </p>
                                     </div>

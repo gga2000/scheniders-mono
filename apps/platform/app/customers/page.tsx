@@ -16,13 +16,10 @@ import { csvDate, csvPhone, downloadCsv, toCsv } from "@/lib/customer-csv";
 import { toast } from "@/hooks/use-toast";
 import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { useCustomerStore } from "@/store/use-customer-store";
-import { CustomerInsightStrip } from "@/components/customers/list/customer-insight-strip";
-import { CustomerActionLane, type LaneSegment } from "@/components/customers/list/customer-action-lane";
-import { CustomerSegmentTabs, activeSegment, type SegmentState } from "@/components/customers/list/customer-segment-tabs";
-import { CustomerToolbar } from "@/components/customers/list/customer-toolbar";
 import {
-    CustomerFilterChips, valueCounts, riskCounts, type ValueFilter, type RiskFilter,
-} from "@/components/customers/list/customer-filter-chips";
+    CustomerSegmentTabs, activeSegment, type SegmentState, type LaneSegment, type ValueFilter, type RiskFilter,
+} from "@/components/customers/list/customer-segment-tabs";
+import { CustomerToolbar } from "@/components/customers/list/customer-toolbar";
 import { CustomerGrid } from "@/components/customers/list/customer-grid";
 import { CustomerListTable } from "@/components/customers/list/customer-list-table";
 import { CustomerBulkBar } from "@/components/customers/list/customer-bulk-bar";
@@ -31,9 +28,11 @@ import { BroadcastModal } from "@/components/customers/broadcast-modal";
 import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
 import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
 import { pct } from "@/lib/customer-format";
+import { displayScore } from "@/lib/customer-reliability";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { usePermission } from "@/hooks/use-permission";
 import { useCustomerTags } from "@/hooks/use-customer-management";
+import { cn } from "@/lib/utils";
 import { PERMISSIONS } from "@/lib/permissions";
 
 const PAGE_LIMIT = 24;
@@ -54,7 +53,7 @@ function CustomersPageContent() {
     const listQuery = useSearchParams().toString();
     useEffect(() => { setLastListQuery(listQuery); }, [listQuery, setLastListQuery]);
 
-    // Two independent server-side axes + the client-only action-lane cohorts.
+    // Two independent server-side axes + the date/delivery cohorts of the saved views.
     // Kept in the URL, so opening a profile and coming back (or a reload) keeps them.
     // Dormant VIPs is a VIP-only cohort whatever a hand-edited URL says.
     const valueFilter: ValueFilter = chips.lane === "vipsQuiet" ? "vip" : chips.value;
@@ -79,7 +78,7 @@ function CustomersPageContent() {
             valueFilter: valueFilter === "all" ? undefined : valueFilter,
             riskFilter: riskFilter === "all" ? undefined : riskFilter,
         };
-        // Action-lane cohorts now filter server-side (exact across the whole cohort).
+        // Cohort views filter server-side (exact across the whole cohort).
         if (laneFilter === "vipsQuiet") { f.valueFilter = "vip"; f.lastOrderBeforeDays = 30; }
         else if (laneFilter === "new") { f.firstOrderWithinDays = 30; }
         else if (laneFilter === "firstDelivery") { f.firstDeliveryPending = true; }
@@ -177,37 +176,14 @@ function CustomersPageContent() {
             ? { by: "total_orders", order: "desc" }
             : undefined;
 
-    const onValue = (next: ValueFilter) => setChips({ value: next, risk: riskFilter, lane: null }, exitSort);
-
-    const onRisk = (next: RiskFilter) => setChips({ value: valueFilter, risk: next, lane: null }, exitSort);
-
     const onSegmentSelect = (s: SegmentState) => {
         const sortBy = parseCustomerSort(s.sort?.by);
         setChips(
-            { value: s.value, risk: s.risk, lane: s.lane === "risky" ? null : s.lane },
+            { value: s.value, risk: s.risk, lane: s.lane },
             s.sort && sortBy
                 ? { by: sortBy, order: s.sort.order }
                 : exitSort,
         );
-    };
-
-    const onSegment = (kind: LaneSegment) => {
-        // "High COD risk" maps to the server-side risk filter so the whole cohort loads.
-        if (kind === "risky") {
-            setChips({ value: valueFilter, risk: riskFilter === "high" ? "all" : "high", lane: null }, exitSort);
-            return;
-        }
-        const leaving = laneFilter === kind;
-        // "VIPs gone quiet" is the Dormant VIPs segment: same chips and sort, so
-        // the value chip says VIP and the segment tab lights up.
-        if (kind === "vipsQuiet") {
-            setChips(
-                { value: leaving ? "all" : "vip", risk: "all", lane: leaving ? null : kind },
-                leaving ? exitSort : { by: "last_order_date", order: "asc" },
-            );
-            return;
-        }
-        setChips({ value: "all", risk: "all", lane: leaving ? null : kind }, exitSort);
     };
 
     // Every customer the current filters match, fetched in pages so the API row cap
@@ -266,46 +242,47 @@ function CustomersPageContent() {
         }
     }, [fetchAllMatching, filtersKey, t]);
 
-    const repeatPct = stats ? pct(stats.repeat_customer_count, stats.total_customers) : 0;
+    // One line of store-wide figures that no saved view already counts.
+    const subtitle = filtered
+        ? t("customers.subtitleFiltered", {
+            shown: totalCount.toLocaleString("en-US"),
+            total: (stats?.total_customers ?? totalCount).toLocaleString("en-US"),
+        })
+        : stats
+            ? t("customers.subtitle", {
+                repeat: String(pct(stats.repeat_customer_count, stats.total_customers)),
+                score: String(displayScore(stats.avg_trust_score)),
+                gov: stats.top_governorate ? governorateLabel(stats.top_governorate, language) || stats.top_governorate : "—",
+                pct: String(pct(stats.top_governorate_count, stats.total_customers)),
+            })
+            : "";
 
     return (
-        <div className="customers-page min-h-screen p-6 md:p-8 bg-background">
-            <div className="max-w-[1920px] mx-auto space-y-6">
-                {/* Header */}
+        <div className={cn("customers-page min-h-screen px-6 md:px-8 pt-4 pb-8 bg-background", selected.size > 0 && "pb-28")}>
+            <div className="max-w-[1920px] mx-auto space-y-3">
+                {/* Header: title, the store-wide figures, export */}
                 <motion.div
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4 }}
-                    className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+                    className="flex items-center justify-between gap-4"
                 >
-                    <div>
-                        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">{t("customers.title")}</h1>
-                        <p dir="auto" className="text-muted-foreground mt-2 text-[15px] text-left">
-                            {stats
-                                ? t("customers.subtitle", { count: stats.total_customers.toLocaleString("en-US"), repeat: String(repeatPct) })
-                                : `${totalCount.toLocaleString("en-US")}`}
-                        </p>
+                    <div className="flex items-baseline gap-x-4 gap-y-1 flex-wrap min-w-0">
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">{t("customers.title")}</h1>
+                        {subtitle && <p dir="auto" className="text-muted-foreground text-sm tabular-nums">{subtitle}</p>}
                     </div>
                     {canExport && (
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                            <button
-                                onClick={exportCsv}
-                                disabled={totalCount === 0 || exporting}
-                                className="inline-flex items-center gap-2 h-11 px-4 rounded-2xl border border-(--card-border) bg-(--card-bg) text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-40 transition-colors"
-                            >
-                                <Download className="w-4 h-4" /> {t("customers.export")}
-                            </button>
-                        </div>
+                        <button
+                            onClick={exportCsv}
+                            disabled={totalCount === 0 || exporting}
+                            className="shrink-0 inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-(--card-border) bg-(--card-bg) text-sm font-semibold text-foreground hover:bg-muted/30 disabled:opacity-40 transition-colors"
+                        >
+                            <Download className="w-4 h-4" /> {t("customers.export")}
+                        </button>
                     )}
                 </motion.div>
 
-                {/* Insight strip */}
-                {stats && <CustomerInsightStrip stats={stats} />}
-
-                {/* Action lane */}
-                {stats && <CustomerActionLane stats={stats} activeSegment={laneFilter ?? (riskFilter === "high" ? "risky" : null)} onSegment={onSegment} />}
-
-                {/* Smart segment tabs */}
+                {/* Saved views: the one place each count is shown */}
                 {stats && (
                     <CustomerSegmentTabs
                         stats={stats}
@@ -314,7 +291,6 @@ function CustomersPageContent() {
                     />
                 )}
 
-                {/* Toolbar + filter chips */}
                 <CustomerToolbar
                     search={rawSearch}
                     onSearch={setSearch}
@@ -326,17 +302,7 @@ function CustomersPageContent() {
                     onTag={setTag}
                     view={effectiveView}
                     onView={(mode) => { setViewMode(mode); setView(mode); }}
-                >
-                    <CustomerFilterChips
-                        value={valueFilter}
-                        risk={riskFilter}
-                        total={stats?.total_customers ?? totalCount}
-                        vCounts={stats ? valueCounts(stats) : {}}
-                        rCounts={stats ? riskCounts(stats) : {}}
-                        onValue={onValue}
-                        onRisk={onRisk}
-                    />
-                </CustomerToolbar>
+                />
 
                 {/* A failed background refresh keeps whatever is on screen. */}
                 {isRefetchError && (
@@ -353,9 +319,9 @@ function CustomersPageContent() {
                 )}
                 {/* Content */}
                 {isLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                        {Array.from({ length: 9 }).map((_, i) => (
-                            <div key={i} className="bg-(--card-bg) rounded-3xl border border-(--card-border) p-6 h-44 animate-pulse" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="bg-(--card-bg) rounded-2xl border border-(--card-border) p-4 h-44 animate-pulse" />
                         ))}
                     </div>
                 ) : isError && !data ? (

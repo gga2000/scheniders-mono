@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { StickyNote, Plus, Trash2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useDeleteCustomerNote } from "@/hooks/use-customer-notes";
 import { usePermission } from "@/hooks/use-permission";
@@ -31,27 +32,33 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
     const entries = [...notes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     return (
-        <div className="bg-(--card-bg) rounded-[3rem] p-8 shadow-[0_4px_24px_rgba(30,30,30,0.07),0_1px_4px_rgba(30,30,30,0.04)] border border-(--card-border) flex flex-col relative">
+        <div className="bg-(--card-bg) rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-(--card-border) flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
                     <StickyNote className="w-5 h-5 text-orange-400" />
                     <span className="font-headline font-extrabold text-lg text-foreground">
                         {t("customers.profile.dossierNotes")}
                     </span>
                 </div>
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    {t("customers.profile.addNote")}
-                </span>
+                {onAddNote && (
+                    <button
+                        onClick={onAddNote}
+                        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--card-border) text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors"
+                    >
+                        <Plus className="w-4 h-4" />
+                        {t("customers.profile.addNote")}
+                    </button>
+                )}
             </div>
 
             {/* Notes list */}
             <div
-                className="space-y-4 max-h-[240px] overflow-y-auto pr-2"
+                className="space-y-2.5 max-h-[240px] overflow-y-auto pr-2"
                 style={{ scrollbarWidth: "thin", scrollbarColor: "var(--card-border) transparent" }}
             >
                 {entries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-10">
+                    <p className="text-sm text-muted-foreground py-2">
                         {t("customers.profile.noNotes")}
                     </p>
                 ) : (
@@ -61,15 +68,10 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
                             initial={{ opacity: 0, x: -8 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.05 }}
-                            className="group/note bg-muted/30 p-5 rounded-2xl relative"
+                            className="group/note bg-muted/30 px-4 py-3 rounded-xl relative"
                         >
                             <div className="flex items-start justify-between gap-3 mb-2">
-                                <p className="text-xs text-muted-foreground tabular-nums">{new Date(entry.created_at).toLocaleDateString(language === "ar" ? "ar-u-nu-latn" : "en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                    timeZone: "Asia/Baghdad",
-                                })}</p>
+                                <p className="text-xs text-muted-foreground tabular-nums">{formatBaghdadDate(entry.created_at, language)}</p>
                                 {canDelete(entry) && <button
                                     onClick={() => onDelete(entry.id)}
                                     disabled={deleteNote.isPending}
@@ -89,18 +91,6 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
                 )}
             </div>
 
-            {/* Floating add-note button */}
-            {onAddNote && (
-                <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={onAddNote}
-                    aria-label={t("customers.profile.addNote")}
-                    className="absolute -bottom-4 -right-4 w-12 h-12 rounded-full bg-[#33605a] text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-shadow"
-                >
-                    <Plus className="w-5 h-5" />
-                </motion.button>
-            )}
         </div>
     );
 }

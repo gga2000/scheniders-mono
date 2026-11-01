@@ -10,8 +10,8 @@ import {
     effectiveSuccessRate,
     recencyStatus,
     firstDeliveryPending,
-    reliabilityBand,
     statusFlags,
+    isFinishedOrder,
     VALUE_META,
     RISK_META,
     type RiskInput,
@@ -113,8 +113,29 @@ describe('recencyStatus', () => {
     });
     it('writes the label in the active language', () => {
         expect(recencyStatus(daysAgo(20), 'clean', tStub).label).toBe('Cooling · last order 20 days ago');
-        expect(recencyStatus(daysAgo(20), 'clean', tIn('ar')).label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوم');
+        expect(recencyStatus(daysAgo(20), 'clean', tIn('ar')).label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوماً');
         expect(recencyStatus(daysAgo(1), 'clean', tIn('ar')).label).toBe('آخر طلب أمس');
+    });
+    it('counts days the Arabic way (dual, few, many)', () => {
+        expect(recencyStatus(daysAgo(2), 'clean', tIn('ar')).ago).toBe('قبل يومين');
+        expect(recencyStatus(daysAgo(5), 'clean', tIn('ar')).ago).toBe('قبل 5 أيام');
+        expect(recencyStatus(daysAgo(12), 'clean', tIn('ar')).ago).toBe('قبل 12 يوماً');
+        expect(recencyStatus(daysAgo(5), 'clean', tStub).ago).toBe('5 days ago');
+    });
+    it('gives the bare time since the last order for one-line cells', () => {
+        expect(recencyStatus(daysAgo(20), 'clean', tStub).ago).toBe('20 days ago');
+        expect(recencyStatus(null, 'clean', tStub).ago).toBe('—');
+    });
+});
+
+describe('isFinishedOrder (the delivery-rate base)', () => {
+    it('counts delivered and failed outcomes, not orders in flight', () => {
+        for (const s of ['delivered', 'completed', 'cancelled', 'rejected', 'returned', 'refunded', 'refund_delivered', 'return_pending', 'no_response']) {
+            expect(isFinishedOrder(s)).toBe(true);
+        }
+        for (const s of ['new', 'confirmed', 'in_transit', 'pending', null]) {
+            expect(isFinishedOrder(s)).toBe(false);
+        }
     });
 });
 
@@ -135,12 +156,6 @@ describe('firstDeliveryPending', () => {
 });
 
 describe('copy + meta', () => {
-    it('reliabilityBand summarises an average', () => {
-        expect(reliabilityBand(90)).toBe('excellent');
-        expect(reliabilityBand(75)).toBe('good');
-        expect(reliabilityBand(55)).toBe('mixed');
-        expect(reliabilityBand(30)).toBe('attention');
-    });
     it('hasRatedScore is false for unrated and blocked customers', () => {
         expect(hasRatedScore('new')).toBe(false);
         expect(hasRatedScore('blocked')).toBe(false);

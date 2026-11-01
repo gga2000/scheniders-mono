@@ -1,17 +1,20 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Users, Crown, Moon, AlertTriangle, Clock, Sparkles, PackageCheck } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import type { ValueFilter, RiskFilter } from "@/components/customers/list/customer-filter-chips";
-import type { LaneSegment } from "@/components/customers/list/customer-action-lane";
-import { useCustomerDashboardStats } from "@/hooks/use-paginated-customers";
+import type { ValueTier, RiskLevel } from "@/lib/customer-reliability";
+import type { useCustomerDashboardStats } from "@/hooks/use-paginated-customers";
 
 type Stats = NonNullable<ReturnType<typeof useCustomerDashboardStats>["data"]>;
 
+export type ValueFilter = ValueTier | "all";
+export type RiskFilter = RiskLevel | "all";
+/** Cohorts that are not a value or risk level: they filter on dates and the first delivery. */
+export type LaneSegment = "vipsQuiet" | "new" | "firstDelivery";
+
 export type SegmentId =
-    | "all" | "vips" | "dormantVips" | "highRisk" | "caution" | "newThisMonth" | "firstDelivery";
+    | "all" | "vips" | "dormantVips" | "highRisk" | "caution" | "blocked" | "newThisMonth" | "firstDelivery";
 
 export interface SegmentState {
     value: ValueFilter;
@@ -22,25 +25,25 @@ export interface SegmentState {
 
 interface SegDef {
     id: SegmentId;
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    tone: string;
+    /** Colour dot; the same colour the value/risk pills use. */
+    dot?: string;
     state: SegmentState;
     count: (s: Stats) => number;
 }
 
-const SEGMENTS: Omit<SegDef, "label">[] = [
-    { id: "all", icon: Users, tone: "text-foreground", state: { value: "all", risk: "all", lane: null }, count: (s) => s.total_customers },
-    { id: "vips", icon: Crown, tone: "text-purple-600", state: { value: "vip", risk: "all", lane: null }, count: (s) => s.val_vip },
-    // Dormant VIPs: load the (small) VIP cohort oldest-first so the client dormant filter surfaces them.
-    { id: "dormantVips", icon: Moon, tone: "text-indigo-500", state: { value: "vip", risk: "all", lane: "vipsQuiet", sort: { by: "last_order_date", order: "asc" } }, count: (s) => s.vips_quiet_count },
-    { id: "highRisk", icon: AlertTriangle, tone: "text-rose-600", state: { value: "all", risk: "high", lane: null }, count: (s) => s.risk_high },
-    { id: "caution", icon: Clock, tone: "text-amber-600", state: { value: "all", risk: "caution", lane: null }, count: (s) => s.risk_caution },
-    { id: "newThisMonth", icon: Sparkles, tone: "text-blue-500", state: { value: "all", risk: "all", lane: "new" }, count: (s) => s.new_this_month },
-    { id: "firstDelivery", icon: PackageCheck, tone: "text-teal-600", state: { value: "all", risk: "all", lane: "firstDelivery" }, count: (s) => s.first_delivery_pending_count },
+const SEGMENTS: SegDef[] = [
+    { id: "all", state: { value: "all", risk: "all", lane: null }, count: (s) => s.total_customers },
+    { id: "vips", dot: "bg-purple-500", state: { value: "vip", risk: "all", lane: null }, count: (s) => s.val_vip },
+    // Dormant VIPs: the VIP cohort with no order in 30 days, oldest first.
+    { id: "dormantVips", dot: "bg-indigo-400", state: { value: "vip", risk: "all", lane: "vipsQuiet", sort: { by: "last_order_date", order: "asc" } }, count: (s) => s.vips_quiet_count },
+    { id: "highRisk", dot: "bg-rose-500", state: { value: "all", risk: "high", lane: null }, count: (s) => s.risk_high },
+    { id: "caution", dot: "bg-amber-500", state: { value: "all", risk: "caution", lane: null }, count: (s) => s.risk_caution },
+    { id: "blocked", dot: "bg-rose-700", state: { value: "all", risk: "blocked", lane: null }, count: (s) => s.risk_blocked },
+    { id: "newThisMonth", dot: "bg-blue-500", state: { value: "all", risk: "all", lane: "new" }, count: (s) => s.new_this_month },
+    { id: "firstDelivery", dot: "bg-teal-500", state: { value: "all", risk: "all", lane: "firstDelivery" }, count: (s) => s.first_delivery_pending_count },
 ];
 
-/** Which curated segment (if any) the current filter state corresponds to. */
+/** Which saved view (if any) the current filter state corresponds to. */
 export function activeSegment(cur: { value: ValueFilter; risk: RiskFilter; lane: LaneSegment | null }): SegmentId | null {
     const match = SEGMENTS.find((seg) =>
         seg.state.value === cur.value && seg.state.risk === cur.risk && (seg.state.lane ?? null) === cur.lane);
@@ -48,9 +51,9 @@ export function activeSegment(cur: { value: ValueFilter; risk: RiskFilter; lane:
 }
 
 /**
- * Curated "smart segment" tab strip — one-tap entry into the customer views that
- * matter (VIPs, Dormant VIPs, High risk, Needs confirming, New, First delivery).
- * Each sets the two-axis filters + a cohort; counts come from the stats RPC.
+ * The list's one row of saved views. Each view carries its count once, so the
+ * page never prints the same number twice. A filter state no view matches
+ * (a hand-edited or old link) shows as a removable "Custom filter" pill.
  */
 export function CustomerSegmentTabs({
     stats, active, onSelect,
@@ -62,40 +65,48 @@ export function CustomerSegmentTabs({
     const { t } = useLanguage();
 
     const label = (id: SegmentId): string => t(`customers.segment.${id}`, {
-        all: "All", vips: "VIPs", dormantVips: "Dormant VIPs", highRisk: "High risk",
-        caution: "Needs confirming", newThisMonth: "New, last 30 days", firstDelivery: "First delivery",
+        all: "All", vips: "VIP", dormantVips: "Dormant VIPs", highRisk: "High risk", caution: "Needs confirming",
+        blocked: "Blocked", newThisMonth: "New, 30 days", firstDelivery: "First delivery",
     }[id]);
+    const all = SEGMENTS[0];
 
     return (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1">
+        <nav aria-label={t("customers.title")} className="flex items-center gap-1 flex-wrap">
             {SEGMENTS.map((seg) => {
-                const Icon = seg.icon;
                 const isActive = active === seg.id;
                 const count = seg.count(stats);
-                // Hide zero-count actionable segments (but always keep All + VIPs visible).
-                if (count === 0 && seg.id !== "all" && seg.id !== "vips") return null;
+                // An empty actionable view is noise; All and VIP always show.
+                if (count === 0 && !isActive && seg.id !== "all" && seg.id !== "vips") return null;
                 return (
                     <button
                         key={seg.id}
                         onClick={() => onSelect(seg.state, seg.id)}
+                        aria-pressed={isActive}
                         className={cn(
-                            "relative inline-flex items-center gap-2 h-9 px-3.5 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-colors shrink-0 border",
+                            "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-colors border",
                             isActive
                                 ? "bg-foreground text-background border-foreground"
                                 : "bg-(--card-bg) text-foreground border-(--card-border) hover:bg-muted/30",
                         )}
                     >
-                        <Icon className={cn("w-4 h-4", isActive ? "text-background" : seg.tone)} />
+                        {seg.dot && <span className={cn("w-2 h-2 rounded-full shrink-0", seg.dot)} aria-hidden />}
                         {label(seg.id)}
-                        <span className={cn("font-mono text-xs tabular-nums", isActive ? "text-background/70" : "text-muted-foreground")}>
+                        <span className={cn("text-xs tabular-nums font-medium", isActive ? "text-background/70" : "text-muted-foreground")}>
                             {count.toLocaleString("en-US")}
                         </span>
-                        {isActive && (
-                            <motion.span layoutId="segment-underline" className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-background/60" />
-                        )}
                     </button>
                 );
             })}
-        </div>
+            {active === null && (
+                <button
+                    onClick={() => onSelect(all.state, all.id)}
+                    className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-semibold whitespace-nowrap bg-foreground text-background"
+                    aria-label={t("customers.segment.clear", "Clear filter")}
+                >
+                    {t("customers.segment.custom", "Custom filter")}
+                    <X className="w-3.5 h-3.5" />
+                </button>
+            )}
+        </nav>
     );
 }

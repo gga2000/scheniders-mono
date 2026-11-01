@@ -884,6 +884,13 @@ body {
    Deep charcoal + neon tier accents + glassmorphism
    ============================================ */
 
+/* Arabic is a joined script: letter-spacing breaks the joins and it has no
+   capitals, so tracked uppercase labels fall back to plain text there. */
+html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [class*="tracking-"]) {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 /* Page container — transparent to show cyan grid from .dark main */
 .dark .customers-page {
   background-color: transparent !important;

@@ -27,15 +27,13 @@ export interface ValueMeta {
     label: string;
     pillBg: string;
     pillText: string;
-    /** 4px card/row accent rail. */
-    rail: string;
     dot: string;
 }
 
 export const VALUE_META: Record<ValueTier, ValueMeta> = {
-    vip: { label: 'VIP', pillBg: 'bg-purple-100 dark:bg-purple-500/15', pillText: 'text-purple-800 dark:text-purple-200', rail: 'bg-purple-500', dot: 'bg-purple-500' },
-    good: { label: 'Good', pillBg: 'bg-lime-50 dark:bg-lime-500/15', pillText: 'text-lime-800 dark:text-lime-200', rail: 'bg-lime-400', dot: 'bg-lime-500' },
-    newcomer: { label: 'Newcomer', pillBg: 'bg-blue-50 dark:bg-blue-500/15', pillText: 'text-blue-800 dark:text-blue-200', rail: 'bg-blue-400', dot: 'bg-blue-400' },
+    vip: { label: 'VIP', pillBg: 'bg-purple-100 dark:bg-purple-500/15', pillText: 'text-purple-800 dark:text-purple-200', dot: 'bg-purple-500' },
+    good: { label: 'Good', pillBg: 'bg-lime-50 dark:bg-lime-500/15', pillText: 'text-lime-800 dark:text-lime-200', dot: 'bg-lime-500' },
+    newcomer: { label: 'Newcomer', pillBg: 'bg-blue-50 dark:bg-blue-500/15', pillText: 'text-blue-800 dark:text-blue-200', dot: 'bg-blue-400' },
 };
 
 /** Mirror of value_tier_calc: VALUE by completed (delivered) orders. */
@@ -53,26 +51,23 @@ export interface RiskMeta {
     label: string;
     chipBg: string;
     chipText: string;
-    rail: string;
     dot: string;
 }
 
 export const RISK_META: Record<RiskLevel, RiskMeta> = {
-    clean: { label: 'Clean', chipBg: 'bg-emerald-50 dark:bg-emerald-500/15', chipText: 'text-emerald-700 dark:text-emerald-300', rail: 'bg-emerald-400', dot: 'bg-emerald-500' },
-    caution: { label: 'Caution', chipBg: 'bg-amber-50 dark:bg-amber-500/15', chipText: 'text-amber-800 dark:text-amber-300', rail: 'bg-amber-400', dot: 'bg-amber-500' },
-    high: { label: 'High risk', chipBg: 'bg-rose-50 dark:bg-rose-500/15', chipText: 'text-rose-700 dark:text-rose-300', rail: 'bg-rose-500', dot: 'bg-rose-600' },
-    blocked: { label: 'Blocked', chipBg: 'bg-zinc-800 dark:bg-rose-500/20', chipText: 'text-white dark:text-rose-200', rail: 'bg-rose-600', dot: 'bg-rose-600' },
+    clean: { label: 'Clean', chipBg: 'bg-emerald-50 dark:bg-emerald-500/15', chipText: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500' },
+    caution: { label: 'Caution', chipBg: 'bg-amber-50 dark:bg-amber-500/15', chipText: 'text-amber-800 dark:text-amber-300', dot: 'bg-amber-500' },
+    high: { label: 'High risk', chipBg: 'bg-rose-50 dark:bg-rose-500/15', chipText: 'text-rose-700 dark:text-rose-300', dot: 'bg-rose-600' },
+    blocked: { label: 'Blocked', chipBg: 'bg-zinc-800 dark:bg-rose-500/20', chipText: 'text-white dark:text-rose-200', dot: 'bg-rose-600' },
 };
 
-/** The colours a customer's rail, band and banner are drawn in. */
+/** The colours a customer's band and banner are drawn in. */
 export interface CustomerAccent {
-    rail: string;
     surfaceBg: string;
     surfaceText: string;
 }
 
 const UNSAFE_ACCENT: CustomerAccent = {
-    rail: 'bg-rose-500',
     surfaceBg: 'bg-rose-50 dark:bg-rose-500/15',
     surfaceText: 'text-rose-800 dark:text-rose-200',
 };
@@ -85,7 +80,7 @@ const UNSAFE_ACCENT: CustomerAccent = {
 export function customerAccent(value: ValueTier, risk: RiskLevel): CustomerAccent {
     if (risk === 'blocked' || risk === 'high') return UNSAFE_ACCENT;
     const meta = VALUE_META[value];
-    return { rail: meta.rail, surfaceBg: meta.pillBg, surfaceText: meta.pillText };
+    return { surfaceBg: meta.pillBg, surfaceText: meta.pillText };
 }
 
 export interface RiskInput {
@@ -171,7 +166,10 @@ export function daysSince(date?: string | null): number | null {
 }
 
 export interface RecencyStatus {
+    /** The full line, e.g. "Cooling · last order 12 days ago". */
     label: string;
+    /** Just the time since the last order ("12 days ago"), for one-line table cells. */
+    ago: string;
     dot: string;
 }
 
@@ -184,14 +182,17 @@ export function recencyStatus(
     t: RecencyTranslate,
 ): RecencyStatus {
     const d = daysSince(lastOrderDate);
-    if (d === null) return { label: t('customers.recency.none'), dot: 'bg-zinc-400' };
+    if (d === null) return { label: t('customers.recency.none'), ago: '—', dot: 'bg-zinc-400' };
+    // Arabic counts 2 as a dual and 3–10 with a plural noun; English is the same for all.
     const ago = d <= 0 ? t('customers.recency.today')
         : d === 1 ? t('customers.recency.yesterday')
+        : d === 2 ? t('customers.recency.daysAgoTwo')
+        : d <= 10 ? t('customers.recency.daysAgoFew', { days: d })
         : t('customers.recency.daysAgo', { days: d });
-    if (risk === 'high' || risk === 'blocked') return { label: t('customers.recency.last', { ago }), dot: 'bg-rose-600' };
-    if (d <= 7) return { label: t('customers.recency.last', { ago }), dot: 'bg-emerald-500' };
-    if (d <= 30) return { label: t('customers.recency.cooling', { ago }), dot: 'bg-amber-500' };
-    return { label: t('customers.recency.dormant', { ago }), dot: 'bg-zinc-400' };
+    if (risk === 'high' || risk === 'blocked') return { label: t('customers.recency.last', { ago }), ago, dot: 'bg-rose-600' };
+    if (d <= 7) return { label: t('customers.recency.last', { ago }), ago, dot: 'bg-emerald-500' };
+    if (d <= 30) return { label: t('customers.recency.cooling', { ago }), ago, dot: 'bg-amber-500' };
+    return { label: t('customers.recency.dormant', { ago }), ago, dot: 'bg-zinc-400' };
 }
 
 /** Order statuses that mean "no delivery outcome resolved yet". */
@@ -234,25 +235,27 @@ export function statusFlags(c: {
     refund_count: number;
 }): StatusFlag[] {
     const defs: Array<[StatusFlag['key'], number, string, string]> = [
-        ['rejected', c.rejected_count, 'bg-rose-50 text-rose-700', 'customers.flag.rejected'],
-        ['no_response', c.no_response_count, 'bg-amber-50 text-amber-700', 'customers.flag.noResponse'],
-        ['returned', c.returned_count, 'bg-fuchsia-50 text-fuchsia-700', 'customers.flag.returned'],
-        ['cancelled', c.cancelled_count, 'bg-orange-50 text-orange-700', 'customers.flag.cancelled'],
-        ['refund', c.refund_count, 'bg-purple-50 text-purple-700', 'customers.flag.refunded'],
+        ['rejected', c.rejected_count, 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300', 'customers.flag.rejected'],
+        ['no_response', c.no_response_count, 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300', 'customers.flag.noResponse'],
+        ['returned', c.returned_count, 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300', 'customers.flag.returned'],
+        ['cancelled', c.cancelled_count, 'bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300', 'customers.flag.cancelled'],
+        ['refund', c.refund_count, 'bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300', 'customers.flag.refunded'],
     ];
     return defs
         .filter(([, n]) => n > 0)
         .map(([key, count, tone, i18nKey]) => ({ key, count, tone, i18nKey }));
 }
 
-/** Band the average score (0–100) into a one-word summary for the KPI strip. */
-export type ReliabilityBand = 'excellent' | 'good' | 'mixed' | 'attention';
+/**
+ * Order statuses with a final delivery outcome: the base the trust engine's
+ * delivery rate is computed on. Orders still in flight are not in it.
+ */
+const FINISHED_STATUSES = new Set([
+    'delivered', 'completed', 'cancelled', 'rejected', 'returned', 'refunded',
+    'refund_delivered', 'return_pending', 'no_response',
+]);
 
-/** Band for an average score; the i18n key is `customers.kpi.band.<band>`. */
-export function reliabilityBand(avgScore: number): ReliabilityBand {
-    const s = displayScore(avgScore);
-    if (s >= 85) return 'excellent';
-    if (s >= 70) return 'good';
-    if (s >= 50) return 'mixed';
-    return 'attention';
+/** True when the order has a final outcome (delivered or failed), so it counts toward the delivery rate. */
+export function isFinishedOrder(status: string | null | undefined): boolean {
+    return !!status && FINISHED_STATUSES.has(status.toLowerCase());
 }

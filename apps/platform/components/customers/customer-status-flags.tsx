@@ -28,12 +28,12 @@ export function CustomerStatusFlags({
     return (
         <div className={cn("flex items-center gap-1.5 flex-wrap", className)}>
             {shown.map((f) => (
-                <span key={f.key} className={cn("inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full", f.tone)}>
+                <span key={f.key} className={cn("inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0", f.tone)}>
                     <span className="font-mono tabular-nums">{f.count}</span>
                     {t(f.i18nKey)}
                 </span>
             ))}
-            {extra > 0 && <span className="text-[11px] text-muted-foreground font-medium">+{extra}</span>}
+            {extra > 0 && <span className="text-xs text-muted-foreground font-medium shrink-0">+{extra}</span>}
         </div>
     );
 }

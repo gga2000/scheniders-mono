@@ -28,7 +28,7 @@ export function CustomerGrid({ customers, onCustomerClick, selectedPhones, onTog
     const selecting = !!onToggleSelect && (selectedPhones?.size ?? 0) > 0;
     return (
         <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-7"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
             variants={containerVariants}
             initial="hidden"
             animate="visible"

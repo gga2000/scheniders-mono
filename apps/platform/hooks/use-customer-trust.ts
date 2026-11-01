@@ -68,16 +68,20 @@ export function useTrustScoreBreakdown(phone: string | undefined) {
     const { tenantId } = useAuth();
     return useQuery({
         queryKey: ["customer-trust-breakdown", tenantId, phone],
-        queryFn: async () => {
-            if (!phone || !tenantId) return [];
+        queryFn: async (): Promise<{ items: TrustScoreBreakdownItem[]; tier: string | null }> => {
+            if (!phone || !tenantId) return { items: [], tier: null };
             const { data, error } = await supabase
                 .from("customer_trust")
-                .select("score_breakdown")
+                .select("score_breakdown, trust_tier")
                 .eq("tenant_id", tenantId)
                 .eq("phone", phone)
                 .maybeSingle();
             if (error) throw error;
-            return (data?.score_breakdown || []) as TrustScoreBreakdownItem[];
+            // The tier says whether the score is shown at all (not for new or blocked customers).
+            return {
+                items: (data?.score_breakdown || []) as TrustScoreBreakdownItem[],
+                tier: data?.trust_tier ?? null,
+            };
         },
         enabled: !!phone && !!tenantId,
         staleTime: 5 * 60 * 1000,
