@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
@@ -20,6 +21,7 @@ function formatIQD(amount: number): string {
 }
 
 export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
+    const { t } = useLanguage();
     const { totalReturns, totalReturnValue, returnRate, returnsByReason } = data;
 
     if (totalReturns === 0) {
@@ -33,8 +35,8 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                     <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
                         <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                     </div>
-                    <h3 className="text-xl font-bold text-emerald-900">لا توجد استرجاعات!</h3>
-                    <p className="text-sm text-emerald-700 mt-2">جميع الطلبات تم تسليمها بنجاح</p>
+                    <h3 className="text-xl font-bold text-emerald-900">{t("reports.returns.none")}</h3>
+                    <p className="text-sm text-emerald-700 mt-2">{t("reports.returns.noneDesc")}</p>
                 </div>
             </motion.div>
         );
@@ -65,8 +67,8 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                             <RotateCcw className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-foreground">تحليل الاسترجاعات</h3>
-                            <p className="text-xs text-muted">{totalReturns} استرجاع | {formatIQD(totalReturnValue)}</p>
+                            <h3 className="text-lg font-bold text-foreground">{t("reports.returns.title")}</h3>
+                            <p className="text-xs text-muted">{t("reports.returns.summary", { n: totalReturns, amount: formatIQD(totalReturnValue) })}</p>
                         </div>
                     </div>
 
@@ -176,11 +178,12 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                             </div>
                             <div>
                                 <p className="text-sm font-semibold text-orange-900">
-                                    أكثر سبب للاسترجاع: {returnsByReason[0]?.reason}
+                                    {t("reports.returns.topReason", { reason: returnsByReason[0]?.reason ?? "" })}
                                 </p>
                                 <p className="text-xs text-orange-700 mt-0.5">
-                                    {returnsByReason[0]?.percentage.toFixed(0)}% من إجمالي الاسترجاعات
-                                    {returnsByReason[0]?.topCity && ` - أكثر في ${returnsByReason[0].topCity}`}
+                                    {returnsByReason[0]?.topCity
+                                        ? t("reports.returns.topReasonCity", { pct: returnsByReason[0].percentage.toFixed(0), city: returnsByReason[0].topCity })
+                                        : t("reports.returns.topReasonDesc", { pct: returnsByReason[0]?.percentage.toFixed(0) ?? "0" })}
                                 </p>
                             </div>
                         </div>

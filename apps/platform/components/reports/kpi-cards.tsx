@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import {
     TrendingUp,
@@ -32,9 +33,10 @@ const item = {
 };
 
 export function KPICards({ metrics }: KPICardsProps) {
+    const { t } = useLanguage();
     const kpiData = [
         {
-            title: "Total Orders",
+            title: t("reports.kpi.total"),
             value: metrics.totalOrders,
             change: metrics.totalOrdersChange,
             icon: Package,
@@ -43,7 +45,7 @@ export function KPICards({ metrics }: KPICardsProps) {
             labelColor: "text-blue-100",
         },
         {
-            title: "Delivery Rate",
+            title: t("reports.kpi.delivery"),
             unit: "pp",
             value: `${metrics.deliveryRate.toFixed(1)}%`,
             change: metrics.deliveryRateChange,
@@ -53,7 +55,7 @@ export function KPICards({ metrics }: KPICardsProps) {
             labelColor: "text-emerald-100",
         },
         {
-            title: "Contact Success",
+            title: t("reports.kpi.contact"),
             unit: "pp",
             value: `${metrics.contactSuccessRate.toFixed(1)}%`,
             change: metrics.contactSuccessChange,
@@ -63,7 +65,7 @@ export function KPICards({ metrics }: KPICardsProps) {
             labelColor: "text-violet-100",
         },
         {
-            title: "Rejection Rate",
+            title: t("reports.kpi.rejection"),
             unit: "pp",
             value: `${metrics.rejectionRate.toFixed(1)}%`,
             change: metrics.rejectionRateChange,
@@ -74,7 +76,7 @@ export function KPICards({ metrics }: KPICardsProps) {
             invertTrend: true,
         },
         {
-            title: "No Response",
+            title: t("reports.kpi.noResponse"),
             unit: "pp",
             value: `${metrics.noResponseRate.toFixed(1)}%`,
             change: metrics.noResponseChange,
@@ -85,7 +87,7 @@ export function KPICards({ metrics }: KPICardsProps) {
             invertTrend: true,
         },
         {
-            title: "Avg Processing",
+            title: t("reports.kpi.processing"),
             value: `${metrics.avgProcessingTime.toFixed(0)}h`,
             change: metrics.avgProcessingTimeChange,
             icon: Clock,
@@ -131,7 +133,7 @@ export function KPICards({ metrics }: KPICardsProps) {
                                         : "bg-black/20 text-white"
                                 )}>
                                     {kpi.change > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                                    {Math.abs(kpi.change).toFixed(1)}{kpi.unit === "pp" ? " pp" : "%"}
+                                    {Math.abs(kpi.change).toFixed(1)}{kpi.unit === "pp" ? ` ${t("reports.kpi.pp")}` : "%"}
                                 </span>
                             )}
                         </div>

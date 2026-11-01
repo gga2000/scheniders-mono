@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { RejectionReasonMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
@@ -13,6 +14,10 @@ interface RejectionBreakdownProps {
 const COLORS = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899'];
 
 export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
+    const { t } = useLanguage();
+    // The calculator keys a reason-less rejection as "Unknown".
+    const reasonLabel = (reason: string | undefined) =>
+        reason === "Unknown" ? t("reports.reason.unknown") : (reason ?? "");
     const total = data.reduce((sum, d) => sum + d.count, 0);
 
     if (data.length === 0) {
@@ -26,8 +31,8 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                     <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
                         <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                     </div>
-                    <h3 className="text-xl font-bold text-emerald-900">No Rejections!</h3>
-                    <p className="text-sm text-emerald-700 mt-2">All orders delivered successfully</p>
+                    <h3 className="text-xl font-bold text-emerald-900">{t("reports.rejection.none")}</h3>
+                    <p className="text-sm text-emerald-700 mt-2">{t("reports.rejection.noneDesc")}</p>
                 </div>
             </motion.div>
         );
@@ -57,8 +62,8 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                             <XOctagon className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-foreground">Rejection Analysis</h3>
-                            <p className="text-xs text-muted">{total} total rejections</p>
+                            <h3 className="text-lg font-bold text-foreground">{t("reports.rejection.title")}</h3>
+                            <p className="text-xs text-muted">{t("reports.rejection.total", { n: total })}</p>
                         </div>
                     </div>
 
@@ -108,7 +113,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                         {/* Center info */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className="text-3xl font-bold text-rose-600">{total}</span>
-                            <span className="text-xs text-muted">Rejections</span>
+                            <span className="text-xs text-muted">{t("reports.rejection.rejections")}</span>
                         </div>
                     </div>
 
@@ -159,10 +164,11 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                                 <AlertCircle className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-rose-900">Top Issue: {data[0]?.reason}</p>
+                                <p className="text-sm font-semibold text-rose-900">{t("reports.rejection.topIssue", { reason: reasonLabel(data[0]?.reason) })}</p>
                                 <p className="text-xs text-rose-700 mt-0.5">
-                                    Accounts for {data[0]?.percentage.toFixed(0)}% of all rejections
-                                    {data[0]?.topCity && `, primarily in ${data[0].topCity}`}.
+                                    {data[0]?.topCity
+                                        ? t("reports.rejection.topIssueCity", { pct: data[0].percentage.toFixed(0), city: data[0].topCity })
+                                        : t("reports.rejection.topIssueDesc", { pct: data[0]?.percentage.toFixed(0) ?? "0" })}
                                 </p>
                             </div>
                         </div>
