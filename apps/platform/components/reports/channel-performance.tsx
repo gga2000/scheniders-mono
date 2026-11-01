@@ -79,7 +79,7 @@ export function ChannelPerformance({ data, loading, error, onRetry }: ChannelPer
     const { t } = useLanguage();
 
     if (loading && !data) {
-        return <div className="h-64 animate-pulse bg-white/5 rounded-3xl" />;
+        return <div className="h-64 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" />;
     }
 
     if (error && !data) {

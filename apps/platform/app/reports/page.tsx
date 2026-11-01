@@ -21,67 +21,67 @@ import { CustomDatePicker } from "@/components/reports/custom-date-picker";
 // Dynamic imports for components
 const KPICards = dynamic(
     () => import("@/components/reports/kpi-cards").then(mod => ({ default: mod.KPICards })),
-    { loading: () => <div className="h-32 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-32 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const StatusFlowDiagram = dynamic(
     () => import("@/components/reports/status-flow-diagram").then(mod => ({ default: mod.StatusFlowDiagram })),
-    { loading: () => <div className="h-[450px] animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-[450px] animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const ContactHeatmap = dynamic(
     () => import("@/components/reports/contact-heatmap").then(mod => ({ default: mod.ContactHeatmap })),
-    { loading: () => <div className="h-96 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-96 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const CityPerformance = dynamic(
     () => import("@/components/reports/city-performance").then(mod => ({ default: mod.CityPerformance })),
-    { loading: () => <div className="h-96 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-96 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const TimeAnalysis = dynamic(
     () => import("@/components/reports/time-analysis").then(mod => ({ default: mod.TimeAnalysis })),
-    { loading: () => <div className="h-96 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-96 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const RejectionBreakdown = dynamic(
     () => import("@/components/reports/rejection-breakdown").then(mod => ({ default: mod.RejectionBreakdown })),
-    { loading: () => <div className="h-96 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-96 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const ReturnBreakdown = dynamic(
     () => import("@/components/reports/return-breakdown").then(mod => ({ default: mod.ReturnBreakdown })),
-    { loading: () => <div className="h-96 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-96 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const AttentionFlagsSummary = dynamic(
     () => import("@/components/reports/attention-flags-summary").then(mod => ({ default: mod.AttentionFlagsSummary })),
-    { loading: () => <div className="h-32 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-32 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const SourcePerformance = dynamic(
     () => import("@/components/reports/source-performance").then(mod => ({ default: mod.SourcePerformance })),
-    { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-64 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const ChannelPerformance = dynamic(
     () => import("@/components/reports/channel-performance").then(mod => ({ default: mod.ChannelPerformance })),
-    { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-64 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const PeriodComparison = dynamic(
     () => import("@/components/reports/period-comparison").then(mod => ({ default: mod.PeriodComparison })),
-    { loading: () => <div className="h-48 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-48 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const TrueEmployeePerformance = dynamic(
     () => import("@/components/reports/true-employee-performance").then(mod => ({ default: mod.TrueEmployeePerformance })),
-    { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-64 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 const BatchAnalytics = dynamic(
     () => import("@/components/reports/batch-analytics").then(mod => ({ default: mod.BatchAnalytics })),
-    { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
+    { loading: () => <div className="h-64 animate-pulse bg-black/5 dark:bg-white/5 rounded-3xl" /> }
 );
 
 export default function ReportsPage() {
@@ -186,6 +186,13 @@ export default function ReportsPage() {
                 <div className="pastel-card pastel-card-pink p-8 max-w-md text-center">
                     <h2 className="text-xl font-bold text-rose-900 mb-2">{t("reports.errorTitle")}</h2>
                     <p className="text-rose-700">{error}</p>
+                    <button
+                        type="button"
+                        onClick={() => { void reportOrders.refetch(); }}
+                        className="mt-5 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+                    >
+                        {t("reports.common.retry")}
+                    </button>
                 </div>
             </div>
         );
