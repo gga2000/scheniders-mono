@@ -53,11 +53,11 @@ export function CashHealthCard({ data }: Props) {
                     <div className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-2">
                         {t("finances.overview.cash.aging")}
                     </div>
-                    <AgingBar buckets={data.aging} tip={(b) => t("finances.overview.cash.agingTip", { label: b.label, count: b.count })} />
+                    <AgingBar buckets={data.aging} tip={(b) => t("finances.overview.cash.agingTip", { label: t(`finances.cash.bucket.${b.id}`), count: b.count })} />
                     <div className="mt-2 flex items-center justify-between text-[10px] text-muted tabular-nums">
                         {data.aging.map((b) => (
                             <span key={b.id} className={cn(toneText(b.tone))}>
-                                {b.count} · {b.range}
+                                {b.count} · {b.minDays}{b.maxDays === null ? "+" : `-${b.maxDays}`}&nbsp;{t("finances.cash.daysUnit")}
                             </span>
                         ))}
                     </div>

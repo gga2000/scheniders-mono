@@ -8,7 +8,6 @@ import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-win
 export interface AgingBucket {
     id: "fresh" | "aging" | "stale" | "stuck";
     label: string;
-    range: string;
     minDays: number;
     maxDays: number | null;
     count: number;
@@ -224,7 +223,6 @@ export function useCashPosition(
             {
                 id: "fresh",
                 label: "Fresh",
-                range: "0–3 days",
                 minDays: 0,
                 maxDays: 3,
                 count: buckets.fresh.count,
@@ -234,7 +232,6 @@ export function useCashPosition(
             {
                 id: "aging",
                 label: "Aging",
-                range: "4–7 days",
                 minDays: 4,
                 maxDays: 7,
                 count: buckets.aging.count,
@@ -244,7 +241,6 @@ export function useCashPosition(
             {
                 id: "stale",
                 label: "Stale",
-                range: "8–14 days",
                 minDays: 8,
                 maxDays: 14,
                 count: buckets.stale.count,
@@ -254,7 +250,6 @@ export function useCashPosition(
             {
                 id: "stuck",
                 label: "At risk",
-                range: "15+ days",
                 minDays: 15,
                 maxDays: null,
                 count: buckets.stuck.count,
