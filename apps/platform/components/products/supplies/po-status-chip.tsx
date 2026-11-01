@@ -50,19 +50,19 @@ export function PoStatusChip({ info, size = "sm", onClick }: PoStatusChipProps) 
     let prefix = "";
 
     if (info.status === "draft") {
-        tone = "bg-slate-100 text-slate-700 ring-slate-200 hover:bg-slate-200";
+        tone = "bg-slate-100 text-slate-700 ring-slate-200 hover:bg-slate-200 dark:bg-slate-900/40 dark:text-slate-200 dark:ring-slate-800/60 dark:hover:bg-slate-900/60";
         Icon = FileText;
         prefix = t("supplies.po.draft");
     } else if (info.status === "sent") {
         tone = isOverdue
-            ? "bg-rose-50 text-rose-700 ring-rose-200 hover:bg-rose-100"
-            : "bg-sky-50 text-sky-700 ring-sky-200 hover:bg-sky-100";
+            ? "bg-rose-50 text-rose-700 ring-rose-200 hover:bg-rose-100 dark:bg-rose-900/40 dark:text-rose-200 dark:ring-rose-800/60 dark:hover:bg-rose-900/60"
+            : "bg-sky-50 text-sky-700 ring-sky-200 hover:bg-sky-100 dark:bg-sky-900/40 dark:text-sky-200 dark:ring-sky-800/60 dark:hover:bg-sky-900/60";
         Icon = Truck;
         prefix = t("supplies.po.sent");
     } else if (info.status === "confirmed") {
         tone = isOverdue
-            ? "bg-rose-50 text-rose-700 ring-rose-200 hover:bg-rose-100"
-            : "bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100";
+            ? "bg-rose-50 text-rose-700 ring-rose-200 hover:bg-rose-100 dark:bg-rose-900/40 dark:text-rose-200 dark:ring-rose-800/60 dark:hover:bg-rose-900/60"
+            : "bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-200 dark:ring-emerald-800/60 dark:hover:bg-emerald-900/60";
         Icon = CheckCircle2;
         prefix = t("supplies.po.confirmed");
     } else {

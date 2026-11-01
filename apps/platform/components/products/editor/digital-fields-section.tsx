@@ -75,7 +75,7 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
                                 {formData.download_url.split('/').pop()}
                             </p>
                             {formData.file_size && (
-                                <p className="text-xs text-green-700">{formData.file_size}</p>
+                                <p className="text-xs text-green-700">{/^\d+$/.test(formData.file_size) ? formatFileSize(Number(formData.file_size)) : formData.file_size}</p>
                             )}
                         </div>
                         <a
