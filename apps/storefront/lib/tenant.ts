@@ -21,9 +21,20 @@ export { DRAFT_VIEW_COOKIE } from "./draft-view";
  */
 const STOREFRONT_CACHE_SECONDS = 60;
 
-/** Columns shared between legacy + v2-aware queries. */
+/**
+ * Columns shared between legacy + v2-aware queries. Never `plan` or
+ * `settings`: those are the merchant's private data (costs, integrations) and
+ * the storefront renders nothing from them.
+ */
 const BASE_TENANT_COLS =
-  "id, business_name, slug, plan, status, branding, settings, store_config, contact_email, contact_phone, address, city";
+  "id, business_name, slug, status, branding, store_config, contact_email, contact_phone, address, city";
+
+/**
+ * Tenants a shopper may see. The row is read with the service client (anon has
+ * no access to tenant config: it carries server-only tokens), so this filter
+ * does the job the old anon RLS policy did.
+ */
+const PUBLIC_TENANT_STATUSES = ["trial", "active"] as const;
 
 /**
  * Public storefront column set: v2 published config, never the draft.
@@ -52,10 +63,15 @@ async function selectTenant(
 ): Promise<Tenant | null> {
   const primaryCols = opts?.includeDraft ? PREVIEW_TENANT_COLS : PUBLIC_TENANT_COLS;
 
-  const apply = (cols: string) =>
-    filter.kind === "slug"
-      ? supabase.from("tenants").select(cols).eq("slug", filter.value).maybeSingle()
-      : supabase.from("tenants").select(cols).eq("id", filter.value).maybeSingle();
+  const apply = (cols: string) => {
+    const base = supabase.from("tenants").select(cols);
+    // The preview path is the merchant's own token-gated view and keeps every
+    // status; the public path shows only live stores.
+    const scoped = opts?.includeDraft ? base : base.in("status", [...PUBLIC_TENANT_STATUSES]);
+    return filter.kind === "slug"
+      ? scoped.eq("slug", filter.value).maybeSingle()
+      : scoped.eq("id", filter.value).maybeSingle();
+  };
 
   // Try with v2 columns first.
   const v2 = await apply(primaryCols);
@@ -114,8 +130,11 @@ const getPublishedTenantBySlug = (slug: string): Promise<Tenant | null> =>
   unstable_cache(
     async (): Promise<Tenant | null> => {
       if (!slug) return null;
+      // Service client: anon cannot read tenant config (it holds server-only
+      // tokens). Cookie-free, so it is safe inside unstable_cache; the status
+      // filter and column list in selectTenant keep it to the public row.
       // Cross-version cast (see ServerClientLike) — same runtime API.
-      const supabase = createSupabasePublicClient() as unknown as ServerClientLike;
+      const supabase = createSupabaseServiceClient() as unknown as ServerClientLike;
       return selectTenant(supabase, { kind: "slug", value: slug });
     },
     ["storefront-tenant-slug", slug],
@@ -188,7 +207,10 @@ const getPublishedTenantByCustomDomain = (domain: string): Promise<Tenant | null
           }));
 
         if (!data?.tenant_id) return null;
-        return selectTenant(supabase, { kind: "id", value: data.tenant_id });
+        // The domain lookup stays anon (its own RLS policy); the tenant row
+        // needs the service client, as in getPublishedTenantBySlug.
+        const service = createSupabaseServiceClient() as unknown as ServerClientLike;
+        return selectTenant(service, { kind: "id", value: data.tenant_id });
       },
       ["storefront-tenant-domain", domain],
       {

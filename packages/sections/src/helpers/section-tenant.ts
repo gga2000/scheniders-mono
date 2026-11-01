@@ -30,10 +30,13 @@
 //                           WhatsApp CTA, last fallback for call CTAs)
 //   store_config_v2.enabled_locales
 //                           helpers/locale-switch (site_header locale switch)
-//   slug, plan, status, settings, contact_email, city
+//   slug, status, contact_email, city
 //                           not read by any section today; kept because they
-//                           are scalars on `BaseTenant` (a few bytes) and the
-//                           editor's product/category pickers type against it.
+//                           are public scalars on `BaseTenant` (a few bytes) and
+//                           the editor's product/category pickers type against it.
+//   plan, settings          NEVER: private merchant data (settings holds
+//                           product costs and integrations). Sending it here
+//                           put it in every page's RSC payload.
 // =====================================================================
 
 import type { SectionTenant } from "../types";
@@ -45,10 +48,8 @@ export function toSectionTenant(tenant: SectionTenant): SectionTenant {
     id: tenant.id,
     business_name: tenant.business_name,
     slug: tenant.slug,
-    plan: tenant.plan,
     status: tenant.status,
     branding: { logo_url: tenant.branding?.logo_url ?? null },
-    settings: tenant.settings,
     contact_email: tenant.contact_email ?? null,
     contact_phone: tenant.contact_phone ?? null,
     city: tenant.city ?? null,

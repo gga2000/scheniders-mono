@@ -47,10 +47,8 @@ const tenant: SectionTenant = {
     id: "tenant-render-guard",
     business_name: "متجر نور",
     slug: "noor",
-    plan: "growth",
     status: "active",
     branding: {},
-    settings: {},
 };
 
 const products: Product[] = Array.from({ length: 4 }, (_, i) => ({

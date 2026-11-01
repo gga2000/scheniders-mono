@@ -19,6 +19,7 @@ import {
   isLive,
   parseLookup,
   phoneOrderAsResult,
+  phoneRowKey,
   safeLinkTarget,
   stageOf,
   type OrderResult,
@@ -171,8 +172,8 @@ describe("safeLinkTarget", () => {
 });
 
 const ROWS: [PhoneOrder, PhoneOrder] = [
-  { order_number: "4261030012", stage: "shipped", placed_at: "2026-10-30T09:00:00+00:00", item_count: 2 },
-  { order_number: "4261001003", stage: "delivered", placed_at: "2026-10-01T09:00:00+00:00", item_count: 1 },
+  { order_number: "•••0012", stage: "shipped", placed_at: "2026-10-30T09:00:00+00:00", item_count: 2 },
+  { order_number: "•••1003", stage: "delivered", placed_at: "2026-10-01T09:00:00+00:00", item_count: 1 },
 ];
 
 describe("phone-only lookup", () => {
@@ -196,21 +197,28 @@ describe("phone-only lookup", () => {
 
   it("finds the order whose stage moved between two answers", () => {
     const after = { kind: "list" as const, orders: [{ ...ROWS[0], stage: "delivered" }, ROWS[1]] as [PhoneOrder, PhoneOrder] };
-    expect(firstStageChange({ kind: "list", orders: ROWS }, after)?.order_number).toBe("4261030012");
+    expect(firstStageChange({ kind: "list", orders: ROWS }, after)?.order_number).toBe("•••0012");
     expect(firstStageChange({ kind: "list", orders: ROWS }, { kind: "list", orders: ROWS })).toBeNull();
+  });
+
+  it("tells apart two orders whose masked numbers match", () => {
+    const twin: [PhoneOrder, PhoneOrder] = [ROWS[0], { ...ROWS[0], placed_at: "2026-09-01T09:00:00+00:00", stage: "placed" }];
+    expect(phoneRowKey(twin[0])).not.toBe(phoneRowKey(twin[1]));
+    const after = { kind: "list" as const, orders: [twin[0], { ...twin[1], stage: "confirmed" }] as [PhoneOrder, PhoneOrder] };
+    expect(firstStageChange({ kind: "list", orders: twin }, after)?.stage).toBe("confirmed");
   });
 
   it("lists number, day, piece count and stage — and never a name", () => {
     const html = renderToStaticMarkup(
       React.createElement(PhoneOrderList, {
         orders: ROWS,
-        selected: ROWS[0].order_number,
+        selected: phoneRowKey(ROWS[0]),
         onSelect: () => undefined,
         locale: "ar",
         titleOf: (row) => resolveNarrative(stageOf(phoneOrderAsResult(row)), "ar", null, null).title,
       }),
     );
-    expect(html).toContain("4261030012");
+    expect(html).toContain("•••0012");
     expect(html).toContain("قطعتين");
     expect(html).toContain("قطعة وحدة");
     expect(html).toContain("30 أكتوبر");

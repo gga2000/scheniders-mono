@@ -37,8 +37,9 @@ export interface SectionTenantContact {
  * tenant row to it before handing it to `RenderPage`, so nothing beyond
  * these fields is serialised into the RSC payload for client sections.
  * See `helpers/section-tenant.ts` for the field-by-field reader list.
+ * Never `plan` or `settings`: they are the merchant's private data.
  */
-export interface SectionTenant extends BaseTenant {
+export interface SectionTenant extends Omit<BaseTenant, "plan" | "settings"> {
   store_config?: { contact?: SectionTenantContact | null } | null;
   store_config_v2?: Pick<StoreConfigV2, "commerce" | "enabled_locales"> | null;
 }
