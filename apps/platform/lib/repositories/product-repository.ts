@@ -115,7 +115,8 @@ export const productRepository = {
                         .range(from, to),
                 ),
                 fetchAllPages<ProductCostRow>((from, to) =>
-                    supabase.rpc("product_costs", { p_tenant_id: tenantId }).range(from, to),
+                    // The functions have no ORDER BY: a stable order keeps pages from skipping or repeating rows.
+                    supabase.rpc("product_costs", { p_tenant_id: tenantId }).order("product_id").order("variant_id").range(from, to),
                 ),
                 // The Supplies tab and reorder drawer group by supplier; without
                 // these rows every supply lands in "no supplier" and cannot get a PO.
@@ -131,7 +132,7 @@ export const productRepository = {
                 ),
                 // Supplier unit cost only for members who may see cost.
                 fetchAllPages<{ id: string; unit_cost: number | null }>((from, to) =>
-                    supabase.rpc("supplier_unit_costs", { p_tenant_id: tenantId }).range(from, to),
+                    supabase.rpc("supplier_unit_costs", { p_tenant_id: tenantId }).order("id").range(from, to),
                 ),
             ]);
 
