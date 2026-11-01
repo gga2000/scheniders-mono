@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { reportOrderError } from "@/lib/order-telemetry";
+import { useLanguage } from "@/hooks/use-language";
 
 export default function OrdersError({
     error,
@@ -11,6 +12,7 @@ export default function OrdersError({
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    const { t } = useLanguage();
     useEffect(() => {
         // Previously console-only, so a crash on the busiest screen in the product
         // left no trace anyone could act on.
@@ -27,11 +29,11 @@ export default function OrdersError({
             </div>
 
             <h2 className="mb-2 text-xl font-bold text-foreground">
-                Orders Data Error
+                {t("orders.ui.errorTitle")}
             </h2>
 
             <p className="mb-6 max-w-md text-muted">
-                We encountered an error loading the orders dashboard. This could be a temporary network issue.
+                {t("orders.ui.errorBody")}
             </p>
 
             <button
@@ -39,7 +41,7 @@ export default function OrdersError({
                 className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
                 <RefreshCw className="h-4 w-4" />
-                Try Again
+                {t("orders.ui.tryAgain")}
             </button>
         </div>
     );

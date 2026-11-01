@@ -1085,7 +1085,7 @@ export function OrderDetailsModal({
 
 
                         <DialogDescription className="sr-only">
-                            Order details for {order.order_id}
+                            {t("orders.ui.detailsFor", { id: order.order_id })}
                         </DialogDescription>
                     </DialogHeader>
 
