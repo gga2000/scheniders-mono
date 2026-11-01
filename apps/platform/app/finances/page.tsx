@@ -214,7 +214,7 @@ function FinancesContent() {
 
     const insights = useFinanceInsights(overview);
     const inTransitSince = useInTransitSince(orders);
-    const cash = useCashPosition(orders, inTransitSince);
+    const cash = useCashPosition(orders, inTransitSince, { start: period.start, end: period.end });
     const revenue = useFinanceRevenue(
         orders,
         products,
