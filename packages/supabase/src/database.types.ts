@@ -8954,6 +8954,15 @@ export type Database = {
           status: string
         }[]
       }
+      lookup_orders_by_phone: {
+        Args: { p_phone: string; p_tenant_id: string }
+        Returns: {
+          item_count: number
+          order_number: string
+          placed_at: string
+          stage: string
+        }[]
+      }
       loyalty_phone_key: { Args: { _phone: string }; Returns: string }
       loyalty_points_for_order: {
         Args: { _subtotal: number; _tenant_id: string }
