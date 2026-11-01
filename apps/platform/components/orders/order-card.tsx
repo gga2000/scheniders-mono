@@ -424,7 +424,7 @@ export const OrderCard = memo(function OrderCard({
                 return (
                     <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-[var(--pastel-yellow)] text-amber-900 border border-[var(--primary)]/30 dark:bg-[#EFFF00]/20 dark:text-[#EFFF00] dark:border-[#EFFF00]/30">
                         <Store className="w-3 h-3" />
-                        طلب محل
+                        {t("orders.card.shopOrder")}
                     </span>
                 );
             default:
@@ -489,7 +489,7 @@ export const OrderCard = memo(function OrderCard({
                         </div>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-[180px] p-2 space-y-1 rounded-xl bg-[var(--card-bg)] border-[var(--card-border)] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.8)] dark:border-[#333]">
-                        <div className="text-xs font-semibold text-muted px-2 py-1 mb-1">تغيير حالة الطلب</div>
+                        <div className="text-xs font-semibold text-muted px-2 py-1 mb-1">{t("orders.card.changeStatus")}</div>
                         {ORDER_STATUSES.map((status) => (
                             <DropdownMenuItem
                                 key={status}
@@ -602,7 +602,7 @@ export const OrderCard = memo(function OrderCard({
                         {/* Row 4: Price */}
                         <div className="mt-auto pt-1">
                             {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
-                                <span className="text-sm font-bold text-emerald-600">واصل</span>
+                                <span className="text-sm font-bold text-emerald-600">{t("orders.card.paid")}</span>
                             ) : (
                                 <span className={cn(
                                     "text-sm font-bold tabular-nums",
@@ -649,7 +649,7 @@ export const OrderCard = memo(function OrderCard({
                     {isBlacklisted && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-bold">
                             <Ban className="w-3.5 h-3.5 flex-shrink-0" />
-                            <span>عميل محظور</span>
+                            <span>{t("orders.card.blockedCustomer")}</span>
                             {blacklistEntry?.reason && (
                                 <span className="font-normal opacity-70 truncate">· {blacklistEntry.reason}</span>
                             )}
@@ -751,7 +751,7 @@ export const OrderCard = memo(function OrderCard({
                             ) : <div />}
 
                             {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
-                                <span className="text-sm font-bold text-emerald-600 flex-shrink-0">واصل</span>
+                                <span className="text-sm font-bold text-emerald-600 flex-shrink-0">{t("orders.card.paid")}</span>
                             ) : (
                                 <span className={cn(
                                     "text-sm font-bold tabular-nums flex-shrink-0",
@@ -785,13 +785,13 @@ export const OrderCard = memo(function OrderCard({
 
                                             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                                 navigator.clipboard.writeText(link).then(() => {
-                                                    alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
+                                                    alert(t("orders.card.popupBlocked"));
                                                 }).catch(() => {
                                                     alert(`Popup blocked. Link: ${link}`);
                                                 });
                                             }
                                         } catch (error) {
-                                            alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
+                                            alert(t("orders.card.whatsappOpenFailed"));
                                         }
                                     }
                                 }}
@@ -895,7 +895,7 @@ export const OrderCard = memo(function OrderCard({
                             {isBlacklisted && (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-900 text-white text-[9px] font-bold flex-shrink-0">
                                     <Ban className="w-2.5 h-2.5" />
-                                    محظور
+                                    {t("orders.card.blocked")}
                                 </span>
                             )}
                             <span className="text-xs font-mono text-muted flex-shrink-0 flex items-center gap-1">
@@ -979,7 +979,7 @@ export const OrderCard = memo(function OrderCard({
                         {/* Price */}
                         <div className="flex-shrink-0 text-right min-w-[70px]">
                             {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
-                                <span className="text-sm font-bold text-emerald-600">واصل</span>
+                                <span className="text-sm font-bold text-emerald-600">{t("orders.card.paid")}</span>
                             ) : (
                                 <span className={cn(
                                     "text-sm font-bold tabular-nums",
@@ -1014,13 +1014,13 @@ export const OrderCard = memo(function OrderCard({
 
                                         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                             navigator.clipboard.writeText(link).then(() => {
-                                                alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
+                                                alert(t("orders.card.popupBlocked"));
                                             }).catch(() => {
                                                 alert(`Popup blocked. Link: ${link}`);
                                             });
                                         }
                                     } catch (error) {
-                                        alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
+                                        alert(t("orders.card.whatsappOpenFailed"));
                                     }
                                 }
                             }}
@@ -1263,7 +1263,7 @@ export const OrderCard = memo(function OrderCard({
                                                         console.error('Failed to copy:', err);
                                                     }
                                                 }}
-                                                title="انقر للنسخ"
+                                                title={t("orders.card.clickToCopy")}
                                             >
                                                 {!order.order_id?.startsWith('CHK-') && "#"}
                                                 <HighlightedText text={getDisplayOrderId(baseId)} query={localSearchQuery} />
@@ -1308,7 +1308,7 @@ export const OrderCard = memo(function OrderCard({
                                         {order.delivery_order_id && (
                                             <span
                                                 className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[9px] font-semibold flex items-center gap-1"
-                                                title="رقم شركة التوصيل"
+                                                title={t("orders.card.courierNumber")}
                                             >
                                                 🚚 {order.delivery_order_id}
                                             </span>
@@ -1326,10 +1326,10 @@ export const OrderCard = memo(function OrderCard({
                                                     e.stopPropagation();
                                                     onViewDetails(previousOrder);
                                                 }}
-                                                title="عرض طلب سابق"
+                                                title={t("orders.card.viewPrevious")}
                                             >
                                                 <CopyPlus className="w-3 h-3" />
-                                                طلب سابق #{previousOrder.order_id}
+                                                {t("orders.card.previousOrder", { id: previousOrder.order_id })}
                                             </span>
                                         )}
                                     </>
@@ -1407,7 +1407,7 @@ export const OrderCard = memo(function OrderCard({
                             {order.delivery_company === 'waseet' && (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-cyan-100 text-cyan-800 border border-cyan-300">
                                     <Truck className="w-3 h-3 flex-shrink-0" />
-                                    الوسيط
+                                    {t("orders.card.waseet")}
                                     {order.waseet_status_text && (
                                         <span className="text-cyan-600">• {order.waseet_status_text}</span>
                                     )}
@@ -1424,7 +1424,7 @@ export const OrderCard = memo(function OrderCard({
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                                    وصل الوسيط
+                                    {t("orders.card.waseetReceipt")}
                                 </a>
                             )}
 
@@ -1448,14 +1448,14 @@ export const OrderCard = memo(function OrderCard({
                                         {((riskAssessment?.historicalData?.rejectedCustomerFaultCount ?? 0) > 0) && (
                                             <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
                                                 <XCircle className="w-3 h-3" />
-                                                طلبات سابقة مرفوضة
+                                                {t("orders.card.prevRejected")}
                                             </span>
                                         )}
                                         {/* Previous Refund - PURPLE */}
                                         {(riskAssessment?.historicalData?.refundCount ?? 0) > 0 && (
                                             <span className="inline-flex h-6 items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
                                                 <RotateCcw className="w-3 h-3" />
-                                                طلبات سابقة مسترجعة ({riskAssessment?.historicalData?.refundCount})
+                                                {t("orders.card.prevRefunded", { count: riskAssessment?.historicalData?.refundCount ?? 0 })}
                                             </span>
                                         )}
 
@@ -1463,7 +1463,7 @@ export const OrderCard = memo(function OrderCard({
                                         {((riskAssessment?.historicalData?.noResponseCount ?? 0) > 0) && (
                                             <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold border border-orange-200">
                                                 <PhoneOff className="w-3 h-3" />
-                                                لم يتم الرد سابقاً
+                                                {t("orders.card.prevNoResponse")}
                                             </span>
                                         )}
                                     </>
@@ -1474,7 +1474,7 @@ export const OrderCard = memo(function OrderCard({
                             {order.is_archived && (
                                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-gray-200 text-gray-700 border border-gray-300">
                                     <ArchiveIcon className="w-3 h-3" />
-                                    مؤرشف
+                                    {t("orders.card.archived")}
                                 </span>
                             )}
 
@@ -1494,25 +1494,25 @@ export const OrderCard = memo(function OrderCard({
                                 if (daysLeft > 5) {
                                     return (
                                         <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-green-100 text-green-700">
-                                            ✓ {daysLeft} أيام ضمان
+                                            ✓ {t("orders.card.guaranteeDays", { count: daysLeft })}
                                         </span>
                                     );
                                 } else if (daysLeft > 2) {
                                     return (
                                         <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-yellow-100 text-yellow-700">
-                                            ⏱ {daysLeft} أيام ضمان
+                                            ⏱ {t("orders.card.guaranteeDays", { count: daysLeft })}
                                         </span>
                                     );
                                 } else if (daysLeft > 0) {
                                     return (
                                         <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
-                                            ⚠ {daysLeft === 1 ? 'آخر يوم!' : `${daysLeft} أيام`}
+                                            ⚠ {daysLeft === 1 ? t("orders.card.lastDay") : t("orders.card.daysLeft", { count: daysLeft })}
                                         </span>
                                     );
                                 } else {
                                     return (
                                         <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-gray-100 text-gray-500">
-                                            انتهى الضمان
+                                            {t("orders.card.guaranteeOver")}
                                         </span>
                                     );
                                 }
@@ -1543,7 +1543,7 @@ export const OrderCard = memo(function OrderCard({
                                             ? "bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200"
                                             : (customerOrderCount > 1 ? "bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200" : "bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200")
                                     )}
-                                    title={previousOrder ? `طلب سابق: #${previousOrder.order_id}` : `${customerOrderCount + archivedOrderCount} طلبات إجمالاً (${archivedOrderCount} مؤرشف)`}
+                                    title={previousOrder ? t("orders.card.previousOrderTip", { id: previousOrder.order_id }) : t("orders.card.totalOrdersTip", { total: customerOrderCount + archivedOrderCount, archived: archivedOrderCount })}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         if (onShowDuplicates) {
@@ -1556,13 +1556,13 @@ export const OrderCard = memo(function OrderCard({
                                     {archivedOrderCount > 0 && customerOrderCount === 1 ? (
                                         <>
                                             <HistoryIcon className="w-3 h-3" />
-                                            زبون تاريخي ({archivedOrderCount})
+                                            {t("orders.card.historicCustomer", { count: archivedOrderCount })}
                                         </>
                                     ) : (
                                         <>
                                             <Copy className="w-3 h-3" />
-                                            {customerOrderCount + archivedOrderCount} طلبات
-                                            {archivedOrderCount > 0 && <span className="opacity-70 text-[8px] mr-1">({archivedOrderCount} أرشفة)</span>}
+                                            {t("orders.card.ordersCount", { count: customerOrderCount + archivedOrderCount })}
+                                            {archivedOrderCount > 0 && <span className="opacity-70 text-[8px] mr-1">{t("orders.card.archivedCount", { count: archivedOrderCount })}</span>}
                                         </>
                                     )}
                                 </span>
@@ -1626,7 +1626,7 @@ export const OrderCard = memo(function OrderCard({
                                                     {item.is_ai_extracted && <GeminiBadge />}
                                                     {(item as { is_open_box?: boolean }).is_open_box && (
                                                         <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
-                                                            علبة مفتوحة
+                                                            {t("orders.card.openBox")}
                                                         </span>
                                                     )}
                                                     {/* Reason Tag - shows for return, rejected, cancelled orders */}
@@ -1661,14 +1661,14 @@ export const OrderCard = memo(function OrderCard({
                                         {order.needs_attention && order.attention_reasons?.some(r => r.startsWith('delivery_')) && (
                                             <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 animate-pulse border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
                                                 <AlertTriangle className="w-3.5 h-3.5" />
-                                                {order.attention_reasons!.includes('delivery_price_changed') ? 'سعر معدّل' :
-                                                    order.attention_reasons!.includes('delivery_force_delivered') ? 'تسليم إجباري' :
-                                                        order.attention_reasons!.includes('delivery_amount_mismatch') ? 'فرق بالمبلغ' :
-                                                            order.attention_reasons!.includes('delivery_phone_mismatch') ? 'فرق بالرقم' :
-                                                                order.attention_reasons!.includes('delivery_already_delivered') ? 'مسلّم مسبقاً' :
-                                                                    order.attention_reasons!.includes('delivery_wrong_status') ? 'حالة خاطئة' :
-                                                                        order.attention_reasons!.includes('delivery_partial_delivery') ? 'تسليم جزئي' :
-                                                                            'مراجعة توصيل'}
+                                                {order.attention_reasons!.includes('delivery_price_changed') ? t("orders.card.attn.delivery_price_changed") :
+                                                    order.attention_reasons!.includes('delivery_force_delivered') ? t("orders.card.attn.delivery_force_delivered") :
+                                                        order.attention_reasons!.includes('delivery_amount_mismatch') ? t("orders.card.attn.delivery_amount_mismatch") :
+                                                            order.attention_reasons!.includes('delivery_phone_mismatch') ? t("orders.card.attn.delivery_phone_mismatch") :
+                                                                order.attention_reasons!.includes('delivery_already_delivered') ? t("orders.card.attn.delivery_already_delivered") :
+                                                                    order.attention_reasons!.includes('delivery_wrong_status') ? t("orders.card.attn.delivery_wrong_status") :
+                                                                        order.attention_reasons!.includes('delivery_partial_delivery') ? t("orders.card.attn.delivery_partial_delivery") :
+                                                                            t("orders.card.attn.deliveryReview")}
                                             </span>
                                         )}
                                         {/* COD risk signals stamped by the storefront at checkout (cod_risk_signals) */}
@@ -1679,14 +1679,14 @@ export const OrderCard = memo(function OrderCard({
                                         />
                                         {/* WhatsApp Attention Flag - shows when message sending failed */}
                                         {order.needs_attention && order.attention_reasons?.some(r => r.startsWith('whatsapp_')) && (
-                                            <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 animate-pulse border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20" title={order.delivery_note || 'فشل إرسال واتساب'}>
+                                            <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 animate-pulse border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20" title={order.delivery_note || t("orders.card.attn.whatsappSendFailed")}>
                                                 <AlertTriangle className="w-3.5 h-3.5" />
-                                                {order.attention_reasons!.includes('whatsapp_wallet_empty') ? 'رصيد واتساب منتهي' :
-                                                    order.attention_reasons!.includes('whatsapp_invalid_number') ? 'رقم غير صالح' :
-                                                    order.attention_reasons!.includes('whatsapp_rate_limited') ? 'حد الإرسال' :
-                                                        order.attention_reasons!.includes('whatsapp_network_error') ? 'خطأ شبكة' :
-                                                            order.attention_reasons!.includes('whatsapp_config_error') ? 'خطأ إعداد' :
-                                                                'فشل واتساب'}
+                                                {order.attention_reasons!.includes('whatsapp_wallet_empty') ? t("orders.card.attn.whatsapp_wallet_empty") :
+                                                    order.attention_reasons!.includes('whatsapp_invalid_number') ? t("orders.card.attn.whatsapp_invalid_number") :
+                                                    order.attention_reasons!.includes('whatsapp_rate_limited') ? t("orders.card.attn.whatsapp_rate_limited") :
+                                                        order.attention_reasons!.includes('whatsapp_network_error') ? t("orders.card.attn.whatsapp_network_error") :
+                                                            order.attention_reasons!.includes('whatsapp_config_error') ? t("orders.card.attn.whatsapp_config_error") :
+                                                                t("orders.card.attn.whatsappFailed")}
                                             </span>
                                         )}
                                     </div>
@@ -1770,7 +1770,7 @@ export const OrderCard = memo(function OrderCard({
                                         {(!order.address_details || order.address_details.trim() === '') && (
                                             <span
                                                 className="relative flex h-2.5 w-2.5 flex-shrink-0"
-                                                title="لا يوجد تفاصيل عنوان"
+                                                title={t("orders.card.noAddressDetails")}
                                             >
                                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
                                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500" />
@@ -1818,9 +1818,9 @@ export const OrderCard = memo(function OrderCard({
                         )}
                         {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                             <>
-                                <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">المبلغ الإجمالي</p>
+                                <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">{t("orders.card.total")}</p>
                                 <p className="text-lg font-bold text-emerald-600 dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">
-                                    واصل
+                                    {t("orders.card.paid")}
                                 </p>
                                 <p className="text-xs text-muted font-mono dark:text-[#A1A1A1]">
                                     {formatIQD(Math.abs(Number(order.price)))}
@@ -1828,7 +1828,7 @@ export const OrderCard = memo(function OrderCard({
                             </>
                         ) : (
                             <div className="flex flex-col items-end">
-                                <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">المبلغ الإجمالي</p>
+                                <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">{t("orders.card.total")}</p>
                                 {order.discount_amount ? (
                                     <>
                                         <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono mb-0.5">
@@ -1861,7 +1861,7 @@ export const OrderCard = memo(function OrderCard({
                                 {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
                                     <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
                                         <Truck className="w-2.5 h-2.5" />
-                                        خصم توصيل: {formatIQD(orderReasonInfo.deliveryDeduction)}
+                                        {t("orders.card.deliveryDeduction", { amount: formatIQD(orderReasonInfo.deliveryDeduction) })}
                                     </div>
                                 )}
                             </div>
@@ -1888,13 +1888,13 @@ export const OrderCard = memo(function OrderCard({
 
                                             if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                                 navigator.clipboard.writeText(link).then(() => {
-                                                    alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
+                                                    alert(t("orders.card.popupBlocked"));
                                                 }).catch(() => {
                                                     alert(`Popup blocked. Link: ${link}`);
                                                 });
                                             }
                                         } catch (error) {
-                                            alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
+                                            alert(t("orders.card.whatsappOpenFailed"));
                                         }
                                     }}
                                     className={cn(
@@ -1925,13 +1925,13 @@ export const OrderCard = memo(function OrderCard({
 
                                                 if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                                     navigator.clipboard.writeText(link).then(() => {
-                                                        alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
+                                                        alert(t("orders.card.popupBlocked"));
                                                     }).catch(() => {
                                                         alert(`Popup blocked. Link: ${link}`);
                                                     });
                                                 }
                                             } catch (error) {
-                                                alert('حدث خطأ عند فتح واتساب.');
+                                                alert(t("orders.card.whatsappOpenFailedShort"));
                                             }
                                         }}
                                         className={cn(
@@ -1957,12 +1957,12 @@ export const OrderCard = memo(function OrderCard({
                             <div className="flex-shrink-0 text-right">
                                 {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wider dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">المبلغ الإجمالي</span>
-                                        <span className="text-lg font-bold text-emerald-600 dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">واصل</span>
+                                        <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wider dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">{t("orders.card.total")}</span>
+                                        <span className="text-lg font-bold text-emerald-600 dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">{t("orders.card.paid")}</span>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[10px] text-muted uppercase tracking-wider dark:text-[#A1A1A1]">المبلغ الإجمالي</span>
+                                        <span className="text-[10px] text-muted uppercase tracking-wider dark:text-[#A1A1A1]">{t("orders.card.total")}</span>
 
                                         {order.discount_amount ? (
                                             <>
@@ -1995,7 +1995,7 @@ export const OrderCard = memo(function OrderCard({
                                         )}
                                         {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
                                             <div className="flex items-center gap-1 mt-1 text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
-                                                خصم توصيل: {formatIQD(orderReasonInfo.deliveryDeduction)}
+                                                {t("orders.card.deliveryDeduction", { amount: formatIQD(orderReasonInfo.deliveryDeduction) })}
                                             </div>
                                         )}
                                     </div>
@@ -2031,7 +2031,7 @@ export const OrderCard = memo(function OrderCard({
                                         ? "bg-cyan-500 border-cyan-600 shadow-lg shadow-cyan-500/50"
                                         : "bg-white border-gray-300 hover:border-cyan-400 hover:shadow-sm"
                                 )}
-                                title={isReviewed ? "تم المراجعة - انقر لإلغاء" : "انقر للتأشير كمراجَع"}
+                                title={isReviewed ? t("orders.card.reviewedUndo") : t("orders.card.markReviewed")}
                             >
                                 {isReviewed && (
                                     <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -2086,12 +2086,12 @@ export const OrderCard = memo(function OrderCard({
                             };
 
                             const getTitle = () => {
-                                if (!isValidPhone) return validatePhoneDetailed(order.phone).errorMessageAr;
+                                if (!isValidPhone) return language === "ar" ? validatePhoneDetailed(order.phone).errorMessageAr : validatePhoneDetailed(order.phone).errorMessage;
                                 switch (contactCount) {
-                                    case 0: return "WhatsApp - لم يتم التواصل بعد";
-                                    case 1: return "WhatsApp - تم التواصل مرة واحدة";
-                                    case 2: return "WhatsApp - تم التواصل مرتين";
-                                    default: return `WhatsApp - تم التواصل ${contactCount} مرات`;
+                                    case 0: return t("orders.card.wa0");
+                                    case 1: return t("orders.card.wa1");
+                                    case 2: return t("orders.card.wa2");
+                                    default: return t("orders.card.waN", { count: contactCount });
                                 }
                             };
 
@@ -2115,13 +2115,13 @@ export const OrderCard = memo(function OrderCard({
 
                                                 if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                                     navigator.clipboard.writeText(link).then(() => {
-                                                        alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
+                                                        alert(t("orders.card.popupBlocked"));
                                                     }).catch(() => {
                                                         alert(`Popup blocked. Link: ${link}`);
                                                     });
                                                 }
                                             } catch (error) {
-                                                alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
+                                                alert(t("orders.card.whatsappOpenFailed"));
                                             }
                                         }
                                     }}
@@ -2160,13 +2160,13 @@ export const OrderCard = memo(function OrderCard({
 
                                         if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
                                             navigator.clipboard.writeText(link).then(() => {
-                                                alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
+                                                alert(t("orders.card.popupBlocked"));
                                             }).catch(() => {
                                                 alert(`Popup blocked. Link: ${link}`);
                                             });
                                         }
                                     } catch (error) {
-                                        alert('حدث خطأ عند فتح واتساب.');
+                                        alert(t("orders.card.whatsappOpenFailedShort"));
                                     }
                                 }}
                                 className={cn(
@@ -2388,7 +2388,7 @@ export const OrderCard = memo(function OrderCard({
                                 }}
                                 disabled={isLoading}
                                 className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition-all flex items-center justify-center disabled:opacity-50 dark:bg-white/10 dark:border-white/20 dark:text-[#A1A1A1] dark:hover:text-white dark:hover:bg-white/20"
-                                title="تراجع - Undo Status Change"
+                                title={t("orders.card.undoStatus")}
                             >
                                 <RotateCcw className="w-4 h-4" />
                             </button>
@@ -2487,7 +2487,7 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         disabled={isLoading}
                                         className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 ring-2 ring-emerald-300/50 transition-all flex items-center justify-center disabled:opacity-50 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
-                                        title="طلب تام - Mark as Complete"
+                                        title={t("orders.card.markComplete")}
                                     >
                                         <CheckCircle className="w-4 h-4" />
                                     </button>
@@ -2521,7 +2521,7 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         disabled={isLoading}
                                         className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-center disabled:opacity-50"
-                                        title="لم يرد - No Response"
+                                        title={t("orders.card.noResponse")}
                                     >
                                         <PhoneCall className="w-4 h-4" />
                                     </button>
@@ -2536,7 +2536,7 @@ export const OrderCard = memo(function OrderCard({
                                             }}
                                             disabled={isLoading}
                                             className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 ring-2 ring-emerald-300/50 transition-all flex items-center justify-center disabled:opacity-50"
-                                            title="تم الاسترجاع - Refund Delivered"
+                                            title={t("orders.card.refundDelivered")}
                                         >
                                             <CheckCircle className="w-4 h-4" />
                                         </button>
@@ -2547,7 +2547,7 @@ export const OrderCard = memo(function OrderCard({
                                             }}
                                             disabled={isLoading}
                                             className="w-10 h-10 rounded-xl bg-red-100 text-red-700 hover:bg-red-200 ring-2 ring-red-300/50 transition-all flex items-center justify-center disabled:opacity-50"
-                                            title="فشل الاسترجاع - Refund Failed"
+                                            title={t("orders.card.refundFailed")}
                                         >
                                             <XCircle className="w-4 h-4" />
                                         </button>

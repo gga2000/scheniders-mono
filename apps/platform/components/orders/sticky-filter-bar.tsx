@@ -114,11 +114,11 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
         { id: "cancelled", label: t("orders.status.cancelled"), count: statusCounts.cancelled || 0 },
         { id: "rejected", label: t("orders.status.rejected"), count: statusCounts.rejected || 0 },
-        { id: "refunds", label: "المرتجعات", count: statusCounts.refunds || 0 },
-        { id: "refunded", label: "مسترجعة", count: statusCounts.refunded || 0 },
-        { id: "refund_pending", label: "قيد الاسترجاع", count: statusCounts.refund_pending || 0 },
-        { id: "replacements", label: "الاستبدالات", count: statusCounts.replacements || 0 },
-        { id: "suspended", label: "طلب معلق", count: statusCounts.suspended || 0 },
+        { id: "refunds", label: t("orders.chip.refunds"), count: statusCounts.refunds || 0 },
+        { id: "refunded", label: t("orders.chip.refunded"), count: statusCounts.refunded || 0 },
+        { id: "refund_pending", label: t("orders.chip.refundPending"), count: statusCounts.refund_pending || 0 },
+        { id: "replacements", label: t("orders.chip.replacements"), count: statusCounts.replacements || 0 },
+        { id: "suspended", label: t("orders.chip.suspended"), count: statusCounts.suspended || 0 },
         { id: "no_response", label: t("orders.status.noResponse"), count: statusCounts.no_response || 0 },
     ];
 
@@ -396,7 +396,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         )}
                     >
                         <RotateCcw className="w-3.5 h-3.5" />
-                        <span>المرتجعات</span>
+                        <span>{t("orders.chip.refunds")}</span>
                     </button>
 
                     <button
@@ -410,7 +410,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         )}
                     >
                         <Repeat className="w-3.5 h-3.5" />
-                        <span>الاستبدالات</span>
+                        <span>{t("orders.chip.replacements")}</span>
                     </button>
 
                     <button

@@ -7,7 +7,8 @@ import { useDocumentOffsetTop } from '@/hooks/use-document-offset-top';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
 import { perfTrace } from '@/lib/perf-trace';
 import { cn, formatIQD } from '@/lib/utils';
-import { formatPhoneGrouped } from '@/lib/order-utils';
+import { formatPhoneGrouped, validatePhoneDetailed } from '@/lib/order-utils';
+import { TABLE_STATUS_OPTIONS } from '@/components/orders/table/status-options';
 import { isWhatsAppSlot } from '@/lib/whatsapp-contact';
 import type { Order, OrderStatus } from '@/lib/supabase';
 import type { OrderFilters } from '@/types/order';
@@ -74,20 +75,6 @@ const formatDateShort = (dateStr: string) => {
     return `${d.getMonth() + 1}-${d.getDate().toString().padStart(2, '0')}`;
 };
 
-// Status options for the custom dropdown
-const STATUS_OPTIONS: Array<{ value: OrderStatus; label: string; dot: string }> = [
-    { value: "new", label: "جديد", dot: "bg-orange-400" },
-    { value: "contacted", label: "تم الاتصال", dot: "bg-yellow-400" },
-    { value: "confirmed", label: "مؤكد", dot: "bg-green-400" },
-    { value: "in_transit", label: "قيد التوصيل", dot: "bg-blue-400" },
-    { value: "delivered", label: "تم التسليم", dot: "bg-teal-400" },
-    { value: "completed", label: "مكتمل", dot: "bg-emerald-400" },
-    { value: "no_response", label: "لم يرد", dot: "bg-gray-400" },
-    { value: "suspended", label: "طلب معلق", dot: "bg-orange-300" },
-    { value: "rejected", label: "مرفوض", dot: "bg-rose-400" },
-    { value: "cancelled", label: "ملغي", dot: "bg-red-400" },
-];
-
 // Resize handle component
 const ResizeHandle = ({ columnKey, onResizeStart, onDoubleClick }: { columnKey: string; onResizeStart: (key: string, e: React.MouseEvent) => void; onDoubleClick: (key: string) => void }) => (
     <div
@@ -135,17 +122,6 @@ interface VirtualizedOrderTableProps {
     setFilters: (filters: OrderFilters) => void;
 }
 
-// Phone validation helper
-const validatePhoneDetailed = (phone: string | null | undefined) => {
-    if (!phone) return { isValid: false, reason: "Empty phone number", formatted: "" };
-    const cleaned = phone.replace(/\D/g, "");
-    if (!cleaned.startsWith("964")) return { isValid: false, reason: "Missing 964 code", formatted: cleaned };
-    if (cleaned.length !== 13) return { isValid: false, reason: `Wrong length: ${cleaned.length}`, formatted: cleaned };
-    const providerNetwork = cleaned.substring(3, 6);
-    const validNetworks = ["770", "771", "772", "773", "774", "775", "780", "781", "782", "783", "784", "785", "750", "751", "752", "753", "790"];
-    if (!validNetworks.includes(providerNetwork)) return { isValid: false, reason: `Invalid network: ${providerNetwork}`, formatted: cleaned };
-    return { isValid: true, reason: "Valid", formatted: cleaned };
-};
 // Custom status dropdown component (inline, replaces native <select>)
 const StatusDropdown = memo(function StatusDropdown({
     status, orderId, isReturn, updateOrderStatus, onStatusChanged
@@ -154,6 +130,7 @@ const StatusDropdown = memo(function StatusDropdown({
     updateOrderStatus: (id: string, status: OrderStatus) => Promise<unknown>;
     onStatusChanged?: (orderId: string) => void;
 }) {
+    const { t, language } = useLanguage();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -169,12 +146,12 @@ const StatusDropdown = memo(function StatusDropdown({
     if (isReturn) {
         return (
             <span className="w-full px-2 py-1 text-[11px] font-bold rounded-lg bg-purple-100 text-purple-700 text-center block">
-                استرجاع
+                {t("refund.chip")}
             </span>
         );
     }
 
-    const current = STATUS_OPTIONS.find(s => s.value === status);
+    const current = TABLE_STATUS_OPTIONS.find(s => s.value === status);
 
     return (
         <div ref={ref} className="relative w-full">
@@ -186,12 +163,12 @@ const StatusDropdown = memo(function StatusDropdown({
                 )}
             >
                 <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", current?.dot || "bg-gray-400")} />
-                {current?.label || status}
+                {getOrderStatusLabel(status, language)}
                 <ChevronDown className={cn("w-3 h-3 transition-transform shrink-0", open && "rotate-180")} />
             </button>
             {open && (
                 <div className="absolute top-full left-0 mt-1 w-36 py-1 bg-white rounded-xl shadow-xl border border-gray-100 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                    {STATUS_OPTIONS.map((opt) => (
+                    {TABLE_STATUS_OPTIONS.map((opt) => (
                         <button
                             key={opt.value}
                             onClick={async (e) => {
@@ -208,7 +185,7 @@ const StatusDropdown = memo(function StatusDropdown({
                             )}
                         >
                             <span className={cn("w-2 h-2 rounded-full shrink-0", opt.dot)} />
-                            <span className="flex-1">{opt.label}</span>
+                            <span className="flex-1">{getOrderStatusLabel(opt.value, language)}</span>
                             {opt.value === status && <Check className="w-3 h-3 text-primary shrink-0" />}
                         </button>
                     ))}
@@ -451,7 +428,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                     attentionReasons={order.attention_reasons}
                 />
                 {order.needs_attention && order.attention_reasons?.some((r: string) => r.startsWith('whatsapp_')) && (
-                    <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 border border-red-200" title={order.delivery_note || 'فشل واتساب'}>
+                    <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 border border-red-200" title={order.delivery_note || t("orders.card.attn.whatsappFailed")}>
                         <AlertTriangle className="w-3 h-3" />
                         WA
                     </span>
@@ -599,7 +576,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         {!isReturn && Math.abs(Number(order.price)) < modePrice && modePrice > 0 && <TrendingDown className="w-3 h-3 text-blue-500" />}
                     </div>
                     {(order.payment_status === "paid" || order.payment_status === "prepaid") && (
-                        <span className="px-1.5 py-0.5 text-[9px] bg-emerald-100 text-emerald-700 rounded-md font-bold">واصل</span>
+                        <span className="px-1.5 py-0.5 text-[9px] bg-emerald-100 text-emerald-700 rounded-md font-bold">{t("orders.card.paid")}</span>
                     )}
                 </div>
             </div>
@@ -618,7 +595,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                     order.source === "shop" && "bg-amber-100 text-amber-700",
                     (!order.source || order.source === "manual") && "bg-gray-100 text-gray-500",
                 )}>
-                    {order.source === "lightfunnels" ? "LF" : order.source === "delivery_import" ? "DLV" : order.source === "whatsapp" ? "WA" : order.source === "shop" ? "محل" : (order.source || "—")}
+                    {order.source === "lightfunnels" ? "LF" : order.source === "delivery_import" ? "DLV" : order.source === "whatsapp" ? "WA" : order.source === "shop" ? t("orders.source.shop") : (order.source || "—")}
                 </span>
                 {/* The ad network the customer clicked, beside the system that sent it. */}
                 <AdChannelBadge attribution={order.attribution} channel={order.ad_channel} iconOnly className="ms-1" />

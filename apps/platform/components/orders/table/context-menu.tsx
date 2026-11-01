@@ -8,19 +8,8 @@ import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { getOrderStatusLabel } from "@/lib/order-status-labels";
+import { TABLE_STATUS_OPTIONS } from "./status-options";
 
-const STATUS_OPTIONS: Array<{ value: OrderStatus; dot: string }> = [
-    { value: "new", dot: "bg-orange-400" },
-    { value: "contacted", dot: "bg-yellow-400" },
-    { value: "confirmed", dot: "bg-green-400" },
-    { value: "in_transit", dot: "bg-blue-400" },
-    { value: "delivered", dot: "bg-teal-400" },
-    { value: "completed", dot: "bg-emerald-400" },
-    { value: "no_response", dot: "bg-gray-400" },
-    { value: "suspended", dot: "bg-orange-300" },
-    { value: "rejected", dot: "bg-rose-400" },
-    { value: "cancelled", dot: "bg-red-400" },
-];
 
 interface ContextMenuProps {
     x: number;
@@ -131,13 +120,13 @@ export const OrderContextMenu = memo(function OrderContextMenu({
             <div className="relative group/status">
                 <button className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-gray-50 transition-colors text-gray-700">
                     <div className={cn("w-2 h-2 rounded-full",
-                        STATUS_OPTIONS.find(s => s.value === order.status)?.dot || "bg-gray-400"
+                        TABLE_STATUS_OPTIONS.find(s => s.value === order.status)?.dot || "bg-gray-400"
                     )} />
                     {t("orders.ctx.changeStatus")}
                     <ChevronRight className="w-3 h-3 ml-auto text-gray-400" />
                 </button>
                 <div className="absolute left-full top-0 ml-1 w-40 py-1 bg-white/95 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-200 hidden group-hover/status:block">
-                    {STATUS_OPTIONS.map((opt) => (
+                    {TABLE_STATUS_OPTIONS.map((opt) => (
                         <button
                             key={opt.value}
                             onClick={async () => {
