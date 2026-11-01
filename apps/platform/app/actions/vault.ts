@@ -218,7 +218,7 @@ export async function restoreVaultRowsAction(
 
     const existingIds = new Set((existing ?? []).map((row) => row.id));
     const writes = parsed.data.rows.map((row) => {
-        const write = pickProductWrite(row, tenantId, existingIds.has(row.id));
+        const write = pickProductWrite(row, tenantId);
         if ("category_id" in write && !validCategories.has(write.category_id as string)) write.category_id = null;
         return write;
     });

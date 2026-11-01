@@ -729,7 +729,7 @@ export default function VaultPage() {
                                                 {t("vault.restore.pickHint", "Untick anything you do not want to restore.")}
                                             </div>
                                             <div className="text-xs text-[var(--foreground-muted)]">
-                                                {t("vault.restore.stockNote", "Stock counts and costs of products that already exist are kept as they are now.")}
+                                                {t("vault.restore.stockNote", "Stock counts come from the file and replace today's counts. Costs are not restored.")}
                                             </div>
                                             <div className="text-xs text-[var(--foreground-muted)] mt-2">
                                                 {t("vault.restore.createdOn", "Backup created on:")} <span className="text-[var(--foreground)] font-medium">{formatVaultDate(diffResult.timestamp)}</span>
