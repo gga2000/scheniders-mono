@@ -131,7 +131,7 @@ export function ReorderDrawer({
             const primary = suppliers.find((x) => x.is_primary) ?? suppliers[0] ?? null;
             const leadTimeDays = primary?.lead_time_days ?? 7;
             const moq = primary?.minimum_order_quantity ?? 1;
-            const unitCost = primary?.unit_cost ?? s.cost ?? 0;
+            const unitCost = Math.round(primary?.unit_cost ?? s.cost ?? 0);
 
             const belowReorder = stock <= reorderPoint;
             const atRisk =
@@ -257,6 +257,16 @@ export function ReorderDrawer({
 
     const handleGenerate = useCallback(
         async (group: SupplierGroup) => {
+            const uncosted = group.items.filter((i) => i.unitCost <= 0);
+            if (uncosted.length > 0) {
+                // A zero-cost line would create a PO that understates what is owed.
+                toast.error(
+                    t("supplies.ro.missingCost", {
+                        names: uncosted.map((i) => i.supply.name).join(", "),
+                    })
+                );
+                return;
+            }
             setGenerating((prev) => new Set(prev).add(group.supplierName));
             try {
                 await generatePO.mutateAsync(group);
@@ -268,7 +278,7 @@ export function ReorderDrawer({
                 });
             }
         },
-        [generatePO]
+        [generatePO, t]
     );
 
     return (
@@ -602,7 +612,7 @@ function ReorderItemRow({
                                 className="w-20 px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-200"
                             />
                             <span className="text-[11px] text-muted tabular-nums">
-                                × {formatIQD(item.unitCost)}
+                                {item.unitCost > 0 ? `× ${formatIQD(item.unitCost)}` : t("supplies.ro.noCost")}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
