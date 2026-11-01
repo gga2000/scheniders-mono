@@ -96,4 +96,15 @@ describe("useCashPosition", () => {
         expect(day?.collected).toBe(5000);
         expect(result.cashSeries.find((s) => s.date === "2026-10-29")?.collected).toBe(0);
     });
+
+    it("ages an in-transit order from its status history, not from a later edit", () => {
+        // Edited yesterday (updated_at), but it entered transit 20 days ago.
+        const edited = order({ id: "e", updated_at: ago(1) });
+        const plain = order({ id: "p", updated_at: ago(2) });
+        const since = new Map([["e", ago(20)]]);
+        const result = renderHook(() => useCashPosition([edited, plain], since)).result.current;
+        expect(result.stuckOrders.map((o) => [o.id, o.days_in_transit])).toEqual([["e", 20]]);
+        // No history row for "p": falls back to updated_at (2 days = fresh).
+        expect(result.aging.find((b) => b.id === "fresh")?.count).toBe(1);
+    });
 });
