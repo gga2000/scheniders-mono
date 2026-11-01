@@ -6,6 +6,7 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useMetaAdsAutoRefresh, useMetaAdsConnection, useMetaAdsReport, useMetaAdsSyncNow, type CampaignTotals } from "@/hooks/use-meta-ads";
 import { MetaAdsConnectCard } from "@/components/ads/meta-ads-connect-card";
+import { AdsNetProfit } from "@/components/ads/ads-net-profit";
 import { MetaTokenBanner } from "@/components/ads/meta-token-banner";
 import { tokenWarning } from "@/lib/meta-token-warning";
 import { AdLinkCard } from "@/components/ads/ad-link-card";
@@ -56,7 +57,7 @@ export default function AdsPage() {
     const [preset, setPreset] = useState<AdRangePreset>("30");
     const [compare, setCompare] = useState(false);
     const connection = useMetaAdsConnection();
-    const { current: report, previous: previousReport } = useMetaAdsReport(preset, compare);
+    const { current: report, previous: previousReport, range } = useMetaAdsReport(preset, compare);
     const sync = useMetaAdsSyncNow();
     useMetaAdsAutoRefresh(connection.data?.is_active === true);
 
@@ -152,6 +153,8 @@ export default function AdsPage() {
                         />
                     </section>
                     {compare ? <p className="-mt-3 text-xs text-muted">{t("ads.vsPrevious")}</p> : null}
+
+                    <AdsNetProfit range={range} />
 
                     <p className="rounded-xl bg-[var(--card-bg)] px-4 py-3 text-sm text-foreground">
                         {t("ads.honestNote")
