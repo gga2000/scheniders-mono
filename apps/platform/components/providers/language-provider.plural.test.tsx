@@ -20,4 +20,22 @@ describe("t() singular forms", () => {
         const { result } = renderHook(() => useLanguage(), { wrapper });
         expect(result.current.t("finances.invoices.kpi.outSub", { count: 1 })).toBe("1 مصروف");
     });
+
+    it("uses the Arabic dual, few and many forms, and the plain entry for the rest", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const { result } = renderHook(() => useLanguage(), { wrapper });
+        const t = result.current.t;
+        expect(t("customers.broadcast.recipients", { count: 1 })).toBe("إلى عميل واحد");
+        expect(t("customers.broadcast.recipients", { count: 2 })).toBe("إلى عميلَين");
+        expect(t("customers.broadcast.recipients", { count: 5 })).toBe("إلى 5 عملاء");
+        expect(t("customers.broadcast.recipients", { count: 12 })).toBe("إلى 12 عميلاً");
+        expect(t("customers.broadcast.recipients", { count: 100 })).toBe("إلى 100 عميل");
+        expect(t("customers.banner.rateBase", { count: 5 })).toBe("نسبة التوصيل · 5 طلبات منتهية");
+    });
+
+    it("picks no plural form when the count is not a number", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const { result } = renderHook(() => useLanguage(), { wrapper });
+        expect(result.current.t("customers.broadcast.recipients", { count: "2" })).toBe("إلى 2 عميل");
+    });
 });

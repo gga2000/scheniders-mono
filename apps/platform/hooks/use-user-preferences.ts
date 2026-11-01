@@ -124,7 +124,6 @@ export function useUserPreferences() {
 export const PREFERENCE_KEYS = {
     ORDER_FILTERS: "orderFilters",
     VIEW_MODE: "viewMode",
-    WORKFLOW_MODE: "workflowMode",
     COMPACT_VIEW: "compactView",
     ANALYTICS_LEVEL: "analyticsLevel",
     SHOW_SEARCH_BAR: "showSearchBar",

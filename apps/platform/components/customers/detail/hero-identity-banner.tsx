@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparison-badge";
-import { codRiskKey, customerAccent, displayScore, isBlockedCustomer, showsTrustScore, VALUE_META, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
+import { codRiskKey, customerAccent, displayScore, isBlockedCustomer, showsTrustScore, VALUE_META, valueTierKey, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
 import { RiskChip, ValuePill, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { CustomerBlockAction } from "@/components/customers/customer-block-action";
 import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
@@ -70,7 +70,7 @@ export function HeroIdentityBanner({
     // A failing customer never leads with a value tier.
     const unsafe = blocked || riskLevel === "high" || tier === "risky" || tier === "critical";
     // A tag that only repeats the value tier ("VIP" under the VIP pill) adds nothing.
-    const valueLabel = valueTier ? t(`customers.value.${valueTier}`, VALUE_META[valueTier].label).trim().toLowerCase() : null;
+    const valueLabel = valueTier ? t(valueTierKey(valueTier), VALUE_META[valueTier].label).trim().toLowerCase() : null;
     const shownTags = (tags ?? []).filter((tag) => tag.name.trim().toLowerCase() !== valueLabel);
 
     // Shown out of 100 the same way the drawer shows it, under the same rule:

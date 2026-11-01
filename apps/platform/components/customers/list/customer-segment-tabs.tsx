@@ -3,7 +3,7 @@
 import { Ban, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import { FIRST_DELIVERY_DOT, type ValueTier, type RiskLevel } from "@/lib/customer-reliability";
+import { FIRST_DELIVERY_DOT, valueTierKey, type ValueTier, type RiskLevel } from "@/lib/customer-reliability";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { useCustomerDashboardStats } from "@/hooks/use-paginated-customers";
 
@@ -75,7 +75,7 @@ function segmentLabel(id: SegmentId, t: Translate): string {
 export function describeFilter(cur: SegmentState, t: Translate): string {
     const parts: string[] = [];
     if (cur.risk !== "all") parts.push(`${t("customers.risk.label")}: ${t(`customers.risk.${cur.risk}`)}`);
-    if (cur.value !== "all") parts.push(`${t("customers.value.label")}: ${t(`customers.value.${cur.value}`)}`);
+    if (cur.value !== "all") parts.push(`${t("customers.value.label")}: ${t(valueTierKey(cur.value))}`);
     if (cur.lane) parts.push(segmentLabel(LANE_SEGMENT[cur.lane], t));
     return parts.join(" · ");
 }

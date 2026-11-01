@@ -23,7 +23,7 @@ import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
     averageBasket, displayScore, effectiveSuccessRate, codVerdictKey, firstDeliveryPending, isBlockedCustomer, showsTrustScore,
-    VALUE_META, RISK_META, customerAccent, statusFlags, customerOrderStatusLabel,
+    VALUE_META, RISK_META, customerAccent, statusFlags, customerOrderStatusLabel, valueTierKey,
 } from "@/lib/customer-reliability";
 import { computeRefundPayout, orderReceipt } from "@/lib/order-money";
 import { ValueIcon, RiskIcon, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
@@ -439,7 +439,7 @@ function Body({
                             </span>
                             <div className={cn("min-w-0", accent.surfaceText)}>
                                 <div className="text-xs font-medium opacity-75">{unsafe ? t("customers.risk.label", "COD risk") : t("customers.value.label", "Value")}</div>
-                                <div className="text-lg font-extrabold leading-tight">{unsafe ? t(`customers.risk.${risk}`) : t(`customers.value.${value}`, meta.label)}</div>
+                                <div className="text-lg font-extrabold leading-tight">{unsafe ? t(`customers.risk.${risk}`) : t(valueTierKey(value), meta.label)}</div>
                                 {/* Caution is an instruction, so it reads amber, not in the value colour. */}
                                 {risk === "caution" ? (
                                     <span className={cn("mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold", RISK_META.caution.chipBg, RISK_META.caution.chipText)}>

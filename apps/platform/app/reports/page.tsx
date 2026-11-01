@@ -85,6 +85,7 @@ const BatchAnalytics = dynamic(
 );
 
 export default function ReportsPage() {
+    const { t, language } = useLanguage();
     const presets = useDateRangePresets();
     const [dateRange, setDateRange] = useState<DateRange>(presets.last30Days);
 
@@ -134,12 +135,12 @@ export default function ReportsPage() {
 
     // Date presets for custom picker
     const datePresets = useMemo(() => [
-        { key: 'today', label: 'Today', range: presets.today },
-        { key: 'thisWeek', label: 'This Week', range: presets.thisWeek },
-        { key: 'thisMonth', label: 'This Month', range: presets.thisMonth },
-        { key: 'last7Days', label: 'Last 7 Days', range: presets.last7Days },
-        { key: 'last30Days', label: 'Last 30 Days', range: presets.last30Days },
-    ], [presets]);
+        { key: 'today', label: t("reports.preset.today"), range: presets.today },
+        { key: 'thisWeek', label: t("reports.preset.thisWeek"), range: presets.thisWeek },
+        { key: 'thisMonth', label: t("reports.preset.thisMonth"), range: presets.thisMonth },
+        { key: 'last7Days', label: t("reports.preset.last7Days"), range: presets.last7Days },
+        { key: 'last30Days', label: t("reports.preset.last30Days"), range: presets.last30Days },
+    ], [presets, t]);
 
     // Export handlers
     const getExportData = useCallback(() => {
@@ -152,8 +153,10 @@ export default function ReportsPage() {
             rejectionReasons: metrics.rejectionReasons,
             timeAnalysis: metrics.timeAnalysis,
             attentionFlags: metrics.attentionFlags,
+            t,
+            rtl: language === "ar",
         };
-    }, [metrics, dateRange]);
+    }, [metrics, dateRange, t, language]);
 
     const handleExportCSV = useCallback(() => {
         const data = getExportData();
@@ -169,8 +172,6 @@ export default function ReportsPage() {
         const data = getExportData();
         if (data) printOperationalReport(data);
     }, [getExportData]);
-
-    const { t } = useLanguage();
 
     if (loading) {
         return (

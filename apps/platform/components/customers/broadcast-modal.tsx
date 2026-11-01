@@ -120,7 +120,8 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
                                 dir="auto"
                                 className="min-h-40 resize-y"
                             />
-                            <p dir="auto" className="text-xs text-muted-foreground mt-2 text-start">{t("customers.broadcast.nameHint")}</p>
+                            {/* Left-set like the label and the placeholder above it; dir="auto" only orders the words. */}
+                            <p dir="auto" className="text-xs text-muted-foreground mt-2 text-left">{t("customers.broadcast.nameHint")}</p>
                         </div>
                     ) : (
                         <ul className="flex-1 overflow-y-auto divide-y divide-(--card-border)">

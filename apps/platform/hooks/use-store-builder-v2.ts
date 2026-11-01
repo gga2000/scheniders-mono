@@ -450,6 +450,13 @@ export function useStoreBuilderV2(
     }>({ timer: null, attempt: 0 });
     const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    // Clears the armed autosave AND the ref, so "is a full save pending?"
+    // (patchField success) never reads a cancelled timer as armed.
+    const cancelAutoSave = useCallback((): void => {
+        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+    }, []);
+
     const performSaveDraft = useCallback(
         async (cfg: StoreConfigV2): Promise<void> => {
             set_save_state("saving");
@@ -509,8 +516,9 @@ export function useStoreBuilderV2(
     // fallback — BUG21). Always saves the latest config via configRef.
     const scheduleReconcileSave = useCallback((): void => {
         pendingDraftWriteRef.current = true;
-        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        cancelAutoSave();
         autoSaveTimerRef.current = setTimeout(() => {
+            autoSaveTimerRef.current = null;
             void saveDraftRef.current?.(configRef.current);
         }, AUTOSAVE_DEBOUNCE_MS);
     }, []);
@@ -529,16 +537,25 @@ export function useStoreBuilderV2(
         if (serializedConfig === initialSerializedRef.current) return;
 
         // Edits exist that aren't in the DB draft yet — guard against unload.
+        // The timer is NOT cleared on re-run: a later patchField edit re-runs
+        // this effect and returns early above, and clearing here would drop
+        // this structural edit's save (patchField only writes its own field).
+        // The timer saves configRef.current, so it always carries every edit.
         pendingDraftWriteRef.current = true;
-        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        cancelAutoSave();
         autoSaveTimerRef.current = setTimeout(() => {
-            saveDraftRef.current?.(config);
+            autoSaveTimerRef.current = null;
+            void saveDraftRef.current?.(configRef.current);
         }, AUTOSAVE_DEBOUNCE_MS);
-
-        return () => {
-            if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-        };
     }, [config, serializedConfig]);
+
+    // Leaving the editor must not leave a timer that writes after unmount.
+    useEffect(
+        () => () => {
+            cancelAutoSave();
+        },
+        [],
+    );
 
     /* ── localStorage backup (every 30s) ──────────────────────────── */
     useEffect(() => {
@@ -584,12 +601,12 @@ export function useStoreBuilderV2(
     /* ── Actions ──────────────────────────────────────────────────── */
 
     const save_draft = useCallback(async (): Promise<void> => {
-        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        cancelAutoSave();
         await performSaveDraft(config);
     }, [config, performSaveDraft]);
 
     const publish = useCallback(async (): Promise<boolean> => {
-        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        cancelAutoSave();
         set_save_state("saving");
         // EC8: let any in-flight field PATCH land BEFORE this publish nulls the
         // draft, so a late patch can't resurrect a dirty draft from the freshly
@@ -667,7 +684,7 @@ export function useStoreBuilderV2(
     }, [config, tenantId]);
 
     const revert_to_published = useCallback(async (): Promise<void> => {
-        if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+        cancelAutoSave();
         set_save_state("saving");
         // EC8: drain any in-flight field PATCH BEFORE we null the draft, so its
         // late landing can't resurrect the very draft we're discarding (the
@@ -828,7 +845,9 @@ export function useStoreBuilderV2(
                     }),
                 }).then((r) => {
                     if (r.ok) {
-                        pendingDraftWriteRef.current = false;
+                        // A full save armed by an earlier structural edit still
+                        // owns the pending flag: this patch only wrote one field.
+                        if (!autoSaveTimerRef.current) pendingDraftWriteRef.current = false;
                     } else {
                         // eslint-disable-next-line no-console
                         console.warn(

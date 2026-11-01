@@ -17,6 +17,9 @@ import { statusFlags } from "@/lib/customer-reliability";
 /** The base of the value pill on the same bands; cn's merge replaces the tone's fill, not its text colour. */
 const TINTED_BASE = "bg-white/70 dark:bg-white/10";
 
+/** The dark tooltip on a card's chips (the "+N" and the icon-only value pill). */
+export const CARD_TOOLTIP = "w-max rounded-lg bg-foreground text-background text-xs font-medium leading-snug px-2.5 py-1.5 shadow-lg";
+
 export function CustomerStatusFlags({
     customer,
     max,
@@ -53,11 +56,10 @@ export function CustomerStatusFlags({
                 </span>
             ))}
             {hidden.length > 0 && (
-                // Below the "+N": above it, the tooltip would cover the phone and place line it explains
-                // from, and beside it, it would run past the narrow card's edge. Below, it briefly sits
-                // over the stat row, which the hover does not need.
+                // Above the "+N", over the name and place line, and never over the spend figure below
+                // the row it explains. Beside it, it would run past the narrow card's edge.
                 <Tooltip
-                    side="bottom"
+                    side="top"
                     align="end"
                     className="shrink-0"
                     content={
@@ -65,7 +67,7 @@ export function CustomerStatusFlags({
                             {hidden.map((f) => <span key={f.key} dir="auto" className="block text-start whitespace-nowrap">{named(f)}</span>)}
                         </span>
                     }
-                    contentClassName="w-max rounded-lg bg-foreground text-background text-xs font-medium leading-snug px-2.5 py-1.5 shadow-lg"
+                    contentClassName={CARD_TOOLTIP}
                 >
                     {/* ltr: the count stays "+1" in Arabic too */}
                     <span dir="ltr" className="text-xs text-muted-foreground font-semibold px-1.5 py-0.5 rounded-full bg-muted/40 tabular-nums cursor-default">

@@ -73,7 +73,7 @@ export function KPICards({ metrics }: KPICardsProps) {
         },
         {
             title: t("reports.kpi.processing"),
-            value: `${metrics.avgProcessingTime.toFixed(0)}h`,
+            value: t("reports.unit.hours", { n: metrics.avgProcessingTime.toFixed(0) }),
             change: metrics.avgProcessingTimeChange,
             icon: Clock,
             invertTrend: true,

@@ -104,7 +104,7 @@ export function CustomerListTable({
                         const accent = customerAccent(c.value_tier, c.risk_level);
                         const unsafe = c.risk_level === "blocked" || c.risk_level === "high";
                         const pending = firstDeliveryPending(c);
-                        const recency = recencyStatus(c.last_order_date, t);
+                        const recency = recencyStatus(c.last_order_date, t, language);
                         const success = effectiveSuccessRate(c);
                         const e164 = toIraqE164(c.phone);
                         const gov = c.governorate ? governorateLabel(c.governorate, language) || c.governorate : null;

@@ -13,6 +13,9 @@ import {
     displayScore,
     effectiveSuccessRate,
     recencyStatus,
+    relativeOrShortDate,
+    RELATIVE_DAYS,
+    valueTierKey,
     daysAgoLabel,
     buildScoreBreakdown,
     tagNameMatchesRating,
@@ -29,6 +32,7 @@ import {
     type RiskInput,
 } from './customer-reliability';
 import { ORDER_STATUS_TONE } from './order-status-labels';
+import { formatBaghdadShortDate } from './customer-format';
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
 
@@ -113,36 +117,52 @@ const tStub = tIn('en');
 
 describe('recencyStatus', () => {
     it('the dot means recency only, whatever the risk', () => {
-        expect(recencyStatus(daysAgo(2), tStub).dot).toBe('bg-foreground');
-        expect(recencyStatus(daysAgo(20), tStub).dot).toBe('bg-muted-foreground/60');
-        expect(recencyStatus(daysAgo(60), tStub).dot).toBe('ring-1 ring-inset ring-muted-foreground/60');
-        expect(recencyStatus(daysAgo(2), tStub).state).toBe('active');
-        expect(recencyStatus(daysAgo(20), tStub).state).toBe('cooling');
-        expect(recencyStatus(daysAgo(60), tStub).state).toBe('dormant');
+        expect(recencyStatus(daysAgo(2), tStub, 'en').dot).toBe('bg-foreground');
+        expect(recencyStatus(daysAgo(20), tStub, 'en').dot).toBe('bg-muted-foreground/60');
+        expect(recencyStatus(daysAgo(60), tStub, 'en').dot).toBe('ring-1 ring-inset ring-muted-foreground/60');
+        expect(recencyStatus(daysAgo(2), tStub, 'en').state).toBe('active');
+        expect(recencyStatus(daysAgo(20), tStub, 'en').state).toBe('cooling');
+        expect(recencyStatus(daysAgo(60), tStub, 'en').state).toBe('dormant');
     });
     it('names what the dot means', () => {
-        expect(recencyStatus(daysAgo(2), tStub).stateLabel).toBe('Active');
-        expect(recencyStatus(daysAgo(20), tStub).stateLabel).toBe('Cooling');
-        expect(recencyStatus(daysAgo(60), tIn('ar')).stateLabel).toBe('منقطع');
+        expect(recencyStatus(daysAgo(2), tStub, 'en').stateLabel).toBe('Active');
+        expect(recencyStatus(daysAgo(20), tStub, 'en').stateLabel).toBe('Cooling');
+        expect(recencyStatus(daysAgo(60), tIn('ar'), 'ar').stateLabel).toBe('منقطع');
     });
     it('handles missing date', () => {
-        expect(recencyStatus(null, tStub).label).toBe('No orders yet');
-        expect(recencyStatus(null, tStub).state).toBe('none');
+        expect(recencyStatus(null, tStub, 'en').label).toBe('No orders yet');
+        expect(recencyStatus(null, tStub, 'en').state).toBe('none');
     });
     it('writes the label in the active language', () => {
-        expect(recencyStatus(daysAgo(20), tStub).label).toBe('Cooling · last order 20 days ago');
-        expect(recencyStatus(daysAgo(20), tIn('ar')).label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوماً');
-        expect(recencyStatus(daysAgo(1), tIn('ar')).label).toBe('آخر طلب أمس');
+        expect(recencyStatus(daysAgo(20), tStub, 'en').label).toBe('Cooling · last order 20 days ago');
+        expect(recencyStatus(daysAgo(20), tIn('ar'), 'ar').label).toBe('قلّ نشاطه · آخر طلب قبل 20 يوماً');
+        expect(recencyStatus(daysAgo(1), tIn('ar'), 'ar').label).toBe('آخر طلب أمس');
     });
     it('counts days the Arabic way (dual, few, many)', () => {
-        expect(recencyStatus(daysAgo(2), tIn('ar')).ago).toBe('قبل يومين');
-        expect(recencyStatus(daysAgo(5), tIn('ar')).ago).toBe('قبل 5 أيام');
-        expect(recencyStatus(daysAgo(12), tIn('ar')).ago).toBe('قبل 12 يوماً');
-        expect(recencyStatus(daysAgo(5), tStub).ago).toBe('5 days ago');
+        expect(recencyStatus(daysAgo(2), tIn('ar'), 'ar').ago).toBe('قبل يومين');
+        expect(recencyStatus(daysAgo(5), tIn('ar'), 'ar').ago).toBe('قبل 5 أيام');
+        expect(recencyStatus(daysAgo(12), tIn('ar'), 'ar').ago).toBe('قبل 12 يوماً');
+        expect(recencyStatus(daysAgo(5), tStub, 'en').ago).toBe('5 days ago');
     });
     it('gives the bare time since the last order for one-line cells', () => {
-        expect(recencyStatus(daysAgo(20), tStub).ago).toBe('20 days ago');
-        expect(recencyStatus(null, tStub).ago).toBe('—');
+        expect(recencyStatus(daysAgo(20), tStub, 'en').ago).toBe('20 days ago');
+        expect(recencyStatus(null, tStub, 'en').ago).toBe('—');
+    });
+    it('switches to the short day past a month, like trust events', () => {
+        expect(recencyStatus(daysAgo(RELATIVE_DAYS), tStub, 'en').ago).toBe(`${RELATIVE_DAYS} days ago`);
+        const old = '2025-03-14T09:00:00Z';
+        expect(recencyStatus(old, tStub, 'en').ago).toBe('Mar 14, 2025');
+        expect(recencyStatus(old, tStub, 'en').label).toBe('Dormant · last order Mar 14, 2025');
+        expect(recencyStatus(old, tIn('ar'), 'ar').ago).toBe(formatBaghdadShortDate(old, 'ar'));
+    });
+});
+
+describe('relativeOrShortDate', () => {
+    it('is relative up to RELATIVE_DAYS, then the short Baghdad day', () => {
+        const now = new Date('2026-11-01T09:00:00Z');
+        const iso = (d: number) => new Date(now.getTime() - d * 86_400_000).toISOString();
+        expect(relativeOrShortDate(iso(30), 30, 'en', tStub)).toBe('30 days ago');
+        expect(relativeOrShortDate(iso(31), 31, 'en', tStub)).toBe(formatBaghdadShortDate(iso(31), 'en'));
     });
 });
 
@@ -395,12 +415,25 @@ describe('monthlyScoreSeries', () => {
     });
 });
 
+describe('valueTierKey', () => {
+    it('names every tier in both languages, with the one word for customer in Arabic', () => {
+        for (const tier of ['vip', 'good', 'newcomer'] as const) {
+            expect(translations.en[valueTierKey(tier)]).toBeTruthy();
+            expect(translations.ar[valueTierKey(tier)]).toBeTruthy();
+            expect(translations.ar[valueTierKey(tier)]).not.toMatch(/زبون|زبائن/);
+        }
+    });
+});
+
 describe('tagNameMatchesRating (a tag named like a value tier or COD risk)', () => {
     it('matches a rating label in any language, ignoring case and spaces', () => {
         expect(tagNameMatchesRating(' vip ')).toBe(true);
         expect(tagNameMatchesRating('محظور')).toBe(true);
         expect(tagNameMatchesRating('blocked')).toBe(true);
         expect(tagNameMatchesRating('Needs confirming')).toBe(true);
+        // The customers screens' tier name as well as the Orders panel's.
+        expect(tagNameMatchesRating('عميل جديد')).toBe(true);
+        expect(tagNameMatchesRating('زبون جديد')).toBe(true);
     });
     it('leaves other names alone', () => {
         expect(tagNameMatchesRating('Wholesale')).toBe(false);
