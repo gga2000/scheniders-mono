@@ -367,6 +367,8 @@ export const SELF_HOSTED_FONT_VARS: Readonly<Record<string, string>> = {
   "DM Sans": "--font-dm-sans",
   Cairo: "--font-cairo",
   "Noto Sans Arabic": "--font-noto-arabic",
+  "IBM Plex Sans Arabic": "--font-plex-arabic",
+  "Readex Pro": "--font-readex-pro",
 };
 
 /** A single font-family entry: the self-hosted `var()` when available, else the quoted name. */
