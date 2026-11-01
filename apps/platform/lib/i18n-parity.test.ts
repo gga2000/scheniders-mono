@@ -7,8 +7,10 @@ import { translations } from "./i18n";
  * forgotten in `ar` shipped silently. This checks the real dictionaries.
  */
 describe("i18n dictionaries are in parity", () => {
-    const en = Object.keys(translations.en);
-    const ar = Object.keys(translations.ar);
+    // `<key>.one` is an optional singular form: a language that needs none omits it.
+    const required = (k: string) => !k.endsWith(".one");
+    const en = Object.keys(translations.en).filter(required);
+    const ar = Object.keys(translations.ar).filter(required);
 
     it("every English key has an Arabic translation", () => {
         expect(en.filter(k => !ar.includes(k))).toEqual([]);

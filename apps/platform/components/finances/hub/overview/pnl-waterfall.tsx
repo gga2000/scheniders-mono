@@ -53,7 +53,6 @@ export function PnLWaterfall({ data }: PnLWaterfallProps) {
             subtitle={t("finances.pnl.subtitle")}
             icon={GitFork}
             accent="emerald"
-            className="h-full"
             action={
                 <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-[var(--card-border)] bg-[var(--background)]">
                     <button

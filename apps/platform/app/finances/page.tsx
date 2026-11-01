@@ -293,8 +293,9 @@ function FinancesContent() {
                             <InsightsBanner insights={insights} />
                             <HeroStrip data={overview} />
                             <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-                                <div className="xl:col-span-3">
+                                <div className="xl:col-span-3 space-y-5">
                                     <PnLWaterfall data={overview} />
+                                    <GoalsStrip data={overview} presetKey={period.preset} />
                                 </div>
                                 <div className="xl:col-span-2 space-y-5">
                                     <CashHealthCard data={cash} />
@@ -302,7 +303,6 @@ function FinancesContent() {
                                 </div>
                             </div>
                             <RevenueByDimension data={overview} />
-                            <GoalsStrip data={overview} presetKey={period.preset} />
                         </div>
                     )}
 

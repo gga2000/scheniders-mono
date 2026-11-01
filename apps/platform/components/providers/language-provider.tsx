@@ -25,6 +25,21 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
     return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
 }
 
+/**
+ * The text for `key`. When the call passes `count: 1` and the dictionary has a
+ * `<key>.one` entry, that singular form is used ("1 order", not "1 orders").
+ * Languages that need no separate singular simply omit the entry.
+ */
+function lookup(
+    language: Locale,
+    key: string,
+    vars: Record<string, string | number> | undefined,
+): string | undefined {
+    const one = vars?.count === 1 ? `${key}.one` : null;
+    const singular = one ? translations[language]?.[one] : undefined;
+    return singular ?? translations[language]?.[key] ?? translations.en?.[key];
+}
+
 function resolveFallback(
     fallbackOrVars: TranslateArg | undefined,
     vars: Record<string, string | number> | undefined,
@@ -69,7 +84,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             varsArg?: Record<string, string | number>,
         ): string => {
             const { fallback, vars } = resolveFallback(fallbackOrVars, varsArg);
-            const raw = translations[language]?.[key] ?? translations.en?.[key] ?? fallback ?? key;
+            const raw = lookup(language, key, vars) ?? fallback ?? key;
             return interpolate(raw, vars);
         },
         [language]
@@ -87,7 +102,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
                 varsArg?: Record<string, string | number>,
             ) => {
                 const { fallback, vars } = resolveFallback(fallbackOrVars, varsArg);
-                const raw = translations.ar?.[key] ?? translations.en?.[key] ?? fallback ?? key;
+                const raw = lookup("ar", key, vars) ?? fallback ?? key;
                 return interpolate(raw, vars);
             },
     };
