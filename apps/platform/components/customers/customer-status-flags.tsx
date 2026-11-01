@@ -10,15 +10,24 @@ import { statusFlags } from "@/lib/customer-reliability";
  * Renders nothing when the customer has no flagged outcomes. With `max`, the
  * rest are counted as "+N" and named in its tooltip (the shared Tooltip, not a
  * native title, so it shows on hover without a delay and in the page's type).
+ * On a band tinted with the customer's colour (`surface="tinted"`), a flag's own
+ * pale fill can match the band, so every flag sits on the band's white base
+ * instead and keeps its status colour in the text.
  */
+/** The base of the value pill on the same bands; cn's merge replaces the tone's fill, not its text colour. */
+const TINTED_BASE = "bg-white/70 dark:bg-white/10";
+
 export function CustomerStatusFlags({
     customer,
     max,
+    surface = "plain",
     className,
 }: {
     /** Any row with the outcome counts: a list customer or the profile's reliability. */
     customer: Parameters<typeof statusFlags>[0];
     max?: number;
+    /** "tinted" on a value or risk band: white base pills, like the band's own value pill. */
+    surface?: "plain" | "tinted";
     className?: string;
 }) {
     const { t } = useLanguage();
@@ -37,14 +46,17 @@ export function CustomerStatusFlags({
         // anchored on the left like the rest of the LTR page. English is unchanged.
         <div dir="auto" className={cn("flex items-center gap-1.5 flex-wrap rtl:justify-end", className)}>
             {shown.map((f) => (
-                <span key={f.key} className={cn("inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0", f.tone)}>
+                <span key={f.key} className={cn("inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0", f.tone, surface === "tinted" && TINTED_BASE)}>
                     <span className="font-mono tabular-nums">{f.count}</span>
                     {t(f.i18nKey)}
                 </span>
             ))}
             {hidden.length > 0 && (
+                // Below the "+N": above it, the tooltip would cover the phone and place line it explains
+                // from, and beside it, it would run past the narrow card's edge. Below, it briefly sits
+                // over the stat row, which the hover does not need.
                 <Tooltip
-                    side="top"
+                    side="bottom"
                     align="end"
                     className="shrink-0"
                     content={

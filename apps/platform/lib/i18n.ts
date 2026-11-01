@@ -1631,7 +1631,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "customers.segment.rule.firstDelivery": "Ordered, but nothing delivered yet",
         "customers.trust.tier": "Trust tier",
         "customers.trust.history": "Trust history",
-        "customers.trust.breakdown": "Score breakdown",
         "customers.trust.avgTrust": "Avg trust score",
         "customers.trust.underWatch": "Under watch",
         "customers.trust.networkFlagged": "Network flagged",
@@ -1700,7 +1699,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "customers.scoreBreakdown.empty": "Score details aren't available for this customer yet.",
         "customers.scoreBreakdown.total": "Score",
         "customers.scoreBreakdown.capped": "Raw total {raw}, shown on a 0–100 scale",
-        "customers.scoreBreakdown.titleWithScore": "Score breakdown · {score}/100",
         "customers.scoreBreakdown.notScored": "Not scored: blocked customers have no trust score.",
 
         // Rejection edit
@@ -7647,7 +7645,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "customers.segment.rule.firstDelivery": "طلب ولم يُسلَّم له شيء بعد",
         "customers.trust.tier": "مستوى الثقة",
         "customers.trust.history": "سجل الثقة",
-        "customers.trust.breakdown": "تفاصيل النقاط",
         "customers.trust.avgTrust": "متوسط نقاط الثقة",
         "customers.trust.underWatch": "تحت المراقبة",
         "customers.trust.networkFlagged": "إبلاغ الشبكة",
@@ -7716,7 +7713,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "customers.scoreBreakdown.empty": "تفاصيل النقاط غير متوفرة لهذا العميل بعد.",
         "customers.scoreBreakdown.total": "النقاط",
         "customers.scoreBreakdown.capped": "المجموع الفعلي {raw}، ويُعرض على مقياس من 0 إلى 100",
-        "customers.scoreBreakdown.titleWithScore": "تفاصيل النقاط · {score}/100",
         "customers.scoreBreakdown.notScored": "غير مُقيَّم: العميل المحظور ليس له نقاط ثقة.",
 
         // Rejection edit

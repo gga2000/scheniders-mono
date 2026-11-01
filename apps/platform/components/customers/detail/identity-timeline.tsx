@@ -7,8 +7,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadDate } from "@/lib/customer-format";
 import { useIdentityTimeline, type IdentityEvent } from "@/hooks/use-identity-timeline";
 
-/** Entries shown before "Show all", so the timeline does not outgrow the column beside it. */
-const VISIBLE_EVENTS = 5;
+/** Entries shown before "Show all": three rows of the two-column timeline. */
+const VISIBLE_EVENTS = 6;
 
 interface IdentityTimelineProps {
     phone: string;
@@ -51,6 +51,8 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
     const { t, language } = useLanguage();
     const { data, isLoading } = useIdentityTimeline(phone);
     const [expanded, setExpanded] = useState(false);
+    const shown = data ? (expanded ? data : data.slice(0, VISIBLE_EVENTS)) : [];
+    const rows = Math.max(1, Math.ceil(shown.length / 2));
 
     // Nothing recorded: one line, not a full empty card.
     if (!isLoading && (!data || data.length === 0)) {
@@ -94,38 +96,39 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                 </div>
             ) : (data && (
                 <>
-                    <div className="relative">
-                        {/* Connecting line */}
-                        <div className="absolute left-5 top-5 bottom-5 w-px bg-muted/40" aria-hidden />
-
-                        <ul className="space-y-5">
-                            {(expanded ? data : data.slice(0, VISIBLE_EVENTS)).map((event, i) => {
-                                const Icon = getIcon(event.type);
-                                return (
-                                    <motion.li
-                                        key={`${event.type}-${event.value}-${event.created_at}`}
-                                        initial={{ opacity: 0, x: -8 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ duration: 0.35, ease: "easeOut", delay: i * 0.08 }}
-                                        className="relative flex items-start gap-4"
-                                    >
-                                        <div className="relative z-10 w-10 h-10 rounded-full bg-background border border-(--card-border) flex items-center justify-center shrink-0 shadow-sm">
-                                            <Icon className={`w-4 h-4 ${getIconColor(event.type)}`} />
-                                        </div>
-                                        <div className="flex-1 min-w-0 pt-2">
-                                            <p className="text-sm font-medium text-foreground truncate">
-                                                <bdi>{t(LABEL_KEY[event.type], { value: event.value })}</bdi>
-                                            </p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                                <bdi>{formatBaghdadDate(event.created_at, language)}</bdi>
-                                            </p>
-                                        </div>
-                                    </motion.li>
-                                );
-                            })}
-                        </ul>
-                    </div>
-                    {/* Outside the line's box, so the connecting line ends at the last shown entry. */}
+                    {/* Two columns, read down the first and then the second (newest first). Each entry
+                        draws the line down to the next one in its column, so the line ends at the last. */}
+                    <ul
+                        className="grid grid-cols-2 grid-flow-col gap-x-8 gap-y-5"
+                        style={{ gridTemplateRows: `repeat(${rows}, auto)` }}
+                    >
+                        {shown.map((event, i) => {
+                            const Icon = getIcon(event.type);
+                            const lastInColumn = i === rows - 1 || i === shown.length - 1;
+                            return (
+                                <motion.li
+                                    key={`${event.type}-${event.value}-${event.created_at}`}
+                                    initial={{ opacity: 0, x: -8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ duration: 0.35, ease: "easeOut", delay: i * 0.08 }}
+                                    className="relative flex items-start gap-4 min-w-0"
+                                >
+                                    {!lastInColumn && <span className="absolute left-5 top-10 -bottom-5 w-px bg-muted/40" aria-hidden />}
+                                    <div className="relative z-10 w-10 h-10 rounded-full bg-background border border-(--card-border) flex items-center justify-center shrink-0 shadow-sm">
+                                        <Icon className={`w-4 h-4 ${getIconColor(event.type)}`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0 pt-2">
+                                        <p className="text-sm font-medium text-foreground truncate">
+                                            <bdi>{t(LABEL_KEY[event.type], { value: event.value })}</bdi>
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            <bdi>{formatBaghdadDate(event.created_at, language)}</bdi>
+                                        </p>
+                                    </div>
+                                </motion.li>
+                            );
+                        })}
+                    </ul>
                     {data.length > VISIBLE_EVENTS && (
                         <button
                             onClick={() => setExpanded((v) => !v)}

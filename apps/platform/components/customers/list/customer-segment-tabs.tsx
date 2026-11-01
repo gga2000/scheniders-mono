@@ -140,7 +140,8 @@ export function CustomerSegmentTabs({
                     className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-semibold whitespace-nowrap bg-foreground text-background"
                     title={t("customers.segment.clear", "Clear filter")}
                 >
-                    {describeFilter(current, t) || t("customers.segment.custom", "Custom filter")}
+                    {/* dir="auto": an Arabic "label: value · label: value" keeps each colon beside its own word. */}
+                    <span dir="auto">{describeFilter(current, t) || t("customers.segment.custom", "Custom filter")}</span>
                     <X className="w-3.5 h-3.5" aria-hidden />
                     <span className="sr-only">{t("customers.segment.clear", "Clear filter")}</span>
                 </button>

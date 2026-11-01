@@ -44,9 +44,8 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
         <ModalShell
             isOpen={isScoreBreakdownModalOpen}
             onClose={handleClose}
-            title={rated
-                ? t("customers.scoreBreakdown.titleWithScore", { score: String(score) })
-                : t("customers.trust.breakdown")}
+            // The score is the total row's to show, once; the title only names the view.
+            title={t("customers.scoreBreakdown.title")}
             maxWidth="max-w-2xl"
         >
             <div className="space-y-6">
@@ -69,7 +68,7 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
                         <ScoreFactorBars factors={items} rated={rated} />
 
                         {/* The stored score, the number the user clicked; the bars above add up to it */}
-                        <ScoreTotalRow score={score} raw={raw} rated={rated} />
+                        {rated && <ScoreTotalRow score={score} raw={raw} />}
                     </div>
                 )}
 

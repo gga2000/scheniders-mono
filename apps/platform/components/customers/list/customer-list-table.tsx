@@ -2,7 +2,7 @@
 
 import { MessageCircle, Phone, Check, User } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { TOOLBAR_STICKY_TOP } from "@/components/customers/list/customer-toolbar";
-import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
+import { formatPhoneDisplay, monogram, spentLabel, toIraqE164 } from "@/lib/customer-format";
 
 function successTone(rate: number): string {
     if (rate >= 80) return "text-lime-700 dark:text-lime-300";
@@ -182,7 +182,7 @@ export function CustomerListTable({
                                 </td>
                                 {/* Lifetime value */}
                                 <td className={cn(td, "text-right font-mono text-sm tabular-nums text-foreground whitespace-nowrap")}>
-                                    {pending && c.total_spent === 0 ? "—" : formatIQD(c.total_spent)}
+                                    {spentLabel(c.total_spent, pending)}
                                 </td>
                                 {/* Last order: one line, the full recency in the tooltip */}
                                 <td className={td}>

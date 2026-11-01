@@ -267,7 +267,7 @@ function FactorsView({ breakdown, rated, raw, score, recentEvents, blocked, t }:
                     <div className="space-y-2">
                         <ScoreFactorBars factors={breakdown} rated={rated} />
                         {/* The modal's total, so the card and "See breakdown" agree on what the bars add up to. */}
-                        <ScoreTotalRow score={score} raw={raw} rated={rated} size="sm" />
+                        {rated && <ScoreTotalRow score={score} raw={raw} size="sm" />}
                     </div>
                 )}
             </div>
