@@ -176,12 +176,12 @@ function shortLabel(key: string, locale: string): string {
     // yyyy-mm-dd → Mar 14 ;  yyyy-mm → Mar 26 ; otherwise as-is
     if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
         const d = new Date(key);
-        return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
+        return d.toLocaleDateString(locale, { month: "short", day: "numeric", timeZone: "UTC" });
     }
     if (/^\d{4}-\d{2}$/.test(key)) {
         const [y, m] = key.split("-");
-        const d = new Date(Number(y), Number(m) - 1, 1);
-        return d.toLocaleDateString(locale, { month: "short", year: "2-digit" });
+        const d = new Date(Date.UTC(Number(y), Number(m) - 1, 1));
+        return d.toLocaleDateString(locale, { month: "short", year: "2-digit", timeZone: "UTC" });
     }
     return key;
 }

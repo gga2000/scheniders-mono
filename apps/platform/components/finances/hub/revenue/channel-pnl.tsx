@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Radio } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
+import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { ChannelPnLRow } from "@/hooks/use-finance-revenue";
 
@@ -12,16 +13,17 @@ interface Props {
 }
 
 export function ChannelPnL({ rows }: Props) {
+    const { t } = useLanguage();
     if (rows.length === 0) {
         return (
             <SectionCard
-                title="Channel P&L"
-                subtitle="No orders in this period"
+                title={t("finances.channel.title")}
+                subtitle={t("finances.channel.empty")}
                 icon={Radio}
                 accent="cyan"
             >
                 <div className="py-10 text-center text-sm text-muted">
-                    Waiting for order data tagged with a channel source.
+                    {t("finances.channel.emptyBody")}
                 </div>
             </SectionCard>
         );
@@ -31,8 +33,8 @@ export function ChannelPnL({ rows }: Props) {
 
     return (
         <SectionCard
-            title="Channel P&L"
-            subtitle="Revenue, COGS, delivery and net contribution by source"
+            title={t("finances.channel.title")}
+            subtitle={t("finances.channel.sub")}
             icon={Radio}
             accent="cyan"
         >
@@ -40,12 +42,11 @@ export function ChannelPnL({ rows }: Props) {
                 <table className="w-full text-[12.5px]">
                     <thead>
                         <tr className="text-[10.5px] uppercase tracking-wider text-muted font-semibold border-b border-[var(--card-border)]">
-                            <th className="text-left py-2 pr-3 font-semibold">Channel</th>
-                            <th className="text-right py-2 px-2 font-semibold">Revenue</th>
-                            <th className="text-right py-2 px-2 font-semibold">COGS</th>
-                            <th className="text-right py-2 px-2 font-semibold">Delivery</th>
-                            <th className="text-right py-2 px-2 font-semibold">Contribution</th>
-                            <th className="text-right py-2 pl-2 font-semibold">Margin</th>
+                            <th className="text-left py-2 pr-3 font-semibold">{t("finances.channel.col.channel")}</th>
+                            <th className="text-right py-2 px-2 font-semibold">{t("finances.channel.col.revenue")}</th>
+                            <th className="text-right py-2 px-2 font-semibold">{t("finances.channel.col.cogs")}</th>
+                            <th className="text-right py-2 px-2 font-semibold">{t("finances.channel.col.profit")}</th>
+                            <th className="text-right py-2 pl-2 font-semibold">{t("finances.channel.col.margin")}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -68,7 +69,7 @@ export function ChannelPnL({ rows }: Props) {
                                         <div className="flex items-center gap-2 min-w-0">
                                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0" />
                                             <span className="text-foreground font-medium truncate">{r.label}</span>
-                                            <span className="text-[10.5px] text-muted shrink-0">· {r.orders} ord</span>
+                                            <span className="text-[10.5px] text-muted shrink-0">· {t("finances.channel.ord", { count: r.orders })}</span>
                                         </div>
                                         <div className="mt-1 h-1 rounded-full bg-[var(--card-border)] overflow-hidden max-w-[220px]">
                                             <div
@@ -83,14 +84,11 @@ export function ChannelPnL({ rows }: Props) {
                                     <td className="py-2 px-2 text-right tabular-nums text-muted">
                                         <FinanceValue value={r.product_cost} abbreviate className="tabular-nums" />
                                     </td>
-                                    <td className="py-2 px-2 text-right tabular-nums text-muted">
-                                        <FinanceValue value={r.delivery_cost} abbreviate className="tabular-nums" />
-                                    </td>
                                     <td className="py-2 px-2 text-right tabular-nums">
-                                        <FinanceValue value={r.net_contribution} abbreviate signed className={cn("tabular-nums font-semibold", marginTone)} />
+                                        <FinanceValue value={r.gross_profit} abbreviate signed className={cn("tabular-nums font-semibold", marginTone)} />
                                     </td>
                                     <td className={cn("py-2 pl-2 text-right tabular-nums font-semibold", marginTone)}>
-                                        {r.product_cost > 0 || r.delivery_cost > 0
+                                        {r.product_cost > 0
                                             ? `${r.margin_pct.toFixed(1)}%`
                                             : <span className="text-muted">—</span>}
                                     </td>
