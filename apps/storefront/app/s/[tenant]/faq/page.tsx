@@ -5,7 +5,7 @@ import { listCategories } from "@/lib/queries";
 import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { JsonLd } from "@/components/json-ld";
-import { faqItemsFromPage, faqJsonLd } from "@/lib/seo";
+import { faqItemsFromPage, faqJsonLd, storeCanonical } from "@/lib/seo";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { FaqAccordion } from "@/components/schneiders/faq-accordion";
@@ -21,7 +21,14 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return { title: "FAQ — Schneiders", ...resolveV2PageMetadata(v2, "faq", v2?.default_locale ?? "ar") };
+  const locale = v2?.default_locale ?? "ar";
+  // Fallback title: localised page name + the tenant's own name.
+  const pageName = locale === "en" ? "FAQ" : "الأسئلة الشائعة";
+  return {
+    title: tenant ? `${pageName} — ${tenant.business_name}` : pageName,
+    ...(await storeCanonical(tenantParam, "/faq")),
+    ...resolveV2PageMetadata(v2, "faq", locale),
+  };
 }
 
 const FAQ: { q: string; a: string }[] = [

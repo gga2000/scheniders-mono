@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Clock, User, MapPin, Phone, Home } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadDate } from "@/lib/customer-format";
 import { useIdentityTimeline, type IdentityEvent } from "@/hooks/use-identity-timeline";
+
+/** Entries shown before "Show all": three rows of the two-column timeline. */
+const VISIBLE_EVENTS = 6;
 
 interface IdentityTimelineProps {
     phone: string;
@@ -46,6 +50,8 @@ function getIconColor(type: IdentityEvent["type"]): string {
 export function IdentityTimeline({ phone }: IdentityTimelineProps) {
     const { t, language } = useLanguage();
     const { data, isLoading } = useIdentityTimeline(phone);
+    const [expanded, setExpanded] = useState(false);
+    const shown = data ? (expanded ? data : data.slice(0, VISIBLE_EVENTS)) : [];
 
     // Nothing recorded: one line, not a full empty card.
     if (!isLoading && (!data || data.length === 0)) {
@@ -67,11 +73,13 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
             className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
         >
             {/* Header */}
-            <div className="flex items-center gap-2.5 mb-6">
-                <Clock className="w-5 h-5 text-amber-500 shrink-0" />
+            <div className="flex items-baseline gap-2.5 mb-6">
+                <Clock className="w-5 h-5 text-amber-500 shrink-0 self-center" />
                 <h3 className="font-headline font-extrabold text-lg leading-none">
                     {t("customers.identity.title")}
                 </h3>
+                {/* Two columns read across, row by row: the caption names the order so a row is never read as a pair. */}
+                {!isLoading && <span className="text-xs text-muted-foreground">{t("customers.identity.order")}</span>}
             </div>
 
             {/* Body */}
@@ -88,12 +96,11 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                     ))}
                 </div>
             ) : (data && (
-                <div className="relative">
-                    {/* Connecting line */}
-                    <div className="absolute left-5 top-5 bottom-5 w-px bg-muted/40" aria-hidden />
-
-                    <ul className="space-y-5">
-                        {data.map((event, i) => {
+                <>
+                    {/* Two columns in reading order, row by row. No connector line: across two
+                        columns it would no longer read as one line. */}
+                    <ol className="grid grid-cols-2 gap-x-8 gap-y-5">
+                        {shown.map((event, i) => {
                             const Icon = getIcon(event.type);
                             return (
                                 <motion.li
@@ -101,9 +108,9 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                                     initial={{ opacity: 0, x: -8 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.35, ease: "easeOut", delay: i * 0.08 }}
-                                    className="relative flex items-start gap-4"
+                                    className="flex items-start gap-4 min-w-0"
                                 >
-                                    <div className="relative z-10 w-10 h-10 rounded-full bg-background border border-(--card-border) flex items-center justify-center shrink-0 shadow-sm">
+                                    <div className="w-10 h-10 rounded-full bg-background border border-(--card-border) flex items-center justify-center shrink-0 shadow-sm">
                                         <Icon className={`w-4 h-4 ${getIconColor(event.type)}`} />
                                     </div>
                                     <div className="flex-1 min-w-0 pt-2">
@@ -111,14 +118,23 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                                             <bdi>{t(LABEL_KEY[event.type], { value: event.value })}</bdi>
                                         </p>
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                            {formatBaghdadDate(event.created_at, language)}
+                                            <bdi>{formatBaghdadDate(event.created_at, language)}</bdi>
                                         </p>
                                     </div>
                                 </motion.li>
                             );
                         })}
-                    </ul>
-                </div>
+                    </ol>
+                    {data.length > VISIBLE_EVENTS && (
+                        <button
+                            onClick={() => setExpanded((v) => !v)}
+                            aria-expanded={expanded}
+                            className="mt-4 ml-14 text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline underline-offset-2"
+                        >
+                            {expanded ? t("customers.identity.showLess") : t("customers.identity.showAll", { count: data.length.toLocaleString("en-US") })}
+                        </button>
+                    )}
+                </>
             ))}
         </motion.div>
     );

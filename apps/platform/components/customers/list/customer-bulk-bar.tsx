@@ -36,14 +36,15 @@ export function CustomerBulkBar({
   return (
     <AnimatePresence>
       {selectedCount > 0 && (
+        // w-max: a fixed, centred box would otherwise shrink to 50vw and wrap Cancel onto a second row.
         <motion.div
           initial={{ y: 80, opacity: 0, scale: 0.96 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 80, opacity: 0, scale: 0.96 }}
           transition={{ type: "spring", stiffness: 420, damping: 36 }}
-          className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2"
+          className="fixed inset-x-3 bottom-3 z-50 sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-max sm:max-w-[calc(100vw-2rem)]"
         >
-          <div className="flex flex-wrap items-center justify-center gap-1 rounded-3xl border border-(--card-border) bg-(--card-bg)/95 px-2 py-1.5 backdrop-blur-md" style={{ boxShadow: "var(--card-shadow-hover)" }}>
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-1 rounded-3xl border border-(--card-border) bg-(--card-bg)/95 px-2 py-1.5 backdrop-blur-md" style={{ boxShadow: "var(--card-shadow-hover)" }}>
             {/* Count chip */}
             <div className="flex items-center gap-2 rounded-2xl bg-(--pastel-blue)/40 px-3 py-1.5 text-sm font-semibold text-foreground">
               <span className="flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full tabular-nums bg-blue-500 text-[10px] font-bold text-white">

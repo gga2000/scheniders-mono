@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Tag, Plus, Check, StickyNote, Loader2 } from "lucide-react";
+import { Tag, Plus, Check, StickyNote, Loader2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerTags, useCustomerTagAssignments } from "@/hooks/use-customer-management";
 import { useAddCustomerNote } from "@/hooks/use-customer-notes";
 import { toast } from "@/hooks/use-toast";
-import { tagColorClasses, type TagColor } from "@/types/customer";
+import { tagNameMatchesRating } from "@/lib/customer-reliability";
+import { tagTone } from "@/components/customers/customer-tag-chip";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface Assignment { tag_id: string }
 
@@ -88,21 +90,35 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                 <div className="flex flex-wrap gap-1.5">
                     {tags.map((tag) => {
                         const on = assignedIds.has(tag.id);
-                        const theme = tagColorClasses[tag.color as TagColor] ?? tagColorClasses.gray;
-                        return (
+                        const theme = tagTone(tag.color);
+                        // Adding a tag named like a rating ("+ VIP" on a New customer) says what the bulk modal says:
+                        // the tag changes neither the rating nor its saved view.
+                        const clash = !on && tagNameMatchesRating(tag.name);
+                        const button = (
                             <button
-                                key={tag.id}
                                 onClick={() => toggle(tag.id)}
                                 disabled={pendingTag === tag.id}
                                 className={cn(
-                                    "inline-flex items-center gap-1 min-h-11 px-3 rounded-full text-[12px] font-semibold border transition-all disabled:opacity-50",
-                                    on ? cn(theme.bg, theme.text, "border-transparent") : "bg-background text-muted-foreground border-(--card-border) hover:border-foreground/30",
+                                    // Tags are outlined with a "#", never filled like a value or risk pill (CustomerTagChip).
+                                    "inline-flex items-center gap-1 min-h-11 px-3 rounded-lg text-[12px] font-semibold border transition-all disabled:opacity-50",
+                                    on ? cn(theme.border, theme.text, "bg-background") : "bg-background text-muted-foreground border-dashed border-(--card-border) hover:border-foreground/30",
                                 )}
                             >
                                 {pendingTag === tag.id ? <Loader2 className="w-3 h-3 animate-spin" /> : on ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                                {tag.name}
+                                {on && <span aria-hidden className="opacity-60">#</span>}<bdi>{tag.name}</bdi>
+                                {clash && <Info className="w-3 h-3 opacity-60" aria-hidden />}
                             </button>
                         );
+                        return clash ? (
+                            <Tooltip
+                                key={tag.id}
+                                side="top"
+                                content={<span dir="auto" className="block text-start">{t("customers.tag.ratingClash", { name: tag.name })}</span>}
+                                contentClassName="w-max max-w-64 rounded-lg bg-foreground text-background text-xs font-medium leading-snug px-2.5 py-1.5 shadow-lg"
+                            >
+                                {button}
+                            </Tooltip>
+                        ) : <Fragment key={tag.id}>{button}</Fragment>;
                     })}
                     <span className="inline-flex items-center min-h-11 rounded-full border border-dashed border-(--card-border) overflow-hidden">
                         <input
@@ -119,6 +135,13 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                         )}
                     </span>
                 </div>
+                {/* A new tag named "VIP" or "Blocked" changes neither the rating nor its saved view. */}
+                {newTag.trim() && !tags.some((x) => x.name.trim().toLowerCase() === newTag.trim().toLowerCase()) && tagNameMatchesRating(newTag) && (
+                    <p role="status" className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
+                        <Info className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
+                        <span dir="auto">{t("customers.tag.ratingClash", { name: newTag.trim() })}</span>
+                    </p>
+                )}
             </div>
 
             {/* Note */}

@@ -1,29 +1,32 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
-import { formatBaghdadDate } from "@/lib/customer-format";
-import { buildScoreBreakdown, SCORE_FACTOR_TONE } from "@/lib/customer-reliability";
+import { buildScoreBreakdown } from "@/lib/customer-reliability";
+import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
+import { ScoreTotalRow } from "@/components/customers/detail/score-total-row";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import { ModalShell } from "./modal-shell";
 import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
+import { TrustEventDate } from "@/components/customers/detail/trust-event-date";
 import { cn } from "@/lib/utils";
 
 /**
- * How the trust score adds up: one bar per stored factor, then the stored score
- * itself as the total, the same number the profile hero shows (the arithmetic
+ * How the trust score adds up: the Trust factors card's bars (ScoreFactorBars,
+ * under the same not-yet-scored rule), then the stored score itself as the total, the same number the profile hero shows (the arithmetic
  * is buildScoreBreakdown, shared with the Trust factors card). A blocked
  * customer gets the do-not-ship note and no factors. While loading it shows
  * skeleton bars; with no stored breakdown it says so.
  */
-export function ScoreBreakdownModal({ score: storedScore, blocked }: {
+export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
     /** The customer's stored trust score (customer_trust.trust_score); null until scored. */
     score: number | null;
     /** From isBlockedCustomer: a blocked customer shows no score, as on the hero. */
     blocked: boolean;
+    /** From showsTrustScore, the hero's and the Trust factors card's rule for showing a number. */
+    scored: boolean;
 }) {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const { isScoreBreakdownModalOpen, setScoreBreakdownModalOpen, scoreBreakdownPhone } = useCustomerStore();
     const { data: breakdown, isLoading } = useTrustScoreBreakdown(scoreBreakdownPhone || undefined);
     const { data: auditData } = useTrustAuditLog(scoreBreakdownPhone || undefined);
@@ -31,18 +34,18 @@ export function ScoreBreakdownModal({ score: storedScore, blocked }: {
     const handleClose = () => setScoreBreakdownModalOpen(false);
 
     // The same arithmetic and blocked rule as the profile's Trust factors card.
-    const { factors: items, raw, score, rated } = buildScoreBreakdown(breakdown?.items ?? [], {
+    const { factors: items, raw, score } = buildScoreBreakdown(breakdown?.items ?? [], {
         storedScore, blocked, tier: breakdown?.tier ?? null,
     });
-    const maxVal = Math.max(...items.map((b) => Math.abs(b.value)), 1);
+    // The card's not-yet-scored check, so the modal and the Trust factors card never disagree.
+    const rated = scored && storedScore !== null;
 
     return (
         <ModalShell
             isOpen={isScoreBreakdownModalOpen}
             onClose={handleClose}
-            title={rated
-                ? t("customers.scoreBreakdown.titleWithScore", { score: String(score) })
-                : t("customers.trust.breakdown")}
+            // The score is the total row's to show, once; the title only names the view.
+            title={t("customers.scoreBreakdown.title")}
             maxWidth="max-w-2xl"
         >
             <div className="space-y-6">
@@ -62,49 +65,10 @@ export function ScoreBreakdownModal({ score: storedScore, blocked }: {
                     <p className="text-sm text-muted-foreground py-4">{t("customers.scoreBreakdown.empty")}</p>
                 ) : (
                     <div className="space-y-2">
-                        {items.map((item, i) => {
-                            const width = Math.abs(item.value) / maxVal * 100;
-                            return (
-                                <div key={item.label} className="flex items-center gap-3">
-                                    <span className="text-[13px] text-muted-foreground w-36 shrink-0 text-start">
-                                        {t(`customers.scoreBreakdown.${item.label}`) || item.label}
-                                    </span>
-                                    {/* The value sits beside its bar in ink, so it reads on any fill in either theme. */}
-                                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                                        <motion.div
-                                            initial={{ width: 0 }}
-                                            animate={{ width: `${Math.min(width, 100) * 0.85}%` }}
-                                            transition={{ delay: i * 0.08, duration: 0.4, ease: "easeOut" }}
-                                            className={cn("h-6 rounded-md min-w-1.5 shrink-0", SCORE_FACTOR_TONE[item.type].bar)}
-                                        />
-                                        <span className={cn("text-xs font-bold tabular-nums", SCORE_FACTOR_TONE[item.type].text)}>
-                                            {item.value > 0 ? "+" : ""}{item.value}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        <ScoreFactorBars factors={items} rated={rated} />
 
                         {/* The stored score, the number the user clicked; the bars above add up to it */}
-                        <div className="flex items-center gap-3 pt-3 mt-1 border-t border-(--card-border)">
-                            <span className="text-sm font-semibold text-foreground w-36 shrink-0 text-start">
-                                {t("customers.scoreBreakdown.total")}
-                            </span>
-                            {rated ? (
-                                <div className="flex items-baseline gap-3 min-w-0">
-                                    <span className="text-3xl font-headline font-black tabular-nums text-foreground leading-none">
-                                        {score}<span className="text-base font-semibold text-muted-foreground">/100</span>
-                                    </span>
-                                    {raw !== score && (
-                                        <span className="text-xs text-muted-foreground">
-                                            {t("customers.scoreBreakdown.capped", { raw: String(raw) })}
-                                        </span>
-                                    )}
-                                </div>
-                            ) : (
-                                <span className="text-sm text-muted-foreground">{t("customers.trust.subtitle.new")}</span>
-                            )}
-                        </div>
+                        {rated && <ScoreTotalRow score={score} raw={raw} />}
                     </div>
                 )}
 
@@ -126,9 +90,8 @@ export function ScoreBreakdownModal({ score: storedScore, blocked }: {
                                     <span className="text-foreground flex-1 truncate">
                                         {t(`customers.trust.event.${event.event_type}`)}
                                     </span>
-                                    <span className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap">
-                                        {formatBaghdadDate(event.event_date, language)}
-                                    </span>
+                                    {/* Written as on the Trust factors card: relative, the calendar day on hover. */}
+                                    <TrustEventDate date={event.event_date} className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap" />
                                     {/* A blocked customer's points are not shown, here or on the hero. */}
                                     {!blocked && (
                                         <span className={cn(

@@ -13,6 +13,7 @@ import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { resolveStoreTenant, requireStoreTenant } from "@/lib/route-guards";
 import { getRequestOrigin, htmlLangFor, ogLocaleFor, getStorefrontBase } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
+import { resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { CartHydrator } from "@/components/cart-hydrator";
 import { HtmlLang } from "@/components/html-lang";
 import { SchneidersAnalyticsPixels } from "@/components/schneiders/analytics-pixels";
@@ -339,8 +340,14 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
     tenant.store_config?.logo_url ||
     tenant.branding?.logo_url;
   const title = seo?.meta_title || v2Identity?.name || tenant.business_name;
+  // Pages without their own description inherit this one: the merchant's SEO
+  // text, else the home page's description from the builder, and only then a
+  // generic line.
+  const v2 = (tenant as Tenant & { store_config_v2?: StoreConfigV2 | null }).store_config_v2;
+  const homeDescription = resolveV2PageMetadata(v2, "home", v2?.default_locale ?? "ar").description;
   const description =
     seo?.meta_description ||
+    (typeof homeDescription === "string" && homeDescription.trim()) ||
     `${tenant.business_name} — اطلب الآن من أفضل المنتجات`;
   const origin = await getRequestOrigin();
   const ogImage = v2Identity?.og_image_url || seo?.og_image_url;

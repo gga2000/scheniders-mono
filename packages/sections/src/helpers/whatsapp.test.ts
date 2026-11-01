@@ -189,8 +189,8 @@ describe("whatsappCartLink (EC26)", () => {
       "ar",
     )!;
     const decoded = decodeURIComponent(link.split("?text=")[1]!);
-    expect(decoded).toContain("مرحباً");
-    expect(decoded).toContain("الإجمالي: 10,000 د.ع");
+    expect(decoded).toContain("هلا، أريد أكمل طلبي");
+    expect(decoded).toContain("المجموع: 10,000 د.ع");
     expect(decoded).not.toContain("بيانات التوصيل");
   });
 });

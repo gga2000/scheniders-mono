@@ -28,7 +28,7 @@ import { useCustomerStore } from "@/store/use-customer-store";
 import { HeroIdentityBanner } from "@/components/customers/detail/hero-identity-banner";
 import { CustomerValueRiskBanner, type CustomerReliability } from "@/components/customers/detail/value-risk-banner";
 import { TrustHistoryCard } from "@/components/customers/detail/trust-history-card";
-import { BehavioralPatternsCard } from "@/components/customers/detail/behavioral-patterns-card";
+import { BehavioralPatternsCard, PATTERNS_FROM_ORDERS } from "@/components/customers/detail/behavioral-patterns-card";
 import { DossierNotesCard } from "@/components/customers/detail/dossier-notes-card";
 import { RatingsCard } from "@/components/customers/detail/ratings-card";
 import { ScoreBreakdownModal } from "@/components/customers/modals/score-breakdown-modal";
@@ -217,6 +217,9 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     const blocked = isBlockedCustomer(block);
     // The hero's rule for showing a score; the Trust history chart follows it, so an unrated customer shows no monthly scores either.
     const scored = showsTrustScore(block);
+    // Too few orders for buying patterns: the snapshot is a one-line strip (and an unscored
+    // Trust factors card is one too), so each takes the full width instead of a half-empty column.
+    const fewOrders = profile.orders.length < PATTERNS_FROM_ORDERS;
 
     return (
         <div className="customers-page customer-profile relative min-h-screen px-6 md:px-8 pt-4 pb-10 space-y-4">
@@ -256,7 +259,8 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             <HeroIdentityBanner
                 name={displayName}
                 phone={profile.phone}
-                city={profile.city ?? undefined}
+                city={profile.city}
+                governorate={profile.governorate}
                 tier={profile.trustTier}
                 valueTier={profile.reliability ? profile.reliability.value_tier : null}
                 riskLevel={profile.reliability ? profile.reliability.risk_level : null}
@@ -333,11 +337,12 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                                                 #{order.order_id}
                                             </Link>
                                         </td>
+                                        {/* <bdi>: an Arabic date or count ("22 آب 2026", "1 منتج") reads as one right-to-left run inside the LTR table. */}
                                         <td className="py-2.5 px-3 text-muted-foreground text-[13px] tabular-nums whitespace-nowrap">
-                                            {formatBaghdadDate(order.created_at, language)}
+                                            <bdi>{formatBaghdadDate(order.created_at, language)}</bdi>
                                         </td>
-                                        <td className="py-2.5 px-3 text-muted-foreground text-[13px]">
-                                            {unitCount === null ? "—" : `${unitCount} ${t(unitCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}
+                                        <td className="py-2.5 px-3 text-muted-foreground text-[13px] whitespace-nowrap">
+                                            {unitCount === null ? "—" : <bdi>{`${unitCount} ${t(unitCount === 1 ? "customers.dialog.item" : "customers.dialog.items")}`}</bdi>}
                                         </td>
                                         {/* The same total as the drawer's receipt: items less discount, plus delivery. */}
                                         <td className="py-2.5 px-3 font-mono font-semibold text-sm tabular-nums text-foreground text-right whitespace-nowrap">
@@ -356,17 +361,15 @@ function CustomerProfileContent({ phone }: { phone: string }) {
 
             {/* Trust trend, buying patterns, notes */}
             <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-12 xl:col-span-7">
+                <div className={fewOrders ? "col-span-12" : "col-span-12 xl:col-span-7"}>
                     <TrustHistoryCard data={historyData || []} phone={profile.phone} score={profile.trustScore} blocked={blocked} scored={scored} />
                 </div>
-                <div className="col-span-12 xl:col-span-5">
+                <div className={fewOrders ? "col-span-12" : "col-span-12 xl:col-span-5"}>
                     <BehavioralPatternsCard
                         orders={profile.orders}
-                        firstOrderDate={profile.firstOrderDate}
                         city={profile.city}
                         governorate={profile.governorate}
                         phone={profile.phone}
-                        trustTier={profile.trustTier}
                     />
                 </div>
                 <div className="col-span-12">
@@ -376,14 +379,15 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     />
                 </div>
 
-                {/* Ratings, links and identity changes: one line each while empty */}
-                <div className="col-span-12 lg:col-span-4">
+                {/* Ratings and links are full-width strips (one line each while empty) and the identity
+                    timeline runs the full width in two columns, so no short column sits beside a tall one. */}
+                <div className="col-span-12">
                     <RatingsCard ratings={profile.ratings} />
                 </div>
-                <div className="col-span-12 lg:col-span-4">
+                <div className="col-span-12">
                     <LinkedPeopleSection phone={profile.phone} />
                 </div>
-                <div className="col-span-12 lg:col-span-4">
+                <div className="col-span-12">
                     <IdentityTimeline phone={profile.phone} />
                 </div>
             </div>
@@ -405,7 +409,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             )}
 
             {/* Modals */}
-            <ScoreBreakdownModal score={profile.trustScore} blocked={blocked} />
+            <ScoreBreakdownModal score={profile.trustScore} blocked={blocked} scored={scored} />
             <CommunityRatingModal />
             <LinkCustomersModal />
             <AddNoteModal phone={profile.phone} />

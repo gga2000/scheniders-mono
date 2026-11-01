@@ -51,6 +51,8 @@ export type AdAttribution = {
     campaignId?: string;
     /** Facebook click id (own storefront links only). */
     fbclid?: string;
+    /** TikTok click id, appended by TikTok to ad links. */
+    ttclid?: string;
 };
 
 /**
@@ -174,7 +176,7 @@ const MAX_PARAM_LENGTH = 120;
 /**
  * Build an attribution from a storefront landing URL. Meta ad links carry
  * utm_source / utm_medium / utm_campaign / utm_content, plus utm_id (ad id),
- * utm_term (ad set id), campaign_id and fbclid. Returns undefined when the
+ * utm_term (ad set id), campaign_id, fbclid and ttclid. Returns undefined when the
  * URL has no ad parameters at all, so organic visits stay unattributed.
  */
 export function parseAdUrlParams(params: { get(name: string): string | null }): AdAttribution | undefined {
@@ -185,10 +187,11 @@ export function parseAdUrlParams(params: { get(name: string): string | null }): 
     const source = read("utm_source");
     const medium = read("utm_medium");
     const fbclid = read("fbclid");
-    if (!source && !fbclid) return undefined;
+    const ttclid = read("ttclid");
+    if (!source && !fbclid && !ttclid) return undefined;
     return {
-        // A bare fbclid means the click came from Meta even without utm tags.
-        channel: source || medium ? resolveChannel(source, medium) : "facebook",
+        // A bare click id names its network even without utm tags.
+        channel: source || medium ? resolveChannel(source, medium) : fbclid ? "facebook" : "tiktok",
         source,
         medium,
         campaign: read("utm_campaign"),
@@ -197,6 +200,7 @@ export function parseAdUrlParams(params: { get(name: string): string | null }): 
         term: read("utm_term"),
         campaignId: read("campaign_id"),
         fbclid,
+        ttclid,
     };
 }
 
@@ -215,6 +219,7 @@ const adAttributionSchema = z.object({
     term: z.string().max(MAX_PARAM_LENGTH).optional(),
     campaignId: z.string().max(MAX_PARAM_LENGTH).optional(),
     fbclid: z.string().max(MAX_PARAM_LENGTH).optional(),
+    ttclid: z.string().max(MAX_PARAM_LENGTH).optional(),
 });
 
 /** Cookie holding a buyer's last ad click (written by the storefront proxy). */

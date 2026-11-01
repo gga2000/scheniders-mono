@@ -17,7 +17,7 @@
 // =============================================
 
 import type { TrustTier } from '@/types/customer';
-import type { Locale } from '@/lib/i18n';
+import { translations, type Locale } from '@/lib/i18n';
 import { baghdadMonthKey } from '@/lib/customer-format';
 import {
     ORDER_STATUS_TONE, REFUND_ORDER_STATUS_LABELS, getOrderStatusLabel, orderStatusTone, type OrderStatusKey,
@@ -325,8 +325,9 @@ export function trustEventTone(eventType: string): string {
  * review changes it.
  */
 const CUSTOMER_STATUS_WORDING: Record<Locale, Partial<Record<OrderStatusKey, string>>> = {
-    en: { cancelled: 'Cancelled' },
-    ar: { cancelled: 'ملغاة', no_response: 'بلا رد' },
+    // A purchase on its way back is counted by the "1 returned" flag, so its pill says the same word.
+    en: { cancelled: 'Cancelled', return_pending: 'Returned' },
+    ar: { cancelled: 'ملغاة', no_response: 'بلا رد', return_pending: 'راجعة' },
 };
 
 /** An order status as the customer drawer and profile print it (see CUSTOMER_STATUS_WORDING). */
@@ -408,7 +409,12 @@ export function monthlyScoreSeries(
 // ───────────────────────── score breakdown ─────────────────────────
 
 export interface ScoreFactor {
-    /** i18n key suffix under customers.scoreBreakdown.*; "adjustments" for the closing gap. */
+    /**
+     * i18n key suffix under customers.scoreBreakdown.*. The closing gap is
+     * "rounding" when it is no bigger than rounding each line can explain,
+     * otherwise "adjustments" (a manual change, or points the stored
+     * breakdown does not list).
+     */
     label: string;
     value: number;
     type: 'positive' | 'negative' | 'neutral';
@@ -430,8 +436,8 @@ export interface ScoreBreakdownView {
  * How a trust score adds up, the one rule for the profile's Trust factors card
  * and the score-breakdown modal. Zero factors are dropped (the base always
  * stays); the stored score is the total, and when the factors do not reach it
- * the difference is its own "Other adjustments" factor so the arithmetic
- * closes. A blocked customer shows no score, so no factors either.
+ * the difference is its own "Rounding" or "Other adjustments" factor so the
+ * arithmetic closes. A blocked customer shows no score, so no factors either.
  */
 export function buildScoreBreakdown(
     items: readonly ScoreFactor[],
@@ -441,9 +447,12 @@ export function buildScoreBreakdown(
     const factorSum = kept.reduce((sum, item) => sum + item.value, 0);
     const raw = storedScore ?? factorSum;
     const gap = Math.round(raw - factorSum);
+    // The engine rounds each weighted line and the total, so up to half a point
+    // per line (and half for the total) can go missing in the arithmetic.
+    const label = Math.abs(gap) <= (kept.length + 1) / 2 ? 'rounding' : 'adjustments';
     const factors: ScoreFactor[] = gap === 0 || kept.length === 0
         ? kept
-        : [...kept, { label: 'adjustments', value: gap, type: gap > 0 ? 'positive' : 'negative' }];
+        : [...kept, { label, value: gap, type: gap > 0 ? 'positive' : 'negative' }];
     return {
         factors: blocked ? [] : factors,
         raw,
@@ -463,3 +472,23 @@ export const SCORE_FACTOR_TONE: Record<ScoreFactor['type'], { bar: string; text:
     positive: { bar: 'bg-emerald-500/60 dark:bg-emerald-400/45', text: 'text-emerald-700 dark:text-emerald-300' },
     negative: { bar: 'bg-rose-500/60 dark:bg-rose-400/45', text: 'text-rose-700 dark:text-rose-300' },
 };
+
+// ───────────────────────── tags vs tiers ─────────────────────────
+
+/** The labels the store computes for a customer; a merchant tag with one of these names reads as the rating itself. */
+const RATING_LABEL_KEYS = [
+    'customers.value.vip', 'customers.value.good', 'customers.value.newcomer',
+    'customers.risk.clean', 'customers.risk.caution', 'customers.risk.high', 'customers.risk.blocked',
+] as const;
+
+/**
+ * Whether a tag name copies a computed rating ("VIP", "Blocked", "جيد") in any
+ * language the app speaks, compared without case or surrounding spaces, so
+ * "vip" typed in the Arabic UI still matches.
+ */
+export function tagNameMatchesRating(name: string): boolean {
+    const wanted = name.trim().toLowerCase();
+    if (!wanted) return false;
+    return Object.values(translations).some((dict) =>
+        RATING_LABEL_KEYS.some((key) => (dict[key] ?? '').trim().toLowerCase() === wanted));
+}

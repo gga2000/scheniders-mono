@@ -223,3 +223,13 @@ describe("ad attribution cookie", () => {
         expect(deserializeAdAttribution(undefined)).toBeUndefined();
     });
 });
+
+describe("ttclid", () => {
+  it("records a TikTok click id, and a bare one names TikTok", async () => {
+    const { parseAdUrlParams, deserializeAdAttribution, serializeAdAttribution } = await import("./ad-attribution");
+    const a = parseAdUrlParams(new URLSearchParams("ttclid=E.C.P.abc"));
+    expect(a).toMatchObject({ channel: "tiktok", ttclid: "E.C.P.abc" });
+    if (!a) throw new Error("expected an attribution");
+    expect(deserializeAdAttribution(serializeAdAttribution(a))?.ttclid).toBe("E.C.P.abc");
+  });
+});

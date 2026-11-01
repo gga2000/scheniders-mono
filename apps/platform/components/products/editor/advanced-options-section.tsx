@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Settings, ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 
 interface AdvancedOptionsSectionProps {
     children: React.ReactNode;
 }
 
 export function AdvancedOptionsSection({ children }: AdvancedOptionsSectionProps) {
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -19,7 +21,7 @@ export function AdvancedOptionsSection({ children }: AdvancedOptionsSectionProps
                 className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl text-sm font-medium text-muted hover:text-foreground hover:bg-[var(--background)] transition-all"
             >
                 <Settings className="w-4 h-4" />
-                Advanced Options
+                {t("products.adv.title")}
                 <ChevronDown
                     className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />

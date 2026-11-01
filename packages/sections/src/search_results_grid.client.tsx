@@ -37,12 +37,12 @@ const STRINGS = {
   searchedFor: { en: "Searched for", ar: "بحثت عن", ku: "گەڕایت بۆ" },
   helpTitle: {
     en: "Can't find what you want?",
-    ar: "ما لقيت اللي تبحث عنه؟",
+    ar: "ما لكيت اللي تدوّر عليه؟",
     ku: "ئەوەی دەتەوێت نادۆزیتەوە؟",
   },
   helpBody: {
-    en: "Our personal shoppers are ready to help you find the perfect piece.",
-    ar: "فريق التسوّق الشخصي جاهز لمساعدتك في إيجاد القطعة المثالية.",
+    en: "Send us its name on WhatsApp and we'll help you find it.",
+    ar: "دزّلنا اسمه واتساب ونساعدك تلكاه.",
     ku: "تیمی یارمەتیدەرمان ئامادەیە یارمەتیت بدات پارچەی تەواو بدۆزیتەوە.",
   },
   askUs: { en: "Ask us", ar: "اسألنا", ku: "لێمان بپرسە" },

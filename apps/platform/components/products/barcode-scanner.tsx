@@ -11,6 +11,7 @@ import {
     X,
 } from "lucide-react";
 import { useEffect } from "react";
+import { useLanguage } from "@/hooks/use-language";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 
 interface BarcodeScannerProps {
@@ -20,6 +21,7 @@ interface BarcodeScannerProps {
 }
 
 export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps) {
+    const { t } = useLanguage();
     const {
         status,
         errorType,
@@ -55,12 +57,12 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
 
     const statusText = () => {
         switch (status) {
-            case "requesting-permission": return "Requesting camera access...";
-            case "active": return "Point camera at a barcode";
-            case "success": return "Barcode detected!";
+            case "requesting-permission": return t("scanner.requesting");
+            case "active": return t("scanner.point");
+            case "success": return t("scanner.detected");
             case "error":
-                if (errorType === "timeout") return "Scan timed out — try again";
-                if (errorType === "decode-error") return "Could not read barcode — try again";
+                if (errorType === "timeout") return t("scanner.timeout");
+                if (errorType === "decode-error") return t("scanner.decodeError");
                 return "";
             default: return "";
         }
@@ -105,9 +107,9 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
                                     <ScanBarcode className="w-5 h-5 text-[var(--pastel-yellow)]" />
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-foreground text-sm">Scan Barcode</p>
+                                    <p className="font-semibold text-foreground text-sm">{t("scanner.title")}</p>
                                     <p className="text-xs text-[var(--foreground-subtle)]">
-                                        Searches by SKU or product name
+                                        {t("scanner.subtitle")}
                                     </p>
                                 </div>
                             </div>
@@ -115,7 +117,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
                                 {devices.length > 1 && status === "active" && (
                                     <button
                                         onClick={switchCamera}
-                                        title="Switch camera"
+                                        title={t("scanner.switchCamera")}
                                         className="p-2 rounded-xl text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--card-border)] transition-all"
                                     >
                                         <FlipHorizontal className="w-4 h-4" />
@@ -153,7 +155,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
                                     >
                                         <div className="w-12 h-12 rounded-full border-4 border-[var(--pastel-yellow)] border-t-transparent animate-spin" />
                                         <p className="text-sm text-[var(--foreground-subtle)]">
-                                            Requesting camera access...
+                                            {t("scanner.requesting")}
                                         </p>
                                     </motion.div>
                                 )}
@@ -175,10 +177,10 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-semibold text-foreground mb-1">
-                                                        Camera access blocked
+                                                        {t("scanner.blocked")}
                                                     </p>
                                                     <p className="text-xs text-[var(--foreground-subtle)] leading-relaxed">
-                                                        Allow camera access in your browser settings, then click Retry.
+                                                        {t("scanner.blockedHint")}
                                                     </p>
                                                 </div>
                                             </>
@@ -189,10 +191,10 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-semibold text-foreground mb-1">
-                                                        No camera detected
+                                                        {t("scanner.noCamera")}
                                                     </p>
                                                     <p className="text-xs text-[var(--foreground-subtle)] leading-relaxed">
-                                                        Connect a camera and try again.
+                                                        {t("scanner.noCameraHint")}
                                                     </p>
                                                 </div>
                                             </>
@@ -203,10 +205,10 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-semibold text-foreground mb-1">
-                                                        Camera in use
+                                                        {t("scanner.inUse")}
                                                     </p>
                                                     <p className="text-xs text-[var(--foreground-subtle)] leading-relaxed">
-                                                        Another application is using your camera. Close it and retry.
+                                                        {t("scanner.inUseHint")}
                                                     </p>
                                                 </div>
                                             </>
@@ -215,7 +217,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
                                             onClick={retry}
                                             className="mt-1 px-5 py-2 text-sm font-medium rounded-xl bg-[var(--pastel-yellow)]/20 hover:bg-[var(--pastel-yellow)]/30 text-[var(--pastel-yellow)] transition-all"
                                         >
-                                            Retry
+                                            {t("scanner.retry")}
                                         </button>
                                     </motion.div>
                                 )}
@@ -288,7 +290,7 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
                                         onClick={retry}
                                         className="px-4 py-1.5 text-sm font-medium rounded-xl bg-[var(--pastel-yellow)]/20 hover:bg-[var(--pastel-yellow)]/30 text-[var(--pastel-yellow)] transition-all"
                                     >
-                                        Try again
+                                        {t("scanner.tryAgain")}
                                     </button>
                                 )}
                         </div>

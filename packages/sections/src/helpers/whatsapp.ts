@@ -238,14 +238,14 @@ export function whatsappCartLink(
   if (!isPlausiblePhone(phone)) return null;
   const ar = locale !== "en";
   const parts: string[] = [
-    ar ? "مرحباً! أودّ إكمال طلبي:" : "Hi! I'd like to complete my order:",
+    ar ? "هلا، أريد أكمل طلبي:" : "Hi! I'd like to complete my order:",
   ];
   for (const i of order.items) {
     const variant = i.variant ? ` — ${i.variant}` : "";
     parts.push(`• ${i.name}${variant} × ${i.quantity}`);
   }
   if (order.total) {
-    parts.push(ar ? `الإجمالي: ${order.total}` : `Total: ${order.total}`);
+    parts.push(ar ? `المجموع: ${order.total}` : `Total: ${order.total}`);
   }
   const c = order.customer;
   if (c && (c.name || c.phone || c.governorate || c.area || c.address)) {

@@ -1099,7 +1099,7 @@ export const STRINGS = {
         handle_redirect_note: { en: "Your old link will keep working — it redirects to the new one.", ar: "رابطك القديم سيبقى يعمل — سيحوّل تلقائياً إلى الجديد.", ku: "بەستەرە کۆنەکەت هەر کاردەکات — خۆکارانە دەگوازرێتەوە بۆ نوێکە." },
         handle_available: { en: "Available ✓", ar: "متاح ✓", ku: "بەردەستە ✓" },
         handle_taken: { en: "Taken — try another", ar: "محجوز — جرّب اسماً آخر", ku: "گیراوە — یەکێکی تر تاقی بکەرەوە" },
-        handle_invalid: { en: "3–30 chars: english letters, numbers, dashes.", ar: "من 3 إلى 30: أحرف إنجليزية وأرقام وشرطات.", ku: "لە ٣ بۆ ٣٠: پیتی ئینگلیزی و ژمارە و هێڵ." },
+        handle_invalid: { en: "3–30 chars: english letters, numbers, dashes.", ar: "من 3 إلى 30 حرفاً: أحرف إنجليزية وأرقام وشرطات.", ku: "لە ٣ بۆ ٣٠: پیتی ئینگلیزی و ژمارە و هێڵ." },
         handle_reserved: { en: "That name is reserved — try another.", ar: "هذا الاسم محجوز للمنصة — جرّب اسماً آخر.", ku: "ئەو ناوە بۆ پلاتفۆرمەکە پارێزراوە — یەکێکی تر تاقی بکەرەوە." },
         handle_check_failed: { en: "Couldn't check this name — try again in a moment.", ar: "تعذّر التحقق من هذا الاسم — حاول بعد قليل.", ku: "نەتوانرا ئەم ناوە بپشکنرێت — کەمێکی تر هەوڵ بدەرەوە." },
         handle_save: { en: "Save link", ar: "حفظ الرابط", ku: "پاشەکەوتکردنی بەستەر" },
