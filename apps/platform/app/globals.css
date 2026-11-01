@@ -3262,3 +3262,55 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
     }
   }
 }
+/* ===========================
+   Dashboard bento cards (components/dashboard/bento).
+   Chart colours live here as tokens so light and dark resolve without
+   class-string matching; region tiles carry their own ink in the card.
+   =========================== */
+:root {
+  --bento-up: #059669;
+  --bento-down: #e11d48;
+  --bento-well: color-mix(in oklab, var(--background-soft) 55%, transparent);
+  --bento-line-a: #12b863;
+  --bento-line-b: #12b863;
+  --bento-radar: #12b863;
+  --bento-online-a: #22d3ee;
+  --bento-online-b: #3c2cff;
+  --bento-chat-a: #ffb800;
+  --bento-chat-b: #ff3da5;
+  --bento-region-baghdad: #7cff5b;
+  --bento-region-south: #8b3dff;
+  --bento-region-euphrates: #ffb800;
+  --bento-region-north: color-mix(in oklab, var(--foreground) 14%, var(--card-bg));
+  --bento-region-kurdistan: #ff5a1f;
+  --bento-region-unknown: color-mix(in oklab, var(--foreground) 6%, var(--card-bg));
+}
+.dark {
+  --bento-up: #34d399;
+  --bento-down: #fb7185;
+  --bento-line-a: #22d3ee;
+  --bento-line-b: #3bf08c;
+  --bento-radar: #3bf08c;
+  --bento-region-north: color-mix(in oklab, var(--foreground) 22%, var(--card-bg));
+  --bento-region-unknown: color-mix(in oklab, var(--foreground) 9%, var(--card-bg));
+}
+
+@keyframes bento-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bento-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.bento-rise {
+  animation: bento-rise 1s cubic-bezier(.2, .9, .25, 1) backwards;
+}
+.bento-draw {
+  stroke-dasharray: 1;
+  animation: bento-draw 1.4s cubic-bezier(.2, .9, .25, 1) .2s backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bento-rise,
+  .bento-draw { animation: none; }
+}

@@ -406,10 +406,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.pipeline.delivered": "Delivered",
 
         // Revenue Trend Chart
-        "dashboard.trend.title": "Order Trends",
-        "dashboard.trend.orders": "orders",
-        "dashboard.trend.ordersLabel": "Orders",
-        "dashboard.trend.revenueLabel": "Revenue",
 
         // Delivery Success Rate
         "dashboard.deliveryRate.title": "Delivery Rate",
@@ -419,9 +415,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.deliveryRate.noData": "No deliveries in the last 7 days",
 
         // Orders Per Hour
-        "dashboard.hourly.title": "Hourly (Today)",
-        "dashboard.hourly.orders": "orders",
-        "dashboard.hourly.peakAt": "peak at",
 
         // Peak Hours Heatmap
         "dashboard.heatmap.title": "Peak Hours",
@@ -467,7 +460,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.rejection.noData": "Not enough data yet",
 
         // Leaderboard
-        "dashboard.leaderboard.topCities": "Top Cities",
         "dashboard.leaderboard.topProducts": "Top Products",
 
         // Product Leaderboard
@@ -525,6 +517,50 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.timeAgo.minutes": "m ago",
         "dashboard.timeAgo.hours": "h ago",
         "dashboard.timeAgo.days": "d ago",
+        "dashboard.bento.revenue": "Revenue",
+        "dashboard.bento.orders": "Orders",
+        "dashboard.bento.measure": "Measure",
+        "dashboard.bento.window": "Time window",
+        "dashboard.bento.days": "{n} days",
+        "dashboard.bento.avgOrder": "Avg order",
+        "dashboard.bento.realizedNote": "delivered orders only",
+        "dashboard.bento.perDay": "orders a day",
+        "dashboard.bento.vsPrevious": "vs previous {n} days",
+        "dashboard.bento.lastDays": "Last {n} days",
+        "dashboard.bento.hourlyTitle": "Orders by hour",
+        "dashboard.bento.thisWeek": "Last 7 days",
+        "dashboard.bento.laneOnline": "Online store & ads",
+        "dashboard.bento.laneChat": "WhatsApp & chat",
+        "dashboard.bento.hourlyNote": "Orders in the last 7 days, by hour placed (Baghdad time)",
+        "dashboard.bento.busiest": "Busiest hour",
+        "dashboard.bento.priorWeeks": "2 weeks before",
+        "dashboard.bento.govTitle": "Orders by governorate",
+        "dashboard.bento.region.baghdad": "Baghdad",
+        "dashboard.bento.region.south": "South",
+        "dashboard.bento.region.euphrates": "Middle Euphrates",
+        "dashboard.bento.region.north": "North & West",
+        "dashboard.bento.region.kurdistan": "Kurdistan",
+        "dashboard.bento.periodToday": "Today",
+        "dashboard.bento.period7d": "7 days",
+        "dashboard.bento.period30d": "30 days",
+        "dashboard.bento.vsYesterday": "{n} by this time yesterday",
+        "dashboard.bento.vsPrev7": "{n} the 7 days before",
+        "dashboard.bento.vsPrev30": "{n} the 30 days before",
+        "dashboard.bento.share": "Share",
+        "dashboard.bento.unknownGov": "No governorate",
+        "dashboard.bento.noOrdersPeriod": "No orders in this period yet",
+        "dashboard.bento.governorate": "Governorate",
+        "dashboard.bento.seasonTitle": "Seasonality",
+        "dashboard.bento.seasonRevenue": "Delivered revenue by month",
+        "dashboard.bento.seasonOrders": "Orders by month",
+        "dashboard.bento.last12": "Last 12 months",
+        "dashboard.bento.prior12": "12 months before",
+        "dashboard.bento.monthlyAvg": "Monthly average",
+        "dashboard.bento.yearTotal": "12-month total",
+        "dashboard.bento.vsPrior12": "vs the 12 months before",
+        "dashboard.bento.bestMonth": "Best month",
+        "dashboard.bento.quietMonth": "Quietest month",
+        "dashboard.bento.thisMonth": "This month so far",
 
         // ── Orders ──
         "orders.title": "Orders",
@@ -5072,10 +5108,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.pipeline.delivered": "تم التوصيل",
 
         // مخطط اتجاه الطلبات
-        "dashboard.trend.title": "اتجاه الطلبات",
-        "dashboard.trend.orders": "طلبات",
-        "dashboard.trend.ordersLabel": "الطلبات",
-        "dashboard.trend.revenueLabel": "الإيرادات",
 
         // نسبة نجاح التوصيل
         "dashboard.deliveryRate.title": "نسبة التوصيل",
@@ -5085,9 +5117,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.deliveryRate.noData": "لا توجد عمليات توصيل في آخر ٧ أيام",
 
         // طلبات في الساعة
-        "dashboard.hourly.title": "بالساعة (اليوم)",
-        "dashboard.hourly.orders": "طلبات",
-        "dashboard.hourly.peakAt": "الذروة في",
 
         // خريطة الذروة الحرارية
         "dashboard.heatmap.title": "ساعات الذروة",
@@ -5133,7 +5162,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.rejection.noData": "لا توجد بيانات كافية بعد",
 
         // قائمة المتصدرين
-        "dashboard.leaderboard.topCities": "أعلى المدن",
         "dashboard.leaderboard.topProducts": "أعلى المنتجات",
 
         // قائمة المنتجات
@@ -5191,6 +5219,50 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.timeAgo.minutes": "د مضت",
         "dashboard.timeAgo.hours": "س مضت",
         "dashboard.timeAgo.days": "ي مضت",
+        "dashboard.bento.revenue": "الإيرادات",
+        "dashboard.bento.orders": "الطلبات",
+        "dashboard.bento.measure": "المقياس",
+        "dashboard.bento.window": "الفترة",
+        "dashboard.bento.days": "{n} يوم",
+        "dashboard.bento.avgOrder": "متوسط الطلب",
+        "dashboard.bento.realizedNote": "الطلبات المسلّمة فقط",
+        "dashboard.bento.perDay": "طلب يومياً",
+        "dashboard.bento.vsPrevious": "مقارنة بالـ {n} يوم السابقة",
+        "dashboard.bento.lastDays": "آخر {n} يوم",
+        "dashboard.bento.hourlyTitle": "الطلبات حسب الساعة",
+        "dashboard.bento.thisWeek": "آخر 7 أيام",
+        "dashboard.bento.laneOnline": "المتجر والإعلانات",
+        "dashboard.bento.laneChat": "واتساب والمحادثات",
+        "dashboard.bento.hourlyNote": "طلبات آخر 7 أيام حسب ساعة الطلب (بتوقيت بغداد)",
+        "dashboard.bento.busiest": "أكثر ساعة طلباً",
+        "dashboard.bento.priorWeeks": "الأسبوعان السابقان",
+        "dashboard.bento.govTitle": "الطلبات حسب المحافظة",
+        "dashboard.bento.region.baghdad": "بغداد",
+        "dashboard.bento.region.south": "الجنوب",
+        "dashboard.bento.region.euphrates": "الفرات الأوسط",
+        "dashboard.bento.region.north": "الشمال والغرب",
+        "dashboard.bento.region.kurdistan": "كردستان",
+        "dashboard.bento.periodToday": "اليوم",
+        "dashboard.bento.period7d": "7 أيام",
+        "dashboard.bento.period30d": "30 يوم",
+        "dashboard.bento.vsYesterday": "{n} حتى هذا الوقت أمس",
+        "dashboard.bento.vsPrev7": "{n} في الـ 7 أيام السابقة",
+        "dashboard.bento.vsPrev30": "{n} في الـ 30 يوم السابقة",
+        "dashboard.bento.share": "النسبة",
+        "dashboard.bento.unknownGov": "بدون محافظة",
+        "dashboard.bento.noOrdersPeriod": "لا توجد طلبات في هذه الفترة بعد",
+        "dashboard.bento.governorate": "المحافظة",
+        "dashboard.bento.seasonTitle": "الموسمية",
+        "dashboard.bento.seasonRevenue": "إيرادات المسلّم حسب الشهر",
+        "dashboard.bento.seasonOrders": "الطلبات حسب الشهر",
+        "dashboard.bento.last12": "آخر 12 شهر",
+        "dashboard.bento.prior12": "الـ 12 شهر السابقة",
+        "dashboard.bento.monthlyAvg": "المعدل الشهري",
+        "dashboard.bento.yearTotal": "مجموع 12 شهر",
+        "dashboard.bento.vsPrior12": "مقارنة بالـ 12 شهر السابقة",
+        "dashboard.bento.bestMonth": "أفضل شهر",
+        "dashboard.bento.quietMonth": "أهدأ شهر",
+        "dashboard.bento.thisMonth": "هذا الشهر حتى الآن",
 
         // ── Orders ──
         "orders.title": "الطلبات",

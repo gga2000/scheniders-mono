@@ -8661,6 +8661,10 @@ export type Database = {
         }[]
       }
       get_dashboard_metrics: { Args: { p_range?: string }; Returns: Json }
+      get_dashboard_monthly_sales: {
+        Args: { p_months?: number; p_tenant_id: string }
+        Returns: Json
+      }
       get_order_duplicate_flags: {
         Args: { _order_ids: string[]; _tenant_id: string }
         Returns: {
