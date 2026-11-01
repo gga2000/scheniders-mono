@@ -10,6 +10,7 @@ import {
     FlipVertical2,
     Check,
 } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ImageEditorModalProps {
     isOpen: boolean;
@@ -20,6 +21,7 @@ interface ImageEditorModalProps {
 }
 
 export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEditorModalProps) {
+    const { t } = useLanguage();
     if (!isOpen) return null;
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const previewContainerRef = useRef<HTMLDivElement>(null);
@@ -323,7 +325,7 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
             <div className="relative z-10 w-full max-w-3xl bg-[var(--card-bg)] rounded-2xl shadow-2xl mx-4 max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-[var(--card-border)]">
-                    <h2 className="text-lg font-bold text-foreground">Image Editor</h2>
+                    <h2 className="text-lg font-bold text-foreground">{t("products.img.title")}</h2>
                     <button
                         onClick={onClose}
                         className="p-2 rounded-xl hover:bg-[var(--background)] transition-colors"
@@ -352,7 +354,7 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
                 <div className="flex flex-wrap items-center gap-2 px-5 pt-5 pb-3 border-t border-[var(--card-border)]">
                     <ToolButton
                         icon={<Crop className="w-4 h-4" />}
-                        label="Crop"
+                        label={t("products.img.crop")}
                         active={cropMode}
                         onClick={() => {
                             if (cropMode) {
@@ -366,26 +368,26 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
                     />
                     <ToolButton
                         icon={<RotateCcw className="w-4 h-4" />}
-                        label="Rotate L"
+                        label={t("products.img.rotateL")}
                         onClick={() => setRotation((r) => r - 90)}
                         disabled={cropMode}
                     />
                     <ToolButton
                         icon={<RotateCw className="w-4 h-4" />}
-                        label="Rotate R"
+                        label={t("products.img.rotateR")}
                         onClick={() => setRotation((r) => r + 90)}
                         disabled={cropMode}
                     />
                     <ToolButton
                         icon={<FlipHorizontal className="w-4 h-4" />}
-                        label="Flip H"
+                        label={t("products.img.flipH")}
                         active={flipH}
                         onClick={() => setFlipH((f) => !f)}
                         disabled={cropMode}
                     />
                     <ToolButton
                         icon={<FlipVertical2 className="w-4 h-4" />}
-                        label="Flip V"
+                        label={t("products.img.flipV")}
                         active={flipV}
                         onClick={() => setFlipV((f) => !f)}
                         disabled={cropMode}
@@ -400,14 +402,14 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
                                     className="flex items-center gap-1.5 px-3 py-2 bg-[var(--pastel-green)] text-green-800 rounded-xl text-sm font-medium hover:opacity-90 transition-colors"
                                 >
                                     <Check className="w-4 h-4" />
-                                    Apply
+                                    {t("products.img.apply")}
                                 </button>
                             )}
                             <button
                                 onClick={cancelCrop}
                                 className="px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Cancel
+                                {t("products.img.cancel")}
                             </button>
                         </div>
                     )}
@@ -417,17 +419,17 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
                 {!cropMode && (
                     <div className="px-5 pb-5 space-y-3">
                         <SliderControl
-                            label="Brightness"
+                            label={t("products.img.brightness")}
                             value={brightness}
                             onChange={setBrightness}
                         />
                         <SliderControl
-                            label="Contrast"
+                            label={t("products.img.contrast")}
                             value={contrast}
                             onChange={setContrast}
                         />
                         <SliderControl
-                            label="Saturation"
+                            label={t("products.img.saturation")}
                             value={saturation}
                             onChange={setSaturation}
                         />
@@ -441,21 +443,21 @@ export function ImageEditorModal({ isOpen, imageUrl, onSave, onClose }: ImageEdi
                         className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-muted hover:text-foreground transition-colors"
                     >
                         <RotateCcw className="w-4 h-4" />
-                        Reset
+                        {t("products.img.reset")}
                     </button>
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
                             className="px-5 py-2.5 bg-[var(--background)] border border-[var(--card-border)] text-foreground rounded-xl text-sm font-medium hover:bg-[var(--card-border)] transition-colors"
                         >
-                            Cancel
+                            {t("products.img.cancel")}
                         </button>
                         <button
                             onClick={handleApply}
                             className="flex items-center gap-2 px-5 py-2.5 bg-[var(--ink)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all"
                         >
                             <Check className="w-4 h-4" />
-                            Apply
+                            {t("products.img.apply")}
                         </button>
                     </div>
                 </div>

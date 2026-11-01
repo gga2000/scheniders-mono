@@ -2,6 +2,7 @@
 
 import { Clock, Calendar } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ServiceFieldsSectionProps {
     formData: ProductEditorFormData;
@@ -9,6 +10,7 @@ interface ServiceFieldsSectionProps {
 }
 
 export function ServiceFieldsSection({ formData, updateField }: ServiceFieldsSectionProps) {
+    const { t } = useLanguage();
     const hours = Math.floor((formData.duration_minutes || 0) / 60);
     const minutes = (formData.duration_minutes || 0) % 60;
 
@@ -16,13 +18,13 @@ export function ServiceFieldsSection({ formData, updateField }: ServiceFieldsSec
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                 <Clock className="w-4 h-4" />
-                Service Details
+                {t("products.service.title")}
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                        Duration
+                        {t("products.service.duration")}
                     </label>
                     <div className="flex gap-2">
                         <div className="flex-1">
@@ -63,7 +65,7 @@ export function ServiceFieldsSection({ formData, updateField }: ServiceFieldsSec
 
                 <div>
                     <label className="block text-sm font-medium text-foreground mb-2">
-                        Booking
+                        {t("products.service.booking")}
                     </label>
                     <div className="p-4 bg-[var(--background)] rounded-xl border border-[var(--card-border)]">
                         <label className="flex items-center gap-3 cursor-pointer">
@@ -85,10 +87,10 @@ export function ServiceFieldsSection({ formData, updateField }: ServiceFieldsSec
                             <div>
                                 <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
                                     <Calendar className="w-3.5 h-3.5" />
-                                    Enable Booking
+                                    {t("products.service.enableBooking")}
                                 </p>
                                 <p className="text-xs text-muted">
-                                    Allow customers to schedule appointments
+                                    {t("products.service.enableBookingHint")}
                                 </p>
                             </div>
                         </label>
