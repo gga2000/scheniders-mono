@@ -4,6 +4,7 @@ import { Users, Repeat, Crown, ShoppingBag, PieChart } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { LucideIcon } from "lucide-react";
 import type { CustomersFinanceSummary } from "@/hooks/use-finance-customers";
 
@@ -12,47 +13,48 @@ interface Props {
 }
 
 export function CustomersSummary({ data }: Props) {
+    const { t } = useLanguage();
     const repeatTone = data.repeat_rate_pct >= 35 ? "emerald" : data.repeat_rate_pct >= 20 ? "amber" : "rose";
     const concentrationTone = data.revenue_concentration_top10_pct >= 50 ? "rose" : data.revenue_concentration_top10_pct >= 30 ? "amber" : "emerald";
 
     return (
         <SectionCard
-            title="Customers — Financial lens"
-            subtitle={`${data.total_customers} active customers · ${data.new_customers} new · ${data.returning_customers} returning`}
+            title={t("finances.cust.title")}
+            subtitle={t("finances.cust.sub", { total: data.total_customers, new: data.new_customers, returning: data.returning_customers })}
             icon={Users}
             accent="violet"
         >
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                 <StatTile
                     icon={Users}
-                    label="Active customers"
+                    label={t("finances.cust.active")}
                     value={data.total_customers.toLocaleString()}
-                    sublabel={`${data.new_customers} new · ${data.returning_customers} return`}
+                    sublabel={t("finances.cust.activeSub", { new: data.new_customers, returning: data.returning_customers })}
                     tone="slate"
                 />
                 <StatTile
                     icon={Repeat}
-                    label="Repeat rate"
+                    label={t("finances.cust.repeat")}
                     value={`${data.repeat_rate_pct.toFixed(1)}%`}
                     sublabel={
                         repeatTone === "emerald"
-                            ? "Healthy retention"
+                            ? t("finances.cust.repeatGood")
                             : repeatTone === "amber"
-                                ? "Below target"
-                                : "Concerning"
+                                ? t("finances.cust.repeatMid")
+                                : t("finances.cust.repeatBad")
                     }
                     tone={repeatTone}
                 />
                 <StatTile
                     icon={Crown}
-                    label="Avg LTV"
+                    label={t("finances.cust.ltv")}
                     value={
                         <FinanceValue value={data.avg_ltv} abbreviate className="text-xl font-bold tabular-nums" />
                     }
                     sublabel={
                         data.median_ltv > 0 ? (
                             <>
-                                median{" "}
+                                {t("finances.cust.median")}{" "}
                                 <FinanceValue
                                     value={data.median_ltv}
                                     abbreviate
@@ -60,30 +62,30 @@ export function CustomersSummary({ data }: Props) {
                                 />
                             </>
                         ) : (
-                            `${data.total_customers} customers`
+                            t("finances.cust.customersCount", { count: data.total_customers })
                         )
                     }
                     tone="violet"
                 />
                 <StatTile
                     icon={ShoppingBag}
-                    label="Period AOV"
+                    label={t("finances.cust.aov")}
                     value={
                         <FinanceValue value={data.avg_aov} abbreviate className="text-xl font-bold tabular-nums" />
                     }
-                    sublabel={`new revenue ${data.new_revenue_share_pct.toFixed(0)}%`}
+                    sublabel={t("finances.cust.newRevenue", { pct: data.new_revenue_share_pct.toFixed(0) })}
                     tone="cyan"
                 />
                 <StatTile
                     icon={PieChart}
-                    label="Top-10 concentration"
+                    label={t("finances.cust.top10")}
                     value={`${data.revenue_concentration_top10_pct.toFixed(1)}%`}
                     sublabel={
                         concentrationTone === "rose"
-                            ? "Heavy reliance on few"
+                            ? t("finances.cust.top10High")
                             : concentrationTone === "amber"
-                                ? "Watch concentration"
-                                : "Well-distributed"
+                                ? t("finances.cust.top10Mid")
+                                : t("finances.cust.top10Low")
                     }
                     tone={concentrationTone}
                 />
@@ -144,7 +146,7 @@ function StatTile({ icon: Icon, label, value, sublabel, tone }: StatTileProps) {
                 <div className="text-[10.5px] uppercase tracking-wider text-muted font-semibold">{label}</div>
             </div>
             <div className={cn("text-xl font-bold tabular-nums", m.valueClr)}>{value}</div>
-            {sublabel && <div className="text-[10.5px] text-muted mt-1">{sublabel}</div>}
+            {sublabel && <div className="text-[10.5px] text-muted mt-1"><bdi>{sublabel}</bdi></div>}
         </div>
     );
 }

@@ -4,17 +4,20 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-    FileText, ArrowDownToLine, ArrowUpFromLine, AlertCircle,
+    ArrowDownToLine, ArrowUpFromLine, AlertCircle,
     Search, ExternalLink, Receipt, Inbox,
 } from "lucide-react";
 import type { Order } from "@/lib/supabase";
-import type { Expense } from "@/types/expense";
+import type { Expense, ExpenseCategory } from "@/types/expense";
+import { useLanguage } from "@/hooks/use-language";
+import { useStatusLabel } from "@/hooks/use-status-label";
+import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
+import { isRealizedRevenue } from "@/lib/order-revenue";
 import type { FinancePeriod } from "@/hooks/use-finance-period";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
 import { cn } from "@/lib/utils";
 
-const REVENUE_STATUSES = new Set(["delivered", "completed"]);
 const PENDING_STATUSES = new Set(["confirmed", "in_transit", "out_for_delivery"]);
 
 interface Props {
@@ -105,9 +108,9 @@ export function InvoicesTab({ orders, expenses, period }: Props) {
         const end = period.end.getTime();
         let v = 0;
         for (const o of orders) {
-            const t = o.created_at ? new Date(o.created_at).getTime() : 0;
-            if (t < start || t > end) continue;
-            if (!REVENUE_STATUSES.has(o.status)) continue;
+            const placedAt = o.created_at ? new Date(o.created_at).getTime() : 0;
+            if (placedAt < start || placedAt > end) continue;
+            if (!isRealizedRevenue(o)) continue;
             v += Number(o.price) || 0;
         }
         return v;
@@ -147,30 +150,31 @@ function KpiStrip({
     inboundCount: number; inboundValue: number;
     receiptsValue: number; overdueValue: number;
 }) {
+    const { t } = useLanguage();
     const tiles = [
-        { label: "Outbound (AP)", icon: ArrowDownToLine, value: outboundValue, sub: `${outboundCount} expenses`, tone: "amber" as const },
-        { label: "Inbound AR open", icon: ArrowUpFromLine, value: inboundValue, sub: `${inboundCount} orders`, tone: "violet" as const },
-        { label: "Receipts (delivered)", icon: Receipt, value: receiptsValue, sub: "in period", tone: "emerald" as const },
-        { label: "AR > 30d overdue", icon: AlertCircle, value: overdueValue, sub: "needs attention", tone: overdueValue > 0 ? "rose" as const : "slate" as const },
+        { label: t("finances.invoices.kpi.out"), icon: ArrowDownToLine, value: outboundValue, sub: t("finances.invoices.kpi.outSub", { count: outboundCount }), tone: "amber" as const },
+        { label: t("finances.invoices.kpi.in"), icon: ArrowUpFromLine, value: inboundValue, sub: t("finances.invoices.kpi.inSub", { count: inboundCount }), tone: "violet" as const },
+        { label: t("finances.invoices.kpi.receipts"), icon: Receipt, value: receiptsValue, sub: t("finances.invoices.kpi.inPeriod"), tone: "emerald" as const },
+        { label: t("finances.invoices.kpi.overdue"), icon: AlertCircle, value: overdueValue, sub: t("finances.invoices.kpi.attention"), tone: overdueValue > 0 ? "rose" as const : "slate" as const },
     ];
 
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {tiles.map((t, i) => {
-                const Icon = t.icon;
-                const ring = t.tone === "emerald" ? "ring-emerald-500/20"
-                    : t.tone === "violet" ? "ring-violet-500/20"
-                        : t.tone === "amber" ? "ring-amber-500/20"
-                            : t.tone === "rose" ? "ring-rose-500/20"
+            {tiles.map((tile, i) => {
+                const Icon = tile.icon;
+                const ring = tile.tone === "emerald" ? "ring-emerald-500/20"
+                    : tile.tone === "violet" ? "ring-violet-500/20"
+                        : tile.tone === "amber" ? "ring-amber-500/20"
+                            : tile.tone === "rose" ? "ring-rose-500/20"
                                 : "ring-[var(--card-border)]";
-                const iconClr = t.tone === "emerald" ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
-                    : t.tone === "violet" ? "text-violet-600 dark:text-violet-400 bg-violet-500/10"
-                        : t.tone === "amber" ? "text-amber-600 dark:text-amber-400 bg-amber-500/10"
-                            : t.tone === "rose" ? "text-rose-600 dark:text-rose-400 bg-rose-500/10"
+                const iconClr = tile.tone === "emerald" ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                    : tile.tone === "violet" ? "text-violet-600 dark:text-violet-400 bg-violet-500/10"
+                        : tile.tone === "amber" ? "text-amber-600 dark:text-amber-400 bg-amber-500/10"
+                            : tile.tone === "rose" ? "text-rose-600 dark:text-rose-400 bg-rose-500/10"
                                 : "text-slate-600 dark:text-slate-400 bg-slate-500/10";
                 return (
                     <motion.div
-                        key={t.label}
+                        key={tile.label}
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.04 }}
@@ -183,10 +187,10 @@ function KpiStrip({
                             <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", iconClr)}>
                                 <Icon className="w-3.5 h-3.5" />
                             </div>
-                            <div className="text-[10.5px] uppercase tracking-wider text-muted font-semibold">{t.label}</div>
+                            <div className="text-[10.5px] uppercase tracking-wider text-muted font-semibold">{tile.label}</div>
                         </div>
-                        <FinanceValue value={t.value} abbreviate className="text-2xl font-bold text-foreground tabular-nums block" />
-                        <div className="text-[10.5px] text-muted">{t.sub}</div>
+                        <FinanceValue value={tile.value} abbreviate className="text-2xl font-bold text-foreground tabular-nums block" />
+                        <div className="text-[10.5px] text-muted">{tile.sub}</div>
                     </motion.div>
                 );
             })}
@@ -195,6 +199,8 @@ function KpiStrip({
 }
 
 function ARTable({ rows }: { rows: ARRow[] }) {
+    const { t } = useLanguage();
+    const statusLabel = useStatusLabel();
     const [query, setQuery] = useState("");
     const [showAll, setShowAll] = useState(false);
 
@@ -213,8 +219,8 @@ function ARTable({ rows }: { rows: ARRow[] }) {
 
     return (
         <SectionCard
-            title="Open AR — Pending Collections"
-            subtitle={rows.length === 0 ? "No open receivables" : `${rows.length} orders awaiting payment`}
+            title={t("finances.invoices.ar.title")}
+            subtitle={rows.length === 0 ? t("finances.invoices.ar.none") : rows.length === 1 ? t("finances.invoices.ar.subOne") : t("finances.invoices.ar.sub", { count: rows.length })}
             icon={ArrowUpFromLine}
             accent="violet"
             action={
@@ -224,26 +230,26 @@ function ARTable({ rows }: { rows: ARRow[] }) {
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search…"
+                        placeholder={t("finances.invoices.search")}
                         className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none focus:border-violet-500/50 w-44"
                     />
                 </div>
             }
         >
             {rows.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted">All collected — nothing pending.</div>
+                <div className="py-12 text-center text-sm text-muted">{t("finances.invoices.ar.empty")}</div>
             ) : (
                 <>
                     <div className="overflow-x-auto -mx-2 px-2">
                         <table className="w-full text-[12.5px]">
                             <thead>
                                 <tr className="text-[10.5px] uppercase tracking-wider text-muted font-semibold border-b border-[var(--card-border)]">
-                                    <th className="text-left py-2 pr-2">Order</th>
-                                    <th className="text-left py-2 px-2">Customer</th>
-                                    <th className="text-left py-2 px-2">City</th>
-                                    <th className="text-left py-2 px-2">Status</th>
-                                    <th className="text-right py-2 px-2">Amount</th>
-                                    <th className="text-right py-2 px-2">Age</th>
+                                    <th className="text-left py-2 pr-2">{t("finances.invoices.col.order")}</th>
+                                    <th className="text-left py-2 px-2">{t("finances.invoices.col.customer")}</th>
+                                    <th className="text-left py-2 px-2">{t("finances.invoices.col.city")}</th>
+                                    <th className="text-left py-2 px-2">{t("finances.invoices.col.status")}</th>
+                                    <th className="text-right py-2 px-2">{t("finances.invoices.col.amount")}</th>
+                                    <th className="text-right py-2 px-2">{t("finances.invoices.col.age")}</th>
                                     <th className="text-right py-2 pl-2 w-8"></th>
                                 </tr>
                             </thead>
@@ -264,7 +270,7 @@ function ARTable({ rows }: { rows: ARRow[] }) {
                                         <td className="py-2 px-2 text-muted">{r.city || "—"}</td>
                                         <td className="py-2 px-2">
                                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/30">
-                                                {prettyStatus(r.status)}
+                                                {statusLabel(r.status)}
                                             </span>
                                         </td>
                                         <td className="py-2 px-2 text-right tabular-nums">
@@ -276,13 +282,13 @@ function ARTable({ rows }: { rows: ARRow[] }) {
                                                 r.daysOpen >= 15 ? "text-amber-600 dark:text-amber-400" :
                                                     "text-muted"
                                         )}>
-                                            {r.daysOpen}d
+                                            {t("finances.invoices.days", { count: r.daysOpen })}
                                         </td>
                                         <td className="py-2 pl-2 text-right">
                                             <Link
                                                 href={`/orders?orderId=${r.id}`}
                                                 className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-[var(--background)] transition-colors"
-                                                title="Open order"
+                                                title={t("finances.invoices.openOrder")}
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
                                             </Link>
@@ -298,7 +304,7 @@ function ARTable({ rows }: { rows: ARRow[] }) {
                                 onClick={() => setShowAll(s => !s)}
                                 className="text-[12px] text-muted hover:text-foreground font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--background)] transition-colors"
                             >
-                                {showAll ? "Show less" : `Show all ${filtered.length}`}
+                                {showAll ? t("finances.invoices.showLess") : t("finances.invoices.showAll", { count: filtered.length })}
                             </button>
                         </div>
                     )}
@@ -314,9 +320,11 @@ function ARAgingCard({
     buckets: Record<ARRow["bucket"], { count: number; value: number }>;
     totalValue: number;
 }) {
+    const { t } = useLanguage();
     const order: ARRow["bucket"][] = ["0-7", "8-14", "15-30", "31-60", "60+"];
     const labels: Record<ARRow["bucket"], string> = {
-        "0-7": "0–7 days", "8-14": "8–14 days", "15-30": "15–30 days", "31-60": "31–60 days", "60+": "60+ days",
+        "0-7": t("finances.invoices.aging.b0"), "8-14": t("finances.invoices.aging.b8"), "15-30": t("finances.invoices.aging.b15"),
+        "31-60": t("finances.invoices.aging.b31"), "60+": t("finances.invoices.aging.b60"),
     };
     const tones: Record<ARRow["bucket"], string> = {
         "0-7": "bg-emerald-500/70", "8-14": "bg-emerald-400/70", "15-30": "bg-amber-500/70", "31-60": "bg-orange-500/70", "60+": "bg-rose-500/70",
@@ -325,13 +333,13 @@ function ARAgingCard({
 
     return (
         <SectionCard
-            title="AR Aging"
-            subtitle={totalValue > 0 ? `${Math.round(totalValue / 1000)}K total open` : "Nothing pending"}
+            title={t("finances.invoices.aging.title")}
+            subtitle={totalValue > 0 ? t("finances.invoices.aging.sub", { value: Math.round(totalValue / 1000) }) : t("finances.invoices.aging.none")}
             icon={AlertCircle}
             accent="amber"
         >
             {totalValue === 0 ? (
-                <div className="py-12 text-center text-sm text-muted">No open invoices.</div>
+                <div className="py-12 text-center text-sm text-muted">{t("finances.invoices.aging.empty")}</div>
             ) : (
                 <div className="space-y-2.5">
                     {order.map((b) => {
@@ -365,15 +373,17 @@ function ARAgingCard({
 function APInvoicesCard({
     rows,
 }: {
-    rows: Array<{ id: string; date: string; category: string; description: string; amount: number; isRecurring: boolean }>;
+    rows: Array<{ id: string; date: string; category: ExpenseCategory; description: string; amount: number; isRecurring: boolean }>;
 }) {
+    const { t } = useLanguage();
+    const categoryLabel = useExpenseCategoryLabel();
     const [showAll, setShowAll] = useState(false);
     const visible = showAll ? rows : rows.slice(0, 12);
 
     return (
         <SectionCard
-            title="AP — Outbound Invoices & Receipts"
-            subtitle={rows.length === 0 ? "No expenses recorded in period" : `${rows.length} expense entries`}
+            title={t("finances.invoices.ap.title")}
+            subtitle={rows.length === 0 ? t("finances.invoices.ap.none") : rows.length === 1 ? t("finances.invoices.ap.subOne") : t("finances.invoices.ap.sub", { count: rows.length })}
             icon={Inbox}
             accent="amber"
             action={
@@ -381,22 +391,22 @@ function APInvoicesCard({
                     href="/finances?tab=expenses"
                     className="text-[12px] text-amber-600 dark:text-amber-400 hover:text-amber-500 font-medium"
                 >
-                    Manage →
+                    {t("finances.invoices.ap.manage")}
                 </Link>
             }
         >
             {rows.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted">No outbound invoices logged yet.</div>
+                <div className="py-12 text-center text-sm text-muted">{t("finances.invoices.ap.empty")}</div>
             ) : (
                 <>
                     <div className="overflow-x-auto -mx-2 px-2">
                         <table className="w-full text-[12.5px]">
                             <thead>
                                 <tr className="text-[10.5px] uppercase tracking-wider text-muted font-semibold border-b border-[var(--card-border)]">
-                                    <th className="text-left py-2 pr-2">Date</th>
-                                    <th className="text-left py-2 px-2">Category</th>
-                                    <th className="text-left py-2 px-2">Description</th>
-                                    <th className="text-right py-2 px-2">Amount</th>
+                                    <th className="text-left py-2 pr-2">{t("finances.invoices.col.date")}</th>
+                                    <th className="text-left py-2 px-2">{t("finances.invoices.col.category")}</th>
+                                    <th className="text-left py-2 px-2">{t("finances.invoices.col.description")}</th>
+                                    <th className="text-right py-2 px-2">{t("finances.invoices.col.amount")}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -411,13 +421,13 @@ function APInvoicesCard({
                                         <td className="py-2.5 pr-2 text-muted tabular-nums">{r.date}</td>
                                         <td className="py-2 px-2">
                                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                                                {r.category.replace(/_/g, " ")}
+                                                {categoryLabel(r.category)}
                                             </span>
                                         </td>
                                         <td className="py-2 px-2 text-foreground truncate max-w-[300px]">
                                             {r.description || "—"}
                                             {r.isRecurring && (
-                                                <span className="ml-2 text-[10px] text-violet-600 dark:text-violet-400 font-medium">recurring</span>
+                                                <span className="ml-2 text-[10px] text-violet-600 dark:text-violet-400 font-medium">{t("finances.invoices.ap.recurring")}</span>
                                             )}
                                         </td>
                                         <td className="py-2 px-2 text-right tabular-nums">
@@ -434,7 +444,7 @@ function APInvoicesCard({
                                 onClick={() => setShowAll(s => !s)}
                                 className="text-[12px] text-muted hover:text-foreground font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--background)] transition-colors"
                             >
-                                {showAll ? "Show less" : `Show all ${rows.length}`}
+                                {showAll ? t("finances.invoices.showLess") : t("finances.invoices.showAll", { count: rows.length })}
                             </button>
                         </div>
                     )}
@@ -442,8 +452,4 @@ function APInvoicesCard({
             )}
         </SectionCard>
     );
-}
-
-function prettyStatus(s: string): string {
-    return s.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }

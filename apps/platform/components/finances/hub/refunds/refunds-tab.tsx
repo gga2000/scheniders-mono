@@ -11,8 +11,9 @@ import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
 import { Delta } from "../primitives/delta";
 import { FinanceTooltip } from "../primitives/finance-tooltip";
-import { useRefundAnalytics } from "@/hooks/use-refund-analytics";
+import { useRefundAnalytics, UNSPECIFIED_REASON } from "@/hooks/use-refund-analytics";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { Order } from "@/lib/supabase";
 
 interface Props {
@@ -45,31 +46,32 @@ export function RefundsTab({ orders, period, compareRange }: Props) {
 }
 
 function RefundsHero({ data }: { data: ReturnType<typeof useRefundAnalytics> }) {
+    const { t } = useLanguage();
     const tone = data.refundRate >= 5 ? "rose" : data.refundRate >= 2 ? "amber" : "emerald";
     const rateDelta = data.refundRate - data.refundRatePrev;
 
     return (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <HeroTile
-                label="Refund Value"
+                label={t("finances.refundsTab.value")}
                 accent="rose"
                 main={<FinanceValue value={Math.abs(data.totalValue)} currency="IQD" abbreviate className="text-2xl text-rose-600 dark:text-rose-400" />}
                 sub={
                     data.valuePrev > 0 ? (
                         <Delta value={((data.totalValue - data.valuePrev) / data.valuePrev) * 100} variant="inline" size="sm" />
                     ) : (
-                        <span className="text-[11px] text-muted">no prior period</span>
+                        <span className="text-[11px] text-muted">{t("finances.refundsTab.noPrior")}</span>
                     )
                 }
             />
             <HeroTile
-                label="Refund Count"
+                label={t("finances.refundsTab.count")}
                 accent="slate"
                 main={<span className="text-2xl font-bold text-foreground tabular-nums">{data.totalCount}</span>}
-                sub={<span className="text-[11px] text-muted">{data.avgRefundValue > 0 ? `Avg ${Math.round(data.avgRefundValue / 1000)}K` : "—"}</span>}
+                sub={<span className="text-[11px] text-muted">{data.avgRefundValue > 0 ? <bdi>{t("finances.refundsTab.avg", { value: Math.round(data.avgRefundValue / 1000) })}</bdi> : "—"}</span>}
             />
             <HeroTile
-                label="Refund Rate"
+                label={t("finances.refundsTab.rate")}
                 accent={tone}
                 main={
                     <span className={cn(
@@ -85,30 +87,30 @@ function RefundsHero({ data }: { data: ReturnType<typeof useRefundAnalytics> }) 
                     data.refundRatePrev > 0 ? (
                         <Delta value={rateDelta} variant="inline" size="sm" inverse />
                     ) : (
-                        <span className="text-[11px] text-muted">no baseline</span>
+                        <span className="text-[11px] text-muted">{t("finances.refundsTab.noBaseline")}</span>
                     )
                 }
             />
             <HeroTile
-                label="Pending"
+                label={t("finances.refundsTab.pending")}
                 accent="amber"
                 main={<span className="text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">{data.pendingReturns}</span>}
                 sub={
                     data.pendingReturnsValue > 0 ? (
                         <FinanceValue value={data.pendingReturnsValue} abbreviate className="text-[11px] text-muted" />
                     ) : (
-                        <span className="text-[11px] text-muted">awaiting</span>
+                        <span className="text-[11px] text-muted">{t("finances.refundsTab.awaiting")}</span>
                     )
                 }
             />
             <HeroTile
-                label="Failed Returns"
+                label={t("finances.refundsTab.failed")}
                 accent={data.failedReturns > 0 ? "rose" : "slate"}
                 main={<span className={cn(
                     "text-2xl font-bold tabular-nums",
                     data.failedReturns > 0 ? "text-rose-600 dark:text-rose-400" : "text-foreground"
                 )}>{data.failedReturns}</span>}
-                sub={<span className="text-[11px] text-muted">unprocessed</span>}
+                sub={<span className="text-[11px] text-muted">{t("finances.refundsTab.unprocessed")}</span>}
             />
         </div>
     );
@@ -144,23 +146,28 @@ function HeroTile({
 }
 
 function RefundsTimeline({ data }: { data: ReturnType<typeof useRefundAnalytics> }) {
+    const { t, language } = useLanguage();
     const hasData = data.daily.some(d => d.value > 0);
+    const series = useMemo(() => {
+        const fmt = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+        return data.daily.map((d) => ({ ...d, label: fmt.format(new Date(`${d.date}T00:00:00Z`)) }));
+    }, [data.daily, language]);
 
     return (
         <SectionCard
-            title="Refund Trend"
-            subtitle={hasData ? "Daily refund value" : "No refunds in this period"}
+            title={t("finances.refundsTab.trend")}
+            subtitle={hasData ? t("finances.refundsTab.trendSub") : t("finances.refundsTab.trendEmptySub")}
             icon={Undo2}
             accent="rose"
         >
             {!hasData ? (
                 <div className="py-12 text-center text-sm text-muted">
-                    No refund activity to plot.
+                    {t("finances.refundsTab.trendEmpty")}
                 </div>
             ) : (
                 <div className="h-[280px] -mx-2">
                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data.daily} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+                        <AreaChart data={series} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="refundGradient" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4} />
@@ -185,7 +192,7 @@ function RefundsTimeline({ data }: { data: ReturnType<typeof useRefundAnalytics>
                             <Area
                                 type="monotone"
                                 dataKey="value"
-                                name="Refund value"
+                                name={t("finances.refundsTab.value")}
                                 stroke="#f43f5e"
                                 strokeWidth={2}
                                 fill="url(#refundGradient)"
@@ -199,15 +206,17 @@ function RefundsTimeline({ data }: { data: ReturnType<typeof useRefundAnalytics>
 }
 
 function RefundReasons({ rows, totalValue }: { rows: ReturnType<typeof useRefundAnalytics>["reasons"]; totalValue: number }) {
+    const { t } = useLanguage();
+    const reasonText = (reason: string) => (reason === UNSPECIFIED_REASON ? t("finances.refundsTab.unspecified") : reason);
     return (
         <SectionCard
-            title="Top Refund Reasons"
-            subtitle={rows.length === 0 ? "Nothing to break down" : `${rows.length} reason${rows.length === 1 ? "" : "s"} captured`}
+            title={t("finances.refundsTab.reasons")}
+            subtitle={rows.length === 0 ? t("finances.refundsTab.reasonsEmptySub") : rows.length === 1 ? t("finances.refundsTab.reasonsSubOne") : t("finances.refundsTab.reasonsSub", { count: rows.length })}
             icon={AlertTriangle}
             accent="amber"
         >
             {rows.length === 0 ? (
-                <div className="py-10 text-center text-sm text-muted">No refunds in this period.</div>
+                <div className="py-10 text-center text-sm text-muted">{t("finances.refundsTab.noRefunds")}</div>
             ) : (
                 <div className="space-y-2">
                     {rows.slice(0, 6).map((r, i) => {
@@ -225,11 +234,11 @@ function RefundReasons({ rows, totalValue }: { rows: ReturnType<typeof useRefund
                                 <div className="absolute inset-y-0 left-0 bg-amber-500/10" style={{ width: `${pct}%` }} />
                                 <div className="relative flex items-center justify-between gap-3 px-3 py-2">
                                     <div className="min-w-0 flex-1">
-                                        <div className="text-[12.5px] font-medium text-foreground truncate" title={r.reason}>
-                                            {r.reason}
+                                        <div className="text-[12.5px] font-medium text-foreground truncate" title={reasonText(r.reason)}>
+                                            {reasonText(r.reason)}
                                         </div>
                                         <div className="text-[10.5px] text-muted">
-                                            {r.count} refund{r.count === 1 ? "" : "s"} · {pctLabel} of value
+                                            {t(r.count === 1 ? "finances.refundsTab.reasonRowOne" : "finances.refundsTab.reasonRow", { count: r.count, pct: pctLabel })}
                                         </div>
                                     </div>
                                     <FinanceValue
@@ -248,15 +257,16 @@ function RefundReasons({ rows, totalValue }: { rows: ReturnType<typeof useRefund
 }
 
 function TopRefundedProducts({ rows }: { rows: ReturnType<typeof useRefundAnalytics>["products"] }) {
+    const { t } = useLanguage();
     return (
         <SectionCard
-            title="Top Refunded Products"
-            subtitle={rows.length === 0 ? "No product refunds" : "Products driving refund value"}
+            title={t("finances.refundsTab.products")}
+            subtitle={rows.length === 0 ? t("finances.refundsTab.productsEmptySub") : t("finances.refundsTab.productsSub")}
             icon={Package}
             accent="violet"
         >
             {rows.length === 0 ? (
-                <div className="py-10 text-center text-sm text-muted">No product-level refund data.</div>
+                <div className="py-10 text-center text-sm text-muted">{t("finances.refundsTab.productsEmpty")}</div>
             ) : (
                 <div className="space-y-2">
                     {rows.map((p, i) => (
@@ -274,7 +284,7 @@ function TopRefundedProducts({ rows }: { rows: ReturnType<typeof useRefundAnalyt
                                 <div className="min-w-0">
                                     <div className="text-[12.5px] font-medium text-foreground truncate">{p.name}</div>
                                     <div className="text-[10.5px] text-muted">
-                                        {p.units} unit{p.units === 1 ? "" : "s"} · {p.orders} order{p.orders === 1 ? "" : "s"}
+                                        {t("finances.refundsTab.productRow", { units: p.units, orders: p.orders })}
                                     </div>
                                 </div>
                             </div>
@@ -292,16 +302,17 @@ function TopRefundedProducts({ rows }: { rows: ReturnType<typeof useRefundAnalyt
 }
 
 function RefundsByCity({ rows }: { rows: ReturnType<typeof useRefundAnalytics>["byCity"] }) {
+    const { t } = useLanguage();
     const max = Math.max(...rows.map(r => r.count), 1);
     return (
         <SectionCard
-            title="Refunds by City"
-            subtitle={rows.length === 0 ? "No regional data" : "Where refunds concentrate"}
+            title={t("finances.refundsTab.cities")}
+            subtitle={rows.length === 0 ? t("finances.refundsTab.citiesEmptySub") : t("finances.refundsTab.citiesSub")}
             icon={MapPin}
             accent="cyan"
         >
             {rows.length === 0 ? (
-                <div className="py-10 text-center text-sm text-muted">No regional refund data.</div>
+                <div className="py-10 text-center text-sm text-muted">{t("finances.refundsTab.citiesEmpty")}</div>
             ) : (
                 <div className="space-y-1.5">
                     {rows.map((r) => {
@@ -331,6 +342,7 @@ function RefundsByCity({ rows }: { rows: ReturnType<typeof useRefundAnalytics>["
 }
 
 function RefundOrdersTable({ orders }: { orders: ReturnType<typeof useRefundAnalytics>["orders"] }) {
+    const { t } = useLanguage();
     const [query, setQuery] = useState("");
     const [showAll, setShowAll] = useState(false);
 
@@ -349,8 +361,8 @@ function RefundOrdersTable({ orders }: { orders: ReturnType<typeof useRefundAnal
 
     return (
         <SectionCard
-            title="Refund Orders"
-            subtitle={orders.length === 0 ? "No refund orders" : `${orders.length} refund${orders.length === 1 ? "" : "s"} in period`}
+            title={t("finances.refundsTab.orders")}
+            subtitle={orders.length === 0 ? t("finances.refundsTab.ordersEmptySub") : orders.length === 1 ? t("finances.refundsTab.ordersSubOne") : t("finances.refundsTab.ordersSub", { count: orders.length })}
             icon={Clock}
             accent="rose"
             action={
@@ -360,7 +372,7 @@ function RefundOrdersTable({ orders }: { orders: ReturnType<typeof useRefundAnal
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search…"
+                        placeholder={t("finances.refundsTab.search")}
                         className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none focus:border-rose-500/50 w-44"
                     />
                 </div>
@@ -368,7 +380,7 @@ function RefundOrdersTable({ orders }: { orders: ReturnType<typeof useRefundAnal
         >
             {orders.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted">
-                    No refund or return orders in this period.
+                    {t("finances.refundsTab.ordersEmpty")}
                 </div>
             ) : (
                 <>
@@ -376,13 +388,13 @@ function RefundOrdersTable({ orders }: { orders: ReturnType<typeof useRefundAnal
                         <table className="w-full text-[12.5px]">
                             <thead>
                                 <tr className="text-[10.5px] uppercase tracking-wider text-muted font-semibold border-b border-[var(--card-border)]">
-                                    <th className="text-left py-2 pr-3">Order</th>
-                                    <th className="text-left py-2 px-2">Customer</th>
-                                    <th className="text-left py-2 px-2">City</th>
-                                    <th className="text-left py-2 px-2">Status</th>
-                                    <th className="text-right py-2 px-2">Items</th>
-                                    <th className="text-right py-2 px-2">Value</th>
-                                    <th className="text-right py-2 px-2">Age</th>
+                                    <th className="text-left py-2 pr-3">{t("finances.refundsTab.col.order")}</th>
+                                    <th className="text-left py-2 px-2">{t("finances.refundsTab.col.customer")}</th>
+                                    <th className="text-left py-2 px-2">{t("finances.refundsTab.col.city")}</th>
+                                    <th className="text-left py-2 px-2">{t("finances.refundsTab.col.status")}</th>
+                                    <th className="text-right py-2 px-2">{t("finances.refundsTab.col.items")}</th>
+                                    <th className="text-right py-2 px-2">{t("finances.refundsTab.col.value")}</th>
+                                    <th className="text-right py-2 px-2">{t("finances.refundsTab.col.age")}</th>
                                     <th className="text-right py-2 pl-2 w-8"></th>
                                 </tr>
                             </thead>
@@ -411,13 +423,13 @@ function RefundOrdersTable({ orders }: { orders: ReturnType<typeof useRefundAnal
                                             <FinanceValue value={o.price} abbreviate className="text-rose-600 dark:text-rose-400" />
                                         </td>
                                         <td className="py-2 px-2 text-right tabular-nums text-muted">
-                                            {o.days_since}d
+                                            {t("finances.refundsTab.days", { count: o.days_since })}
                                         </td>
                                         <td className="py-2 pl-2 text-right">
                                             <Link
                                                 href={`/orders?orderId=${o.id}`}
                                                 className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-[var(--background)] transition-colors"
-                                                title="Open order"
+                                                title={t("finances.refundsTab.openOrder")}
                                             >
                                                 <ExternalLink className="w-3.5 h-3.5" />
                                             </Link>
@@ -433,7 +445,7 @@ function RefundOrdersTable({ orders }: { orders: ReturnType<typeof useRefundAnal
                                 onClick={() => setShowAll(s => !s)}
                                 className="text-[12px] text-muted hover:text-foreground font-medium px-3 py-1.5 rounded-lg hover:bg-[var(--background)] transition-colors"
                             >
-                                {showAll ? "Show less" : `Show all ${filtered.length}`}
+                                {showAll ? t("finances.refundsTab.showLess") : t("finances.refundsTab.showAll", { count: filtered.length })}
                             </button>
                         </div>
                     )}
@@ -444,13 +456,14 @@ function RefundOrdersTable({ orders }: { orders: ReturnType<typeof useRefundAnal
 }
 
 function StatusBadge({ status, isReturn }: { status: string; isReturn: boolean }) {
+    const { t } = useLanguage();
     const map: Record<string, { label: string; tone: string }> = {
-        refund_delivered: { label: "Refunded", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30" },
-        refund_failed: { label: "Failed", tone: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/40" },
-        return_pending: { label: "Pending", tone: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30" },
+        refund_delivered: { label: t("finances.refundsTab.status.refunded"), tone: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30" },
+        refund_failed: { label: t("finances.refundsTab.status.failed"), tone: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/40" },
+        return_pending: { label: t("finances.refundsTab.status.pending"), tone: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30" },
     };
     const fallback = isReturn
-        ? { label: "Return", tone: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30" }
+        ? { label: t("finances.refundsTab.status.return"), tone: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30" }
         : { label: status, tone: "bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/30" };
     const { label, tone } = map[status] || fallback;
     return (

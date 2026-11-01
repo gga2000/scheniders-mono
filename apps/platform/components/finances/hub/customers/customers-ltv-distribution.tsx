@@ -5,6 +5,7 @@ import { BarChart3 } from "lucide-react";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { LTVBucket } from "@/hooks/use-finance-customers";
 
 interface Props {
@@ -12,19 +13,20 @@ interface Props {
 }
 
 export function CustomersLtvDistribution({ buckets }: Props) {
+    const { t } = useLanguage();
     const total = buckets.reduce((s, b) => s + b.count, 0);
     const maxCount = Math.max(...buckets.map((b) => b.count), 1);
 
     if (total === 0) {
         return (
             <SectionCard
-                title="LTV Distribution"
-                subtitle="No active customers in this period"
+                title={t("finances.cust.ltvDist.title")}
+                subtitle={t("finances.cust.ltvDist.emptySub")}
                 icon={BarChart3}
                 accent="violet"
             >
                 <div className="py-10 text-center text-sm text-muted">
-                    Waiting for customers with revenue.
+                    {t("finances.cust.ltvDist.empty")}
                 </div>
             </SectionCard>
         );
@@ -32,10 +34,12 @@ export function CustomersLtvDistribution({ buckets }: Props) {
 
     return (
         <SectionCard
-            title="LTV Distribution"
+            title={t("finances.cust.ltvDist.title")}
             subtitle={(() => {
                 const filled = buckets.filter((b) => b.count > 0).length;
-                return `${total} customers across ${filled} bucket${filled === 1 ? "" : "s"}`;
+                return filled === 1
+                    ? t("finances.cust.ltvDist.subOne", { total })
+                    : t("finances.cust.ltvDist.sub", { total, filled });
             })()}
             icon={BarChart3}
             accent="violet"
@@ -71,10 +75,10 @@ export function CustomersLtvDistribution({ buckets }: Props) {
                 })}
             </div>
             <div className="mt-3 grid grid-cols-[80px_1fr_56px_72px] gap-3 text-[10.5px] uppercase tracking-wider text-muted font-semibold">
-                <div>Range</div>
-                <div>Customers</div>
-                <div className="text-right">Share</div>
-                <div className="text-right">Revenue</div>
+                <div>{t("finances.cust.ltvDist.range")}</div>
+                <div>{t("finances.cust.ltvDist.customers")}</div>
+                <div className="text-right">{t("finances.cust.ltvDist.share")}</div>
+                <div className="text-right">{t("finances.cust.ltvDist.revenue")}</div>
             </div>
         </SectionCard>
     );
