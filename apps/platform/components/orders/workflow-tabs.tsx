@@ -106,7 +106,7 @@ export const WorkflowTabs = memo(function WorkflowTabs({
                             >
                                 {/* Step Number */}
                                 <span className={cn(
-                                    "absolute top-2 left-2 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center",
+                                    "absolute top-2 left-2 w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center",
                                     isActive
                                         ? "bg-white/50 text-inherit"
                                         : "bg-gray-100 text-gray-500"

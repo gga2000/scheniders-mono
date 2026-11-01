@@ -671,7 +671,7 @@ export function DuplicateComparisonModal({
                                                                         {item.name}
                                                                     </p>
                                                                     <p className={cn(
-                                                                        "text-[10px] font-bold",
+                                                                        "text-[11px] font-bold",
                                                                         qtyMatches
                                                                             ? "text-emerald-600 dark:text-[#66FFAA]/80"
                                                                             : "text-amber-600 dark:text-[#FFB347]/80"

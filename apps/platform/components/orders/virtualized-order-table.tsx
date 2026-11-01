@@ -328,7 +328,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                         const idx = (sortConfigs || []).findIndex(s => s.key === 'order_id');
                                         if (idx >= 0) {
                                             const sc = (sortConfigs || [])[idx];
-                                            return <span className="flex items-center gap-0.5 text-primary">{(sortConfigs || []).length > 1 && <span className="text-[8px]">{idx + 1}</span>}{sc.direction === 'asc' ? <ArrowUp className="w-2 h-2" /> : <ArrowDown className="w-2 h-2" />}</span>;
+                                            return <span className="flex items-center gap-0.5 text-primary">{(sortConfigs || []).length > 1 && <span className="text-[11px]">{idx + 1}</span>}{sc.direction === 'asc' ? <ArrowUp className="w-2 h-2" /> : <ArrowDown className="w-2 h-2" />}</span>;
                                         }
                                         if (sortConfig?.key === 'order_id') return sortConfig.direction === 'asc' ? <ArrowUp className="w-2 h-2 text-primary" /> : <ArrowDown className="w-2 h-2 text-primary" />;
                                         return null;
@@ -369,7 +369,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                 const idx = (sortConfigs || []).findIndex(s => s.key === col.key);
                                                 if (idx >= 0) {
                                                     const sc = (sortConfigs || [])[idx];
-                                                    return <span className="flex items-center gap-0.5 text-blue-500">{(sortConfigs || []).length > 1 && <span className="text-[8px] font-bold">{idx + 1}</span>}{sc.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}</span>;
+                                                    return <span className="flex items-center gap-0.5 text-blue-500">{(sortConfigs || []).length > 1 && <span className="text-[11px] font-bold">{idx + 1}</span>}{sc.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}</span>;
                                                 }
                                                 if (sortConfig?.key === col.key) return sortConfig?.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />;
                                                 return null;
@@ -426,7 +426,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                 {columnFilters[col.key] && col.filterType !== 'select' && (
                                                     <button
                                                         onClick={() => setColumnFilters({ ...columnFilters, [col.key]: '' })}
-                                                        className="mt-2 text-[10px] text-rose-500 hover:text-rose-600 font-medium transition-colors w-full text-center py-1 rounded hover:bg-rose-50"
+                                                        className="mt-2 text-[11px] text-rose-500 hover:text-rose-600 font-medium transition-colors w-full text-center py-1 rounded hover:bg-rose-50"
                                                     >
                                                         {t("orders.filter.clearFilter")}
                                                     </button>
@@ -494,7 +494,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                         const idx = (sortConfigs || []).findIndex(s => s.key === 'amount');
                                         if (idx >= 0) {
                                             const sc = (sortConfigs || [])[idx];
-                                            return <span className="flex items-center gap-0.5 text-blue-500">{(sortConfigs || []).length > 1 && <span className="text-[8px] font-bold">{idx + 1}</span>}{sc.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}</span>;
+                                            return <span className="flex items-center gap-0.5 text-blue-500">{(sortConfigs || []).length > 1 && <span className="text-[11px] font-bold">{idx + 1}</span>}{sc.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}</span>;
                                         }
                                         if (sortConfig?.key === 'amount') return sortConfig?.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-500" /> : <ArrowDown className="w-3 h-3 text-blue-500" />;
                                         return null;

@@ -265,7 +265,7 @@ function SortableReasonRow({ reason, accent, count, onUpdate, onToggleActive, on
             />
 
             {typeof count === "number" && count > 0 && (
-                <span className={cn("shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full", accent.chip)}>
+                <span className={cn("shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full", accent.chip)}>
                     {count}
                 </span>
             )}

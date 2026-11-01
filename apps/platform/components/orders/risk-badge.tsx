@@ -48,7 +48,7 @@ export function RiskBadge({ level, assessment, customerPhone, className, showLab
 
     const badgeNode = (
         <div className={cn(
-            "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full border cursor-help transition-transform hover:scale-105",
+            "inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full border cursor-help transition-transform hover:scale-105",
             style,
             className
         )}>
@@ -106,28 +106,28 @@ export function RiskBadge({ level, assessment, customerPhone, className, showLab
                                     <div className="flex items-center gap-2 bg-rose-50 dark:bg-rose-500/10 p-2 rounded-lg">
                                         <PackageX className="w-4 h-4 text-rose-500" />
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] text-muted-foreground">{t("orders.risk.rejected")}</span>
+                                            <span className="text-[11px] text-muted-foreground">{t("orders.risk.rejected")}</span>
                                             <span className="text-xs font-bold text-rose-700 dark:text-rose-400">{assessment.historicalData.rejectedCustomerFaultCount} {t("orders.risk.orders")}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 bg-orange-50 dark:bg-orange-500/10 p-2 rounded-lg">
                                         <PackageMinus className="w-4 h-4 text-orange-500" />
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] text-muted-foreground">{t("orders.risk.cancelled")}</span>
+                                            <span className="text-[11px] text-muted-foreground">{t("orders.risk.cancelled")}</span>
                                             <span className="text-xs font-bold text-orange-700 dark:text-orange-400">{assessment.historicalData.cancelledCustomerCount} {t("orders.risk.orders")}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-500/10 p-2 rounded-lg">
                                         <Clock className="w-4 h-4 text-amber-500" />
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] text-muted-foreground">{t("orders.risk.noResponse")}</span>
+                                            <span className="text-[11px] text-muted-foreground">{t("orders.risk.noResponse")}</span>
                                             <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{assessment.historicalData.noResponseCount} {t("orders.risk.orders")}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
-                                        <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Σ</span>
+                                        <span className="text-[11px] font-bold px-1 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">Σ</span>
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] text-muted-foreground">{t("orders.risk.total")}</span>
+                                            <span className="text-[11px] text-muted-foreground">{t("orders.risk.total")}</span>
                                             <span className="text-xs font-bold text-foreground">{assessment.historicalData.totalOrders} {t("orders.risk.orders")}</span>
                                         </div>
                                     </div>

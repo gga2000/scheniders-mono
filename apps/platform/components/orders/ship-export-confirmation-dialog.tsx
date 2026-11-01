@@ -334,7 +334,7 @@ export function ShipExportConfirmationDialog({
                                     <span className="font-medium truncate max-w-[200px]">{order.customer_name}</span>
                                     <div className="flex flex-row-reverse items-center gap-2">
                                         <span className={cn(
-                                            "text-[10px] px-1.5 py-0.5 rounded",
+                                            "text-[11px] px-1.5 py-0.5 rounded",
                                             getStatusBadgeStyle(order.status),
                                         )}>
                                             {STATUS_LABELS[order.status] || order.status}

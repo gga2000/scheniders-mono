@@ -41,11 +41,11 @@ export function LikelihoodMeter({
             strokeDashoffset={offset}
           />
         </svg>
-        <span className={cn("absolute inset-0 flex items-center justify-center text-[10px] font-extrabold", textColor)}>
+        <span className={cn("absolute inset-0 flex items-center justify-center text-[11px] font-extrabold", textColor)}>
           {score}%
         </span>
       </div>
-      {title && <span className="text-[10px] text-[var(--foreground-subtle)]">{title}</span>}
+      {title && <span className="text-[11px] text-[var(--foreground-subtle)]">{title}</span>}
       <span className={cn("text-xs font-bold", textColor)}>{tierLabel}</span>
     </div>
   );

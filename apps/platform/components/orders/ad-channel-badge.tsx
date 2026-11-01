@@ -96,7 +96,7 @@ export function AdChannelBadge({ attribution, channel, className, compact = fals
             data-ad-channel={resolved.channel}
             title={title}
             className={cn(
-                "inline-flex items-center gap-1 rounded-full border text-[10px] font-bold",
+                "inline-flex items-center gap-1 rounded-full border text-[11px] font-bold",
                 iconOnly ? "p-1" : "px-2 py-0.5",
                 CHANNEL_STYLE[resolved.channel] ?? CHANNEL_STYLE.other,
                 className,

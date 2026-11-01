@@ -23,7 +23,7 @@ export function ColumnHeaderControls({
   if (isNew) {
     return (
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] text-[var(--foreground-subtle)]">{labels.base}</span>
+        <span className="text-[11px] text-[var(--foreground-subtle)]">{labels.base}</span>
         <button
           type="button"
           aria-label={labels.view}
@@ -42,7 +42,7 @@ export function ColumnHeaderControls({
         type="button"
         onClick={onPickTarget}
         className={cn(
-          "flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors",
+          "flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded transition-colors",
           isMergeTarget
             ? "text-emerald-700 dark:text-[#66FFAA]"
             : "text-[var(--foreground-muted)]",

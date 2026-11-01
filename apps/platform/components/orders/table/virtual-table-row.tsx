@@ -185,7 +185,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                     attentionReasons={order.attention_reasons}
                 />
                 {order.needs_attention && order.attention_reasons?.some((r: string) => r.startsWith('whatsapp_')) && (
-                    <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-600 border border-red-200" title={order.delivery_note || t("orders.card.attn.whatsappFailed")}>
+                    <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-600 border border-red-200" title={order.delivery_note || t("orders.card.attn.whatsappFailed")}>
                         <AlertTriangle className="w-3 h-3" />
                         WA
                     </span>
@@ -314,7 +314,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                         const bgColor = item.tag_color ? `${item.tag_color}20` : '#f3f4f6';
                         const textColor = item.tag_color || '#374151';
                         return (
-                            <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold rounded" style={{ backgroundColor: bgColor, color: textColor, border: `1px solid ${item.tag_color || '#e5e7eb'}` }} title={item.name}>
+                            <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-semibold rounded" style={{ backgroundColor: bgColor, color: textColor, border: `1px solid ${item.tag_color || '#e5e7eb'}` }} title={item.name}>
                                 {item.name} <span style={{ opacity: 0.7 }}>×{item.quantity}</span>
                             </span>
                         );
@@ -333,7 +333,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                         {!isReturn && Math.abs(Number(order.price)) < modePrice && modePrice > 0 && <TrendingDown className="w-3 h-3 text-blue-500" />}
                     </div>
                     {(order.payment_status === "paid" || order.payment_status === "prepaid") && (
-                        <span className="px-1.5 py-0.5 text-[9px] bg-emerald-100 text-emerald-700 rounded-md font-bold">{t("orders.card.paid")}</span>
+                        <span className="px-1.5 py-0.5 text-[11px] bg-emerald-100 text-emerald-700 rounded-md font-bold">{t("orders.card.paid")}</span>
                     )}
                 </div>
             </div>
@@ -345,7 +345,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
 
             {/* Source */}
             <div role="cell" className={`px-3 ${cellPy} h-full flex items-center justify-center border-r border-gray-100/60`}>
-                <span className={cn("px-1.5 py-0.5 text-[9px] font-bold rounded",
+                <span className={cn("px-1.5 py-0.5 text-[11px] font-bold rounded",
                     order.source === "lightfunnels" && "bg-purple-100 text-purple-700",
                     order.source === "delivery_import" && "bg-blue-100 text-blue-700",
                     order.source === "whatsapp" && "bg-green-100 text-green-700",
@@ -361,11 +361,11 @@ export const VirtualTableRow = memo(function VirtualTableRow({
             {/* Date - Recency + M-D + Time */}
             <div role="cell" className={`px-3 ${cellPy} h-full flex items-center border-r border-gray-100/60`}>
                 <div className="flex flex-col items-start leading-tight">
-                    <span className="text-[9px] text-muted font-medium">{getOrderAge(order.created_at, language)}</span>
+                    <span className="text-[11px] text-muted font-medium">{getOrderAge(order.created_at, language)}</span>
                     <span className="text-xs text-gray-700 font-mono">{formatDateShort(order.created_at)}</span>
-                    <span className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>
+                    <span className="text-[11px] text-gray-400">{new Date(order.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}</span>
                     {getScheduledState(order.scheduled_date) && (
-                        <span className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[9px] font-bold">
+                        <span className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold">
                             <Calendar className="w-2.5 h-2.5" />
                             {isScheduledToday(order.scheduled_date) ? t("orderDetail.scheduledToday") : formatScheduledDate(order.scheduled_date)}
                         </span>

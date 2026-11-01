@@ -85,7 +85,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
             >
                 <Phone className="w-3.5 h-3.5 text-gray-400" />
                 {t("orders.ctx.copyPhone")}
-                <span className="ml-auto text-[10px] text-gray-400 font-mono">⌘C</span>
+                <span className="ml-auto text-[11px] text-gray-400 font-mono">⌘C</span>
             </button>
             <button
                 onClick={() => copyToClipboard(`#${orderId}`, t("orders.ctx.orderId"))}
@@ -159,7 +159,7 @@ export const OrderContextMenu = memo(function OrderContextMenu({
             >
                 <ExternalLink className="w-3.5 h-3.5 text-gray-400" />
                 {t("orders.ctx.openDetails")}
-                <span className="ml-auto text-[10px] text-gray-400 font-mono">Enter</span>
+                <span className="ml-auto text-[11px] text-gray-400 font-mono">Enter</span>
             </button>
 
             {onArchive && (

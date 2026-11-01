@@ -37,10 +37,10 @@ export function OrderTimeline({
 
           const inner = (
             <>
-              <span className="text-[9px] font-mono text-[var(--foreground-muted)]">
+              <span className="text-[11px] font-mono text-[var(--foreground-muted)]">
                 #{getBaseOrderId(o.order_id)}
               </span>
-              <span className="text-[9px] text-[var(--foreground-subtle)]">
+              <span className="text-[11px] text-[var(--foreground-subtle)]">
                 {formatDate(o.created_at)}
               </span>
             </>

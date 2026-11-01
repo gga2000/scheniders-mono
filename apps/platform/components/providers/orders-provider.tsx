@@ -23,9 +23,10 @@ import { useOrders } from "@/hooks/use-orders";
  * book routes reuses it instead of refetching from nothing.
  */
 
-type OrdersContextType = ReturnType<typeof useOrders>;
+export type OrdersContextType = ReturnType<typeof useOrders>;
 
-const OrdersContext = createContext<OrdersContextType | null>(null);
+/** Exported so stories can hand a card a stub book; app code uses OrdersProvider. */
+export const OrdersContext = createContext<OrdersContextType | null>(null);
 
 interface OrdersProviderProps {
     children: ReactNode;

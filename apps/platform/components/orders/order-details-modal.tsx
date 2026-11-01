@@ -606,7 +606,7 @@ export function OrderDetailsModal({
                                             </button>
                                         )}
                                     </div>
-                                    <AbandonedCartBadge order={order} withDetail className="text-[10px] px-2 py-1" />
+                                    <AbandonedCartBadge order={order} withDetail className="text-[11px] px-2 py-1" />
                                     {/* Status Badge with Dropdown */}
                                     <div className="relative">
                                         <button

@@ -25,7 +25,7 @@ export function OrderPlacementBadge({
         <span
             data-placement={placement}
             className={cn(
-                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide",
+                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide",
                 trashed
                     ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
                     : "bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-slate-300",
