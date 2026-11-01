@@ -133,6 +133,8 @@ export interface Order {
     is_pinned?: boolean;
     delivery_slot?: DeliverySlot;
     source?: OrderSource;
+    /** Staff member (user_profiles.id) who typed the order in; null when it arrived on its own. Set by the server only. */
+    entered_by?: string | null;
     /** Which ad the customer clicked — `source` only says which system sent the order. */
     attribution?: AdAttribution | null;
     /** Denormalized `attribution.channel` (facebook | instagram | tiktok | …) so the list can filter without unpacking jsonb. */

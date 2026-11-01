@@ -116,7 +116,8 @@ export const ORDER_READ_COLUMNS = `
   abandoned_cart_outcome,
   abandoned_cart_resolved_at,
   abandoned_cart_resolved_by_name,
-  abandoned_cart_order_id
+  abandoned_cart_order_id,
+  entered_by
 `;
 
 /** ORDER_READ_COLUMNS as names, for projecting a row before it is written back. */
@@ -225,7 +226,8 @@ export const LIST_COLUMNS = `
   abandoned_cart_outcome,
   abandoned_cart_resolved_at,
   abandoned_cart_resolved_by_name,
-  abandoned_cart_order_id
+  abandoned_cart_order_id,
+  entered_by
 `.trim();
 
 /** LIST_COLUMNS as names, for projecting a row that arrived with every column. */
