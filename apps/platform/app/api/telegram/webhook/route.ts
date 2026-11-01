@@ -287,6 +287,7 @@ async function handleProductReply(
         is_replacement: false,
         is_archived: false,
         source: "telegram",
+        entered_by: link.user_profile_id,
     };
 
     const result = await createOrderForTenant(orderInput, link.tenant_id);

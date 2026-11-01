@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
+import { cn } from "@/lib/utils";
 import { formatPhoneDisplay } from "@/lib/customer-format";
 import { useCustomerLinks } from "@/hooks/use-customer-links";
 import type { TrustTier } from "@/types/customer";
@@ -171,6 +172,8 @@ export function BehavioralPatternsCard({
             .join(" · ");
 
         return {
+            // Refusals at the door are the one pattern worth colour: the outcomes tile turns rose.
+            hasRefusals: counts.rejected + counts.noResponse > 0,
             timeLabel: preferredTime ? t(TIME_KEY[preferredTime]) : null,
             dayLabel: activeDay !== null ? t(DAY_KEYS[activeDay]) : null,
             cadenceLabel,
@@ -221,9 +224,9 @@ export function BehavioralPatternsCard({
         <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] h-full">
             <div className="flex items-center gap-2.5 mb-5">
                 {mode === "patterns" ? (
-                    <BrainCircuit className="w-5 h-5 text-purple-500 shrink-0" />
+                    <BrainCircuit className="w-5 h-5 text-foreground shrink-0" />
                 ) : (
-                    <Sparkles className="w-5 h-5 text-blue-500 shrink-0" />
+                    <Sparkles className="w-5 h-5 text-foreground shrink-0" />
                 )}
                 <h3 className="font-headline font-extrabold text-lg leading-none">
                     {mode === "patterns"
@@ -237,7 +240,6 @@ export function BehavioralPatternsCard({
                     {patterns.timeLabel && (
                         <Row
                             icon={<Clock className="w-4.5 h-4.5" />}
-                            iconBg="bg-blue-50 text-blue-500"
                             title={t("customers.behavioral.deliveryTime")}
                             value={patterns.timeLabel}
                         />
@@ -245,20 +247,18 @@ export function BehavioralPatternsCard({
                     {patterns.dayLabel && (
                         <Row
                             icon={<Calendar className="w-4.5 h-4.5" />}
-                            iconBg="bg-amber-50 text-amber-500"
                             title={t("customers.behavioral.activeDay")}
                             value={patterns.dayLabel}
                         />
                     )}
                     <Row
                         icon={<Repeat className="w-4.5 h-4.5" />}
-                        iconBg="bg-pink-50 text-pink-500"
                         title={t("customers.behavioral.cadence")}
                         value={patterns.cadenceLabel}
                     />
                     <Row
                         icon={<PieChart className="w-4.5 h-4.5" />}
-                        iconBg="bg-green-50 text-green-500"
+                        tone={patterns.hasRefusals ? "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" : undefined}
                         title={t("customers.behavioral.statusMix")}
                         value={patterns.statusMix}
                     />
@@ -267,39 +267,30 @@ export function BehavioralPatternsCard({
                 <div className="space-y-4">
                     <Row
                         icon={<Calendar className="w-4.5 h-4.5" />}
-                        iconBg="bg-blue-50 text-blue-500"
                         title={t("customers.snapshot.customerSince")}
                         value={snapshot.joinedLabel}
                     />
                     <Row
                         icon={<MapPin className="w-4.5 h-4.5" />}
-                        iconBg="bg-pink-50 text-pink-500"
                         title={t("customers.snapshot.location")}
                         value={snapshot.locationLabel}
                     />
-                    <Row
-                        icon={<Phone className="w-4.5 h-4.5" />}
-                        iconBg={
-                            snapshot.phoneValid
-                                ? "bg-emerald-50 text-emerald-500"
-                                : "bg-amber-50 text-amber-500"
-                        }
-                        title={
-                            snapshot.phoneValid
-                                ? t("customers.snapshot.phoneValid")
-                                : t("customers.snapshot.phoneInvalid")
-                        }
-                        value={formatPhoneDisplay(phone)}
-                    />
+                    {/* A valid number is the norm and says nothing; only a bad one earns a row, in caution amber. */}
+                    {!snapshot.phoneValid && (
+                        <Row
+                            icon={<Phone className="w-4.5 h-4.5" />}
+                            tone="bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                            title={t("customers.snapshot.phoneInvalid")}
+                            value={formatPhoneDisplay(phone)}
+                        />
+                    )}
                     <Row
                         icon={<Users className="w-4.5 h-4.5" />}
-                        iconBg="bg-purple-50 text-purple-500"
                         title={snapshot.linksLabel}
                         value=""
                     />
                     <Row
                         icon={<ShieldCheck className="w-4.5 h-4.5" />}
-                        iconBg="bg-green-50 text-green-500"
                         title={snapshot.trustLabel}
                         value=""
                     />
@@ -309,21 +300,25 @@ export function BehavioralPatternsCard({
     );
 }
 
+/** Neutral icon tiles; colour only where the row means something (refusals, a bad number). */
+const NEUTRAL_TILE = "bg-muted text-foreground dark:bg-white/10";
+
 function Row({
     icon,
-    iconBg,
+    tone,
     title,
     value,
 }: {
     icon: React.ReactNode;
-    iconBg: string;
+    /** Tile colours when the row carries a meaning; neutral otherwise. */
+    tone?: string;
     title: string;
     value: string;
 }) {
     return (
         <div className="flex items-start gap-4">
             <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 dark:bg-white/10 ${iconBg}`}
+                className={cn("w-9 h-9 rounded-full flex items-center justify-center shrink-0", tone ?? NEUTRAL_TILE)}
             >
                 {icon}
             </div>

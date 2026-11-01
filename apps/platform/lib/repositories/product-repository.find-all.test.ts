@@ -23,6 +23,7 @@ function chain(rows: unknown[]) {
         select: () => c,
         eq: () => c,
         order: () => c,
+        range: () => c,
         then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
             resolve({ data: rows, error: null }),
     };
@@ -32,7 +33,7 @@ function chain(rows: unknown[]) {
 vi.mock("@/lib/supabase", () => ({
     supabase: {
         from: (table: string) => chain(tables[table] ?? []),
-        rpc: async () => ({ data: [], error: null }),
+        rpc: (fn: string) => chain(fn === "supplier_unit_costs" ? [{ id: "s1", unit_cost: 700 }] : []),
     },
 }));
 
@@ -44,5 +45,11 @@ describe("productRepository.findAll suppliers", () => {
         const byId = new Map(products.map((p) => [p.id, p]));
         expect(byId.get("p1")?.suppliers?.map((s) => s.supplier_name)).toEqual(["Acme", "Beta"]);
         expect(byId.get("p2")?.suppliers).toEqual([]);
+    });
+
+    it("merges each supplier's unit cost from the cost function, null when hidden", async () => {
+        const products = await productRepository.findAll("t1");
+        const suppliers = products.find((p) => p.id === "p1")?.suppliers ?? [];
+        expect(suppliers.map((s) => s.unit_cost)).toEqual([700, null]);
     });
 });

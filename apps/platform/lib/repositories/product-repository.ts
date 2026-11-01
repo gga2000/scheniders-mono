@@ -3,6 +3,7 @@ import { withRetry, NonRetryableError } from "./with-retry";
 import type { Product, ProductSupplier, ProductVariant, ProductPriceHistory } from "@/types/product";
 import { diag } from "@/lib/diag";
 import type { Json } from "@scheniders/supabase";
+import { fetchAllPages } from "./fetch-all-pages";
 import { PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
 
 /**
@@ -102,40 +103,51 @@ export const productRepository = {
             // Cost is not a readable column: product_costs returns it, and only
             // what this member may see (everything for admins, supplies only
             // for other editors, nothing otherwise).
-            const [
-                { data, error },
-                { data: costs, error: costError },
-                { data: supplierRows, error: supplierError },
-            ] = await Promise.all([
-                supabase
-                    .from("products")
-                    .select(PRODUCT_WITH_VARIANTS_COLUMNS)
-                    .eq("tenant_id", tenantId)
-                    .order("created_at", { ascending: false }),
-                supabase.rpc("product_costs", { p_tenant_id: tenantId }),
+            // Every read is paged: the API silently stops at 1000 rows.
+            const [data, costs, supplierRows, supplierCosts] = await Promise.all([
+                fetchAllPages<Product>((from, to) =>
+                    supabase
+                        .from("products")
+                        .select(PRODUCT_WITH_VARIANTS_COLUMNS)
+                        .eq("tenant_id", tenantId)
+                        .order("created_at", { ascending: false })
+                        .order("id")
+                        .range(from, to),
+                ),
+                fetchAllPages<ProductCostRow>((from, to) =>
+                    // The functions have no ORDER BY: a stable order keeps pages from skipping or repeating rows.
+                    supabase.rpc("product_costs", { p_tenant_id: tenantId }).order("product_id").order("variant_id").range(from, to),
+                ),
                 // The Supplies tab and reorder drawer group by supplier; without
                 // these rows every supply lands in "no supplier" and cannot get a PO.
-                supabase
-                    .from("product_suppliers")
-                    .select(SUPPLIER_READ_COLUMNS)
-                    .eq("tenant_id", tenantId)
-                    .order("is_primary", { ascending: false })
-                    .order("created_at", { ascending: true }),
+                fetchAllPages<ProductSupplier>((from, to) =>
+                    supabase
+                        .from("product_suppliers")
+                        .select(SUPPLIER_READ_COLUMNS)
+                        .eq("tenant_id", tenantId)
+                        .order("is_primary", { ascending: false })
+                        .order("created_at", { ascending: true })
+                        .order("id")
+                        .range(from, to),
+                ),
+                // Supplier unit cost only for members who may see cost.
+                fetchAllPages<{ id: string; unit_cost: number | null }>((from, to) =>
+                    supabase.rpc("supplier_unit_costs", { p_tenant_id: tenantId }).order("id").range(from, to),
+                ),
             ]);
 
-            diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);
-            if (error) throw error;
-            if (costError) throw costError;
-            if (supplierError) throw supplierError;
-            const { productCost, variantCost } = costMaps(costs ?? []);
+            diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data.length}`);
+            const { productCost, variantCost } = costMaps(costs);
+            const unitCostBySupplier = new Map(supplierCosts.map((row) => [row.id, row.unit_cost]));
             const suppliersByProduct = new Map<string, ProductSupplier[]>();
-            for (const row of (supplierRows ?? []) as ProductSupplier[]) {
+            for (const row of supplierRows) {
                 if (!row.product_id) continue;
+                const withCost = { ...row, unit_cost: row.id ? unitCostBySupplier.get(row.id) ?? null : null };
                 const list = suppliersByProduct.get(row.product_id);
-                if (list) list.push(row);
-                else suppliersByProduct.set(row.product_id, [row]);
+                if (list) list.push(withCost);
+                else suppliersByProduct.set(row.product_id, [withCost]);
             }
-            return (data ?? []).map((product) => ({
+            return data.map((product) => ({
                 ...product,
                 suppliers: suppliersByProduct.get(product.id) ?? [],
                 cost: productCost.get(product.id)?.cost ?? null,
@@ -375,6 +387,8 @@ export const productRepository = {
                 p_changes: previous.map((p) => ({
                     id: p.id,
                     price: p.price,
+                    // Refuse (40001) if someone edited the price since the bulk change.
+                    expected_price: p.currentPrice,
                     set_compare_at: true,
                     compare_at_price: p.compare_at_price,
                 })),

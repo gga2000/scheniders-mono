@@ -21,8 +21,13 @@ import {
     isFinishedOrder,
     VALUE_META,
     RISK_META,
+    FLAG_ORDER_STATUS,
+    trustEventTone,
+    customerOrderStatusLabel,
+    monthlyScoreSeries,
     type RiskInput,
 } from './customer-reliability';
+import { ORDER_STATUS_TONE } from './order-status-labels';
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
 
@@ -107,9 +112,9 @@ const tStub = tIn('en');
 
 describe('recencyStatus', () => {
     it('the dot means recency only, whatever the risk', () => {
-        expect(recencyStatus(daysAgo(2), tStub).dot).toBe('bg-emerald-500');
-        expect(recencyStatus(daysAgo(20), tStub).dot).toBe('bg-amber-500');
-        expect(recencyStatus(daysAgo(60), tStub).dot).toBe('bg-zinc-400');
+        expect(recencyStatus(daysAgo(2), tStub).dot).toBe('bg-foreground');
+        expect(recencyStatus(daysAgo(20), tStub).dot).toBe('bg-muted-foreground/60');
+        expect(recencyStatus(daysAgo(60), tStub).dot).toBe('ring-1 ring-inset ring-muted-foreground/60');
         expect(recencyStatus(daysAgo(2), tStub).state).toBe('active');
         expect(recencyStatus(daysAgo(20), tStub).state).toBe('cooling');
         expect(recencyStatus(daysAgo(60), tStub).state).toBe('dormant');
@@ -302,5 +307,80 @@ describe('customerAccent', () => {
         expect(customerAccent('good', 'blocked').surfaceBg).toContain('rose');
         expect(customerAccent('vip', 'high').surfaceBg).toContain('rose');
         expect(customerAccent('good', 'clean').surfaceBg).toBe(VALUE_META.good.pillBg);
+    });
+});
+
+describe('one outcome, one colour and one word on the customers pages', () => {
+    const all = { rejected_count: 1, cancelled_count: 1, no_response_count: 1, returned_count: 1, refund_count: 1 };
+
+    it('each outcome flag wears its order-status pill tone', () => {
+        for (const f of statusFlags(all)) expect(f.tone).toBe(ORDER_STATUS_TONE[FLAG_ORDER_STATUS[f.key]]);
+    });
+
+    it('a score event wears the same tone as the flag and the pill for that outcome', () => {
+        expect(trustEventTone('order_no_response')).toBe(ORDER_STATUS_TONE.no_response);
+        expect(trustEventTone('order_cancelled')).toBe(ORDER_STATUS_TONE.cancelled);
+        expect(trustEventTone('order_rejected')).toBe(ORDER_STATUS_TONE.rejected);
+        expect(trustEventTone('admin_override')).toBe(ORDER_STATUS_TONE.cancelled); // neutral
+    });
+
+    it('no response is a refusal (rose), apart from rejected and from neutral cancelled', () => {
+        expect(ORDER_STATUS_TONE.no_response).toMatch(/rose/);
+        expect(ORDER_STATUS_TONE.no_response).not.toBe(ORDER_STATUS_TONE.rejected);
+        expect(ORDER_STATUS_TONE.cancelled).not.toMatch(/rose|orange|amber/);
+    });
+
+    it('the order pill uses the same word as the flag, the event and the outcomes line', () => {
+        const t = (l: Locale, k: string) => translations[l][k];
+        expect(customerOrderStatusLabel('cancelled', false, 'en')).toBe('Cancelled');
+        expect(t('en', 'customers.flag.cancelled')).toBe('cancelled');
+        expect(customerOrderStatusLabel('no_response', false, 'en')).toBe('No response');
+        expect(t('en', 'customers.trust.event.order_no_response')).toBe('No response');
+        expect(t('en', 'customers.behavioral.mix.noResponse')).toBe('{pct}% no response');
+
+        const noResponseAr = customerOrderStatusLabel('no_response', false, 'ar');
+        expect(noResponseAr).toBe('بلا رد');
+        for (const k of ['customers.flag.noResponse', 'customers.trust.event.order_no_response', 'customers.scoreBreakdown.no_response']) {
+            expect(t('ar', k)).toBe(noResponseAr);
+        }
+        expect(t('ar', 'customers.card.noResponse')).toContain(noResponseAr);
+        expect(t('ar', 'customers.behavioral.mix.noResponse')).toContain(noResponseAr);
+
+        const cancelledAr = customerOrderStatusLabel('cancelled', false, 'ar');
+        expect(t('ar', 'customers.flag.cancelled')).toBe(cancelledAr);
+        expect(t('ar', 'customers.behavioral.mix.cancelled')).toContain(cancelledAr);
+    });
+
+    it('a refund order keeps its refund wording', () => {
+        expect(customerOrderStatusLabel('rejected', true, 'en')).toBe('Refund failed');
+        expect(customerOrderStatusLabel('delivered', false, 'ar')).toBe('تم التوصيل');
+    });
+});
+
+describe('monthlyScoreSeries', () => {
+    // 2026-11-15 noon Baghdad
+    const now = new Date('2026-11-15T09:00:00Z');
+    const rows = [
+        { month: '2026-06-01', avg_score: 82.4 },
+        { month: '2026-08-01', avg_score: 88 },
+        { month: '2026-11-01', avg_score: 104 },
+    ];
+
+    it('spans exactly the requested months, ending with the current Baghdad month', () => {
+        const year = monthlyScoreSeries(rows, 12, now);
+        expect(year).toHaveLength(12);
+        expect(year[0].month).toBe('2025-12');
+        expect(year[11].month).toBe('2026-11');
+        expect(monthlyScoreSeries(rows, 6, now).map((m) => m.month)).toEqual(['2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11']);
+    });
+
+    it('keeps months without history as gaps and clamps scores to 0–100', () => {
+        const six = monthlyScoreSeries(rows, 6, now);
+        expect(six.map((m) => m.score)).toEqual([82, null, 88, null, null, 100]);
+    });
+
+    it('uses the Baghdad month at a month boundary', () => {
+        // 22:30 UTC on Oct 31 is already Nov 1 in Baghdad (UTC+3).
+        expect(monthlyScoreSeries([], 1, new Date('2026-10-31T22:30:00Z'))[0].month).toBe('2026-11');
     });
 });

@@ -1,13 +1,14 @@
 "use client";
 
-import { ShieldCheck, Clock, AlertTriangle, Sparkles, Ban, Crown } from "lucide-react";
+import { ShieldCheck, Clock, AlertTriangle, Sparkles, Ban, Crown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { VALUE_META, RISK_META, customerAccent, type ValueTier, type RiskLevel } from "@/lib/customer-reliability";
 
+/** Value tiers are about spend, so they use value metaphors; the shield belongs to COD risk alone. */
 const VALUE_ICONS: Record<ValueTier, React.ComponentType<{ className?: string }>> = {
     vip: Crown,
-    good: ShieldCheck,
+    good: TrendingUp,
     newcomer: Sparkles,
 };
 

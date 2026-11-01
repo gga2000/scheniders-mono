@@ -78,7 +78,8 @@ export async function createOrderAction(
         return { success: false, error: "Order numbers in the automatic format are assigned by the system" };
     }
 
-    return createOrderForTenant(orderData, tenantId);
+    // Who typed it is the verified caller, never a value from the browser.
+    return createOrderForTenant({ ...orderData, entered_by: resolved.caller.userId }, tenantId);
 }
 
 // =============================================
@@ -206,6 +207,18 @@ export async function restoreOrdersAction(
             return { success: false, error: `Order number ${write.order_id} is assigned by the system and cannot be restored` };
         }
         writes.push(write);
+    }
+
+    // entered_by references user_profiles: a backup may name someone who has
+    // since been removed, and one unknown id would refuse the whole batch.
+    const enteredByIds = [...new Set(writes.map((w) => w.entered_by).filter((v): v is string => typeof v === "string"))];
+    if (enteredByIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase.from("user_profiles").select("id").in("id", enteredByIds);
+        if (profilesError) return { success: false, error: profilesError.message };
+        const known = new Set((profiles ?? []).map((p) => p.id));
+        for (const w of writes) {
+            if (typeof w.entered_by === "string" && !known.has(w.entered_by)) w.entered_by = null;
+        }
     }
 
     const { error } = await supabase.from("orders").upsert(writes, { onConflict: "id" });

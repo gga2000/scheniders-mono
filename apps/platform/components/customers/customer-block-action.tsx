@@ -95,6 +95,7 @@ export function CustomerBlockAction({
                     customerPhone={formatPhoneDisplay(phone)}
                     existingEntry={entry.data ?? null}
                     onConfirm={onConfirm}
+                    variant="customers"
                 />
             )}
         </>

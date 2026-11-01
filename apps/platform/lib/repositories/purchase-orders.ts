@@ -66,13 +66,15 @@ export async function setPurchaseOrderStatus(poId: string, status: PurchaseOrder
 export interface ReceivedLine {
     itemId: string;
     quantity: number;
+    /** Real invoice price per unit (whole dinars); replaces the PO line price. */
+    unitCost?: number;
 }
 
 /** Adds the received quantities to stock; returns the PO's new status (partial or received). */
 export async function receivePurchaseOrder(poId: string, lines: ReceivedLine[]): Promise<"partial" | "received"> {
     const { data, error } = await supabase.rpc("receive_purchase_order", {
         p_po_id: poId,
-        p_lines: lines.map((line) => ({ item_id: line.itemId, quantity: line.quantity })),
+        p_lines: lines.map((line) => ({ item_id: line.itemId, quantity: line.quantity, unit_cost: line.unitCost ?? null })),
     });
     if (error) throw error;
     return z.enum(["partial", "received"]).parse(data);

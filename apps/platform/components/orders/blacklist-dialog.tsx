@@ -31,7 +31,18 @@ interface BlacklistDialogProps {
     customerPhone: string;
     existingEntry?: BlacklistEntry | null;
     onConfirm: (reason?: string, notes?: string) => Promise<void>;
+    /**
+     * "customers" (the customer drawer and profile): the title names the action
+     * and the customer ("Block {name}?"), the action sits beside a Cancel
+     * button, a disabled action looks disabled in both themes, and the name
+     * and phone share one alignment. "orders" (default) is the Orders page's
+     * look, which changes only through the Orders design review.
+     */
+    variant?: "orders" | "customers";
 }
+
+/** Wraps a name in Unicode isolates, so an Arabic name inside an English title keeps its punctuation in place. */
+const isolate = (text: string) => `\u2068${text}\u2069`;
 
 export function BlacklistDialog({
     open,
@@ -41,7 +52,9 @@ export function BlacklistDialog({
     customerPhone,
     existingEntry,
     onConfirm,
+    variant = "orders",
 }: BlacklistDialogProps) {
+    const customers = variant === "customers";
     const [reason, setReason] = useState("");
     const [customReason, setCustomReason] = useState("");
     const [notes, setNotes] = useState("");
@@ -70,7 +83,7 @@ export function BlacklistDialog({
 
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-            <DialogContent className="md:max-w-sm">
+            <DialogContent className={cn("md:max-w-sm", customers && "customer-confirm-dialog")}>
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-base pe-10">
                         {mode === "add" ? (
@@ -78,14 +91,14 @@ export function BlacklistDialog({
                                 <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-500/15 flex items-center justify-center flex-shrink-0">
                                     <Ban className="w-4 h-4 text-red-600 dark:text-red-300" />
                                 </div>
-                                <span>{t("orders.blacklist.addTitle")}</span>
+                                <span>{customers ? t("customers.block.confirmTitle", { name: isolate(customerName) }) : t("orders.blacklist.addTitle")}</span>
                             </>
                         ) : (
                             <>
                                 <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                                     <ShieldCheck className="w-4 h-4 text-foreground" />
                                 </div>
-                                <span>{t("orders.blacklist.removeTitle")}</span>
+                                <span>{customers ? t("customers.block.unblockTitle", { name: isolate(customerName) }) : t("orders.blacklist.removeTitle")}</span>
                             </>
                         )}
                     </DialogTitle>
@@ -94,8 +107,18 @@ export function BlacklistDialog({
                 <div className="space-y-4 pt-1">
                     {/* Customer info */}
                     <div className="bg-gray-50 dark:bg-white/5 rounded-xl px-4 py-3 text-sm">
-                        <p dir="auto" className="font-semibold text-foreground text-start">{customerName}</p>
-                        <p className="text-muted font-mono text-xs mt-0.5">{customerPhone}</p>
+                        {customers ? (
+                            // One alignment for both lines: an isolated name keeps its own direction without moving to the other edge.
+                            <>
+                                <p className="font-semibold text-foreground text-start"><bdi>{customerName}</bdi></p>
+                                <p dir="ltr" className="text-muted-foreground font-mono text-xs mt-0.5 text-start">{customerPhone}</p>
+                            </>
+                        ) : (
+                            <>
+                                <p dir="auto" className="font-semibold text-foreground text-start">{customerName}</p>
+                                <p className="text-muted font-mono text-xs mt-0.5">{customerPhone}</p>
+                            </>
+                        )}
                     </div>
 
                     {mode === "add" ? (
@@ -144,14 +167,27 @@ export function BlacklistDialog({
                                 />
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={handleConfirm}
-                                disabled={!finalReason || loading}
-                                className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl h-10 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? t("orders.blacklist.blocking") : t("orders.blacklist.blockCustomer")}
-                            </button>
+                            {customers ? (
+                                <ConfirmRow onCancel={onClose} cancelLabel={t("common.cancel")}>
+                                    <button
+                                        type="button"
+                                        onClick={handleConfirm}
+                                        disabled={!finalReason || loading}
+                                        className={cn(CUSTOMERS_ACTION, "bg-rose-700 hover:bg-rose-800 text-white")}
+                                    >
+                                        {loading ? t("orders.blacklist.blocking") : t("orders.blacklist.blockCustomer")}
+                                    </button>
+                                </ConfirmRow>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleConfirm}
+                                    disabled={!finalReason || loading}
+                                    className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl h-10 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? t("orders.blacklist.blocking") : t("orders.blacklist.blockCustomer")}
+                                </button>
+                            )}
                         </>
                     ) : (
                         <>
@@ -176,18 +212,50 @@ export function BlacklistDialog({
                             </p>
 
                             {/* Lifting a "do not ship" is deliberate: this confirm is the one filled button, in ink, not a celebratory green. */}
-                            <button
-                                type="button"
-                                onClick={handleConfirm}
-                                disabled={loading}
-                                className="w-full bg-foreground text-background hover:opacity-90 rounded-xl h-10 font-semibold transition-opacity disabled:opacity-50"
-                            >
-                                {loading ? t("orders.blacklist.unblocking") : t("orders.blacklist.unblock")}
-                            </button>
+                            {customers ? (
+                                <ConfirmRow onCancel={onClose} cancelLabel={t("common.cancel")}>
+                                    <button
+                                        type="button"
+                                        onClick={handleConfirm}
+                                        disabled={loading}
+                                        className={cn(CUSTOMERS_ACTION, "bg-foreground text-background hover:opacity-90")}
+                                    >
+                                        {loading ? t("orders.blacklist.unblocking") : t("orders.blacklist.unblock")}
+                                    </button>
+                                </ConfirmRow>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleConfirm}
+                                    disabled={loading}
+                                    className="w-full bg-foreground text-background hover:opacity-90 rounded-xl h-10 font-semibold transition-opacity disabled:opacity-50"
+                                >
+                                    {loading ? t("orders.blacklist.unblocking") : t("orders.blacklist.unblock")}
+                                </button>
+                            )}
                         </>
                     )}
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+/** The customers variant's action: a disabled one drops its fill, so it never reads as ready in either theme. */
+const CUSTOMERS_ACTION = "h-10 px-4 rounded-xl font-semibold transition-colors disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60 disabled:cursor-not-allowed";
+
+/** Cancel beside the action, right-aligned: the way out is a button, not only the X. */
+function ConfirmRow({ onCancel, cancelLabel, children }: { onCancel: () => void; cancelLabel: string; children: React.ReactNode }) {
+    return (
+        <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+                type="button"
+                onClick={onCancel}
+                className="h-10 px-4 rounded-xl border border-(--card-border) font-semibold text-foreground hover:bg-muted/40 transition-colors"
+            >
+                {cancelLabel}
+            </button>
+            {children}
+        </div>
     );
 }

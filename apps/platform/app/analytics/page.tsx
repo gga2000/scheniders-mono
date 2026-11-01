@@ -327,7 +327,7 @@ function AnalyticsContent() {
         productProfitAnalysis,
         pipelineSummary,
         funnelSummary,
-    } = useOrderProfits(ordersInRange, products, marketingCost);
+    } = useOrderProfits(ordersInRange, products, marketingCost, costSnapshots);
 
     // Period comparison
     const periodComparison = useMemo(() => {

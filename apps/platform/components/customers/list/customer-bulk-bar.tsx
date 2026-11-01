@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, Loader2, Tag, Radio, X } from "lucide-react";
+import { Download, Loader2, Tag, MessageCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -75,7 +75,7 @@ export function CustomerBulkBar({
               />
             )}
             <ActionButton
-              icon={Radio}
+              icon={MessageCircle}
               label={t("customers.bulk.broadcast")}
               onClick={onBroadcast}
               pastelClass="hover:bg-(--pastel-green)/40 hover:text-foreground"

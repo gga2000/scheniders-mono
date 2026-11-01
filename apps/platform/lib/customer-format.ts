@@ -52,3 +52,16 @@ export function formatBaghdadMonthYear(iso: string, language: string): string {
         timeZone: "Asia/Baghdad",
     });
 }
+
+/** A calendar month ("2026-06" or "2026-06-01") as its short name: "Jun" / "حزيران". */
+export function formatMonthShort(month: string, language: string): string {
+    return new Date(`${month.slice(0, 7)}-01T00:00:00Z`).toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", {
+        month: "short",
+        timeZone: "UTC",
+    });
+}
+
+/** The Baghdad calendar month a moment falls in, as "YYYY-MM". */
+export function baghdadMonthKey(at: Date): string {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Baghdad", year: "numeric", month: "2-digit" }).format(at);
+}

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Order, OrderItem } from "@/types/order";
-import { mergeOrderItems } from "./merge-order-items";
+import { mergeOrderItems, orderUnitCount } from "./merge-order-items";
 import { getItemsDisplay } from "./order-format-utils";
 import { shippingLabelHTML } from "./shipping-labels";
 import { formatOrderRow, formatDeliveryRow } from "./order-export-utils";
@@ -227,5 +227,31 @@ describe("display, print and export surfaces show one line × 3", () => {
         expect(fromSplit).toEqual(fromClean);
         expect(fromSplit.success).toBe(true);
         expect(fromSplit.data).toMatchObject({ type_name: "انفوي", items_number: 3, price: 109250 });
+    });
+});
+
+describe("orderUnitCount", () => {
+    it("sums quantities, the packer's count, not the number of lines", () => {
+        // #SCH-10383 in the round 29 audit: 2 perfumes + 1 gift box read "3 items" in the drawer and "2 items" on the profile.
+        const items = [line({ name: "عطر عود ملكي", quantity: 2, price: 55000 }), line({ name: "علبة هدايا", quantity: 1, price: 5000 })];
+        expect(orderUnitCount(items)).toBe(3);
+        expect(mergeOrderItems(items)).toHaveLength(2);
+    });
+
+    it("is the same before and after merging split lines", () => {
+        const split = [line(), line(), line()];
+        expect(orderUnitCount(split)).toBe(3);
+        expect(orderUnitCount(mergeOrderItems(split))).toBe(3);
+    });
+
+    it("counts a line with no usable quantity as one unit", () => {
+        const odd: Array<{ quantity?: number | null }> = [{ quantity: null }, {}, { quantity: Number.NaN }, { quantity: 0 }, { quantity: 4 }];
+        expect(orderUnitCount(odd)).toBe(8);
+    });
+
+    it("returns null when the order has no line array, and 0 for an empty one", () => {
+        expect(orderUnitCount(null)).toBeNull();
+        expect(orderUnitCount(undefined)).toBeNull();
+        expect(orderUnitCount([])).toBe(0);
     });
 });

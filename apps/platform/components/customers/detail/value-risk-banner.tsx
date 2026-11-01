@@ -23,10 +23,11 @@ export interface CustomerReliability {
 
 type OutcomeTone = "delivered" | "failed" | "cancelled" | "open";
 
+/** The order-status pill families: delivered teal-green, refusals rose, cancelled neutral, on the road blue. */
 const OUTCOME_DOT: Record<OutcomeTone, string> = {
     delivered: "bg-emerald-500",
     failed: "bg-rose-500",
-    cancelled: "bg-amber-500",
+    cancelled: "bg-zinc-400 dark:bg-zinc-500",
     open: "bg-blue-400",
 };
 

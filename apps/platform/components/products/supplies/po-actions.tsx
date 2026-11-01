@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
+import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import type { PurchaseOrderTransition } from "@/lib/repositories/purchase-orders";
 import { PoReceiveDialog } from "./po-receive-dialog";
 
@@ -36,7 +37,7 @@ export function PoActions({ poId, poNumber, status }: PoActionsProps) {
                     toast.success(t(toastKey, { number: poNumber }));
                     setCancelOpen(false);
                 },
-                onError: (err: Error) => toast.error(t("supplies.po.failed", { message: err.message })),
+                onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
             }
         );
 

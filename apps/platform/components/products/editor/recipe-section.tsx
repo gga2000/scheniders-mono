@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -411,6 +412,7 @@ interface RuleRowProps {
 }
 
 function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
+    const { t } = useLanguage();
     const selected = supplies.find((s) => s.id === rule.supply_id);
     const lineCost = (selected?.cost ?? 0) * rule.quantity;
 
@@ -425,7 +427,7 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                     }
                     className="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                 >
-                    <option value="">Choose supply…</option>
+                    <option value="">{t("products.recipe.chooseSupply")}</option>
                     {supplies.map((s) => (
                         <option key={s.id} value={s.id}>
                             {s.name}
@@ -474,7 +476,7 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                     type="button"
                     onClick={onRemove}
                     className="p-2 rounded-lg hover:bg-rose-50 hover:text-rose-600 text-muted transition-colors justify-self-end"
-                    title="Remove rule"
+                    title={t("products.recipe.removeRule")}
                 >
                     <Trash2 className="w-4 h-4" />
                 </button>
