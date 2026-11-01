@@ -34,7 +34,7 @@ const ORDERS_TABLE_COLUMNS = new Set([
     "cancelled_at", "printed_at", "print_count", "last_batch_id", "is_gift", "tag_color",
     "is_pinned", "delivery_order_id", "is_reviewed", "is_verified_customer",
     "contact_count", "address_status", "address_issues", "validated_governorate_code",
-    "internal_notes", "assigned_to", "assigned_at", "product_cost", "net_profit",
+    "internal_notes", "assigned_to", "assigned_at", "product_cost", "item_unit_costs", "net_profit",
     "is_shop_order", "risk_metadata", "needs_attention", "attention_reasons",
     "original_created_at", "last_contacted_at", "last_status_changed_by_name",
     "last_status_changed_by_avatar", "is_test", "delivery_note", "is_replacement",
@@ -50,7 +50,7 @@ const ORDERS_TABLE_COLUMNS = new Set([
 ]);
 
 /** Masked by `v_orders_with_risk` for non-admins; the table does not mask them. */
-const MARGIN_COLUMNS = ["product_cost", "net_profit", "waseet_merchant_price", "waseet_company_price"];
+const MARGIN_COLUMNS = ["product_cost", "item_unit_costs", "net_profit", "waseet_merchant_price", "waseet_company_price"];
 
 function names(select: string): string[] {
     return select.split(",").map(c => c.trim());

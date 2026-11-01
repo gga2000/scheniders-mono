@@ -85,7 +85,19 @@ function statusReference(o: Order, inTransitSince?: ReadonlyMap<string, string>)
     return inTransitSince?.get(o.id) || o.updated_at || o.created_at;
 }
 
-export function useCashPosition(orders: Order[], inTransitSince?: ReadonlyMap<string, string>): CashPositionResult {
+/**
+ * `collectedWindow` limits "Collected" (and the projection built on it) to cash
+ * that landed inside it, by delivery day. Without it the figure covers every
+ * order that was loaded. Everything else here is the live position and never
+ * depends on the window.
+ */
+export function useCashPosition(
+    orders: Order[],
+    inTransitSince?: ReadonlyMap<string, string>,
+    collectedWindow?: { start: Date; end: Date },
+): CashPositionResult {
+    const windowStart = collectedWindow?.start;
+    const windowEnd = collectedWindow?.end;
     return useMemo(() => {
         // Refund and return rows are money going back to the customer. They are
         // not sales in flight, so no cash figure, aging bucket, or delivery rate
@@ -132,8 +144,8 @@ export function useCashPosition(orders: Order[], inTransitSince?: ReadonlyMap<st
 
             // Cash realized
             if (o.status === "delivered" || o.status === "completed") {
-                cashCollected += value;
                 const ref = new Date(o.delivered_at || o.updated_at || o.created_at);
+                if (!windowStart || !windowEnd || (ref >= windowStart && ref <= windowEnd)) cashCollected += value;
                 if (ref >= earliest) {
                     const key = baghdadDayKey(ref);
                     const entry = daily.get(key) || { collected: 0, float: 0 };
@@ -289,5 +301,5 @@ export function useCashPosition(orders: Order[], inTransitSince?: ReadonlyMap<st
             byGovernorate,
             cashSeries,
         };
-    }, [orders, inTransitSince]);
+    }, [orders, inTransitSince, windowStart, windowEnd]);
 }

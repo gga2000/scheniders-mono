@@ -107,4 +107,17 @@ describe("useCashPosition", () => {
         // No history row for "p": falls back to updated_at (2 days = fresh).
         expect(result.aging.find((b) => b.id === "fresh")?.count).toBe(1);
     });
+
+    it("counts only cash that landed inside the window when one is given", () => {
+        const orders = [
+            order({ id: "in", status: "delivered", price: 4000, delivered_at: "2026-10-20T09:00:00.000Z" }),
+            order({ id: "before", status: "delivered", price: 6000, delivered_at: "2026-09-10T09:00:00.000Z" }),
+        ];
+        const window = { start: new Date("2026-09-30T21:00:00.000Z"), end: new Date("2026-10-31T20:59:59.999Z") };
+        expect(renderHook(() => useCashPosition(orders)).result.current.cashCollected).toBe(10000);
+        const scoped = renderHook(() => useCashPosition(orders, undefined, window)).result.current;
+        expect(scoped.cashCollected).toBe(4000);
+        // The live in-transit position never depends on the window.
+        expect(scoped.cashInTransit).toBe(0);
+    });
 });

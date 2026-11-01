@@ -7,7 +7,7 @@ import type { DateInterval } from "./use-finance-overview";
 import type { Granularity } from "./use-finance-period";
 import { isRefundRow, refundPaidAt, reportDate } from "@/lib/refunds/refund-reporting";
 import { isRealizedRevenue, isSaleOrder } from "@/lib/order-revenue";
-import { resolveItemCost } from "@/lib/finance/item-cost";
+import { resolveOrderLineCost, type CostSnapshots } from "@/lib/finance/item-cost";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 
 export interface RevenueDecomposition {
@@ -90,6 +90,8 @@ export function useFinanceRevenue(
     previous: DateInterval | null,
     granularity: Granularity,
     topProductCount: number = 8,
+    /** Unit costs frozen at delivery; absent lines use the cost on file now. */
+    snapshots?: CostSnapshots,
 ): FinanceRevenueResult {
     return useMemo(() => {
         // Sales by the day they were placed, refunds by the day they were paid.
@@ -150,10 +152,10 @@ export function useFinanceRevenue(
             const { key, ts } = periodBucket(new Date(o.delivered_at || o.updated_at || o.created_at), granularity);
             bucketSet.set(key, { key, ts });
 
-            for (const it of o.items) {
+            for (const [i, it] of o.items.entries()) {
                 const name = it.name || "Unknown";
                 const unitRev = (it.price || 0) * it.quantity;
-                const unitCost = resolveItemCost(it, products).cost;
+                const unitCost = resolveOrderLineCost(o, i, it, products, snapshots).cost;
 
                 const tot = productTotals.get(name) || { revenue: 0, cogs: 0, units: 0 };
                 tot.revenue += unitRev;
@@ -227,7 +229,7 @@ export function useFinanceRevenue(
                 row.delivered_revenue += o.price || 0;
                 row.delivered_orders++;
                 if (o.items) {
-                    for (const it of o.items) row.product_cost += resolveItemCost(it, products).cost;
+                    for (const [i, it] of o.items.entries()) row.product_cost += resolveOrderLineCost(o, i, it, products, snapshots).cost;
                 }
             }
             channelMap.set(ch, row);
@@ -293,5 +295,5 @@ export function useFinanceRevenue(
         };
 
         return { decomposition, heatmap, channels, refunds };
-    }, [orders, products, current, previous, granularity, topProductCount]);
+    }, [orders, products, current, previous, granularity, topProductCount, snapshots]);
 }

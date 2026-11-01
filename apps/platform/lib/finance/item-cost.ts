@@ -35,3 +35,29 @@ export function resolveItemCost(item: CostLine, products: readonly Product[]): I
     const unit = variant?.cost || product.cost;
     return unit ? { cost: unit * qty, known: true } : UNKNOWN;
 }
+
+/**
+ * Unit cost of each line of every delivered order, frozen when the order was
+ * delivered (order id -> one entry per `items` line, null = no cost was on file).
+ */
+export type CostSnapshots = ReadonlyMap<string, readonly (number | null)[]>;
+
+/**
+ * The cost of line `index` of `order`.
+ *
+ * The frozen unit cost wins, so a later edit of a product's cost never
+ * re-prices an order that is already delivered. A line with no snapshot (an
+ * order without one, or a line that had no cost on file then) falls back to the
+ * cost on file now.
+ */
+export function resolveOrderLineCost(
+    order: { id: string },
+    index: number,
+    item: CostLine,
+    products: readonly Product[],
+    snapshots?: CostSnapshots,
+): ItemCost {
+    const frozen = snapshots?.get(order.id)?.[index];
+    if (typeof frozen === "number" && frozen > 0) return { cost: frozen * (item.quantity || 0), known: true };
+    return resolveItemCost(item, products);
+}
