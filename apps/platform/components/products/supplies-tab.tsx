@@ -224,12 +224,12 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     const reorderCandidateCount = useMemo(() => {
         let count = 0;
         for (const s of supplies) {
-            const stock = s.stock_quantity ?? 0;
+            const stock = (s.stock_quantity ?? 0) + (openPoBySupply?.get(s.id)?.quantity ?? 0);
             const rp = s.reorder_point ?? s.low_stock_threshold ?? 5;
             if (stock <= rp && !snoozedIds.has(s.id)) count++;
         }
         return count;
-    }, [supplies, snoozedIds]);
+    }, [supplies, snoozedIds, openPoBySupply]);
 
     const supplyMeta = useMemo(() => {
         const leadMap = new Map<string, number>();
