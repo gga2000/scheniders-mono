@@ -67,7 +67,7 @@ export function DaysOfSupplyPill({
                 {days === null ? (
                     <InfinityIcon className={cn(big ? "w-5 h-5" : "w-3.5 h-3.5", "inline-block -mt-0.5")} />
                 ) : (
-                    `${days}d`
+                    tr("supplies.sp.leadDays", { n: days })
                 )}
             </span>
             {trend && days !== null && <TrendGlyph direction={trend} />}

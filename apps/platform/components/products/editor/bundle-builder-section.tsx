@@ -4,6 +4,7 @@ import { formatIQD } from "@/lib/utils";
 
 import { useState, useMemo } from "react";
 import { Layers, Plus, Trash2, Search, GripVertical, Package } from "lucide-react";
+import type { Product } from "@/lib/supabase";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -65,7 +66,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
             );
     }, [products, currentProductId, addedIds, searchQuery]);
 
-    const addItem = (product: any) => {
+    const addItem = (product: Product) => {
         const newItems = [
             ...bundleItems,
             {
@@ -83,7 +84,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
     };
 
     const removeItem = (index: number) => {
-        const newItems = bundleItems.filter((_: any, i: number) => i !== index);
+        const newItems = bundleItems.filter((_, i: number) => i !== index);
         updateField("bundle_items", newItems);
     };
 

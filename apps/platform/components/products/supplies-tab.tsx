@@ -235,13 +235,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         const leadMap = new Map<string, number>();
         const suppliersMap = new Map<string, string[]>();
         for (const s of supplies) {
-            const suppliersRaw = (s as unknown as {
-                suppliers?: Array<{
-                    is_primary?: boolean;
-                    lead_time_days?: number | null;
-                    supplier_name?: string;
-                }>;
-            }).suppliers;
+            const suppliersRaw = s.suppliers;
             const list = Array.isArray(suppliersRaw) ? suppliersRaw : [];
             const primary = list.find((x) => x?.is_primary) ?? list[0];
             const lt = primary?.lead_time_days;

@@ -5,6 +5,7 @@ import { formatIQD } from "@/lib/utils";
 import { useState, useMemo } from "react";
 import { Zap, Plus, Trash2, Search, Package, Check } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import type { Product } from "@/lib/supabase";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -51,7 +52,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
             );
     }, [products, currentProductId, addedIds, searchQuery]);
 
-    const addBump = (product: any) => {
+    const addBump = (product: Product) => {
         const newBumps: OrderBumpFormData[] = [
             ...bumps,
             {

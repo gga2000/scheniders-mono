@@ -290,7 +290,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
 
             <Tile
                 label={t("supplies.kpi.coverage")}
-                value={stats.avgDays !== null ? `${stats.avgDays}d` : "—"}
+                value={stats.avgDays !== null ? t("supplies.sp.leadDays", { n: stats.avgDays }) : "—"}
                 sub={stats.avgDays !== null ? t("supplies.kpi.weighted") : t("supplies.kpi.noData")}
                 icon={Clock}
                 iconBg="bg-sky-500/15"
