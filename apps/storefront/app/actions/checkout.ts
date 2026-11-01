@@ -256,7 +256,7 @@ export async function submitCheckout(
   const productIds = Array.from(new Set(payload.items.map((i) => i.product_id)));
   const { data: products, error: productsErr } = await supabase
     .from("products")
-    .select("id, tenant_id, name, short_name, price, website_price, status, is_visible, is_archived, is_supply")
+    .select("id, tenant_id, name, short_name, price, website_price, status, is_visible, is_archived, is_supply, image_url, tag_color")
     .in("id", productIds)
     .eq("tenant_id", payload.tenantId);
 
@@ -264,6 +264,12 @@ export async function submitCheckout(
     console.error("[checkout] product lookup failed:", productsErr);
     return { success: false, error: "تعذّر التحقق من المنتجات. حاول مرة أخرى.", retryable: isTransientDbError(productsErr) };
   }
+  // The orders page draws each line from the order's own items (photo and
+  // chip colour), so they are snapshotted like every other order source does
+  // (apps/platform/lib/webhook-handler.ts). The free gift adds its own below.
+  const lineLooks = new Map<string, { image_url: string | null; tag_color: string | null }>(
+    products.map((p) => [p.id, { image_url: p.image_url, tag_color: p.tag_color }]),
+  );
   const productMap = new Map(products.map((p) => [p.id as string, p]));
 
   const variantIds = payload.items
@@ -469,7 +475,7 @@ export async function submitCheckout(
     if (!alreadyInOrder) {
       const { data: gift, error: giftErr } = await supabase
         .from("products")
-        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity")
+        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity, image_url, tag_color")
         .eq("id", giftId)
         .eq("tenant_id", payload.tenantId)
         .maybeSingle();
@@ -496,6 +502,7 @@ export async function submitCheckout(
           price: 0,
           quantity: 1,
         });
+        lineLooks.set(gift.id, { image_url: gift.image_url, tag_color: gift.tag_color });
       }
       // Withdrawn, Draft or out of stock: the order proceeds without it. The
       // shopper loses nothing they paid for.
@@ -655,6 +662,7 @@ export async function submitCheckout(
       const product = productMap.get(i.product_id) as
         | { name?: string | null; short_name?: string | null }
         | undefined;
+      const look = lineLooks.get(i.product_id);
       return {
         product_id: i.product_id,
         variant_id: i.variant_id,
@@ -662,6 +670,8 @@ export async function submitCheckout(
         variant_name: i.variant_name,
         price: i.price,
         quantity: i.quantity,
+        ...(look?.image_url ? { image_url: look.image_url } : {}),
+        ...(look?.tag_color ? { tag_color: look.tag_color } : {}),
       };
     }),
     price: subtotal - discountAmount,
