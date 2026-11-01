@@ -534,6 +534,8 @@ function ProductsContent() {
     const describeBulkPrice = useCallback((newPrice: number) => ({
         clearsCompareAt: selectedForPrice.filter((p) => p.compare_at_price != null && p.compare_at_price <= newPrice).length,
         keepsStorePrice: selectedForPrice.filter((p) => p.website_price != null && p.website_price !== newPrice).length,
+        // Cost is absent for members who can't see it, so they get no warning.
+        belowCost: selectedForPrice.filter((p) => p.cost != null && p.cost > 0 && newPrice < p.cost).length,
     }), [selectedForPrice]);
 
     const handleBulkUpdatePrice = useCallback(async (newPrice: number) => {
