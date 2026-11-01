@@ -6,7 +6,17 @@ interface DeltaProps {
     className?: string;
 }
 
-/** ▲ 12.4% / ▼ 3.1%, colored by direction. */
+/**
+ * 3.1% / 12% / then a multiple once the change passes +1000%: "↑ 10100%" from a
+ * base of 1 order reads as noise, "↑ 102×" says what happened.
+ */
+export function formatDelta(pct: number): string {
+    const abs = Math.abs(pct);
+    if (pct >= 1000) return `${Math.round(1 + pct / 100)}×`;
+    return `${abs >= 10 ? Math.round(abs) : abs.toFixed(1)}%`;
+}
+
+/** ↑ 12.4% / ↓ 3.1%, colored by direction. */
 export function Delta({ pct, className }: DeltaProps) {
     if (pct === null || !Number.isFinite(pct)) return null;
     const up = pct >= 0;
@@ -21,7 +31,7 @@ export function Delta({ pct, className }: DeltaProps) {
             <svg viewBox="0 0 12 12" className={cn("size-[11px]", !up && "rotate-180")} aria-hidden="true">
                 <path d="M6 10.5V1.5M2 5.5l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            {Math.abs(pct) >= 10 ? Math.round(Math.abs(pct)) : Math.abs(pct).toFixed(1)}%
+            {formatDelta(pct)}
         </span>
     );
 }

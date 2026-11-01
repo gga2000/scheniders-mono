@@ -3271,35 +3271,43 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
 }
 /* ===========================
    Dashboard bento cards (components/dashboard/bento).
-   Chart colours live here as tokens so light and dark resolve without
-   class-string matching; region tiles carry their own ink in the card.
+   The cards are always "ink" surfaces, in light and dark theme alike: the
+   chart colours are saturated light-on-dark hues and only read at full
+   strength on a near-black ground. .bento-ink re-scopes the page tokens
+   (card, border, text) for everything inside a card and its tooltip, so the
+   cards' own Tailwind classes stay token-driven.
    =========================== */
-:root {
-  --bento-up: #059669;
-  --bento-down: #e11d48;
-  --bento-well: color-mix(in oklab, var(--background-soft) 55%, transparent);
-  --bento-line-a: #12b863;
-  --bento-line-b: #12b863;
-  --bento-radar: #12b863;
+.bento-ink {
+  color-scheme: dark;
+  --card-bg: #131313;
+  --card-bg-hover: #181818;
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 12px 32px -12px rgba(0, 0, 0, 0.45);
+  --card-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.14), 0 20px 40px -14px rgba(0, 0, 0, 0.55);
+  --background-soft: #1c1c1c;
+  --foreground: #f5f5f4;
+  --foreground-muted: #8e8e8e;
+  --primary: #3bf08c;
+
+  --bento-well: #0c0c0c;
+  --bento-thumb: rgba(255, 255, 255, 0.09);
+  --bento-up: #3bf08c;
+  --bento-down: #ff6b8b;
+  --bento-line-a: #22d3ee;
+  --bento-line-b: #3bf08c;
+  --bento-radar: #3bf08c;
   --bento-online-a: #22d3ee;
-  --bento-online-b: #3c2cff;
+  --bento-online-b: #4f46ff;
   --bento-chat-a: #ffb800;
   --bento-chat-b: #ff3da5;
   --bento-region-baghdad: #7cff5b;
   --bento-region-south: #8b3dff;
   --bento-region-euphrates: #ffb800;
-  --bento-region-north: color-mix(in oklab, var(--foreground) 14%, var(--card-bg));
+  --bento-region-north: #2c2c2c;
   --bento-region-kurdistan: #ff5a1f;
-  --bento-region-unknown: color-mix(in oklab, var(--foreground) 6%, var(--card-bg));
-}
-.dark {
-  --bento-up: #34d399;
-  --bento-down: #fb7185;
-  --bento-line-a: #22d3ee;
-  --bento-line-b: #3bf08c;
-  --bento-radar: #3bf08c;
-  --bento-region-north: color-mix(in oklab, var(--foreground) 22%, var(--card-bg));
-  --bento-region-unknown: color-mix(in oklab, var(--foreground) 9%, var(--card-bg));
+  --bento-region-unknown: #202020;
+
+  color: var(--foreground);
 }
 
 @keyframes bento-rise {

@@ -42,7 +42,7 @@ export function SeasonalityRadar({ values, axis, monoLabels, label, describe, on
     const ray = (i: number, f: number): [number, number] => [C + Math.cos(angle(i) - Math.PI / 2) * R * f, C + Math.sin(angle(i) - Math.PI / 2) * R * f];
 
     useEffect(() => {
-        if (!S) return;
+        if (R <= 0) return;
         const to = values;
         // First paint grows from an even circle; later paints morph from what is shown.
         const from = shown.current && shown.current.length === to.length ? shown.current : to.map(() => 1);
@@ -57,7 +57,7 @@ export function SeasonalityRadar({ values, axis, monoLabels, label, describe, on
         };
         raf = requestAnimationFrame(step);
         return () => cancelAnimationFrame(raf);
-    }, [values, S, reduce]);
+    }, [values, S, R, reduce]);
 
     const move = (e: PointerEvent<SVGRectElement>) => {
         const box = e.currentTarget.getBoundingClientRect();
@@ -75,7 +75,7 @@ export function SeasonalityRadar({ values, axis, monoLabels, label, describe, on
 
     return (
         <div ref={ref} className="mx-auto w-full max-w-[400px]" style={{ height: S || 320 }}>
-            {S > 0 && (
+            {R > 0 && (
                 <svg width={S} height={S} overflow="visible" className="mx-auto block" role="img" aria-label={label}>
                     {[0.33, 0.66, 1].map((k) => <circle key={k} cx={C} cy={C} r={R * k} fill="none" stroke="var(--card-border)" strokeWidth={1} />)}
                     {axis.map((m, i) => {

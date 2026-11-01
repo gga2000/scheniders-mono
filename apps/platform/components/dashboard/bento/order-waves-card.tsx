@@ -40,7 +40,7 @@ export function OrderWavesCard() {
                 <h3 className="m-0 text-[13px] font-medium tracking-[-0.01em] text-[var(--foreground-muted)]">{t("dashboard.bento.hourlyTitle")}</h3>
                 {waves ? (
                     <>
-                        <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2.5 font-mono text-[40px] font-medium leading-none tracking-[-0.04em] tabular-nums">
+                        <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2.5 font-mono text-[46px] font-medium leading-none tracking-[-0.04em] tabular-nums">
                             <CountUp value={waves.thisWeek} />
                             <Delta pct={waves.deltaPct} className="self-center text-sm" />
                         </div>

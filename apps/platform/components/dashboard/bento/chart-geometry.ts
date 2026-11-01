@@ -124,4 +124,18 @@ export function radarPath(values: readonly number[], cx: number, cy: number, rad
     return `${d}Z`;
 }
 
+/**
+ * Gaussian smoothing on a circular series (hour 23 sits next to hour 0), for
+ * drawing only: hour-by-hour counts are jagged, and the shape of the day is the
+ * point of the chart. The total is preserved.
+ */
+export function smoothCircular(values: readonly number[], sigma: number): number[] {
+    const n = values.length;
+    if (n === 0 || !(sigma > 0)) return [...values];
+    const reach = Math.min(Math.floor(n / 2), Math.ceil(sigma * 3));
+    const weights = Array.from({ length: 2 * reach + 1 }, (_, i) => Math.exp(-((i - reach) ** 2) / (2 * sigma * sigma)));
+    const sum = weights.reduce((a, b) => a + b, 0);
+    return values.map((_, i) => weights.reduce((acc, w, j) => acc + w * values[(((i + j - reach) % n) + n) % n], 0) / sum);
+}
+
 export const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);

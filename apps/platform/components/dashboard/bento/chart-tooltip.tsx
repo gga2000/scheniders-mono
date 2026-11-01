@@ -51,7 +51,7 @@ function ChartTooltip({ tip }: { tip: Anchored | null }) {
         <div
             ref={box}
             role="tooltip"
-            className={`pointer-events-none fixed z-[70] whitespace-nowrap rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)]/95 px-2.5 py-2 text-xs text-foreground shadow-lg backdrop-blur-md transition-opacity duration-150 ${tip ? "opacity-100" : "opacity-0"}`}
+            className={`bento-ink pointer-events-none fixed z-[70] whitespace-nowrap rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)]/95 px-2.5 py-2 text-xs text-foreground shadow-lg backdrop-blur-md transition-opacity duration-150 ${tip ? "opacity-100" : "opacity-0"}`}
             style={{ left: pos.left, top: pos.top }}
         >
             {tip && (

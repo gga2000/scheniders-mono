@@ -26,7 +26,7 @@ export function Segmented<V extends string | number>({ items, value, onChange, l
         <div role="tablist" aria-label={label} className="relative inline-grid h-[30px] auto-cols-fr grid-flow-col rounded-[10px] bg-[var(--background-soft)] p-[2px]">
             <div
                 aria-hidden="true"
-                className="absolute bottom-[2px] top-[2px] left-0 rounded-[8px] bg-[var(--card-bg)] shadow-sm ring-1 ring-[var(--card-border)] transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.9,.25,1)] motion-reduce:transition-none"
+                className="absolute bottom-[2px] top-[2px] left-0 rounded-[8px] bg-[var(--bento-thumb)] shadow-sm ring-1 ring-[var(--card-border)] transition-[transform,width] duration-300 ease-[cubic-bezier(.2,.9,.25,1)] motion-reduce:transition-none"
                 style={{ width: thumb.w, transform: `translateX(${thumb.x}px)` }}
             />
             {items.map((it, i) => (
