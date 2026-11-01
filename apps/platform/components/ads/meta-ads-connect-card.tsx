@@ -6,13 +6,13 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 
 /** Admin-only form: the token goes straight to the server route and is never read back. */
-export function MetaAdsConnectCard() {
+export function MetaAdsConnectCard({ initialAdAccountId = "", initialUsdToIqd = 1717 }: { initialAdAccountId?: string; initialUsdToIqd?: number }) {
     const { t } = useLanguage();
     const { session } = useAuth();
     const qc = useQueryClient();
-    const [adAccountId, setAdAccountId] = useState("");
+    const [adAccountId, setAdAccountId] = useState(initialAdAccountId);
     const [accessToken, setAccessToken] = useState("");
-    const [usdToIqd, setUsdToIqd] = useState("1717");
+    const [usdToIqd, setUsdToIqd] = useState(String(initialUsdToIqd));
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 

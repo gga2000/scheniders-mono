@@ -121,11 +121,13 @@ export default function AdsPage() {
                     {t("ads.syncFailed")}: {connection.data.last_error}
                 </p>
             ) : null}
-            {sync.isError ? (
+            {sync.isError && sync.error.message !== connection.data?.last_error ? (
                 <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600">{sync.error.message}</p>
             ) : null}
 
-            {connection.isSuccess && !connection.data ? <MetaAdsConnectCard /> : null}
+            {connection.isSuccess && (!connection.data || connection.data.last_error) ? (
+                <MetaAdsConnectCard initialAdAccountId={connection.data?.ad_account_id ?? ""} initialUsdToIqd={connection.data?.usd_to_iqd ?? 1717} />
+            ) : null}
 
             {data ? (
                 <>
