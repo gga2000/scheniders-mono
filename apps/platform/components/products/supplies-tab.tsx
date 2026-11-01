@@ -34,7 +34,7 @@ import { SuppliesBulkActionsBar } from "@/components/products/supplies/supplies-
 import { useOpenPosBySupply } from "@/hooks/use-open-pos-by-supply";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
 import { useTenantSupplyHistory } from "@/hooks/use-tenant-supply-history";
-import { aggregateSuppliers, type AggregatedSupplier } from "@/lib/utils/suppliers-aggregate";
+import { aggregateSuppliers } from "@/lib/utils/suppliers-aggregate";
 import { Users } from "lucide-react";
 import { Product } from "@/lib/supabase";
 
@@ -84,7 +84,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     const [reorderOpen, setReorderOpen] = useState(false);
     const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
     const [section, setSection] = useState<Section>("supplies");
-    const [selectedSupplier, setSelectedSupplier] = useState<AggregatedSupplier | null>(null);
+    const [selectedSupplierKey, setSelectedSupplierKey] = useState<string | null>(null);
     const [selectedSupplyId, setSelectedSupplyId] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -306,6 +306,12 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     const aggregatedSuppliers = useMemo(
         () => aggregateSuppliers({ supplies, pos: supplierPos }),
         [supplies, supplierPos]
+    );
+
+    // Derived from the live roll-up so a send or receive shows in the open drawer.
+    const selectedSupplier = useMemo(
+        () => aggregatedSuppliers.find((sp) => sp.key === selectedSupplierKey) ?? null,
+        [aggregatedSuppliers, selectedSupplierKey]
     );
 
     const selectedSupplies = useMemo(
@@ -685,7 +691,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     <SuppliersGrid
                         suppliers={aggregatedSuppliers}
                         searchQuery={searchQuery}
-                        onSelect={setSelectedSupplier}
+                        onSelect={(sp) => setSelectedSupplierKey(sp.key)}
                     />
                 </div>
             )}
@@ -704,7 +710,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
             <SupplierDetailDrawer
                 open={selectedSupplier !== null}
                 supplier={selectedSupplier}
-                onClose={() => setSelectedSupplier(null)}
+                onClose={() => setSelectedSupplierKey(null)}
                 onSelectSupply={onEdit}
             />
 
