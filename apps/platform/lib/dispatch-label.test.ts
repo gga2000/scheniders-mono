@@ -138,3 +138,16 @@ describe("refund and replacement labels", () => {
         expect(generateDispatchLabelHTML(order({ address_details: "ح".repeat(80) }), { showBarcode: true })).toContain("dl-dense");
     });
 });
+
+describe("perfume warning", () => {
+    const WARNING = "يمنع فتح العطر منعاً باتاً";
+
+    it("is on every parcel going out to a customer, replacements included", () => {
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).toContain(WARNING);
+        expect(generateDispatchLabelHTML(order({ is_replacement: true }), { showBarcode: true })).toContain(WARNING);
+    });
+
+    it("is left off refund pickups, where nothing is handed to the customer", () => {
+        expect(generateDispatchLabelHTML(order({ is_return: true, price: -20000 }), { showBarcode: true })).not.toContain(WARNING);
+    });
+});
