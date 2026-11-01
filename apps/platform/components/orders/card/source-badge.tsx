@@ -1,6 +1,6 @@
 "use client";
 
-import { Store } from "lucide-react";
+import { Store, Truck, FileSpreadsheet } from "lucide-react";
 import type { Order } from "@/lib/supabase";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -72,6 +72,20 @@ export function SourceBadge({ source }: { source: Order["source"] }) {
                 <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-semibold rounded-full bg-[var(--pastel-yellow)] text-amber-900 border border-[var(--primary)]/30 dark:bg-[#EFFF00]/20 dark:text-[#EFFF00] dark:border-[#EFFF00]/30">
                     <Store className="w-3 h-3" />
                     {t("orders.card.shopOrder")}
+                </span>
+            );
+        case "prime":
+            return (
+                <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-semibold rounded-full bg-indigo-100 text-indigo-700">
+                    <Truck className="w-3 h-3" />
+                    Prime
+                </span>
+            );
+        case "excel_import":
+            return (
+                <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-semibold rounded-full bg-sky-100 text-sky-700">
+                    <FileSpreadsheet className="w-3 h-3" />
+                    {t("orders.source.excel")}
                 </span>
             );
         default:
