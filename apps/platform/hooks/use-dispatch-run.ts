@@ -15,6 +15,7 @@ import {
     writePrintWindow,
 } from "@/lib/enhanced-label-generator";
 import { downloadLabelPdf } from "@/lib/pdf-download";
+import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { partitionByShipDay } from "@/lib/order-bulk-scope";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
 
@@ -48,7 +49,12 @@ export function useDispatchRun({
     const { t } = useLanguage();
     const [pdfLoading, setPdfLoading] = useState(false);
 
-    const labelOptions = (): EnhancedLabelOptions => ({ ...printing.labelSettings, invoiceTemplate });
+    // Shipping labels of refund / replacement orders list what the courier takes back.
+    const labelOptions = async (ordersToPrint: Order[]): Promise<EnhancedLabelOptions> => ({
+        ...printing.labelSettings,
+        invoiceTemplate,
+        afterSalePickups: printType === "labels" ? await loadAfterSalePickups(ordersToPrint) : undefined,
+    });
 
     // The output has already left the app by the time this runs, so a failed record must be loud:
     // unrecorded prints look "never printed" and get printed twice.
@@ -104,7 +110,7 @@ export function useDispatchRun({
             return;
         }
 
-        const options = labelOptions();
+        const options = await labelOptions(ordersToPrint);
         const html =
             printType === "invoices"
                 ? await generateBulkA6InvoicesHTML(ordersToPrint, options)
@@ -131,9 +137,9 @@ export function useDispatchRun({
     const executePdf = async (ordersToPrint: Order[]) => {
         if (!checkPrintable(ordersToPrint)) return;
 
-        const options = labelOptions();
         setPdfLoading(true);
         try {
+            const options = await labelOptions(ordersToPrint);
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.access_token) {
                 toast.error(t("printing.signInAgainTitle"), t("printing.signInAgainBody"));

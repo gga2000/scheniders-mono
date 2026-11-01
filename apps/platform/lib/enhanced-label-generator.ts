@@ -12,6 +12,7 @@ import QRCode from "qrcode";
 import { code128Svg, qrSvg } from "@/lib/print-codes";
 import { escapeHtml } from "@/lib/html-escape";
 import { SCHNEIDERS_LOGO_SVG } from "@/lib/label-brand";
+import type { AfterSalePickup } from "@/lib/after-sale/label-pickups";
 import { DISPATCH_LABEL_CSS, DISPATCH_LABEL_FONTS, generateDispatchLabelHTML } from "@/lib/dispatch-label";
 
 // =============================================
@@ -38,6 +39,8 @@ export interface EnhancedLabelOptions {
     invoiceTemplate?: InvoiceTemplate;
     /** Design of the 80x120 shipping label; Dispatch unless the classic table layout is chosen. */
     labelDesign?: ShippingLabelDesign;
+    /** Pickup lines of the refund / replacement orders being printed, by order uuid (see loadAfterSalePickups). */
+    afterSalePickups?: Record<string, AfterSalePickup>;
 }
 
 // Label dimensions in inches
@@ -878,7 +881,11 @@ export async function generateShippingLabelHTML(
     options: EnhancedLabelOptions
 ): Promise<string> {
     if ((options.labelDesign ?? "dispatch") === "dispatch") {
-        return generateDispatchLabelHTML(order, { showBarcode: options.showBarcode });
+        return generateDispatchLabelHTML(order, {
+            showBarcode: options.showBarcode,
+            pickup: options.afterSalePickups?.[order.id],
+            courierLogo: { show: options.showDeliveryLogo, url: options.deliveryLogoUrl },
+        });
     }
     const displayOrderId = getBaseOrderId(order.order_id);
 

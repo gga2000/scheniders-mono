@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Order } from "@/lib/supabase";
+import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { EnhancedLabelOptions, generateLabelHTML, generateA6InvoiceHTML, generateA6InvoiceModern, generateA6InvoicePrime, generateBulkA6InvoicesHTML, generateShippingLabelHTML, SHIPPING_LABEL_CSS } from "@/lib/enhanced-label-generator";
 import { X, Printer, ZoomIn, ZoomOut, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,7 +49,7 @@ export function PrintPreviewModal({
 
                 let html: string;
                 if (printType === "labels" && options.size === "80x120") {
-                    html = await generateShippingLabelHTML(order, options);
+                    html = await generateShippingLabelHTML(order, { ...options, afterSalePickups: await loadAfterSalePickups([order]) });
                 } else if (printType === "labels") {
                     html = await generateLabelHTML(order, options);
                 } else if (options.invoiceTemplate === "prime") {
