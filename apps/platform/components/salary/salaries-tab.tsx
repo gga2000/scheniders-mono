@@ -280,7 +280,7 @@ export function SalariesTab() {
         };
     }, [periodMode, customStart, customEnd]);
 
-    const { employeePayrollData, isLoading, totalDue, totalPendingAdvances, totalPendingPenalties, periodBreakdown, lastPayrollDates, refresh: refreshSalaries } = useSalaries(periodStart, periodEnd, attributionMode, periodOverrides, periodMode);
+    const { employeePayrollData, isLoading, totalDue, totalProjected, inTransitOrderCount, totalPendingAdvances, totalPendingPenalties, periodBreakdown, lastPayrollDates, refresh: refreshSalaries } = useSalaries(periodStart, periodEnd, attributionMode, periodOverrides, periodMode);
 
     const effectiveEmployeeData = useMemo(() => {
         let list = [...employeePayrollData];
@@ -570,16 +570,17 @@ export function SalariesTab() {
                 </div>
             )}
 
-                        <SalaryOverviewCards
+            <SalaryOverviewCards
                 totalDue={totalDue}
                 employeeCount={effectiveEmployeeData.length}
                 totalPendingAdvances={totalPendingAdvances}
                 totalPendingPenalties={totalPendingPenalties}
                 breakdown={periodBreakdown}
+                projectedTotal={totalProjected}
+                inTransitOrders={inTransitOrderCount}
                 onAdvancesClick={() => setActiveSubTab("advances")}
                 onPenaltiesClick={() => setActiveSubTab("penalties")}
             />
-
 
             <SalariesTabBar
                 activeTab={activeSubTab}

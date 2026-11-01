@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { addDaysToDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
+import { IN_TRANSIT_STATUSES, projectInTransit } from "@/lib/payroll-projection";
 import type {
     EmployeePayrollData,
     PayrollCalculation,
@@ -241,6 +242,7 @@ export function useSalaries(
     const [employees, setEmployees] = useState<UserProfileRow[]>([]);
     const [activityLogs, setActivityLogs] = useState<ActivityLogRow[]>([]);
     const [completedOrders, setCompletedOrders] = useState<CompletedOrderRow[]>([]);
+    const [inTransitOrderIds, setInTransitOrderIds] = useState<string[]>([]);
     const [allOrders, setAllOrders] = useState<StatusOrderRow[]>([]);
     const [returnOrders, setReturnOrders] = useState<ReturnOrderRow[]>([]);
     const [advances, setAdvances] = useState<SalaryAdvance[]>([]);
@@ -328,7 +330,7 @@ export function useSalaries(
         // the order set and undercounts every employee.
         const wStart = new Date(periodBounds(windowStart, fetchEnd).from).toISOString();
         const wEnd = new Date(periodBounds(windowStart, fetchEnd).to).toISOString();
-        const [logsData, paidInWindowRes, completedOrdersData, returnsData, allOrdersData] = await Promise.all([
+        const [logsData, paidInWindowRes, completedOrdersData, returnsData, inTransitData, allOrdersData] = await Promise.all([
             // Wide window — we'll slice per-employee client-side
             fetchAllRows<ActivityLogRow>((from, to) =>
                 supabase
@@ -378,6 +380,20 @@ export function useSalaries(
                     .range(from, to)
             ),
 
+            // Genuine orders out with the courier right now (any date): the "if they all
+            // arrive" projection only. Pay itself counts completed orders.
+            fetchAllRows<{ id: string }>((from, to) =>
+                supabase
+                    .from("orders")
+                    .select("id")
+                    .eq("tenant_id", tenantId)
+                    .in("status", [...IN_TRANSIT_STATUSES])
+                    .eq("is_return", false)
+                    .eq("is_replacement", false)
+                    .order("id", { ascending: true })
+                    .range(from, to)
+            ),
+
             // ALL orders (any status) created in the window — lightweight (id/date/status only).
             // Drives the whole-pipeline status breakdown shown on the payslip (came in,
             // cancelled, no-response, rejected, in-transit, …), not just completed deliveries.
@@ -401,6 +417,7 @@ export function useSalaries(
         if (penRes.data) setPenalties(penRes.data);
         if (bonRes.data) setBonuses(bonRes.data);
         setCompletedOrders(completedOrdersData);
+        setInTransitOrderIds(inTransitData.map((o) => o.id));
         setAllOrders(allOrdersData);
         setReturnOrders(returnsData);
 
@@ -588,6 +605,14 @@ export function useSalaries(
 
             const grossSalary = effectiveRate.baseMonthlySalary + orderBonus + performanceBonusesTotal;
             const netSalary = Math.max(0, grossSalary - absenceDeduction - advancesTotal - penaltiesTotal);
+            const inTransitCount = attributionMode === "all"
+                ? inTransitOrderIds.length
+                : inTransitOrderIds.filter(id => orderLastTouchedBy.get(id) === emp.id).length;
+            const inTransit = projectInTransit(
+                { grossSalary, absenceDeduction, advancesTotal, penaltiesTotal },
+                inTransitCount,
+                effectiveRate.perOrderBonus,
+            );
 
             const calculation: PayrollCalculation = {
                 employeeId: emp.id,
@@ -608,6 +633,7 @@ export function useSalaries(
                 absenceDeduction,
                 grossSalary,
                 netSalary,
+                inTransit,
             };
 
             return {
@@ -639,7 +665,7 @@ export function useSalaries(
             };
         });
     }, [
-        employees, activityLogs, completedOrders, allOrders, returnOrders, refundedOriginals, attributionMode,
+        employees, activityLogs, completedOrders, inTransitOrderIds, allOrders, returnOrders, refundedOriginals, attributionMode,
         advances, penalties, bonuses, getEffectiveRate,
         globalPeriodStart, globalPeriodEnd, periodOverrides, lastPayrollDates,
         paidRecordsInWindow, periodMode,
@@ -673,6 +699,11 @@ export function useSalaries(
         () => employeePayrollData.reduce((s, e) => s + e.calculation.netSalary, 0),
         [employeePayrollData]
     );
+    /** What-if: total due if every genuine in-transit order completes (pay counts completed only). */
+    const totalProjected = useMemo(
+        () => employeePayrollData.reduce((s, e) => s + e.calculation.inTransit.projectedNet, 0),
+        [employeePayrollData]
+    );
     const totalPendingAdvances = useMemo(
         () => advances.reduce((s, a) => s + a.amount, 0),
         [advances]
@@ -686,6 +717,8 @@ export function useSalaries(
         employeePayrollData,
         isLoading,
         totalDue,
+        totalProjected,
+        inTransitOrderCount: inTransitOrderIds.length,
         totalPendingAdvances,
         totalPendingPenalties,
         periodBreakdown,

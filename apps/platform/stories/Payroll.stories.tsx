@@ -46,6 +46,8 @@ function CurrentPeriod() {
                 totalPendingAdvances={payrollAdvances.reduce((s, a) => s + a.amount, 0)}
                 totalPendingPenalties={payrollPenalties.reduce((s, a) => s + a.amount, 0)}
                 breakdown={payrollBreakdown}
+                projectedTotal={payrollEmployees.reduce((s, e) => s + e.calculation.inTransit.projectedNet, 0)}
+                inTransitOrders={55}
             />
             <SalariesTabBar
                 activeTab={tab}

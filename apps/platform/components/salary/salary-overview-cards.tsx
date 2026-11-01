@@ -38,6 +38,9 @@ interface SalaryOverviewCardsProps {
     totalPendingPenalties: number;
     /** Business-wide completed orders in the selected period. */
     breakdown: OrderBreakdown;
+    /** What-if: total due if every genuine in-transit order completes. */
+    projectedTotal: number;
+    inTransitOrders: number;
     onAdvancesClick?: () => void;
     onPenaltiesClick?: () => void;
 }
@@ -52,6 +55,8 @@ export function SalaryOverviewCards({
     totalPendingAdvances,
     totalPendingPenalties,
     breakdown,
+    projectedTotal,
+    inTransitOrders,
     onAdvancesClick,
     onPenaltiesClick,
 }: SalaryOverviewCardsProps) {
@@ -86,6 +91,12 @@ export function SalaryOverviewCards({
                     <bdi>{fmtNumber(totalDue)} <span className="text-sm font-medium text-muted">{iqd}</span></bdi>
                 </p>
                 <p className="text-xs text-muted mt-1">{t("payroll.overview.membersCount", { count: fmtNumber(employeeCount) })}</p>
+                {inTransitOrders > 0 && (
+                    <p className="text-xs text-muted mt-2 pt-2 border-t border-dashed border-[var(--card-border)]" title={t("payroll.projection.hint")}>
+                        {t("payroll.projection.total", { count: fmtNumber(inTransitOrders) })}:{" "}
+                        <bdi className="font-semibold text-foreground tabular-nums">{fmtNumber(projectedTotal)} {iqd}</bdi>
+                    </p>
+                )}
             </div>
             <Figure label={t("payroll.overview.advances")} value={`${fmtNumber(totalPendingAdvances)} ${iqd}`} onClick={onAdvancesClick} />
             <Figure label={t("payroll.overview.penalties")} value={`${fmtNumber(totalPendingPenalties)} ${iqd}`} onClick={onPenaltiesClick} />
