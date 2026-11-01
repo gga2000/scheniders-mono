@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Order } from "@/lib/supabase";
-import { formatLabelDate, formatLabelPhone, generateDispatchLabelHTML, labelCash } from "./dispatch-label";
+import { formatLabelDate, formatLabelPhone, generateDispatchLabelHTML, labelCash, labelReceiptNumber } from "./dispatch-label";
+
+describe("labelReceiptNumber", () => {
+    it("matches the number the courier file sends", () => {
+        expect(labelReceiptNumber("RTN-4030-1")).toBe("4030");
+        expect(labelReceiptNumber("RPL-3902-2")).toBe("3902");
+        expect(labelReceiptNumber("CHK-89922656")).toBe("89922656");
+        expect(labelReceiptNumber("LF-5340-001")).toBe("5340");
+        expect(labelReceiptNumber("122658090")).toBe("122658090");
+    });
+});
 
 const order = (over: Partial<Order> = {}): Order =>
     ({
@@ -85,19 +95,20 @@ describe("generateDispatchLabelHTML", () => {
     it("puts رقم الوصل over the order number, beside a large QR", () => {
         const html = generateDispatchLabelHTML(order(), { showBarcode: true });
         expect(html).toContain("رقم الوصل");
-        expect(html).toMatch(/class="dl-qr"><svg[^>]*width="25\.4mm"/);
+        expect(html).toMatch(/class="dl-qr"><svg[^>]*width="19\.05mm"/);
     });
     it("shows the Prime logo only when the courier logo is on", () => {
-        expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: true } })).toContain('class="dl-courier" src="data:image/png;base64,');
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: true } })).toContain('<svg xmlns="http://www.w3.org/2000/svg" class="dl-courier"');
         expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: false } })).not.toContain("dl-courier");
     });
 });
 
 describe("refund and replacement labels", () => {
     const refund = order({ id: "r1", order_id: "RTN-4030-1", is_return: true, price: -36750, delivery_fee: 5000, items: [{ name: "فيوجن", quantity: 1, price: 36750 }] } as Partial<Order>);
-    it("keeps the whole after-sale number and pays the customer from an outlined box", () => {
+    it("prints the courier's digits-only number and pays the customer from an outlined box", () => {
         const html = generateDispatchLabelHTML(refund, { showBarcode: true });
-        expect(html).toContain('aria-label="RTN-4030-1"');
+        expect(html).toContain('aria-label="4030"');
+        expect(html).not.toContain("RTN");
         expect(html).toContain("استرجاع");
         expect(html).toContain('class="dl-cod dl-cod-out"');
         expect(html).toContain("31,750");

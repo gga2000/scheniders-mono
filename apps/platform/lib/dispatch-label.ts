@@ -15,7 +15,7 @@ import { mergeOrderItems } from "@/lib/merge-order-items";
 import { computeCodAmount, computeRefundPayout, courierAmount } from "@/lib/order-money";
 import { code128Svg, qrSvg } from "@/lib/print-codes";
 import { escapeHtml } from "@/lib/html-escape";
-import { PRIME_LOGO_PNG, SCHNEIDERS_LOGO_SVG } from "@/lib/label-brand";
+import { PRIME_LOGO_SVG, SCHNEIDERS_LOGO_SVG } from "@/lib/label-brand";
 import type { AfterSalePickup } from "@/lib/after-sale/label-pickups";
 
 const WARNING_SIGN = `<svg viewBox="0 0 24 22" class="dl-ico" aria-hidden="true"><path d="M12 1.2 23 20.8H1z" fill="#000"/><path d="M12 4.6 19.9 18.8H4.1z" fill="#fff"/><rect x="10.7" y="8.4" width="2.6" height="6" rx=".6" fill="#000"/><rect x="10.7" y="15.6" width="2.6" height="2.4" rx=".6" fill="#000"/></svg>`;
@@ -70,6 +70,17 @@ export function labelCash(order: Order): { label: string; amount: number } {
 const DENSE_NAME_CHARS = 24;
 const DENSE_ADDRESS_CHARS = 70;
 
+/**
+ * The receipt number printed on the label, digits only: the same number the
+ * courier file sends (lib/shipping/courier-sheets.ts), so the courier's
+ * system and the label agree. RTN-4030-1 / RPL-4030-1 print as 4030.
+ */
+export function labelReceiptNumber(orderId: string): string {
+    const clean = orderId.replace(/^CHK-/, "");
+    const afterSale = clean.match(/^(?:RTN|RPL)-(\d+)/);
+    return afterSale ? afterSale[1] : getBaseOrderId(clean);
+}
+
 export interface DispatchLabelOptions {
     showBarcode: boolean;
     /** Pickup lines of a refund or replacement order, when it has them. */
@@ -100,16 +111,17 @@ function afterSaleLines(order: Order, items: { name: string; qty: number }[], pi
 
 export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOptions): string {
     const afterSale = Boolean(order.is_return || order.is_replacement);
-    // After-sale numbers (RTN-4030-1) stay whole: the bare sequence would read as a different sale.
-    const id = afterSale ? order.order_id : getBaseOrderId(order.order_id);
+    const id = labelReceiptNumber(order.order_id);
     const cash = labelCash(order);
     const payOut = cash.label === PAY_CUSTOMER;
     const items = mergeOrderItems(order.items).map((i) => ({ name: i.name, qty: i.quantity }));
     const pieces = items.reduce((sum, i) => sum + i.qty, 0);
     const e = (value: string | null | undefined) => escapeHtml(value ?? "");
-    const courierLogo = options.courierLogo?.show
-        ? `<img class="dl-courier" src="${e(options.courierLogo.url || PRIME_LOGO_PNG)}" alt="">`
-        : "";
+    const courierLogo = !options.courierLogo?.show
+        ? ""
+        : options.courierLogo.url
+          ? `<img class="dl-courier" src="${e(options.courierLogo.url)}" alt="">`
+          : PRIME_LOGO_SVG;
 
     const original = options.pickup?.originalOrderNumber;
     const kindPill = afterSale
@@ -139,7 +151,7 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
             <div class="dl-oid${id.length > 11 ? " dl-oid-long" : ""}">${e(id)}</div>
             ${courierLogo}
         </div>
-        <div class="dl-qr">${qrSvg(id, { moduleSteps: 4, maxSizeMm: 27 })}</div>
+        <div class="dl-qr">${qrSvg(id, { moduleSteps: 3, maxSizeMm: 21 })}</div>
     </div>
     <div class="dl-dest"><b>${e(order.city) || "—"}</b>${kindPill}</div>
     <div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>زجاج · قابل للكسر · يُحمل بعناية</span>${GLASS_SIGN}</div></div>
@@ -165,7 +177,7 @@ export const DISPATCH_LABEL_FONTS = "family=IBM+Plex+Sans+Arabic:wght@400;600;70
 export const DISPATCH_LABEL_CSS = `
     .dispatch-label {
         width: 80mm; height: 120mm; padding: 3mm; overflow: hidden; box-sizing: border-box;
-        display: flex; flex-direction: column; gap: 1.5mm;
+        display: flex; flex-direction: column; gap: 2.4mm;
         background: #fff; color: #000; direction: rtl;
         font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
     }
@@ -179,7 +191,7 @@ export const DISPATCH_LABEL_CSS = `
     .dl-idc > .dl-k { font-size: 8pt; font-weight: 700; }
     .dl-oid { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 17pt; line-height: 1; direction: ltr; text-align: right; white-space: nowrap; }
     .dl-oid-long { font-size: 12pt; }
-    .dl-courier { height: 9.5mm; width: auto; max-width: 30mm; object-fit: contain; align-self: flex-end; margin-top: 1mm; }
+    .dl-courier { height: 8.5mm; width: auto; max-width: 30mm; object-fit: contain; align-self: flex-end; margin-top: 1.4mm; }
     .dl-qr { flex-shrink: 0; }
     .dl-dest { background: #000; color: #fff; padding: 2.4mm 3mm; display: flex; align-items: center; justify-content: space-between; gap: 2mm; }
     .dl-kind { flex-shrink: 0; background: #fff; color: #000; padding: .6mm 2.4mm; display: flex; flex-direction: column; align-items: center; line-height: 1.1;
@@ -187,7 +199,7 @@ export const DISPATCH_LABEL_CSS = `
     .dl-kind b { font-size: 13pt; }
     .dl-kind small { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 700; }
     .dl-dest > b { display: block; min-width: 0; font-size: 27pt; line-height: 1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dl-tape { display: flex; align-items: center; justify-content: center; height: 8.4mm; margin-top: -1mm;
+    .dl-tape { display: flex; align-items: center; justify-content: center; height: 8.4mm; margin-top: -2.4mm;
         background: repeating-linear-gradient(-45deg, #000 0 1.5mm, #fff 1.5mm 3mm); border-bottom: .5mm solid #000;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .dl-tape-in { background: #fff; display: flex; align-items: center; gap: 1.6mm; padding: 0 2.2mm; height: 6.8mm; border: .4mm solid #000; font-weight: 700; font-size: 9pt; }
