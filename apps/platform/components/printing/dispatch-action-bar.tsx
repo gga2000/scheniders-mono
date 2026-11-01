@@ -1,109 +1,90 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Eye, FileText, ChevronDown, Printer, RefreshCw, Truck } from "lucide-react";
+import { Download, Printer, RefreshCw, Truck } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { useLanguage } from "@/hooks/use-language";
 
 interface DispatchActionBarProps {
     selectedCount: number;
     pdfLoading: boolean;
-    onPreview: () => void;
-    onPrint: () => void;
+    shipping: boolean;
     onPdf: () => void;
-    onExport: (company: "prime" | "waseet") => void;
-    onShip: () => void;
+    onPrint: () => void;
+    onHandToPrime: () => void;
 }
 
 /**
- * Actions for the selected orders, pinned to the bottom of the viewport: full
- * width on phones, a floating bar under the queue on desktop. Keeping it next to
- * the list (not beside the page title) stops the header from jumping when the
- * first order is ticked.
+ * The run's actions, pinned under the queue: the label PDF first (what the team
+ * prints from), a direct print, and the Prime hand-off, which asks once because
+ * it moves the orders out of the desk.
  */
-export function DispatchActionBar({
-    selectedCount,
-    pdfLoading,
-    onPreview,
-    onPrint,
-    onPdf,
-    onExport,
-    onShip,
-}: DispatchActionBarProps) {
+export function DispatchActionBar({ selectedCount, pdfLoading, shipping, onPdf, onPrint, onHandToPrime }: DispatchActionBarProps) {
     const { t } = useLanguage();
-    const [exportOpen, setExportOpen] = useState(false);
-
-    if (selectedCount === 0) return null;
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const none = selectedCount === 0;
 
     return (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-[var(--card-border)] bg-[var(--card-bg)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:sticky md:inset-x-auto md:bottom-4 md:mx-auto md:w-fit md:max-w-full md:rounded-2xl md:border md:px-4 md:py-3 md:shadow-xl">
-            <span className="hidden whitespace-nowrap px-2 text-sm font-semibold text-foreground md:block">
-                {t("printing.selectedCount").replace("{count}", String(selectedCount))}
-            </span>
+        <div className="sticky bottom-4 z-30 flex items-center gap-2 rounded-2xl bg-[var(--ink)] px-3 py-2.5 text-white shadow-[0_18px_40px_-16px_rgba(0,0,0,0.45)]">
+            <span className="px-2 text-sm font-semibold">{t("printing.selectedCount", { count: selectedCount })}</span>
+            <span className="flex-1" />
             <button
-                onClick={onPdf}
-                disabled={pdfLoading}
-                aria-label={pdfLoading ? t("printing.generating") : t("printing.downloadPdf").replace("{count}", String(selectedCount))}
-                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ink)] px-5 text-sm font-semibold text-white disabled:opacity-60 md:h-10 md:flex-none"
-            >
-                {pdfLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                {pdfLoading ? t("printing.generating") : t("printing.downloadPdf").replace("{count}", String(selectedCount))}
-            </button>
-            <button
-                onClick={onPreview}
-                className="hidden h-10 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-blue)] px-4 text-sm font-medium text-blue-900 md:flex"
-            >
-                <Eye className="h-4 w-4" />
-                {t("printing.preview")}
-            </button>
-            <button
+                type="button"
                 onClick={onPrint}
-                className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-purple)] px-4 text-sm font-medium text-purple-900 md:h-10"
+                disabled={none}
+                title={t("printing.printDirect")}
+                aria-label={t("printing.printDirect")}
+                className="grid h-10 w-10 place-items-center rounded-xl border border-white/25 hover:bg-white/10 disabled:opacity-40"
             >
                 <Printer className="h-4 w-4" />
-                {t("printing.print")}
             </button>
-            <div className="relative hidden md:block">
-                <button
-                    onClick={() => setExportOpen((open) => !open)}
-                    aria-haspopup="menu"
-                    aria-expanded={exportOpen}
-                    className="flex h-10 items-center gap-2 rounded-xl bg-slate-800 px-4 text-sm font-medium text-white"
-                >
-                    <FileText className="h-4 w-4" />
-                    {t("printing.exportForDelivery")}
-                    <ChevronDown className="h-3.5 w-3.5" />
-                </button>
-                {exportOpen && (
-                    <>
-                        <div className="fixed inset-0 z-40" onClick={() => setExportOpen(false)} />
-                        <div
-                            role="menu"
-                            className="absolute bottom-full right-0 z-50 mb-2 min-w-[180px] rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] py-1 shadow-lg"
+            <Popover open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        disabled={none || shipping}
+                        className="flex h-10 items-center gap-2 rounded-xl border border-white/25 px-4 text-sm font-semibold hover:bg-white/10 disabled:opacity-40"
+                    >
+                        {shipping ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
+                        {t("printing.handToPrime")}
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="end" sideOffset={10} className="w-[360px] rounded-2xl border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xl">
+                    <p className="font-semibold text-foreground">{t("printing.handOffTitle", { count: selectedCount })}</p>
+                    <ol className="mt-2 list-decimal space-y-1.5 ps-5 text-sm text-muted">
+                        <li>{t("printing.handOffFile")}</li>
+                        <li>{t("printing.handOffTransit")}</li>
+                        <li>{t("printing.handOffSaved")}</li>
+                    </ol>
+                    <div className="mt-3 flex gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setConfirmOpen(false);
+                                onHandToPrime();
+                            }}
+                            className="h-10 rounded-xl bg-[var(--ink)] px-4 text-sm font-semibold text-white"
                         >
-                            {(["prime", "waseet"] as const).map((company) => (
-                                <button
-                                    key={company}
-                                    role="menuitem"
-                                    onClick={() => {
-                                        onExport(company);
-                                        setExportOpen(false);
-                                    }}
-                                    className="flex w-full items-center gap-2 px-4 py-2.5 text-start text-sm hover:bg-[var(--background)]"
-                                >
-                                    <FileText className="h-4 w-4 text-muted" />
-                                    {company === "prime" ? t("printing.exportPrime") : t("printing.exportWaseet")}
-                                </button>
-                            ))}
-                        </div>
-                    </>
-                )}
-            </div>
+                            {t("printing.handOffConfirm")}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setConfirmOpen(false)}
+                            className="h-10 rounded-xl border border-[var(--card-border)] px-4 text-sm font-medium text-foreground"
+                        >
+                            {t("common.cancel")}
+                        </button>
+                    </div>
+                </PopoverContent>
+            </Popover>
             <button
-                onClick={onShip}
-                className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-green)] px-4 text-sm font-medium text-emerald-900 md:h-10"
+                type="button"
+                onClick={onPdf}
+                disabled={none || pdfLoading}
+                className="flex h-10 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[var(--ink)] disabled:opacity-60"
             >
-                <Truck className="h-4 w-4" />
-                {t("printing.ship")}
+                {pdfLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {pdfLoading ? t("printing.generating") : t("printing.downloadPdf", { count: selectedCount })}
             </button>
         </div>
     );

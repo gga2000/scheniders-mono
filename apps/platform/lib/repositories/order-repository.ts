@@ -438,6 +438,9 @@ async function readWideList(tenantId: string, window: OrderWindow, onPreview?: L
     }
 }
 
+/** Confirmed orders the desk reads at once; far above a day's shipment. */
+const DESK_QUEUE_MAX = 1000;
+
 export const orderRepository = {
     /**
      * Every active (non-archived, not trashed) order, newest first — the
@@ -451,6 +454,20 @@ export const orderRepository = {
      * The list's head (lib/orders/list-preview.ts) and the window's exact row
      * count: two small parallel reads.
      */
+    /**
+     * The dispatch desk's queue: every live confirmed order, oldest first, with
+     * no date window (a confirmed order from last week still has to ship).
+     */
+    async findConfirmed(tenantId: string): Promise<Order[]> {
+        // The full read: labels need print_count, which list rows do not carry.
+        const { data, error } = await listQuery(tenantId, null, ORDER_READ_COLUMNS)
+            .eq("status", "confirmed")
+            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
+            .limit(DESK_QUEUE_MAX);
+        return pageRows([{ data, error }]);
+    },
+
     /**
      * The window's row count (a count HEAD over the list's own filter): what a
      * list restored from the device plus its delta must add up to.
