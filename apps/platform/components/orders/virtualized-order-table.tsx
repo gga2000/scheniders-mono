@@ -2,7 +2,7 @@
 
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { CodRiskChip } from "@/components/orders/cod-risk-chip";
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useWindowVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import { useDocumentOffsetTop } from '@/hooks/use-document-offset-top';
 import { useRef, useMemo, memo, useState, useEffect, useCallback } from 'react';
 import { perfTrace } from '@/lib/perf-trace';
@@ -10,6 +10,7 @@ import { cn, formatIQD } from '@/lib/utils';
 import { formatPhoneGrouped } from '@/lib/order-utils';
 import { isWhatsAppSlot } from '@/lib/whatsapp-contact';
 import type { Order, OrderStatus } from '@/lib/supabase';
+import type { OrderFilters } from '@/types/order';
 import { ArrowUp, ArrowDown, Filter as FilterIcon, Check, MapPin as Pin, CopyPlus, TrendingUp, TrendingDown, Copy, Calendar, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { RiskBadge } from '@/components/orders/risk-badge';
 import { AdChannelBadge } from '@/components/orders/ad-channel-badge';
@@ -25,6 +26,7 @@ import type { TableDensity } from '@/components/orders/table/density-toggle';
 import { useLanguage } from '@/components/providers/language-provider';
 import type { DuplicateWindowAlert } from '@/lib/duplicate-window';
 import { mergeOrderItems } from '@/lib/merge-order-items';
+import { getOrderStatusLabel } from '@/lib/order-status-labels';
 
 // Column definitions for resizable columns
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
@@ -121,7 +123,7 @@ interface VirtualizedOrderTableProps {
     setDuplicateOrder: (order: Order) => void;
     setShowDuplicateModal: (open: boolean) => void;
     modePrice: number;
-    updateOrderStatus: (id: string, status: OrderStatus) => Promise<any>;
+    updateOrderStatus: (id: string, status: OrderStatus) => Promise<unknown>;
     getRiskLevel: (phone: string) => 'low' | 'medium' | 'high' | 'blocked' | null;
     columnFilters: Record<string, string>;
     setColumnFilters: (filters: Record<string, string>) => void;
@@ -129,8 +131,8 @@ interface VirtualizedOrderTableProps {
     setOpenFilterColumn: (col: string | null) => void;
     availableCities: string[];
     availableProducts: string[];
-    filters: any;
-    setFilters: (filters: any) => void;
+    filters: OrderFilters;
+    setFilters: (filters: OrderFilters) => void;
 }
 
 // Phone validation helper
@@ -149,7 +151,7 @@ const StatusDropdown = memo(function StatusDropdown({
     status, orderId, isReturn, updateOrderStatus, onStatusChanged
 }: {
     status: OrderStatus; orderId: string; isReturn: boolean;
-    updateOrderStatus: (id: string, status: OrderStatus) => Promise<any>;
+    updateOrderStatus: (id: string, status: OrderStatus) => Promise<unknown>;
     onStatusChanged?: (orderId: string) => void;
 }) {
     const [open, setOpen] = useState(false);
@@ -227,9 +229,9 @@ const TAG_COLORS = [
 ] as const;
 
 const ColorTagPicker = memo(function ColorTagPicker({ currentColor, orderId, updateOrder }: {
-    currentColor: string | null;
+    currentColor: string | null | undefined;
     orderId: string;
-    updateOrder?: (id: string, data: Record<string, any>) => Promise<any>;
+    updateOrder?: (id: string, data: Partial<Order>) => Promise<unknown>;
 }) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -279,13 +281,47 @@ const ColorTagPicker = memo(function ColorTagPicker({ currentColor, orderId, upd
 });
 
 // Copy helper
-const copyToClipboard = (text: string, label: string) => {
+const copyToClipboard = (text: string, label: string, t: (key: string, vars?: Record<string, string | number>) => string) => {
     navigator.clipboard.writeText(text).then(() => {
-        toast.success(`Copied ${label}`);
+        toast.success(t("orders.toast.copied", { label }));
     }).catch(() => {
-        toast.error("Failed to copy");
+        toast.error(t("orders.toast.copyFailed"));
     });
 };
+
+type UpdateOrderFn = ReturnType<typeof useOrdersContext>["updateOrder"];
+
+interface VirtualTableRowProps {
+    order: Order;
+    displayIndex: number | undefined;
+    virtualRow: VirtualItem;
+    scrollMargin: number;
+    isSelected: boolean;
+    isDuplicate: boolean;
+    duplicateSeverity: DuplicateWindowAlert["severity"] | undefined;
+    onContactRecorded?: (orderId: string) => void;
+    modePrice: number;
+    togglePin: (id: string) => void;
+    toggleOrderSelection: (id: string) => void;
+    setSelectedOrder: (order: Order) => void;
+    setIsModalOpen: (open: boolean) => void;
+    getRiskLevel: (phone: string) => 'low' | 'medium' | 'high' | 'blocked' | null;
+    setDuplicateOrder: (order: Order) => void;
+    setShowDuplicateModal: (open: boolean) => void;
+    updateOrderStatus: (id: string, status: OrderStatus) => Promise<unknown>;
+    onStatusChanged: (orderId: string) => void;
+    isFlashing: boolean;
+    isFocused: boolean;
+    density: TableDensity;
+    editingCell: { orderId: string; field: string } | null;
+    onStartEdit: (orderId: string | null, field: string | null) => void;
+    updateOrder: UpdateOrderFn;
+    onContextMenu: (e: React.MouseEvent, order: Order) => void;
+    gridTemplate: string;
+    onMouseEnter: (e: React.MouseEvent, order: Order) => void;
+    onMouseLeave: () => void;
+    onRowDrop?: (e: React.DragEvent, targetOrderId: string) => void;
+}
 
 const VirtualTableRow = memo(function VirtualTableRow({
     order,
@@ -317,7 +353,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
     onMouseEnter,
     onMouseLeave,
     onRowDrop,
-}: any) {
+}: VirtualTableRowProps) {
     const { t, language } = useLanguage();
     const isReturn = order.is_return;
     const itemLines = mergeOrderItems<Order["items"][number]>(order.items);
@@ -482,12 +518,12 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         {formatPhoneGrouped(order.phone)}
                     </span>
                     {isDuplicate && (
-                        <button onClick={(e) => { e.stopPropagation(); setDuplicateOrder(order); setShowDuplicateModal(true); }} className="p-0.5 rounded hover:bg-amber-100 transition-colors" title="View duplicate orders">
+                        <button onClick={(e) => { e.stopPropagation(); setDuplicateOrder(order); setShowDuplicateModal(true); }} className="p-0.5 rounded hover:bg-amber-100 transition-colors" title={t("orders.tip.viewDuplicates")}>
                             <CopyPlus className={cn("w-3 h-3", duplicateSeverity === "critical" ? "text-rose-500" : "text-amber-500")} />
                         </button>
                     )}
-                    {!validatePhoneDetailed(order.phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Invalid Phone" />}
-                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.phone.replace(/^\+964/, "0").replace(/^964/, "0"), order.phone); }} className="p-0.5 rounded opacity-0 group-hover/phone:opacity-100 transition-opacity hover:bg-gray-100" title="Copy phone">
+                    {!validatePhoneDetailed(order.phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title={t("orders.tip.invalidPhone")} />}
+                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.phone.replace(/^\+964/, "0").replace(/^964/, "0"), order.phone, t); }} className="p-0.5 rounded opacity-0 group-hover/phone:opacity-100 transition-opacity hover:bg-gray-100" title={t("orders.tip.copyPhone")}>
                         <Copy className="w-3 h-3 text-muted" />
                     </button>
                 </div>
@@ -500,11 +536,11 @@ const VirtualTableRow = memo(function VirtualTableRow({
                     <div className="relative inline-flex items-center gap-1 cursor-pointer group/phone2">
                         <span
                             className={cn("font-mono text-xs hover:text-green-600 transition-colors", !validatePhoneDetailed(order.secondary_phone).isValid ? "text-red-600 font-bold" : "text-muted", isWhatsAppSlot(order, "secondary") && validatePhoneDetailed(order.secondary_phone).isValid && "text-emerald-600 font-bold")}
-                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${order.secondary_phone.replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); onContactRecorded?.(order.id); }}
+                            onClick={(e) => { e.stopPropagation(); window.open(`https://wa.me/964${(order.secondary_phone ?? "").replace(/^0/, "")}?text=${encodeURIComponent(`مرحباً ${order.customer_name}`)}`, "_blank"); onContactRecorded?.(order.id); }}
                         >
                             {formatPhoneGrouped(order.secondary_phone)}
                         </span>
-                        {!validatePhoneDetailed(order.secondary_phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Invalid Phone" />}
+                        {!validatePhoneDetailed(order.secondary_phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title={t("orders.tip.invalidPhone")} />}
                     </div>
                 ) : (
                     <span className="text-xs text-muted">—</span>
@@ -580,9 +616,9 @@ const VirtualTableRow = memo(function VirtualTableRow({
                     order.source === "delivery_import" && "bg-blue-100 text-blue-700",
                     order.source === "whatsapp" && "bg-green-100 text-green-700",
                     order.source === "shop" && "bg-amber-100 text-amber-700",
-                    (!order.source || order.source === "woo" || order.source === "salla" || order.source === "manual") && "bg-gray-100 text-gray-500",
+                    (!order.source || order.source === "manual") && "bg-gray-100 text-gray-500",
                 )}>
-                    {order.source === "lightfunnels" ? "LF" : order.source === "delivery_import" ? "DLV" : order.source === "whatsapp" ? "WA" : order.source === "shop" ? "محل" : order.source === "woo" ? "WOO" : order.source === "salla" ? "SALLA" : (order.source || "—")}
+                    {order.source === "lightfunnels" ? "LF" : order.source === "delivery_import" ? "DLV" : order.source === "whatsapp" ? "WA" : order.source === "shop" ? "محل" : (order.source || "—")}
                 </span>
                 {/* The ad network the customer clicked, beside the system that sent it. */}
                 <AdChannelBadge attribution={order.attribution} channel={order.ad_channel} iconOnly className="ms-1" />
@@ -740,9 +776,9 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
         const targetOrder = displayedOrders.find(o => o.id === targetOrderId);
         if (targetOrder?.sequence_number) {
             updateOrder(sourceId, { sequence_number: targetOrder.sequence_number });
-            toast.success("Row reordered");
+            toast.success(t("orders.toast.rowReordered"));
         }
-    }, [updateOrder, displayedOrders]);
+    }, [updateOrder, displayedOrders, t]);
 
     const handleStatusChanged = useCallback((orderId: string) => {
         setFlashingOrderId(orderId);
@@ -787,7 +823,10 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
     // IMPORTANT: Do NOT spread orders here — { ...o } creates new object references
     // which breaks React.memo on VirtualTableRow (prevProps.order !== nextProps.order)
     const flatItems = useMemo(() => {
-        const items: Array<{ type: 'header' | 'row', data: any, groupName?: string, displayIndex?: number }> = [];
+        const items: Array<
+            | { type: 'header'; data: number; groupName: string }
+            | { type: 'row'; data: Order; displayIndex: number }
+        > = [];
         if (groupBy === 'none') {
             displayedOrders.forEach((o, index) => items.push({ type: 'row', data: o, displayIndex: index + 1 }));
             return items;
@@ -929,7 +968,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                         { key: 'secondary_phone', label: t("orders.header.phone2"), noSort: true, resizeKey: 'phone2' },
                                         { key: 'city', label: t("orders.header.city"), filterType: 'select', options: availableCities, resizeKey: 'city' },
                                         { key: 'address_details', label: t("orders.header.address"), resizeKey: 'address' },
-                                    ].map((col: any) => (
+                                    ].map((col: { key: string; label: string; resizeKey: string; noSort?: boolean; filterType?: string; options?: string[]; noFilter?: boolean }) => (
                                     <div role="columnheader"
                                         key={col.key}
                                         className={cn(
@@ -1088,11 +1127,6 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                             const item = flatItems[virtualRow.index];
 
                             if (item.type === 'header') {
-                                const statusLabelsHeader: Record<string, string> = {
-                                    new: "جديد", contacted: "تم الاتصال", confirmed: "مؤكد",
-                                    in_transit: "قيد التوصيل", delivered: "تم التسليم",
-                                    rejected: "مرفوض", cancelled: "ملغي"
-                                };
                                 return (
                                     <div
                                         key={virtualRow.key}
@@ -1115,7 +1149,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                         item.groupName === 'rejected' && "bg-rose-500",
                                                     )} />
                                                 )}
-                                                {groupBy === 'status' ? (statusLabelsHeader[item.groupName!] || item.groupName) : item.groupName}
+                                                {groupBy === 'status' ? getOrderStatusLabel(item.groupName, language) : item.groupName}
                                                 <span className="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded-full text-muted-foreground">{item.data}</span>
                                             </div>
                                         </div>

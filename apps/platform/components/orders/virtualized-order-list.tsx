@@ -8,6 +8,7 @@ import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import type { DuplicateWindowAlert } from "@/lib/duplicate-window";
 import { RiskLevel } from "@/lib/fraud-detector";
 import { perfTrace } from "@/lib/perf-trace";
+import type { OrderRiskData } from "@/lib/customer-trust-risk";
 
 interface VirtualizedOrderListProps {
     orders: Order[];
@@ -33,7 +34,7 @@ interface VirtualizedOrderListProps {
     onAddToBlacklist?: (phone: string, reason: string, notes?: string) => Promise<void>;
     onRemoveFromBlacklist?: (phone: string) => Promise<void>;
     getRiskLevel: (phone: string) => RiskLevel;
-    getRiskAssessment?: (phone: string) => any; // New helper for full assessment
+    getRiskAssessment?: (phone: string) => OrderRiskData | undefined;
     hasDuplicates?: (orderId: string) => boolean;
     /** 48h money-at-risk duplicate for an order, if it has one. */
     getDuplicateWindowAlert?: (orderId: string) => DuplicateWindowAlert | undefined;
@@ -56,9 +57,7 @@ interface VirtualizedOrderListProps {
     gridClassName?: string;
     compactView?: 0 | 1 | 2;
     actionDock?: boolean;
-    onSplitOrder?: (order: any) => void;
-    // Assignments
-    assignments?: any[];
+    onSplitOrder?: (order: Order) => void;
 }
 
 // Estimated card heights (will be measured dynamically)
@@ -112,7 +111,6 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     getDuplicateWindowAlert,
     onContactRecorded,
     onSplitOrder,
-    assignments = [],
 }: VirtualizedOrderListProps) {
     const laneProbeRef = useRef<HTMLDivElement>(null);
     // Kept current as anything above the list changes height (the analytics
@@ -175,15 +173,6 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     const handleStatusUpdate = useCallback(onStatusUpdate, [onStatusUpdate]);
     const handleViewDetails = useCallback(onViewDetails, [onViewDetails]);
 
-    const EMPTY_ARRAY: any[] = [];
-    const orderAssignments = React.useMemo(() => {
-        const map = new Map();
-        assignments.forEach(a => {
-            if (!map.has(a.order_id)) map.set(a.order_id, []);
-            map.get(a.order_id).push(a);
-        });
-        return map;
-    }, [assignments]);
 
     const renderCard = (order: Order) => {
         const customerOrders = getCustomerHistory(order.phone);
@@ -228,7 +217,6 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
                 messageTemplates={messageTemplates}
                 isSelected={selectedOrders.has(order.id)}
                 onToggleSelection={onToggleSelection}
-                assignments={orderAssignments.get(order.id) || EMPTY_ARRAY}
             />
         );
     };

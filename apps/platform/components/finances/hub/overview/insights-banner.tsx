@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Lightbulb, AlertTriangle, CheckCircle2, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { Insight } from "@/hooks/use-finance-insights";
 
 const SEVERITY_STYLES: Record<Insight["severity"], { icon: typeof Lightbulb; card: string; iconWrap: string; accent: string }> = {
@@ -38,10 +39,12 @@ interface InsightsBannerProps {
 }
 
 export function InsightsBanner({ insights }: InsightsBannerProps) {
+    const { t } = useLanguage();
     const [idx, setIdx] = useState(0);
     if (insights.length === 0) return null;
 
     const insight = insights[Math.min(idx, insights.length - 1)];
+    const text = (part: "title" | "detail" | "suggestion") => t(`finances.insight.${insight.id}.${part}`, insight.vars);
     const style = SEVERITY_STYLES[insight.severity];
     const Icon = style.icon;
 
@@ -61,7 +64,7 @@ export function InsightsBanner({ insights }: InsightsBannerProps) {
                             transition={{ duration: 0.15 }}
                             className={cn("text-[14px] font-semibold", style.accent)}
                         >
-                            {insight.title}
+                            <bdi>{text("title")}</bdi>
                         </motion.h4>
                     </AnimatePresence>
                     {insights.length > 1 && (
@@ -93,16 +96,16 @@ export function InsightsBanner({ insights }: InsightsBannerProps) {
                         transition={{ duration: 0.15 }}
                         className="text-[13px] text-muted leading-relaxed"
                     >
-                        {insight.detail}
-                        {insight.suggestion && (
-                            <span className="block mt-1 text-foreground/80 italic">{insight.suggestion}</span>
+                        <bdi>{text("detail")}</bdi>
+                        {insight.hasSuggestion && (
+                            <span className="block mt-1 text-foreground/80 italic"><bdi>{text("suggestion")}</bdi></span>
                         )}
                     </motion.div>
                 </AnimatePresence>
             </div>
             {insight.metric && (
                 <div className="hidden md:flex flex-col items-end shrink-0 border-l border-[var(--card-border)] pl-3 ml-2">
-                    <div className="text-[10px] uppercase tracking-wider text-muted font-semibold">{insight.metric.label}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted font-semibold">{insight.metric.labelKey ? t(insight.metric.labelKey) : insight.metric.labelVar}</div>
                     <div className={cn("text-xl font-bold tabular-nums", style.accent)}>{insight.metric.value}</div>
                 </div>
             )}

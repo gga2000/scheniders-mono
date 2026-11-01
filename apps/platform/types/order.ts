@@ -36,7 +36,9 @@ export type PaymentStatus = 'pending' | 'cod' | 'prepaid' | 'partial' | 'paid';
 
 export type DeliverySlot = 'morning' | 'afternoon' | 'evening';
 
-export type OrderSource = 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'telegram' | 'storefront' | 'other';
+// Every value orders.source holds in production (checked 2026-11-01), incl.
+// 'prime', 'excel_import' and 'manual', which the old union left out.
+export type OrderSource = 'whatsapp' | 'lightfunnels' | 'meta' | 'tiktok' | 'delivery_import' | 'shop' | 'telegram' | 'storefront' | 'prime' | 'excel_import' | 'manual' | 'other';
 
 export type OrderTagColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | null;
 

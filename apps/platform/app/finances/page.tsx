@@ -12,6 +12,7 @@ import { useFinanceOverview } from "@/hooks/use-finance-overview";
 import { useFinanceInsights } from "@/hooks/use-finance-insights";
 import { useFinanceRevenue } from "@/hooks/use-finance-revenue";
 import { useCashPosition } from "@/hooks/use-cash-position";
+import { useInTransitSince } from "@/hooks/use-in-transit-since";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { PageHeader } from "@/components/finances/hub/page-header";
 import { TabsShell, type FinanceTabId } from "@/components/finances/hub/tabs-shell";
@@ -169,7 +170,7 @@ export default function FinancesPage() {
 }
 
 function FinancesContent() {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const searchParams = useSearchParams();
     const router = useRouter();
     const rawTab = searchParams?.get("tab");
@@ -212,7 +213,8 @@ function FinancesContent() {
     );
 
     const insights = useFinanceInsights(overview);
-    const cash = useCashPosition(orders);
+    const inTransitSince = useInTransitSince(orders);
+    const cash = useCashPosition(orders, inTransitSince);
     const revenue = useFinanceRevenue(
         orders,
         products,
@@ -224,6 +226,7 @@ function FinancesContent() {
     const handleExport = () => {
         if (ordersLoading) return;
         exportFinanceHubToCSV({
+            language,
             overview,
             revenue,
             cash,
@@ -234,6 +237,7 @@ function FinancesContent() {
     const handlePrint = () => {
         if (ordersLoading) return;
         printFinanceHubReport({
+            language,
             overview,
             revenue,
             cash,
@@ -349,13 +353,13 @@ function FinancesContent() {
                     )}
 
                     {activeTab === "customers" && (
-                        <CustomersFinanceTab orders={orders} period={period} compareRange={compareRange} />
+                        <CustomersFinanceTab orders={orders} period={period} compareRange={compareRange} granularity={granularity} />
                     )}
 
                     {activeTab === "print" && <PrintShipTab />}
 
                     {activeTab === "products" && (
-                        <ProductsFinanceTab orders={orders} products={products} period={period} />
+                        <ProductsFinanceTab orders={orders} products={products} period={period} granularity={granularity} />
                     )}
 
                     {activeTab === "forecasts" && (
@@ -363,7 +367,7 @@ function FinancesContent() {
                     )}
 
                     {activeTab === "reports" && (
-                        <ReportsTab orders={orders} period={period} dateRangeStrings={dateRangeStrings} />
+                        <ReportsTab period={period} onExport={ordersLoading ? undefined : handleExport} onPrint={ordersLoading ? undefined : handlePrint} />
                     )}
 
                     {activeTab === "profit_analysis" && (

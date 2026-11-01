@@ -1,48 +1,34 @@
 "use client";
 
-import { DollarSign, TrendingDown, AlertCircle, Users, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import type { OrderBreakdown } from "@/types/salary";
 
-function fmtIQD(n: number) {
-    return new Intl.NumberFormat("en-IQ").format(Math.round(n));
+function fmtNumber(n: number) {
+    return new Intl.NumberFormat("en-US").format(Math.round(n));
 }
 
-function Tile({
-    Icon, label, value, primary = false, onClick,
-}: {
-    Icon: React.ElementType;
-    label: string;
-    value: string;
-    primary?: boolean;
-    onClick?: () => void;
-}) {
-    const content = (
+function Figure({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
+    const body = (
         <>
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--background)]">
-                <Icon className="w-4 h-4 text-muted" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted leading-none mb-1.5">{label}</p>
-                <p className={cn("font-bold text-foreground tabular-nums truncate tracking-tight", primary ? "text-lg leading-none" : "text-sm")}>
-                    {value}
-                </p>
-            </div>
-            {onClick && (
-                <ChevronRight className="w-3.5 h-3.5 text-muted opacity-40 group-hover/tile:opacity-100 transition-opacity shrink-0" />
-            )}
+            <span className="block text-xs text-muted mb-1.5">{label}</span>
+            <span className="flex items-center gap-1 text-base font-semibold text-foreground tabular-nums">
+                <bdi>{value}</bdi>
+                {onClick && <ChevronRight className="w-3.5 h-3.5 text-muted opacity-50 group-hover/fig:opacity-100 transition-opacity" aria-hidden="true" />}
+            </span>
         </>
     );
-    const cls = "flex items-center gap-2.5 px-4 py-3 flex-1 min-w-0";
+    const cls = "px-5 py-4 text-left";
     if (onClick) {
         return (
-            <button onClick={onClick} className={cn(cls, "text-left group/tile hover:bg-[var(--background)] transition-colors cursor-pointer")}>
-                {content}
+            <button type="button" onClick={onClick} className={cn(cls, "group/fig hover:bg-[var(--background)] transition-colors")}>
+                {body}
             </button>
         );
     }
-    return <div className={cls}>{content}</div>;
+    return <div className={cls}>{body}</div>;
 }
 
 interface SalaryOverviewCardsProps {
@@ -50,32 +36,88 @@ interface SalaryOverviewCardsProps {
     employeeCount: number;
     totalPendingAdvances: number;
     totalPendingPenalties: number;
+    /** Business-wide completed orders in the selected period. */
+    breakdown: OrderBreakdown;
+    /** What-if: total due if every genuine in-transit order completes. */
+    projectedTotal: number;
+    inTransitOrders: number;
     onAdvancesClick?: () => void;
     onPenaltiesClick?: () => void;
 }
 
+/**
+ * One summary strip for /salaries: what is owed (money) on the left, and the period's
+ * completed orders (what order pay is counted from) on the right. No decorative icons.
+ */
 export function SalaryOverviewCards({
     totalDue,
     employeeCount,
     totalPendingAdvances,
     totalPendingPenalties,
+    breakdown,
+    projectedTotal,
+    inTransitOrders,
     onAdvancesClick,
     onPenaltiesClick,
 }: SalaryOverviewCardsProps) {
     const reduce = useReducedMotion();
     const { t } = useLanguage();
     const iqd = t("common.iqd");
+    const hasOrders = breakdown.completedTotal > 0;
+    const qualityPct = Math.round(breakdown.qualityScore * 100);
+    const qualityTone = !hasOrders
+        ? "text-muted"
+        : qualityPct >= 90 ? "text-emerald-700 dark:text-emerald-400"
+        : qualityPct >= 70 ? "text-amber-700 dark:text-amber-400"
+        : "text-rose-700 dark:text-rose-400";
+
+    const orderFigures = [
+        { label: t("payroll.strip.payable"), value: breakdown.genuine },
+        { label: t("payroll.breakdown.replacements"), value: breakdown.replacements },
+        { label: t("payroll.strip.refunds"), value: breakdown.refunds },
+    ];
+
     return (
-        <motion.div
+        <motion.section
             initial={reduce ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="flex items-stretch flex-wrap sm:flex-nowrap bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden divide-x divide-[var(--card-border)]"
+            aria-label={t("payroll.overview.label")}
+            className="flex items-stretch bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden divide-x divide-[var(--card-border)]"
         >
-            <Tile Icon={DollarSign} label={t("payroll.overview.totalDue")} value={`${fmtIQD(totalDue)} ${iqd}`} primary />
-            <Tile Icon={TrendingDown} label={t("payroll.overview.advances")} value={`${fmtIQD(totalPendingAdvances)} ${iqd}`} onClick={onAdvancesClick} />
-            <Tile Icon={AlertCircle} label={t("payroll.overview.penalties")} value={`${fmtIQD(totalPendingPenalties)} ${iqd}`} onClick={onPenaltiesClick} />
-            <Tile Icon={Users} label={t("payroll.overview.employees")} value={String(employeeCount)} />
-        </motion.div>
+            <div className="px-5 py-4 min-w-[240px]">
+                <p className="text-xs text-muted mb-1">{t("payroll.overview.totalDue")}</p>
+                <p className="text-2xl font-bold text-foreground tabular-nums tracking-tight leading-tight">
+                    <bdi>{fmtNumber(totalDue)} <span className="text-sm font-medium text-muted">{iqd}</span></bdi>
+                </p>
+                <p className="text-xs text-muted mt-1">{t("payroll.overview.membersCount", { count: fmtNumber(employeeCount) })}</p>
+                {inTransitOrders > 0 && (
+                    <p className="text-xs text-muted mt-2 pt-2 border-t border-dashed border-[var(--card-border)]" title={t("payroll.projection.hint")}>
+                        {t("payroll.projection.total", { count: fmtNumber(inTransitOrders) })}:{" "}
+                        <bdi className="font-semibold text-foreground tabular-nums">{fmtNumber(projectedTotal)} {iqd}</bdi>
+                    </p>
+                )}
+            </div>
+            <Figure label={t("payroll.overview.advances")} value={`${fmtNumber(totalPendingAdvances)} ${iqd}`} onClick={onAdvancesClick} />
+            <Figure label={t("payroll.overview.penalties")} value={`${fmtNumber(totalPendingPenalties)} ${iqd}`} onClick={onPenaltiesClick} />
+
+            <div className="flex-1 px-5 py-4 min-w-0">
+                <p className="text-xs text-muted mb-1.5">
+                    {t("payroll.overview.ordersTitle", { count: fmtNumber(breakdown.completedTotal) })}
+                </p>
+                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+                    {orderFigures.map((f) => (
+                        <p key={f.label} className="text-sm text-muted">
+                            <span className="text-base font-semibold text-foreground tabular-nums me-1.5">{fmtNumber(f.value)}</span>
+                            {f.label}
+                        </p>
+                    ))}
+                    <p className="text-sm text-muted">
+                        <span className={cn("text-base font-semibold tabular-nums me-1.5", qualityTone)}>{hasOrders ? `${qualityPct}%` : "—"}</span>
+                        {t("payroll.breakdown.quality")}
+                    </p>
+                </div>
+            </div>
+        </motion.section>
     );
 }

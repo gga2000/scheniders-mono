@@ -1,3 +1,4 @@
+import { projectInTransit } from "@/lib/payroll-projection";
 import type { EmployeePayrollData, OrderBreakdown, PayrollRecord, SalaryAdvance, SalaryPenalty, PerformanceBonus } from "@/types/salary";
 
 const START = "2026-10-01";
@@ -11,7 +12,7 @@ const breakdown = (genuine: number, replacements: number, refunds: number): Orde
 function employee(
     id: string, name: string | null, email: string, role: string,
     base: number, perOrder: number, b: OrderBreakdown,
-    extras: { advances?: SalaryAdvance[]; penalties?: SalaryPenalty[]; bonuses?: PerformanceBonus[]; lastPaid?: string | null } = {},
+    extras: { advances?: SalaryAdvance[]; penalties?: SalaryPenalty[]; bonuses?: PerformanceBonus[]; lastPaid?: string | null; inTransit?: number } = {},
 ): EmployeePayrollData {
     const advances = extras.advances ?? [];
     const penalties = extras.penalties ?? [];
@@ -31,6 +32,7 @@ function employee(
             orderBonus, pendingBonuses: bonuses, performanceBonusesTotal: bonusTotal,
             pendingAdvances: advances, advancesTotal, pendingPenalties: penalties, penaltiesTotal,
             absenceDays: 0, absenceDeduction: 0, grossSalary: gross, netSalary: gross - advancesTotal - penaltiesTotal,
+            inTransit: projectInTransit({ grossSalary: gross, absenceDeduction: 0, advancesTotal, penaltiesTotal }, extras.inTransit ?? 0, perOrder),
         },
         lastPayrollDate: extras.lastPaid ?? "2026-09-30",
         overlappingPayroll: null,
@@ -43,9 +45,11 @@ export const payrollEmployees: EmployeePayrollData[] = [
     employee("u2", "محمد كريم", "moh@perfumes.com", "employee", 600000, 1000, breakdown(212, 6, 4), {
         advances: [{ id: "a1", employee_id: "u2", amount: 100000, reason: "سلفة", created_at: "2026-10-12T09:00:00Z", is_deducted: false }],
         bonuses: [{ id: "b1", employee_id: "u2", amount: 50000, reason: "Best month", created_at: "2026-10-28T09:00:00Z", is_applied: false }],
+        inTransit: 37,
     }),
     employee("u3", "زينب حسين", "zainab@perfumes.com", "employee", 550000, 1000, breakdown(141, 3, 2), {
         penalties: [{ id: "p1", employee_id: "u3", amount: 25000, reason: "تأخير", created_at: "2026-10-20T09:00:00Z", is_applied: false }],
+        inTransit: 18,
     }),
     employee("u4", "حسن (التغليف)", "hassan.packing@perfumes.com", "employee", 450000, 0, breakdown(0, 0, 0)),
 ];

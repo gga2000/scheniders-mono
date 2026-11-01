@@ -323,7 +323,7 @@ export function OrdersFilterBar({
                                                             <div className="flex gap-2">
                                                                 <input
                                                                     type="text"
-                                                                    placeholder="Name this filter..."
+                                                                    placeholder={t("orders.tip.nameFilter")}
                                                                     value={newPresetName}
                                                                     onChange={(e) => setNewPresetName(e.target.value)}
                                                                     className="flex-1 px-3 py-2 text-sm bg-white border border-[var(--card-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200"

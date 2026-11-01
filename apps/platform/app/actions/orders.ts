@@ -11,6 +11,7 @@ import { isPastDaySystemOrderNumber, isSystemOrderNumber, merchantOrderNumberSch
 import { ORDER_READ_COLUMNS, RESTORE_ORDERS_BATCH_SIZE, pickOrderWriteColumns } from "@/lib/repositories/order-columns";
 import { VAULT_ADMIN_ROLES } from "@/lib/vault-paths";
 import { z } from "zod";
+import { ORDER_STATUSES } from "@/lib/order-status-labels";
 
 // =============================================
 // CHECK LIMITS (called from UI before showing create modal)
@@ -28,12 +29,42 @@ export async function checkOrderLimitsAction(
 // CREATE ORDER (with charging + usage tracking)
 // =============================================
 
+/**
+ * Server actions are public endpoints: the browser's TypeScript types do not
+ * reach the server. `orders.status`, `priority` and `payment_status` are plain
+ * text columns with no CHECK, so an unknown value would be stored as-is and
+ * break every screen that maps a status to a label or a pipeline step. Money
+ * must be a real number (NaN/Infinity serialise to null and would save a
+ * price-less order). Other columns pass through: create_order_atomic copies
+ * only the columns it lists.
+ */
+const money = z.number().finite();
+const createOrderInputSchema = z
+    .object({
+        customer_name: z.string().nullish(),
+        phone: z.string().nullish(),
+        price: money,
+        delivery_fee: money.min(0).nullish(),
+        discount_amount: money.min(0).nullish(),
+        status: z.enum(ORDER_STATUSES).optional(),
+        priority: z.enum(["normal", "high", "urgent"]).optional(),
+        payment_status: z.enum(["pending", "cod", "prepaid", "partial", "paid"]).optional(),
+        items: z.array(z.object({ quantity: z.number().finite().min(0) }).passthrough()).optional(),
+    })
+    .passthrough();
+
 export async function createOrderAction(
     orderData: CreateOrderInput,
     accessToken: string,
 ): Promise<{ success: boolean; data?: Order; error?: string; warning?: string }> {
     const resolved = await resolveCaller(accessToken);
     if ("error" in resolved) return { success: false, error: resolved.error };
+
+    const parsed = createOrderInputSchema.safeParse(orderData);
+    if (!parsed.success) {
+        const issue = parsed.error.issues[0];
+        return { success: false, error: `Invalid order: ${issue.path.join(".") || "input"} ${issue.message}` };
+    }
 
     const { tenantId, role } = resolved.caller;
     if (!ORDER_WRITE_ROLES.includes(role)) {

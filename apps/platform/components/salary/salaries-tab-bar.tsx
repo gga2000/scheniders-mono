@@ -90,7 +90,7 @@ export function SalariesTabBar({
                             value={search}
                             onChange={(e) => onSearchChange(e.target.value)}
                             placeholder={t("payroll.searchPlaceholder")}
-                            className={cn(control, "w-48 ps-8 pe-3 placeholder:text-muted")}
+                            className={cn(control, "w-48 ps-8 pe-3 placeholder:text-[var(--foreground-muted)]")}
                         />
                     </label>
                     <select

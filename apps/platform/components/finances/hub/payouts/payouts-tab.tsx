@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
     Truck, RefreshCw, CheckCircle2, AlertTriangle, Clock,
-    Wallet, ChevronRight, FileText, ExternalLink, ArrowRight,
+    Wallet, ChevronRight, FileText,
 } from "lucide-react";
 import { useWaseet } from "@/hooks/use-waseet";
+import { useLanguage } from "@/hooks/use-language";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import type { WaseetInvoice } from "@/types/waseet";
 import { SectionCard } from "@/components/finances/hub/primitives/section-card";
@@ -25,36 +26,39 @@ interface ReconciliationRow {
 }
 
 export function PayoutsTab() {
-    const { fetchInvoices, fetchInvoiceOrders } = useWaseetExtended();
+    const { t, language } = useLanguage();
+    const { fetchInvoices } = useWaseet();
     const { orders } = useOrdersContext();
 
     const [invoices, setInvoices] = useState<WaseetInvoice[] | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    // A translation key for our own messages, raw text for a message the API sent.
+    const [failure, setFailure] = useState<{ key: string } | { text: string } | null>(null);
+    const error = failure ? ("key" in failure ? t(failure.key) : failure.text) : null;
     const [lastSync, setLastSync] = useState<Date | null>(null);
     const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
 
-    const loadInvoices = async () => {
+    const loadInvoices = useCallback(async () => {
         setLoading(true);
-        setError(null);
+        setFailure(null);
         try {
             const data = await fetchInvoices();
             if (!data) {
-                setError("Could not reach Al-Waseet. Check connection or try again.");
+                setFailure({ key: "finances.payouts.unreachable" });
                 return;
             }
             setInvoices(data);
             setLastSync(new Date());
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load invoices");
+            setFailure(err instanceof Error ? { text: err.message } : { key: "finances.payouts.loadFailed" });
         } finally {
             setLoading(false);
         }
-    };
+    }, [fetchInvoices]);
 
     useEffect(() => {
         loadInvoices();
-    }, []);
+    }, [loadInvoices]);
 
     // Merge invoice data with locally tracked orders to compute expected vs reported
     const reconciliation: ReconciliationRow[] = useMemo(() => {
@@ -63,7 +67,7 @@ export function PayoutsTab() {
             const reportedAmount = parseFloat(inv.merchant_price) || 0;
             const orderCount = parseInt(inv.delivered_orders_count, 10) || 0;
             // Expected = sum of order prices for orders linked to this invoice
-            const linkedOrders = orders.filter((o) => (o as any).waseet_invoice_id === inv.id);
+            const linkedOrders = orders.filter((o) => o.waseet_invoice_id === inv.id);
             const expectedAmount = linkedOrders.reduce((s, o) => s + (o.price || 0), 0);
             const delta = reportedAmount - expectedAmount;
             const deltaPct = expectedAmount > 0 ? (delta / expectedAmount) * 100 : 0;
@@ -111,32 +115,32 @@ export function PayoutsTab() {
     const tiles = [
         {
             id: "upcoming",
-            label: "Upcoming Payouts",
-            sublabel: `${totals.upcomingCount} pending invoices`,
+            label: t("finances.payouts.tile.upcoming"),
+            sublabel: t("finances.payouts.tile.upcomingSub", { count: totals.upcomingCount }),
             value: totals.upcomingValue,
             Icon: Clock,
             accent: "amber" as const,
         },
         {
             id: "settled",
-            label: "Settled (all-time)",
-            sublabel: `${totals.settledCount} invoices closed`,
+            label: t("finances.payouts.tile.settled"),
+            sublabel: t("finances.payouts.tile.settledSub", { count: totals.settledCount }),
             value: totals.settledValue,
             Icon: CheckCircle2,
             accent: "emerald" as const,
         },
         {
             id: "mismatches",
-            label: "Mismatches",
-            sublabel: `${totals.mismatchCount} need review`,
+            label: t("finances.payouts.tile.mismatch"),
+            sublabel: t("finances.payouts.tile.mismatchSub", { count: totals.mismatchCount }),
             value: Math.abs(totals.totalDelta),
             Icon: AlertTriangle,
             accent: totals.mismatchCount > 0 ? ("rose" as const) : ("slate" as const),
         },
         {
             id: "courier",
-            label: "Courier Cash Float",
-            sublabel: "Held by Al-Waseet",
+            label: t("finances.payouts.tile.float"),
+            sublabel: t("finances.payouts.tile.floatSub"),
             value: totals.upcomingValue,
             Icon: Truck,
             accent: "violet" as const,
@@ -160,36 +164,36 @@ export function PayoutsTab() {
                 animate={{ opacity: 1, y: 0 }}
                 className="grid grid-cols-2 md:grid-cols-4 gap-3"
             >
-                {tiles.map((t) => (
+                {tiles.map((tile) => (
                     <div
-                        key={t.id}
+                        key={tile.id}
                         className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4"
                     >
                         <div className="flex items-start justify-between mb-3">
-                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", accentBg(t.accent))}>
-                                <t.Icon className={cn("w-4 h-4", accentText(t.accent))} />
+                            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", accentBg(tile.accent))}>
+                                <tile.Icon className={cn("w-4 h-4", accentText(tile.accent))} />
                             </div>
                         </div>
                         <div className="text-[11px] font-semibold text-muted uppercase tracking-wider truncate">
-                            {t.label}
+                            {tile.label}
                         </div>
                         <div className="mt-1">
                             <FinanceValue
-                                value={t.value}
+                                value={tile.value}
                                 currency="IQD"
                                 abbreviate
                                 className="text-[22px] leading-none text-foreground"
                             />
                         </div>
-                        <div className="text-[11px] text-muted mt-1 truncate">{t.sublabel}</div>
+                        <div className="text-[11px] text-muted mt-1 truncate">{tile.sublabel}</div>
                     </div>
                 ))}
             </motion.div>
 
             {/* Main reconciliation table */}
             <SectionCard
-                title="Invoice reconciliation"
-                subtitle="Expected (your records) vs reported (Al-Waseet) — flag mismatches"
+                title={t("finances.payouts.table.title")}
+                subtitle={t("finances.payouts.table.sub")}
                 icon={Wallet}
                 accent="cyan"
                 action={
@@ -199,7 +203,7 @@ export function PayoutsTab() {
                         className="flex items-center gap-1.5 text-[12px] text-muted hover:text-foreground disabled:opacity-50"
                     >
                         <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
-                        Refresh
+                        {t("finances.payouts.refresh")}
                     </button>
                 }
             >
@@ -219,12 +223,12 @@ export function PayoutsTab() {
                         <table className="w-full text-[13px]">
                             <thead className="bg-[var(--background)] text-[11px] font-semibold text-muted uppercase tracking-wider">
                                 <tr>
-                                    <th className="text-left px-3 py-2.5">Invoice</th>
-                                    <th className="text-right px-3 py-2.5">Orders</th>
-                                    <th className="text-right px-3 py-2.5 hidden md:table-cell">Expected</th>
-                                    <th className="text-right px-3 py-2.5">Reported</th>
-                                    <th className="text-right px-3 py-2.5">Delta</th>
-                                    <th className="text-right px-3 py-2.5">Status</th>
+                                    <th className="text-left px-3 py-2.5">{t("finances.payouts.col.invoice")}</th>
+                                    <th className="text-right px-3 py-2.5">{t("finances.payouts.col.orders")}</th>
+                                    <th className="text-right px-3 py-2.5 hidden md:table-cell">{t("finances.payouts.col.expected")}</th>
+                                    <th className="text-right px-3 py-2.5">{t("finances.payouts.col.reported")}</th>
+                                    <th className="text-right px-3 py-2.5">{t("finances.payouts.col.delta")}</th>
+                                    <th className="text-right px-3 py-2.5">{t("finances.payouts.col.status")}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--card-border)]">
@@ -249,7 +253,7 @@ export function PayoutsTab() {
                                                         #{r.invoice.id}
                                                     </div>
                                                     <div className="text-[11px] text-muted">
-                                                        {formatDateShort(r.invoice.updated_at)}
+                                                        {formatDateShort(r.invoice.updated_at, language)}
                                                     </div>
                                                 </div>
                                             </div>
@@ -303,17 +307,18 @@ export function PayoutsTab() {
                     <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                     <div className="text-[13px] flex-1">
                         <span className="font-semibold text-rose-700 dark:text-rose-300">
-                            {totals.mismatchCount} invoice{totals.mismatchCount === 1 ? "" : "s"} need
-                            {totals.mismatchCount === 1 ? "s" : ""} reconciliation
+                            {totals.mismatchCount === 1
+                                ? t("finances.payouts.mismatchAlertOne")
+                                : t("finances.payouts.mismatchAlert", { count: totals.mismatchCount })}
                         </span>
                         <span className="text-muted ml-1">
-                            — total delta:{" "}
+                            {t("finances.payouts.mismatchDelta")}{" "}
                             <FinanceValue
                                 value={Math.abs(totals.totalDelta)}
                                 currency="IQD"
                                 className="text-foreground"
                             />
-                            . Reach out to Al-Waseet support to dispute.
+                            {" "}{t("finances.payouts.mismatchAction")}
                         </span>
                     </div>
                 </motion.div>
@@ -323,20 +328,20 @@ export function PayoutsTab() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <HelperLink
                     href="/finances?tab=cash"
-                    title="Cash & COD position"
-                    sub="Track cash float separately"
+                    title={t("finances.payouts.link.cash")}
+                    sub={t("finances.payouts.link.cashSub")}
                     Icon={Wallet}
                 />
                 <HelperLink
                     href="/printing"
-                    title="Submit new orders"
-                    sub="Send orders to Al-Waseet"
+                    title={t("finances.payouts.link.submit")}
+                    sub={t("finances.payouts.link.submitSub")}
                     Icon={Truck}
                 />
                 <HelperLink
                     href="/finances?tab=expenses"
-                    title="Add courier expense"
-                    sub="Log shipping costs manually"
+                    title={t("finances.payouts.link.expense")}
+                    sub={t("finances.payouts.link.expenseSub")}
                     Icon={FileText}
                 />
             </div>
@@ -357,8 +362,13 @@ function ConnectionStatus({
     error: string | null;
     onRefresh: () => void;
 }) {
+    const { t } = useLanguage();
     const dotColor = error ? "bg-rose-500" : isConnected ? "bg-emerald-500" : "bg-amber-500";
-    const label = error ? "Disconnected" : isConnected ? "Connected" : "Connecting…";
+    const label = error
+        ? t("finances.payouts.conn.disconnected")
+        : isConnected
+            ? t("finances.payouts.conn.connected")
+            : t("finances.payouts.conn.connecting");
 
     return (
         <div className="flex items-center justify-between rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-2.5">
@@ -369,9 +379,9 @@ function ConnectionStatus({
                     )}
                     <span className={cn("relative inline-flex rounded-full h-2 w-2", dotColor)} />
                 </span>
-                <span className="text-[13px] font-medium text-foreground">Al-Waseet · {label}</span>
+                <span className="text-[13px] font-medium text-foreground">{t("finances.payouts.conn.title", { state: label })}</span>
                 {lastSync && !error && (
-                    <span className="text-[11px] text-muted">· synced {timeAgo(lastSync)}</span>
+                    <span className="text-[11px] text-muted">{t("finances.payouts.conn.synced", { ago: timeAgo(lastSync, t) })}</span>
                 )}
                 {error && (
                     <span className="text-[11px] text-rose-600 dark:text-rose-400 truncate">· {error}</span>
@@ -383,7 +393,7 @@ function ConnectionStatus({
                 className="flex items-center gap-1.5 text-[12px] text-muted hover:text-foreground disabled:opacity-50"
             >
                 <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
-                Refresh
+                {t("finances.payouts.refresh")}
             </button>
         </div>
     );
@@ -421,11 +431,12 @@ function StatusPill({
     status: ReconciliationRow["status"];
     invoiceStatus?: string;
 }) {
+    const { t } = useLanguage();
     const config = {
-        matched: { label: "Matched", className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
-        mismatch: { label: "Mismatch", className: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
-        pending: { label: invoiceStatus || "Pending", className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
-        fetching: { label: "Loading", className: "bg-slate-500/10 text-slate-600 dark:text-slate-400" },
+        matched: { label: t("finances.payouts.status.matched"), className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" },
+        mismatch: { label: t("finances.payouts.status.mismatch"), className: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
+        pending: { label: invoiceStatus || t("finances.payouts.status.pending"), className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
+        fetching: { label: t("finances.payouts.status.loading"), className: "bg-slate-500/10 text-slate-600 dark:text-slate-400" },
     }[status];
 
     return (
@@ -441,14 +452,15 @@ function StatusPill({
 }
 
 function EmptyReconciliation() {
+    const { t } = useLanguage();
     return (
         <div className="py-12 flex flex-col items-center justify-center text-center">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h4 className="text-[14px] font-semibold text-foreground mb-1">No invoices yet</h4>
+            <h4 className="text-[14px] font-semibold text-foreground mb-1">{t("finances.payouts.empty.title")}</h4>
             <p className="text-[12px] text-muted max-w-xs">
-                Once Al-Waseet generates payout invoices, they'll appear here for reconciliation.
+                {t("finances.payouts.empty.body")}
             </p>
         </div>
     );
@@ -482,43 +494,25 @@ function HelperLink({
     );
 }
 
-// useWaseet doesn't expose fetchInvoiceOrders — wrap to add it
-function useWaseetExtended() {
-    const base = useWaseet();
-    const fetchInvoiceOrders = async (invoiceId: string) => {
-        try {
-            // Auth header is added by browser via session cookie if applicable;
-            // for now we use the session.access_token via fetchInvoices proxy pattern.
-            const res = await fetch(`/api/waseet/invoice-orders?invoice_id=${encodeURIComponent(invoiceId)}`);
-            const json = await res.json();
-            return json.success ? json.data : null;
-        } catch {
-            return null;
-        }
-    };
-    return { ...base, fetchInvoiceOrders };
-}
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
-function timeAgo(date: Date): string {
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
+function timeAgo(date: Date, t: Translate): string {
+    const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+    if (seconds < 60) return t("finances.payouts.ago.s", { n: seconds });
     const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString();
+    if (minutes < 60) return t("finances.payouts.ago.m", { n: minutes });
+    return t("finances.payouts.ago.h", { n: Math.floor(minutes / 60) });
 }
 
-function formatDateShort(s: string): string {
-    try {
-        return new Date(s).toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        });
-    } catch {
-        return s;
-    }
+function formatDateShort(s: string, language: string): string {
+    const at = new Date(s);
+    if (Number.isNaN(at.getTime())) return s;
+    return at.toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Baghdad",
+    });
 }
 
 function accentBg(a: string): string {

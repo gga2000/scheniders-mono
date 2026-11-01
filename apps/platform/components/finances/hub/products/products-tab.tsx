@@ -21,6 +21,7 @@ interface Props {
     orders: Order[];
     products: Product[];
     period: FinancePeriod;
+    granularity: Granularity;
 }
 
 interface SkuRow {
@@ -42,8 +43,7 @@ interface SkuRow {
 
 const REFUND_STATUSES = new Set(["refund_delivered", "refund_failed", "return_pending"]);
 
-export function ProductsFinanceTab({ orders, products, period }: Props) {
-    const granularity = inferGranularity(period.start, period.end);
+export function ProductsFinanceTab({ orders, products, period, granularity }: Props) {
     const range = useMemo(() => ({ start: period.start, end: period.end }), [period.start, period.end]);
     const revenue = useFinanceRevenue(orders, products, range, null, granularity);
 
@@ -235,7 +235,7 @@ function UnitEconomicsTable({ rows }: { rows: SkuRow[] }) {
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={t("finances.products.table.search")}
-                        className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none focus:border-violet-500/50 w-44"
+                        className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-violet-500/50 w-44"
                     />
                 </div>
             }
@@ -362,15 +362,6 @@ function QuadrantBadge({ quadrant }: { quadrant: SkuRow["quadrant"] }) {
             {label}
         </span>
     );
-}
-
-function inferGranularity(start: Date, end: Date): Granularity {
-    const days = Math.max(1, (end.getTime() - start.getTime()) / 86400000);
-    if (days <= 14) return "day";
-    if (days <= 90) return "week";
-    if (days <= 730) return "month";
-    if (days <= 1825) return "quarter";
-    return "year";
 }
 
 function median(values: number[]): number {

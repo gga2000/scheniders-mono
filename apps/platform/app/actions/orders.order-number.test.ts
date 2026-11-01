@@ -103,4 +103,28 @@ describe("createOrderAction", () => {
         await createOrderAction(base, "token");
         expect(vi.mocked(createOrderForTenant).mock.calls.map((c) => c[0].order_id)).toEqual(["RTN-41-1", undefined]);
     });
+
+    it("refuses an unknown status, a NaN price and a negative fee before writing", async () => {
+        signedInAs("employee");
+        vi.mocked(createOrderForTenant).mockClear();
+        const bad = [
+            { ...base, status: "shipped" },
+            { ...base, price: Number.NaN },
+            { ...base, delivery_fee: -500 },
+            { ...base, items: [{ quantity: -1 }] },
+        ] as unknown as CreateOrderInput[];
+        for (const input of bad) {
+            const res = await createOrderAction(input, "token");
+            expect(res.success).toBe(false);
+        }
+        expect(createOrderForTenant).not.toHaveBeenCalled();
+    });
+
+    it("keeps a return's negative price and the columns it does not check", async () => {
+        signedInAs("employee");
+        vi.mocked(createOrderForTenant).mockResolvedValue({ success: true });
+        const input = { ...base, price: -1000, is_return: true, notes: "x", status: "return_pending" } as unknown as CreateOrderInput;
+        expect((await createOrderAction(input, "token")).success).toBe(true);
+        expect(vi.mocked(createOrderForTenant).mock.lastCall?.[0]).toMatchObject({ price: -1000, is_return: true, notes: "x" });
+    });
 });

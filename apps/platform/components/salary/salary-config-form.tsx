@@ -135,7 +135,7 @@ export function SalaryConfigForm({
                                         onChange={e => setBaseSalary(parseFloat(e.target.value) || 0)}
                                         min={0}
                                         placeholder="850000"
-                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/30 transition-all"
+                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/30 transition-all"
                                     />
                                 </div>
                                 <div>
@@ -148,7 +148,7 @@ export function SalaryConfigForm({
                                         onChange={e => setPerOrderBonus(parseFloat(e.target.value) || 0)}
                                         min={0}
                                         placeholder="500"
-                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/30 transition-all"
+                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/30 transition-all"
                                     />
                                     <p className="text-xs text-muted mt-1.5">
                                         {t("payroll.config.perOrderHint")}

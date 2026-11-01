@@ -16,16 +16,17 @@ import { CustomersSummary } from "./customers-summary";
 import { CustomersLtvDistribution } from "./customers-ltv-distribution";
 import { CustomersAcquisitionMix } from "./customers-acquisition-mix";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { CustomerSummary, DormantCustomer } from "@/hooks/use-finance-customers";
 
 interface Props {
     orders: Order[];
     period: FinancePeriod;
     compareRange: { start: Date; end: Date } | null;
+    granularity: Granularity;
 }
 
-export function CustomersFinanceTab({ orders, period }: Props) {
-    const granularity = inferGranularity(period.start, period.end);
+export function CustomersFinanceTab({ orders, period, granularity }: Props) {
     const data = useFinanceCustomers(
         orders,
         { start: period.start, end: period.end },
@@ -53,16 +54,8 @@ export function CustomersFinanceTab({ orders, period }: Props) {
     );
 }
 
-function inferGranularity(start: Date, end: Date): Granularity {
-    const days = Math.max(1, (end.getTime() - start.getTime()) / 86400000);
-    if (days <= 14) return "day";
-    if (days <= 90) return "week";
-    if (days <= 730) return "month";
-    if (days <= 1825) return "quarter";
-    return "year";
-}
-
 function TopSpendersTable({ rows }: { rows: CustomerSummary[] }) {
+    const { t } = useLanguage();
     const [query, setQuery] = useState("");
     const filtered = useMemo(() => {
         if (!query) return rows;
@@ -76,8 +69,8 @@ function TopSpendersTable({ rows }: { rows: CustomerSummary[] }) {
 
     return (
         <SectionCard
-            title="Top Spenders"
-            subtitle={rows.length === 0 ? "No revenue customers yet" : `Top ${rows.length} by lifetime revenue`}
+            title={t("finances.cust.top.title")}
+            subtitle={rows.length === 0 ? t("finances.cust.top.emptySub") : t("finances.cust.top.sub", { count: rows.length })}
             icon={Crown}
             accent="amber"
             action={
@@ -87,15 +80,15 @@ function TopSpendersTable({ rows }: { rows: CustomerSummary[] }) {
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search…"
-                        className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none focus:border-amber-500/50 w-44"
+                        placeholder={t("finances.cust.search")}
+                        className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-amber-500/50 w-44"
                     />
                 </div>
             }
         >
             {rows.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted">
-                    No customers with revenue yet.
+                    {t("finances.cust.top.empty")}
                 </div>
             ) : (
                 <div className="space-y-1.5">
@@ -134,13 +127,13 @@ function TopSpendersTable({ rows }: { rows: CustomerSummary[] }) {
                                         className="text-[13px] font-semibold text-amber-600 dark:text-amber-400 tabular-nums block"
                                     />
                                     <div className="text-[10px] text-muted tabular-nums">
-                                        AOV {Math.round(c.aov / 1000)}K
+                                        {t("finances.cust.aovShort", { value: Math.round(c.aov / 1000) })}
                                     </div>
                                 </div>
                                 <Link
                                     href={`/customers/${encodeURIComponent(normalizePhoneForSearch(c.phone))}`}
                                     className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-[var(--background)] transition-colors"
-                                    title="Open customer"
+                                    title={t("finances.cust.open")}
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                 </Link>
@@ -154,22 +147,23 @@ function TopSpendersTable({ rows }: { rows: CustomerSummary[] }) {
 }
 
 function DormantHighValueTable({ rows }: { rows: DormantCustomer[] }) {
+    const { t } = useLanguage();
     const totalRevenue = rows.reduce((s, c) => s + c.revenue, 0);
 
     return (
         <SectionCard
-            title="Dormant High-Value"
+            title={t("finances.cust.dormant.title")}
             subtitle={
                 rows.length === 0
-                    ? "No dormant customers above median LTV"
-                    : `${rows.length} at-risk customers · ${Math.round(totalRevenue / 1000)}K total LTV`
+                    ? t("finances.cust.dormant.emptySub")
+                    : t("finances.cust.dormant.sub", { count: rows.length, value: Math.round(totalRevenue / 1000) })
             }
             icon={AlarmClock}
             accent="rose"
         >
             {rows.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted">
-                    No high-value customers have lapsed yet.
+                    {t("finances.cust.dormant.empty")}
                 </div>
             ) : (
                 <div className="space-y-1.5">
@@ -189,7 +183,7 @@ function DormantHighValueTable({ rows }: { rows: DormantCustomer[] }) {
                             <div className="min-w-0 flex-1">
                                 <div className="text-[12.5px] font-medium text-foreground truncate">{c.name}</div>
                                 <div className="text-[10.5px] text-muted">
-                                    {c.phone}{c.city ? ` · ${c.city}` : ""} · {c.orders_count} orders
+                                    {c.phone}{c.city ? ` · ${c.city}` : ""} · {t("finances.cust.dormant.orders", { count: c.orders_count })}
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
@@ -205,13 +199,13 @@ function DormantHighValueTable({ rows }: { rows: DormantCustomer[] }) {
                                             ? "text-rose-600 dark:text-rose-400"
                                             : "text-amber-600 dark:text-amber-400"
                                     )}>
-                                        {c.days_since_last_order}d silent
+                                        {t("finances.cust.dormant.silent", { days: c.days_since_last_order })}
                                     </div>
                                 </div>
                                 <Link
                                     href={`/customers/${encodeURIComponent(normalizePhoneForSearch(c.phone))}`}
                                     className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-[var(--background)] transition-colors"
-                                    title="Open customer"
+                                    title={t("finances.cust.open")}
                                 >
                                     <ExternalLink className="w-3.5 h-3.5" />
                                 </Link>

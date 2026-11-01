@@ -600,7 +600,7 @@ export function OrderDetailsModal({
                                             <button
                                                 onClick={startIdEdit}
                                                 className="absolute -top-1 -right-3 p-1 text-muted hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all opacity-0 group-hover/id:opacity-100 bg-white shadow-sm border border-gray-100"
-                                                title="Edit Order ID"
+                                                title={t("orders.tip.editOrderId")}
                                             >
                                                 <Edit2 className="w-2.5 h-2.5" />
                                             </button>
@@ -774,7 +774,7 @@ export function OrderDetailsModal({
                                                     "pl-6 pr-2 py-1.5 w-40 text-sm font-bold font-mono border rounded-md focus:outline-none focus:ring-2",
                                                     idError ? "border-red-300 focus:ring-red-200 bg-red-50" : "border-gray-200 focus:ring-blue-100"
                                                 )}
-                                                placeholder="Order ID"
+                                                placeholder={t("orders.tip.orderIdPlaceholder")}
                                                 autoFocus
                                             />
                                             {isCheckingId && (
@@ -845,7 +845,7 @@ export function OrderDetailsModal({
                                 <button
                                     onClick={onClose}
                                     className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all"
-                                    aria-label="Close"
+                                    aria-label={t("orders.tip.close")}
                                 >
                                     <X className="h-3.5 w-3.5" />
                                 </button>
@@ -1226,7 +1226,7 @@ export function OrderDetailsModal({
                                                     <button
                                                         onClick={() => setShowSplitDialog(true)}
                                                         className="flex items-center gap-2 px-3 py-3 rounded-xl bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-100 transition-all font-medium"
-                                                        title="Split Order"
+                                                        title={t("orders.tip.splitOrder")}
                                                     >
                                                         <Scissors className="h-4 w-4" />
                                                     </button>

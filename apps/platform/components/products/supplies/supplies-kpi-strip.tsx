@@ -252,7 +252,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 .select("quantity_change,change_type,created_at,product_id")
                 .in("product_id", supplyIds)
                 .lt("quantity_change", 0)
-                .neq("change_type", "count")
+                .not("change_type", "in", "(count,written_off,returned_to_supplier,open_box_count,qc_undo)")
                 .gte("created_at", since.toISOString());
             if (error) throw error;
             const rows =

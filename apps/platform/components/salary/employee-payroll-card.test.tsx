@@ -58,4 +58,16 @@ describe("EmployeePayrollCard ledger", () => {
         renderCard(payrollEmployees[2]);
         expect(screen.getByText("Employee")).toBeTruthy();
     });
+
+    it("shows what pay would be if the member's in-transit orders arrive, without changing net pay", () => {
+        renderCard(payrollEmployees[0]);
+        expect(screen.getByText(/If its 37 in-transit orders arrive/)).toBeTruthy();
+        expect(screen.getByText("799,000 IQD")).toBeTruthy();
+        expect(screen.getByText("+37,000")).toBeTruthy();
+    });
+
+    it("hides the projection when nothing is in transit", () => {
+        renderCard(payrollEmployees[2]);
+        expect(screen.queryByText(/in-transit orders arrive/)).toBeNull();
+    });
 });

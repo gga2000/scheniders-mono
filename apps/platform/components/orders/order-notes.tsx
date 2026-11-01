@@ -2,12 +2,15 @@
 
 import { useLanguage } from "@/hooks/use-language";
 import { FileText } from "lucide-react";
+import type { Order } from "@/types/order";
+
+type NotesKey = "notes" | "internal_notes";
 
 interface OrderNotesProps {
     isEditing: boolean;
-    order: any;
-    formData: any;
-    updateFormData: (key: string, value: any) => void;
+    order: Order;
+    formData: Partial<Order>;
+    updateFormData: (key: string, value: unknown) => void;
 }
 
 export function OrderNotes({
@@ -18,11 +21,11 @@ export function OrderNotes({
 }: OrderNotesProps) {
     const { t } = useLanguage();
 
-    const displayValue = (key: string) => {
+    const displayValue = (key: NotesKey): string => {
         if (isEditing && formData[key] !== undefined) {
-            return formData[key];
+            return formData[key] ?? "";
         }
-        return order?.[key];
+        return order[key] ?? "";
     };
 
     return (
@@ -39,7 +42,7 @@ export function OrderNotes({
                 <div className="p-4">
                     {isEditing ? (
                         <textarea
-                            value={(displayValue("notes") || "") as string}
+                            value={displayValue("notes")}
                             onChange={(e) => updateFormData("notes", e.target.value)}
                             placeholder={t("orderDetail.orderNotesPlaceholder")}
                             rows={2}
@@ -65,7 +68,7 @@ export function OrderNotes({
                 <div className="p-4">
                     {isEditing ? (
                         <textarea
-                            value={(displayValue("internal_notes") || "") as string}
+                            value={displayValue("internal_notes")}
                             onChange={(e) => updateFormData("internal_notes", e.target.value)}
                             placeholder={t("orderDetail.internalNotesPlaceholder")}
                             rows={2}

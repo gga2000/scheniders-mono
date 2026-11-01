@@ -1,5 +1,6 @@
 "use client";
 
+import { bucketsBetween, periodBucket } from "@/lib/finance/buckets";
 import { useMemo } from "react";
 import type { Order, Product } from "@/lib/supabase";
 import type { DateInterval } from "./use-finance-overview";
@@ -82,30 +83,6 @@ function within(d: Date, i: DateInterval): boolean {
     return d >= i.start && d <= i.end;
 }
 
-function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number } {
-    const dd = new Date(d);
-    dd.setHours(0, 0, 0, 0);
-    if (granularity === "day" || granularity === "week") {
-        const dayKey = baghdadDayKey(d);
-        if (granularity === "day") return { key: dayKey, ts: baghdadDayStart(dayKey) };
-        const weekday = new Date(`${dayKey}T00:00:00.000Z`).getUTCDay();
-        const mondayKey = addDaysToDayKey(dayKey, -((weekday + 6) % 7));
-        return { key: mondayKey, ts: baghdadDayStart(mondayKey) };
-    }
-    if (granularity === "quarter") {
-        const q = Math.floor(dd.getMonth() / 3);
-        const first = new Date(dd.getFullYear(), q * 3, 1);
-        return { key: `${dd.getFullYear()}-Q${q + 1}`, ts: first.getTime() };
-    }
-    if (granularity === "year") {
-        const first = new Date(dd.getFullYear(), 0, 1);
-        return { key: `${dd.getFullYear()}`, ts: first.getTime() };
-    }
-    const y = dd.getFullYear();
-    const m = String(dd.getMonth() + 1).padStart(2, "0");
-    return { key: `${y}-${m}`, ts: new Date(y, dd.getMonth(), 1).getTime() };
-}
-
 export function useFinanceRevenue(
     orders: Order[],
     products: Product[],
@@ -170,7 +147,7 @@ export function useFinanceRevenue(
         for (const o of curr) {
             if (!isRealizedRevenue(o)) continue;
             if (!o.items) continue;
-            const { key, ts } = bucketKey(new Date(o.delivered_at || o.updated_at || o.created_at), granularity);
+            const { key, ts } = periodBucket(new Date(o.delivered_at || o.updated_at || o.created_at), granularity);
             bucketSet.set(key, { key, ts });
 
             for (const it of o.items) {
@@ -219,31 +196,7 @@ export function useFinanceRevenue(
         // Walk the period tick-by-tick so the heatmap always shows the full timeline,
         // even if the only delivered order in the range fell on a single day.
         const fullBuckets = new Map<string, { key: string; ts: number }>();
-        const stepMs =
-            granularity === "day" ? 24 * 3600 * 1000 :
-                granularity === "week" ? 7 * 24 * 3600 * 1000 :
-                    granularity === "month" ? 0 :
-                        granularity === "quarter" ? 0 :
-                            0;
-        if (stepMs > 0) {
-            for (let t = current.start.getTime(); t <= current.end.getTime(); t += stepMs) {
-                const { key, ts } = bucketKey(new Date(t), granularity);
-                if (!fullBuckets.has(key)) fullBuckets.set(key, { key, ts });
-            }
-        } else {
-            // Month / quarter / year — increment by month boundaries so we don't skip.
-            const cursor = new Date(current.start);
-            cursor.setHours(0, 0, 0, 0);
-            cursor.setDate(1);
-            const endTs = current.end.getTime();
-            while (cursor.getTime() <= endTs) {
-                const { key, ts } = bucketKey(cursor, granularity);
-                if (!fullBuckets.has(key)) fullBuckets.set(key, { key, ts });
-                if (granularity === "month") cursor.setMonth(cursor.getMonth() + 1);
-                else if (granularity === "quarter") cursor.setMonth(cursor.getMonth() + 3);
-                else cursor.setFullYear(cursor.getFullYear() + 1);
-            }
-        }
+        for (const b of bucketsBetween(current.start, current.end, granularity)) fullBuckets.set(b.key, b);
         // Always include any bucket the data already touched, in case the period boundary trims one.
         for (const b of bucketSet.values()) if (!fullBuckets.has(b.key)) fullBuckets.set(b.key, b);
 

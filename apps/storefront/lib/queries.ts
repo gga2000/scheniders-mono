@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "./supabase/server";
+import { withStorefrontStock } from "./storefront-stock";
 import type { Tables } from "@scheniders/supabase";
 import type { PriceTier, ProductReview, ProductAttributeDef } from "@scheniders/shared";
 import { parseProductAttributeDefs, resolveProductAttributes } from "@scheniders/shared";
@@ -165,7 +166,7 @@ async function withVariantFlags(
  *  20260817125055_anon_products_column_lockdown.sql and later grants) —
  *  an ungranted column fails the whole anon select. */
 export const PRODUCT_COLUMNS =
-  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank, brand, size_ml, display_name, gender";
+  "id, tenant_id, name, slug, description, short_description, price, website_price, compare_at_price, image_url, gallery_urls, feature_cards, stock_quantity, reserved_quantity, storefront_stock, sku, is_archived, is_visible, display_order, category_id, created_at, bestseller_rank, brand, size_ml, display_name, gender";
 
 /**
  * Add-on offers attached to one product. PDP only, like tiers — and like
@@ -796,7 +797,11 @@ function coerceFeatureCards(
 }
 
 function normalizeProduct(row: Record<string, unknown>): Product {
-  const r = row as unknown as Product & { website_price?: number | null };
+  // A merchant-set storefront stock is what every section shows and sells
+  // against; the real count stays the platform's.
+  const r = withStorefrontStock(
+    row as unknown as Product & { website_price?: number | null; storefront_stock: number | null },
+  );
   return {
     ...r,
     // Use website_price if set, else fall back to internal price

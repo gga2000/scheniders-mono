@@ -51,7 +51,7 @@ interface PayrollAdjustmentModalProps {
 }
 
 const INPUT_BASE =
-    "w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 transition-all";
+    "w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 transition-all";
 
 /** One form for the three pay adjustments: salary advance, penalty, performance bonus. */
 export function PayrollAdjustmentModal({ kind, isOpen, onClose, employeeName, onSubmit }: PayrollAdjustmentModalProps) {

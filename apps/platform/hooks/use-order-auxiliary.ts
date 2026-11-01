@@ -294,17 +294,17 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
         apiRef.current = latestFn;
     });
 
-    const stableAPI = useMemo(() => {
-        const proxy: any = {};
-        for (const key in latestFn) {
-            proxy[key as keyof typeof latestFn] = (...args: any[]) => {
-                // @ts-expect-error dynamic wrapper
-                return apiRef.current[key as keyof typeof latestFn](...args);
-            };
+    // One wrapper per helper, created once: each forwards to the latest
+    // closure in apiRef, so consumers get stable identities that never go stale.
+    const [stableAPI] = useState(() => {
+        type Api = typeof latestFn;
+        type AnyFn = (...args: never[]) => unknown;
+        const proxy: Partial<Record<keyof Api, AnyFn>> = {};
+        for (const key of Object.keys(latestFn) as Array<keyof Api>) {
+            proxy[key] = (...args: never[]) => (apiRef.current[key] as AnyFn)(...args);
         }
-        return proxy as typeof latestFn;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        return proxy as Api;
+    });
 
     return {
         // Reference data

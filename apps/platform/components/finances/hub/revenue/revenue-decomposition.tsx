@@ -6,6 +6,7 @@ import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
 import { Delta } from "../primitives/delta";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import type { RevenueDecomposition as Decomp } from "@/hooks/use-finance-revenue";
 
 interface Props {
@@ -13,35 +14,36 @@ interface Props {
 }
 
 export function RevenueDecomposition({ data }: Props) {
+    const { t } = useLanguage();
     const noPrev = data.revPrev === 0 && data.ordersPrev === 0;
 
     return (
         <SectionCard
-            title="Revenue Decomposition"
-            subtitle={noPrev ? "No prior period to compare" : "How the revenue change splits across volume vs. price"}
+            title={t("finances.decomp.title")}
+            subtitle={noPrev ? t("finances.decomp.noPrev") : t("finances.decomp.sub")}
             icon={TrendingUp}
             accent="emerald"
         >
             {noPrev ? (
                 <div className="py-10 text-center text-sm text-muted">
-                    Enable comparison to see decomposition.
+                    {t("finances.decomp.enable")}
                 </div>
             ) : (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <MetricCard
-                            label="Revenue"
+                            label={t("finances.decomp.revenue")}
                             prev={data.revPrev}
                             curr={data.revCurr}
                         />
                         <MetricCard
-                            label="Orders"
+                            label={t("finances.decomp.orders")}
                             prev={data.ordersPrev}
                             curr={data.ordersCurr}
                             currency="none"
                         />
                         <MetricCard
-                            label="AOV"
+                            label={t("finances.decomp.aov")}
                             prev={data.aovPrev}
                             curr={data.aovCurr}
                         />
@@ -49,7 +51,7 @@ export function RevenueDecomposition({ data }: Props) {
 
                     <div className="rounded-xl border border-[var(--card-border)] bg-[var(--background)]/40 p-4">
                         <div className="text-[11px] uppercase tracking-wider text-muted font-semibold mb-3">
-                            Revenue bridge
+                            {t("finances.decomp.bridge")}
                         </div>
                         <WaterfallBridge data={data} />
                     </div>
@@ -57,15 +59,15 @@ export function RevenueDecomposition({ data }: Props) {
                     <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
                         <EffectCard
                             icon={Users}
-                            label="Volume effect"
-                            sublabel={`${formatSignedNumber(data.deltaOrders)} orders × ${formatShortIqd(data.aovPrev)} prev AOV`}
+                            label={t("finances.decomp.volumeEffect")}
+                            sublabel={t("finances.decomp.volumeSub", { orders: formatSignedNumber(data.deltaOrders), aov: formatShortIqd(data.aovPrev) })}
                             value={data.volumeEffect}
                             tone={data.volumeEffect >= 0 ? "emerald" : "rose"}
                         />
                         <EffectCard
                             icon={Tag}
-                            label="Price effect (AOV)"
-                            sublabel={`${formatSignedIqd(data.deltaAov)} AOV × ${formatSignedNumber(data.ordersCurr)} curr orders`}
+                            label={t("finances.decomp.priceEffect")}
+                            sublabel={t("finances.decomp.priceSub", { aov: formatSignedIqd(data.deltaAov), orders: formatSignedNumber(data.ordersCurr) })}
                             value={data.priceEffect}
                             tone={data.priceEffect >= 0 ? "emerald" : "rose"}
                         />
@@ -84,6 +86,7 @@ interface MetricCardProps {
 }
 
 function MetricCard({ label, prev, curr, currency = "IQD" }: MetricCardProps) {
+    const { t } = useLanguage();
     const deltaPct = prev === 0 ? 0 : ((curr - prev) / prev) * 100;
     return (
         <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4">
@@ -99,7 +102,7 @@ function MetricCard({ label, prev, curr, currency = "IQD" }: MetricCardProps) {
                 <Delta value={deltaPct} variant="inline" size="sm" />
             </div>
             <div className="text-[11px] text-muted mt-1.5">
-                was{" "}
+                {t("finances.decomp.was")}{" "}
                 <FinanceValue
                     value={prev}
                     currency={currency}
@@ -142,15 +145,16 @@ function EffectCard({ icon: Icon, label, sublabel, value, tone }: EffectCardProp
 }
 
 function WaterfallBridge({ data }: { data: Decomp }) {
+    const { t } = useLanguage();
     // Steps: Prev → +Volume → +Price → +Mix → Curr
     const prev = data.revPrev;
     const curr = data.revCurr;
     const steps = [
-        { label: "Prev", value: prev, isAnchor: true, delta: 0 },
-        { label: "Volume", value: data.volumeEffect, isAnchor: false, delta: data.volumeEffect },
-        { label: "Price", value: data.priceEffect, isAnchor: false, delta: data.priceEffect },
-        { label: "Mix", value: data.mixResidual, isAnchor: false, delta: data.mixResidual },
-        { label: "Curr", value: curr, isAnchor: true, delta: 0 },
+        { label: t("finances.decomp.step.prev"), value: prev, isAnchor: true, delta: 0 },
+        { label: t("finances.decomp.step.volume"), value: data.volumeEffect, isAnchor: false, delta: data.volumeEffect },
+        { label: t("finances.decomp.step.price"), value: data.priceEffect, isAnchor: false, delta: data.priceEffect },
+        { label: t("finances.decomp.step.mix"), value: data.mixResidual, isAnchor: false, delta: data.mixResidual },
+        { label: t("finances.decomp.step.curr"), value: curr, isAnchor: true, delta: 0 },
     ];
 
     // Single shared scale so anchors and deltas are visually comparable, and

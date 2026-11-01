@@ -9,20 +9,23 @@ import { SectionCard } from "../primitives/section-card";
 import { FinanceTooltip } from "../primitives/finance-tooltip";
 import { FinanceValue } from "../primitives/finance-value";
 import type { AcquisitionMixPoint } from "@/hooks/use-finance-customers";
+import { useLanguage } from "@/hooks/use-language";
 
 interface Props {
     data: AcquisitionMixPoint[];
 }
 
 export function CustomersAcquisitionMix({ data }: Props) {
+    const { t, language } = useLanguage();
     const series = useMemo(() => {
+        const locale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
         return data.map((p) => ({
-            label: prettyLabel(p.bucket),
+            label: prettyLabel(p.bucket, locale, (date) => t("finances.cust.mix.week", { date })),
             new_revenue: Math.round(p.new_revenue),
             returning_revenue: Math.round(p.returning_revenue),
             total: Math.round(p.new_revenue + p.returning_revenue),
         }));
-    }, [data]);
+    }, [data, language, t]);
 
     const totals = useMemo(() => {
         let n = 0, r = 0;
@@ -33,13 +36,13 @@ export function CustomersAcquisitionMix({ data }: Props) {
     if (series.length === 0 || totals.total === 0) {
         return (
             <SectionCard
-                title="New vs Returning Revenue"
-                subtitle="No revenue in this period"
+                title={t("finances.cust.mix.title")}
+                subtitle={t("finances.cust.mix.emptySub")}
                 icon={Users2}
                 accent="cyan"
             >
                 <div className="py-10 text-center text-sm text-muted">
-                    Waiting for revenue data — the split appears once orders complete.
+                    {t("finances.cust.mix.empty")}
                 </div>
             </SectionCard>
         );
@@ -47,21 +50,21 @@ export function CustomersAcquisitionMix({ data }: Props) {
 
     return (
         <SectionCard
-            title="New vs Returning Revenue"
-            subtitle={`Returning revenue ${totals.share.toFixed(0)}% of period`}
+            title={t("finances.cust.mix.title")}
+            subtitle={t("finances.cust.mix.sub", { pct: totals.share.toFixed(0) })}
             icon={Users2}
             accent="cyan"
         >
             <div className="flex flex-wrap gap-4 mb-4">
                 <Stat
                     color="bg-cyan-500"
-                    label="New customer revenue"
+                    label={t("finances.cust.mix.new")}
                     value={totals.n}
                     share={totals.total > 0 ? (totals.n / totals.total) * 100 : 0}
                 />
                 <Stat
                     color="bg-violet-500"
-                    label="Returning revenue"
+                    label={t("finances.cust.mix.returning")}
                     value={totals.r}
                     share={totals.total > 0 ? (totals.r / totals.total) * 100 : 0}
                 />
@@ -99,8 +102,8 @@ export function CustomersAcquisitionMix({ data }: Props) {
                                     {...p}
                                     title={String(p.label ?? "")}
                                     rows={[
-                                        { label: "New customers", value: Number(p.payload?.[0]?.payload?.new_revenue ?? 0), color: "#06b6d4" },
-                                        { label: "Returning", value: Number(p.payload?.[0]?.payload?.returning_revenue ?? 0), color: "#8b5cf6" },
+                                        { label: t("finances.cust.mix.tipNew"), value: Number(p.payload?.[0]?.payload?.new_revenue ?? 0), color: "#06b6d4" },
+                                        { label: t("finances.cust.mix.tipReturning"), value: Number(p.payload?.[0]?.payload?.returning_revenue ?? 0), color: "#8b5cf6" },
                                     ]}
                                 />
                             )}
@@ -143,18 +146,17 @@ function Stat({ color, label, value, share }: { color: string; label: string; va
     );
 }
 
-function prettyLabel(key: string): string {
+/** Bucket keys are Baghdad day keys; format them as UTC so the browser's zone never shifts the day. */
+function prettyLabel(key: string, locale: string, week: (date: string) => string): string {
+    const day = { month: "short", day: "numeric", timeZone: "UTC" } as const;
     if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
-        const d = new Date(key);
-        return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        return new Date(`${key}T00:00:00Z`).toLocaleDateString(locale, day);
     }
     if (key.startsWith("W-")) {
-        const d = new Date(key.slice(2));
-        return `W ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+        return week(new Date(`${key.slice(2)}T00:00:00Z`).toLocaleDateString(locale, day));
     }
     if (/^\d{4}-\d{2}$/.test(key)) {
-        const [y, m] = key.split("-").map(Number);
-        return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+        return new Date(`${key}-01T00:00:00Z`).toLocaleDateString(locale, { month: "short", year: "2-digit", timeZone: "UTC" });
     }
     return key;
 }

@@ -9,7 +9,7 @@
  * lists.
  */
 export const PRODUCT_READ_COLUMNS =
-    "id, created_at, updated_at, name, description, price, stock_quantity, low_stock_threshold, image_url, is_archived, tag_color, compare_at_price, sku, lightfunnels_aliases, reserved_quantity, is_supply, tenant_id, slug, is_visible, display_order, website_price, short_description, category_id, barcode, reorder_point, status, product_type, weight, dimensions_json, duration_minutes, booking_enabled, download_url, file_size, license_key_pattern, open_box_quantity, gallery_urls, feature_cards, short_name, bestseller_rank, is_filler, brand, size_ml, display_name, gender, status_before_archive";
+    "id, created_at, updated_at, name, description, price, stock_quantity, low_stock_threshold, image_url, is_archived, tag_color, compare_at_price, sku, lightfunnels_aliases, reserved_quantity, is_supply, tenant_id, slug, is_visible, display_order, website_price, storefront_stock, short_description, category_id, barcode, reorder_point, status, product_type, weight, dimensions_json, duration_minutes, booking_enabled, download_url, file_size, license_key_pattern, open_box_quantity, gallery_urls, feature_cards, short_name, bestseller_rank, is_filler, brand, size_ml, display_name, gender, status_before_archive";
 
 export const VARIANT_READ_COLUMNS =
     "id, product_id, created_at, updated_at, name, price, stock_quantity, sku, tenant_id, reserved_quantity, compare_at_price, weight, dimensions_json, barcode, low_stock_threshold, display_order, option_values, image_url, is_enabled, open_box_quantity";

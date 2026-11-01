@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase, OrderItem, Product } from './supabase';
-import { productRepository } from './repositories/product-repository';
 
 /**
  * Calculates the truly available stock (physical - reserved).
@@ -11,129 +10,10 @@ import { productRepository } from './repositories/product-repository';
  * inventory cannot be double-counted from any code path.
  *
  * What remains in this file are side-effects the trigger does NOT cover:
- *   - QC quarantine queue (quarantine / remove / resolve)
  *   - supplies / BOM deduction (supplies are not catalog products)
  */
 export function getAvailableStock(product: Product): number {
     return Math.max(0, product.stock_quantity - (product.reserved_quantity || 0));
-}
-
-/**
- * Moves items into the QC Quarantine table when an order is Rejected or Refunded.
- * Reserved/stock math is handled by the DB trigger on `orders`; this only
- * records the returned items as needing inspection.
- *
- * `db` defaults to the browser client; server callers (the MCP tools) pass a
- * client carrying the user's own token so RLS still applies.
- */
-export async function quarantineOrder(orderId: string, orderItems: OrderItem[], reason: string, tenantId: string, db: SupabaseClient = supabase) {
-    if (!orderItems || orderItems.length === 0) return { success: true };
-
-    try {
-        const qcItems = orderItems
-            .filter(item => item.product_id)
-            .map(item => ({
-                tenant_id: tenantId,
-                order_id: orderId,
-                product_id: item.product_id,
-                quantity: item.quantity,
-                status: 'pending_inspection',
-                reason: reason
-            }));
-
-        if (qcItems.length > 0) {
-            // RLS only admits rows stamped with the caller's store; without
-            // tenant_id every insert was refused and the queue stayed empty.
-            const { error } = await db.from('qc_quarantine').insert(qcItems);
-            if (error) throw error;
-        }
-
-        return { success: true };
-    } catch (e: any) {
-        console.error("Failed to quarantine order:", e);
-        return { success: false, error: e.message };
-    }
-}
-
-/**
- * Removes items from QC Quarantine when an order's rejected/cancelled status is reverted.
- */
-export async function removeFromQuarantine(orderId: string, tenantId: string, db: SupabaseClient = supabase) {
-    try {
-        const { error } = await db
-            .from('qc_quarantine')
-            .delete()
-            .eq('tenant_id', tenantId)
-            .eq('order_id', orderId)
-            .eq('status', 'pending_inspection');
-        if (error) throw error;
-
-        return { success: true };
-    } catch (e: any) {
-        console.error("Failed to remove from quarantine:", e);
-        return { success: false, error: e.message };
-    }
-}
-
-export type QCResolution = 'restocked' | 'written_off' | 'returned_to_supplier';
-
-/**
- * Resolves a quarantined item.
- * `restocked` — item returned to sellable inventory (no stock change; was never deducted)
- * `written_off` — item destroyed / lost; physical stock deducted
- * `returned_to_supplier` — shipped back to supplier; physical stock deducted, RMA recorded
- *
- * A rejected/returned order never had its physical stock deducted under the
- * reserve-model (the trigger only drops stock on the FULFILLED phase: in_transit,
- * delivered, completed). So 'restocked' needs no stock change, while
- * 'written_off' / 'returned_to_supplier' must drop physical stock here.
- */
-export async function resolveQuarantine(
-    qcItemId: string,
-    resolution: QCResolution,
-    productId: string,
-    quantity: number,
-    extras?: { rma_number?: string; credit_expected?: number; notes?: string }
-) {
-    try {
-        const updatePayload: Record<string, any> = {
-            status: resolution,
-            resolved_at: new Date().toISOString(),
-        };
-        if (extras?.rma_number !== undefined) updatePayload.rma_number = extras.rma_number;
-        if (extras?.credit_expected !== undefined) updatePayload.credit_expected = extras.credit_expected;
-        if (extras?.notes !== undefined) updatePayload.notes = extras.notes;
-
-        // Claim the item first, only while it is still open: a double click or a
-        // second tab updates no row and so deducts nothing a second time.
-        const { data: claimed, error: claimError } = await supabase
-            .from('qc_quarantine')
-            .update(updatePayload)
-            .eq('id', qcItemId)
-            .in('status', ['pending_inspection', 'in_inspection'])
-            .select('id');
-        if (claimError) throw claimError;
-        if (!claimed || claimed.length === 0) throw new Error('Item is already resolved');
-
-        const deductsPhysical = resolution === 'written_off' || resolution === 'returned_to_supplier';
-        if (deductsPhysical) {
-            try {
-                await productRepository.adjustStock({ productId, delta: -quantity, reason: resolution });
-            } catch (stockError) {
-                // Stock did not move, so the item goes back to open for a retry.
-                await supabase
-                    .from('qc_quarantine')
-                    .update({ status: 'pending_inspection', resolved_at: null })
-                    .eq('id', qcItemId);
-                throw stockError;
-            }
-        }
-
-        return { success: true };
-    } catch (e: any) {
-        console.error("Failed to resolve quarantine:", e);
-        return { success: false, error: e.message };
-    }
 }
 
 /**
