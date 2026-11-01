@@ -441,6 +441,12 @@ async function readWideList(tenantId: string, window: OrderWindow, onPreview?: L
 /** Confirmed orders the desk reads at once; far above a day's shipment. */
 const DESK_QUEUE_MAX = 1000;
 
+/** What lib/duplicate-window reads to pair a desk order with a shipped twin. */
+const DISPATCH_TWIN_COLUMNS =
+    "id, order_id, customer_name, phone, secondary_phone, status, created_at, is_return, is_archived, is_verified_customer";
+/** One PostgREST page; a store ships ~60 orders a day. */
+const DISPATCH_TWIN_MAX = 1000;
+
 export const orderRepository = {
     /**
      * Every active (non-archived, not trashed) order, newest first — the
@@ -466,6 +472,26 @@ export const orderRepository = {
             .order("id", { ascending: true })
             .limit(DESK_QUEUE_MAX);
         return pageRows([{ data, error }]);
+    },
+
+    /**
+     * Orders already handed to the courier (or delivered) since `sinceIso`, in
+     * the few columns the 48h double-dispatch check reads. The desk pairs them
+     * with its confirmed queue: a customer whose earlier order is already out
+     * must not get a second courier. Not the order book: status-filtered,
+     * narrow columns, bounded by the queue's oldest order.
+     */
+    async findShippedSince(tenantId: string, sinceIso: string): Promise<Order[]> {
+        const { data, error } = await listQuery(tenantId, null, DISPATCH_TWIN_COLUMNS)
+            .in("status", ["in_transit", "delivered", "completed"])
+            .gte("created_at", sinceIso)
+            // Newest first: if the cap ever bites, it drops the oldest, which can
+            // only pair with the oldest queued orders.
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .limit(DISPATCH_TWIN_MAX);
+        if (error) throw error;
+        return (data ?? []).map((row) => normalizeOrder(row as unknown as Order));
     },
 
     /**

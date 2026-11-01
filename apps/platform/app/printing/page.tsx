@@ -6,14 +6,13 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { usePrinting } from "@/hooks/use-printing";
 import { useDispatchQueue, DISPATCH_QUEUE_KEY } from "@/hooks/use-dispatch-queue";
 import { useDispatchRun } from "@/hooks/use-dispatch-run";
-import { useDuplicateWindowAlerts } from "@/hooks/use-duplicate-window-alerts";
+import { useDispatchTwins } from "@/hooks/use-dispatch-twins";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getQueueFlags, groupForPacking, hasBlockingFlag, type PackGroup } from "@/lib/dispatch-queue";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { ordersOfRun } from "@/lib/print-runs";
-import { baghdadDayKey, type OrderWindow } from "@/lib/order-window";
 import type { Order, PrintBatch } from "@/lib/supabase";
 import { OrderCard } from "@/components/printing/order-card";
 import { DeskToolbar, type DeskIssue } from "@/components/printing/desk-toolbar";
@@ -111,16 +110,8 @@ export default function PrintingPage() {
 
     const run = useDispatchRun({ printing, bulkUpdateStatus });
 
-    // The 48h double-dispatch check needs the queue's own span plus its margin:
-    // a twin already handed to the courier is no longer in the queue.
-    const queueWindow = useMemo((): OrderWindow => {
-        const times = orders.map((o) => Date.parse(o.created_at)).filter((ms) => !Number.isNaN(ms));
-        if (times.length === 0) return null;
-        const fromInstant = Math.min(...times);
-        const toInstant = Math.max(...times);
-        return { fromInstant, toInstant, fromDay: baghdadDayKey(fromInstant), toDay: baghdadDayKey(toInstant) };
-    }, [orders]);
-    const { getConfirmBlockingTwin } = useDuplicateWindowAlerts(orders, queueWindow);
+    // The 48h double-dispatch check: the queue plus the orders already out.
+    const getDispatchTwin = useDispatchTwins(orders);
 
     const reprints = selected.filter(ISSUE_TEST.printed);
 
@@ -302,7 +293,7 @@ export default function PrintingPage() {
                 orders={selected}
                 groups={selectedGroups}
                 heldBackCount={issueCounts.blocked}
-                getDispatchTwin={getConfirmBlockingTwin}
+                getDispatchTwin={getDispatchTwin}
                 onRemove={(ids) => setTick(ids, false)}
                 shipping={run.shipping}
                 onShip={(list) => void shipRun(list)}
