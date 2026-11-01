@@ -8,14 +8,15 @@ const row = {
 
 describe("pickProductWrite", () => {
     it("forces the caller's tenant and drops cost, reserved and unknown columns", () => {
-        const write = pickProductWrite(row, "mine", true);
-        expect(write).toEqual({ id: "p1", name: "Oud", price: 1000, tenant_id: "mine" });
+        const write = pickProductWrite(row, "mine");
+        expect(write).toEqual({ id: "p1", name: "Oud", price: 1000, stock_quantity: 5, open_box_quantity: 1, tenant_id: "mine" });
     });
 
-    it("keeps the live stock of an existing product but seeds a new one from the file", () => {
-        expect(pickProductWrite(row, "mine", true)).not.toHaveProperty("stock_quantity");
-        expect(pickProductWrite(row, "mine", false)).toMatchObject({ stock_quantity: 5, open_box_quantity: 1 });
-        expect(pickProductWrite(row, "mine", false)).not.toHaveProperty("reserved_quantity");
+    it("restores stock counts from the file but never the reserved count or cost", () => {
+        const write = pickProductWrite(row, "mine");
+        expect(write).toMatchObject({ stock_quantity: 5, open_box_quantity: 1 });
+        expect(write).not.toHaveProperty("reserved_quantity");
+        expect(write).not.toHaveProperty("cost");
     });
 });
 
