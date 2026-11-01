@@ -295,6 +295,20 @@ describe("status change catch-up (replaces the 2s full refetch)", () => {
         expect(H.historyInsert).not.toHaveBeenCalled();
     });
 
+    it("a change replaced inside the 300ms window settles as superseded instead of hanging", async () => {
+        const { qc, result } = await mount();
+        let first: Promise<{ success: boolean; superseded?: boolean }> | undefined;
+        let second: { success: boolean; superseded?: boolean } | undefined;
+        await act(async () => {
+            first = result.current.crud.updateOrderStatus("o1", "confirmed");
+            second = await result.current.crud.updateOrderStatus("o1", "in_transit");
+        });
+        await expect(first).resolves.toEqual({ success: false, superseded: true });
+        expect(second?.success).toBe(true);
+        expect(H.updateStatus).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(cached(qc, "o1")?.status).toBe("in_transit"));
+    });
+
     it("a response older than the cache does not roll the row back", async () => {
         const { qc, result } = await mount();
         // A peer's v6 reached us (realtime) while our PATCH (v5) was in flight.
