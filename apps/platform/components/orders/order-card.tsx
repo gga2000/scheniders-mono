@@ -327,7 +327,7 @@ export const OrderCard = memo(function OrderCard({
                     if (editClickTimerRef.current) clearTimeout(editClickTimerRef.current);
                     inlineEdit.startEdit(order.id, field);
                 }}
-                title="Double-click to edit"
+                title={t("orders.tip.doubleClickEdit")}
             >
                 {display}
             </span>
@@ -1030,7 +1030,7 @@ export const OrderCard = memo(function OrderCard({
                                     ? "bg-[var(--primary)] text-[var(--primary-fg)] hover:shadow-[0_0_10px_rgba(239,255,0,0.4)] shadow-sm"
                                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                             )}
-                            title="WhatsApp"
+                            title={t("orders.tip.whatsapp")}
                         >
                             <MessageCircle className="w-3.5 h-3.5" />
                         </button>
@@ -1042,7 +1042,7 @@ export const OrderCard = memo(function OrderCard({
                                 onViewDetails(order);
                             }}
                             className="w-8 h-8 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)] transition-all flex items-center justify-center"
-                            title="View Details"
+                            title={t("orders.tip.viewDetails")}
                         >
                             <Edit className="w-3.5 h-3.5" />
                         </button>
@@ -1208,7 +1208,7 @@ export const OrderCard = memo(function OrderCard({
 
 
                             {!riskLevel && isBlacklisted && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-100 text-red-700" title="Blacklisted customer">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-100 text-red-700" title={t("orders.tip.blacklisted")}>
                                     <AlertTriangle className="w-3 h-3" />
                                 </span>
                             )}
@@ -2172,7 +2172,7 @@ export const OrderCard = memo(function OrderCard({
                                     "w-10 h-10 bg-emerald-500 text-white hover:bg-emerald-600 transition-all flex items-center justify-center relative dark:bg-[rgba(0,255,100,0.15)] dark:text-[#00FFAA] dark:hover:bg-[rgba(0,255,100,0.25)]",
                                     actionDock ? "rounded-xl shadow-none" : "rounded-xl shadow-md shadow-emerald-500/20 dark:shadow-none"
                                 )}
-                                title="Chat on WhatsApp (Secondary)"
+                                title={t("orders.tip.whatsappSecondary")}
                             >
                                 <MessageCircle className="w-4 h-4" />
                                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full text-[10px] font-bold text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-200 dark:bg-[#1E1E1E] dark:border-[rgba(0,255,100,0.3)] dark:text-[#00FFAA]">
@@ -2193,7 +2193,7 @@ export const OrderCard = memo(function OrderCard({
                                     ? "rounded-xl border-transparent bg-transparent dark:bg-transparent dark:border-transparent"
                                     : "rounded-xl border border-[var(--card-border)] dark:bg-black/20 dark:border-white/5 dark:hover:border-white/20"
                             )}
-                            title="Edit Order"
+                            title={t("orders.tip.editOrder")}
                         >
                             <Edit className="w-4 h-4" />
                         </button>
@@ -2223,7 +2223,7 @@ export const OrderCard = memo(function OrderCard({
                                         ? (actionDock ? "bg-black/5 text-gray-700 dark:bg-white/10 dark:text-white" : "bg-gray-100 border-gray-300 text-gray-700 dark:bg-white/10 dark:border-white/20 dark:text-white")
                                         : (actionDock ? "bg-transparent text-muted hover:bg-black/5 dark:text-[#A1A1A1] dark:hover:text-white dark:hover:bg-white/5" : "bg-[var(--background)] border-[var(--card-border)] text-muted hover:bg-[var(--card-border)] dark:bg-black/20 dark:border-white/5 dark:text-[#A1A1A1] dark:hover:text-white dark:hover:border-white/20 dark:hover:bg-white/5")
                                 )}
-                                title="More Actions"
+                                title={t("orders.tip.moreActions")}
                             >
                                 <MoreVertical className="w-4 h-4" />
                             </button>
@@ -2366,7 +2366,7 @@ export const OrderCard = memo(function OrderCard({
                                     onSplit(order);
                                 }}
                                 className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-100 transition-all flex items-center justify-center"
-                                title="Split Order"
+                                title={t("orders.tip.splitOrder")}
                             >
                                 <Scissors className="w-4 h-4" />
                             </button>
@@ -2405,7 +2405,7 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         disabled={isLoading}
                                         className="w-10 h-10 rounded-xl bg-[var(--pastel-yellow)] text-amber-800 hover:bg-[var(--pastel-yellow-dark)] transition-all flex items-center justify-center disabled:opacity-50"
-                                        title="Mark as Contacted"
+                                        title={t("orders.tip.markContacted")}
                                     >
                                         <PhoneCall className="w-4 h-4" />
                                     </button>
@@ -2420,7 +2420,7 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         disabled={isLoading}
                                         className="w-10 h-10 rounded-xl bg-[var(--pastel-green)] text-green-800 hover:bg-[var(--pastel-green-dark)] transition-all flex items-center justify-center disabled:opacity-50"
-                                        title="Mark as Confirmed"
+                                        title={t("orders.tip.markConfirmed")}
                                     >
                                         <CheckCircle className="w-4 h-4" />
                                     </button>
@@ -2437,7 +2437,7 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         disabled={isLoading}
                                         className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 hover:bg-blue-200 transition-all flex items-center justify-center disabled:opacity-50"
-                                        title="Mark as In Transit"
+                                        title={t("orders.tip.markInTransit")}
                                     >
                                         <Truck className="w-4 h-4" />
                                     </button>
@@ -2452,7 +2452,7 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         disabled={isLoading}
                                         className="w-10 h-10 rounded-xl bg-[var(--pastel-mint)] text-teal-800 hover:bg-[var(--pastel-mint-dark)] transition-all flex items-center justify-center disabled:opacity-50"
-                                        title="Mark as Delivered"
+                                        title={t("orders.tip.markDelivered")}
                                     >
                                         <CheckCircle className="w-4 h-4" />
                                     </button>
@@ -2471,7 +2471,7 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         disabled={isLoading}
                                         className="w-10 h-10 rounded-xl bg-[var(--pastel-pink)] text-rose-800 hover:bg-[var(--pastel-pink-dark)] transition-all flex items-center justify-center disabled:opacity-50"
-                                        title="Mark as Rejected"
+                                        title={t("orders.tip.markRejected")}
                                     >
                                         <XCircle className="w-4 h-4" />
                                     </button>
@@ -2505,7 +2505,7 @@ export const OrderCard = memo(function OrderCard({
                                         }}
                                         disabled={isLoading}
                                         className="w-10 h-10 rounded-xl bg-[var(--pastel-pink-light)] border border-[var(--pastel-pink)] text-rose-700 hover:bg-[var(--pastel-pink)] transition-all flex items-center justify-center disabled:opacity-50"
-                                        title="Cancel Order"
+                                        title={t("orders.tip.cancelOrder")}
                                     >
                                         <Ban className="w-4 h-4" />
                                     </button>

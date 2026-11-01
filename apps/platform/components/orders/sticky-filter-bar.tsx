@@ -510,7 +510,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                     {filters.product && (
                         <button
                             onClick={() => setFilters({ ...filters, product: undefined })}
-                            title="Clear product filter"
+                            title={t("orders.tip.clearProductFilter")}
                             className="rounded-full shrink-0 border border-border/50 p-1.5 text-muted-foreground hover:text-rose-600 hover:border-rose-300 transition-all"
                         >
                             <X className="w-3.5 h-3.5" />
