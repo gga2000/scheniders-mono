@@ -104,6 +104,9 @@ export function OrderBulkDialogs({
     // left selected after the search was cleared: the window alone listed none
     // of those.
     const toDelete = useResolvedOrders(selectedOrders, [orders, filteredOrders], deleteConfirmOpen);
+    // Delivered and completed orders count in sales and profit: say so
+    // before they go to Trash.
+    const deliveredToDelete = toDelete.orders.filter((o) => o.status === "delivered" || o.status === "completed").length;
     const toReschedule = useResolvedOrders(selectedOrders, [orders, filteredOrders], rescheduleOpen);
 
     return (
@@ -163,6 +166,11 @@ export function OrderBulkDialogs({
                                 )}
                             </ul>
                         </div>
+                        {deliveredToDelete > 0 && (
+                            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900" data-testid="delete-confirm-delivered">
+                                {t("orders.deleteConfirm.delivered").replace("{count}", String(deliveredToDelete))}
+                            </p>
+                        )}
                     </div>
                     <DialogFooter>
                         <button

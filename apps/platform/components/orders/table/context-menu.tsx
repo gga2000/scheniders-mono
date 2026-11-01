@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Copy, MessageCircle, ExternalLink, ChevronRight, Archive, Trash2, Phone } from "lucide-react";
 import type { Order, OrderStatus } from "@/lib/supabase";
@@ -26,6 +26,10 @@ export const OrderContextMenu = memo(function OrderContextMenu({
 }: ContextMenuProps) {
     const ref = useRef<HTMLDivElement>(null);
     const { t, language } = useLanguage();
+    // A delivered or completed order carries sales, profit and payroll, so its
+    // delete takes a second click; the first one only arms it.
+    const deleteNeedsConfirm = order.status === "delivered" || order.status === "completed";
+    const [deleteArmed, setDeleteArmed] = useState(false);
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -172,11 +176,21 @@ export const OrderContextMenu = memo(function OrderContextMenu({
                 <>
                     <div className="h-px bg-gray-100 my-1" />
                     <button
-                        onClick={() => { onDelete(order.id); onClose(); }}
-                        className="w-full px-3 py-2 text-xs flex items-center gap-2.5 hover:bg-red-50 transition-colors text-red-500"
+                        onClick={() => {
+                            if (deleteNeedsConfirm && !deleteArmed) {
+                                setDeleteArmed(true);
+                                return;
+                            }
+                            onDelete(order.id);
+                            onClose();
+                        }}
+                        className={cn(
+                            "w-full px-3 py-2 text-xs flex items-center gap-2.5 transition-colors",
+                            deleteArmed ? "bg-red-600 text-white hover:bg-red-700" : "text-red-500 hover:bg-red-50",
+                        )}
                     >
                         <Trash2 className="w-3.5 h-3.5" />
-                        {t("orders.ctx.delete")}
+                        {deleteArmed ? t("orders.ctx.deleteConfirm") : t("orders.ctx.delete")}
                     </button>
                 </>
             )}
