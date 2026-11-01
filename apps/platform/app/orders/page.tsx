@@ -115,6 +115,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canOfferSelectAll } from "@/lib/order-bulk-scope";
+import { AdsTodayChips } from "@/components/ads/ads-today-chips";
 import { notificationService } from "@/lib/notification-service";
 import { toast } from "@/hooks/use-toast";
 
@@ -1154,8 +1155,7 @@ export default function OrdersPage() {
                                                         </AnimatePresence>
                                                     </div>
 
-                                                    {/* Actions */}
-                                                    {/* Old Actions Location Removed */}
+                                                    <AdsTodayChips />
                                                 </div>
 
                                                 {/* Row 2: Control Groups - Premium Glass Cards.
