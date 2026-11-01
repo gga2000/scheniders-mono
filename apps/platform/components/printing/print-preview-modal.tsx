@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Order } from "@/lib/supabase";
 import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { EnhancedLabelOptions, generateLabelHTML, generateA6InvoiceHTML, generateA6InvoiceModern, generateA6InvoicePrime, generateBulkA6InvoicesHTML, generateShippingLabelHTML, SHIPPING_LABEL_CSS } from "@/lib/enhanced-label-generator";
-import { X, Printer, ZoomIn, ZoomOut, Eye } from "lucide-react";
+import { X, Download, ZoomIn, ZoomOut, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -16,7 +16,8 @@ interface PrintPreviewModalProps {
     printType: "labels" | "invoices";
     labelOptions: EnhancedLabelOptions;
     customerOrderCounts?: Record<string, number>;
-    onPrint: () => void;
+    /** Downloads the selection as a PDF (the default way labels are printed). */
+    onDownload: () => void;
 }
 
 export function PrintPreviewModal({
@@ -26,7 +27,7 @@ export function PrintPreviewModal({
     printType,
     labelOptions,
     customerOrderCounts,
-    onPrint,
+    onDownload,
 }: PrintPreviewModalProps) {
     const { t } = useLanguage();
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -715,16 +716,16 @@ export function PrintPreviewModal({
                             </button>
                         </div>
 
-                        {/* Print Action */}
+                        {/* Default action: download the PDF the employee prints */}
                         <button
                             onClick={() => {
-                                onPrint();
+                                onDownload();
                                 onClose();
                             }}
                             className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-[var(--ink)] text-white font-semibold hover:scale-[1.02] transition-all shadow-lg"
                         >
-                            <Printer className="w-5 h-5" />
-                            {t(printType === "labels" ? "printing.preview_printLabels" : "printing.preview_printInvoices").replace("{count}", String(orders.length))}
+                            <Download className="w-5 h-5" />
+                            {t("printing.downloadPdf").replace("{count}", String(orders.length))}
                         </button>
                     </div>
                 </motion.div>

@@ -121,7 +121,7 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
         ? ""
         : options.courierLogo.url
           ? `<img class="dl-courier" src="${e(options.courierLogo.url)}" alt="">`
-          : PRIME_LOGO_SVG;
+          : `<span class="dl-courier dl-prime" role="img" aria-label="Prime"></span>`;
 
     const original = options.pickup?.originalOrderNumber;
     const kindPill = afterSale
@@ -148,9 +148,9 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
     <div class="dl-top">
         <div class="dl-idc">
             <div class="dl-k">رقم الوصل</div>
-            <div class="dl-oid${id.length > 11 ? " dl-oid-long" : ""}">${e(id)}</div>
-            ${courierLogo}
+            <div class="dl-oid${id.length > 11 ? " dl-oid-long" : id.length > 9 ? " dl-oid-mid" : ""}">${e(id)}</div>
         </div>
+        ${courierLogo}
         <div class="dl-qr">${qrSvg(id, { moduleSteps: 3, maxSizeMm: 21 })}</div>
     </div>
     <div class="dl-dest"><b>${e(order.city) || "—"}</b>${kindPill}</div>
@@ -186,13 +186,17 @@ export const DISPATCH_LABEL_CSS = `
     /* When a long order still runs out of room, the notes give way first, then the barcode's
        height (a 1D code still scans when shorter); the address and the QR never shrink. */
     .dispatch-label > .dl-foot { flex-shrink: 2; min-height: 5mm; overflow: hidden; align-items: flex-start; }
-    .dl-top { display: flex; align-items: center; justify-content: space-between; gap: 2mm; border-bottom: .6mm solid #000; padding-bottom: 1.2mm; }
+    .dl-top { display: flex; align-items: flex-end; gap: 3mm; border-bottom: .6mm solid #000; padding-bottom: 1.2mm; }
     .dl-idc { min-width: 0; display: flex; flex-direction: column; gap: .6mm; }
     .dl-idc > .dl-k { font-size: 8pt; font-weight: 700; }
     .dl-oid { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 17pt; line-height: 1; direction: ltr; text-align: right; white-space: nowrap; }
+    .dl-oid-mid { font-size: 15pt; }
     .dl-oid-long { font-size: 12pt; }
-    .dl-courier { height: 8.5mm; width: auto; max-width: 30mm; object-fit: contain; align-self: flex-end; margin-top: 1.4mm; }
-    .dl-qr { flex-shrink: 0; }
+    .dl-courier { flex-shrink: 1; min-width: 0; height: 7.5mm; width: auto; max-width: 19mm; object-fit: contain; margin-bottom: .4mm; }
+    /* The Prime mark is one stylesheet image shared by every label, not a 19 KB path repeated per label. */
+    .dl-prime { width: 18.5mm; background: url("data:image/svg+xml,${encodeURIComponent(PRIME_LOGO_SVG)}") center / contain no-repeat;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .dl-qr { flex-shrink: 0; margin-inline-start: auto; }
     .dl-dest { background: #000; color: #fff; padding: 2.4mm 3mm; display: flex; align-items: center; justify-content: space-between; gap: 2mm; }
     .dl-kind { flex-shrink: 0; background: #fff; color: #000; padding: .6mm 2.4mm; display: flex; flex-direction: column; align-items: center; line-height: 1.1;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }

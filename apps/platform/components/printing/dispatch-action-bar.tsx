@@ -40,11 +40,13 @@ export function DispatchActionBar({
                 {t("printing.selectedCount").replace("{count}", String(selectedCount))}
             </span>
             <button
-                onClick={onPrint}
-                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ink)] px-5 text-sm font-semibold text-white md:h-10 md:flex-none"
+                onClick={onPdf}
+                disabled={pdfLoading}
+                aria-label={pdfLoading ? t("printing.generating") : t("printing.downloadPdf").replace("{count}", String(selectedCount))}
+                className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ink)] px-5 text-sm font-semibold text-white disabled:opacity-60 md:h-10 md:flex-none"
             >
-                <Printer className="h-4 w-4" />
-                {t("printing.print")} {selectedCount}
+                {pdfLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {pdfLoading ? t("printing.generating") : t("printing.downloadPdf").replace("{count}", String(selectedCount))}
             </button>
             <button
                 onClick={onPreview}
@@ -54,13 +56,11 @@ export function DispatchActionBar({
                 {t("printing.preview")}
             </button>
             <button
-                onClick={onPdf}
-                disabled={pdfLoading}
-                aria-label={pdfLoading ? t("printing.generating") : t("printing.pdf")}
-                className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-purple)] px-4 text-sm font-medium text-purple-900 disabled:opacity-50 md:h-10"
+                onClick={onPrint}
+                className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--pastel-purple)] px-4 text-sm font-medium text-purple-900 md:h-10"
             >
-                {pdfLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                {pdfLoading ? t("printing.generating") : t("printing.pdf")}
+                <Printer className="h-4 w-4" />
+                {t("printing.print")}
             </button>
             <div className="relative hidden md:block">
                 <button

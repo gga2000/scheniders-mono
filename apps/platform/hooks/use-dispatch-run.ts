@@ -122,15 +122,17 @@ export function useDispatchRun({
         // closed, so a record queued after it is lost if the tab is reloaded meanwhile.
         const recorded = await recordRun(ordersToPrint);
         writePrintWindow(printWindow, html);
-        if (!recorded) return;
+        if (recorded) await shipAfterRun(ordersToPrint);
+    };
 
-        if (autoShipAfterPrint) {
-            const { shippable } = shippableToday(ordersToPrint, "printing.laterKeptPrintBody");
-            if (shippable.length > 0) {
-                await bulkUpdateStatus(shippable.map((o) => o.id), "in_transit");
-            }
-            setSelection([]);
+    // With auto-ship on, a recorded print or PDF moves today's orders to in transit.
+    const shipAfterRun = async (ordersRun: Order[]) => {
+        if (!autoShipAfterPrint) return;
+        const { shippable } = shippableToday(ordersRun, "printing.laterKeptPrintBody");
+        if (shippable.length > 0) {
+            await bulkUpdateStatus(shippable.map((o) => o.id), "in_transit");
         }
+        setSelection([]);
     };
 
     // Server-side Puppeteer for vector-quality output.
@@ -169,7 +171,7 @@ export function useDispatchRun({
             }
 
             await downloadLabelPdf(html, filename, session.access_token, pageWidth, pageHeight);
-            await recordRun(ordersToPrint);
+            if (await recordRun(ordersToPrint)) await shipAfterRun(ordersToPrint);
         } catch (err) {
             console.error("PDF generation error:", err);
             toast.error(t("printing.pdfFailedTitle"), t("printing.pdfFailedBody"));
