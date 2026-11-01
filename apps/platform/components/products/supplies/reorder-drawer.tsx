@@ -21,6 +21,8 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
 import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
@@ -80,6 +82,8 @@ export function ReorderDrawer({
 }: ReorderDrawerProps) {
     const { t } = useLanguage();
     const { tenantId } = useAuth();
+    const { can } = usePermission();
+    const canSeeCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS);
     const queryClient = useQueryClient();
     const [editedQty, setEditedQty] = useState<Record<string, number>>({});
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["__all__"]));
@@ -131,7 +135,10 @@ export function ReorderDrawer({
             const primary = suppliers.find((x) => x.is_primary) ?? suppliers[0] ?? null;
             const leadTimeDays = primary?.lead_time_days ?? 7;
             const moq = primary?.minimum_order_quantity ?? 1;
-            const unitCost = Math.round(primary?.unit_cost ?? s.cost ?? 0);
+            // A supplier cost of 0 is "not set", not a price: fall back to the supply's own cost.
+            const unitCost = Math.round(
+                primary?.unit_cost && primary.unit_cost > 0 ? primary.unit_cost : (s.cost ?? 0),
+            );
 
             const belowReorder = stock <= reorderPoint;
             const atRisk =
@@ -261,9 +268,9 @@ export function ReorderDrawer({
             if (uncosted.length > 0) {
                 // A zero-cost line would create a PO that understates what is owed.
                 toast.error(
-                    t("supplies.ro.missingCost", {
-                        names: uncosted.map((i) => i.supply.name).join(", "),
-                    })
+                    canSeeCost
+                        ? t("supplies.ro.missingCost", { names: uncosted.map((i) => i.supply.name).join(", ") })
+                        : t("supplies.ro.noCostAccess")
                 );
                 return;
             }
@@ -278,7 +285,7 @@ export function ReorderDrawer({
                 });
             }
         },
-        [generatePO, t]
+        [generatePO, t, canSeeCost]
     );
 
     return (
