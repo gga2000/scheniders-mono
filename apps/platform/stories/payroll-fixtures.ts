@@ -63,3 +63,18 @@ export const recentPayment: PayrollRecord = {
     penalties_deducted: 0, absence_days: 0, absence_deduction: 0, gross_salary: 790000, net_salary: 790000,
     status: "paid", paid_at: "2026-09-30T16:00:00Z", payment_method: "cash", created_at: "2026-09-30T16:00:00Z",
 };
+
+const paid = (id: string, employee_id: string, start: string, end: string, base: number, orders: number, net: number, status: PayrollRecord["status"] = "paid"): PayrollRecord => ({
+    ...recentPayment, id, employee_id, period_start: start, period_end: end, base_salary: base,
+    completed_orders_count: orders, order_bonus: orders * 1000, gross_salary: base + orders * 1000, net_salary: net,
+    status, paid_at: `${end}T16:00:00Z`, created_at: `${end}T16:00:00Z`, pdf_url: undefined,
+});
+
+export const payrollHistory: PayrollRecord[] = [
+    paid("h1", "u2", "2026-09-01", "2026-09-30", 600000, 190, 790000),
+    paid("h2", "u3", "2026-09-01", "2026-09-30", 550000, 128, 653000),
+    paid("h3", "u4", "2026-09-01", "2026-09-30", 450000, 0, 450000),
+    paid("h4", "u2", "2026-08-01", "2026-08-31", 600000, 176, 726000),
+    paid("h5", "u3", "2026-08-01", "2026-08-31", 550000, 119, 669000, "voided"),
+    paid("h6", "u3", "2026-08-01", "2026-08-31", 550000, 119, 644000),
+];

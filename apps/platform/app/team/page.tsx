@@ -37,7 +37,8 @@ export default function TeamPage() {
     const [timeRange, setTimeRange] = useState<TeamTimeRange>("week");
     const [viewMode, setViewMode] = useState<TeamViewMode>("team");
     const [refreshing, setRefreshing] = useState(false);
-    const [selectedEmployeeIndex, setSelectedEmployeeIndex] = useState<number | null>(null);
+    // The open member and the roster order it was opened from (prev/next walks that order).
+    const [selected, setSelected] = useState<{ userId: string; order: string[] } | null>(null);
     const [actionFilter, setActionFilter] = useState("all");
     const ticker = useActivityTicker();
 
@@ -142,16 +143,17 @@ export default function TeamPage() {
     }, [leaderboard]);
 
     // Selected employee for drawer (Step 5)
-    const selectedEmployee = selectedEmployeeIndex !== null ? employeesAdapter[selectedEmployeeIndex] : null;
+    const selectedEmployee = selected ? employeesAdapter.find((e) => e.userId === selected.userId) ?? null : null;
+    const selectedPosition = selected ? selected.order.indexOf(selected.userId) : -1;
 
     const handleNavigateEmployee = useCallback((direction: "prev" | "next") => {
-        setSelectedEmployeeIndex(prev => {
-            if (prev === null) return null;
-            if (direction === "prev" && prev > 0) return prev - 1;
-            if (direction === "next" && prev < employeesAdapter.length - 1) return prev + 1;
-            return prev;
+        setSelected(prev => {
+            if (!prev) return null;
+            const i = prev.order.indexOf(prev.userId) + (direction === "next" ? 1 : -1);
+            const userId = prev.order[i];
+            return userId ? { ...prev, userId } : prev;
         });
-    }, [employeesAdapter.length]);
+    }, []);
 
     // Check if an activity is "new" (arrived within last 3 seconds)
     const newActivityTimestamps = useRef<Map<string, number>>(new Map());
@@ -232,10 +234,7 @@ export default function TeamPage() {
                                     members={leaderboard}
                                     activeUserIds={activeUserIds}
                                     now={leaderboardUpdatedAt}
-                                    onSelect={(userId) => {
-                                        const index = employeesAdapter.findIndex((e) => e.userId === userId);
-                                        if (index >= 0) setSelectedEmployeeIndex(index);
-                                    }}
+                                    onSelect={(userId, order) => setSelected({ userId, order })}
                                 />
                             </div>
 
@@ -287,11 +286,11 @@ export default function TeamPage() {
                 <EmployeeDrawer
                     employee={selectedEmployee}
                     range={timeRange}
-                    isOpen={selectedEmployeeIndex !== null}
-                    onClose={() => setSelectedEmployeeIndex(null)}
+                    isOpen={selected !== null}
+                    onClose={() => setSelected(null)}
                     onNavigate={handleNavigateEmployee}
-                    hasPrev={selectedEmployeeIndex !== null && selectedEmployeeIndex > 0}
-                    hasNext={selectedEmployeeIndex !== null && selectedEmployeeIndex < employeesAdapter.length - 1}
+                    hasPrev={selectedPosition > 0}
+                    hasNext={selected !== null && selectedPosition >= 0 && selectedPosition < selected.order.length - 1}
                 />
             )}
         </div>

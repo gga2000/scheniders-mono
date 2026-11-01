@@ -4,12 +4,14 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { PayrollRecord, PayrollCalculation } from "@/types/salary";
-import { generatePayslipPDF, downloadPayslipBlob, type PayslipData } from "@/lib/payroll-pdf-generator";
+import { generatePayslipPDF, type PayslipData } from "@/lib/payroll-pdf-generator";
+import { downloadPayslipBlob } from "@/lib/payslip-download";
 
 export function usePayroll() {
     const { tenantId } = useAuth();
     const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [historyFailed, setHistoryFailed] = useState(false);
 
     const fetchHistory = useCallback(async (employeeId?: string) => {
         setIsLoading(true);
@@ -20,8 +22,10 @@ export function usePayroll() {
         if (employeeId) {
             query = query.eq("employee_id", employeeId);
         }
-        const { data } = await query;
-        if (data) setPayrollHistory(data);
+        const { data, error } = await query;
+        // A failed read must not look like "no payroll yet": keep what was shown and say so.
+        setHistoryFailed(!!error);
+        if (!error) setPayrollHistory(data ?? []);
         setIsLoading(false);
     }, []);
 
@@ -148,6 +152,7 @@ export function usePayroll() {
     return {
         payrollHistory,
         isLoading,
+        historyFailed,
         fetchAllHistory,
         fetchHistory,
         runPayroll,

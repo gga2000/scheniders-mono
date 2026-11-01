@@ -12,7 +12,8 @@ import { useSalaryDeductions } from "@/hooks/use-salary-deductions";
 import { usePayroll } from "@/hooks/use-payroll";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
-import { downloadPayslipBlob, generatePayslipPDF } from "@/lib/payroll-pdf-generator";
+import { generatePayslipPDF } from "@/lib/payroll-pdf-generator";
+import { downloadPayslipBlob } from "@/lib/payslip-download";
 import { exportCurrentPeriodCSV } from "@/lib/payroll-csv-export";
 import { generatePayrollSummaryPDF, downloadSummaryBlob } from "@/lib/payroll-summary-pdf";
 
@@ -258,7 +259,7 @@ export function SalariesTab() {
         refresh: refreshDeductions,
     } = useSalaryDeductions();
 
-    const { runPayroll, voidPayroll, getLastPayrollDates, payrollHistory, fetchAllHistory } = usePayroll();
+    const { runPayroll, voidPayroll, getLastPayrollDates, payrollHistory, fetchAllHistory, isLoading: historyLoading, historyFailed } = usePayroll();
 
     // Clear per-employee overrides when the global period changes so the new period takes effect
     useEffect(() => {
@@ -820,7 +821,14 @@ export function SalariesTab() {
             )}
 
             {activeSubTab === "history" && (
-                <PayrollHistoryTable employeeNames={employeeNames} onVoided={handleRefreshAll} />
+                <PayrollHistoryTable
+                    records={payrollHistory}
+                    loading={historyLoading}
+                    failed={historyFailed}
+                    onVoid={voidPayroll}
+                    employeeNames={employeeNames}
+                    onVoided={handleRefreshAll}
+                />
             )}
 
             {activeSubTab === "advances" && (

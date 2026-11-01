@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download, FileText } from "lucide-react";
-import { downloadPayslipBlob } from "@/lib/payroll-pdf-generator";
+import { downloadPayslipBlob } from "@/lib/payslip-download";
 import { useLanguage } from "@/hooks/use-language";
 
 interface PayslipPreviewModalProps {

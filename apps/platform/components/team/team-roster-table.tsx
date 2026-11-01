@@ -52,7 +52,8 @@ interface TeamRosterTableProps {
     activeUserIds: Set<string>;
     /** Render time, passed in so presence is computed outside render. */
     now: number;
-    onSelect: (userId: string) => void;
+    /** Opens a member; `order` is the roster as currently sorted, so prev/next follows what the user sees. */
+    onSelect: (userId: string, order: string[]) => void;
 }
 
 /**
@@ -153,13 +154,13 @@ export function TeamRosterTable({ members, activeUserIds, now, onSelect }: TeamR
                                 return (
                                     <tr
                                         key={m.user_id}
-                                        onClick={() => onSelect(m.user_id)}
+                                        onClick={() => onSelect(m.user_id, sorted.map((x) => x.user_id))}
                                         className="group cursor-pointer hover:bg-[#FAF8F5] dark:hover:bg-white/[0.03] transition-colors"
                                     >
                                         <td className="px-3 py-3">
                                             <button
                                                 type="button"
-                                                onClick={(e) => { e.stopPropagation(); onSelect(m.user_id); }}
+                                                onClick={(e) => { e.stopPropagation(); onSelect(m.user_id, sorted.map((x) => x.user_id)); }}
                                                 className="flex items-center gap-3 text-left min-w-0"
                                             >
                                                 <span className="relative shrink-0">
