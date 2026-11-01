@@ -9,6 +9,8 @@ const AR_MIX: Record<string, string> = {
     "customers.behavioral.mix.delivered": "{pct}% وصلت",
     "customers.behavioral.mix.returned": "{pct}% راجعة",
     "customers.behavioral.mix.rejected": "{pct}% مرفوضة",
+    "customers.snapshot.title": "لمحة عن العميل",
+    "customers.snapshot.phoneInvalid": "صيغة الرقم قد تكون غير صحيحة",
 };
 
 vi.mock("@/hooks/use-language", () => ({
@@ -54,5 +56,18 @@ describe("BehavioralPatternsCard outcome mix", () => {
         render(<BehavioralPatternsCard orders={orders} phone="07701234567" />);
         const line = screen.getByText("50% وصلت").closest("p");
         expect(line?.textContent).toBe("50% وصلت · 50% مرفوضة");
+    });
+});
+
+describe("BehavioralPatternsCard snapshot (fewer than three orders)", () => {
+    it("renders nothing for a valid number: the hero already shows the place", () => {
+        const { container } = render(<BehavioralPatternsCard orders={[order("delivered", 1)]} phone="07701234567" />);
+        expect(container.firstChild).toBeNull();
+    });
+
+    it("is one strip with the warning for a bad number", () => {
+        render(<BehavioralPatternsCard orders={[order("delivered", 1)]} phone="0123" />);
+        expect(screen.getByText("لمحة عن العميل")).toBeTruthy();
+        expect(screen.getByText("صيغة الرقم قد تكون غير صحيحة")).toBeTruthy();
     });
 });

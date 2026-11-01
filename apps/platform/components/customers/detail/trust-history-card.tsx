@@ -243,6 +243,7 @@ interface FactorsViewProps {
         event_type: string;
         score_change: number;
         reason: string | null;
+        order_id: string | null;
     }>;
     blocked: boolean;
     t: Translate;
@@ -301,7 +302,7 @@ function FactorsView({ breakdown, rated, raw, score, recentEvents, blocked, t }:
                                         <p className="text-xs font-medium text-foreground truncate">
                                             {t(`customers.trust.event.${evt.event_type}`)}
                                         </p>
-                                        <TrustEventDate date={evt.event_date} className="block text-xs text-muted-foreground" />
+                                        <TrustEventDate date={evt.event_date} orderId={evt.order_id} className="block text-xs text-muted-foreground truncate" />
                                     </div>
                                     {/* A blocked customer's points are not shown anywhere. */}
                                     {evt.score_change !== 0 && !blocked && (

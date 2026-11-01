@@ -56,6 +56,21 @@ export function formatBaghdadDate(iso: string, language: string): string {
     });
 }
 
+/**
+ * A timestamp as a short Baghdad calendar day: "Jul 12" within the current Baghdad year,
+ * "Jul 12, 2025" before it, so an older date is never mistaken for this year's.
+ */
+export function formatBaghdadShortDate(iso: string, language: string, now: Date = new Date()): string {
+    const at = new Date(iso);
+    const year = (d: Date) => new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Baghdad", year: "numeric" }).format(d);
+    return at.toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", {
+        month: "short",
+        day: "numeric",
+        ...(year(at) === year(now) ? {} : { year: "numeric" }),
+        timeZone: "Asia/Baghdad",
+    });
+}
+
 /** "Sep 2025" / "سبتمبر 2025" in Baghdad time: the "customer since" date on every customer surface. */
 export function formatBaghdadMonthYear(iso: string, language: string): string {
     return new Date(iso).toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", {

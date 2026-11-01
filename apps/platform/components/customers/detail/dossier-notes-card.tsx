@@ -31,6 +31,27 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
 
     const entries = [...notes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+    // No notes yet: one line, like the Ratings and Link strips, not a full empty card.
+    if (entries.length === 0) {
+        return (
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 h-14 flex items-center gap-2.5">
+                <StickyNote className="w-4 h-4 text-orange-400 shrink-0" />
+                <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.profile.dossierNotes")}</span>
+                <span className="text-sm text-muted-foreground" aria-hidden>·</span>
+                <span className="text-sm text-muted-foreground truncate">{t("customers.profile.noNotes")}</span>
+                {onAddNote && (
+                    <button
+                        onClick={onAddNote}
+                        className="ml-auto inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-(--card-border) text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors shrink-0"
+                    >
+                        <Plus className="w-4 h-4" />
+                        {t("customers.profile.addNote")}
+                    </button>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className="bg-(--card-bg) rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-(--card-border) flex flex-col h-full">
             {/* Header */}
@@ -57,38 +78,32 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
                 className="space-y-2.5 max-h-[240px] overflow-y-auto pr-2"
                 style={{ scrollbarWidth: "thin", scrollbarColor: "var(--card-border) transparent" }}
             >
-                {entries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-2">
-                        {t("customers.profile.noNotes")}
-                    </p>
-                ) : (
-                    entries.map((entry, i) => (
-                        <motion.div
-                            key={entry.id}
-                            initial={{ opacity: 0, x: -8 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.05 }}
-                            className="group/note bg-muted/30 px-4 py-3 rounded-xl relative"
-                        >
-                            <div className="flex items-start justify-between gap-3 mb-2">
-                                <p className="text-xs text-muted-foreground tabular-nums"><bdi>{formatBaghdadDate(entry.created_at, language)}</bdi></p>
-                                {canDelete(entry) && <button
-                                    onClick={() => onDelete(entry.id)}
-                                    disabled={deleteNote.isPending}
-                                    className="opacity-100 [@media(hover:hover)]:opacity-0 group-hover/note:opacity-100 focus-visible:opacity-100 transition-opacity -m-2 w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-30"
-                                    aria-label={t("common.delete")}
-                                >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                </button>}
-                            </div>
+                {entries.map((entry, i) => (
+                    <motion.div
+                        key={entry.id}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="group/note bg-muted/30 px-4 py-3 rounded-xl relative"
+                    >
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                            <p className="text-xs text-muted-foreground tabular-nums"><bdi>{formatBaghdadDate(entry.created_at, language)}</bdi></p>
+                            {canDelete(entry) && <button
+                                onClick={() => onDelete(entry.id)}
+                                disabled={deleteNote.isPending}
+                                className="opacity-100 [@media(hover:hover)]:opacity-0 group-hover/note:opacity-100 focus-visible:opacity-100 transition-opacity -m-2 w-11 h-11 flex items-center justify-center rounded-md text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+                                aria-label={t("common.delete")}
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>}
+                        </div>
 
-                            {/* Content */}
-                            <p dir="auto" className="text-sm text-foreground font-medium leading-relaxed whitespace-pre-wrap break-words">
-                                {entry.note}
-                            </p>
-                        </motion.div>
-                    ))
-                )}
+                        {/* Its own direction, on the left under its date: the same as the drawer's note rows. */}
+                        <p dir="auto" className="text-sm text-foreground font-medium leading-relaxed whitespace-pre-wrap wrap-break-word text-left">
+                            {entry.note}
+                        </p>
+                    </motion.div>
+                ))}
             </div>
 
         </div>

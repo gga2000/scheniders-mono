@@ -40,9 +40,10 @@ export function ValuePill({
 
     if (variant === "compact") {
         return (
+            // The label truncates only where a caller lets the pill shrink (min-w-0, the grid card).
             <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap", meta.pillBg, meta.pillText, className)}>
-                <Icon className="w-3.5 h-3.5" />
-                {label}
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{label}</span>
             </span>
         );
     }
@@ -105,27 +106,42 @@ export function CustomerHeroBand({ tier, risk, className }: { tier: ValueTier; r
     );
 }
 
+/** A shorter word for the narrow grid card, where the full one would push the "+N" off the row. */
+const SHORT_RISK_KEY: Partial<Record<RiskLevel, string>> = {
+    caution: "customers.risk.cautionShort",
+};
+
 /**
  * RISK axis — COD trust signal (Clean / Caution / High / Blocked). By default a
  * `clean` customer renders nothing (absence = safe); set `showClean` to force it.
+ * `short` prints the card's shorter word, with the full one on hover.
  */
 export function RiskChip({
     risk,
     showClean = false,
+    short = false,
     className,
 }: {
     risk: RiskLevel;
     showClean?: boolean;
+    short?: boolean;
     className?: string;
 }) {
     const { t } = useLanguage();
     if (risk === "clean" && !showClean) return null;
     const meta = RISK_META[risk];
     const Icon = RISK_ICONS[risk];
+    const full = t(`customers.risk.${risk}`, meta.label);
+    const shortKey = short ? SHORT_RISK_KEY[risk] : undefined;
     return (
-        <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap", meta.chipBg, meta.chipText, className)}>
-            <Icon className="w-3.5 h-3.5" />
-            {t(`customers.risk.${risk}`, meta.label)}
+        // The label truncates only where a caller lets the chip shrink (min-w-0, the grid card).
+        <span
+            title={shortKey ? full : undefined}
+            className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap", meta.chipBg, meta.chipText, className)}
+        >
+            <Icon className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{shortKey ? t(shortKey) : full}</span>
+            {shortKey && <span className="sr-only"> ({full})</span>}
         </span>
     );
 }
