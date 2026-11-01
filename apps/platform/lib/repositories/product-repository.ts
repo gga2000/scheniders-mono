@@ -11,6 +11,9 @@ import { PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUM
  * that shipped since. Stock moves through adjustStock (a delta) or
  * setCountedStock / setCountedOpenBox (shelf counts), applied to the row's current value.
  */
+/** A product to insert: only name and price are required, the database defaults the rest. */
+export type NewProduct = Partial<Omit<Product, "id" | "created_at" | "updated_at" | "variants">> & Pick<Product, "name" | "price">;
+
 export type ProductUpdate = Omit<Partial<Product>, "stock_quantity">;
 export type VariantUpdate = Omit<Partial<ProductVariant>, "stock_quantity">;
 
@@ -66,6 +69,9 @@ export class ProductChangedElsewhereError extends NonRetryableError {
  * second row, or report "changed elsewhere" against its own write.
  */
 const WRITE_ONCE = { maxRetries: 0 } as const;
+
+/** Postgres insufficient_privilege: the database function refused the caller. */
+const INSUFFICIENT_PRIVILEGE = "42501";
 
 function assertChanged(operation: string, rows: unknown[] | null, expected: number): void {
     if ((rows?.length ?? 0) < expected) throw new ProductWriteDeniedError(operation);
@@ -248,12 +254,12 @@ export const productRepository = {
     },
 
     /** Insert a new product. Returns the created product. */
-    async create(productData: Omit<Product, "id" | "created_at" | "updated_at" | "variants">, tenantId: string | null): Promise<Product> {
+    async create(productData: NewProduct, tenantId: string | null): Promise<Product> {
         return withRetry('productRepository.create', async () => {
             // Strip computed/joined fields that have no column on `products`.
             // NOTE: `sku` is a real, writable column (used by LightFunnels order
             // matching) — it must stay in the payload, not be stripped here.
-            const { variants: _variants, times_sold: _ts, total_revenue: _tr, times_sold_30d: _ts30, revenue_30d: _r30, profit_margin: _pm, average_order_value: _aov, ...data } = productData as any;
+            const { variants: _variants, times_sold: _ts, total_revenue: _tr, times_sold_30d: _ts30, revenue_30d: _r30, profit_margin: _pm, average_order_value: _aov, ...data } = productData as Record<string, unknown>;
             const { data: newProduct, error } = await supabase
                 .from("products")
                 .insert([{ ...data, is_archived: false, tenant_id: tenantId }])
@@ -276,7 +282,7 @@ export const productRepository = {
             // Strip computed/joined fields and immutable keys. `sku` is a real,
             // writable column (LightFunnels order matching depends on it) — keep it.
             assertNoStock("productRepository.update", data);
-            const { variants: _variants, times_sold: _ts, total_revenue: _tr, times_sold_30d: _ts30, revenue_30d: _r30, profit_margin: _pm, average_order_value: _aov, id: _id, created_at: _ca, ...updateData } = data as any;
+            const { variants: _variants, times_sold: _ts, total_revenue: _tr, times_sold_30d: _ts30, revenue_30d: _r30, profit_margin: _pm, average_order_value: _aov, id: _id, created_at: _ca, ...updateData } = data as Record<string, unknown>;
             let query = supabase.from("products").update(updateData).eq("id", id);
             if (opts.expectedUpdatedAt) query = query.eq("updated_at", opts.expectedUpdatedAt);
             const { data: changed, error } = await query.select("id, updated_at");
@@ -335,95 +341,48 @@ export const productRepository = {
         }, WRITE_ONCE);
     },
 
-    /** Bulk-update price for multiple products. */
-    async bulkUpdatePrice(ids: string[], price: number): Promise<void> {
-        return withRetry('productRepository.bulkUpdatePrice', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ price })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkUpdatePrice", changed, ids.length);
-        });
-    },
-
     /**
-     * Bulk price change with its side effects: a compare-at ("was") price that is
-     * no longer above the new price is cleared, and each changed price lands in
-     * the price history.
+     * Bulk price change with its side effects, in one database transaction
+     * (set_product_prices): a compare-at ("was") price that is no longer above
+     * the new price is cleared, and each changed price lands in the price
+     * history. Either everything applies or nothing does.
      */
     async bulkChangePrice(
         changes: { id: string; oldPrice: number; clearCompareAt: boolean }[],
         price: number,
-        tenantId: string | null,
     ): Promise<void> {
-        await this.bulkUpdatePrice(changes.map((c) => c.id), price);
-
-        const toClear = changes.filter((c) => c.clearCompareAt).map((c) => c.id);
-        if (toClear.length > 0) {
-            await withRetry('productRepository.bulkClearCompareAt', async () => {
-                const { data: cleared, error } = await supabase
-                    .from("products")
-                    .update({ compare_at_price: null })
-                    .in("id", toClear)
-                    .select("id");
-                if (error) throw error;
-                assertChanged("productRepository.bulkClearCompareAt", cleared, toClear.length);
+        return withRetry('productRepository.bulkChangePrice', async () => {
+            const { error } = await supabase.rpc("set_product_prices", {
+                p_changes: changes.map((c) => ({
+                    id: c.id,
+                    price,
+                    set_compare_at: c.clearCompareAt,
+                    compare_at_price: null,
+                })),
+                p_reason: "Bulk price change",
             });
-        }
-
-        const history = changes
-            .filter((c) => c.oldPrice !== price)
-            .map((c) => ({
-                product_id: c.id,
-                tenant_id: tenantId,
-                old_price: c.oldPrice,
-                new_price: price,
-                reason: "Bulk price change",
-            }));
-        if (history.length > 0) {
-            await withRetry('productRepository.bulkPriceHistory', async () => {
-                const { error } = await supabase.from("product_price_history").insert(history);
-                if (error) throw error;
-            }, WRITE_ONCE);
-        }
+            if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError("productRepository.bulkChangePrice");
+            if (error) throw error;
+        }, WRITE_ONCE);
     },
 
-    /**
-     * Put products back to the price (and "was" price) they had before a bulk
-     * price change, and record the reversal in each price history.
-     */
+    /** Undo of a bulk price change: each product gets its own previous price and "was" price back. */
     async restorePrices(
         previous: { id: string; price: number; compare_at_price: number | null; currentPrice: number }[],
-        tenantId: string | null,
     ): Promise<void> {
-        await Promise.all(previous.map((p) => withRetry('productRepository.restorePrice', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ price: p.price, compare_at_price: p.compare_at_price })
-                .eq("id", p.id)
-                .select("id");
+        return withRetry('productRepository.restorePrices', async () => {
+            const { error } = await supabase.rpc("set_product_prices", {
+                p_changes: previous.map((p) => ({
+                    id: p.id,
+                    price: p.price,
+                    set_compare_at: true,
+                    compare_at_price: p.compare_at_price,
+                })),
+                p_reason: "Bulk price change undone",
+            });
+            if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError("productRepository.restorePrices");
             if (error) throw error;
-            assertChanged("productRepository.restorePrice", changed, 1);
-        })));
-
-        const history = previous
-            .filter((p) => p.currentPrice !== p.price)
-            .map((p) => ({
-                product_id: p.id,
-                tenant_id: tenantId,
-                old_price: p.currentPrice,
-                new_price: p.price,
-                reason: "Bulk price change undone",
-            }));
-        if (history.length > 0) {
-            await withRetry('productRepository.restorePriceHistory', async () => {
-                const { error } = await supabase.from("product_price_history").insert(history);
-                if (error) throw error;
-            }, WRITE_ONCE);
-        }
+        }, WRITE_ONCE);
     },
 
     /** Bulk-archive multiple products. */
@@ -740,7 +699,7 @@ export const productRepository = {
     },
 
     /** Add a single activity log entry (immutable log). */
-    async addActivityLogEntry(productId: string, entry: { action: string; changes_json?: any; user_id?: string }, tenantId: string | null): Promise<void> {
+    async addActivityLogEntry(productId: string, entry: { action: string; changes_json?: Json; user_id?: string }, tenantId: string | null): Promise<void> {
         return withRetry('productRepository.addActivityLogEntry', async () => {
             const { error } = await supabase
                 .from("product_activity_log")

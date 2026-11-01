@@ -211,7 +211,7 @@ function ProductsContent() {
                 .select("product_id")
                 .eq("tag_id", selectedTagId);
             if (error) throw error;
-            return new Set((data ?? []).map((r: any) => r.product_id as string));
+            return new Set((data ?? []).map((r: { product_id: string }) => r.product_id));
         },
         enabled: !!selectedTagId && !!tenantId,
         staleTime: 60 * 1000,
