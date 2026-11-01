@@ -32,7 +32,6 @@ interface ViewPreferencesSlice {
   showSearchBar: boolean;
   analyticsLevel: 0 | 1 | 2;
   toolbarCollapsed: boolean;
-  workflowMode: boolean;
   soundEnabled: boolean;
   tableDensity: "compact" | "comfortable" | "spacious";
   hiddenColumns: Set<string>;
@@ -45,8 +44,6 @@ interface ViewPreferencesSlice {
   setAnalyticsLevel: (val: 0 | 1 | 2) => void;
   setToolbarCollapsed: (val: boolean) => void;
   toggleToolbarCollapse: () => void;
-  setWorkflowMode: (val: boolean) => void;
-  toggleWorkflowMode: () => void;
   setSoundEnabled: (val: boolean) => void;
   setTableDensity: (val: "compact" | "comfortable" | "spacious") => void;
   setHiddenColumns: (val: Set<string>) => void;
@@ -199,7 +196,6 @@ export const useOrderStore = create<OrderStore>()(
       showSearchBar: true,
       analyticsLevel: 0,
       toolbarCollapsed: false,
-      workflowMode: false,
       soundEnabled: true,
 
       setViewMode: (mode) => set({ viewMode: mode }),
@@ -211,9 +207,6 @@ export const useOrderStore = create<OrderStore>()(
       setToolbarCollapsed: (val) => set({ toolbarCollapsed: val }),
       toggleToolbarCollapse: () =>
         set((s) => ({ toolbarCollapsed: !s.toolbarCollapsed })),
-      setWorkflowMode: (val) => set({ workflowMode: val }),
-      toggleWorkflowMode: () =>
-        set((s) => ({ workflowMode: !s.workflowMode })),
       setSoundEnabled: (val) => set({ soundEnabled: val }),
       tableDensity: "comfortable",
       hiddenColumns: new Set<string>(),
@@ -414,7 +407,6 @@ export const useOrderStore = create<OrderStore>()(
         showSearchBar: state.showSearchBar,
         analyticsLevel: state.analyticsLevel,
         toolbarCollapsed: state.toolbarCollapsed,
-        workflowMode: state.workflowMode,
         soundEnabled: state.soundEnabled,
         tableDensity: state.tableDensity,
         activeDateRange: state.activeDateRange,

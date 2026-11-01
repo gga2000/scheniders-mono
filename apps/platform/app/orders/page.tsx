@@ -34,10 +34,6 @@ import { useOrderBulkOperations } from "@/hooks/use-order-bulk-operations";
 import { reportOrderError } from "@/lib/order-telemetry";
 
 // Dynamic imports for other heavy components
-const WorkflowTabs = dynamic(
-    () => import("@/components/orders/workflow-tabs").then(mod => ({ default: mod.WorkflowTabs })),
-    { ssr: false, loading: () => <div className="w-full h-96 animate-pulse bg-muted/20 rounded-2xl" /> }
-);
 const VirtualizedOrderList = dynamic(
     () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
     { ssr: false, loading: () => <div className="w-full h-[600px] animate-pulse bg-muted/20 rounded-2xl" /> }
@@ -156,7 +152,6 @@ export default function OrdersPage() {
         orderSearch,
         error,
         updateOrderStatus,
-        updateOrder,
         isBlacklisted,
         getBlacklistEntry,
         addToBlacklist,
@@ -252,7 +247,6 @@ export default function OrdersPage() {
         showSearchBar, setShowSearchBar,
         analyticsLevel, setAnalyticsLevel,
         toolbarCollapsed, toggleToolbarCollapse,
-        workflowMode, toggleWorkflowMode,
         setSoundEnabled,
         // Filter UI
         showFilters, setShowFilters,
@@ -302,8 +296,6 @@ export default function OrdersPage() {
             setAnalyticsLevel: s.setAnalyticsLevel,
             toolbarCollapsed: s.toolbarCollapsed,
             toggleToolbarCollapse: s.toggleToolbarCollapse,
-            workflowMode: s.workflowMode,
-            toggleWorkflowMode: s.toggleWorkflowMode,
             setSoundEnabled: s.setSoundEnabled,
             showFilters: s.showFilters,
             setShowFilters: s.setShowFilters,
@@ -648,11 +640,11 @@ export default function OrdersPage() {
     // counted (lib/orders/list-preview.ts); rows that could still move when the
     // book lands are dropped.
     const previewOrders = useMemo(() => {
-        if (!listPreview || defShowArchived || workflowMode || groupBy !== "none") return null;
+        if (!listPreview || defShowArchived || groupBy !== "none") return null;
         if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday) return null;
         if (defSortConfigs.length > 0 || defSortConfig) return null;
         return desktopPreviewRows(listPreview.rows);
-    }, [listPreview, defShowArchived, workflowMode, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defSortConfigs, defSortConfig]);
+    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defSortConfigs, defSortConfig]);
     const previewing = previewOrders !== null;
     // A count of the list is its length only once the list is the whole
     // window (or the server's search hits): never over a preview or the
@@ -1203,36 +1195,9 @@ export default function OrdersPage() {
                                                             />
 
                                                             <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
-                                                            {/* Workflow Toggle */}
-                                                            <div className="flex items-center bg-black/5 rounded-xl p-1 gap-1">
-                                                                <button
-                                                                    onClick={() => workflowMode && toggleWorkflowMode()}
-                                                                    className={cn(
-                                                                        "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2",
-                                                                        !workflowMode
-                                                                            ? "bg-white text-foreground shadow-sm dark:bg-[var(--primary)] dark:text-black dark:shadow-[0_0_8px_rgba(239,255,0,0.2)]"
-                                                                            : "text-muted-foreground hover:text-foreground"
-                                                                    )}
-                                                                >
-                                                                    <List className="w-4 h-4" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => !workflowMode && toggleWorkflowMode()}
-                                                                    className={cn(
-                                                                        "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2",
-                                                                        workflowMode
-                                                                            ? "bg-white text-foreground shadow-sm dark:bg-[var(--primary)] dark:text-black dark:shadow-[0_0_8px_rgba(239,255,0,0.2)]"
-                                                                            : "text-muted-foreground hover:text-foreground"
-                                                                    )}
-                                                                >
-                                                                    <GitBranch className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-
-                                                            <div className="w-px h-8 bg-black/5 mx-0.5 orders-toolbar-divider" />
 
                                                             {/* Layout Toggles */}
-                                                            {!workflowMode && [
+                                                            {[
                                                                 { mode: "cards" as const, icon: LayoutGrid, label: "Cards" },
                                                                 { mode: "table" as const, icon: Table, label: "Table" },
                                                             ].map((v) => (
@@ -1252,7 +1217,7 @@ export default function OrdersPage() {
                                                             ))}
 
                                                             {/* Compact Toggle */}
-                                                            {!workflowMode && (viewMode === "cards" || viewMode === "list") && (
+                                                            {(viewMode === "cards" || viewMode === "list") && (
                                                                 <button
                                                                     onClick={() => {
                                                                         const newLevel = ((compactView + 1) % 3) as 0 | 1 | 2;
@@ -1277,7 +1242,7 @@ export default function OrdersPage() {
                                                             )}
 
                                                             {/* Grid Toggle - only visible in compact modes */}
-                                                            {!workflowMode && (viewMode === "cards" || viewMode === "list") && compactView >= 1 && (
+                                                            {(viewMode === "cards" || viewMode === "list") && compactView >= 1 && (
                                                                 <button
                                                                     onClick={() => {
                                                                         const newVal = !compactGrid;
@@ -1706,18 +1671,6 @@ export default function OrdersPage() {
                                     {/* While searching, the list is a lookup across every date and status. */}
                                     {!showArchived && <OrderSearchBanner count={filteredOrders.length} />}
 
-                                    {/* Workflow Mode */}
-                                    {workflowMode ? (
-                                        <WorkflowTabs
-                                            orders={filteredOrders}
-                                            onStatusUpdate={guardedStatusUpdate}
-                                            onUpdate={updateOrder}
-                                            onViewDetails={handleViewDetails}
-                                            isBlacklisted={isBlacklisted}
-                                            messageTemplates={messageTemplates}
-                                        />
-                                    ) : (
-                                        <>
                                             {/* Selection Banner */}
                                             <AnimatePresence>
                                                 {selectedOrders.size > 0 && (
@@ -1902,8 +1855,6 @@ export default function OrdersPage() {
                                             </div>
 
 
-                                        </>
-                                    )}
                                 </div>
                             </motion.div>
                         </div>
