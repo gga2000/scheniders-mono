@@ -431,7 +431,7 @@ export default function PrintingPage() {
                     printType={printType}
                     labelOptions={{ ...printing.labelSettings, invoiceTemplate }}
                     customerOrderCounts={customerOrderCounts}
-                    onPrint={() => startRun("print")}
+                    onDownload={() => startRun("pdf")}
                 />
 
                 <ReprintWarningModal

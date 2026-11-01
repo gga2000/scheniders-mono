@@ -98,7 +98,7 @@ describe("generateDispatchLabelHTML", () => {
         expect(html).toMatch(/class="dl-qr"><svg[^>]*width="19\.05mm"/);
     });
     it("shows the Prime logo only when the courier logo is on", () => {
-        expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: true } })).toContain('<svg xmlns="http://www.w3.org/2000/svg" class="dl-courier"');
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: true } })).toContain('class="dl-courier dl-prime"');
         expect(generateDispatchLabelHTML(order(), { showBarcode: true, courierLogo: { show: false } })).not.toContain("dl-courier");
     });
 });
