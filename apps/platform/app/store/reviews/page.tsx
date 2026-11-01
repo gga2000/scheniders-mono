@@ -16,7 +16,9 @@ export default function ReviewsPage() {
             reviews={reviews}
             isLoading={isLoading}
             isError={isError}
-            isBusy={setStatus.isPending || remove.isPending}
+            busyId={
+                setStatus.isPending ? (setStatus.variables?.id ?? null) : remove.isPending ? (remove.variables ?? null) : null
+            }
             onSetStatus={(id, status) => setStatus.mutate({ id, status }, { onError: failed })}
             onRemove={(id) => remove.mutate(id, { onError: failed })}
         />

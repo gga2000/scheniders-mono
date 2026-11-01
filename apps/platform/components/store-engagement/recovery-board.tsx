@@ -4,6 +4,7 @@ import { Badge } from "@scheniders/ui";
 import { cartItemCount } from "@scheniders/shared";
 import { formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/baghdad-date";
 import type { AbandonedCartRow } from "@/hooks/use-abandoned-carts";
 import {
     cartState,
@@ -33,7 +34,7 @@ export interface RecoveryBoardProps {
 }
 
 export function RecoveryBoard({ carts, isLoading, isError }: RecoveryBoardProps) {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const stats = summarizeRecovery(carts);
 
     const itemsSummary = (items: { name: string; quantity: number }[]): string => {
@@ -44,14 +45,6 @@ export function RecoveryBoard({ carts, isLoading, isError }: RecoveryBoardProps)
         const more = items.length > 3 ? ` +${items.length - 3}` : "";
         return names + more;
     };
-    const day = new Intl.DateTimeFormat("en-GB", {
-        // Latin digits, day-first, the same in every language: Arabic locale
-        // patterns carry RTL marks that scramble inside the LTR layout.
-        timeZone: "Asia/Baghdad",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    });
 
     const cards = [
         { label: t("recovery.cards.captured"), value: String(stats.total) },
@@ -102,6 +95,12 @@ export function RecoveryBoard({ carts, isLoading, isError }: RecoveryBoardProps)
                     {t("recovery.empty")}
                 </p>
             ) : (
+                <>
+                {carts.length > LIST_LIMIT && (
+                    <p className="mb-3 text-xs text-muted-foreground">
+                        {t("recovery.truncated", { shown: LIST_LIMIT, total: carts.length })}
+                    </p>
+                )}
                 <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     {carts.slice(0, LIST_LIMIT).map((c) => {
                         const state = cartState(c);
@@ -131,13 +130,14 @@ export function RecoveryBoard({ carts, isLoading, isError }: RecoveryBoardProps)
                                         {formatIQD(c.subtotal_iqd)}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        <bdi dir="ltr">{day.format(new Date(c.updated_at))}</bdi>
+                                        <bdi dir="ltr">{formatBaghdadDate(c.updated_at)}</bdi>
                                     </p>
                                 </div>
                             </li>
                         );
                     })}
                 </ul>
+                </>
             )}
         </div>
     );

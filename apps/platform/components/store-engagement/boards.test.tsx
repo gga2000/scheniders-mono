@@ -16,13 +16,13 @@ const wrap = (ui: React.ReactElement) => render(<LanguageProvider>{ui}</Language
 
 describe("ReviewsBoard", () => {
     it("shows an error instead of an empty list when the read fails", () => {
-        wrap(<ReviewsBoard reviews={[]} isLoading={false} isError isBusy={false} onSetStatus={vi.fn()} onRemove={vi.fn()} />);
+        wrap(<ReviewsBoard reviews={[]} isLoading={false} isError busyId={null} onSetStatus={vi.fn()} onRemove={vi.fn()} />);
         expect(screen.getByRole("alert")).toBeTruthy();
     });
 
     it("approves a pending review", () => {
         const onSetStatus = vi.fn();
-        wrap(<ReviewsBoard reviews={[review({})]} isLoading={false} isError={false} isBusy={false} onSetStatus={onSetStatus} onRemove={vi.fn()} />);
+        wrap(<ReviewsBoard reviews={[review({})]} isLoading={false} isError={false} busyId={null} onSetStatus={onSetStatus} onRemove={vi.fn()} />);
         const approve = screen.getAllByRole("button").find((b) => /^(approve|قبول)$/i.test((b.textContent ?? "").trim()));
         fireEvent.click(approve!);
         expect(onSetStatus).toHaveBeenCalledWith("r1", "approved");
@@ -31,7 +31,7 @@ describe("ReviewsBoard", () => {
     it("does not delete until the merchant confirms", () => {
         const onRemove = vi.fn();
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-        wrap(<ReviewsBoard reviews={[review({})]} isLoading={false} isError={false} isBusy={false} onSetStatus={vi.fn()} onRemove={onRemove} />);
+        wrap(<ReviewsBoard reviews={[review({})]} isLoading={false} isError={false} busyId={null} onSetStatus={vi.fn()} onRemove={onRemove} />);
         const del = screen.getAllByRole("button").find((b) => /delete|حذف/i.test(b.textContent ?? ""));
         fireEvent.click(del!);
         expect(onRemove).not.toHaveBeenCalled();

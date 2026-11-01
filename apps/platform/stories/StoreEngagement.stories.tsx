@@ -38,7 +38,7 @@ const meta: Meta = {
 export default meta;
 
 export const Reviews: StoryObj = {
-    render: () => <ReviewsBoard reviews={reviews} isLoading={false} isError={false} isBusy={false} onSetStatus={() => undefined} onRemove={() => undefined} />,
+    render: () => <ReviewsBoard reviews={reviews} isLoading={false} isError={false} busyId={null} onSetStatus={() => undefined} onRemove={() => undefined} />,
 };
 export const Recovery: StoryObj = {
     render: () => <RecoveryBoard carts={carts} isLoading={false} isError={false} />,

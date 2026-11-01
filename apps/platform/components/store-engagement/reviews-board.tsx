@@ -6,6 +6,7 @@ import { Button, Badge } from "@scheniders/ui";
 import type { AdminReview } from "@/hooks/use-product-reviews";
 import { countReviewsByStatus } from "@/lib/review-queue";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/baghdad-date";
 import type { ReviewStatus } from "@scheniders/shared";
 
 type Filter = ReviewStatus | "all";
@@ -37,22 +38,14 @@ export interface ReviewsBoardProps {
     reviews: AdminReview[];
     isLoading: boolean;
     isError: boolean;
-    /** A moderation write is in flight. */
-    isBusy: boolean;
+    /** The review a moderation write is in flight for; its buttons wait, the rest stay usable. */
+    busyId: string | null;
     onSetStatus: (id: string, status: ReviewStatus) => void;
     onRemove: (id: string) => void;
 }
 
-export function ReviewsBoard({ reviews, isLoading, isError, isBusy, onSetStatus, onRemove }: ReviewsBoardProps) {
-    const { t, language } = useLanguage();
-    const date = new Intl.DateTimeFormat("en-GB", {
-        // Latin digits, day-first, the same in every language: Arabic locale
-        // patterns carry RTL marks that scramble inside the LTR layout.
-        timeZone: "Asia/Baghdad",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    });
+export function ReviewsBoard({ reviews, isLoading, isError, busyId, onSetStatus, onRemove }: ReviewsBoardProps) {
+    const { t } = useLanguage();
     const [filter, setFilter] = useState<Filter>("pending");
 
     const counts = countReviewsByStatus(reviews);
@@ -121,7 +114,7 @@ export function ReviewsBoard({ reviews, isLoading, isError, isBusy, onSetStatus,
                                 <div className="flex items-center gap-2">
                                     <Badge variant={STATUS_BADGE[r.status]}>{t(`reviews.status.${r.status}`)}</Badge>
                                     <span className="text-xs text-muted-foreground">
-                                        <bdi dir="ltr">{date.format(new Date(r.created_at))}</bdi>
+                                        <bdi dir="ltr">{formatBaghdadDate(r.created_at)}</bdi>
                                     </span>
                                 </div>
                             </div>
@@ -138,12 +131,12 @@ export function ReviewsBoard({ reviews, isLoading, isError, isBusy, onSetStatus,
 
                             {r.photo_urls.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                    {r.photo_urls.map((url, i) => (
-                                        // eslint-disable-next-line @next/next/no-img-element
+                                    {r.photo_urls.map((url) => (
+                                        // eslint-disable-next-line @next/next/no-img-element -- customer-uploaded photos live on arbitrary storage hosts that next/image cannot be configured for
                                         <img
-                                            key={i}
+                                            key={url}
                                             src={url}
-                                            alt={r.title ?? ""}
+                                            alt={r.product_name ?? t("reviews.unknownProduct")}
                                             loading="lazy"
                                             className="h-20 w-20 rounded-lg object-cover"
                                         />
@@ -156,7 +149,7 @@ export function ReviewsBoard({ reviews, isLoading, isError, isBusy, onSetStatus,
                                     <Button
                                         variant="primary"
                                         size="sm"
-                                        disabled={isBusy}
+                                        disabled={busyId === r.id}
                                         onClick={() =>
                                             onSetStatus(r.id, "approved")
                                         }
@@ -169,7 +162,7 @@ export function ReviewsBoard({ reviews, isLoading, isError, isBusy, onSetStatus,
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        disabled={isBusy}
+                                        disabled={busyId === r.id}
                                         onClick={() =>
                                             onSetStatus(r.id, "rejected")
                                         }
@@ -182,7 +175,7 @@ export function ReviewsBoard({ reviews, isLoading, isError, isBusy, onSetStatus,
                                     variant="ghost"
                                     size="sm"
                                     className="text-red-600 hover:text-red-700"
-                                    disabled={isBusy}
+                                    disabled={busyId === r.id}
                                     onClick={() => {
                                         if (window.confirm(t("reviews.deleteConfirm"))) {
                                             onRemove(r.id);
