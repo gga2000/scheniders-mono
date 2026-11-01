@@ -326,6 +326,29 @@ export const OrderCard = memo(function OrderCard({
     };
 
 
+
+    // Every WhatsApp button on the card opens the chat the same way: a greeting
+    // in Arabic (the customer's language), the contact recorded, and the link
+    // copied when the browser blocks the new tab.
+    const openWhatsApp = (phone: string | null | undefined, shortError = false) => {
+        if (!phone) return;
+        try {
+            const link = generateWhatsAppLink(phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
+            const newWindow = window.open(link, "_blank");
+            onContactRecorded?.(order.id);
+
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                navigator.clipboard.writeText(link).then(() => {
+                    alert(t("orders.card.popupBlocked"));
+                }).catch(() => {
+                    alert(`Popup blocked. Link: ${link}`);
+                });
+            }
+        } catch {
+            alert(t(shortError ? "orders.card.whatsappOpenFailedShort" : "orders.card.whatsappOpenFailed"));
+        }
+    };
+
     const items = getItemsDisplay(order.items || []);
     const firstImageUrl = items[0]?.image_url;
     const thumbnailUrl = firstImageUrl && !failedImageUrls.has(firstImageUrl) ? firstImageUrl : null;
@@ -592,24 +615,7 @@ export const OrderCard = memo(function OrderCard({
                                     if (onOpenTemplatePanel && messageTemplates?.length > 0) {
                                         onOpenTemplatePanel(order);
                                     } else {
-                                        try {
-                                            const link = generateWhatsAppLink(
-                                                order.phone,
-                                                `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-                                            );
-                                            const newWindow = window.open(link, "_blank");
-                                            onContactRecorded?.(order.id);
-
-                                            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                navigator.clipboard.writeText(link).then(() => {
-                                                    alert(t("orders.card.popupBlocked"));
-                                                }).catch(() => {
-                                                    alert(`Popup blocked. Link: ${link}`);
-                                                });
-                                            }
-                                        } catch {
-                                            alert(t("orders.card.whatsappOpenFailed"));
-                                        }
+                                        openWhatsApp(order.phone);
                                     }
                                 }}
                                 disabled={!isValidPhone}
@@ -821,24 +827,7 @@ export const OrderCard = memo(function OrderCard({
                                 if (onOpenTemplatePanel && messageTemplates?.length > 0) {
                                     onOpenTemplatePanel(order);
                                 } else {
-                                    try {
-                                        const link = generateWhatsAppLink(
-                                            order.phone,
-                                            `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-                                        );
-                                        const newWindow = window.open(link, "_blank");
-                                        onContactRecorded?.(order.id);
-
-                                        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                            navigator.clipboard.writeText(link).then(() => {
-                                                alert(t("orders.card.popupBlocked"));
-                                            }).catch(() => {
-                                                alert(`Popup blocked. Link: ${link}`);
-                                            });
-                                        }
-                                    } catch {
-                                        alert(t("orders.card.whatsappOpenFailed"));
-                                    }
+                                    openWhatsApp(order.phone);
                                 }
                             }}
                             disabled={!isValidPhone}
@@ -1698,21 +1687,7 @@ export const OrderCard = memo(function OrderCard({
                                         e.stopPropagation();
                                         if (!validatePhoneDetailed(order.phone).isValid) return;
 
-                                        try {
-                                            const link = generateWhatsAppLink(order.phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
-                                            const newWindow = window.open(link, "_blank");
-                                            onContactRecorded?.(order.id);
-
-                                            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                navigator.clipboard.writeText(link).then(() => {
-                                                    alert(t("orders.card.popupBlocked"));
-                                                }).catch(() => {
-                                                    alert(`Popup blocked. Link: ${link}`);
-                                                });
-                                            }
-                                        } catch {
-                                            alert(t("orders.card.whatsappOpenFailed"));
-                                        }
+                                        openWhatsApp(order.phone);
                                     }}
                                     className={cn(
                                         "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all active:scale-95 shadow-sm",
@@ -1733,23 +1708,9 @@ export const OrderCard = memo(function OrderCard({
                                         type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (!validatePhoneDetailed(order.secondary_phone!).isValid) return;
+                                            if (!validatePhoneDetailed(order.secondary_phone).isValid) return;
 
-                                            try {
-                                                const link = generateWhatsAppLink(order.secondary_phone!, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
-                                                const newWindow = window.open(link, "_blank");
-                                                onContactRecorded?.(order.id);
-
-                                                if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                    navigator.clipboard.writeText(link).then(() => {
-                                                        alert(t("orders.card.popupBlocked"));
-                                                    }).catch(() => {
-                                                        alert(`Popup blocked. Link: ${link}`);
-                                                    });
-                                                }
-                                            } catch {
-                                                alert(t("orders.card.whatsappOpenFailedShort"));
-                                            }
+                                            openWhatsApp(order.secondary_phone, true);
                                         }}
                                         className={cn(
                                             "flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-all active:scale-95",
@@ -1922,24 +1883,7 @@ export const OrderCard = memo(function OrderCard({
                                         if (onOpenTemplatePanel && messageTemplates?.length > 0) {
                                             onOpenTemplatePanel(order);
                                         } else {
-                                            try {
-                                                const link = generateWhatsAppLink(
-                                                    order.phone,
-                                                    `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-                                                );
-                                                const newWindow = window.open(link, "_blank");
-                                                onContactRecorded?.(order.id);
-
-                                                if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                                    navigator.clipboard.writeText(link).then(() => {
-                                                        alert(t("orders.card.popupBlocked"));
-                                                    }).catch(() => {
-                                                        alert(`Popup blocked. Link: ${link}`);
-                                                    });
-                                                }
-                                            } catch {
-                                                alert(t("orders.card.whatsappOpenFailed"));
-                                            }
+                                            openWhatsApp(order.phone);
                                         }
                                     }}
                                     disabled={!isValidPhone}
@@ -1967,24 +1911,7 @@ export const OrderCard = memo(function OrderCard({
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    try {
-                                        const link = generateWhatsAppLink(
-                                            order.secondary_phone!,
-                                            `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`
-                                        );
-                                        const newWindow = window.open(link, "_blank");
-                                        onContactRecorded?.(order.id);
-
-                                        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                            navigator.clipboard.writeText(link).then(() => {
-                                                alert(t("orders.card.popupBlocked"));
-                                            }).catch(() => {
-                                                alert(`Popup blocked. Link: ${link}`);
-                                            });
-                                        }
-                                    } catch {
-                                        alert(t("orders.card.whatsappOpenFailedShort"));
-                                    }
+                                    openWhatsApp(order.secondary_phone, true);
                                 }}
                                 className={cn(
                                     "w-10 h-10 bg-emerald-500 text-white hover:bg-emerald-600 transition-all flex items-center justify-center relative dark:bg-[rgba(0,255,100,0.15)] dark:text-[#00FFAA] dark:hover:bg-[rgba(0,255,100,0.25)]",
