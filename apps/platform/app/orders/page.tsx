@@ -1804,11 +1804,11 @@ export default function OrdersPage() {
                                     {filterDuplicatesOnly && (
                                         <div className="flex items-center gap-2 px-2">
                                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 border border-orange-200 text-orange-700">
-                                                <span className="text-xs font-semibold">🔄 عرض المكررين فقط</span>
+                                                <span className="text-xs font-semibold">🔄 {t("orders.dupOnly")}</span>
                                                 <button
                                                     onClick={() => setFilterDuplicatesOnly(false)}
                                                     className="text-orange-500 hover:text-orange-700 font-bold text-xs"
-                                                    title="إزالة الفلتر"
+                                                    title={t("orders.removeFilter")}
                                                 >
                                                     ✕
                                                 </button>
