@@ -208,7 +208,7 @@ function PipelineCustomizer({
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                     <span className="truncate text-sm text-foreground">{t(meta.labelKey, meta.fallback)}</span>
                     {teamDefaultSet.has(id) && (
-                        <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-(--foreground-subtle)">
+                        <span className="shrink-0 rounded-full bg-muted px-1.5 py-px text-[11px] font-bold uppercase tracking-wide text-(--foreground-subtle)">
                             {t("orders.pipeline.defaultBadge", "Default")}
                         </span>
                     )}
@@ -280,7 +280,7 @@ function PipelineCustomizer({
                     {included.map((id) => row(id, true))}
                     {excluded.length > 0 && (
                         <>
-                            <div className="px-2 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wider text-(--foreground-subtle)">
+                            <div className="px-2 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wider text-(--foreground-subtle)">
                                 {t("orders.pipeline.moreStages", "More stages")}
                             </div>
                             {excluded.map((id) => row(id, false))}

@@ -58,7 +58,7 @@ export function DuplicateAlertBanner({
         return (
             <span
                 className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold",
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
                     critical
                         ? "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300"
                         : "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300",

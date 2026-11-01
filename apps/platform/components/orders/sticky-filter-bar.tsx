@@ -295,7 +295,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         <CalendarClock className="w-4 h-4" />
                         <span>{!isMobile && t("orders.filter.dueToday")}</span>
                         {!dueTodayCountHidden && <span data-badge="due-today" className={cn(
-                            "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                            "px-1.5 py-0.5 rounded-full text-[11px] font-bold",
                             filterDueToday ? "bg-blue-200/70 text-blue-800" : "bg-muted text-muted-foreground"
                         )}>
                             {dueTodayCount}
@@ -381,7 +381,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                     <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/70 pr-1">
                         <Filter className="w-3.5 h-3.5" />
                         {!isMobile && (
-                            <span className="text-[10px] font-bold uppercase tracking-widest">{t("orders.toolbar.orderType")}</span>
+                            <span className="text-[11px] font-bold uppercase tracking-widest">{t("orders.toolbar.orderType")}</span>
                         )}
                     </div>
 
@@ -440,7 +440,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                     <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/70 pr-1">
                         <Package className="w-3.5 h-3.5" />
                         {!isMobile && (
-                            <span className="text-[10px] font-bold uppercase tracking-widest">{t("orders.toolbar.products")}</span>
+                            <span className="text-[11px] font-bold uppercase tracking-widest">{t("orders.toolbar.products")}</span>
                         )}
                     </div>
 
@@ -463,7 +463,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                             >
                                 <span className="max-w-[160px] truncate">{product.name}</span>
                                 {!countsHidden && <span className={cn(
-                                    "px-1.5 py-0.5 rounded-full text-[10px] font-black min-w-[18px] text-center",
+                                    "px-1.5 py-0.5 rounded-full text-[11px] font-black min-w-[18px] text-center",
                                     isActive ? "bg-white/25 text-current" : "bg-muted-foreground/15 text-muted-foreground"
                                 )}>
                                     {product.count}

@@ -1177,7 +1177,7 @@ export default function OrdersPage() {
 
                                                     {/* View Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             {/* Saved Views Dropdown */}
                                                             <SavedViewsTabs
@@ -1313,7 +1313,7 @@ export default function OrdersPage() {
 
                                                     {/* Filter Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             {/* Date Picker */}
                                                             <div>
@@ -1489,7 +1489,7 @@ export default function OrdersPage() {
 
                                                     {/* Tools Group - NEW */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.tools")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.tools")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             {/* Notifications */}
                                                             <button
@@ -1584,7 +1584,7 @@ export default function OrdersPage() {
 
                                                     {/* Export Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
                                                         <div className="flex items-center gap-1.5">
 
                                                             <button
@@ -1610,7 +1610,7 @@ export default function OrdersPage() {
 
                                                     {/* Action Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             <button
                                                                 onClick={() => setIsReturnsOpen(true)}

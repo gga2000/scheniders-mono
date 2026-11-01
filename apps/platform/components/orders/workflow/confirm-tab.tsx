@@ -136,7 +136,7 @@ export function ConfirmTab({
                                 {/* Status Badge */}
                                 <div className="flex items-center justify-between mb-3">
                                     <span className={cn(
-                                        "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                                        "px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider",
                                         isNew
                                             ? "bg-orange-200 text-orange-900"
                                             : "bg-[var(--pastel-green)] text-emerald-900"
@@ -144,7 +144,7 @@ export function ConfirmTab({
                                         {isNew ? "جديد" : "تم الاتصال"}
                                     </span>
                                     {isBlack && (
-                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
+                                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">
                                             ⚠️ Blacklisted
                                         </span>
                                     )}

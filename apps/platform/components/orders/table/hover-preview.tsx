@@ -27,7 +27,7 @@ export const RowHoverPreview = memo(function RowHoverPreview({ order, position }
             {/* Header */}
             <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-bold text-foreground">{order.customer_name}</span>
-                <span className={cn("px-2 py-0.5 text-[10px] font-bold rounded-full", getStatusBadgeStyle(order.status))}>
+                <span className={cn("px-2 py-0.5 text-[11px] font-bold rounded-full", getStatusBadgeStyle(order.status))}>
                     {orderStatusLabel(order.status)}
                 </span>
             </div>
@@ -52,7 +52,7 @@ export const RowHoverPreview = memo(function RowHoverPreview({ order, position }
                     <Package className="w-3 h-3 mt-0.5 shrink-0" />
                     <div className="flex flex-wrap gap-1">
                         {items.map((item, i) => (
-                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-medium">
+                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 rounded text-[11px] font-medium">
                                 {item.name} ×{item.quantity}
                             </span>
                         ))}

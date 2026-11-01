@@ -55,7 +55,7 @@ export function OrderCustomerRiskPanel({ phone }: { phone: string }) {
 
     if (isFetching && !data) {
         return (
-            <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
                 <Loader2 className="w-3 h-3 animate-spin" />
                 {t("orders.cod.checking", "Checking customer history…")}
             </div>
@@ -65,7 +65,7 @@ export function OrderCustomerRiskPanel({ phone }: { phone: string }) {
     // No prior orders → genuinely a new customer; keep it quiet, not alarming.
     if (!data || data.total_orders === 0) {
         return (
-            <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
                 <ShoppingBag className="w-3 h-3" />
                 {t("orders.cod.newCustomer", "New customer · no order history yet")}
             </div>
@@ -81,7 +81,7 @@ export function OrderCustomerRiskPanel({ phone }: { phone: string }) {
             <div className="flex items-center gap-2 flex-wrap rounded-xl border border-(--card-border) bg-(--background) px-3 py-2">
                 <ValuePill tier={data.value_tier} variant="compact" />
                 <RiskChip risk={data.risk_level} showClean />
-                <span className="text-[10px] text-muted-foreground ml-auto tabular-nums">
+                <span className="text-[11px] text-muted-foreground ml-auto tabular-nums">
                     {data.total_orders} {t("customers.orders").toLowerCase()} · {success}% {t("customers.card.delivered", "delivered")}
                 </span>
             </div>
@@ -89,7 +89,7 @@ export function OrderCustomerRiskPanel({ phone }: { phone: string }) {
             {flags.length > 0 && (
                 <div className="flex items-center gap-1.5 flex-wrap">
                     {flags.map((f) => (
-                        <span key={f.key} className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full", f.tone)}>
+                        <span key={f.key} className={cn("inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full", f.tone)}>
                             <span className="font-mono tabular-nums">{f.count}</span>
                             {t(f.i18nKey)}
                         </span>

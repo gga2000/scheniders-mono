@@ -14,6 +14,14 @@ const config: StorybookConfig = {
   "staticDirs": [
     "../public"
   ],
+  // lib/env.ts validates the Supabase client vars at import, so any story that
+  // reaches the Supabase client needs them. Stories never talk to Supabase:
+  // a local placeholder is enough when none is set.
+  env: (config) => ({
+    ...config,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://storybook-placeholder.supabase.co",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "storybook-placeholder",
+  }),
   // The @scheniders/shared barrel re-exports preview-token.ts, which
   // imports node:crypto. Next tree-shakes it out of client bundles, but
   // Storybook's webpack build doesn't — stub the scheme so browser-only

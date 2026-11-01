@@ -392,7 +392,7 @@ export const OrderCard = memo(function OrderCard({
                             </span>
                             <CardStatusMenu order={order} onStatusUpdate={onStatusUpdate} onCancelWithReason={onCancelWithReason} onRejectWithReason={onRejectWithReason}>
                                 <span className={cn(
-                                    "inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
+                                    "inline-flex items-center px-1.5 py-0.5 text-[11px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
@@ -403,13 +403,13 @@ export const OrderCard = memo(function OrderCard({
 
                         {/* Row 2: Order ID + Priority */}
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-mono text-muted flex items-center gap-1">
+                            <span className="text-[11px] font-mono text-muted flex items-center gap-1">
                                 {(() => {
                                     const id = getDisplayOrderId(order.order_id);
                                     if (order.order_id?.startsWith('CHK-')) {
                                         return (
                                             <span className="flex items-center gap-1">
-                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase font-bold text-[8px]">CHK</span>
+                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase font-bold text-[11px]">CHK</span>
                                                 <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                                                     <HighlightedText text={id} query={localSearchQuery} />
                                                 </span>
@@ -428,7 +428,7 @@ export const OrderCard = memo(function OrderCard({
                             {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse" />}
                             {isHighPriority && !isUrgent && <Flag className="w-2.5 h-2.5 text-amber-600" />}
                             {governorateCode && (
-                                <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold ml-auto">
+                                <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[11px] font-bold ml-auto">
                                     {governorateCode}
                                 </span>
                             )}
@@ -511,7 +511,7 @@ export const OrderCard = memo(function OrderCard({
                             </div>
                             <CardStatusMenu order={order} onStatusUpdate={onStatusUpdate} onCancelWithReason={onCancelWithReason} onRejectWithReason={onRejectWithReason}>
                                 <span className={cn(
-                                    "inline-flex items-center gap-0.5 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
+                                    "inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-bold rounded-full uppercase tracking-wider flex-shrink-0",
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
@@ -549,18 +549,18 @@ export const OrderCard = memo(function OrderCard({
                             <span className="text-subtle">{formatTime(order.created_at)}</span>
                             {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                 <span className="relative group/date-tag">
-                                    <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold rounded">
+                                    <span className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-bold rounded">
                                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                         {t("orderDetail.dateCorrected")}
                                     </span>
-                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[11px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
                                         Was: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
                                     </span>
                                 </span>
                             )}
                             {scheduledState && (
                                 <span
-                                    className={cn("inline-flex items-center gap-0.5 px-1 py-0.5 text-[8px] font-bold rounded", scheduledBadgeClass)}
+                                    className={cn("inline-flex items-center gap-0.5 px-1 py-0.5 text-[11px] font-bold rounded", scheduledBadgeClass)}
                                     title={t("orderDetail.scheduledFor")}
                                 >
                                     <Calendar className="w-2.5 h-2.5" />
@@ -583,7 +583,7 @@ export const OrderCard = memo(function OrderCard({
                                     <MapPin className="w-3 h-3 flex-shrink-0" />
                                     <span className="truncate">{editable("city", cityDisplay, <HighlightedText text={cityDisplay} query={localSearchQuery} />)}</span>
                                     {governorateCode && (
-                                        <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold flex-shrink-0">
+                                        <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[11px] font-bold flex-shrink-0">
                                             {governorateCode}
                                         </span>
                                     )}
@@ -716,7 +716,7 @@ export const OrderCard = memo(function OrderCard({
                                 {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />)}
                             </span>
                             {isBlacklisted && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-900 text-white text-[9px] font-bold flex-shrink-0">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-900 text-white text-[11px] font-bold flex-shrink-0">
                                     <Ban className="w-2.5 h-2.5" />
                                     {t("orders.card.blocked")}
                                 </span>
@@ -751,7 +751,7 @@ export const OrderCard = memo(function OrderCard({
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                             <CardStatusMenu order={order} onStatusUpdate={onStatusUpdate} onCancelWithReason={onCancelWithReason} onRejectWithReason={onRejectWithReason}>
                                 <span className={cn(
-                                    "inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider",
+                                    "inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-bold rounded-full uppercase tracking-wider",
                                     getStatusBadgeStyle(order.status),
                                     isReturn && "bg-rose-100 text-rose-700"
                                 )}>
@@ -759,12 +759,12 @@ export const OrderCard = memo(function OrderCard({
                                 </span>
                             </CardStatusMenu>
                             {isUrgent && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-[11px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
                                     <Flame className="w-2.5 h-2.5" />
                                 </span>
                             )}
                             {isHighPriority && !isUrgent && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-amber-100 text-amber-700">
+                                <span className="inline-flex items-center px-1.5 py-0.5 text-[11px] font-bold rounded-full bg-amber-100 text-amber-700">
                                     <Flag className="w-2.5 h-2.5" />
                                 </span>
                             )}
@@ -792,7 +792,7 @@ export const OrderCard = memo(function OrderCard({
                                 <MapPin className="w-3 h-3 flex-shrink-0" />
                                 <span className="truncate">{editable("city", cityDisplay, <HighlightedText text={cityDisplay} query={localSearchQuery} />)}</span>
                                 {governorateCode && (
-                                    <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[8px] font-bold flex-shrink-0">
+                                    <span className="px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[11px] font-bold flex-shrink-0">
                                         {governorateCode}
                                     </span>
                                 )}
@@ -1015,7 +1015,7 @@ export const OrderCard = memo(function OrderCard({
 
 
                             {!riskLevel && isBlacklisted && (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold rounded bg-red-100 text-red-700" title={t("orders.tip.blacklisted")}>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-bold rounded bg-red-100 text-red-700" title={t("orders.tip.blacklisted")}>
                                     <AlertTriangle className="w-3 h-3" />
                                 </span>
                             )}
@@ -1094,26 +1094,26 @@ export const OrderCard = memo(function OrderCard({
                                                         className="w-5 h-5 rounded-full border border-[var(--card-border)] bg-[var(--background)] object-cover shadow-sm"
                                                     />
                                                 ) : (
-                                                    <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 text-[10px] font-bold shadow-sm">
+                                                    <div className="w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 text-[11px] font-bold shadow-sm">
                                                         {order.last_status_changed_by_name.charAt(0).toUpperCase()}
                                                     </div>
                                                 )}
                                             </div>
                                         )}
                                         {order.is_test && (
-                                            <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shadow-lg ring-2 ring-purple-300 animate-pulse flex items-center gap-1">
+                                            <span className="bg-purple-600 text-white text-[11px] px-2 py-0.5 rounded-full font-bold uppercase shadow-lg ring-2 ring-purple-300 animate-pulse flex items-center gap-1">
                                                 <Sparkles className="w-3 h-3" />
                                                 TEST
                                             </span>
                                         )}
                                         {order.sequence_number && (
-                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold">
+                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[11px] font-semibold">
                                                 #{order.sequence_number}
                                             </span>
                                         )}
                                         {order.delivery_order_id && (
                                             <span
-                                                className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[9px] font-semibold flex items-center gap-1"
+                                                className="px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 text-[11px] font-semibold flex items-center gap-1"
                                                 title={t("orders.card.courierNumber")}
                                             >
                                                 🚚 {order.delivery_order_id}
@@ -1123,7 +1123,7 @@ export const OrderCard = memo(function OrderCard({
                                         {(!order.is_return && previousOrder) && (
                                             <span
                                                 className={cn(
-                                                    "px-1.5 py-0.5 rounded text-[9px] font-bold border cursor-pointer transition-all flex items-center gap-1",
+                                                    "px-1.5 py-0.5 rounded text-[11px] font-bold border cursor-pointer transition-all flex items-center gap-1",
                                                     isVerifiedCustomer
                                                         ? "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200"
                                                         : "bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200"
@@ -1153,11 +1153,11 @@ export const OrderCard = memo(function OrderCard({
                                 {/* Date Modified Indicator */}
                                 {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
                                     <span className="relative group/date-tag">
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-md">
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-bold rounded-md">
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                             {t("orderDetail.dateCorrected")}
                                         </span>
-                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[10px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[11px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
                                             Original: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
                                         </span>
                                     </span>
@@ -1165,7 +1165,7 @@ export const OrderCard = memo(function OrderCard({
 
                                 {/* Order Age Badge with Color Coding */}
                                 <span className={cn(
-                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all",
+                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold transition-all",
                                     ageUrgency === "fresh" && "bg-green-100 text-green-700",
                                     ageUrgency === "normal" && "bg-gray-100 text-gray-600",
                                     ageUrgency === "attention" && "bg-yellow-100 text-yellow-700",
@@ -1181,7 +1181,7 @@ export const OrderCard = memo(function OrderCard({
                                 {/* Parked for a later day — not overdue work */}
                                 {scheduledState && (
                                     <span
-                                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold", scheduledBadgeClass)}
+                                        className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold", scheduledBadgeClass)}
                                         title={t("orderDetail.scheduledFor")}
                                     >
                                         <Calendar className="w-3 h-3" />
@@ -1198,7 +1198,7 @@ export const OrderCard = memo(function OrderCard({
                                 <motion.span
                                     layoutId={getLayoutId(`order-status-${order.id}-${order.status}`)}
                                     className={cn(
-                                        "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full uppercase tracking-wider",
+                                        "inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full uppercase tracking-wider",
                                         getStatusBadgeStyle(order.status),
                                         isReturn && "bg-rose-100 text-rose-700 border border-rose-200"
                                     )}
@@ -1211,7 +1211,7 @@ export const OrderCard = memo(function OrderCard({
 
                             {/* Delivery Company Badge */}
                             {order.delivery_company === 'waseet' && (
-                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-semibold rounded-full bg-cyan-100 text-cyan-800 border border-cyan-300">
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-semibold rounded-full bg-cyan-100 text-cyan-800 border border-cyan-300">
                                     <Truck className="w-3 h-3 flex-shrink-0" />
                                     {t("orders.card.waseet")}
                                     {order.waseet_status_text && (
@@ -1226,7 +1226,7 @@ export const OrderCard = memo(function OrderCard({
                                     href={order.waseet_qr_link}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-colors"
+                                    className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-colors"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
@@ -1236,7 +1236,7 @@ export const OrderCard = memo(function OrderCard({
 
                             {/* Delivery Note - right after status badge for visibility */}
                             {order.delivery_note && (
-                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-teal-100 text-teal-800 border border-teal-300">
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-medium rounded-full bg-teal-100 text-teal-800 border border-teal-300">
                                     <FileText className="w-3 h-3 flex-shrink-0" />
                                     <span className="truncate max-w-[220px]">{order.delivery_note}</span>
                                 </span>
@@ -1252,14 +1252,14 @@ export const OrderCard = memo(function OrderCard({
 
                                         {/* Dynamic History Details: Rejected vs No Response */}
                                         {((riskAssessment?.historicalData?.rejectedCustomerFaultCount ?? 0) > 0) && (
-                                            <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">
+                                            <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[11px] font-bold border border-rose-200">
                                                 <XCircle className="w-3 h-3" />
                                                 {t("orders.card.prevRejected")}
                                             </span>
                                         )}
                                         {/* Previous Refund - PURPLE */}
                                         {(riskAssessment?.historicalData?.refundCount ?? 0) > 0 && (
-                                            <span className="inline-flex h-6 items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                                            <span className="inline-flex h-6 items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
                                                 <RotateCcw className="w-3 h-3" />
                                                 {t("orders.card.prevRefunded", { count: riskAssessment?.historicalData?.refundCount ?? 0 })}
                                             </span>
@@ -1267,7 +1267,7 @@ export const OrderCard = memo(function OrderCard({
 
                                         {/* No Response History - ORANGE */}
                                         {((riskAssessment?.historicalData?.noResponseCount ?? 0) > 0) && (
-                                            <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold border border-orange-200">
+                                            <span className="inline-flex h-6 items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[11px] font-bold border border-orange-200">
                                                 <PhoneOff className="w-3 h-3" />
                                                 {t("orders.card.prevNoResponse")}
                                             </span>
@@ -1278,7 +1278,7 @@ export const OrderCard = memo(function OrderCard({
 
                             {/* Archive Tag */}
                             {order.is_archived && (
-                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-gray-200 text-gray-700 border border-gray-300">
+                                <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-gray-200 text-gray-700 border border-gray-300">
                                     <ArchiveIcon className="w-3 h-3" />
                                     {t("orders.card.archived")}
                                 </span>
@@ -1299,25 +1299,25 @@ export const OrderCard = memo(function OrderCard({
 
                                 if (daysLeft > 5) {
                                     return (
-                                        <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-green-100 text-green-700">
+                                        <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-green-100 text-green-700">
                                             ✓ {t("orders.card.guaranteeDays", { count: daysLeft })}
                                         </span>
                                     );
                                 } else if (daysLeft > 2) {
                                     return (
-                                        <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-yellow-100 text-yellow-700">
+                                        <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-yellow-100 text-yellow-700">
                                             ⏱ {t("orders.card.guaranteeDays", { count: daysLeft })}
                                         </span>
                                     );
                                 } else if (daysLeft > 0) {
                                     return (
-                                        <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
+                                        <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">
                                             ⚠ {daysLeft === 1 ? t("orders.card.lastDay") : t("orders.card.daysLeft", { count: daysLeft })}
                                         </span>
                                     );
                                 } else {
                                     return (
-                                        <span className="inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full bg-gray-100 text-gray-500">
+                                        <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-medium rounded-full bg-gray-100 text-gray-500">
                                             {t("orders.card.guaranteeOver")}
                                         </span>
                                     );
@@ -1344,7 +1344,7 @@ export const OrderCard = memo(function OrderCard({
                             {compact === 0 && (customerOrderCount > 1 || archivedOrderCount > 0) && (
                                 <span
                                     className={cn(
-                                        "inline-flex h-6 items-center gap-1 px-2 text-[10px] font-medium rounded-full cursor-pointer transition-colors",
+                                        "inline-flex h-6 items-center gap-1 px-2 text-[11px] font-medium rounded-full cursor-pointer transition-colors",
                                         isVerifiedCustomer
                                             ? "bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200"
                                             : (customerOrderCount > 1 ? "bg-orange-100 text-orange-700 border border-orange-200 hover:bg-orange-200" : "bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200")
@@ -1368,7 +1368,7 @@ export const OrderCard = memo(function OrderCard({
                                         <>
                                             <Copy className="w-3 h-3" />
                                             {t("orders.card.ordersCount", { count: customerOrderCount + archivedOrderCount })}
-                                            {archivedOrderCount > 0 && <span className="opacity-70 text-[8px] mr-1">{t("orders.card.archivedCount", { count: archivedOrderCount })}</span>}
+                                            {archivedOrderCount > 0 && <span className="opacity-70 text-[11px] mr-1">{t("orders.card.archivedCount", { count: archivedOrderCount })}</span>}
                                         </>
                                     )}
                                 </span>
@@ -1431,14 +1431,14 @@ export const OrderCard = memo(function OrderCard({
                                                     </span>
                                                     {item.is_ai_extracted && <GeminiBadge />}
                                                     {(item as { is_open_box?: boolean }).is_open_box && (
-                                                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
+                                                        <span className="px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
                                                             {t("orders.card.openBox")}
                                                         </span>
                                                     )}
                                                     {/* Reason Tag - shows for return, rejected, cancelled orders */}
                                                     {orderReasonInfo?.reason && idx === 0 && (
                                                         <span className={cn(
-                                                            "px-2 py-0.5 rounded-full text-[10px] font-bold border",
+                                                            "px-2 py-0.5 rounded-full text-[11px] font-bold border",
                                                             ['return', 'rejected', 'cancelled'].includes(orderReasonInfo.type || '') && "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20",
                                                             orderReasonInfo.type === 'no_response' && "bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20",
                                                             !['return', 'rejected', 'cancelled', 'no_response'].includes(orderReasonInfo.type || '') && "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-500/10 dark:text-gray-400 dark:border-gray-500/20"
@@ -1586,7 +1586,7 @@ export const OrderCard = memo(function OrderCard({
                                         <span className="truncate text-right" title={fullAddress}>{editable("address_details", order.address_details || "", <HighlightedText text={fullAddress} query={localSearchQuery} />)}</span>
                                         {/* Show governorate code - computed from stored value or extracted from city */}
                                         {governorateCode && (
-                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-semibold flex-shrink-0">
+                                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[11px] font-semibold flex-shrink-0">
                                                 {governorateCode}
                                             </span>
                                         )}
@@ -1624,7 +1624,7 @@ export const OrderCard = memo(function OrderCard({
                         )}
                         {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                             <>
-                                <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">{t("orders.card.total")}</p>
+                                <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">{t("orders.card.total")}</p>
                                 <p className="text-lg font-bold text-emerald-600 dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">
                                     {t("orders.card.paid")}
                                 </p>
@@ -1634,7 +1634,7 @@ export const OrderCard = memo(function OrderCard({
                             </>
                         ) : (
                             <div className="flex flex-col items-end">
-                                <p className="text-[10px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">{t("orders.card.total")}</p>
+                                <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">{t("orders.card.total")}</p>
                                 {order.discount_amount ? (
                                     <>
                                         <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono mb-0.5">
@@ -1665,7 +1665,7 @@ export const OrderCard = memo(function OrderCard({
                                     </p>
                                 )}
                                 {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
-                                    <div className="flex items-center gap-1 mt-1 text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
+                                    <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
                                         <Truck className="w-2.5 h-2.5" />
                                         {t("orders.card.deliveryDeduction", { amount: formatIQD(orderReasonInfo.deliveryDeduction) })}
                                     </div>
@@ -1735,12 +1735,12 @@ export const OrderCard = memo(function OrderCard({
                             <div className="flex-shrink-0 text-right">
                                 {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wider dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">{t("orders.card.total")}</span>
+                                        <span className="text-[11px] text-emerald-600 font-medium uppercase tracking-wider dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">{t("orders.card.total")}</span>
                                         <span className="text-lg font-bold text-emerald-600 dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]">{t("orders.card.paid")}</span>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[10px] text-muted uppercase tracking-wider dark:text-[#A1A1A1]">{t("orders.card.total")}</span>
+                                        <span className="text-[11px] text-muted uppercase tracking-wider dark:text-[#A1A1A1]">{t("orders.card.total")}</span>
 
                                         {order.discount_amount ? (
                                             <>
@@ -1772,7 +1772,7 @@ export const OrderCard = memo(function OrderCard({
                                             </span>
                                         )}
                                         {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
-                                            <div className="flex items-center gap-1 mt-1 text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
+                                            <div className="flex items-center gap-1 mt-1 text-[11px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
                                                 {t("orders.card.deliveryDeduction", { amount: formatIQD(orderReasonInfo.deliveryDeduction) })}
                                             </div>
                                         )}
@@ -1896,7 +1896,7 @@ export const OrderCard = memo(function OrderCard({
                                 >
                                     <MessageCircle className="w-4 h-4" />
                                     <span className={cn(
-                                        "absolute -top-1 -right-1 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center shadow-sm border",
+                                        "absolute -top-1 -right-1 w-4 h-4 rounded-full text-[11px] font-bold flex items-center justify-center shadow-sm border",
                                         getBadgeStyle()
                                     )}>
                                         {contactCount > 0 ? (contactCount > 9 ? "9+" : contactCount) : ""}
@@ -1920,7 +1920,7 @@ export const OrderCard = memo(function OrderCard({
                                 title={t("orders.tip.whatsappSecondary")}
                             >
                                 <MessageCircle className="w-4 h-4" />
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full text-[10px] font-bold text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-200 dark:bg-[#1E1E1E] dark:border-[rgba(0,255,100,0.3)] dark:text-[#00FFAA]">
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full text-[11px] font-bold text-emerald-600 flex items-center justify-center shadow-sm border border-emerald-200 dark:bg-[#1E1E1E] dark:border-[rgba(0,255,100,0.3)] dark:text-[#00FFAA]">
                                     {(order.contact_count || 0) > 0 ? ((order.contact_count || 0) > 9 ? "9+" : order.contact_count) : ""}
                                 </span>
                             </button>

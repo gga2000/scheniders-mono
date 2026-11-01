@@ -45,7 +45,7 @@ function OrderSummary({ order, label, tone }: { order: Order; label: string; ton
             <div className="flex items-center justify-between gap-2">
                 <span
                     className={cn(
-                        "rounded px-1.5 py-0.5 text-[10px] font-bold",
+                        "rounded px-1.5 py-0.5 text-[11px] font-bold",
                         tone === "twin" ? "bg-rose-600 text-white" : "bg-slate-600 text-white",
                     )}
                 >

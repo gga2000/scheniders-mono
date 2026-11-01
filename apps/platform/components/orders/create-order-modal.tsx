@@ -563,7 +563,7 @@ export function CreateOrderModal({
                                 <button
                                     type="button"
                                     onClick={handleClearFields}
-                                    className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-all opacity-70 hover:opacity-100"
+                                    className="px-2 py-1 flex items-center gap-1 text-[11px] font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-all opacity-70 hover:opacity-100"
                                     title="مسح جميع الحقول"
                                 >
                                     <RefreshCw className="h-3 w-3" />
@@ -586,7 +586,7 @@ export function CreateOrderModal({
                                         }));
 
                                         }}
-                                        className="px-2 py-1 flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
+                                        className="px-2 py-1 flex items-center gap-1 text-[11px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-md hover:bg-purple-100 transition-all opacity-50 hover:opacity-100 shadow-sm"
                                         title="تعبئة بيانات تجريبية"
                                     >
                                         Test
@@ -667,7 +667,7 @@ export function CreateOrderModal({
                         <div className="grid grid-cols-2 gap-3">
                             {/* Order ID */}
                             <div className="space-y-1">
-                                <Label className="text-[10px] text-muted flex items-center gap-1">
+                                <Label className="text-[11px] text-muted flex items-center gap-1">
                                     <Hash className="h-3 w-3" />
                                     رقم الطلب (اختياري)
                                 </Label>
@@ -700,7 +700,7 @@ export function CreateOrderModal({
                                     )}
                                 </div>
                                 {orderIdStatus === "exists" && (
-                                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+                                    <p className="text-[11px] text-red-500 flex items-center gap-1">
                                         <AlertTriangle className="w-3 h-3" />
                                         موجود مسبقاً
                                     </p>
@@ -709,7 +709,7 @@ export function CreateOrderModal({
 
                             {/* Source - moved here from customer section */}
                             <div className="space-y-1">
-                                <Label className="text-[10px] text-muted">مصدر الطلب</Label>
+                                <Label className="text-[11px] text-muted">مصدر الطلب</Label>
                                 <div className="flex flex-wrap gap-1">
                                     {ORDER_SOURCES.map((source) => (
                                         <button
@@ -717,7 +717,7 @@ export function CreateOrderModal({
                                             type="button"
                                             onClick={() => updateField("source", source.id)}
                                             className={cn(
-                                                "flex items-center justify-center gap-1 px-2 py-1.5 rounded-md border text-[10px] font-medium transition-all",
+                                                "flex items-center justify-center gap-1 px-2 py-1.5 rounded-md border text-[11px] font-medium transition-all",
                                                 formData.source === source.id
                                                     ? "border-green-300 bg-green-50 text-green-700"
                                                     : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
@@ -776,7 +776,7 @@ export function CreateOrderModal({
                                         {isAnalyzingImage ? "جاري تحليل الصورة..." : uploadedImage ? "تم التحليل — اضغط لتغيير الصورة" : "ارفع صورة المحادثة للتعبئة التلقائية"}
                                     </p>
                                     {!isAnalyzingImage && !uploadedImage && (
-                                        <p className="text-[10px] text-gray-400 mt-0.5">Instagram أو TikTok — استخراج تلقائي</p>
+                                        <p className="text-[11px] text-gray-400 mt-0.5">Instagram أو TikTok — استخراج تلقائي</p>
                                     )}
                                 </div>
                                 {uploadedImage && !isAnalyzingImage && (
@@ -786,7 +786,7 @@ export function CreateOrderModal({
                             <button
                                 type="button"
                                 onClick={() => setShowBulkUpload(true)}
-                                className="text-[10px] text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 hover:underline transition-all"
+                                className="text-[11px] text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 hover:underline transition-all"
                             >
                                 <Package className="h-3 w-3" />
                                 رفع طلبات متعددة دفعة واحدة
@@ -803,7 +803,7 @@ export function CreateOrderModal({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {/* Customer Name */}
                                     <div className="space-y-1">
-                                        <Label className="text-[10px] text-muted">اسم العميل <span className="text-red-500">*</span></Label>
+                                        <Label className="text-[11px] text-muted">اسم العميل <span className="text-red-500">*</span></Label>
                                         <Input
                                             value={formData.customer_name}
                                             onChange={(e) => updateField("customer_name", e.target.value)}
@@ -821,7 +821,7 @@ export function CreateOrderModal({
 
                                     {/* Primary Phone */}
                                     <div className="space-y-1">
-                                        <Label className="text-[10px] text-muted flex items-center gap-1">
+                                        <Label className="text-[11px] text-muted flex items-center gap-1">
                                             <Phone className="h-3 w-3" />
                                             رقم الهاتف {orderType === "delivery" ? <span className="text-red-500">*</span> : <span className="text-gray-400">(اختياري)</span>}
                                         </Label>
@@ -867,7 +867,7 @@ export function CreateOrderModal({
 
                                     {/* Secondary Phone */}
                                     <div className="space-y-1">
-                                        <Label className="text-[10px] text-muted flex items-center gap-1">
+                                        <Label className="text-[11px] text-muted flex items-center gap-1">
                                             <Phone className="h-3 w-3" />
                                             رقم إضافي <span className="text-gray-400">(اختياري)</span>
                                         </Label>
@@ -889,7 +889,7 @@ export function CreateOrderModal({
                                     {/* Governorate (City) - Hidden for shop orders */}
                                     {orderType === "delivery" && (
                                         <div className="space-y-1">
-                                            <Label className="text-[10px] text-muted">المحافظة</Label>
+                                            <Label className="text-[11px] text-muted">المحافظة</Label>
                                             <div className="relative">
                                                 <select
                                                     value={formData.city}
@@ -916,7 +916,7 @@ export function CreateOrderModal({
                                 {/* Address - Hidden for shop orders */}
                                 {orderType === "delivery" && (
                                     <div className="space-y-1">
-                                        <Label className="text-[10px] text-muted flex items-center gap-1">
+                                        <Label className="text-[11px] text-muted flex items-center gap-1">
                                             <MapPin className="h-3 w-3" />
                                             العنوان الكامل
                                         </Label>
@@ -939,13 +939,13 @@ export function CreateOrderModal({
                                 <div className="flex flex-wrap items-center gap-3 pt-1">
                                     {/* Payment Status */}
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] text-muted">الدفع:</span>
+                                        <span className="text-[11px] text-muted">الدفع:</span>
                                         <div className="flex gap-1">
                                             <button
                                                 type="button"
                                                 onClick={() => updateField("payment_status", "cod")}
                                                 className={cn(
-                                                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all",
+                                                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all",
                                                     formData.payment_status === "cod"
                                                         ? "bg-amber-50 border-amber-300 text-amber-700"
                                                         : "bg-white border-[var(--card-border)] text-muted hover:border-amber-200"
@@ -958,7 +958,7 @@ export function CreateOrderModal({
                                                 type="button"
                                                 onClick={() => updateField("payment_status", "prepaid")}
                                                 className={cn(
-                                                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all",
+                                                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all",
                                                     formData.payment_status === "prepaid"
                                                         ? "bg-emerald-50 border-emerald-300 text-emerald-700"
                                                         : "bg-white border-[var(--card-border)] text-muted hover:border-emerald-200"
@@ -973,7 +973,7 @@ export function CreateOrderModal({
                                     {/* Delivery Slot - Only for delivery orders */}
                                     {orderType === "delivery" && (
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] text-muted flex items-center gap-0.5">
+                                            <span className="text-[11px] text-muted flex items-center gap-0.5">
                                                 <Clock className="h-2.5 w-2.5" />
                                                 التوصيل:
                                             </span>
@@ -988,7 +988,7 @@ export function CreateOrderModal({
                                                         type="button"
                                                         onClick={() => updateField("delivery_slot", formData.delivery_slot === value ? undefined : value)}
                                                         className={cn(
-                                                            "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium border transition-all",
+                                                            "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium border transition-all",
                                                             formData.delivery_slot === value
                                                                 ? active
                                                                 : "bg-white border-[var(--card-border)] text-muted hover:bg-gray-50"
@@ -1012,13 +1012,13 @@ export function CreateOrderModal({
                                     <Package className="h-3.5 w-3.5 text-gray-500" />
                                     <span className="text-xs font-semibold text-foreground">المنتجات</span>
                                     {formData.items.length > 0 && (
-                                        <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{formData.items.length}</span>
+                                        <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">{formData.items.length}</span>
                                     )}
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => setShowProductPicker(true)}
-                                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition-all"
+                                    className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition-all"
                                 >
                                     + إضافة
                                 </button>
@@ -1062,7 +1062,7 @@ export function CreateOrderModal({
                                                             type="button"
                                                             onClick={() => updateItem(index, "is_open_box", !item.is_open_box)}
                                                             className={cn(
-                                                                "shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-semibold transition-all",
+                                                                "shrink-0 px-1.5 py-0.5 rounded-full text-[11px] font-semibold transition-all",
                                                                 item.is_open_box
                                                                     ? "bg-amber-100 text-amber-700"
                                                                     : "bg-gray-100 text-gray-400 hover:bg-gray-200"
@@ -1078,18 +1078,18 @@ export function CreateOrderModal({
                                                                 type="number"
                                                                 value={item.price}
                                                                 onChange={(e) => updateItem(index, "price", toWholeIqd(e.target.value))}
-                                                                className="w-20 h-5 text-[10px] px-1.5 rounded border-green-300"
+                                                                className="w-20 h-5 text-[11px] px-1.5 rounded border-green-300"
                                                                 autoFocus
                                                                 onBlur={() => setEditingPriceIndex(null)}
                                                                 onKeyDown={(e) => e.key === "Enter" && setEditingPriceIndex(null)}
                                                             />
-                                                            <span className="text-[10px] text-muted">x {item.quantity}</span>
+                                                            <span className="text-[11px] text-muted">x {item.quantity}</span>
                                                         </div>
                                                     ) : (
                                                         <button
                                                             type="button"
                                                             onClick={() => setEditingPriceIndex(index)}
-                                                            className="text-[10px] text-muted hover:text-green-600 flex items-center gap-1 group"
+                                                            className="text-[11px] text-muted hover:text-green-600 flex items-center gap-1 group"
                                                         >
                                                             {formatIQD(item.price)} x {item.quantity}
                                                             <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1106,7 +1106,7 @@ export function CreateOrderModal({
                                                         >
                                                             -
                                                         </button>
-                                                        <span className="w-5 text-center text-[10px] font-semibold">{item.quantity}</span>
+                                                        <span className="w-5 text-center text-[11px] font-semibold">{item.quantity}</span>
                                                         <button
                                                             type="button"
                                                             onClick={() => updateItem(index, "quantity", item.quantity + 1)}
@@ -1183,7 +1183,7 @@ export function CreateOrderModal({
                                                         min="0"
                                                         value={deliveryFee}
                                                         onChange={(e) => setDeliveryFee(toWholeIqd(e.target.value))}
-                                                        className="w-20 h-6 rounded border-blue-200 bg-white text-[10px] font-mono text-right"
+                                                        className="w-20 h-6 rounded border-blue-200 bg-white text-[11px] font-mono text-right"
                                                     />
                                                 )}
                                             </div>
@@ -1204,7 +1204,7 @@ export function CreateOrderModal({
                                                     }}
                                                     className="w-24 h-7 rounded-md border-[var(--card-border)] bg-white text-xs font-mono text-right font-bold text-green-700"
                                                 />
-                                                <span className="text-[10px] text-muted">IQD</span>
+                                                <span className="text-[11px] text-muted">IQD</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1217,8 +1217,8 @@ export function CreateOrderModal({
                             <div className="space-y-1">
                                 <div className="flex items-center gap-1.5 px-1">
                                     <FileText className="h-3 w-3 text-amber-500" />
-                                    <span className="text-[10px] font-semibold text-amber-700">ملاحظات الطلب</span>
-                                    <span className="text-[9px] text-amber-400">(الفاتورة)</span>
+                                    <span className="text-[11px] font-semibold text-amber-700">ملاحظات الطلب</span>
+                                    <span className="text-[11px] text-amber-400">(الفاتورة)</span>
                                 </div>
                                 <textarea
                                     value={formData.notes}
@@ -1231,8 +1231,8 @@ export function CreateOrderModal({
                             <div className="space-y-1">
                                 <div className="flex items-center gap-1.5 px-1">
                                     <FileText className="h-3 w-3 text-blue-500" />
-                                    <span className="text-[10px] font-semibold text-blue-700">ملاحظات داخلية</span>
-                                    <span className="text-[9px] text-blue-400">(الموظفين)</span>
+                                    <span className="text-[11px] font-semibold text-blue-700">ملاحظات داخلية</span>
+                                    <span className="text-[11px] text-blue-400">(الموظفين)</span>
                                 </div>
                                 <textarea
                                     value={formData.internal_notes || ""}
@@ -1273,7 +1273,7 @@ export function CreateOrderModal({
 
                         {/* Live Total */}
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50/80 rounded-lg border border-green-100">
-                            <span className="text-[10px] text-green-600">المجموع</span>
+                            <span className="text-[11px] text-green-600">المجموع</span>
                             <span className="text-sm font-mono font-bold text-green-700">{formatIQD(total)}</span>
                         </div>
 
