@@ -33,19 +33,22 @@ export function usePrinting() {
     const refreshBatches = () => queryClient.invalidateQueries({ queryKey: PRINT_BATCHES_KEY });
 
     /**
-     * Record a print run in one transaction: history rows, print counters and the
-     * batch row. The store comes from the session on the server, never from here.
+     * Record a run in one transaction: history rows, print counters and the batch
+     * row. A Prime hand-off is recorded the same way under a "Prime Export" name,
+     * so its labels count as printed and the run can be printed or exported again.
+     * The store comes from the session on the server, never from here.
      */
     async function recordPrint(
         orderIds: string[],
-        batchName: string
+        batchName: string,
+        template: "dispatch" | "prime" = "dispatch"
     ): Promise<{ success: true; batchId: string } | { success: false; error: string }> {
         const { data, error } = await supabase.rpc("record_print_run", {
             p_order_ids: orderIds,
             p_print_type: "label",
             p_label_size: "80x120",
             p_batch_name: batchName,
-            p_invoice_template: "dispatch",
+            p_invoice_template: template,
         });
         if (error || !data) {
             return { success: false, error: error?.message ?? "Print run was not recorded" };
@@ -54,34 +57,14 @@ export function usePrinting() {
         return { success: true, batchId: data };
     }
 
-    async function createBatch(name: string, orders: Order[]): Promise<{ success: true } | { success: false; error: string }> {
-        const { data, error } = await supabase
-            .from("print_batches")
-            .insert({
-                name,
-                order_count: orders.length,
-                total_value: orders.reduce((sum, o) => sum + Number(o.price || 0), 0),
-                cities: [...new Set(orders.map((o) => o.city).filter(Boolean))],
-                order_ids: orders.map((o) => o.id),
-                invoice_template: "prime",
-                print_type: "invoice",
-                // RLS only admits rows stamped with one of the member's stores.
-                tenant_id: tenantId,
-            })
-            .select("id")
-            .single();
-        if (error || !data) return { success: false, error: error?.message ?? "Run was not recorded" };
-        await refreshBatches();
-        return { success: true };
-    }
-
     /**
-     * Download the Prime file for these orders, then record the hand-off as a run.
-     * Every attempt is logged, including which half of it failed.
+     * Download the Prime file for these orders and, with `record`, save the
+     * hand-off as a run. Every recorded attempt is logged, including which half
+     * of it failed.
      */
     async function exportPrime(
         orders: Order[],
-        { record }: { record: boolean }
+        { record, filename }: { record: boolean; filename: string }
     ): Promise<{ success: true; recorded: boolean } | { success: false; error: string }> {
         const log = async (succeeded: boolean, failureStage?: "file" | "batch_record", message?: string) => {
             const { error } = await supabase.rpc("log_shipping_export", {
@@ -96,7 +79,7 @@ export function usePrinting() {
         };
 
         try {
-            await exportOrdersToPrimeCSV(orders.map((o) => o.id), orders);
+            await exportOrdersToPrimeCSV(orders.map((o) => o.id), orders, filename);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Could not complete the export";
             await log(false, "file", message);
@@ -104,9 +87,13 @@ export function usePrinting() {
         }
         if (!record) return { success: true, recorded: false };
 
-        const batch = await createBatch(`Prime Export ${new Date().toLocaleDateString("en-GB")}`, orders);
-        await log(batch.success, batch.success ? undefined : "batch_record", batch.success ? undefined : batch.error);
-        return { success: true, recorded: batch.success };
+        const run = await recordPrint(
+            orders.map((o) => o.id),
+            `Prime Export ${new Date().toLocaleDateString("en-GB")}`,
+            "prime"
+        );
+        await log(run.success, run.success ? undefined : "batch_record", run.success ? undefined : run.error);
+        return { success: true, recorded: run.success };
     }
 
     return { batches, recordPrint, exportPrime };

@@ -6,12 +6,14 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { usePrinting } from "@/hooks/use-printing";
 import { useDispatchQueue, DISPATCH_QUEUE_KEY } from "@/hooks/use-dispatch-queue";
 import { useDispatchRun } from "@/hooks/use-dispatch-run";
+import { useDuplicateWindowAlerts } from "@/hooks/use-duplicate-window-alerts";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getQueueFlags, groupForPacking, hasBlockingFlag, type PackGroup } from "@/lib/dispatch-queue";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { ordersOfRun } from "@/lib/print-runs";
+import { baghdadDayKey, type OrderWindow } from "@/lib/order-window";
 import type { Order, PrintBatch } from "@/lib/supabase";
 import { OrderCard } from "@/components/printing/order-card";
 import { DeskToolbar, type DeskIssue } from "@/components/printing/desk-toolbar";
@@ -20,6 +22,7 @@ import { DispatchActionBar } from "@/components/printing/dispatch-action-bar";
 import { RunHistory } from "@/components/printing/run-history";
 import { PackGroupHeader } from "@/components/printing/pack-group-header";
 import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
+import { ShipRunDialog } from "@/components/printing/ship-run-dialog";
 
 type View = "today" | "history";
 
@@ -57,7 +60,8 @@ export default function PrintingPage() {
     // Ticks the user changed by hand; every other order follows tickedByDefault.
     const [ticks, setTicks] = useState<ReadonlyMap<string, boolean>>(new Map());
     const [focusId, setFocusId] = useState<string | null>(null);
-    const [reprintAction, setReprintAction] = useState<"pdf" | "print" | null>(null);
+    const [reprintOpen, setReprintOpen] = useState(false);
+    const [shipOpen, setShipOpen] = useState(false);
     const [busyRunId, setBusyRunId] = useState<string | null>(null);
 
     // The queue in packing order: each group's labels come off the printer together.
@@ -105,28 +109,43 @@ export default function PrintingPage() {
 
     const refreshQueue = () => queryClient.invalidateQueries({ queryKey: DISPATCH_QUEUE_KEY });
 
-    const run = useDispatchRun({
-        printing,
-        bulkUpdateStatus,
-        setSelection: (ids) => {
-            setTicks(new Map(ids.map((id) => [id, true])));
-            void refreshQueue();
-        },
-    });
+    const run = useDispatchRun({ printing, bulkUpdateStatus });
+
+    // The 48h double-dispatch check needs the queue's own span plus its margin:
+    // a twin already handed to the courier is no longer in the queue.
+    const queueWindow = useMemo((): OrderWindow => {
+        const times = orders.map((o) => Date.parse(o.created_at)).filter((ms) => !Number.isNaN(ms));
+        if (times.length === 0) return null;
+        const fromInstant = Math.min(...times);
+        const toInstant = Math.max(...times);
+        return { fromInstant, toInstant, fromDay: baghdadDayKey(fromInstant), toDay: baghdadDayKey(toInstant) };
+    }, [orders]);
+    const { getConfirmBlockingTwin } = useDuplicateWindowAlerts(orders, queueWindow);
 
     const reprints = selected.filter(ISSUE_TEST.printed);
 
-    const runLabels = async (action: "pdf" | "print", list: Order[]) => {
-        await (action === "pdf" ? run.downloadLabels(list) : run.printLabels(list));
+    // Straight to the printer; nothing ships. Orders printed before get a warning first.
+    const printLabels = async (list: Order[]) => {
+        await run.printLabels(list);
         // Printing bumps print counts; reload so the "printed" chips are current.
         await refreshQueue();
     };
-
-    // Orders printed before get a warning first; it remembers whether it guards the PDF or the printer.
-    const startLabels = (action: "pdf" | "print") => {
-        if (reprints.length > 0) setReprintAction(action);
-        else void runLabels(action, selected);
+    const startPrint = () => {
+        if (reprints.length > 0) setReprintOpen(true);
+        else void printLabels(selected);
     };
+
+    const shipRun = async (list: Order[]) => {
+        if (!(await run.ship(list))) return;
+        setShipOpen(false);
+        setTicks(new Map());
+        await refreshQueue();
+    };
+
+    // The ship dialog's breakdown: the packing groups of the ticked orders only.
+    const selectedGroups = groups
+        .map((g) => ({ key: g.key, label: groupLabel(g), count: g.orders.filter(isTicked).length }))
+        .filter((g) => g.count > 0);
 
     const fromRun = async (batch: PrintBatch, act: (runOrders: Order[]) => Promise<void>) => {
         setBusyRunId(batch.id);
@@ -259,11 +278,9 @@ export default function PrintingPage() {
                             </section>
                             <DispatchActionBar
                                 selectedCount={selected.length}
-                                pdfLoading={run.pdfLoading}
                                 shipping={run.shipping}
-                                onPdf={() => startLabels("pdf")}
-                                onPrint={() => startLabels("print")}
-                                onHandToPrime={() => void run.handToPrime(selected)}
+                                onShip={() => setShipOpen(true)}
+                                onPrint={startPrint}
                             />
                         </div>
                         <LabelPreviewRail
@@ -279,18 +296,30 @@ export default function PrintingPage() {
                 )}
             </div>
 
+            <ShipRunDialog
+                open={shipOpen}
+                onOpenChange={setShipOpen}
+                orders={selected}
+                groups={selectedGroups}
+                heldBackCount={issueCounts.blocked}
+                getDispatchTwin={getConfirmBlockingTwin}
+                onRemove={(ids) => setTick(ids, false)}
+                shipping={run.shipping}
+                onShip={(list) => void shipRun(list)}
+            />
+
             <ReprintWarningModal
-                isOpen={reprintAction !== null}
-                onClose={() => setReprintAction(null)}
+                isOpen={reprintOpen}
+                onClose={() => setReprintOpen(false)}
                 reprintOrders={reprints}
                 onConfirm={() => {
-                    if (reprintAction) void runLabels(reprintAction, selected);
-                    setReprintAction(null);
+                    void printLabels(selected);
+                    setReprintOpen(false);
                 }}
                 onPrintNewOnly={() => {
                     const fresh = selected.filter((o) => !ISSUE_TEST.printed(o));
-                    if (reprintAction && fresh.length > 0) void runLabels(reprintAction, fresh);
-                    setReprintAction(null);
+                    if (fresh.length > 0) void printLabels(fresh);
+                    setReprintOpen(false);
                 }}
             />
         </div>

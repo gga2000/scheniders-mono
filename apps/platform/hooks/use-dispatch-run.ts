@@ -6,19 +6,17 @@ import { supabase } from "@/lib/supabase";
 import type { usePrinting } from "@/hooks/use-printing";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
-import { openPrintWindow, shippingLabelsDocument, writePrintWindow } from "@/lib/shipping-labels";
+import { openPrintWindow, runFileNames, shippingLabelsDocument, writePrintWindow } from "@/lib/shipping-labels";
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
-import { partitionByShipDay } from "@/lib/order-bulk-scope";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
 
 type Printing = ReturnType<typeof usePrinting>;
 
 interface DispatchRunOptions {
     printing: Printing;
-    bulkUpdateStatus: (ids: string[], status: Order["status"]) => Promise<unknown>;
-    /** Replace the selection (used to keep scheduled-later orders ticked after a hand-off). */
-    setSelection: (ids: string[]) => void;
+    /** Reports partial failures itself; `count` is how many orders actually moved. */
+    bulkUpdateStatus: (ids: string[], status: Order["status"]) => Promise<{ count: number }>;
 }
 
 /**
@@ -27,7 +25,7 @@ interface DispatchRunOptions {
  * order; only the hand-off does. Each run is recorded so a printed order never
  * looks unprinted and an old run can be printed again.
  */
-export function useDispatchRun({ printing, bulkUpdateStatus, setSelection }: DispatchRunOptions) {
+export function useDispatchRun({ printing, bulkUpdateStatus }: DispatchRunOptions) {
     const { t } = useLanguage();
     const [pdfLoading, setPdfLoading] = useState(false);
     const [shipping, setShipping] = useState(false);
@@ -73,51 +71,55 @@ export function useDispatchRun({ printing, bulkUpdateStatus, setSelection }: Dis
     };
 
     // Server-side Chromium renders the same document as the print window, as vector PDF.
-    const downloadLabels = async (orders: Order[]) => {
-        if (orders.length === 0 || !checkPrintable(orders)) return;
-
-        setPdfLoading(true);
+    const renderPdf = async (orders: Order[], filename: string): Promise<boolean> => {
+        const html = await labelsDocument(orders, false);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+            toast.error(t("printing.signInAgainTitle"), t("printing.signInAgainBody"));
+            return false;
+        }
         try {
-            const html = await labelsDocument(orders, false);
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-                toast.error(t("printing.signInAgainTitle"), t("printing.signInAgainBody"));
-                return;
-            }
-            const filename = `shipping-labels-${new Date().toISOString().slice(0, 10)}.pdf`;
             await downloadLabelPdf(html, filename, session.access_token, "80mm", "120mm");
-            await recordRun(orders);
+            return true;
         } catch (err) {
             console.error("PDF generation error:", err);
             toast.error(t("printing.pdfFailedTitle"), t("printing.pdfFailedBody"));
+            return false;
+        }
+    };
+
+    /** Labels only, as a PDF (a past run printed again). No order moves. */
+    const downloadLabels = async (orders: Order[]) => {
+        if (orders.length === 0 || !checkPrintable(orders)) return;
+        setPdfLoading(true);
+        try {
+            if (await renderPdf(orders, runFileNames(orders.length).labels)) await recordRun(orders);
         } finally {
             setPdfLoading(false);
         }
     };
 
     /**
-     * Hand today's orders to Prime: the Prime file downloads, the run is saved and
-     * the orders move to in transit. Orders postponed to a later day stay ticked.
+     * Ship the run the hand-off dialog settled on: the labels PDF, then the Prime
+     * file, then the run is saved and the orders move to in transit. The PDF goes
+     * first because it is the step that can fail on the server; if it does,
+     * nothing has left the app and nothing moves. Returns true when shipped.
      */
-    const handToPrime = async (orders: Order[]) => {
-        if (orders.length === 0 || !checkPrintable(orders)) return;
-        const { shippable, scheduledLater } = partitionByShipDay(orders);
-        if (scheduledLater.length > 0) {
-            toast.warning(t("printing.laterKeptTitle", { count: scheduledLater.length }), t("printing.laterKeptExportBody"));
-        }
-        if (shippable.length === 0) return;
-
+    const ship = async (orders: Order[]): Promise<boolean> => {
+        if (orders.length === 0 || !checkPrintable(orders)) return false;
+        const names = runFileNames(orders.length);
         setShipping(true);
         try {
-            const result = await printing.exportPrime(shippable, { record: true });
+            if (!(await renderPdf(orders, names.labels))) return false;
+            const result = await printing.exportPrime(orders, { record: true, filename: names.prime });
             if (!result.success) {
-                toast.error(t("printing.exportFailedTitle"), result.error);
-                return;
+                toast.error(t("printing.exportFailedTitle"), t("printing.exportFailedAfterPdf"));
+                return false;
             }
             if (!result.recorded) toast.warning(t("printing.exportNotRecordedTitle"), t("printing.exportNotRecordedBody"));
-            await bulkUpdateStatus(shippable.map((o) => o.id), "in_transit");
-            toast.success(t("printing.handedOffTitle", { count: shippable.length }));
-            setSelection(scheduledLater.map((o) => o.id));
+            const moved = await bulkUpdateStatus(orders.map((o) => o.id), "in_transit");
+            if (moved.count > 0) toast.success(t("printing.handedOffTitle", { count: moved.count }), t("printing.handedOffBody"));
+            return true;
         } finally {
             setShipping(false);
         }
@@ -126,9 +128,9 @@ export function useDispatchRun({ printing, bulkUpdateStatus, setSelection }: Dis
     /** The Prime file of an old run again. Nothing is recorded and no order moves. */
     const primeFileAgain = async (orders: Order[]) => {
         if (orders.length === 0) return;
-        const result = await printing.exportPrime(orders, { record: false });
+        const result = await printing.exportPrime(orders, { record: false, filename: runFileNames(orders.length).prime });
         if (!result.success) toast.error(t("printing.exportFailedTitle"), result.error);
     };
 
-    return { pdfLoading, shipping, printLabels, downloadLabels, handToPrime, primeFileAgain };
+    return { pdfLoading, shipping, printLabels, downloadLabels, ship, primeFileAgain };
 }

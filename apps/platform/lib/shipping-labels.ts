@@ -3,6 +3,7 @@
  * prints on. One label per page, drawn by lib/dispatch-label.ts.
  */
 
+import { baghdadDayKey } from "@/lib/order-window";
 import type { Order } from "@/lib/supabase";
 import type { AfterSalePickup } from "@/lib/after-sale/label-pickups";
 import { DISPATCH_LABEL_CSS, DISPATCH_LABEL_FONTS, generateDispatchLabelHTML } from "@/lib/dispatch-label";
@@ -79,4 +80,16 @@ export function writePrintWindow(printWindow: Window, html: string): void {
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
+}
+
+/**
+ * Arabic download names for a run, dated by the Baghdad day, so the PDF and the
+ * Prime file of one hand-off sit together in the downloads folder.
+ */
+export function runFileNames(orderCount: number, at: Date = new Date()): { labels: string; prime: string } {
+    const day = baghdadDayKey(at);
+    return {
+        labels: `ملصقات الشحن - ${orderCount} طلب - ${day}.pdf`,
+        prime: `ملف برايم - ${orderCount} طلب - ${day}.xlsx`,
+    };
 }
