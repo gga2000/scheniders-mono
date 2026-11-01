@@ -4,13 +4,13 @@ import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { foldTail, seriesColor } from "@/lib/analytics/chart-categories";
 import { RotateCcw, MapPin, TrendingDown, CheckCircle2, DollarSign } from "lucide-react";
 
 interface ReturnBreakdownProps {
     data: ReturnAnalyticsMetrics;
 }
 
-const COLORS = ['#F97316', '#EF4444', '#EAB308', '#3B82F6', '#8B5CF6', '#06B6D4', '#22C55E', '#EC4899'];
 
 // Format IQD currency
 function formatIQD(amount: number): string {
@@ -42,13 +42,23 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
         );
     }
 
-    const pieData = returnsByReason.slice(0, 8).map((d, i) => ({
+    // Top five reasons plus one neutral "Other": the donut and the list show the same rows.
+    const rows = foldTail(returnsByReason, 5, tail => ({
+        reason: t("reports.common.other"),
+        count: tail.reduce((sum, r) => sum + r.count, 0),
+        percentage: tail.reduce((sum, r) => sum + r.percentage, 0),
+        totalAmount: tail.reduce((sum, r) => sum + r.totalAmount, 0),
+        avgAmount: 0,
+        topCity: undefined,
+    }));
+    const hasOther = rows.length !== returnsByReason.length;
+    const pieData = rows.map((d, i) => ({
         name: d.reason,
         value: d.count,
         percentage: d.percentage,
         totalAmount: d.totalAmount,
         topCity: d.topCity,
-        color: COLORS[i % COLORS.length],
+        color: seriesColor(i, rows.length, hasOther),
     }));
 
     return (
@@ -126,13 +136,13 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                         {/* Center info */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className="text-3xl font-bold text-orange-600">{totalReturns}</span>
-                            <span className="text-xs text-muted">استرجاع</span>
+                            <span className="text-xs text-muted">{t("reports.returns.unit")}</span>
                         </div>
                     </div>
 
                     {/* Legend & Details */}
                     <div className="space-y-2 max-h-[220px] overflow-y-auto scrollbar-hide">
-                        {returnsByReason.slice(0, 6).map((item, index) => (
+                        {rows.map((item, index) => (
                             <motion.div
                                 key={item.reason}
                                 initial={{ opacity: 0, x: 10 }}
@@ -143,10 +153,10 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                                 <div className="flex items-center gap-3">
                                     <div
                                         className="w-3 h-3 rounded-full flex-shrink-0"
-                                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                        style={{ backgroundColor: seriesColor(index, rows.length, hasOther) }}
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">{item.reason}</p>
+                                        <p className="text-sm font-medium text-foreground truncate" title={item.reason}>{item.reason}</p>
                                         {item.topCity && (
                                             <p className="text-xs text-muted flex items-center gap-1 mt-0.5">
                                                 <MapPin className="w-3 h-3" />
