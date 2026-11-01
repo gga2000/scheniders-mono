@@ -21,6 +21,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => new Headers({ "x-forwarded-for": "203.0.113.7" })),
+  cookies: async () => ({ get: () => undefined }),
 }));
 // A real shopper, not a draft-view session: the check reads the request's
 // cookies, which do not exist outside a Next request scope.

@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import {
   computeDeliveryFee,
   computeDiscount,
@@ -18,6 +18,7 @@ import {
   type OrderBumpOffer,
 } from "@scheniders/shared";
 import type { StoreConfigV2, AnalyticsConfig } from "@scheniders/shared";
+import { AD_ATTRIBUTION_COOKIE, deserializeAdAttribution } from "@scheniders/shared/ad-attribution";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
 import { capiRequestContext } from "@/lib/capi-context";
@@ -648,6 +649,12 @@ export async function submitCheckout(
   // that discount, and the courier collects `price + delivery_fee`. Every
   // other source already stores it this way; a gross `price` here made the
   // courier collect the discount back from the shopper.
+  // Last ad click recorded by the proxy (cookie, not client payload: the buyer
+  // cannot pick which ad gets credit through the checkout request itself).
+  const adAttribution = deserializeAdAttribution(
+    (await cookies()).get(AD_ATTRIBUTION_COOKIE)?.value,
+  );
+
   const orderData = {
     customer_name: payload.customer.customer_name.trim(),
     phone,
@@ -683,6 +690,9 @@ export async function submitCheckout(
     status: "new",
     payment_status: "pending",
     source: "storefront",
+    ...(adAttribution
+      ? { attribution: adAttribution, ad_channel: adAttribution.channel }
+      : {}),
     ...(risk
       ? {
           risk_metadata: risk.risk_metadata,

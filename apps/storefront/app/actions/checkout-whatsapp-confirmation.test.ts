@@ -13,7 +13,10 @@ vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
 vi.mock("@/lib/draft-view", () => ({ isDraftViewRequest: vi.fn(async () => false) }));
 vi.mock("@/lib/order-confirmation-queue", () => ({ queueOrderConfirmation: vi.fn() }));
 // The checkout rate limit has its own suite (checkout-rate-limit.test.ts).
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+  cookies: async () => ({ get: () => undefined }),
+}));
 vi.mock("@/lib/checkout-rate-limit", () => ({ checkoutRateLimited: async () => null }));
 
 import { submitCheckout } from "./checkout";

@@ -19,11 +19,18 @@ vi.mock("@/lib/draft-view", () => ({
   isDraftViewRequest: vi.fn(async () => false),
 }));
 // The checkout rate limit has its own suite (checkout-rate-limit.test.ts).
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+const adCookie = vi.hoisted(() => ({ value: undefined as string | undefined }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+  cookies: async () => ({
+    get: (name: string) => (name === "sb_ad" && adCookie.value ? { value: adCookie.value } : undefined),
+  }),
+}));
 vi.mock("@/lib/checkout-rate-limit", () => ({ checkoutRateLimited: async () => null }));
 
 import { submitCheckout } from "./checkout";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { serializeAdAttribution } from "@scheniders/shared/ad-attribution";
 
 const TENANT = "f1e2d3c4-b5a6-4789-8f12-cd34ef567890";
 const PERFUME = "a1b2c3d4-e5f6-4789-ab12-cd34ef567890";
@@ -90,7 +97,10 @@ const recorded = (fake: ReturnType<typeof install>) =>
     | { secondary_phone: string | null }
     | undefined;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  adCookie.value = undefined;
+});
 
 describe("submitCheckout input validation", () => {
   it.each([
@@ -125,5 +135,22 @@ describe("submitCheckout input validation", () => {
     const ok = await submitCheckout({ ...valid, customer: { ...customer, alt_phone: "+964 780 123 4567" } });
     expect(ok.success).toBe(true);
     expect(recorded(good)?.secondary_phone).toBe("07801234567");
+  });
+
+  it("records the buyer's last ad click on the order, and ignores a forged cookie", async () => {
+    adCookie.value = serializeAdAttribution({ channel: "instagram", campaign: "Eid", adId: "123" });
+    const tracked = install();
+    expect((await submitCheckout(valid)).success).toBe(true);
+    expect(tracked.rpcCalls.find((c) => c.fn === "create_storefront_order")?.args._order_data).toMatchObject({
+      ad_channel: "instagram",
+      attribution: { channel: "instagram", campaign: "Eid", adId: "123" },
+    });
+
+    adCookie.value = encodeURIComponent(JSON.stringify({ channel: "not-a-network" }));
+    const forged = install();
+    expect((await submitCheckout(valid)).success).toBe(true);
+    const sent = forged.rpcCalls.find((c) => c.fn === "create_storefront_order")?.args._order_data as Record<string, unknown>;
+    expect(sent).not.toHaveProperty("attribution");
+    expect(sent).not.toHaveProperty("ad_channel");
   });
 });
