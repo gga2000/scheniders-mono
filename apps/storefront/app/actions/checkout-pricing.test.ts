@@ -565,3 +565,28 @@ describe("free gift", () => {
     expect(res.total).toBe(65000 + 5000);
   });
 });
+
+describe("line item snapshot", () => {
+  // The orders page draws each line from the order's own items (photo from
+  // image_url, chip colour from tag_color), the way every other source
+  // snapshots them. A storefront line without them showed a blank box.
+  it("records the product's photo and tag colour on every line, the gift included", async () => {
+    const tables = giftTables({ image_url: "https://cdn.test/gift.webp", tag_color: "#0ea5e9" });
+    tables.products[0] = { ...tables.products[0], image_url: "https://cdn.test/perfume.webp", tag_color: "#f97316" };
+    const fake = install(tables);
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 32500, 2)] });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items).toEqual([
+      expect.objectContaining({ product_id: PERFUME, image_url: "https://cdn.test/perfume.webp", tag_color: "#f97316" }),
+      expect.objectContaining({ product_id: GIFT, image_url: "https://cdn.test/gift.webp", tag_color: "#0ea5e9" }),
+    ]);
+  });
+
+  it("leaves both out when the product has none", async () => {
+    const fake = install(baseTables());
+    await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 35000, 1)] });
+    const item = recordedOrder(fake)?.items[0];
+    expect(item).not.toHaveProperty("image_url");
+    expect(item).not.toHaveProperty("tag_color");
+  });
+});
