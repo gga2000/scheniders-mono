@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     attributionCoverage,
     buildDailySeries,
+    matchOrdersToCampaigns,
     META_URL_PARAMETERS,
     pctChange,
     previousRange,
@@ -78,5 +79,46 @@ describe("META_URL_PARAMETERS", () => {
             term: "22",
             campaignId: "33",
         });
+    });
+});
+
+describe("matchOrdersToCampaigns", () => {
+    const campaigns = [
+        { campaignId: "11", campaignName: "Eid Sale" },
+        { campaignId: "22", campaignName: "Perfumes  Ramadan" },
+    ];
+    const ad = (attribution: unknown) => ({ ad_channel: "facebook", attribution });
+
+    it("prefers the campaign id, then the name ignoring case and spacing", () => {
+        const r = matchOrdersToCampaigns(campaigns, [
+            ad({ campaignId: "22", campaign: "whatever" }),
+            ad({ campaign: "  eid   sale " }),
+            ad({ campaign: "perfumes ramadan" }),
+        ]);
+        expect(r.byCampaign.get("22")).toBe(2);
+        expect(r.byCampaign.get("11")).toBe(1);
+        expect(r.unmatched).toBe(0);
+    });
+
+    it("counts unknown campaigns and missing refs as unmatched, and skips non-ad orders", () => {
+        const r = matchOrdersToCampaigns(campaigns, [
+            ad({ campaign: "Old campaign" }),
+            ad({ source: "fb" }),
+            ad(null),
+            { ad_channel: null, attribution: null },
+        ]);
+        expect(r.byCampaign.size).toBe(0);
+        expect(r.unmatched).toBe(3);
+    });
+
+    it("never guesses between two campaigns that share a name", () => {
+        const dup = [
+            { campaignId: "1", campaignName: "Sale" },
+            { campaignId: "2", campaignName: "sale" },
+        ];
+        const r = matchOrdersToCampaigns(dup, [ad({ campaign: "Sale" }), ad({ campaignId: "2" })]);
+        expect(r.byCampaign.get("2")).toBe(1);
+        expect(r.byCampaign.get("1")).toBeUndefined();
+        expect(r.unmatched).toBe(1);
     });
 });

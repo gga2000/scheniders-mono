@@ -2428,11 +2428,13 @@ export type Database = {
           created_at: string
           description: string | null
           expense_date: string
+          external_key: string | null
           id: string
           is_recurring: boolean | null
           notes: string | null
           order_id: string | null
           recurring_period: string | null
+          source: string | null
           tenant_id: string | null
           updated_at: string | null
         }
@@ -2442,11 +2444,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           expense_date: string
+          external_key?: string | null
           id?: string
           is_recurring?: boolean | null
           notes?: string | null
           order_id?: string | null
           recurring_period?: string | null
+          source?: string | null
           tenant_id?: string | null
           updated_at?: string | null
         }
@@ -2456,11 +2460,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           expense_date?: string
+          external_key?: string | null
           id?: string
           is_recurring?: boolean | null
           notes?: string | null
           order_id?: string | null
           recurring_period?: string | null
+          source?: string | null
           tenant_id?: string | null
           updated_at?: string | null
         }
