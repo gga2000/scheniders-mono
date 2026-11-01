@@ -52,7 +52,7 @@ export function ForecastsTab({ orders, expenses, period }: Props) {
         <div className="space-y-5">
             <ScenarioStrip d30={forecast.d30} d60={forecast.d60} d90={forecast.d90} />
 
-            <ProjectionChart data={chart} momentumPct={momentumPct} momentumTone={momentumTone} />
+            <ProjectionChart data={chart} momentumPct={momentumPct} momentumTone={momentumTone} empty={orders.length === 0} />
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                 <CashCoverCard runway={runway} />
@@ -113,11 +113,13 @@ function ScenarioStrip({
 }
 
 function ProjectionChart({
-    data, momentumPct, momentumTone,
+    data, momentumPct, momentumTone, empty,
 }: {
     data: Array<{ label: string; historical: number | null; best: number | null; likely: number | null; worst: number | null }>;
     momentumPct: number;
     momentumTone: "emerald" | "amber" | "rose";
+    /** No orders yet: there is nothing to project, so say so instead of drawing a flat line. */
+    empty: boolean;
 }) {
     const { t } = useLanguage();
     return (
@@ -137,6 +139,11 @@ function ProjectionChart({
                 </span>
             }
         >
+            {empty ? (
+                <div className="h-[340px] flex items-center justify-center text-sm text-muted text-center px-6">
+                    {t("finances.forecast.empty")}
+                </div>
+            ) : (
             <div className="h-[340px] -mx-2">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
@@ -167,6 +174,7 @@ function ProjectionChart({
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
+            )}
         </SectionCard>
     );
 }
@@ -238,7 +246,7 @@ function ForecastConfidenceCard({
 }) {
     const { t } = useLanguage();
     const confidence = Math.min(95, Math.max(20, Math.floor(60 + samples / 2)));
-    const confTone = confidence >= 75 ? "emerald" : confidence >= 50 ? "amber" : "rose";
+    const confTone = samples === 0 ? "muted" : confidence >= 75 ? "emerald" : confidence >= 50 ? "amber" : "rose";
 
     return (
         <SectionCard
@@ -275,8 +283,8 @@ function ForecastConfidenceCard({
                             "tabular-nums font-semibold",
                             confTone === "emerald" ? "text-emerald-600 dark:text-emerald-400" :
                                 confTone === "amber" ? "text-amber-600 dark:text-amber-400" :
-                                    "text-rose-600 dark:text-rose-400"
-                        )}>{confidence}%</span>
+                                    confTone === "rose" ? "text-rose-600 dark:text-rose-400" : "text-muted"
+                        )}>{samples === 0 ? "—" : `${confidence}%`}</span>
                     }
                 />
                 <div className="text-[11px] text-muted leading-relaxed pt-2 border-t border-[var(--card-border)]">
