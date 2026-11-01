@@ -80,6 +80,19 @@ export async function storeCanonical(
 }
 
 /** Cart / checkout: no search value, but links out (products) still count. */
+/**
+ * The store's name as its shoppers know it: the builder's brand name
+ * (brand_kit.identity.name, e.g. «شنايدر»), else the legal business name.
+ * Tab titles, og:site_name and structured data use this, so a store branded
+ * in Arabic is not suffixed with an English registration name.
+ */
+export function storeDisplayName(tenant: {
+  business_name: string;
+  store_config_v2?: { brand_kit?: { identity?: { name?: string } } } | null;
+}): string {
+  return tenant.store_config_v2?.brand_kit?.identity?.name?.trim() || tenant.business_name;
+}
+
 export const NOINDEX_FOLLOW = { robots: { index: false, follow: true } } as const;
 
 type JsonLdObject = Record<string, unknown>;

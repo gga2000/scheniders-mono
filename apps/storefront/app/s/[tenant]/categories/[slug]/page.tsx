@@ -14,7 +14,7 @@ import { SchneidersCategoryView } from "@/components/schneiders/category-view";
 import { pickV2Page, buildRuntimeContext } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { JsonLd } from "@/components/json-ld";
-import { getStorefrontBase, itemListJsonLd, storeCanonical } from "@/lib/seo";
+import { getStorefrontBase, itemListJsonLd, storeCanonical, storeDisplayName } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ tenant: string; slug: string }>;
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // category's own (merchant-authored) name.
   const description = category.description?.trim();
   return {
-    title: `${category.name} — ${tenant.business_name}`,
+    title: `${category.name} — ${storeDisplayName(tenant)}`,
     ...(description ? { description } : {}),
     ...(await storeCanonical(tenantParam, `/categories/${encodeURIComponent(category.slug)}`)),
   };

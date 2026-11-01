@@ -8,7 +8,7 @@ import { pageNeedsProductAttributes } from "@scheniders/sections";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader, ContentSection } from "@/components/schneiders/content-page";
 import { BentoCard, ChunkyLink, MaterialIcon, ScribbleHeading, Sticker, WhatsAppIcon } from "@/components/schneiders/primitives";
-import { storeCanonical } from "@/lib/seo";
+import { storeCanonical, storeDisplayName } from "@/lib/seo";
 
 /**
  * Convert merchant-authored HTML (legacy `about.body`) into plain-text
@@ -48,7 +48,7 @@ export async function generateMetadata({
   // Fallback title: localised page name + the tenant's own name.
   const pageName = locale === "en" ? "About" : "من نحن";
   return {
-    title: tenant ? `${pageName} — ${tenant.business_name}` : pageName,
+    title: tenant ? `${pageName} — ${storeDisplayName(tenant)}` : pageName,
     ...(await storeCanonical(tenantParam, "/about")),
     ...resolveV2PageMetadata(v2, "about", locale),
   };
