@@ -7,6 +7,7 @@ import {
     ChevronRight,
     X,
     LogOut,
+    Megaphone,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -95,6 +96,7 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
                     { key: "nav.financesReports", label: "Exports", href: "/finances?tab=reports", tab: "reports" },
                 ],
             },
+            { key: "nav.ads", icon: Megaphone, href: "/ads" },
             { key: "nav.reports", icon: AnimatedReportsIcon, href: "/reports" },
         ],
     },
