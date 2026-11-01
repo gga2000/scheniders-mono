@@ -33,6 +33,7 @@ function Kpi({ label, value, hint, change, lowerIsBetter }: { label: string; val
 
 function CampaignRow({ c }: { c: CampaignTotals }) {
     const costPerResult = ratio(c.spendIqd, c.results);
+    const costPerDelivered = ratio(c.spendIqd, c.delivered);
     return (
         <tr className="border-t border-[var(--card-border)]">
             <td className="py-3 pe-4 font-medium text-foreground">{c.campaignName}</td>
@@ -40,6 +41,9 @@ function CampaignRow({ c }: { c: CampaignTotals }) {
             <td className="py-3 pe-4 tabular-nums text-muted">${c.spendUsd.toFixed(2)}</td>
             <td className="py-3 pe-4 tabular-nums">{c.results}</td>
             <td className="py-3 pe-4 tabular-nums">{costPerResult === null ? "—" : formatIQD(costPerResult)}</td>
+            <td className="py-3 pe-4 tabular-nums">{c.orders}</td>
+            <td className="py-3 pe-4 tabular-nums">{c.delivered}</td>
+            <td className="py-3 pe-4 tabular-nums">{costPerDelivered === null ? "—" : formatIQD(costPerDelivered)}</td>
             <td className="py-3 pe-4 tabular-nums text-muted">{c.clicks.toLocaleString()}</td>
         </tr>
     );
@@ -177,6 +181,9 @@ export default function AdsPage() {
                                             <th className="pb-2 pe-4 text-start font-medium">USD</th>
                                             <th className="pb-2 pe-4 text-start font-medium">{t("ads.results")}</th>
                                             <th className="pb-2 pe-4 text-start font-medium">{t("ads.costPerResult")}</th>
+                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.campaignOrders")}</th>
+                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.chartDelivered")}</th>
+                                            <th className="pb-2 pe-4 text-start font-medium">{t("ads.costPerDelivered")}</th>
                                             <th className="pb-2 pe-4 text-start font-medium">{t("ads.clicks")}</th>
                                         </tr>
                                     </thead>
@@ -188,6 +195,11 @@ export default function AdsPage() {
                                 </table>
                             </div>
                         )}
+                        {data.campaigns.length > 0 ? (
+                            <p className="mt-3 text-xs text-muted">
+                                {t("ads.matchNote").replace("{unmatched}", String(data.unmatched.orders))}
+                            </p>
+                        ) : null}
                     </section>
 
                     <AdLinkCard coverage={data.coverage} />
