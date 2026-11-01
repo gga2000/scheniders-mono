@@ -293,7 +293,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                             href={`/orders?search=0${profile.phone}`}
                             className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
                         >
-                            {t("customers.profile.viewAll", { count: profile.totalOrders.toLocaleString("en-US") })}
+                            <span dir="auto">{t("customers.profile.viewAll", { count: profile.totalOrders.toLocaleString("en-US") })}</span>
                         </Link>
                     )}
                 </div>

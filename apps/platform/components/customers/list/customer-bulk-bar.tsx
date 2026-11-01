@@ -60,7 +60,7 @@ export function CustomerBulkBar({
                 className="flex min-h-11 items-center gap-1.5 rounded-2xl px-3 text-xs font-semibold text-blue-600 transition-colors hover:bg-(--pastel-blue)/40 disabled:opacity-50"
               >
                 {selectingAll && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {t("customers.bulk.selectAllMatching", { count: totalMatching.toLocaleString("en-US") })}
+                <span dir="auto">{t("customers.bulk.selectAllMatching", { count: totalMatching.toLocaleString("en-US") })}</span>
               </button>
             )}
 

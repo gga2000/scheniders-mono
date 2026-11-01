@@ -94,7 +94,8 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                         {isLoading ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
                         ) : (
-                            t("customers.bulkTag.apply", { count: String(selectedTagIds.size) })
+                            // dir="auto": an Arabic label keeps "({count})" at its end.
+                            <span dir="auto">{t("customers.bulkTag.apply", { count: String(selectedTagIds.size) })}</span>
                         )}
                     </button>
                 </>
@@ -135,7 +136,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                 )}
                 {filteredTags.length === 0 ? (
                     !canCreate && (
-                        <div className="text-center py-8 text-muted-foreground text-sm">
+                        <div dir="auto" className="text-center py-8 text-muted-foreground text-sm">
                             {t("customers.bulkTag.empty")}
                         </div>
                     )

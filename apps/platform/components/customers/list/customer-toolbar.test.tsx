@@ -42,6 +42,15 @@ describe("CustomerToolbar", () => {
         expect(onTag).toHaveBeenCalledWith("t1");
     });
 
+    it("slides one CSS thumb under the active view, not a shared-layout one that trails the sticky bar", () => {
+        const { container, rerender } = render(<CustomerToolbar {...base} tags={[]} view="grid" />);
+        const thumb = () => container.querySelector("[data-view-thumb]") as HTMLElement;
+        expect(thumb().className).toContain("translate-x-0");
+        rerender(<CustomerToolbar {...base} tags={[]} view="list" />);
+        expect(thumb().className).toContain("translate-x-10");
+        expect(container.querySelectorAll("[data-view-thumb]")).toHaveLength(1);
+    });
+
     it("shows the sort direction and offers both directions per field", () => {
         const onSort = vi.fn();
         render(<CustomerToolbar {...base} tags={[]} onSort={onSort} />);

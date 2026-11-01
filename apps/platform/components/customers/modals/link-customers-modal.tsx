@@ -100,7 +100,7 @@ export function LinkCustomersModal() {
 
                 {/* Results */}
                 {searchResults?.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-3">{t("customers.link.noResults")}</p>
+                    <p dir="auto" className="text-sm text-muted-foreground text-center py-3">{t("customers.link.noResults")}</p>
                 )}
                 {searchResults && searchResults.length > 0 && (
                     <div className="space-y-2 max-h-48 overflow-y-auto">

@@ -60,9 +60,9 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
                     </div>
                 ) : blocked ? (
                     // No factors for a blocked customer: they would add up to the score the hero hides.
-                    <p className="text-sm text-muted-foreground py-2">{t("customers.scoreBreakdown.notScored")}</p>
+                    <p dir="auto" className="text-left text-sm text-muted-foreground py-2">{t("customers.scoreBreakdown.notScored")}</p>
                 ) : items.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">{t("customers.scoreBreakdown.empty")}</p>
+                    <p dir="auto" className="text-left text-sm text-muted-foreground py-4">{t("customers.scoreBreakdown.empty")}</p>
                 ) : (
                     <div className="space-y-2">
                         <ScoreFactorBars factors={items} rated={rated} />

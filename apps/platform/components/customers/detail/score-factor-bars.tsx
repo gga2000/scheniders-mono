@@ -47,7 +47,7 @@ export function ScoreFactorBars({ factors, rated }: {
                 );
             })}
             {!rated && <p dir="auto" className="text-left text-xs text-muted-foreground pt-1">{t("customers.trust.scoredFromThirdOrder")}</p>}
-            {adjusted && <p className="text-xs text-muted-foreground pt-1">{t("customers.scoreBreakdown.adjustmentsHint")}</p>}
+            {adjusted && <p dir="auto" className="text-left text-xs text-muted-foreground pt-1">{t("customers.scoreBreakdown.adjustmentsHint")}</p>}
         </div>
     );
 }

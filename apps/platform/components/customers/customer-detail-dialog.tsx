@@ -210,7 +210,7 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
                             {/* Items */}
                             <div className="divide-y divide-(--card-border)">
                                 {lines.length === 0 ? (
-                                    <div className="py-3 text-sm text-muted-foreground">{t("customers.dialog.noItems", "No item details on this order.")}</div>
+                                    <div dir="auto" className="py-3 text-left text-sm text-muted-foreground">{t("customers.dialog.noItems", "No item details on this order.")}</div>
                                 ) : lines.map((it, i) => (
                                     <div key={i} className="flex items-center gap-3 py-2.5">
                                         <ItemThumb url={it.image_url} name={it.name} />
@@ -528,7 +528,7 @@ function Body({
                             </button>
                         </div>
                     ) : (
-                        <div className="rounded-2xl border border-(--card-border) p-8 text-center text-sm text-muted-foreground">{t("customers.dialog.noOrders", "No orders found.")}</div>
+                        <div dir="auto" className="rounded-2xl border border-(--card-border) p-8 text-center text-sm text-muted-foreground">{t("customers.dialog.noOrders", "No orders found.")}</div>
                     )}
                 </section>
 
@@ -570,7 +570,7 @@ function Body({
                             </div>
                         )}
                         {identity.length === 0 && !loading && (
-                            <div className={cn("text-xs text-muted-foreground", customer.secondary_phone && "pt-2 border-t border-(--card-border)")}>{t("customers.dialog.noChanges", "No recorded changes.")}</div>
+                            <div dir="auto" className={cn("text-left text-xs text-muted-foreground", customer.secondary_phone && "pt-2 border-t border-(--card-border)")}>{t("customers.dialog.noChanges", "No recorded changes.")}</div>
                         )}
                     </div>
                 </section>
