@@ -64,8 +64,10 @@ interface ReorderDrawerProps {
     open: boolean;
     onClose: () => void;
     supplies: Product[];
-    /** Outstanding quantity already on draft/sent/confirmed POs, per supply. */
+    /** Outstanding quantity already on sent/confirmed/partial POs, per supply. */
     openPoBySupply?: Map<string, PoStatusInfo>;
+    /** False while supplier links load or failed: lead times and suppliers would be defaults. */
+    supplierLinksReady?: boolean;
     snoozedIds: Set<string>;
     onSnooze: (supplyId: string) => void;
     onUnsnooze: (supplyId: string) => void;
@@ -79,6 +81,7 @@ export function ReorderDrawer({
     snoozedIds,
     onSnooze,
     onUnsnooze,
+    supplierLinksReady = true,
 }: ReorderDrawerProps) {
     const { t } = useLanguage();
     const { tenantId } = useAuth();
@@ -250,12 +253,16 @@ export function ReorderDrawer({
             });
             return { poNumber: created.poNumber, itemCount: lines.length };
         },
+        // Returned so the mutation (and the "generating" spinner) waits for the
+        // refreshed lists: a fast second click cannot raise a duplicate PO.
         onSuccess: (result) => {
             toast.success(t("supplies.ro.poCreated", { number: result.poNumber, count: result.itemCount }));
-            queryClient.invalidateQueries({ queryKey: ["supplies-reorder-sales"] });
-            queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] });
-            queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] });
-            queryClient.invalidateQueries({ queryKey: ["supplier-pos"] });
+            return Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["supplies-reorder-sales"] }),
+                queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] }),
+                queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] }),
+                queryClient.invalidateQueries({ queryKey: ["supplier-pos"] }),
+            ]);
         },
         onError: (err: unknown) => {
             toast.error(t("supplies.ro.poFailed", { message: t(purchaseOrderErrorKey(err)) }));
@@ -264,6 +271,10 @@ export function ReorderDrawer({
 
     const handleGenerate = useCallback(
         async (group: SupplierGroup) => {
+            if (!supplierLinksReady) {
+                toast.error(t("supplies.ro.linksNotReady"));
+                return;
+            }
             const uncosted = group.items.filter((i) => i.unitCost <= 0);
             if (uncosted.length > 0) {
                 // A zero-cost line would create a PO that understates what is owed.
@@ -285,7 +296,7 @@ export function ReorderDrawer({
                 });
             }
         },
-        [generatePO, t, canSeeCost]
+        [generatePO, t, canSeeCost, supplierLinksReady]
     );
 
     return (
