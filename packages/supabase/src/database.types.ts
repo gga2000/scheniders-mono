@@ -4022,6 +4022,7 @@ export type Database = {
           is_shop_order: boolean | null
           is_test: boolean | null
           is_verified_customer: boolean | null
+          item_unit_costs: number[] | null
           items: Json
           last_batch_id: string | null
           last_contacted_at: string | null
@@ -4114,6 +4115,7 @@ export type Database = {
           is_shop_order?: boolean | null
           is_test?: boolean | null
           is_verified_customer?: boolean | null
+          item_unit_costs?: number[] | null
           items?: Json
           last_batch_id?: string | null
           last_contacted_at?: string | null
@@ -4206,6 +4208,7 @@ export type Database = {
           is_shop_order?: boolean | null
           is_test?: boolean | null
           is_verified_customer?: boolean | null
+          item_unit_costs?: number[] | null
           items?: Json
           last_batch_id?: string | null
           last_contacted_at?: string | null
@@ -8768,6 +8771,13 @@ export type Database = {
           has_duplicates: boolean
           order_id: string
           previous_order: Json
+        }[]
+      }
+      finance_order_costs: {
+        Args: { p_from?: string; p_tenant_id: string }
+        Returns: {
+          item_unit_costs: number[]
+          order_id: string
         }[]
       }
       get_orders_aggregates: {

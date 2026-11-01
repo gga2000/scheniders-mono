@@ -124,6 +124,7 @@ function ProductsContent() {
         bulkUpdateVisibility,
         deleteProduct,
         reorderProducts,
+        restorePrices,
         salesUnavailable,
         retrySales,
     } = useProductsCrud({ withSales: true });
@@ -536,6 +537,13 @@ function ProductsContent() {
     }), [selectedForPrice]);
 
     const handleBulkUpdatePrice = useCallback(async (newPrice: number) => {
+        // Kept for the Undo toast: each product's own price and "was" price.
+        const previous = selectedForPrice.map((p) => ({
+            id: p.id,
+            price: p.price,
+            compare_at_price: p.compare_at_price ?? null,
+            currentPrice: newPrice,
+        }));
         await bulkUpdatePrices(
             selectedForPrice.map((p) => ({
                 id: p.id,
@@ -545,13 +553,15 @@ function ProductsContent() {
             })),
             newPrice,
         );
+        lastUndoableRef.current = { kind: "price", previous };
         clearSelection();
     }, [selectedForPrice, bulkUpdatePrices, clearSelection]);
 
-    // The one bulk action the Undo toast reverses: archive, show or hide.
+    // The one bulk action the Undo toast reverses: archive, show, hide or price.
     const lastUndoableRef = useRef<
         | { kind: "archive"; ids: string[] }
         | { kind: "visibility"; previous: { id: string; was_visible: boolean }[] }
+        | { kind: "price"; previous: { id: string; price: number; compare_at_price: number | null; currentPrice: number }[] }
         | null
     >(null);
 
@@ -560,6 +570,8 @@ function ProductsContent() {
         if (!last) return;
         if (last.kind === "archive") {
             if (last.ids.length > 0) await bulkRestore(last.ids);
+        } else if (last.kind === "price") {
+            await restorePrices(last.previous);
         } else {
             // Restore each product's own earlier visibility, not one blanket value.
             const wasVisible = last.previous.filter((p) => p.was_visible).map((p) => p.id);
@@ -568,7 +580,7 @@ function ProductsContent() {
             if (wasHidden.length > 0) await bulkUpdateVisibility(wasHidden, false);
         }
         lastUndoableRef.current = null;
-    }, [bulkRestore, bulkUpdateVisibility]);
+    }, [bulkRestore, bulkUpdateVisibility, restorePrices]);
 
     const handleBulkArchive = useCallback(async () => {
         const ids = Array.from(selectedIds);

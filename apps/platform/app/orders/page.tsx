@@ -1,5 +1,6 @@
 "use client";
 
+import { usePersistedToggle } from "@/hooks/use-persisted-toggle";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
@@ -124,67 +125,19 @@ import { useRecordContact } from "@/hooks/use-record-contact";
 
 export default function OrdersPage() {
     const { sidebarExpanded } = useSidebar();
-    // 🔍 DIAGNOSTIC: Track loading → content transition (one-shot, not per-render)
-    const pageMountTime = useRef<number | null>(null);
-    const hasLoggedMount = useRef(false);
-    const hasLoggedContent = useRef(false);
-
-    useEffect(() => {
-        if (!hasLoggedMount.current) {
-            pageMountTime.current = performance.now();
-            hasLoggedMount.current = true;
-            if (pageMountTime.current !== null) {
-                console.log(`[OrdersPage] first render at ${Math.round(pageMountTime.current)}ms`);
-            }
-        }
-    }, []);
-
     const [isMounted, setIsMounted] = useState(false);
     const [isReturnsOpen, setIsReturnsOpen] = useState(false);
     const [isStockTodayOpen, setIsStockTodayOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     // Sub-filters (Type + Products rows) are hidden by default — show only when
     // the merchant clicks the toggle next to the barcode button. Per-device pref.
-    const [showSubFilters, setShowSubFilters] = useState(false);
-    useEffect(() => {
-        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowSubFilters") : null;
-        if (stored !== null) setShowSubFilters(stored === "true");
-    }, []);
-    const toggleSubFilters = useCallback(() => {
-        setShowSubFilters((v) => {
-            const next = !v;
-            localStorage.setItem("ordersShowSubFilters", String(next));
-            return next;
-        });
-    }, []);
+    const [showSubFilters, toggleSubFilters] = usePersistedToggle("ordersShowSubFilters");
     // Ad-channel chips — hidden by default, toggled from the search bar like the
     // sub-filters above. Per-device pref.
-    const [showAdChannels, setShowAdChannels] = useState(false);
-    useEffect(() => {
-        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowAdChannels") : null;
-        if (stored !== null) setShowAdChannels(stored === "true");
-    }, []);
-    const toggleAdChannels = useCallback(() => {
-        setShowAdChannels((v) => {
-            const next = !v;
-            localStorage.setItem("ordersShowAdChannels", String(next));
-            return next;
-        });
-    }, []);
+    const [showAdChannels, toggleAdChannels] = usePersistedToggle("ordersShowAdChannels");
     // Order pipeline funnel — hidden by default, surfaced via toolbar toggle.
     // Per-device pref, mirrors the sub-filters pattern above.
-    const [showPipeline, setShowPipeline] = useState(false);
-    useEffect(() => {
-        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowPipeline") : null;
-        if (stored !== null) setShowPipeline(stored === "true");
-    }, []);
-    const togglePipeline = useCallback(() => {
-        setShowPipeline((v) => {
-            const next = !v;
-            localStorage.setItem("ordersShowPipeline", String(next));
-            return next;
-        });
-    }, []);
+    const [showPipeline, togglePipeline] = usePersistedToggle("ordersShowPipeline");
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -446,12 +399,12 @@ export default function OrdersPage() {
             await refreshOrders();
 
             toast.success(
-                "Order split successfully",
-                "Return order has been created"
+                t("orders.toast.splitDone"),
+                t("orders.toast.splitDoneDesc")
             );
         } else {
             toast.error(
-                "Split failed",
+                t("orders.toast.splitFailed"),
                 result.error || t("orderDetail.splitError")
             );
         }
@@ -478,8 +431,8 @@ export default function OrdersPage() {
             // record with no idea the refresh had failed.
             reportOrderError(err, { operation: "orders-view-details-fetch", orderId: order.id });
             toast.warning(
-                "Showing the last known details",
-                "This order could not be refreshed, so it may be out of date.",
+                t("orders.toast.staleDetails"),
+                t("orders.toast.staleDetailsDesc"),
             );
             setSelectedOrder(order);
             setIsModalOpen(true);
@@ -502,12 +455,12 @@ export default function OrdersPage() {
             // Same silent-stale path as handleViewDetails, reached from the table.
             reportOrderError(err, { operation: "orders-select-order-fetch", orderId: order.id });
             toast.warning(
-                "Showing the last known details",
-                "This order could not be refreshed, so it may be out of date.",
+                t("orders.toast.staleDetails"),
+                t("orders.toast.staleDetailsDesc"),
             );
             setSelectedOrder(order);
         }
-    }, [setSelectedOrder]);
+    }, [setSelectedOrder, t]);
 
 
 
@@ -951,13 +904,6 @@ export default function OrdersPage() {
         if (!originalOrderId) return null;
         return originalOrderInfoMap.get(originalOrderId) || null;
     }, [originalOrderInfoMap]);
-
-    // Handle logging transition once
-    if (!loading && !hasLoggedContent.current && pageMountTime.current !== null) {
-        hasLoggedContent.current = true;
-    } else if (loading && !hasLoggedContent.current && pageMountTime.current !== null) {
-        // Still loading skeleton
-    }
 
     // `loading` misses a pending-but-disabled query — which this one is until the
     // Supabase client finishes initialising — so without ordersPending the page

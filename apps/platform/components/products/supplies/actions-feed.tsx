@@ -23,6 +23,7 @@ import {
     type HistoryEntry,
 } from "@/lib/utils/supply-forecasting";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
+import { useLanguage } from "@/hooks/use-language";
 
 const COLLAPSE_KEY = "supplies.actionsFeed.collapsed";
 
@@ -102,6 +103,7 @@ export function ActionsFeed({
     onOpenSupply,
     onOpenReorder,
 }: ActionsFeedProps) {
+    const { t } = useLanguage();
     const [collapsed, setCollapsed] = useState<boolean>(false);
     const [dismissed, setDismissed] = useState<Set<string>>(new Set());
     const { data: supplierPos = [] } = useSupplierPos();
@@ -177,19 +179,19 @@ export function ActionsFeed({
             const isCritical =
                 leadTime != null && eta != null && eta < leadTime;
             const detail = isCritical
-                ? `Stockout in ${eta}d · lead time ${leadTime}d`
+                ? t("supplies.af.stockoutDetail", { eta: eta ?? 0, lead: leadTime ?? 0 })
                 : eta != null
-                ? `~${eta}d of supply left`
-                : `At or below reorder point (${rp})`;
+                ? t("supplies.af.supplyLeft", { eta })
+                : t("supplies.af.atReorderPoint", { rp });
             push({
                 id: `${isCritical ? "crit" : "reorder"}:${s.id}`,
                 supply: s,
                 kind: isCritical ? "critical" : "reorder",
-                title: isCritical ? "Stockout before lead time" : "Reorder now",
+                title: isCritical ? t("supplies.af.stockoutBeforeLead") : t("supplies.af.reorderNow"),
                 detail,
                 tone: "rose",
                 icon: isCritical ? Zap : ShoppingCart,
-                ctaLabel: "Reorder",
+                ctaLabel: t("supplies.af.reorder"),
             });
             if (out.length >= 6) return out;
         }
@@ -208,11 +210,11 @@ export function ActionsFeed({
                 id: `spike:${s.id}`,
                 supply: s,
                 kind: "spike",
-                title: "Consumption spike",
-                detail: `Consumption ${multiplier.toFixed(1)}× normal last 7 days`,
+                title: t("supplies.af.spike"),
+                detail: t("supplies.af.spikeDetail", { multiplier: multiplier.toFixed(1) }),
                 tone: "amber",
                 icon: TrendingUp,
-                ctaLabel: "Review",
+                ctaLabel: t("supplies.af.review"),
             });
         }
 
@@ -227,17 +229,17 @@ export function ActionsFeed({
             if (score !== "dead") continue;
             const label =
                 daysSinceLastOut === null
-                    ? "No recorded movement"
-                    : `No movement in ${daysSinceLastOut}d — consider discounting`;
+                    ? t("supplies.af.noMovement")
+                    : t("supplies.af.noMovementDays", { days: daysSinceLastOut });
             push({
                 id: `dead:${s.id}`,
                 supply: s,
                 kind: "dead",
-                title: "Dead stock",
+                title: t("supplies.af.dead"),
                 detail: label,
                 tone: "slate",
                 icon: PackageX,
-                ctaLabel: "Open",
+                ctaLabel: t("supplies.af.open"),
             });
         }
 
@@ -251,16 +253,16 @@ export function ActionsFeed({
                 id: `drift:${s.id}`,
                 supply: s,
                 kind: "drift",
-                title: "Lead-time drift",
-                detail: `${primary?.supplier_name ?? "Supplier"} delivered past quoted lead time`,
+                title: t("supplies.af.drift"),
+                detail: t("supplies.af.driftDetail", { supplier: primary?.supplier_name ?? t("supplies.af.supplierFallback") }),
                 tone: "sky",
                 icon: Clock,
-                ctaLabel: "Open",
+                ctaLabel: t("supplies.af.open"),
             });
         }
 
         return out.slice(0, 6);
-    }, [supplies, historyBySupply, driftedSuppliers, dismissed]);
+    }, [supplies, historyBySupply, driftedSuppliers, dismissed, t]);
 
     const dismissAction = (id: string) => {
         setDismissed((prev) => {
@@ -296,7 +298,7 @@ export function ActionsFeed({
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-muted uppercase tracking-wide">
-                        Today&apos;s actions
+                        {t("supplies.af.today")}
                     </span>
                     <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-semibold tabular-nums">
                         {actions.length}
@@ -311,12 +313,12 @@ export function ActionsFeed({
                     {collapsed ? (
                         <>
                             <ChevronDown className="w-3.5 h-3.5" />
-                            Expand
+                            {t("supplies.af.expand")}
                         </>
                     ) : (
                         <>
                             <ChevronUp className="w-3.5 h-3.5" />
-                            Collapse
+                            {t("supplies.af.collapse")}
                         </>
                     )}
                 </button>
@@ -338,7 +340,7 @@ export function ActionsFeed({
                                 <button
                                     type="button"
                                     onClick={() => dismissAction(a.id)}
-                                    aria-label="Dismiss"
+                                    aria-label={t("supplies.af.dismiss")}
                                     className="absolute top-2 right-2 p-1 rounded-md text-muted hover:text-foreground hover:bg-white/60 transition-colors"
                                 >
                                     <X className="w-3.5 h-3.5" />
@@ -385,7 +387,7 @@ export function ActionsFeed({
                                             onClick={() => onOpenSupply(a.supply)}
                                             className="text-xs text-muted hover:text-foreground underline-offset-2 hover:underline"
                                         >
-                                            Open
+                                            {t("supplies.af.open")}
                                         </button>
                                     )}
                                 </div>

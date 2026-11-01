@@ -5,7 +5,7 @@ import { courierSheet, courierWorkbook, type CourierCompany } from "@/lib/shippi
 
 export { cleanPhoneForExport } from "@/lib/shipping/courier-sheets";
 
-async function downloadCourierSheet(company: CourierCompany, orderIds: string[], ordersData: Order[]) {
+async function downloadCourierSheet(company: CourierCompany, orderIds: string[], ordersData: Order[], filename?: string) {
     const selectedOrders = ordersData.filter((o) => orderIds.includes(o.id));
     const sheet = courierSheet(company, selectedOrders);
 
@@ -18,7 +18,7 @@ async function downloadCourierSheet(company: CourierCompany, orderIds: string[],
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = sheet.filename;
+    link.download = filename ?? sheet.filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -31,8 +31,8 @@ async function downloadCourierSheet(company: CourierCompany, orderIds: string[],
  * Export orders to Prime delivery company XLSX format
  * Matches the exact column structure of PrimeUploadSample.xlsx
  */
-export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Order[]) {
-    return downloadCourierSheet('prime', orderIds, ordersData);
+export async function exportOrdersToPrimeCSV(orderIds: string[], ordersData: Order[], filename?: string) {
+    return downloadCourierSheet('prime', orderIds, ordersData, filename);
 }
 
 /**

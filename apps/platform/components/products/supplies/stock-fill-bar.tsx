@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface StockFillBarProps {
     stock: number;
@@ -58,6 +59,7 @@ export function StockFillBar({
     lowStockThreshold,
     className,
 }: StockFillBarProps) {
+    const { t } = useLanguage();
     const rp = reorderPoint ?? lowStockThreshold ?? 5;
     const lt = lowStockThreshold ?? 5;
     const status = statusFor({
@@ -78,7 +80,7 @@ export function StockFillBar({
                 "relative h-1.5 w-full rounded-full bg-[var(--card-border)]/60 overflow-hidden",
                 className
             )}
-            aria-label={`Stock level: ${stock} units`}
+            aria-label={t("supplies.stockLevel", { count: stock })}
         >
             <div
                 className={cn(

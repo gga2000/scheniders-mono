@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface StockoutEtaBadgeProps {
     /** Days until stock hits 0, null = no velocity. */
@@ -23,6 +24,7 @@ export function StockoutEtaBadge({
     size = "sm",
     className,
 }: StockoutEtaBadgeProps) {
+    const { t } = useLanguage();
     if (daysUntilStockout === null) return null;
 
     const isCritical = daysUntilStockout <= leadTimeDays;
@@ -38,8 +40,8 @@ export function StockoutEtaBadge({
 
     const label =
         daysUntilStockout <= 0
-            ? "Out now"
-            : `Runs out in ${daysUntilStockout}d`;
+            ? t("supplies.eta.outNow")
+            : t("supplies.eta.runsOut", { days: daysUntilStockout });
 
     return (
         <span
@@ -49,7 +51,7 @@ export function StockoutEtaBadge({
                 tone,
                 className
             )}
-            title={`Lead time ${leadTimeDays}d · ${daysUntilStockout}d of supply`}
+            title={t("supplies.eta.title", { lead: leadTimeDays, days: daysUntilStockout })}
         >
             <Icon className={big ? "w-3.5 h-3.5" : "w-3 h-3"} />
             {label}

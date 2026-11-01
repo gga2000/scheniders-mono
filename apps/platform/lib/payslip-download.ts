@@ -12,3 +12,16 @@ export function downloadPayslipBlob(blob: Blob, employeeName: string, periodEnd:
         URL.revokeObjectURL(url);
     }
 }
+
+/** Fetches a stored payslip PDF; null when the file cannot be fetched (so callers can say so). */
+export async function fetchPayslipBlob(url: string): Promise<Blob | null> {
+    let response: Response;
+    try {
+        response = await fetch(url);
+    } catch (error) {
+        // fetch rejects with TypeError when the network request itself fails (offline, blocked).
+        if (error instanceof TypeError) return null;
+        throw error;
+    }
+    return response.ok ? response.blob() : null;
+}

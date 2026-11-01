@@ -162,7 +162,8 @@ export function BulkActionsBar({
             t("products.bulk.priceSuccess").replace(
                 "{count}",
                 String(selectedCount)
-            )
+            ),
+            true
         );
         if (!ok) return;
         setShowPriceInput(false);

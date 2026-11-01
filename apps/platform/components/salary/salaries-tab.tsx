@@ -13,7 +13,8 @@ import { usePayroll } from "@/hooks/use-payroll";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { generatePayslipPDF } from "@/lib/payroll-pdf-generator";
-import { downloadPayslipBlob } from "@/lib/payslip-download";
+import { downloadPayslipBlob, fetchPayslipBlob } from "@/lib/payslip-download";
+import { readHiddenMembers, writeHiddenMembers } from "@/lib/hidden-payroll-members";
 import { exportCurrentPeriodCSV } from "@/lib/payroll-csv-export";
 import { generatePayrollSummaryPDF, downloadSummaryBlob } from "@/lib/payroll-summary-pdf";
 
@@ -235,13 +236,9 @@ export function SalariesTab() {
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
     const [previewMeta, setPreviewMeta] = useState({ name: "", periodEnd: "" });
-    const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(() => {
-        if (typeof window === "undefined") return new Set();
-        try {
-            const stored = localStorage.getItem("salary_hidden_employees");
-            return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
-        } catch { return new Set(); }
-    });
+    const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(() =>
+        typeof window === "undefined" ? new Set() : readHiddenMembers(window.localStorage),
+    );
     const [showHidden, setShowHidden] = useState(false);
 
     const { roleSalaryDefaults, upsertRoleDefault, upsertEmployeeConfig, fetchConfigHistory, refresh: refreshConfigs } = useSalaryConfig();
@@ -260,11 +257,10 @@ export function SalariesTab() {
 
     const { runPayroll, voidPayroll, getLastPayrollDates, payrollHistory, fetchAllHistory, isLoading: historyLoading, historyFailed } = usePayroll();
 
-    // Clear per-employee overrides when the global period changes so the new period takes effect
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setPeriodOverrides(new Map());
-    }, [periodMode, customStart, customEnd]);
+    // Changing the page period drops per-member overrides so the new period applies to everyone.
+    const changePeriodMode = useCallback((mode: PeriodMode) => { setPeriodMode(mode); setPeriodOverrides(new Map()); }, []);
+    const changeCustomStart = useCallback((value: string) => { setCustomStart(value); setPeriodOverrides(new Map()); }, []);
+    const changeCustomEnd = useCallback((value: string) => { setCustomEnd(value); setPeriodOverrides(new Map()); }, []);
 
     // Compute effective period
     const { periodStart, periodEnd } = useMemo(() => {
@@ -340,7 +336,7 @@ export function SalariesTab() {
         setHiddenEmployeeIds(prev => {
             const next = new Set(prev);
             next.add(employeeId);
-            try { localStorage.setItem("salary_hidden_employees", JSON.stringify([...next])); } catch {}
+            writeHiddenMembers(window.localStorage, next);
             return next;
         });
     }, []);
@@ -349,7 +345,7 @@ export function SalariesTab() {
         setHiddenEmployeeIds(prev => {
             const next = new Set(prev);
             next.delete(employeeId);
-            try { localStorage.setItem("salary_hidden_employees", JSON.stringify([...next])); } catch {}
+            writeHiddenMembers(window.localStorage, next);
             return next;
         });
     }, []);
@@ -442,6 +438,7 @@ export function SalariesTab() {
             };
 
             const { error, errorCode, record } = await runPayroll(calc, notes || undefined, payslipMeta, paymentMethod);
+            const pdfUrl = record?.pdf_url;
             setConfirmData(null);
             setPayingEmployeeId(null);
             handleRefreshAll();
@@ -461,11 +458,12 @@ export function SalariesTab() {
                     }),
                     variant: "success",
                     duration: 10000,
-                    action: record?.pdf_url ? {
+                    action: pdfUrl ? {
                         label: t("payroll.toast.downloadPdf"),
                         onClick: async () => {
-                            const blob = await fetch(record!.pdf_url!).then(r => r.blob());
-                            downloadPayslipBlob(blob, payslipMeta.employeeName, calc.periodEnd);
+                            const blob = await fetchPayslipBlob(pdfUrl);
+                            if (blob) downloadPayslipBlob(blob, payslipMeta.employeeName, calc.periodEnd);
+                            else toast({ title: t("payroll.history.downloadFailed"), description: t("payroll.history.downloadFailedDesc"), variant: "error" });
                         },
                     } : undefined,
                 });
@@ -542,11 +540,11 @@ export function SalariesTab() {
         <div className="space-y-3">
             <SalariesCommandBar
                 periodMode={periodMode}
-                onPeriodModeChange={setPeriodMode}
+                onPeriodModeChange={changePeriodMode}
                 customStart={customStart}
                 customEnd={customEnd}
-                onCustomStartChange={setCustomStart}
-                onCustomEndChange={setCustomEnd}
+                onCustomStartChange={changeCustomStart}
+                onCustomEndChange={changeCustomEnd}
                 attributionMode={attributionMode}
                 onAttributionModeChange={setAttributionMode}
                 onRefresh={handleRefreshAll}

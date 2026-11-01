@@ -48,4 +48,19 @@ describe("useFinanceOverview profit", () => {
         expect(result.current.net_profit).toBe(3000);
         expect(result.current.series.reduce((sum, b) => sum + b.profit, 0)).toBe(3000);
     });
+
+    it("keeps a delivered order's cost frozen when the product cost is edited later", () => {
+        const orders = [
+            order({ id: "sale", price: 10000, items: [{ name: "Shirt", product_id: "p1", quantity: 1, price: 10000 }] }),
+        ];
+        const repriced = [{ id: "p1", name: "Shirt", cost: 9000 }] as Product[];
+        const frozen = new Map([["sale", [4000]]]);
+
+        const live = renderHook(() => useFinanceOverview(orders, repriced, [], interval, null, "day")).result.current;
+        const kept = renderHook(() => useFinanceOverview(orders, repriced, [], interval, null, "day", frozen)).result.current;
+
+        expect(live.product_cost).toBe(9000);
+        expect(kept.product_cost).toBe(4000);
+        expect(kept.net_profit).toBe(6000);
+    });
 });

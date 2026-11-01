@@ -28,57 +28,60 @@ export function hasBlockingFlag(flags: QueueFlags): boolean {
     return flags.missingPhone || flags.missingAddress;
 }
 
-export interface PickLine {
+/**
+ * Packing groups of the desk, in the order the team packs them: one group per
+ * product shared by two or more single-product orders (biggest first), the
+ * remaining single-product orders, orders with several products, replacements,
+ * then refunds. Labels print in this order so each group comes off the printer
+ * together.
+ */
+export type PackKind = "item" | "single" | "multi" | "replacement" | "refund";
+
+export interface PackGroup<T> {
+    /** Stable id: `item:<product>` or the kind. */
     key: string;
-    name: string;
-    quantity: number;
-    orderCount: number;
+    kind: PackKind;
+    /** The product name of an `item` group. */
+    item?: string;
+    orders: T[];
 }
 
-type PickInput = Pick<Order, "items">;
+type PackInput = Pick<Order, "items" | "is_return" | "is_replacement">;
 
-/**
- * Total units to pull from the shelf for a set of orders, one line per
- * product + variant, biggest first. Split-per-unit lines are merged first so
- * three single-unit lines of one perfume count as 3, not as three products.
- */
-export function buildPickList(orders: readonly PickInput[]): PickLine[] {
-    const lines = new Map<string, PickLine>();
+/** One product name (any quantity) puts an order in that product's group. */
+export function packKey(order: PackInput): { kind: Exclude<PackKind, "single">; item?: string } {
+    if (order.is_return) return { kind: "refund" };
+    if (order.is_replacement) return { kind: "replacement" };
+    const names = new Set(mergeOrderItems(order.items).map((item) => item.name));
+    if (names.size === 1) return { kind: "item", item: [...names][0] };
+    return { kind: "multi" };
+}
+
+const KIND_RANK: Record<PackKind, number> = { item: 0, single: 1, multi: 2, replacement: 3, refund: 4 };
+
+/** The queue split into packing groups; orders keep their incoming order inside a group. */
+export function groupForPacking<T extends PackInput>(orders: readonly T[]): PackGroup<T>[] {
+    const groups = new Map<string, PackGroup<T>>();
     for (const order of orders) {
-        const seenInOrder = new Set<string>();
-        for (const item of mergeOrderItems(order.items)) {
-            const key = [item.product_id ?? item.sku ?? item.name, item.variant_id ?? "", item.is_open_box ? "open" : "new"].join("|");
-            const line = lines.get(key) ?? { key, name: item.name, quantity: 0, orderCount: 0 };
-            line.quantity += item.quantity;
-            if (!seenInOrder.has(key)) {
-                line.orderCount += 1;
-                seenInOrder.add(key);
-            }
-            lines.set(key, line);
+        const { kind, item } = packKey(order);
+        const key = kind === "item" ? `item:${item}` : kind;
+        const group = groups.get(key) ?? { key, kind, item, orders: [] };
+        group.orders.push(order);
+        groups.set(key, group);
+    }
+    // A product only one order asks for is not a group: those orders pack together.
+    const singles: PackGroup<T> = { key: "single", kind: "single", orders: [] };
+    for (const [key, group] of groups) {
+        if (group.kind === "item" && group.orders.length < 2) {
+            singles.orders.push(...group.orders);
+            groups.delete(key);
         }
     }
-    return [...lines.values()].sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name));
-}
-
-export type QueueSort = "priority" | "date" | "city" | "price";
-
-const PRIORITY_RANK = { urgent: 0, high: 1, normal: 2 } as const;
-
-/** The queue in the chosen order. Ties keep the incoming order. */
-export function sortQueue<T extends Pick<Order, "priority" | "created_at" | "city" | "price">>(
-    orders: readonly T[],
-    sortBy: QueueSort
-): T[] {
-    return [...orders].sort((a, b) => {
-        switch (sortBy) {
-            case "priority":
-                return PRIORITY_RANK[a.priority || "normal"] - PRIORITY_RANK[b.priority || "normal"];
-            case "date":
-                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-            case "city":
-                return (a.city || "").localeCompare(b.city || "");
-            case "price":
-                return Number(a.price) - Number(b.price);
-        }
-    });
+    if (singles.orders.length > 0) groups.set(singles.key, singles);
+    return [...groups.values()].sort(
+        (a, b) =>
+            KIND_RANK[a.kind] - KIND_RANK[b.kind] ||
+            b.orders.length - a.orders.length ||
+            (a.item ?? "").localeCompare(b.item ?? "", "ar")
+    );
 }
