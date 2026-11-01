@@ -44,30 +44,54 @@ const SEGMENTS: SegDef[] = [
 ];
 
 /** Which saved view (if any) the current filter state corresponds to. */
-export function activeSegment(cur: { value: ValueFilter; risk: RiskFilter; lane: LaneSegment | null }): SegmentId | null {
+function activeSegment(cur: { value: ValueFilter; risk: RiskFilter; lane: LaneSegment | null }): SegmentId | null {
     const match = SEGMENTS.find((seg) =>
         seg.state.value === cur.value && seg.state.risk === cur.risk && (seg.state.lane ?? null) === cur.lane);
     return match?.id ?? null;
 }
 
-/**
- * The list's one row of saved views. Each view carries its count once, so the
- * page never prints the same number twice. A filter state no view matches
- * (a hand-edited or old link) shows as a removable "Custom filter" pill.
- */
-export function CustomerSegmentTabs({
-    stats, active, onSelect,
-}: {
-    stats: Stats;
-    active: SegmentId | null;
-    onSelect: (state: SegmentState, id: SegmentId) => void;
-}) {
-    const { t } = useLanguage();
+const LANE_SEGMENT: Record<LaneSegment, SegmentId> = {
+    vipsQuiet: "dormantVips",
+    new: "newThisMonth",
+    firstDelivery: "firstDelivery",
+};
 
-    const label = (id: SegmentId): string => t(`customers.segment.${id}`, {
+type Translate = ReturnType<typeof useLanguage>["t"];
+
+function segmentLabel(id: SegmentId, t: Translate): string {
+    return t(`customers.segment.${id}`, {
         all: "All", vips: "VIP", dormantVips: "Dormant VIPs", highRisk: "High risk", caution: "Needs confirming",
         blocked: "Blocked", newThisMonth: "New, 30 days", firstDelivery: "First delivery",
     }[id]);
+}
+
+/**
+ * Names a filter state no saved view matches, e.g. "Value: Good" or
+ * "COD risk: High risk · Value: VIP", from the same labels as the pills.
+ */
+export function describeFilter(cur: SegmentState, t: Translate): string {
+    const parts: string[] = [];
+    if (cur.risk !== "all") parts.push(`${t("customers.risk.label")}: ${t(`customers.risk.${cur.risk}`)}`);
+    if (cur.value !== "all") parts.push(`${t("customers.value.label")}: ${t(`customers.value.${cur.value}`)}`);
+    if (cur.lane) parts.push(segmentLabel(LANE_SEGMENT[cur.lane], t));
+    return parts.join(" · ");
+}
+
+/**
+ * The list's one row of saved views. Each view carries its count once, so the
+ * page never prints the same number twice. A filter state no view matches
+ * (a hand-edited or old link) shows as a removable pill that names the filter.
+ */
+export function CustomerSegmentTabs({
+    stats, current, onSelect,
+}: {
+    stats: Stats;
+    current: SegmentState;
+    onSelect: (state: SegmentState, id: SegmentId) => void;
+}) {
+    const { t } = useLanguage();
+    const active = activeSegment(current);
+    const label = (id: SegmentId): string => segmentLabel(id, t);
     const all = SEGMENTS[0];
 
     return (
@@ -101,10 +125,11 @@ export function CustomerSegmentTabs({
                 <button
                     onClick={() => onSelect(all.state, all.id)}
                     className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-semibold whitespace-nowrap bg-foreground text-background"
-                    aria-label={t("customers.segment.clear", "Clear filter")}
+                    title={t("customers.segment.clear", "Clear filter")}
                 >
-                    {t("customers.segment.custom", "Custom filter")}
-                    <X className="w-3.5 h-3.5" />
+                    {describeFilter(current, t) || t("customers.segment.custom", "Custom filter")}
+                    <X className="w-3.5 h-3.5" aria-hidden />
+                    <span className="sr-only">{t("customers.segment.clear", "Clear filter")}</span>
                 </button>
             )}
         </nav>

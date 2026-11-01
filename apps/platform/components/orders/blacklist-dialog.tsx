@@ -8,7 +8,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@scheniders/ui/dialog";
-import { Button } from "@scheniders/ui/button";
 import { Label } from "@scheniders/ui/label";
 import { Textarea } from "@scheniders/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -71,20 +70,20 @@ export function BlacklistDialog({
 
     return (
         <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-            <DialogContent className="max-w-sm text-right">
+            <DialogContent className="md:max-w-sm">
                 <DialogHeader>
-                    <DialogTitle className="flex flex-row-reverse items-center gap-2 text-base">
+                    <DialogTitle className="flex items-center gap-2 text-base pe-10">
                         {mode === "add" ? (
                             <>
-                                <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                                    <Ban className="w-4 h-4 text-red-600" />
+                                <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-500/15 flex items-center justify-center flex-shrink-0">
+                                    <Ban className="w-4 h-4 text-red-600 dark:text-red-300" />
                                 </div>
                                 <span>{t("orders.blacklist.addTitle")}</span>
                             </>
                         ) : (
                             <>
-                                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                                    <ShieldCheck className="w-4 h-4 text-foreground" />
                                 </div>
                                 <span>{t("orders.blacklist.removeTitle")}</span>
                             </>
@@ -95,7 +94,7 @@ export function BlacklistDialog({
                 <div className="space-y-4 pt-1">
                     {/* Customer info */}
                     <div className="bg-gray-50 dark:bg-white/5 rounded-xl px-4 py-3 text-sm">
-                        <p className="font-semibold text-foreground">{customerName}</p>
+                        <p dir="auto" className="font-semibold text-foreground text-start">{customerName}</p>
                         <p className="text-muted font-mono text-xs mt-0.5">{customerPhone}</p>
                     </div>
 
@@ -104,7 +103,7 @@ export function BlacklistDialog({
                             {/* Reason presets */}
                             <div className="space-y-2">
                                 <Label className="text-xs text-muted">{t("orders.blacklist.reason")} <span className="text-red-500">{t("orders.blacklist.required")}</span></Label>
-                                <div className="flex flex-row-reverse flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-2">
                                     {REASON_PRESETS.map((preset) => (
                                         <button
                                             key={preset}
@@ -145,28 +144,29 @@ export function BlacklistDialog({
                                 />
                             </div>
 
-                            <Button
+                            <button
+                                type="button"
                                 onClick={handleConfirm}
                                 disabled={!finalReason || loading}
-                                className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl h-10 font-semibold"
+                                className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl h-10 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? t("orders.blacklist.blocking") : t("orders.blacklist.blockCustomer")}
-                            </Button>
+                            </button>
                         </>
                     ) : (
                         <>
                             {/* Show existing entry info */}
                             {existingEntry && (
                                 <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 space-y-1 text-sm">
-                                    <div className="flex flex-row-reverse items-center gap-1.5 text-red-700 dark:text-red-400 font-medium">
+                                    <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400 font-medium">
                                         <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                                        <span>{existingEntry.reason}</span>
+                                        <span dir="auto">{existingEntry.reason}</span>
                                     </div>
                                     {existingEntry.notes && (
-                                        <p className="text-red-600/80 dark:text-red-400/80 text-xs pr-5">{existingEntry.notes}</p>
+                                        <p dir="auto" className="text-red-600/80 dark:text-red-400/80 text-xs ps-5 text-start">{existingEntry.notes}</p>
                                     )}
                                     {existingEntry.added_by && (
-                                        <p className="text-muted text-xs pr-5">{t("orders.blacklist.addedBy", { name: existingEntry.added_by })}</p>
+                                        <p className="text-muted text-xs ps-5">{t("orders.blacklist.addedBy", { name: existingEntry.added_by })}</p>
                                     )}
                                 </div>
                             )}
@@ -175,13 +175,15 @@ export function BlacklistDialog({
                                 {t("orders.blacklist.unblockConfirm")}
                             </p>
 
-                            <Button
+                            {/* Lifting a "do not ship" is deliberate: this confirm is the one filled button, in ink, not a celebratory green. */}
+                            <button
+                                type="button"
                                 onClick={handleConfirm}
                                 disabled={loading}
-                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-10 font-semibold"
+                                className="w-full bg-foreground text-background hover:opacity-90 rounded-xl h-10 font-semibold transition-opacity disabled:opacity-50"
                             >
                                 {loading ? t("orders.blacklist.unblocking") : t("orders.blacklist.unblock")}
-                            </Button>
+                            </button>
                         </>
                     )}
                 </div>

@@ -8,6 +8,7 @@ import { CustomerStatus, TrustTier } from "@/types/customer";
 import type { ValueTier, RiskLevel } from "@/lib/customer-reliability";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import type { Database } from "@scheniders/supabase/database.types";
+import { LoadFailure, loadFailureKindFromStatus } from "@/lib/load-failure";
 
 export const CUSTOMER_SORT_FIELDS = ["name", "total_orders", "total_spent", "last_order_date", "trust_score"] as const;
 export type CustomerSortBy = (typeof CUSTOMER_SORT_FIELDS)[number];
@@ -171,11 +172,11 @@ export function usePaginatedCustomers(
             const offset = (pageParam - 1) * limit;
 
             // Call the RPC we defined in the migration
-            const { data, error } = await supabase.rpc("get_paginated_customers", toCustomerRpcArgs(filters, limit, offset));
+            const { data, error, status } = await supabase.rpc("get_paginated_customers", toCustomerRpcArgs(filters, limit, offset));
 
             if (error) {
                 console.error("Error fetching paginated customers:", error);
-                throw new Error("Failed to fetch customers");
+                throw new LoadFailure("Failed to fetch customers", loadFailureKindFromStatus(status), { cause: error });
             }
 
             const rawData = (data ?? []) as CustomerRpcRow[];

@@ -1176,23 +1176,6 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
   box-shadow: 0 0 12px rgba(0, 255, 255, 0.15) !important;
 }
 
-/* Score breakdown — waterfall chart bars */
-.dark .customer-modal-surface .waterfall-bar-positive {
-  background: #66FFAA !important;
-  box-shadow: 0 0 8px rgba(102, 255, 170, 0.3);
-}
-
-.dark .customer-modal-surface .waterfall-bar-negative {
-  background: #FF8899 !important;
-  box-shadow: 0 0 8px rgba(255, 136, 153, 0.3);
-}
-
-/* Audit log table — edited rows highlight */
-.dark .customer-modal-surface .audit-row-edited {
-  background: rgba(239, 255, 0, 0.06) !important;
-  border-left: 2px solid #EFFF00;
-}
-
 /* Rejection edit — reason cards */
 .dark .customer-modal-surface .reason-card {
   background: #2A2A2A !important;
@@ -3143,8 +3126,6 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
     .customers-page .trust-stat-card,
     .customers-page .customer-card,
     .customer-profile .bento-card,
-    .customer-modal-surface .waterfall-bar-positive,
-    .customer-modal-surface .waterfall-bar-negative,
     .customer-modal-surface .waveform-bar {
         transition: none !important;
         animation: none !important;

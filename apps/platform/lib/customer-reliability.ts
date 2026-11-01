@@ -199,34 +199,54 @@ export function daysSince(date?: string | null): number | null {
     return Math.floor((Date.now() - t) / 86_400_000);
 }
 
+export type RecencyState = 'active' | 'cooling' | 'dormant' | 'none';
+
 export interface RecencyStatus {
     /** The full line, e.g. "Cooling · last order 12 days ago". */
     label: string;
     /** Just the time since the last order ("12 days ago"), for one-line table cells. */
     ago: string;
+    /** What the dot means, in words: "Active", "Cooling", "Dormant". */
+    stateLabel: string;
+    state: RecencyState;
     dot: string;
 }
 
 type RecencyTranslate = (key: string, vars?: Record<string, string | number>) => string;
 
-/** Recency line + status dot; a high-risk customer always reads red. */
-export function recencyStatus(
-    lastOrderDate: string | null | undefined,
-    risk: RiskLevel,
-    t: RecencyTranslate,
-): RecencyStatus {
+/**
+ * "today", "yesterday", "2 days ago", "12 days ago", in the active language.
+ * Arabic counts 2 as a dual and 3–10 with a plural noun; English is the same for all.
+ */
+export function daysAgoLabel(days: number, t: RecencyTranslate): string {
+    if (days <= 0) return t('customers.recency.today');
+    if (days === 1) return t('customers.recency.yesterday');
+    if (days === 2) return t('customers.recency.daysAgoTwo');
+    if (days <= 10) return t('customers.recency.daysAgoFew', { days });
+    return t('customers.recency.daysAgo', { days });
+}
+
+const RECENCY_DOT: Record<RecencyState, string> = {
+    active: 'bg-emerald-500',
+    cooling: 'bg-amber-500',
+    dormant: 'bg-zinc-400',
+    none: 'bg-zinc-300 dark:bg-zinc-600',
+};
+
+/**
+ * Recency line + status dot. The dot means one thing only, how recently the
+ * customer ordered (active ≤ 7 days, cooling ≤ 30, dormant after); COD risk
+ * has its own pill and is never folded into it.
+ */
+export function recencyStatus(lastOrderDate: string | null | undefined, t: RecencyTranslate): RecencyStatus {
     const d = daysSince(lastOrderDate);
-    if (d === null) return { label: t('customers.recency.none'), ago: '—', dot: 'bg-zinc-400' };
-    // Arabic counts 2 as a dual and 3–10 with a plural noun; English is the same for all.
-    const ago = d <= 0 ? t('customers.recency.today')
-        : d === 1 ? t('customers.recency.yesterday')
-        : d === 2 ? t('customers.recency.daysAgoTwo')
-        : d <= 10 ? t('customers.recency.daysAgoFew', { days: d })
-        : t('customers.recency.daysAgo', { days: d });
-    if (risk === 'high' || risk === 'blocked') return { label: t('customers.recency.last', { ago }), ago, dot: 'bg-rose-600' };
-    if (d <= 7) return { label: t('customers.recency.last', { ago }), ago, dot: 'bg-emerald-500' };
-    if (d <= 30) return { label: t('customers.recency.cooling', { ago }), ago, dot: 'bg-amber-500' };
-    return { label: t('customers.recency.dormant', { ago }), ago, dot: 'bg-zinc-400' };
+    if (d === null) {
+        return { label: t('customers.recency.none'), ago: '—', stateLabel: t('customers.recency.none'), state: 'none', dot: RECENCY_DOT.none };
+    }
+    const ago = daysAgoLabel(d, t);
+    const state: RecencyState = d <= 7 ? 'active' : d <= 30 ? 'cooling' : 'dormant';
+    const label = state === 'active' ? t('customers.recency.last', { ago }) : t(`customers.recency.${state}`, { ago });
+    return { label, ago, stateLabel: t(`customers.recency.state.${state}`), state, dot: RECENCY_DOT[state] };
 }
 
 /** Order statuses that mean "no delivery outcome resolved yet". */
@@ -293,3 +313,62 @@ const FINISHED_STATUSES = new Set([
 export function isFinishedOrder(status: string | null | undefined): boolean {
     return !!status && FINISHED_STATUSES.has(status.toLowerCase());
 }
+
+// ───────────────────────── score breakdown ─────────────────────────
+
+export interface ScoreFactor {
+    /** i18n key suffix under customers.scoreBreakdown.*; "adjustments" for the closing gap. */
+    label: string;
+    value: number;
+    type: 'positive' | 'negative' | 'neutral';
+}
+
+export interface ScoreBreakdownView {
+    /** The bars to draw. Empty for a blocked customer: the factors would add up to the hidden score. */
+    factors: ScoreFactor[];
+    /** The stored score (or, before one is stored, the factor sum), unclamped. */
+    raw: number;
+    /** The total as shown on a 0–100 scale. */
+    score: number;
+    /** Whether the total is shown as a number (not for a new or a blocked customer). */
+    rated: boolean;
+    blocked: boolean;
+}
+
+/**
+ * How a trust score adds up, the one rule for the profile's Trust factors card
+ * and the score-breakdown modal. Zero factors are dropped (the base always
+ * stays); the stored score is the total, and when the factors do not reach it
+ * the difference is its own "Other adjustments" factor so the arithmetic
+ * closes. A blocked customer shows no score, so no factors either.
+ */
+export function buildScoreBreakdown(
+    items: readonly ScoreFactor[],
+    { storedScore, blocked, tier }: { storedScore: number | null; blocked: boolean; tier: TrustTier | string | null },
+): ScoreBreakdownView {
+    const kept = items.filter((item) => item.value !== 0 || item.label === 'base');
+    const factorSum = kept.reduce((sum, item) => sum + item.value, 0);
+    const raw = storedScore ?? factorSum;
+    const gap = Math.round(raw - factorSum);
+    const factors: ScoreFactor[] = gap === 0 || kept.length === 0
+        ? kept
+        : [...kept, { label: 'adjustments', value: gap, type: gap > 0 ? 'positive' : 'negative' }];
+    return {
+        factors: blocked ? [] : factors,
+        raw,
+        score: displayScore(raw),
+        rated: !blocked && storedScore !== null && showsTrustScore({ trust_tier: tier ?? 'new' }),
+        blocked,
+    };
+}
+
+/**
+ * Colours for a score factor: the base is a neutral blue, gains green and
+ * losses rose, at the same muted strength in light and dark. The value label
+ * sits beside the bar in `text`, never on top of the fill.
+ */
+export const SCORE_FACTOR_TONE: Record<ScoreFactor['type'], { bar: string; text: string }> = {
+    neutral: { bar: 'bg-sky-500/60 dark:bg-sky-400/45', text: 'text-sky-700 dark:text-sky-300' },
+    positive: { bar: 'bg-emerald-500/60 dark:bg-emerald-400/45', text: 'text-emerald-700 dark:text-emerald-300' },
+    negative: { bar: 'bg-rose-500/60 dark:bg-rose-400/45', text: 'text-rose-700 dark:text-rose-300' },
+};

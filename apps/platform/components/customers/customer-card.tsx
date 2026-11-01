@@ -45,7 +45,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
     // The avatar takes the risk colour when COD is unsafe, never a green value tier.
     const accent = customerAccent(value, risk);
     const pending = firstDeliveryPending(customer);
-    const recency = recencyStatus(customer.last_order_date, risk, t);
+    const recency = recencyStatus(customer.last_order_date, t);
     const success = effectiveSuccessRate(customer);
     const e164 = toIraqE164(customer.phone);
     const gov = customer.governorate ? governorateLabel(customer.governorate, language) || customer.governorate : null;
@@ -54,9 +54,8 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
         : t("customers.card.orderMany", { count: customer.total_orders.toLocaleString("en-US") });
 
     return (
-        <motion.div
+        <div
             onClick={onClick}
-            whileHover={{ y: -2 }}
             className={cn(
                 "@container relative h-full flex flex-col rounded-2xl border border-(--card-border) p-4 cursor-pointer transition-shadow group",
                 unsafe ? "bg-rose-50/50 dark:bg-rose-500/5" : "bg-(--card-bg)",
@@ -115,12 +114,13 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 </div>
             </div>
 
-            {/* One status row: value tier (or the risk when COD is unsafe), caution, outcome flags.
-                Flags past what fits are counted as "+N" rather than silently hidden. */}
-            <div className="mt-3 flex flex-wrap items-center gap-1.5 h-6 overflow-hidden">
+            {/* One status row: value tier (or the risk when COD is unsafe), caution, then the
+                outcome flags. Two chips fit a card in every language, so the rest is a
+                counted "+N" (named in its tooltip) instead of being clipped off the row. */}
+            <div className="mt-3 flex items-center gap-1.5 h-6 overflow-hidden">
                 {unsafe ? <RiskChip risk={risk} /> : <ValuePill tier={value} variant="compact" />}
                 {risk === "caution" && <RiskChip risk={risk} />}
-                <CustomerStatusFlags customer={customer} max={risk === "caution" ? 1 : 2} className="contents" />
+                <CustomerStatusFlags customer={customer} max={risk === "caution" ? 0 : 1} className="contents" />
             </div>
 
             {/* The three numbers */}
@@ -142,9 +142,12 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
             {/* Recency + actions */}
             <div className="mt-auto pt-3">
                 <div className="pt-3 border-t border-(--card-border) flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground min-w-0" title={pending ? undefined : recency.label}>
-                        <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} />
-                        <span dir="auto" className="truncate">{pending ? t("customers.card.firstDeliveryPending") : recency.ago}</span>
+                    {/* The dot is recency only (active, cooling, dormant); risk has its own pill. */}
+                    <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground min-w-0" title={pending ? t("customers.card.firstDeliveryPending") : recency.label}>
+                        <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} aria-hidden />
+                        <span dir="auto" className="truncate">
+                            {pending ? t("customers.card.firstDelivery") : <><span className="sr-only">{recency.stateLabel}: </span>{recency.ago}</>}
+                        </span>
                     </span>
                     <span className="flex items-center gap-1.5 shrink-0">
                         {canEdit && (
@@ -193,6 +196,6 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                     </motion.div>
                 )}
             </AnimatePresence>
-        </motion.div>
+        </div>
     );
 }

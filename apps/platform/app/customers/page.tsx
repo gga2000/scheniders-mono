@@ -17,7 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { useCustomerUrlState } from "@/hooks/use-customer-url-state";
 import { useCustomerStore } from "@/store/use-customer-store";
 import {
-    CustomerSegmentTabs, activeSegment, type SegmentState, type LaneSegment, type ValueFilter, type RiskFilter,
+    CustomerSegmentTabs, type SegmentState, type LaneSegment, type ValueFilter, type RiskFilter,
 } from "@/components/customers/list/customer-segment-tabs";
 import { CustomerToolbar } from "@/components/customers/list/customer-toolbar";
 import { CustomerGrid } from "@/components/customers/list/customer-grid";
@@ -34,6 +34,8 @@ import { usePermission } from "@/hooks/use-permission";
 import { useCustomerTags } from "@/hooks/use-customer-management";
 import { cn } from "@/lib/utils";
 import { PERMISSIONS } from "@/lib/permissions";
+import { useNetworkStatus } from "@/hooks/use-network-status";
+import { loadFailureKind } from "@/lib/load-failure";
 
 const PAGE_LIMIT = 24;
 const EXPORT_PAGE = 1000;
@@ -87,7 +89,7 @@ function CustomersPageContent() {
 
     const filtered = !!(state.search || state.tagId || filters.valueFilter || filters.riskFilter || laneFilter);
 
-    const { data, isLoading, isError, isFetchNextPageError, isRefetchError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
+    const { data, error, isLoading, isError, isFetchNextPageError, isRefetchError, refetch, isRefetching, isFetchingNextPage, fetchNextPage, hasNextPage } = usePaginatedCustomers(PAGE_LIMIT, filters);
     const { data: stats } = useCustomerDashboardStats();
 
     const allCustomers = useMemo(() => data?.pages.flatMap((p) => p.customers) || [], [data]);
@@ -245,6 +247,9 @@ function CustomersPageContent() {
     // One line of store-wide figures that no saved view already counts. When the
     // list failed to load there is no "shown" count: say nothing rather than "0 of N".
     const listFailed = isError && !data;
+    const online = useNetworkStatus();
+    // Only a request that never reached the server is the connection's fault.
+    const failureHint = loadFailureKind(error, online) === "network" ? t("customers.loadFailedOfflineHint") : t("customers.loadFailedHint");
     const subtitle = filtered && !listFailed
         ? t("customers.subtitleFiltered", {
             shown: totalCount.toLocaleString("en-US"),
@@ -288,7 +293,7 @@ function CustomersPageContent() {
                 {stats && (
                     <CustomerSegmentTabs
                         stats={stats}
-                        active={activeSegment({ value: valueFilter, risk: riskFilter, lane: laneFilter })}
+                        current={{ value: valueFilter, risk: riskFilter, lane: laneFilter }}
                         onSelect={onSegmentSelect}
                     />
                 )}
@@ -332,7 +337,7 @@ function CustomersPageContent() {
                             <AlertTriangle className="w-6 h-6 text-rose-600 dark:text-rose-300" />
                         </div>
                         <p className="text-lg font-bold text-foreground mb-1">{t("customers.loadFailed")}</p>
-                        <p className="text-sm text-muted-foreground mb-5">{t("customers.loadFailedHint")}</p>
+                        <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">{failureHint}</p>
                         <button
                             onClick={() => refetch()}
                             disabled={isRefetching}

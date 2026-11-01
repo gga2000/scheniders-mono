@@ -14,11 +14,16 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
+import { buildScoreBreakdown, daysAgoLabel, daysSince, SCORE_FACTOR_TONE, type ScoreFactor } from "@/lib/customer-reliability";
 import { cn } from "@/lib/utils";
 
 interface TrustHistoryCardProps {
     data: { month: string; avg_score: number; event_count: number }[];
     phone: string;
+    /** The stored trust score, the total the factors add up to (as on the hero and in the breakdown). */
+    score: number | null;
+    /** From isBlockedCustomer: no score, no factors and no score history, only the do-not-ship note. */
+    blocked: boolean;
 }
 
 type ViewMode = "history" | "factors";
@@ -40,30 +45,21 @@ function eventIconColor(deltaSign: number): string {
     return "text-muted-foreground bg-muted/40";
 }
 
-function relativeTime(iso: string, lang: "en" | "ar"): string {
-    const ms = Date.now() - new Date(iso).getTime();
-    const m = Math.floor(ms / 60000);
-    if (m < 1) return lang === "ar" ? "الآن" : "just now";
-    if (m < 60) return lang === "ar" ? `قبل ${m} د` : `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return lang === "ar" ? `قبل ${h} س` : `${h}h ago`;
-    const d = Math.floor(h / 24);
-    if (d < 30) return lang === "ar" ? `قبل ${d} ي` : `${d}d ago`;
-    const mo = Math.floor(d / 30);
-    return lang === "ar" ? `قبل ${mo} شهر` : `${mo}mo ago`;
-}
-
-export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
-    const { t, language } = useLanguage();
+export function TrustHistoryCard({ data, phone, score, blocked }: TrustHistoryCardProps) {
+    const { t } = useLanguage();
     const [period, setPeriod] = useState<6 | 12>(12);
 
     const { data: breakdownData } = useTrustScoreBreakdown(phone);
-    const breakdown = breakdownData?.items ?? [];
+    // The same factors as the score-breakdown modal: zeros dropped, the gap to the stored score closed.
+    const { factors: breakdown } = buildScoreBreakdown(breakdownData?.items ?? [], {
+        storedScore: score, blocked, tier: breakdownData?.tier ?? null,
+    });
     const { data: auditData } = useTrustAuditLog(phone, 5);
     const recentEvents = auditData?.events ?? [];
 
-    const hasHistory = data.length > 0;
-    const hasFactors = breakdown.length > 0 || recentEvents.length > 0;
+    // A blocked customer's monthly scores would bring back the score the hero hides.
+    const hasHistory = data.length > 0 && !blocked;
+    const hasFactors = breakdown.length > 0 || recentEvents.length > 0 || blocked;
 
     // Default to whichever has data; prefer history when both exist
     const [view, setView] = useState<ViewMode>(hasHistory ? "history" : "factors");
@@ -93,35 +89,37 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                     </span>
                 </div>
 
-                {/* View toggle (history vs factors) */}
-                <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-full">
-                    <button
-                        onClick={() => setView("history")}
-                        disabled={!hasHistory}
-                        className={cn(
-                            "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
-                            view === "history"
-                                ? "bg-foreground text-background"
-                                : "text-muted-foreground hover:text-foreground",
-                            !hasHistory && "opacity-40 cursor-not-allowed"
-                        )}
-                    >
-                        {t("customers.trust.viewHistory")}
-                    </button>
-                    <button
-                        onClick={() => setView("factors")}
-                        disabled={!hasFactors}
-                        className={cn(
-                            "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
-                            view === "factors"
-                                ? "bg-foreground text-background"
-                                : "text-muted-foreground hover:text-foreground",
-                            !hasFactors && "opacity-40 cursor-not-allowed"
-                        )}
-                    >
-                        {t("customers.trust.viewFactors")}
-                    </button>
-                </div>
+                {/* View toggle (history vs factors); a blocked customer has no score history to show */}
+                {!blocked && (
+                    <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-full">
+                        <button
+                            onClick={() => setView("history")}
+                            disabled={!hasHistory}
+                            className={cn(
+                                "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
+                                view === "history"
+                                    ? "bg-foreground text-background"
+                                    : "text-muted-foreground hover:text-foreground",
+                                !hasHistory && "opacity-40 cursor-not-allowed"
+                            )}
+                        >
+                            {t("customers.trust.viewHistory")}
+                        </button>
+                        <button
+                            onClick={() => setView("factors")}
+                            disabled={!hasFactors}
+                            className={cn(
+                                "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
+                                view === "factors"
+                                    ? "bg-foreground text-background"
+                                    : "text-muted-foreground hover:text-foreground",
+                                !hasFactors && "opacity-40 cursor-not-allowed"
+                            )}
+                        >
+                            {t("customers.trust.viewFactors")}
+                        </button>
+                    </div>
+                )}
 
                 {/* Period toggle — only meaningful in history mode */}
                 {view === "history" && (
@@ -208,7 +206,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                                 </div>
                             </>
                         ) : (
-                            <FactorsView breakdown={breakdown} recentEvents={recentEvents} language={language} t={t} />
+                            <FactorsView breakdown={breakdown} recentEvents={recentEvents} blocked={blocked} t={t} />
                         )}
                     </motion.div>
                 ) : (
@@ -219,7 +217,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
                         exit={{ opacity: 0, y: -8 }}
                         transition={{ duration: 0.2 }}
                     >
-                        <FactorsView breakdown={breakdown} recentEvents={recentEvents} language={language} t={t} />
+                        <FactorsView breakdown={breakdown} recentEvents={recentEvents} blocked={blocked} t={t} />
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -228,7 +226,7 @@ export function TrustHistoryCard({ data, phone }: TrustHistoryCardProps) {
 }
 
 interface FactorsViewProps {
-    breakdown: { label: string; value: number; type: "positive" | "negative" | "neutral" }[];
+    breakdown: ScoreFactor[];
     recentEvents: Array<{
         id: string;
         event_date: string;
@@ -236,17 +234,17 @@ interface FactorsViewProps {
         score_change: number;
         reason: string | null;
     }>;
-    language: "en" | "ar";
+    blocked: boolean;
     t: (key: string, vars?: Record<string, string | number>) => string;
 }
 
-function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps) {
+function FactorsView({ breakdown, recentEvents, blocked, t }: FactorsViewProps) {
     const maxAbs = useMemo(
         () => Math.max(1, ...breakdown.map((f) => Math.abs(f.value))),
         [breakdown]
     );
 
-    if (breakdown.length === 0 && recentEvents.length === 0) {
+    if (!blocked && breakdown.length === 0 && recentEvents.length === 0) {
         return (
             <div className="py-8 text-center">
                 <p className="text-sm text-muted-foreground">
@@ -263,17 +261,21 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
                 <p className="text-xs font-semibold text-muted-foreground mb-3">
                     {t("customers.trust.factorsBreakdown")}
                 </p>
-                {breakdown.length === 0 ? (
+                {blocked ? (
+                    <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                        {t("customers.scoreBreakdown.blockedNote")}
+                    </p>
+                ) : breakdown.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
                         {t("customers.trust.noFactors")}
                     </p>
                 ) : (
                     <div className="space-y-2">
-                        {breakdown.slice(0, 6).map((factor, i) => {
+                        {breakdown.map((factor, i) => {
                             const widthPct = (Math.abs(factor.value) / maxAbs) * 100;
-                            const isPositive = factor.value >= 0;
+                            const tone = SCORE_FACTOR_TONE[factor.type];
                             return (
-                                <div key={i} className="flex items-center gap-3">
+                                <div key={factor.label} className="flex items-center gap-3">
                                     <span className="text-xs font-medium text-foreground flex-1 truncate">
                                         {t(`customers.scoreBreakdown.${factor.label}`)}
                                     </span>
@@ -283,19 +285,11 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${widthPct}%` }}
                                                 transition={{ delay: i * 0.05, duration: 0.4 }}
-                                                className={cn(
-                                                    "h-full rounded-full",
-                                                    isPositive ? "bg-emerald-500" : "bg-rose-500"
-                                                )}
+                                                className={cn("h-full rounded-full", tone.bar)}
                                             />
                                         </div>
-                                        <span
-                                            className={cn(
-                                                "text-xs font-bold tabular-nums w-8 text-right",
-                                                isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-                                            )}
-                                        >
-                                            {isPositive ? "+" : ""}
+                                        <span className={cn("text-xs font-bold tabular-nums w-8 text-right", tone.text)}>
+                                            {factor.value > 0 ? "+" : ""}
                                             {factor.value}
                                         </span>
                                     </div>
@@ -320,6 +314,7 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
                         {recentEvents.slice(0, 5).map((evt) => {
                             const Icon = EVENT_ICONS[evt.event_type] || UserIcon;
                             const sign = Math.sign(evt.score_change);
+                            const days = daysSince(evt.event_date);
                             return (
                                 <li key={evt.id} className="flex items-start gap-2.5">
                                     <div
@@ -335,14 +330,15 @@ function FactorsView({ breakdown, recentEvents, language, t }: FactorsViewProps)
                                             {t(`customers.trust.event.${evt.event_type}`)}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                            {relativeTime(evt.event_date, language)}
+                                            {days === null ? "—" : daysAgoLabel(days, t)}
                                         </p>
                                     </div>
-                                    {evt.score_change !== 0 && (
+                                    {/* A blocked customer's points are not shown anywhere. */}
+                                    {evt.score_change !== 0 && !blocked && (
                                         <span
                                             className={cn(
                                                 "text-xs font-bold tabular-nums shrink-0",
-                                                sign > 0 ? "text-emerald-600" : "text-rose-600"
+                                                sign > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                                             )}
                                         >
                                             {sign > 0 ? "+" : ""}
