@@ -16,7 +16,7 @@ interface MarginHeatmapViewProps {
 type SortOption = "margin" | "revenue" | "name";
 
 function getMargin(product: Product): number | null {
-  if (product.cost == null || product.cost === 0) return null;
+  if (product.cost == null || product.cost === 0 || product.price <= 0) return null;
   return ((product.price - product.cost) / product.price) * 100;
 }
 

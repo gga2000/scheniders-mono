@@ -80,4 +80,28 @@ describe("PriceQuickEdit", () => {
         expect((save as HTMLButtonElement).disabled).toBe(false);
         expect(screen.queryByText("products.priceEdit.belowCost")).not.toBeNull();
     });
+
+    it("clears a compare-at price that the new price reaches or passes", async () => {
+        const onClose = vi.fn();
+        const withCompare = { ...product, compare_at_price: 28000 } as Product;
+        render(<PriceQuickEdit product={withCompare} onClose={onClose} />);
+        fireEvent.change(screen.getByRole("textbox"), { target: { value: "30000" } });
+        fireEvent.submit(screen.getByRole("textbox").closest("form") as HTMLFormElement);
+
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(mutateAsync).toHaveBeenCalledWith(
+            expect.objectContaining({ data: { price: 30000, compare_at_price: null } }),
+        );
+    });
+
+    it("keeps a compare-at price that is still above the new price", async () => {
+        const onClose = vi.fn();
+        const withCompare = { ...product, compare_at_price: 40000 } as Product;
+        render(<PriceQuickEdit product={withCompare} onClose={onClose} />);
+        fireEvent.change(screen.getByRole("textbox"), { target: { value: "30000" } });
+        fireEvent.submit(screen.getByRole("textbox").closest("form") as HTMLFormElement);
+
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ data: { price: 30000 } }));
+    });
 });
