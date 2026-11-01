@@ -217,7 +217,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     const blocked = isBlockedCustomer(block);
     // The hero's rule for showing a score; the Trust history chart follows it, so an unrated customer shows no monthly scores either.
     const scored = showsTrustScore(block);
-    // Too few orders for buying patterns: the snapshot is a one-line strip (and an unscored
+    // Too few orders for buying patterns: the snapshot is at most a one-line strip (and an unscored
     // Trust factors card is one too), so each takes the full width instead of a half-empty column.
     const fewOrders = profile.orders.length < PATTERNS_FROM_ORDERS;
 
@@ -364,13 +364,9 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                 <div className={fewOrders ? "col-span-12" : "col-span-12 xl:col-span-7"}>
                     <TrustHistoryCard data={historyData || []} phone={profile.phone} score={profile.trustScore} blocked={blocked} scored={scored} />
                 </div>
-                <div className={fewOrders ? "col-span-12" : "col-span-12 xl:col-span-5"}>
-                    <BehavioralPatternsCard
-                        orders={profile.orders}
-                        city={profile.city}
-                        governorate={profile.governorate}
-                        phone={profile.phone}
-                    />
+                {/* empty:hidden: a snapshot with nothing beyond the hero's place line renders nothing, and leaves no gap. */}
+                <div className={fewOrders ? "col-span-12 empty:hidden" : "col-span-12 xl:col-span-5"}>
+                    <BehavioralPatternsCard orders={profile.orders} phone={profile.phone} />
                 </div>
                 <div className="col-span-12">
                     <DossierNotesCard

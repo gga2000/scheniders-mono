@@ -90,8 +90,8 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
                                     <span className="text-foreground flex-1 truncate">
                                         {t(`customers.trust.event.${event.event_type}`)}
                                     </span>
-                                    {/* Written as on the Trust factors card: relative, the calendar day on hover. */}
-                                    <TrustEventDate date={event.event_date} className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap" />
+                                    {/* Written as on the Trust factors card: the order, then relative or the short day, the full day on hover. */}
+                                    <TrustEventDate date={event.event_date} orderId={event.order_id} className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap" />
                                     {/* A blocked customer's points are not shown, here or on the hero. */}
                                     {!blocked && (
                                         <span className={cn(

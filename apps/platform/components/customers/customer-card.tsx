@@ -113,12 +113,13 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
             </div>
 
             {/* One status row: value tier (or the risk when COD is unsafe), caution, then the
-                outcome flags. Two chips fit a card in every language, so the rest is a
-                counted "+N" (named in its tooltip) instead of being clipped off the row.
-                Clipped sideways only, so the "+N" tooltip can rise above the row. */}
+                outcome flags. Two chips fit a card, so the rest is a counted "+N" (named in its
+                tooltip). Caution takes its short word here, and every chip but the "+N" may
+                shrink (min-w-0, its word truncated), so the "+N" is never pushed off the row.
+                Clipped sideways only, so the "+N" tooltip can drop below the row. */}
             <div className="mt-3 flex items-center gap-1.5 h-6 overflow-x-clip">
-                {unsafe ? <RiskChip risk={risk} /> : <ValuePill tier={value} variant="compact" />}
-                {risk === "caution" && <RiskChip risk={risk} />}
+                {unsafe ? <RiskChip risk={risk} className="min-w-0" /> : <ValuePill tier={value} variant="compact" className="min-w-0" />}
+                {risk === "caution" && <RiskChip risk={risk} short className="min-w-0" />}
                 <CustomerStatusFlags customer={customer} max={risk === "caution" ? 0 : 1} className="contents" />
             </div>
 
@@ -129,7 +130,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                     <dd className="font-semibold text-foreground tabular-nums">{customer.total_orders.toLocaleString("en-US")}</dd>
                 </div>
                 <div className="min-w-0 flex flex-col-reverse">
-                    <dt className="text-xs text-muted-foreground truncate">{t("customers.card.statSpent")}</dt>
+                    <dt className="text-xs text-muted-foreground truncate" title={t("customers.spentOnItemsHint")}>{t("customers.spentOnItems")}</dt>
                     <dd className="font-semibold text-foreground tabular-nums truncate">{spentLabel(customer.total_spent, pending)}</dd>
                 </div>
                 <div className="min-w-0 flex flex-col-reverse">

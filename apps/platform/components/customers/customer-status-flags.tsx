@@ -46,9 +46,10 @@ export function CustomerStatusFlags({
         // anchored on the left like the rest of the LTR page. English is unchanged.
         <div dir="auto" className={cn("flex items-center gap-1.5 flex-wrap rtl:justify-end", className)}>
             {shown.map((f) => (
-                <span key={f.key} className={cn("inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap shrink-0", f.tone, surface === "tinted" && TINTED_BASE)}>
-                    <span className="font-mono tabular-nums">{f.count}</span>
-                    {t(f.i18nKey)}
+                // min-w-0: on the card's one-line row a flag gives way (its word truncated) before the "+N" does.
+                <span key={f.key} className={cn("inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap min-w-0", f.tone, surface === "tinted" && TINTED_BASE)}>
+                    <span className="font-mono tabular-nums shrink-0">{f.count}</span>
+                    <span className="truncate">{t(f.i18nKey)}</span>
                 </span>
             ))}
             {hidden.length > 0 && (

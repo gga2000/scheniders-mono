@@ -392,13 +392,13 @@ function Body({
     const flagged = statusFlags(customer).length > 0;
 
     // Counts on the first row, money on the second: the sheet is too narrow for five across.
-    const stats: { v: string; k: string; span: string }[] = [
+    const stats: { v: string; k: string; span: string; hint?: string }[] = [
         { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders"), span: "col-span-2" },
         { v: completed.toLocaleString("en-US"), k: t("customers.stat.delivered"), span: "col-span-2" },
         { v: pending ? "—" : `${successRate}%`, k: pending ? t("customers.card.firstDeliveryPending") : t("customers.table.success", "Delivery rate"), span: "col-span-2" },
         // Spend counts delivered orders only: the same "—" as the card and the table while the first delivery is pending.
-        { v: spentLabel(spent, pending), k: t("customers.drawer.lifetime"), span: "col-span-3" },
-        { v: avgBasket === null ? "—" : formatIQD(avgBasket), k: t("customers.drawer.avgBasket"), span: "col-span-3" },
+        { v: spentLabel(spent, pending), k: t("customers.spentOnItems"), span: "col-span-3", hint: t("customers.spentOnItemsHint") },
+        { v: avgBasket === null ? "—" : formatIQD(avgBasket), k: t("customers.drawer.avgBasket"), span: "col-span-3", hint: t("customers.spentOnItemsHint") },
     ];
 
     return (
@@ -479,7 +479,7 @@ function Body({
                     {stats.map((s) => (
                         <div key={s.k} className={cn("rounded-2xl border border-(--card-border) p-3", s.span)}>
                             <div className="font-mono text-lg font-extrabold tabular-nums tracking-tight whitespace-nowrap">{s.v}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">{s.k}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5" title={s.hint}>{s.k}</div>
                         </div>
                     ))}
                 </div>
@@ -490,7 +490,8 @@ function Body({
                         {data.notes.map((n, i) => (
                             <div key={i} className="flex items-start gap-2 rounded-xl bg-muted/30 border border-(--card-border) px-3 py-2 text-[13px] text-foreground">
                                 <StickyNote className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
-                                <span dir="auto" className="text-left">{n.note}</span>
+                                {/* The profile's Notes card writes a note the same way: its own direction, on the left beside its marker. */}
+                                <p dir="auto" className="min-w-0 text-left whitespace-pre-wrap wrap-break-word">{n.note}</p>
                             </div>
                         ))}
                     </div>

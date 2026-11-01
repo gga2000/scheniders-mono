@@ -55,46 +55,46 @@ export function CustomerRatingHelp({ className, side = "bottom", align = "start"
     const label = t("customers.help.trigger");
     const wide = layout === "wide";
 
-    // The two rated axes, each rule beside the pill it explains.
+    // The two rated axes in one grid: the pill column is as wide as the widest pill of
+    // either axis in this language, and each rule starts right after it, so a rule sits
+    // beside its pill and the rules of both axes line up.
     const ratings = (
-        <>
-            <Section title={t("customers.help.value.title")}>
-                {VALUE_ROWS.map((tier) => (
-                    <Row key={tier} marker={<ValuePill tier={tier} variant="compact" className="py-0.5" />}>
-                        {t(`customers.help.value.${tier}`)}
-                    </Row>
-                ))}
-                <p dir="auto" className="text-xs text-muted-foreground pt-0.5">{t("customers.help.value.unsafe")}</p>
-            </Section>
+        <div className="grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-2.5 gap-y-1">
+            <Heading className="col-span-2">{t("customers.help.value.title")}</Heading>
+            {VALUE_ROWS.map((tier) => (
+                <Row key={tier} marker={<ValuePill tier={tier} variant="compact" className="py-0.5" />}>
+                    {t(`customers.help.value.${tier}`)}
+                </Row>
+            ))}
+            <p dir="auto" className="col-span-2 text-left text-xs text-muted-foreground pt-0.5">{t("customers.help.value.unsafe")}</p>
 
-            <Section title={t("customers.help.risk.title")}>
-                {RISK_ROWS.map((risk) => (
-                    <Row key={risk} marker={<RiskChip risk={risk} showClean className="py-0.5" />}>
-                        {t(`customers.help.risk.${risk}`)}
-                    </Row>
-                ))}
-            </Section>
-        </>
+            <Heading className="col-span-2 mt-2">{t("customers.help.risk.title")}</Heading>
+            {RISK_ROWS.map((risk) => (
+                <Row key={risk} marker={<RiskChip risk={risk} showClean className="py-0.5" />}>
+                    {t(`customers.help.risk.${risk}`)}
+                </Row>
+            ))}
+        </div>
     );
 
     // The numbers beside them: the trust score, the last-order dot and the delivery rate.
     const numbers = (
         <>
             <Section title={t("customers.help.score.title")}>
-                <p dir="auto">{t("customers.help.score.body")}</p>
-                <p dir="auto" className="text-xs text-muted-foreground">{t("customers.help.score.shown")}</p>
+                <p dir="auto" className="text-left">{t("customers.help.score.body")}</p>
+                <p dir="auto" className="text-left text-xs text-muted-foreground">{t("customers.help.score.shown")}</p>
             </Section>
 
             <Section title={t("customers.help.activity.title")}>
                 {ACTIVITY_ROWS.map((row) => (
                     <p key={row.key} className="flex items-center gap-2.5">
                         <span className={cn("w-2 h-2 rounded-full shrink-0", row.dot)} aria-hidden />
-                        <span dir="auto">{t(`customers.help.activity.${row.key}`)}</span>
+                        <span dir="auto" className="text-left">{t(`customers.help.activity.${row.key}`)}</span>
                     </p>
                 ))}
             </Section>
 
-            <p dir="auto" className="pt-2.5 border-t border-(--card-border) text-muted-foreground">{t("customers.help.delivery")}</p>
+            <p dir="auto" className="pt-2.5 border-t border-(--card-border) text-left text-muted-foreground">{t("customers.help.delivery")}</p>
         </>
     );
 
@@ -145,21 +145,31 @@ export function CustomerRatingHelp({ className, side = "bottom", align = "start"
     );
 }
 
+/*
+ * Every line keeps its own reading direction (dir="auto") but is set on the left, like the
+ * rest of the LTR page: an Arabic rule then starts right after its pill, and the dot rows,
+ * the score text and the headings share that one left edge, in English and in Arabic.
+ */
+
+function Heading({ className, children }: { className?: string; children: React.ReactNode }) {
+    return <h4 dir="auto" className={cn("text-left text-xs font-semibold text-muted-foreground", className)}>{children}</h4>;
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section className="space-y-1">
-            <h4 dir="auto" className="text-xs font-semibold text-muted-foreground">{title}</h4>
+            <Heading>{title}</Heading>
             {children}
         </section>
     );
 }
 
-/** A pill in a fixed-width column, then its rule, so the rules line up. */
+/** A pill in the ratings grid's pill column, then its rule (two grid cells). */
 function Row({ marker, children }: { marker: React.ReactNode; children: React.ReactNode }) {
     return (
-        <div className="grid grid-cols-[8.5rem_1fr] items-start gap-2.5">
+        <>
             <span className="flex">{marker}</span>
-            <span dir="auto" className="pt-0.5 text-start">{children}</span>
-        </div>
+            <span dir="auto" className="pt-0.5 text-left">{children}</span>
+        </>
     );
 }

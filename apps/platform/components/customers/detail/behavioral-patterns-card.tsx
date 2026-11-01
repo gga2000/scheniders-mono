@@ -7,23 +7,19 @@ import {
     Calendar,
     Repeat,
     PieChart,
-    MapPin,
     Phone,
     Sparkles,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
-import { CustomerPlace } from "@/components/customers/customer-place";
 
 type Order = { created_at: string; status: string };
 
-/** Buying patterns need this many orders; below it the card is a one-line snapshot. */
+/** Buying patterns need this many orders; below it the card is at most a one-line snapshot. */
 export const PATTERNS_FROM_ORDERS = 3;
 
 interface BehavioralPatternsCardProps {
     orders: Order[];
-    city?: string | null;
-    governorate?: string | null;
     phone: string;
 }
 
@@ -92,11 +88,9 @@ function isValidIraqiMobile(phone: string): boolean {
 
 export function BehavioralPatternsCard({
     orders,
-    city,
-    governorate,
     phone,
 }: BehavioralPatternsCardProps) {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
 
     const mode: "patterns" | "snapshot" = orders.length >= PATTERNS_FROM_ORDERS ? "patterns" : "snapshot";
 
@@ -167,39 +161,20 @@ export function BehavioralPatternsCard({
         };
     }, [mode, orders, t]);
 
-    // ----- Snapshot computations -----
-    const snapshot = useMemo(() => {
-        if (mode !== "snapshot") return null;
-
-        // The same place line as the hero and the drawer: governorate, then the neighbourhood.
-        const locationLabel = city || governorate
-            ? <CustomerPlace governorate={governorate} city={city} locale={language} />
-            : t("customers.snapshot.locationUnknown");
-
-        const phoneValid = isValidIraqiMobile(phone);
-
-        return { locationLabel, phoneValid };
-    }, [mode, city, governorate, phone, t, language]);
-
-    // Too few orders for patterns: one line, like the Ratings and Link strips. Linked
-    // customers are the Link strip's to show, so the snapshot does not repeat them.
-    if (snapshot) {
+    // Too few orders for patterns: the hero already shows the place and the Link strip the
+    // linked customers, so the snapshot has something to say only for a bad phone number. A
+    // valid number is the norm and says nothing; a bad one earns one line in caution amber.
+    if (mode === "snapshot") {
+        if (isValidIraqiMobile(phone)) return null;
         return (
-            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 min-h-14 py-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 h-14 flex items-center gap-2.5">
                 <Sparkles className="w-4 h-4 text-foreground shrink-0" />
                 <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.snapshot.title")}</span>
                 <span className="text-sm text-muted-foreground" aria-hidden>·</span>
-                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
-                    <MapPin className="w-3.5 h-3.5 shrink-0" aria-label={t("customers.snapshot.location")} />
-                    {snapshot.locationLabel}
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                    <Phone className="w-3.5 h-3.5" />
+                    {t("customers.snapshot.phoneInvalid")}
                 </span>
-                {/* A valid number is the norm and says nothing; only a bad one earns a mark, in caution amber. */}
-                {!snapshot.phoneValid && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-                        <Phone className="w-3.5 h-3.5" />
-                        {t("customers.snapshot.phoneInvalid")}
-                    </span>
-                )}
             </div>
         );
     }

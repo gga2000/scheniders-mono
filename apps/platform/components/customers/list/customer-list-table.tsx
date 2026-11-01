@@ -93,7 +93,8 @@ export function CustomerListTable({
                         <Th>{t("customers.value.label", "Value")}</Th>
                         <Th>{t("customers.risk.label", "COD risk")}</Th>
                         <Th right>{t("customers.table.ordersRate", "Orders · rate")}</Th>
-                        <Th right>{t("customers.totalSpent")}</Th>
+                        {/* What the figure leaves out (delivery, undelivered orders) is on hover, so the header stays short. */}
+                        <Th right><span title={t("customers.spentOnItemsHint")}>{t("customers.spentOnItems")}</span></Th>
                         <Th>{t("customers.lastOrder")}</Th>
                         <Th className="rounded-tr-2xl"><span className="sr-only">{t("customers.actions.whatsapp")}</span></Th>
                     </tr>
