@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth/auth-provider";
+import { useAuth } from "@/hooks/use-auth";
 import { CUSTOM_DOMAIN_CNAME_TARGET, normalizeCustomDomain } from "@/lib/custom-domain";
 
 interface DomainDialogProps {
