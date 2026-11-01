@@ -16,7 +16,7 @@ function order(over: Partial<ReportOrder> = {}): ReportOrder {
         created_at: "2026-10-15T10:00:00.000Z", status: "delivered", delivered_at: null,
         contact_count: 1, city: "Baghdad", governorate_code: "BG", validated_governorate_code: null,
         rejection_reason: null, phone: "07701234567", needs_attention: false, attention_reasons: null,
-        address_status: null, source: "manual", is_return: false, notes: null, price: 10000, ...over,
+        source: "manual", is_return: false, notes: null, price: 10000, ...over,
     };
 }
 
@@ -151,12 +151,26 @@ describe("calculateAttentionFlags", () => {
         const f = calculateAttentionFlags([
             order({ phone: " " }),
             order({ needs_attention: true, attention_reasons: ["missing_product", "price_changed"] }),
-            order({ address_status: "incomplete" }),
+            order({ attention_reasons: ["address_issue"] }),
             order(),
         ]);
         expect(f.map((x) => [x.flagType, x.count])).toEqual([
             ["missing_phone", 1], ["missing_product", 1], ["invalid_address", 1], ["price_issues", 1],
         ]);
+    });
+});
+
+describe("calculateAttentionFlags address signal", () => {
+    it("counts address_issue from attention_reasons and never reads address_status (it is unwritten, so every order sat at the default)", () => {
+        // ReportOrder no longer carries address_status; a stray default must not create a flag.
+        const strayDefault = { ...order(), address_status: "needs_review" } as ReportOrder;
+        expect(calculateAttentionFlags([strayDefault, strayDefault])).toEqual([]);
+        const f = calculateAttentionFlags([
+            order({ attention_reasons: ["address_issue", "previous_rejection"] }),
+            order({ needs_attention: false, attention_reasons: ["address_issue"] }),
+            order(),
+        ]);
+        expect(f.map((x) => [x.flagType, x.count])).toEqual([["invalid_address", 2]]);
     });
 });
 

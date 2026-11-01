@@ -62,7 +62,8 @@ import {
 } from "./helpers/soft-commerce";
 import { cn } from "./helpers/utils";
 import { cs } from "./cart_checkout.strings";
-import { useCart } from "./helpers/cart-store";
+import { useCart, useCartHydrated } from "./helpers/cart-store";
+import { EmptyCartState } from "./helpers/empty-cart";
 import { useStoreBase } from "./helpers/store-context";
 import { isPlausiblePhone, whatsappCartLink } from "./helpers/whatsapp";
 import { useLoyaltyBalance } from "./helpers/loyalty-balance";
@@ -242,6 +243,7 @@ export function CheckoutFormRender({
   const namedSubmit = resolveI18n(props.submit_label_i18n, locale);
   const submitLabel = namedSubmit || s("placeOrder");
   const items = useCart((st) => st.items);
+  const cartLoaded = useCartHydrated();
   const subtotal = useCart((st) => st.getTotal());
   const clearCart = useCart((st) => st.clearCart);
   const removeItem = useCart((st) => st.removeItem);
@@ -738,6 +740,14 @@ export function CheckoutFormRender({
       ? [{ label: returnsPill(returnsDays, locale), icon: "cached" }]
       : []),
   ];
+
+  // Reached with nothing to order (a bookmark, a back button after an
+  // order): a form whose button can never work is a dead end. Only once the
+  // saved cart has loaded, and only at rest: a placed order clears the cart
+  // while it is still "submitting", on its way to the thank-you page.
+  if (cartLoaded && items.length === 0 && status === "idle") {
+    return <EmptyCartState message={cs("emptyCart", locale)} locale={locale} soft={soft} />;
+  }
 
   return (
     <section className="px-4 py-bk-section-dense">

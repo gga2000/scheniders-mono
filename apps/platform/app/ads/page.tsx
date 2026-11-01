@@ -6,9 +6,13 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useMetaAdsAutoRefresh, useMetaAdsConnection, useMetaAdsReport, useMetaAdsSyncNow, type CampaignTotals } from "@/hooks/use-meta-ads";
 import { MetaAdsConnectCard } from "@/components/ads/meta-ads-connect-card";
+import { AdsNetProfit } from "@/components/ads/ads-net-profit";
+import { MetaTokenBanner } from "@/components/ads/meta-token-banner";
+import { tokenWarning } from "@/lib/meta-token-warning";
 import { AdLinkCard } from "@/components/ads/ad-link-card";
 import { AdsDailyChart } from "@/components/ads/ads-daily-chart";
-import { AD_RANGE_PRESETS, pctChange, type AdRangePreset } from "@/lib/ads-report";
+import { AD_RANGE_PRESETS, breakEvenCostPerDelivered, campaignVerdict, pctChange, type AdRangePreset } from "@/lib/ads-report";
+import { useNetProfitForRange } from "@/hooks/use-net-profit-for-range";
 
 function ratio(numerator: number, denominator: number): number | null {
     return denominator > 0 ? Math.round(numerator / denominator) : null;
@@ -31,9 +35,10 @@ function Kpi({ label, value, hint, change, lowerIsBetter }: { label: string; val
     );
 }
 
-function CampaignRow({ c }: { c: CampaignTotals }) {
+function CampaignRow({ c, breakEven }: { c: CampaignTotals; breakEven: number | null }) {
     const costPerResult = ratio(c.spendIqd, c.results);
     const costPerDelivered = ratio(c.spendIqd, c.delivered);
+    const verdict = campaignVerdict(costPerDelivered, breakEven);
     return (
         <tr className="border-t border-[var(--card-border)]">
             <td className="py-3 pe-4 font-medium text-foreground">{c.campaignName}</td>
@@ -43,7 +48,9 @@ function CampaignRow({ c }: { c: CampaignTotals }) {
             <td className="py-3 pe-4 tabular-nums">{costPerResult === null ? "—" : formatIQD(costPerResult)}</td>
             <td className="py-3 pe-4 tabular-nums">{c.orders}</td>
             <td className="py-3 pe-4 tabular-nums">{c.delivered}</td>
-            <td className="py-3 pe-4 tabular-nums">{costPerDelivered === null ? "—" : formatIQD(costPerDelivered)}</td>
+            <td className={cn("py-3 pe-4 font-medium tabular-nums", verdict === "profitable" && "text-emerald-600", verdict === "losing" && "text-red-600")}>
+                {costPerDelivered === null ? "—" : formatIQD(costPerDelivered)}
+            </td>
             <td className="py-3 pe-4 tabular-nums text-muted">{c.clicks.toLocaleString()}</td>
         </tr>
     );
@@ -54,11 +61,13 @@ export default function AdsPage() {
     const [preset, setPreset] = useState<AdRangePreset>("30");
     const [compare, setCompare] = useState(false);
     const connection = useMetaAdsConnection();
-    const { current: report, previous: previousReport } = useMetaAdsReport(preset, compare);
+    const { current: report, previous: previousReport, range } = useMetaAdsReport(preset, compare);
     const sync = useMetaAdsSyncNow();
     useMetaAdsAutoRefresh(connection.data?.is_active === true);
 
     const data = report.data;
+    const profit = useNetProfitForRange(range);
+    const breakEven = data && !profit.loading && !profit.error ? breakEvenCostPerDelivered(profit.netProfit, profit.marketingCost, data.deliveredOrders) : null;
     const costPerDelivered = data ? ratio(data.spendIqd, data.deliveredOrders) : null;
     const costPerResult = data ? ratio(data.spendIqd, data.results) : null;
     const before = compare ? previousReport.data : undefined;
@@ -121,11 +130,12 @@ export default function AdsPage() {
                     {t("ads.syncFailed")}: {connection.data.last_error}
                 </p>
             ) : null}
+            <MetaTokenBanner health={connection.data?.tokenHealth} />
             {sync.isError && sync.error.message !== connection.data?.last_error ? (
                 <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600">{sync.error.message}</p>
             ) : null}
 
-            {connection.isSuccess && (!connection.data || connection.data.last_error) ? (
+            {connection.isSuccess && (!connection.data || connection.data.last_error || tokenWarning(connection.data.tokenHealth, new Date()) !== null) ? (
                 <MetaAdsConnectCard initialAdAccountId={connection.data?.ad_account_id ?? ""} initialUsdToIqd={connection.data?.usd_to_iqd ?? 1717} />
             ) : null}
 
@@ -149,6 +159,8 @@ export default function AdsPage() {
                         />
                     </section>
                     {compare ? <p className="-mt-3 text-xs text-muted">{t("ads.vsPrevious")}</p> : null}
+
+                    <AdsNetProfit profit={profit} breakEven={breakEven} />
 
                     <p className="rounded-xl bg-[var(--card-bg)] px-4 py-3 text-sm text-foreground">
                         {t("ads.honestNote")
@@ -191,7 +203,7 @@ export default function AdsPage() {
                                     </thead>
                                     <tbody>
                                         {data.campaigns.map((c) => (
-                                            <CampaignRow key={c.campaignId} c={c} />
+                                            <CampaignRow key={c.campaignId} c={c} breakEven={breakEven} />
                                         ))}
                                     </tbody>
                                 </table>

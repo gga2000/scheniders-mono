@@ -93,6 +93,21 @@ export function storeDisplayName(tenant: {
   return tenant.store_config_v2?.brand_kit?.identity?.name?.trim() || tenant.business_name;
 }
 
+/**
+ * A page description for search results and link previews: one line, at most
+ * `max` characters, cut at a word boundary. Product descriptions are long,
+ * multi-paragraph stories; search engines show ~160 characters and a share
+ * card even less, so the full text there is cut mid-word by the reader.
+ */
+export function metaDescription(text: string | null | undefined, max = 160): string | undefined {
+  const flat = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!flat) return undefined;
+  if (flat.length <= max) return flat;
+  const cut = flat.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).replace(/[\s،,.:;-]+$/, "")}…`;
+}
+
 export const NOINDEX_FOLLOW = { robots: { index: false, follow: true } } as const;
 
 type JsonLdObject = Record<string, unknown>;

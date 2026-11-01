@@ -17,10 +17,13 @@ import { code128Svg, qrSvg } from "@/lib/print-codes";
 import { escapeHtml } from "@/lib/html-escape";
 import { PRIME_LOGO_SVG, SCHNEIDERS_LOGO_SVG } from "@/lib/label-brand";
 import type { AfterSalePickup } from "@/lib/after-sale/label-pickups";
+import { deliverySlotParts, formatDeliverySlot, parseDeliverySlot, type DeliverySlot } from "@/lib/orders/delivery-slot";
 
 const WARNING_SIGN = `<svg viewBox="0 0 24 22" class="dl-ico" aria-hidden="true"><path d="M12 1.2 23 20.8H1z" fill="#000"/><path d="M12 4.6 19.9 18.8H4.1z" fill="#fff"/><rect x="10.7" y="8.4" width="2.6" height="6" rx=".6" fill="#000"/><rect x="10.7" y="15.6" width="2.6" height="2.4" rx=".6" fill="#000"/></svg>`;
 const GLASS_SIGN = `<svg viewBox="0 0 20 24" class="dl-ico" aria-hidden="true"><path d="M3 1h14l-.6 6.2c-.4 4-3 6.4-6.4 6.6-3.4-.2-6-2.6-6.4-6.6z" fill="#000"/><path d="M10.6 1.6 8.8 5.4l2.4 1.6-2 4.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/><rect x="9" y="13.4" width="2" height="7" fill="#000"/><rect x="5" y="20.4" width="10" height="2.2" rx=".8" fill="#000"/></svg>`;
 // Arrows point the way the goods move: out of the courier's hands, or back into them.
+// A perfume bottle under a "no" circle: the bottle in the box stays sealed.
+const NO_OPEN_SIGN = `<svg viewBox="0 0 24 24" class="dl-ico" aria-hidden="true"><rect x="10" y="3.2" width="4" height="3" fill="#000"/><rect x="8.6" y="2" width="6.8" height="1.8" rx=".5" fill="#000"/><rect x="6.6" y="7" width="10.8" height="13" rx="2" fill="#000"/><circle cx="12" cy="12" r="10.6" fill="none" stroke="#000" stroke-width="2.2"/><path d="M4.6 4.6 19.4 19.4" stroke="#fff" stroke-width="3.6"/><path d="M4.6 4.6 19.4 19.4" stroke="#000" stroke-width="2.2"/></svg>`;
 const OUT_SIGN = `<svg viewBox="0 0 16 16" class="dl-ai" aria-hidden="true"><path d="M2 8h9.5M8 3.5 12.5 8 8 12.5" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="square"/></svg>`;
 const BACK_SIGN = `<svg viewBox="0 0 16 16" class="dl-ai" aria-hidden="true"><path d="M14 8H4.5M8 3.5 3.5 8 8 12.5" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="square"/></svg>`;
 const PHONE_SIGN = `<svg viewBox="0 0 24 24" class="dl-pi" aria-hidden="true"><path d="M6.6 2.5 9.4 2l1.6 4.6-2.2 1.5a11 11 0 0 0 7.1 7.1l1.5-2.2L22 14.6l-.5 2.8c-.2 1.1-1.2 1.9-2.3 1.8C10.6 18.6 5.4 13.4 4.8 4.8c-.1-1.1.7-2.1 1.8-2.3z" fill="#000"/></svg>`;
@@ -122,6 +125,15 @@ function afterSaleLines(order: Order, items: { name: string; qty: number }[], pi
     return `<div class="dl-as">${lines}</div>`;
 }
 
+/** Every parcel going out to a customer: the perfume stays sealed; the sample in the box is the tester. */
+const PERFUME_WARNING = `<div class="dl-perf">${NO_OPEN_SIGN}<div class="dl-perf-t"><b>يمنع فتح العطر منعاً باتاً</b><span>يتم الاختبار حصراً من خلال العينة المرفقة</span></div></div>`;
+
+function dispatchSlotPill(slot: DeliverySlot, stacked: boolean): string {
+    if (!stacked) return `<span class="dl-slot"><small>وقت التوصيل</small><b>${escapeHtml(formatDeliverySlot(slot, "ar"))}</b></span>`;
+    const { name, time } = deliverySlotParts(slot, "ar");
+    return `<span class="dl-slot"><small>${escapeHtml(name || "الساعة")}</small><b>${escapeHtml(time)}</b></span>`;
+}
+
 export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOptions): string {
     const afterSale = Boolean(order.is_return || order.is_replacement);
     const id = labelReceiptNumber(order.order_id);
@@ -141,6 +153,10 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
     const kindPill = afterSale
         ? `<span class="dl-kind"><b>${order.is_return ? "استرجاع" : "استبدال"}</b>${original ? `<small>عن <bdi dir="ltr">#${e(original)}</bdi></small>` : ""}</span>`
         : "";
+    // The agreed delivery time rides in the destination bar, so it costs no label height.
+    const slot = parseDeliverySlot(order.delivery_slot);
+    // Beside an after-sale pill the slot stacks its window name over the hours, so the city keeps its room.
+    const slotPill = slot ? dispatchSlotPill(slot, Boolean(kindPill)) : "";
     // Notes never get cut mid-line: each long block above them takes a line off their clamp.
     const noteLines = Math.max(
         1,
@@ -167,8 +183,9 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
         ${courierLogo}
         <div class="dl-qr">${qrSvg(id, { moduleSteps: 3, maxSizeMm: 21 })}</div>
     </div>
-    <div class="dl-dest"><b>${e(order.city) || "—"}</b>${kindPill}</div>
+    <div class="dl-dest${slot && kindPill ? " dl-dest-tight" : ""}"><b>${e(order.city) || "—"}</b>${slotPill}${kindPill}</div>
     <div class="dl-tape"><div class="dl-tape-in">${WARNING_SIGN}<span>زجاج · قابل للكسر · يُحمل بعناية</span>${GLASS_SIGN}</div></div>
+    ${order.is_return ? "" : PERFUME_WARNING}
     ${afterSale ? afterSaleLines(order, items, options.pickup) : ""}
     <div class="dl-cust">
         <div class="dl-who">
@@ -191,7 +208,7 @@ export const DISPATCH_LABEL_FONTS = "family=IBM+Plex+Sans+Arabic:wght@400;600;70
 export const DISPATCH_LABEL_CSS = `
     .dispatch-label {
         width: 80mm; height: 120mm; padding: 3mm; overflow: hidden; box-sizing: border-box;
-        display: flex; flex-direction: column; gap: 2.4mm;
+        display: flex; flex-direction: column; gap: 1.5mm;
         background: #fff; color: #000; direction: rtl;
         font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
     }
@@ -215,6 +232,13 @@ export const DISPATCH_LABEL_CSS = `
     .dl-kind { flex-shrink: 0; background: #fff; color: #000; padding: .6mm 2.4mm; display: flex; flex-direction: column; align-items: center; line-height: 1.1;
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .dl-kind b { font-size: 13pt; }
+    .dl-slot { flex-shrink: 0; margin-inline-start: auto; border: .5mm solid #fff; padding: .2mm 2mm; display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
+    .dl-slot small { font-size: 7pt; font-weight: 600; }
+    .dl-slot b { font-size: 11.5pt; white-space: nowrap; }
+    /* Beside an after-sale pill: the city steps down a size so all three fit on one row. */
+    .dl-dest-tight { gap: 1.2mm; }
+    .dispatch-label .dl-dest.dl-dest-tight > b { font-size: 19pt; }
+    .dl-dest-tight .dl-slot { padding: .2mm 1.4mm; }
     .dl-kind small { font-family: 'IBM Plex Mono', monospace; font-size: 7pt; font-weight: 700; }
     .dl-dest > b { display: block; min-width: 0; font-size: 27pt; line-height: 1; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .dl-tape { display: flex; align-items: center; justify-content: center; height: 8.4mm; margin-top: -2.4mm;
@@ -222,6 +246,12 @@ export const DISPATCH_LABEL_CSS = `
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .dl-tape-in { background: #fff; display: flex; align-items: center; gap: 1.6mm; padding: 0 2.2mm; height: 6.8mm; border: .4mm solid #000; font-weight: 700; font-size: 9pt; }
     .dl-ico { height: 5.4mm; width: auto; }
+    /* One line wherever it fits: the label is already full, so the warning takes a single row. */
+    .dl-perf { display: flex; align-items: center; gap: 1.6mm; padding: .5mm 1.8mm; border: .6mm solid #000; }
+    .dl-perf .dl-ico { height: 5mm; flex-shrink: 0; }
+    .dl-perf-t { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.2mm; min-width: 0; line-height: 1.2; }
+    .dl-perf-t b { font-size: 9pt; }
+    .dl-perf-t span { font-size: 7.5pt; font-weight: 700; }
     .dl-as { border: .7mm solid #000; }
     .dl-as-l { display: flex; align-items: baseline; gap: 1.6mm; padding: .5mm 2mm; font-size: 9pt; font-weight: 700; line-height: 1.3; }
     .dl-as-l + .dl-as-l { border-top: .3mm dashed #000; }
@@ -257,6 +287,9 @@ export const DISPATCH_LABEL_CSS = `
     .dl-dense .dl-tape { height: 6.6mm; margin-top: -.6mm; }
     .dl-dense .dl-tape-in { height: 5.4mm; font-size: 8pt; }
     .dl-dense .dl-ico { height: 4.2mm; }
+    .dl-dense .dl-perf { padding: .3mm 1.6mm; }
+    .dl-dense .dl-perf .dl-ico { height: 4.4mm; }
+    .dl-dense .dl-perf-t b { font-size: 8.5pt; }
     .dl-dense .dl-tel { padding: .6mm 2mm; }
     .dl-dense .dl-addr { display: flex; align-items: baseline; gap: 1.4mm; }
     .dl-dense .dl-addr .dl-k { flex-shrink: 0; }

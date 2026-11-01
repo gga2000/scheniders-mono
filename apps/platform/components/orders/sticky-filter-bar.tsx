@@ -42,6 +42,8 @@ interface StickyFilterBarProps {
     setFilterDuplicatesOnly?: (val: boolean) => void;
     /** Orders parked for a later day whose day has arrived ("due today"). */
     filterDueToday?: boolean;
+    /** Extra queue toggles rendered beside due-today (desktop: stuck in transit). */
+    queueChips?: ReactNode;
     setFilterDueToday?: (val: boolean) => void;
     dueTodayCount?: number;
     /** When false the contextual sub-filter rows (Type, Products) are collapsed. Owned by the parent so the search-bar toggle can drive it. */
@@ -60,7 +62,7 @@ interface StickyFilterBarProps {
     riskCountHidden?: boolean;
 }
 
-import { memo, useState } from "react";
+import { memo, useState, type ReactNode } from "react";
 
 export const StickyFilterBar = memo(function StickyFilterBar({
     filters,
@@ -76,6 +78,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     filterDuplicatesOnly,
     setFilterDuplicatesOnly,
     filterDueToday = false,
+    queueChips,
     setFilterDueToday,
     dueTodayCount = 0,
     showSubFilters = false,
@@ -302,6 +305,8 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         </span>}
                     </button>
                 )}
+
+                {queueChips}
 
                 {/* Risk Filter Toggle */}
                 <button

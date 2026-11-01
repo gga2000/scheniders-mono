@@ -39,10 +39,8 @@ export const fixtureTenant: Tenant = {
   id: "77777777-7777-4777-8777-777777777777",
   business_name: "متجر تجريبي",
   slug: "fixture-store",
-  plan: "pro",
   status: "active",
   branding: {},
-  settings: {},
   store_config: { contact: { whatsapp_number: "07701234567" } },
 };
 

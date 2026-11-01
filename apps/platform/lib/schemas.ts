@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DeliverySlotSchema } from './orders/delivery-slot';
 import { validatePhoneDetailed } from '@/lib/order-utils';
 
 // =============================================
@@ -35,7 +36,6 @@ export const ALL_ORDER_STATUSES = OrderStatusEnum.options;
 
 export const OrderPriorityEnum = z.enum(['normal', 'high', 'urgent']);
 export const PaymentStatusEnum = z.enum(['pending', 'cod', 'prepaid', 'partial', 'paid']);
-export const DeliverySlotEnum = z.enum(['morning', 'afternoon', 'evening']);
 export const OrderSourceEnum = z.enum(['whatsapp', 'lightfunnels', 'meta', 'tiktok', 'delivery_import', 'shop', 'other']);
 export const TagColorEnum = z.enum(['yellow', 'green', 'blue', 'pink', 'purple']).nullable();
 export const AddressStatusEnum = z.enum(['valid', 'incomplete', 'invalid', 'needs_review']);
@@ -107,7 +107,7 @@ export const OrderSchema = z.object({
     is_archived: z.boolean().default(false),
     is_pinned: z.boolean().optional(),
 
-    delivery_slot: DeliverySlotEnum.optional(),
+    delivery_slot: DeliverySlotSchema.optional(),
     source: OrderSourceEnum.default('other'),
     sequence_number: z.number().int().optional(),
 

@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { useStuckInTransit } from "@/hooks/use-stuck-in-transit";
 import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
 import { StockPinChips } from "@/components/orders/stock-pin-chips";
 import { StockTodayDialog } from "@/components/orders/stock-today-dialog";
@@ -112,6 +113,7 @@ import {
 import { cn } from "@/lib/utils";
 import { canOfferSelectAll } from "@/lib/order-bulk-scope";
 import { AdsTodayChips } from "@/components/ads/ads-today-chips";
+import { AdsChipsToggle } from "@/components/ads/ads-chips-toggle";
 import { notificationService } from "@/lib/notification-service";
 import { toast } from "@/hooks/use-toast";
 
@@ -132,6 +134,7 @@ export default function OrdersPage() {
     // Ad-channel chips — hidden by default, toggled from the search bar like the
     // sub-filters above. Per-device pref.
     const [showAdChannels, toggleAdChannels] = usePersistedToggle("ordersShowAdChannels");
+    const [showAdsChips, toggleAdsChips] = usePersistedToggle("ordersShowAdsChips");
     // Order pipeline funnel — hidden by default, surfaced via toolbar toggle.
     // Per-device pref, mirrors the sub-filters pattern above.
     const [showPipeline, togglePipeline] = usePersistedToggle("ordersShowPipeline");
@@ -543,6 +546,10 @@ export default function OrdersPage() {
     const defColumnFilters = React.useDeferredValue(debouncedColumnFilters);
     const defFilterDuplicatesOnly = React.useDeferredValue(filterDuplicatesOnly);
     const defFilterDueToday = React.useDeferredValue(filterDueToday);
+    const filterStuckTransit = useOrderStore(s => s.filterStuckTransit);
+    const defFilterStuckTransit = React.useDeferredValue(filterStuckTransit);
+    const { stuckIds } = useStuckInTransit();
+    const stuckIdSet = useMemo(() => new Set(stuckIds), [stuckIds]);
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
@@ -588,12 +595,17 @@ export default function OrdersPage() {
             result = result.filter(o => isScheduleDue(o.status, o.scheduled_date));
         }
 
+        // 1.7. Stuck-in-transit filter — in transit 7+ days (lib/orders/stuck-in-transit.ts).
+        if (defFilterStuckTransit) {
+            result = result.filter(o => stuckIdSet.has(o.id));
+        }
+
         // 2. Sort: pinned first, parked last, then the column sorts, else
         // newest first (lib/orders/list-sort.ts — shared with the preview's
         // prefix proof).
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
         return sortDesktopList(result, activeSorts);
-    }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, getCustomerOrderCount, defRiskLevel]);
+    }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, getCustomerOrderCount, defRiskLevel]);
 
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
     // Counted with the same predicate the filter uses, so the number on the card
@@ -630,7 +642,8 @@ export default function OrdersPage() {
         riskLevel: defRiskLevel,
         duplicatesOnly: defFilterDuplicatesOnly,
         dueToday: defFilterDueToday,
-    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday]);
+        stuckTransit: defFilterStuckTransit,
+    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit]);
 
     // The head of a wide list fetch, while the window loads — rows in under a
     // second instead of a skeleton for the whole book. Only for the plain list:
@@ -641,10 +654,10 @@ export default function OrdersPage() {
     // book lands are dropped.
     const previewOrders = useMemo(() => {
         if (!listPreview || defShowArchived || groupBy !== "none") return null;
-        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday) return null;
+        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday || defFilterStuckTransit) return null;
         if (defSortConfigs.length > 0 || defSortConfig) return null;
         return desktopPreviewRows(listPreview.rows);
-    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defSortConfigs, defSortConfig]);
+    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defSortConfigs, defSortConfig]);
     const previewing = previewOrders !== null;
     // A count of the list is its length only once the list is the whole
     // window (or the server's search hits): never over a preview or the
@@ -1147,7 +1160,7 @@ export default function OrdersPage() {
                                                         </AnimatePresence>
                                                     </div>
 
-                                                    <AdsTodayChips />
+                                                    {showAdsChips ? <AdsTodayChips /> : null}
                                                 </div>
 
                                                 {/* Row 2: Control Groups - Premium Glass Cards.
@@ -1441,6 +1454,9 @@ export default function OrdersPage() {
                                                             >
                                                                 <BarChart3 className="w-4 h-4" />
                                                             </button>
+
+                                                            {/* Meta chips toggle (off by default) */}
+                                                            <AdsChipsToggle active={showAdsChips} onToggle={toggleAdsChips} />
 
                                                             {/* Map Toggle */}
                                                             <button

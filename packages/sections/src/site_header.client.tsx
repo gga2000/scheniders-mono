@@ -134,7 +134,7 @@ export function SiteHeaderRender({
       );
     }
     const pillIconBtn =
-      "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full " +
+      "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full " +
       "transition-opacity duration-bk-fast motion-reduce:transition-none hover:opacity-70 active:opacity-60";
 
     return (

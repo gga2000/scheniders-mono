@@ -27,6 +27,8 @@ import { motion } from "framer-motion";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { PriorityBadge } from "./card/priority-badge";
 import { SourceBadge } from "./card/source-badge";
+import { StuckTransitBadge } from "./card/stuck-transit-badge";
+import { DeliverySlotChip } from "./card/delivery-slot-chip";
 import { EnteredByMark } from "./card/entered-by-mark";
 import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
@@ -371,6 +373,8 @@ function FullOrderCard(props: OrderCardProps) {
                                         {scheduledLabel}
                                     </span>
                                 )}
+
+                                <DeliverySlotChip slot={order.delivery_slot} />
                             </div>
                         )}
 
@@ -391,6 +395,8 @@ function FullOrderCard(props: OrderCardProps) {
                                     {orderStatusLabel(order.status, isReturn)}
                                 </motion.span>
                             </CardStatusMenu>
+
+                            <StuckTransitBadge order={order} />
 
                             {/* Delivery Company Badge */}
                             {order.delivery_company === 'waseet' && (
@@ -853,6 +859,15 @@ function FullOrderCard(props: OrderCardProps) {
                                 )}
                             </div>
                         )}
+                        {/* Follow-up cue sits under the price, not in the button row, so the row keeps one width. */}
+                        {followUp && (
+                            <div className="mt-1.5 flex justify-end">
+                                <FollowUpCueBadge
+                                    state={followUp}
+                                    hoursSinceCreated={Math.floor(hoursSinceCreated)}
+                                />
+                            </div>
+                        )}
                     </motion.div>
 
                     {/* MOBILE SECTION: Phone, Address & Price - shows below main content on mobile */}
@@ -1006,19 +1021,12 @@ function FullOrderCard(props: OrderCardProps) {
 
                     {/* ACTION BUTTONS - Desktop only */}
                     <div className={cn(
-                        "hidden md:flex flex-shrink-0 items-center",
+                        // Fixed width (six buttons) so the price column lines up on every card.
+                        "hidden md:flex flex-shrink-0 items-center justify-end md:min-w-[280px]",
                         actionDock
                             ? "bg-black/5 dark:bg-[#1A1A1A] p-1 gap-1 flex-row rounded-2xl border border-black/5 dark:border-white/5 shadow-inner"
                             : "gap-2"
                     )}>
-                        {/* Follow-up cue badge */}
-                        {followUp && (
-                            <FollowUpCueBadge
-                                state={followUp}
-                                hoursSinceCreated={Math.floor(hoursSinceCreated)}
-                            />
-                        )}
-
                         {/* Chat Button - Primary with Contact Stage Indicator */}
                         {(() => {
                             const contactCount = order.contact_count || 0;
@@ -1414,6 +1422,20 @@ function FullOrderCard(props: OrderCardProps) {
                                     </button>
                                 )}
 
+                                {/* No Response Button - For contacted orders (alternative to cancel) */}
+                                {order.status === "contacted" && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onStatusUpdate(order.id, "no_response");
+                                        }}
+                                        disabled={isLoading}
+                                        className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-center disabled:opacity-50"
+                                        title={t("orders.card.noResponse")}
+                                    >
+                                        <PhoneCall className="w-4 h-4" />
+                                    </button>
+                                )}
                                 {/* Cancel Button - For new, contacted, and confirmed orders */}
                                 {(order.status === "new" || order.status === "contacted" || order.status === "confirmed") && (
                                     <button
@@ -1433,20 +1455,6 @@ function FullOrderCard(props: OrderCardProps) {
                                     </button>
                                 )}
 
-                                {/* No Response Button - For contacted orders (alternative to cancel) */}
-                                {order.status === "contacted" && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onStatusUpdate(order.id, "no_response");
-                                        }}
-                                        disabled={isLoading}
-                                        className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-center disabled:opacity-50"
-                                        title={t("orders.card.noResponse")}
-                                    >
-                                        <PhoneCall className="w-4 h-4" />
-                                    </button>
-                                )}
                                 {/* Refund Status Actions - For orders in return_pending */}
                                 {order.status === "return_pending" && isReturn && (
                                     <>

@@ -1,4 +1,5 @@
 import type { OrderItem } from "./supabase";
+import type { DeliverySlot } from "./orders/delivery-slot";
 
 /**
  * Generate a unique order ID in the format LF-XXX-YYYY
@@ -277,7 +278,7 @@ export interface OrderFormData {
     items: OrderItem[];
     notes?: string;
     internal_notes?: string;
-    delivery_slot?: 'morning' | 'afternoon' | 'evening';
+    delivery_slot?: DeliverySlot;
     payment_status?: 'cod' | 'prepaid' | 'partial';
 }
 

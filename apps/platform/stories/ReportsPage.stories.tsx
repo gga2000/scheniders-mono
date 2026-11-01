@@ -59,7 +59,7 @@ import { BatchAnalytics } from "@/components/reports/batch-analytics";
 import { ChannelPerformance } from "@/components/reports/channel-performance";
 import { calculateChannelPerformance } from "@/lib/analytics/channel-metrics";
 import type { EmployeeActivityMetrics } from "@/hooks/use-employee-metrics";
-import type { BatchMetrics, BatchAnalyticsSummary } from "@/hooks/use-batch-analytics";
+import type { BatchMetrics, BatchAnalyticsSummary } from "@/lib/analytics/batch-metrics";
 
 const staff: EmployeeActivityMetrics[] = ["Mohammed", "Noor", "Karrar", "Ali2", "Sara"].map((name, i) => ({
     userId: `u${i}`, userEmail: `${name.toLowerCase()}@x.iq`, displayName: name,
@@ -69,7 +69,7 @@ const staff: EmployeeActivityMetrics[] = ["Mohammed", "Noor", "Karrar", "Ali2", 
 }));
 const batches: BatchMetrics[] = Array.from({ length: 5 }, (_, i) => ({
     id: `b${i}`, name: `Batch ${i + 1}`, createdAt: new Date(end.getTime() - i * 86400000 * 3), orderCount: 40 + i * 7,
-    totalValue: 1_800_000 + i * 240_000, cities: ["Baghdad", "Basra", "Erbil"], deliveryRate: 82 - i * 9, rejectionRate: 8 + i * 3,
+    totalValue: 1_800_000 + i * 240_000, cities: ["Baghdad", "Basra", "Erbil"], deliveryRate: 82 - i * 9, rejectionRate: 8 + i * 3, delivered: 40 - i * 4, rejected: 5 + i * 2,
     avgDeliveryTime: 0, status: (["completed", "mixed", "in_progress", "pending", "completed"] as const)[i],
 }));
 const summary: BatchAnalyticsSummary = {

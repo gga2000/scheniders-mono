@@ -43,7 +43,10 @@ export function StockQuickAdjust({ productId, productName, currentStock, reserve
 
     const newQuantity = currentStock + delta;
 
+    const belowZero = newQuantity < 0;
+
     const submit = async () => {
+        if (belowZero) return;
         if (delta === 0) {
             onClose();
             return;
@@ -137,6 +140,11 @@ export function StockQuickAdjust({ productId, productName, currentStock, reserve
                     {newQuantity} {delta !== 0 && `(${delta > 0 ? "+" : ""}${delta})`}
                 </span>
             </div>
+            {belowZero && (
+                <p role="alert" className="text-xs text-rose-600 dark:text-rose-400">
+                    {t("products.stockAdjust.belowZero")}
+                </p>
+            )}
 
             <div>
                 <label className="block text-xs font-medium text-muted mb-1">
@@ -179,7 +187,7 @@ export function StockQuickAdjust({ productId, productName, currentStock, reserve
                 <button
                     type="button"
                     onClick={submit}
-                    disabled={adjust.isPending || delta === 0}
+                    disabled={adjust.isPending || delta === 0 || belowZero}
                     className="flex-1 px-3 py-2 text-sm bg-[var(--ink)] text-white rounded-lg font-medium whitespace-nowrap hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {adjust.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
