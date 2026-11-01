@@ -12,6 +12,7 @@ import { useFinanceOverview } from "@/hooks/use-finance-overview";
 import { useFinanceInsights } from "@/hooks/use-finance-insights";
 import { useFinanceRevenue } from "@/hooks/use-finance-revenue";
 import { useCashPosition } from "@/hooks/use-cash-position";
+import { useInTransitSince } from "@/hooks/use-in-transit-since";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { PageHeader } from "@/components/finances/hub/page-header";
 import { TabsShell, type FinanceTabId } from "@/components/finances/hub/tabs-shell";
@@ -212,7 +213,8 @@ function FinancesContent() {
     );
 
     const insights = useFinanceInsights(overview);
-    const cash = useCashPosition(orders);
+    const inTransitSince = useInTransitSince(orders);
+    const cash = useCashPosition(orders, inTransitSince);
     const revenue = useFinanceRevenue(
         orders,
         products,
