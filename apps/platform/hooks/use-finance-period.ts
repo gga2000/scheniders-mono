@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { baghdadDayKey } from "@/lib/order-window";
+import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 
 export type Granularity = "day" | "week" | "month" | "quarter" | "year";
 export type PresetKey = "today" | "yesterday" | "last7" | "last30" | "mtd" | "ytd" | "custom";
@@ -13,57 +13,45 @@ export interface FinancePeriod {
     compareMode: "previous" | "yoy" | "none";
 }
 
-function startOfDay(d: Date): Date {
-    const x = new Date(d);
-    x.setHours(0, 0, 0, 0);
-    return x;
+/**
+ * Every boundary below is a Baghdad calendar day, not the viewer's local day:
+ * the merchant's "today" is Baghdad's wherever the browser is, and a custom
+ * range typed as a date means those Baghdad days. (Local-time maths put the
+ * range a day off for any browser outside UTC+3.)
+ */
+const dayStart = (day: string): Date => new Date(baghdadDayStart(day));
+const dayEnd = (day: string): Date => new Date(baghdadDayStart(addDaysToDayKey(day, 1)) - 1);
+
+/** The same Baghdad calendar day one year earlier (29 Feb falls back to 28 Feb). */
+function sameDayLastYear(day: string): string {
+    const [y, m, d] = day.split("-").map(Number);
+    const lastYear = y - 1;
+    const leapDayMissing = m === 2 && d === 29 && new Date(Date.UTC(lastYear, 1, 29)).getUTCMonth() !== 1;
+    return `${String(lastYear).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(leapDayMissing ? 28 : d).padStart(2, "0")}`;
 }
 
-function endOfDay(d: Date): Date {
-    const x = new Date(d);
-    x.setHours(23, 59, 59, 999);
-    return x;
-}
-
-function addDays(d: Date, n: number): Date {
-    const x = new Date(d);
-    x.setDate(x.getDate() + n);
-    return x;
-}
-
-function addYears(d: Date, n: number): Date {
-    const x = new Date(d);
-    x.setFullYear(x.getFullYear() + n);
-    return x;
-}
-
-function startOfMonth(d: Date): Date {
-    return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
-}
-
-function startOfYear(d: Date): Date {
-    return new Date(d.getFullYear(), 0, 1, 0, 0, 0, 0);
+function dayRange(startDay: string, endDay: string): { start: Date; end: Date } {
+    return { start: dayStart(startDay), end: dayEnd(endDay) };
 }
 
 function presetRange(preset: PresetKey): { start: Date; end: Date } {
-    const now = new Date();
+    const today = baghdadDayKey();
     switch (preset) {
         case "today":
-            return { start: startOfDay(now), end: endOfDay(now) };
+            return dayRange(today, today);
         case "yesterday": {
-            const y = addDays(now, -1);
-            return { start: startOfDay(y), end: endOfDay(y) };
+            const y = addDaysToDayKey(today, -1);
+            return dayRange(y, y);
         }
         case "last7":
-            return { start: startOfDay(addDays(now, -6)), end: endOfDay(now) };
-        case "last30":
-            return { start: startOfDay(addDays(now, -29)), end: endOfDay(now) };
+            return dayRange(addDaysToDayKey(today, -6), today);
         case "mtd":
-            return { start: startOfMonth(now), end: endOfDay(now) };
+            return dayRange(`${today.slice(0, 7)}-01`, today);
         case "ytd":
-            return { start: startOfYear(now), end: endOfDay(now) };
+            return dayRange(`${today.slice(0, 4)}-01-01`, today);
+        case "last30":
         default:
-            return { start: startOfDay(addDays(now, -29)), end: endOfDay(now) };
+            return dayRange(addDaysToDayKey(today, -29), today);
     }
 }
 
@@ -82,7 +70,7 @@ export function useFinancePeriod(initial: PresetKey = "last30") {
     }, []);
 
     const setCustom = useCallback((start: Date, end: Date) => {
-        setPeriod((p) => ({ ...p, preset: "custom", start: startOfDay(start), end: endOfDay(end) }));
+        setPeriod((p) => ({ ...p, preset: "custom", ...dayRange(baghdadDayKey(start), baghdadDayKey(end)) }));
     }, []);
 
     const setCompareMode = useCallback((mode: FinancePeriod["compareMode"]) => {
@@ -91,13 +79,15 @@ export function useFinancePeriod(initial: PresetKey = "last30") {
 
     const compareRange = useMemo<{ start: Date; end: Date } | null>(() => {
         if (period.compareMode === "none") return null;
+        const startDay = baghdadDayKey(period.start);
+        const endDay = baghdadDayKey(period.end);
         if (period.compareMode === "yoy") {
-            return { start: addYears(period.start, -1), end: addYears(period.end, -1) };
+            return dayRange(sameDayLastYear(startDay), sameDayLastYear(endDay));
         }
-        const lenMs = period.end.getTime() - period.start.getTime();
-        const end = new Date(period.start.getTime() - 1);
-        const start = new Date(end.getTime() - lenMs);
-        return { start: startOfDay(start), end: endOfDay(end) };
+        // The previous period: as many whole days, ending the day before this one starts.
+        const days = Math.round((baghdadDayStart(endDay) - baghdadDayStart(startDay)) / 86_400_000) + 1;
+        const prevEnd = addDaysToDayKey(startDay, -1);
+        return dayRange(addDaysToDayKey(prevEnd, -(days - 1)), prevEnd);
     }, [period]);
 
     const granularity = useMemo<Granularity>(() => {

@@ -5,7 +5,7 @@ import type { Order, Product } from "@/lib/supabase";
 import type { DateInterval } from "./use-finance-overview";
 import type { Granularity } from "./use-finance-period";
 import { isRefundRow, refundPaidAt, reportDate } from "@/lib/refunds/refund-reporting";
-import { isSaleOrder } from "@/lib/order-revenue";
+import { isRealizedRevenue, isSaleOrder } from "@/lib/order-revenue";
 import { resolveItemCost } from "@/lib/finance/item-cost";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 
@@ -46,10 +46,9 @@ export interface ChannelPnLRow {
     revenue: number;
     orders: number;
     product_cost: number;
-    delivery_cost: number;
+    /** Delivered revenue minus product cost. Courier bills are expenses, so delivery is not subtracted per channel (same walk as the Overview). */
     gross_profit: number;
-    net_contribution: number;   // gross_profit - delivery_cost
-    margin_pct: number;         // net_contribution / revenue
+    margin_pct: number;         // gross_profit / delivered revenue
 }
 
 export interface RefundsImpact {
@@ -107,8 +106,9 @@ function bucketKey(d: Date, granularity: Granularity): { key: string; ts: number
 
 function labelBucket(key: string, ts: number, granularity: Granularity): string {
     const d = new Date(ts);
-    if (granularity === "day") return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    if (granularity === "week") return `Wk ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+    const baghdad = { month: "short", day: "numeric", timeZone: "Asia/Baghdad" } as const;
+    if (granularity === "day") return d.toLocaleDateString("en-US", baghdad);
+    if (granularity === "week") return `Wk ${d.toLocaleDateString("en-US", baghdad)}`;
     if (granularity === "quarter") return key;
     if (granularity === "year") return key;
     return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
@@ -176,7 +176,7 @@ export function useFinanceRevenue(
         const cellMap = new Map<string, MarginHeatmapCell>(); // product|bucket
 
         for (const o of curr) {
-            if (o.status !== "delivered" && o.status !== "completed") continue;
+            if (!isRealizedRevenue(o)) continue;
             if (!o.items) continue;
             const { key, ts } = bucketKey(new Date(o.delivered_at || o.updated_at || o.created_at), granularity);
             bucketSet.set(key, { key, ts });
@@ -267,19 +267,18 @@ export function useFinanceRevenue(
         // most orders are still in transit (where product_cost is unknown).
         const channelMap = new Map<string, {
             revenue: number; orders: number; delivered_revenue: number; delivered_orders: number;
-            product_cost: number; delivery_cost: number;
+            product_cost: number;
         }>();
         for (const o of curr) {
             if (!isSaleOrder(o)) continue;
             const ch = o.source || "other";
             const row = channelMap.get(ch) || {
                 revenue: 0, orders: 0, delivered_revenue: 0, delivered_orders: 0,
-                product_cost: 0, delivery_cost: 0,
+                product_cost: 0,
             };
             row.revenue += o.price || 0;
             row.orders++;
-            row.delivery_cost += o.delivery_fee || o.delivery_cost || 0;
-            if (o.status === "delivered" || o.status === "completed") {
+            if (isRealizedRevenue(o)) {
                 row.delivered_revenue += o.price || 0;
                 row.delivered_orders++;
                 if (o.items) {
@@ -292,18 +291,15 @@ export function useFinanceRevenue(
         const channels: ChannelPnLRow[] = Array.from(channelMap.entries())
             .map(([k, v]) => {
                 const gross_profit = v.delivered_revenue - v.product_cost;
-                const net_contribution = gross_profit - v.delivery_cost;
                 return {
                     key: k,
                     label: CHANNEL_LABELS[k] || k,
                     revenue: v.revenue,
                     orders: v.orders,
                     product_cost: v.product_cost,
-                    delivery_cost: v.delivery_cost,
                     gross_profit,
-                    net_contribution,
                     margin_pct: v.delivered_revenue > 0
-                        ? (net_contribution / v.delivered_revenue) * 100
+                        ? (gross_profit / v.delivered_revenue) * 100
                         : 0,
                 };
             })

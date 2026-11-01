@@ -180,11 +180,14 @@ function formatRangeLabel(
     t: (key: string) => string,
     locale: string,
 ): string {
-    const sameYear = p.start.getFullYear() === p.end.getFullYear();
-    const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+    // Baghdad days, whatever the browser's own timezone.
+    const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", timeZone: "Asia/Baghdad" };
+    const startYear = baghdadDayKey(p.start).slice(0, 4);
+    const endYear = baghdadDayKey(p.end).slice(0, 4);
+    const sameYear = startYear === endYear;
     const s = p.start.toLocaleDateString(locale, opts);
     const e = p.end.toLocaleDateString(locale, opts);
     if (p.preset === "today") return t("finances.period.today");
     if (p.preset === "yesterday") return t("finances.period.yesterday");
-    return sameYear ? `${s} – ${e}` : `${s}, ${p.start.getFullYear()} – ${e}, ${p.end.getFullYear()}`;
+    return sameYear ? `${s} – ${e}` : `${s}, ${startYear} – ${e}, ${endYear}`;
 }

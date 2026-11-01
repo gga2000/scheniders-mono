@@ -96,7 +96,7 @@ function abbrev(n: number): string {
 function shortDate(key: string, locale: string): string {
     if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
         const d = new Date(key);
-        return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
+        return d.toLocaleDateString(locale, { month: "short", day: "numeric", timeZone: "UTC" });
     }
     return key;
 }

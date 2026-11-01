@@ -83,6 +83,10 @@ function statusReference(o: Order): string {
 
 export function useCashPosition(orders: Order[]): CashPositionResult {
     return useMemo(() => {
+        // Refund and return rows are money going back to the customer. They are
+        // not sales in flight, so no cash figure, aging bucket, or delivery rate
+        // may count them (a live return row in transit read as -44,750 IQD).
+        const sales = orders.filter((o) => !o.is_return);
         const now = Date.now();
         const earliest = new Date(now - 29 * MS_PER_DAY);
         earliest.setHours(0, 0, 0, 0);
@@ -106,7 +110,7 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
 
         let oldestStuckDays = 0;
 
-        for (const o of orders) {
+        for (const o of sales) {
             const value = o.price || 0;
             const gov = normalizeGovernorate(o.governorate_code || o.city);
 
@@ -273,7 +277,7 @@ export function useCashPosition(orders: Order[]): CashPositionResult {
             netProjection,
             historicalDeliveryRate: historicalDeliveryRate * 100,
             inTransitCount: buckets.fresh.count + buckets.aging.count + buckets.stale.count + buckets.stuck.count,
-            confirmedCount: orders.filter((o) => o.status === "confirmed").length,
+            confirmedCount: sales.filter((o) => o.status === "confirmed").length,
             stuckCount: buckets.stuck.count,
             aging,
             oldestStuckDays,
