@@ -25,6 +25,8 @@ export const CART_STRINGS = {
   /** A checkout summary line's quantity. */
   lineQuantity: { en: "Qty {count}", ar: "الكمية {count}", ku: "بڕ {count}" },
   emptyCart: { en: "Your cart is empty.", ar: "السلة فارغة.", ku: "سەبەتەکە بەتاڵە." },
+  /** The way out of an empty cart or checkout: back to the catalogue. */
+  browseProducts: { en: "Browse products", ar: "شوف المنتجات", ku: "بەرهەمەکان ببینە" },
   orderOnWhatsapp: { en: "Order on WhatsApp", ar: "اطلب عبر واتساب", ku: "لە ڕێگەی واتسئاپەوە داوا بکە" },
   promoLabel: { en: "Promo code", ar: "كود الخصم", ku: "کۆدی داشکاندن" },
   promoPlaceholder: { en: "Enter code", ar: "أدخل الكود", ku: "کۆدەکە بنووسە" },

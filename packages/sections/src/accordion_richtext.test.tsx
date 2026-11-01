@@ -22,10 +22,8 @@ const tenant: Tenant = {
   id: "t1",
   business_name: "t1",
   slug: "t1",
-  plan: "pro",
   status: "active",
   branding: {},
-  settings: {},
   store_config: {},
 };
 

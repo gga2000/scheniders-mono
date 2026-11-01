@@ -23,7 +23,7 @@ import type { CartItem, StoreConfigV2, GovernorateCode, LocaleCode } from "@sche
 import { CenteredSectionHeader, MaterialIcon } from "./helpers/primitives";
 import { ChapterHeading } from "./helpers/chapter-heading";
 import { formatPrice } from "./helpers/format";
-import { useCart } from "./helpers/cart-store";
+import { useCart, useCartHydrated } from "./helpers/cart-store";
 import { readsRtl } from "./helpers/reading";
 import { ReceiptRow, SOFT_RECEIPT } from "./helpers/soft-commerce";
 import { cn } from "./helpers/utils";
@@ -46,6 +46,7 @@ export function CheckoutOrderSummaryRender({
   const locale = ctx.runtime.locale;
   const t = locale !== "en";
   const items = useCart((s) => s.items);
+  const cartLoaded = useCartHydrated();
   const subtotal = useCart((s) => s.getTotal());
   const governorate = useCart((s) => s.governorate);
   const couponCode = useCart((s) => s.couponCode);
@@ -70,6 +71,11 @@ export function CheckoutOrderSummaryRender({
   ).total_amount_iqd;
   const discountAmount = couponAmount + bundleAmount;
   const total = subtotal - discountAmount + delivery;
+
+  // The checkout form shows the empty-cart state (with its way back to the
+  // catalogue) once the saved cart has loaded empty; a second "empty" card
+  // beside it would only repeat it.
+  if (cartLoaded && items.length === 0) return null;
 
   if (props.style === "soft") {
     return (

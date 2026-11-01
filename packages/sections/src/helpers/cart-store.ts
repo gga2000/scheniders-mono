@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { CartItem } from "@scheniders/shared";
@@ -179,3 +180,17 @@ export const useCart = create<CartState>()(
     },
   ),
 );
+
+/**
+ * True once the persisted cart has loaded from storage. The cart starts
+ * empty on every render until then (skipHydration), so "the cart is empty"
+ * is only a fact after this turns true; before it, an empty-state would
+ * flash for every shopper who does have items.
+ */
+export function useCartHydrated(): boolean {
+  return useSyncExternalStore(
+    (onChange) => useCart.persist.onFinishHydration(onChange),
+    () => useCart.persist.hasHydrated(),
+    () => false,
+  );
+}

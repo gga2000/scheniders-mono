@@ -25,6 +25,7 @@ import {
   breadcrumbJsonLd,
   shippingDetailsJsonLd,
   returnPolicyJsonLd,
+  metaDescription,
   storeDisplayName,
 } from "@/lib/seo";
 
@@ -45,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!product) return {}; // the route's layout has already answered 404 or redirected
 
   const title = `${product.name} — ${storeDisplayName(tenant)}`;
-  const description = product.description ?? undefined;
+  const description = metaDescription(product.description);
   const { baseUrl } = await getStorefrontBase(tenantParam);
   const productUrl = baseUrl
     ? `${baseUrl}/products/${encodeURIComponent(product.slug ?? product.id)}`

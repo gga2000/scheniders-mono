@@ -14,6 +14,7 @@ import {
   returnPolicyJsonLd,
   shippingDetailsJsonLd,
   storeCanonical,
+  metaDescription,
   storeDisplayName,
 } from "./seo";
 
@@ -449,5 +450,23 @@ describe("storeDisplayName", () => {
         store_config_v2: { brand_kit: { identity: { name: "  " } } },
       }),
     ).toBe("Scheniders Iraq");
+  });
+});
+
+describe("metaDescription", () => {
+  it("flattens a multi-paragraph story into one line", () => {
+    expect(metaDescription("أول رشة: الليمون.\n\nالقلب: الورد.")).toBe("أول رشة: الليمون. القلب: الورد.");
+  });
+
+  it("cuts long text at a word boundary with an ellipsis", () => {
+    const long = "عطر ".repeat(60);
+    const out = metaDescription(long, 40);
+    expect(out?.length).toBeLessThanOrEqual(40);
+    expect(out?.endsWith("عطر…")).toBe(true);
+  });
+
+  it("returns nothing for empty text", () => {
+    expect(metaDescription("  \n ")).toBeUndefined();
+    expect(metaDescription(null)).toBeUndefined();
   });
 });
