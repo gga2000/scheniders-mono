@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Order } from "@/lib/supabase";
+import { baghdadDayStart, baghdadMonthStart, baghdadDayOfWeek } from "@/lib/analytics/dashboard-calculations";
+import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 import {
     calculateStatusFlow,
     calculateKPIs,
@@ -34,74 +35,48 @@ export interface DateRange {
     to: Date;
 }
 
-function filterOrdersByDateRange(orders: Order[], range: DateRange): Order[] {
-    return orders.filter(order => {
-        const orderDate = new Date(order.created_at);
-        return orderDate >= range.from && orderDate <= range.to;
-    });
-}
-
-function getPreviousPeriodRange(range: DateRange): DateRange {
-    const duration = range.to.getTime() - range.from.getTime();
-    return {
-        from: new Date(range.from.getTime() - duration),
-        to: new Date(range.from.getTime() - 1),
-    };
-}
-
+/**
+ * Metrics for the report's orders. `current` and `previous` are already split by
+ * range (see splitReportOrders), so the numbers cover the whole range, not
+ * whatever the shared orders list happened to load.
+ */
 export function useReportsMetrics(
-    orders: Order[],
-    dateRange?: DateRange
-): ReportsMetrics | null {
-    return useMemo(() => {
-        if (!orders.length) return null;
-
-        // Filter orders by date range if provided
-        const currentOrders = dateRange
-            ? filterOrdersByDateRange(orders, dateRange)
-            : orders;
-
-        // Get previous period orders for comparison
-        const previousOrders = dateRange
-            ? filterOrdersByDateRange(orders, getPreviousPeriodRange(dateRange))
-            : [];
-
-        return {
-            statusFlow: calculateStatusFlow(currentOrders),
-            kpis: calculateKPIs(currentOrders, previousOrders),
-            contactAttempts: calculateContactAttempts(currentOrders),
-            cityPerformance: calculateCityPerformance(currentOrders),
-            rejectionReasons: calculateRejectionReasons(currentOrders),
-            timeAnalysis: calculateTimeAnalysis(currentOrders),
-            attentionFlags: calculateAttentionFlags(currentOrders),
-        };
-    }, [orders, dateRange]);
+    current: ReportOrder[],
+    previous: ReportOrder[]
+): ReportsMetrics {
+    return useMemo(() => ({
+        statusFlow: calculateStatusFlow(current),
+        kpis: calculateKPIs(current, previous),
+        contactAttempts: calculateContactAttempts(current),
+        cityPerformance: calculateCityPerformance(current),
+        rejectionReasons: calculateRejectionReasons(current),
+        timeAnalysis: calculateTimeAnalysis(current),
+        attentionFlags: calculateAttentionFlags(current),
+    }), [current, previous]);
 }
 
 // Helper hook for common date ranges
 export function useDateRangePresets() {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
+    return useMemo(() => buildDateRangePresets(), []);
+}
 
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-    const startOfWeek = new Date(startOfToday);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-    const last7Days = new Date(startOfToday);
-    last7Days.setDate(last7Days.getDate() - 6);
-
-    const last30Days = new Date(startOfToday);
-    last30Days.setDate(last30Days.getDate() - 29);
+/**
+ * Preset ranges on the Baghdad calendar (the dashboard's and the server's), not the
+ * viewer's device clock. `to` is the last millisecond of the current Baghdad day.
+ */
+function buildDateRangePresets() {
+    const now = new Date();
+    const startOfToday = baghdadDayStart(now);
+    const endOfToday = new Date(startOfToday.getTime() + DAY_MS - 1);
+    const startOfWeek = new Date(startOfToday.getTime() - baghdadDayOfWeek(now) * DAY_MS);
 
     return {
-        today: { from: startOfToday, to: today },
-        thisWeek: { from: startOfWeek, to: today },
-        thisMonth: { from: startOfMonth, to: today },
-        last7Days: { from: last7Days, to: today },
-        last30Days: { from: last30Days, to: today },
+        today: { from: startOfToday, to: endOfToday },
+        thisWeek: { from: startOfWeek, to: endOfToday },
+        thisMonth: { from: baghdadMonthStart(now), to: endOfToday },
+        last7Days: { from: new Date(startOfToday.getTime() - 6 * DAY_MS), to: endOfToday },
+        last30Days: { from: new Date(startOfToday.getTime() - 29 * DAY_MS), to: endOfToday },
     };
 }

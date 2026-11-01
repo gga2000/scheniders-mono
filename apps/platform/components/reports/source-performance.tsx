@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { SourcePerformanceMetrics } from "@/lib/analytics/source-metrics";
 import { Trophy, Medal, Package, CheckCircle2, Clock, DollarSign, TrendingUp } from "lucide-react";
@@ -38,6 +39,7 @@ const getMedalShadow = (rank: number) => {
 };
 
 export function SourcePerformance({ data }: SourcePerformanceProps) {
+    const { t } = useLanguage();
     if (data.length === 0) {
         return (
             <motion.div
@@ -48,8 +50,8 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                 <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
                     <Trophy className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">No Performance Data</h3>
-                <p className="text-sm text-muted mt-1">Performance metrics will appear once orders are processed</p>
+                <h3 className="text-lg font-bold text-foreground">{t("reports.source.empty")}</h3>
+                <p className="text-sm text-muted mt-1">{t("reports.source.emptyDesc")}</p>
             </motion.div>
         );
     }
@@ -74,8 +76,8 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                             <Trophy className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-foreground">Source Performance</h3>
-                            <p className="text-sm text-muted">Order processing by source</p>
+                            <h3 className="text-xl font-bold text-foreground">{t("reports.source.title")}</h3>
+                            <p className="text-sm text-muted">{t("reports.source.subtitle")}</p>
                         </div>
                     </div>
                 </div>
@@ -102,16 +104,16 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                             </div>
                             <div className="relative z-10">
                                 <div className="text-xs font-bold opacity-90">#{emp.rank}</div>
-                                <h4 className="text-lg font-bold mt-1 truncate">{emp.displayName}</h4>
+                                <h4 className="text-lg font-bold mt-1 truncate">{t(`reports.source.name.${emp.sourceKey}`, emp.displayName)}</h4>
 
                                 <div className="mt-4 grid grid-cols-2 gap-2">
                                     <div>
                                         <div className="text-2xl font-bold">{emp.ordersProcessed}</div>
-                                        <div className="text-[10px] opacity-80">Orders</div>
+                                        <div className="text-[10px] opacity-80">{t("reports.common.ordersCap")}</div>
                                     </div>
                                     <div>
                                         <div className="text-2xl font-bold">{emp.deliveryRate.toFixed(0)}%</div>
-                                        <div className="text-[10px] opacity-80">Delivery</div>
+                                        <div className="text-[10px] opacity-80">{t("reports.source.delivery")}</div>
                                     </div>
                                 </div>
                             </div>
@@ -134,12 +136,12 @@ export function SourcePerformance({ data }: SourcePerformanceProps) {
                                     {emp.rank}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="font-semibold text-foreground truncate">{emp.displayName}</div>
+                                    <div className="font-semibold text-foreground truncate">{t(`reports.source.name.${emp.sourceKey}`, emp.displayName)}</div>
                                 </div>
                                 <div className="flex items-center gap-4 text-sm">
                                     <div className="text-center">
                                         <span className="font-bold text-foreground">{emp.ordersProcessed}</span>
-                                        <span className="text-muted ml-1">orders</span>
+                                        <span className="text-muted ml-1">{t("reports.common.orders")}</span>
                                     </div>
                                     <div className={cn(
                                         "px-2 py-1 rounded-full text-xs font-bold",
