@@ -125,18 +125,24 @@ export function BlacklistDialog({
                         <>
                             {/* Reason presets */}
                             <div className="space-y-2">
-                                <Label className="text-xs text-muted">{t("orders.blacklist.reason")} <span className="text-red-500">{t("orders.blacklist.required")}</span></Label>
+                                <Label className="text-xs text-muted">{t("orders.blacklist.reason")} <span className={customers ? CUSTOMERS_DANGER_TEXT : "text-red-500"}>{t("orders.blacklist.required")}</span></Label>
                                 <div className="flex flex-wrap gap-2">
                                     {REASON_PRESETS.map((preset) => (
                                         <button
                                             key={preset}
                                             type="button"
                                             onClick={() => setReason(preset)}
+                                            aria-pressed={customers ? reason === preset : undefined}
                                             className={cn(
                                                 "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
-                                                reason === preset
-                                                    ? "bg-red-600 text-white border-red-600"
-                                                    : "bg-background border-[var(--card-border)] text-foreground hover:border-red-400 hover:text-red-600"
+                                                customers
+                                                    // One danger red: the chosen reason is the Block button's crimson.
+                                                    ? reason === preset
+                                                        ? cn(CUSTOMERS_DANGER_FILL, "border-rose-700")
+                                                        : "bg-background border-[var(--card-border)] text-foreground hover:border-rose-300 hover:text-rose-700 dark:hover:border-rose-500/50 dark:hover:text-rose-300"
+                                                    : reason === preset
+                                                        ? "bg-red-600 text-white border-red-600"
+                                                        : "bg-background border-[var(--card-border)] text-foreground hover:border-red-400 hover:text-red-600"
                                             )}
                                         >
                                             {preset}
@@ -178,7 +184,7 @@ export function BlacklistDialog({
                                         type="button"
                                         onClick={handleConfirm}
                                         disabled={!finalReason || loading}
-                                        className={cn(CUSTOMERS_ACTION, "bg-rose-700 hover:bg-rose-800 disabled:hover:bg-rose-700 text-white disabled:opacity-50")}
+                                        className={cn(CUSTOMERS_ACTION, CUSTOMERS_DANGER_FILL, "hover:bg-rose-800 disabled:hover:bg-rose-700 disabled:opacity-50")}
                                     >
                                         {loading ? t("orders.blacklist.blocking") : t("orders.blacklist.blockCustomer")}
                                     </button>
@@ -257,6 +263,13 @@ export function BlacklistDialog({
         </Dialog>
     );
 }
+
+/**
+ * The customers variant's one danger red, the crimson of the Blocked pill and the
+ * profile's block banner: the Block button and the chosen reason share it.
+ */
+const CUSTOMERS_DANGER_FILL = "bg-rose-700 text-white";
+const CUSTOMERS_DANGER_TEXT = "text-rose-700 dark:text-rose-300";
 
 /** The customers variant's action: a disabled one stays itself at half strength, with the reason written beside it (ConfirmRow hint). */
 const CUSTOMERS_ACTION = "h-10 px-4 rounded-xl font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed";

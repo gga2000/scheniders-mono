@@ -70,11 +70,13 @@ function segmentLabel(id: SegmentId, t: Translate): string {
 
 /**
  * Names a filter state no saved view matches, e.g. "Value: Good" or
- * "COD risk: High risk · Value: VIP", from the same labels as the pills.
+ * "COD: High risk · Value: VIP", from the same labels as the pills. The risk
+ * axis is named "COD" alone: its levels already say "risk" ("High risk",
+ * "خطر مرتفع"), so the full axis name would repeat the word.
  */
 export function describeFilter(cur: SegmentState, t: Translate): string {
     const parts: string[] = [];
-    if (cur.risk !== "all") parts.push(`${t("customers.risk.label")}: ${t(`customers.risk.${cur.risk}`)}`);
+    if (cur.risk !== "all") parts.push(`${t("customers.segment.riskAxis")}: ${t(`customers.risk.${cur.risk}`)}`);
     if (cur.value !== "all") parts.push(`${t("customers.value.label")}: ${t(valueTierKey(cur.value))}`);
     if (cur.lane) parts.push(segmentLabel(LANE_SEGMENT[cur.lane], t));
     return parts.join(" · ");

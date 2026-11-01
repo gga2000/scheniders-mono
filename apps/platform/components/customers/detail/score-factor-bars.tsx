@@ -46,7 +46,7 @@ export function ScoreFactorBars({ factors, rated }: {
                     </div>
                 );
             })}
-            {!rated && <p className="text-xs text-muted-foreground pt-1">{t("customers.trust.scoredFromThirdOrder")}</p>}
+            {!rated && <p dir="auto" className="text-left text-xs text-muted-foreground pt-1">{t("customers.trust.scoredFromThirdOrder")}</p>}
             {adjusted && <p className="text-xs text-muted-foreground pt-1">{t("customers.scoreBreakdown.adjustmentsHint")}</p>}
         </div>
     );

@@ -64,7 +64,8 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
                 <Layers className="w-4 h-4 text-foreground shrink-0" />
                 <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.trust.factors")}</span>
                 <span className="text-sm text-muted-foreground" aria-hidden>·</span>
-                <span className="text-sm text-muted-foreground truncate">{t("customers.trust.scoredFromThirdOrder")}</span>
+                {/* dir="auto": the Arabic sentence keeps its full stop at its end. */}
+                <span dir="auto" className="text-sm text-muted-foreground truncate">{t("customers.trust.scoredFromThirdOrder")}</span>
             </div>
         );
     }

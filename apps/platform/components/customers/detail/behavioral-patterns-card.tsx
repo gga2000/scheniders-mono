@@ -126,9 +126,9 @@ export function BehavioralPatternsCard({
         } else if (stdDev > med * 1.2) {
             cadenceLabel = t("customers.behavioral.cadenceSporadic");
         } else {
-            cadenceLabel = t("customers.behavioral.cadenceWeekly", {
-                days: Math.round(med).toString(),
-            });
+            // The count picks the Arabic form: "~2" is the dual, "~23 يوماً" the accusative singular.
+            const days = Math.round(med);
+            cadenceLabel = t("customers.behavioral.cadenceWeekly", { count: days, days: String(days) });
         }
 
         // Status mix: a return came back after delivery, a rejection was refused
