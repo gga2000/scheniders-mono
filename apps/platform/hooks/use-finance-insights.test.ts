@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { translations } from "@/lib/i18n";
 import type { FinanceOverviewResult } from "./use-finance-overview";
-import { buildFinanceInsights, type Insight } from "./use-finance-insights";
+import { buildFinanceInsights, formatIQD, type Insight } from "./use-finance-insights";
 
 const base = {
     gross_revenue: 1_000_000, prev_gross_revenue: 1_000_000, delivered_revenue: 800_000,
@@ -67,4 +67,14 @@ describe("insight wording", () => {
             expect(missing).toEqual([]);
         });
     }
+});
+
+describe("formatIQD", () => {
+    it("writes amounts in the units it is given", () => {
+        const ar = { iqd: "د.ع", thousand: " ألف", million: " مليون" };
+        expect(formatIQD(2_500_000, ar)).toBe("2.5 مليون د.ع");
+        expect(formatIQD(-42_000, ar)).toBe("-42 ألف د.ع");
+        expect(formatIQD(900, ar)).toBe("900 د.ع");
+        expect(formatIQD(2_500_000)).toBe("2.5M IQD");
+    });
 });
