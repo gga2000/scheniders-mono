@@ -8,7 +8,6 @@ import type { ConversationKind } from "@/types/chat";
 export type SlashAction =
     | { type: "insert"; text: string }
     | { type: "reference" }
-    | { type: "assign" }
     | { type: "status" };
 
 export interface SlashCommand {
@@ -54,12 +53,6 @@ const COMMANDS: SlashCommand[] = [
         descriptionKey: "chat.slash.order",
         action: { type: "reference" },
         // no `kinds` → available in all conversation kinds
-    },
-    {
-        name: "assign",
-        descriptionKey: "chat.slash.assign",
-        action: { type: "assign" },
-        kinds: ["order"],
     },
     {
         name: "status",

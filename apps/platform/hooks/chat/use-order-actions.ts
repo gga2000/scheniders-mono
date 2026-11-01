@@ -4,30 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useConversations, chatKeys } from "./use-conversations";
 import { useLinkedOrders } from "./use-linked-orders";
-import { orderKeys } from "@/hooks/use-orders-query";
 import type { Order } from "@/types/order";
-
-/**
- * Assign an order to a teammate (or unassign by passing null).
- * Calls the `chat_assign_order` RPC which guards tenant membership.
- * Invalidates orders + conversations on success so live card + event pill appear.
- */
-export function useAssignOrder() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: async ({ orderId, userId }: { orderId: string; userId: string | null }) => {
-            const { error } = await supabase.rpc("chat_assign_order", {
-                p_order_id: orderId,
-                p_user_id: userId,
-            });
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: orderKeys.lists() });
-            void qc.invalidateQueries({ queryKey: chatKeys.conversations() });
-        },
-    });
-}
 
 /**
  * Mark an order thread as resolved or unresolved.
