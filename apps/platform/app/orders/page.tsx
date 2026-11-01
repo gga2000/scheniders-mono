@@ -399,12 +399,12 @@ export default function OrdersPage() {
             await refreshOrders();
 
             toast.success(
-                "Order split successfully",
-                "Return order has been created"
+                t("orders.toast.splitDone"),
+                t("orders.toast.splitDoneDesc")
             );
         } else {
             toast.error(
-                "Split failed",
+                t("orders.toast.splitFailed"),
                 result.error || t("orderDetail.splitError")
             );
         }
@@ -431,8 +431,8 @@ export default function OrdersPage() {
             // record with no idea the refresh had failed.
             reportOrderError(err, { operation: "orders-view-details-fetch", orderId: order.id });
             toast.warning(
-                "Showing the last known details",
-                "This order could not be refreshed, so it may be out of date.",
+                t("orders.toast.staleDetails"),
+                t("orders.toast.staleDetailsDesc"),
             );
             setSelectedOrder(order);
             setIsModalOpen(true);
@@ -455,12 +455,12 @@ export default function OrdersPage() {
             // Same silent-stale path as handleViewDetails, reached from the table.
             reportOrderError(err, { operation: "orders-select-order-fetch", orderId: order.id });
             toast.warning(
-                "Showing the last known details",
-                "This order could not be refreshed, so it may be out of date.",
+                t("orders.toast.staleDetails"),
+                t("orders.toast.staleDetailsDesc"),
             );
             setSelectedOrder(order);
         }
-    }, [setSelectedOrder]);
+    }, [setSelectedOrder, t]);
 
 
 
