@@ -8,6 +8,7 @@ import { pageNeedsProductAttributes } from "@scheniders/sections";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader, ContentSection } from "@/components/schneiders/content-page";
 import { BentoCard, ChunkyLink, MaterialIcon, ScribbleHeading, Sticker, WhatsAppIcon } from "@/components/schneiders/primitives";
+import { storeCanonical } from "@/lib/seo";
 
 /**
  * Convert merchant-authored HTML (legacy `about.body`) into plain-text
@@ -43,7 +44,14 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  return { title: "About — Schneiders", ...resolveV2PageMetadata(v2, "about", v2?.default_locale ?? "ar") };
+  const locale = v2?.default_locale ?? "ar";
+  // Fallback title: localised page name + the tenant's own name.
+  const pageName = locale === "en" ? "About" : "من نحن";
+  return {
+    title: tenant ? `${pageName} — ${tenant.business_name}` : pageName,
+    ...(await storeCanonical(tenantParam, "/about")),
+    ...resolveV2PageMetadata(v2, "about", locale),
+  };
 }
 
 export default async function AboutPage({ params }: { params: Promise<{ tenant: string }> }) {
