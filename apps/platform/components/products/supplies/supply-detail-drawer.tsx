@@ -86,7 +86,7 @@ export function SupplyDetailDrawer({
         setTab("overview");
     }, [open, supply?.id]);
 
-    // Keyboard: j/k for prev/next supply, Esc closes.
+    // Esc closes the drawer (standard dialog behaviour).
     useEffect(() => {
         if (!open) return;
         const handler = (e: KeyboardEvent) => {
@@ -96,25 +96,13 @@ export function SupplyDetailDrawer({
                 target?.tagName === "TEXTAREA" ||
                 target?.tagName === "SELECT" ||
                 target?.isContentEditable;
-            if (editing) return;
-            if (e.key === "Escape") {
-                e.preventDefault();
-                onClose();
-            } else if (e.key === "j" || e.key === "ArrowDown") {
-                if (onNavigate) {
-                    e.preventDefault();
-                    onNavigate("next");
-                }
-            } else if (e.key === "k" || e.key === "ArrowUp") {
-                if (onNavigate) {
-                    e.preventDefault();
-                    onNavigate("prev");
-                }
-            }
+            if (editing || e.key !== "Escape") return;
+            e.preventDefault();
+            onClose();
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [open, onClose, onNavigate]);
+    }, [open, onClose]);
 
     return (
         <AnimatePresence>
@@ -219,7 +207,7 @@ function Header({
                         <button
                             type="button"
                             onClick={() => onNavigate("prev")}
-                            title="Previous (k)"
+                            title={t("supplies.sp.prev")}
                             className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-[var(--card-border)]/40"
                         >
                             <ChevronLeft className="w-4 h-4" />
@@ -227,7 +215,7 @@ function Header({
                         <button
                             type="button"
                             onClick={() => onNavigate("next")}
-                            title="Next (j)"
+                            title={t("supplies.sp.next")}
                             className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-[var(--card-border)]/40"
                         >
                             <ChevronRight className="w-4 h-4" />

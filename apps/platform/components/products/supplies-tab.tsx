@@ -204,10 +204,6 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         });
     }, []);
 
-    const selectAllVisible = useCallback(() => {
-        setSelectedIds(new Set(filteredSupplies.map((s) => s.id)));
-    }, [filteredSupplies]);
-
     const clearSelection = useCallback(() => {
         setSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
     }, []);
@@ -217,49 +213,6 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
             setSelectedIds(new Set());
         }
     }, [section, selectedIds.size]);
-
-    // Keyboard shortcuts: "/" focuses search, "n" opens Add Supply,
-    // Cmd/Ctrl+A selects all visible, Esc clears selection
-    useEffect(() => {
-        const handler = (e: KeyboardEvent) => {
-            const target = e.target as HTMLElement | null;
-            const tag = target?.tagName;
-            const editing =
-                tag === "INPUT" ||
-                tag === "TEXTAREA" ||
-                tag === "SELECT" ||
-                target?.isContentEditable;
-
-            if (e.key === "/" && !editing) {
-                e.preventDefault();
-                searchInputRef.current?.focus();
-                searchInputRef.current?.select();
-                return;
-            }
-            if ((e.key === "n" || e.key === "N") && !editing && !e.metaKey && !e.ctrlKey && !e.altKey) {
-                if (onAdd) {
-                    e.preventDefault();
-                    onAdd();
-                }
-                return;
-            }
-            if ((e.metaKey || e.ctrlKey) && (e.key === "a" || e.key === "A") && !editing) {
-                if (section === "supplies" && filteredSupplies.length > 0) {
-                    e.preventDefault();
-                    selectAllVisible();
-                }
-                return;
-            }
-            if (e.key === "Escape" && !editing) {
-                if (selectedIds.size > 0) {
-                    e.preventDefault();
-                    clearSelection();
-                }
-            }
-        };
-        window.addEventListener("keydown", handler);
-        return () => window.removeEventListener("keydown", handler);
-    }, [onAdd, section, filteredSupplies.length, selectedIds.size, selectAllVisible, clearSelection]);
 
     const reorderCandidateCount = useMemo(() => {
         let count = 0;
