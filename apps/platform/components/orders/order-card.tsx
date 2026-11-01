@@ -17,11 +17,12 @@ import { useOrderStore } from "@/store/use-order-store";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
 import { HighlightedPhone } from "./highlighted-phone";
 
-import { formatIQD, generateWhatsAppLink, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
+import { formatIQD, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { validatePhoneDetailed } from "@/lib/order-utils";
 import { REMINDER_DELAY_HOURS, DISCOUNT_DELAY_HOURS } from "@/lib/qstash";
 import { formatShortDate, formatTime, formatScheduledDate, getOrderAge, getAgeUrgency, getScheduledState, isScheduledToday, getItemsDisplay, getFullAddress, cleanSystemNotes, getActualNotes, getOrderReasonInfo, getGovernorateCode, getStatusColor, getStatusBadgeStyle, getDisplayOrderId } from "@/lib/order-format-utils";
 import { useLanguage } from "@/hooks/use-language";
+import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
 
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import { DuplicateAlertBanner } from "@/components/orders/duplicate-alert-banner";
@@ -328,25 +329,10 @@ export const OrderCard = memo(function OrderCard({
 
 
     // Every WhatsApp button on the card opens the chat the same way: a greeting
-    // in Arabic (the customer's language), the contact recorded, and the link
-    // copied when the browser blocks the new tab.
-    const openWhatsApp = (phone: string | null | undefined, shortError = false) => {
+    // in Arabic (the customer's language) and the contact recorded.
+    const openWhatsApp = (phone: string | null | undefined) => {
         if (!phone) return;
-        try {
-            const link = generateWhatsAppLink(phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`);
-            const newWindow = window.open(link, "_blank");
-            onContactRecorded?.(order.id);
-
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                navigator.clipboard.writeText(link).then(() => {
-                    alert(t("orders.card.popupBlocked"));
-                }).catch(() => {
-                    alert(`Popup blocked. Link: ${link}`);
-                });
-            }
-        } catch {
-            alert(t(shortError ? "orders.card.whatsappOpenFailedShort" : "orders.card.whatsappOpenFailed"));
-        }
+        openWhatsAppChat(phone, `مرحباً ${order.customer_name}، بخصوص طلبك رقم ${order.order_id}`, t, () => onContactRecorded?.(order.id));
     };
 
     const items = getItemsDisplay(order.items || []);
@@ -1710,7 +1696,7 @@ export const OrderCard = memo(function OrderCard({
                                             e.stopPropagation();
                                             if (!validatePhoneDetailed(order.secondary_phone).isValid) return;
 
-                                            openWhatsApp(order.secondary_phone, true);
+                                            openWhatsApp(order.secondary_phone);
                                         }}
                                         className={cn(
                                             "flex items-center gap-1.5 px-2.5 py-2 rounded-xl transition-all active:scale-95",
@@ -1911,7 +1897,7 @@ export const OrderCard = memo(function OrderCard({
                                 type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    openWhatsApp(order.secondary_phone, true);
+                                    openWhatsApp(order.secondary_phone);
                                 }}
                                 className={cn(
                                     "w-10 h-10 bg-emerald-500 text-white hover:bg-emerald-600 transition-all flex items-center justify-center relative dark:bg-[rgba(0,255,100,0.15)] dark:text-[#00FFAA] dark:hover:bg-[rgba(0,255,100,0.25)]",

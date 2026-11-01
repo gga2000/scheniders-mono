@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 
 interface ExtractedData {
     id: string;
@@ -40,6 +42,7 @@ interface BulkUploadModalProps {
 
 export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProps) {
     const { session } = useAuth();
+    const { t } = useLanguage();
     const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -148,7 +151,7 @@ export function BulkUploadModal({ open, onClose, onCreate }: BulkUploadModalProp
     const handleBulkCreate = async () => {
         const validData = extractedData.filter(item => item.status === 'success' && item.phone);
         if (validData.length === 0) {
-            alert('لا توجد بيانات صالحة للإنشاء');
+            toast.warning(t("orders.bulkUpload.noValidRows"));
             return;
         }
 

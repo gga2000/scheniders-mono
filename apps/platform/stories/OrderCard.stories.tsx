@@ -28,8 +28,8 @@ const base = {
 const orders = [
     { ...base, id: "o1", order_id: "7001", status: "new", source: "whatsapp", priority: "urgent", created_at: hoursAgo(2) },
     { ...base, id: "o2", order_id: "7002", status: "contacted", source: "tiktok", priority: "high", created_at: hoursAgo(30), customer_name: "Zainab Kareem" },
-    { ...base, id: "o3", order_id: "7003", status: "delivered", source: "meta", created_at: hoursAgo(72) },
-    { ...base, id: "o4", order_id: "7004", status: "confirmed", source: "other", created_at: hoursAgo(5), secondary_phone: "07809876543" },
+    { ...base, id: "o3", order_id: "7003", status: "delivered", source: "prime", created_at: hoursAgo(72) },
+    { ...base, id: "o4", order_id: "7004", status: "confirmed", source: "excel_import", created_at: hoursAgo(5), secondary_phone: "07809876543" },
 ] as unknown as Order[];
 
 const stubBook = { updateOrder: async () => ({ success: true }) } as unknown as OrdersContextType;

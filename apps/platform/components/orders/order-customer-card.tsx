@@ -1,11 +1,11 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
+import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
 import { formatPhoneGrouped, validatePhoneDetailed } from "@/lib/order-utils";
 import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { GovernorateOptions } from "./governorate-options";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
-import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X, ArrowUpDown, BadgeCheck } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
@@ -158,47 +158,12 @@ export function OrderCustomerCard({
     };
 
     const handleWhatsApp = () => {
-        try {
-            const link = generateWhatsAppLink(
-                order.phone,
-                `مرحباً، بخصوص طلب ${order.order_id}`
-            );
-            const newWindow = window.open(link, "_blank");
-            onContactRecorded?.(order.id);
-
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                navigator.clipboard.writeText(link).then(() => {
-                    alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
-                }).catch(() => {
-                    alert(`Popup blocked. Please allow popups or copy this link manually:\n${link}`);
-                });
-            }
-        } catch (error) {
-            alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
-        }
+        openWhatsAppChat(order.phone, `مرحباً، بخصوص طلب ${order.order_id}`, t, () => onContactRecorded?.(order.id));
     };
 
     const handleSecondaryWhatsApp = () => {
         if (!order.secondary_phone) return;
-
-        try {
-            const link = generateWhatsAppLink(
-                order.secondary_phone,
-                `مرحباً، بخصوص طلب ${order.order_id}`
-            );
-            const newWindow = window.open(link, "_blank");
-            onContactRecorded?.(order.id);
-
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                navigator.clipboard.writeText(link).then(() => {
-                    alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
-                }).catch(() => {
-                    alert(`Popup blocked. Link: ${link}`);
-                });
-            }
-        } catch (error) {
-            alert('حدث خطأ عند فتح واتساب.');
-        }
+        openWhatsAppChat(order.secondary_phone, `مرحباً، بخصوص طلب ${order.order_id}`, t, () => onContactRecorded?.(order.id));
     };
 
     return (
