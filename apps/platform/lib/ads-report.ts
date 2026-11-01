@@ -161,3 +161,23 @@ export function matchOrdersToCampaigns(
     }
     return { byCampaign, unmatched };
 }
+
+/**
+ * The most one delivered order can cost in ads before it loses money: profit before
+ * marketing (net profit plus every marketing expense) per delivered order. Store-wide
+ * average, because campaigns are not tied to products. Null with nothing delivered
+ * or when orders earn nothing before ads.
+ */
+export function breakEvenCostPerDelivered(netProfit: number, marketingCost: number, deliveredOrders: number): number | null {
+    if (deliveredOrders <= 0) return null;
+    const perOrder = Math.round((netProfit + marketingCost) / deliveredOrders);
+    return perOrder > 0 ? perOrder : null;
+}
+
+export type CampaignVerdict = "profitable" | "losing" | "unknown";
+
+/** Green when a campaign's cost per delivered order is at or under break-even, red above it. */
+export function campaignVerdict(costPerDelivered: number | null, breakEven: number | null): CampaignVerdict {
+    if (costPerDelivered === null || breakEven === null) return "unknown";
+    return costPerDelivered <= breakEven ? "profitable" : "losing";
+}
