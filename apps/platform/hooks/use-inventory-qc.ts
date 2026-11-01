@@ -274,9 +274,13 @@ export function useInventoryQC() {
         }) => {
             const items = (qcItems || []).filter((i) => ids.includes(i.id));
             const { resolveQuarantine } = await import("@/lib/inventory-engine");
+            let failed = 0;
             for (const item of items) {
-                await resolveQuarantine(item.id, resolution, item.product_id, item.quantity);
+                const result = await resolveQuarantine(item.id, resolution, item.product_id, item.quantity);
+                if (!result.success) failed += 1;
             }
+            // Items that did resolve stay resolved; the caller is told some did not.
+            if (failed > 0) throw new Error(`${failed} of ${items.length} items could not be resolved`);
             return ids;
         },
         onSuccess: () => {

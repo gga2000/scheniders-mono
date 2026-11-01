@@ -238,7 +238,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
         staleTime: 60_000,
     });
 
-    // Consumption this week: sum |quantity_change| for sales on supplies (last 7d).
+    // Consumption this week: units taken out of supplies (last 7d), recounts excluded.
     const supplyIds = useMemo(() => supplies.map((s) => s.id), [supplies]);
     const { data: consumption } = useQuery({
         queryKey: ["supplies-consumption-7d", tenantId, supplyIds.length],
@@ -251,7 +251,8 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 .from("inventory_history")
                 .select("quantity_change,change_type,created_at,product_id")
                 .in("product_id", supplyIds)
-                .eq("change_type", "sale")
+                .lt("quantity_change", 0)
+                .neq("change_type", "count")
                 .gte("created_at", since.toISOString());
             if (error) throw error;
             const rows =

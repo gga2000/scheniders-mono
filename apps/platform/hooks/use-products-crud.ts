@@ -72,7 +72,7 @@ interface UseProductsCrudOptions {
 export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = {}) {
     const queryClient = useQueryClient();
     const { data: rawProducts, isLoading: loading, isPending: pending, error: queryError } = useProductsQuery();
-    const salesByProductId = useProductSalesQuery(withSales);
+    const { sales: salesByProductId, unavailable: salesUnavailable, retry: retrySales } = useProductSalesQuery(withSales);
 
     // Mutations
     const addProductMutation = useAddProductMutation();
@@ -184,6 +184,9 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
         loading,
         /** True until the first result, including while the query waits for the session. */
         pending,
+        /** Sales failed to load: the 0 sold / 0 revenue on products are placeholders, not facts. */
+        salesUnavailable,
+        retrySales,
         error: queryError ? (queryError instanceof Error ? queryError.message : "Error fetching products") : null,
         // CRUD operations
         addProduct,
