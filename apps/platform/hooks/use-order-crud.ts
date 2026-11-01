@@ -295,37 +295,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                         }).catch(console.error);
                     }
 
-                    // Record status change to history table
-                    if (previousOrder && previousOrder.status !== status) {
-                        const { profile: currentProfile, user: currentUser } = authRef.current;
-                        const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
-
-                        diag.log(`[Diag:StatusUpdate] HISTORY_INSERT orderId=${orderId}`);
-                        try {
-                            const { error: historyError } = await supabase
-                                .from("order_status_history")
-                                .insert([{
-                                    order_id: orderId,
-                                    from_status: previousOrder.status,
-                                    to_status: status,
-                                    changed_at: new Date().toISOString(),
-                                    notes: rejectionReason || null,
-                                    changed_by: changedBy,
-                                    tenant_id: tenantId,
-                                }]);
-                            
-                            if (historyError) {
-                                diag.log(`[Diag:StatusUpdate] HISTORY_ERR orderId=${orderId} err=${historyError.message}`);
-                                console.error("Failed to record status history:", historyError);
-                                toast.error("Status updated, but failed to log history record");
-                            } else {
-                                diag.log(`[Diag:StatusUpdate] HISTORY_OK orderId=${orderId}`);
-                            }
-                        } catch (historyErr) {
-                            diag.log(`[Diag:StatusUpdate] HISTORY_CATCH_ERR orderId=${orderId} err=${historyErr}`);
-                            console.error("Exception recording status history:", historyErr);
-                        }
-                    }
+                    // The status-history row is written by the database
+                    // (trg_log_order_status_change), in the same transaction.
 
                     // Catch the caches up with what this change wrote — whether
                     // the history insert ran, failed or was skipped. It replaces
@@ -1025,31 +996,11 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
         const changedByAvatar = currentProfile?.avatar_url;
 
-        let historyNotLogged = 0;
-
-        /** After each batch: history rows, cache, and the non-trigger inventory side-effects. */
+        /** After each batch: cache and the non-trigger inventory side-effects. */
         const settleBatch = async ({ succeeded }: BatchOutcome<{ id: string; order: Order }>) => {
             if (succeeded.length === 0) return;
 
-            const historyEntries = succeeded.map(({ id }) => ({
-                order_id: id,
-                changed_by: changedBy,
-                from_status: previousById.get(id)?.status || 'unknown',
-                to_status: status,
-                changed_at: new Date().toISOString(),
-                notes: `Bulk update to ${status}`,
-                tenant_id: tenantId,
-            }));
-            const { error: historyError } = await supabase
-                .from("order_status_history")
-                .insert(historyEntries);
-            if (historyError) {
-                historyNotLogged += historyEntries.length;
-                reportOrderError(historyError, {
-                    operation: "orders-bulk-status-history",
-                    extra: { status, count: historyEntries.length },
-                });
-            }
+            // History rows come from the database trigger on the status change.
 
             // Take the written row's version, not just its status: keeping the
             // old version in cache made the next edit of these orders a false
@@ -1111,7 +1062,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
             attempted,
             succeededIds: successfulOperations.map(op => op.id),
             failures: failedOperations,
-            historyNotLogged,
+            historyNotLogged: 0,
         };
 
         if (failedOperations.length > 0) {
@@ -1123,12 +1074,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 // Keep the failures selected so a retry does not need reselecting.
                 useOrderStore.getState().setSelectedOrders(new Set(summary.failedIds));
             }
-        }
-        if (notify && historyNotLogged > 0) {
-            toast.error(
-                "Status updated, but history was not logged",
-                `${historyNotLogged} of ${successfulOperations.length} changes have no history entry.`,
-            );
         }
 
         return result;
