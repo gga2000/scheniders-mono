@@ -6,7 +6,7 @@ import { enforceRedirect } from "@/lib/redirects";
 import { buildRuntimeContext } from "@/lib/storefront-runtime";
 import { findCustomPage, resolveI18n } from "@scheniders/shared";
 import { JsonLd } from "@/components/json-ld";
-import { articleJsonLd, getStorefrontBase } from "@/lib/seo";
+import { articleJsonLd, getStorefrontBase, storeDisplayName } from "@/lib/seo";
 import type { PageConfig, PageId } from "@scheniders/shared";
 import { V2Page } from "@/components/v2-page";
 import { pageNeedsProductAttributes } from "@scheniders/sections";
@@ -109,7 +109,7 @@ export default async function CustomPage({ params }: Props) {
       imageUrl: customPage.article.cover_url ?? customPage.meta?.og_image_url,
       datePublished: customPage.article.published_at,
       author: customPage.article.author,
-      publisherName: tenant.business_name ?? undefined,
+      publisherName: storeDisplayName(tenant),
     });
   }
 

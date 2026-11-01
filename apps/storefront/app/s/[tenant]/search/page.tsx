@@ -11,6 +11,7 @@ import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { SchneidersSearchView } from "@/components/schneiders/search-view";
+import { storeDisplayName } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ tenant: string }>;
@@ -37,7 +38,7 @@ export async function generateMetadata({
       ? "Search"
       : "بحث";
   return {
-    title: tenant ? `${pageName} — ${tenant.business_name}` : pageName,
+    title: tenant ? `${pageName} — ${storeDisplayName(tenant)}` : pageName,
     // Result pages for arbitrary queries are not landing pages.
     ...(query ? { robots: { index: false, follow: true } } : {}),
     ...resolveV2PageMetadata(v2, "search", locale),

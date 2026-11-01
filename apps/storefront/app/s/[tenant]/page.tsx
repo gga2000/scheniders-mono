@@ -23,6 +23,7 @@ import {
   ogLocaleFor,
   organizationJsonLd,
   websiteJsonLd,
+  storeDisplayName,
 } from "@/lib/seo";
 
 const TEMPLATE_NAMES = new Set<TemplateName>([
@@ -54,7 +55,7 @@ export async function generateMetadata({
     openGraph: {
       type: "website",
       locale: ogLocaleFor(v2?.default_locale),
-      ...(tenant ? { siteName: tenant.business_name } : {}),
+      ...(tenant ? { siteName: storeDisplayName(tenant) } : {}),
       ...(base.openGraph ?? {}),
       ...(baseUrl ? { url: baseUrl } : {}),
     },
@@ -134,12 +135,12 @@ export default async function StorefrontHome({
     // screen. Anything unresolvable yields null and is dropped.
     const structuredData = [
       organizationJsonLd({
-        name: tenant.business_name,
+        name: storeDisplayName(tenant),
         url: orgUrl,
         logo,
         phone: tenant.contact_phone ?? null,
       }),
-      websiteJsonLd({ name: tenant.business_name, url: orgUrl }),
+      websiteJsonLd({ name: storeDisplayName(tenant), url: orgUrl }),
       buildGridItemList(homePage, renderCtx, runtime, orgUrl),
       buildFaqSchema(homePage, runtime),
     ].filter((d): d is NonNullable<typeof d> => d !== null);

@@ -11,7 +11,7 @@ import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { SchneidersTrackForm } from "@/components/schneiders/track-form";
-import { storeCanonical } from "@/lib/seo";
+import { storeCanonical, storeDisplayName } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -28,7 +28,7 @@ export async function generateMetadata({
   // tenant's own name — never the platform brand.
   const pageName = locale === "en" ? "Track order" : "تتبّع الطلب";
   const fallbackTitle = tenant
-    ? `${pageName} — ${tenant.business_name}`
+    ? `${pageName} — ${storeDisplayName(tenant)}`
     : pageName;
   return {
     title: fallbackTitle,

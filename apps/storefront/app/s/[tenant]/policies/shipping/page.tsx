@@ -11,7 +11,7 @@ import {
 import { V2Page } from "@/components/v2-page";
 import { SchneidersPolicyPage } from "@/components/schneiders/policy-page";
 import { formatPrice } from "@/components/schneiders/format";
-import { storeCanonical } from "@/lib/seo";
+import { storeCanonical, storeDisplayName } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -28,7 +28,7 @@ export async function generateMetadata({
   // tenant's own name — never the platform brand.
   const pageName = locale === "en" ? "Shipping & delivery" : "الشحن والتوصيل";
   const fallbackTitle = tenant
-    ? `${pageName} — ${tenant.business_name}`
+    ? `${pageName} — ${storeDisplayName(tenant)}`
     : pageName;
   return {
     title: fallbackTitle,

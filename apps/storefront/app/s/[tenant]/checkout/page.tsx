@@ -9,7 +9,7 @@ import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { SchneidersCheckoutForm } from "@/components/schneiders/checkout-form";
 import { pickV2Page, buildRuntimeContext, resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
-import { NOINDEX_FOLLOW } from "@/lib/seo";
+import { NOINDEX_FOLLOW, storeDisplayName } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -21,7 +21,7 @@ export async function generateMetadata({
     ? await getTenantByCustomDomain(tenantParam.replace("__domain__", ""))
     : await getTenantBySlug(tenantParam);
   const v2 = tenant?.store_config_v2 ?? null;
-  const fallbackTitle = tenant ? `إتمام الطلب — ${tenant.business_name}` : "إتمام الطلب";
+  const fallbackTitle = tenant ? `إتمام الطلب — ${storeDisplayName(tenant)}` : "إتمام الطلب";
   return { title: fallbackTitle, ...NOINDEX_FOLLOW, ...resolveV2PageMetadata(v2, "checkout", v2?.default_locale ?? "ar") };
 }
 
