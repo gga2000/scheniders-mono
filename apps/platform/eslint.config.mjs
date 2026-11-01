@@ -66,6 +66,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Storybook build output — minified bundles, not source.
     "storybook-static/**",
+    // Vite writes and deletes these temp bundles while vitest loads its
+    // config; turbo runs test next to lint, so eslint can list one and then
+    // fail with ENOENT when it is gone.
+    "**/*.timestamp-*.mjs",
   ]),
 ]);
 

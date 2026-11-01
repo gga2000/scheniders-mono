@@ -88,9 +88,20 @@ export function RelatedProductsSection({
     };
 
     // Filtered products for display
+    // Saved rows carry only ids; name, price and image come from the catalogue.
+    const shownRelated = relatedProducts.map((item) => {
+        const live = products.find((p) => p.id === item.related_product_id);
+        return {
+            ...item,
+            name: item.name || live?.name,
+            price: item.price ?? live?.price,
+            image_url: item.image_url || live?.image_url || undefined,
+        };
+    });
+
     const filteredProducts = activeFilter === 'all'
-        ? relatedProducts
-        : relatedProducts.filter((p) => p.relation_type === activeFilter);
+        ? shownRelated
+        : shownRelated.filter((p) => p.relation_type === activeFilter);
 
     // Counts per type
     const complementaryCount = relatedProducts.filter((p) => p.relation_type === 'complementary').length;

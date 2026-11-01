@@ -112,6 +112,7 @@ function SortableValueChip({
     onRemove,
     onMetadataEdit,
 }: SortableValueChipProps) {
+    const { t } = useLanguage();
     const [editingHex, setEditingHex] = useState(false);
     const [editingMeasurement, setEditingMeasurement] = useState(false);
     const [editingDescription, setEditingDescription] = useState(false);
@@ -264,7 +265,7 @@ function SortableValueChip({
                     type="button"
                     onClick={() => setEditingMeasurement(true)}
                     className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity"
-                    title="Edit measurement"
+                    title={t("products.variants.editMeasurement")}
                 >
                     <Ruler className="w-3 h-3" />
                 </button>
@@ -274,7 +275,7 @@ function SortableValueChip({
                     type="button"
                     onClick={() => setEditingDescription(true)}
                     className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity"
-                    title="Edit description"
+                    title={t("products.variants.editDescription")}
                 >
                     <Info className="w-3 h-3" />
                 </button>

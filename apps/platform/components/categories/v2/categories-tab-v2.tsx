@@ -26,6 +26,14 @@ import { useCategoryStore } from "@/store/use-category-store";
 import type { Category, CategoryScope } from "@scheniders/shared";
 import { PageTransition } from "@/components/layout/page-transition";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@scheniders/ui/dialog";
+import {
   CategoryFormModal,
   type CategoryFormData,
 } from "@/components/categories/category-form-modal";
@@ -63,6 +71,7 @@ export function CategoriesTabV2() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [lastArchivedIds, setLastArchivedIds] = useState<string[]>([]);
   const [undoTimeLeft, setUndoTimeLeft] = useState(0);
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
   const undoTickRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -262,24 +271,24 @@ export function CategoriesTabV2() {
         toast.error(t("categories.error.hasChildren"));
         return;
       }
-      if (
-        !confirm(
-          t("categories.confirm.delete") ||
-            `Delete "${c.name}"? This cannot be undone.`,
-        )
-      ) {
-        return;
-      }
-      try {
-        await deleteMutation.mutateAsync(c.id);
-      } catch (err) {
-        reportCategoryError(err);
-        return;
-      }
-      toast.success(t("categories.toast.deleted") || "Category deleted");
+      // The app's own dialog names the category; the browser confirm cannot.
+      setPendingDelete(c);
     },
-    [deleteMutation, productCountMap, curatedCountMap, membershipsReady, productsPending, productsError, categories, canDeleteCategories, t, reportCategoryError],
+    [productCountMap, curatedCountMap, membershipsReady, productsPending, productsError, categories, canDeleteCategories, t, reportCategoryError],
   );
+
+  const confirmDelete = useCallback(async () => {
+    const c = pendingDelete;
+    if (!c) return;
+    setPendingDelete(null);
+    try {
+      await deleteMutation.mutateAsync(c.id);
+    } catch (err) {
+      reportCategoryError(err);
+      return;
+    }
+    toast.success(t("categories.toast.deleted"));
+  }, [pendingDelete, deleteMutation, reportCategoryError, t]);
 
   const handleDuplicate = useCallback(
     async (c: Category) => {
@@ -512,6 +521,30 @@ export function CategoriesTabV2() {
           mode={modalMode}
         />
       </div>
+      <Dialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("categories.confirm.deleteTitle", { name: pendingDelete?.name ?? "" })}</DialogTitle>
+            <DialogDescription>{t("categories.confirm.delete")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <button
+              type="button"
+              onClick={() => setPendingDelete(null)}
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--card-border)]"
+            >
+              {t("products.cats.cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={() => void confirmDelete()}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-rose-500 text-white hover:bg-rose-600"
+            >
+              {t("products.cats.delete")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageTransition>
   );
 }

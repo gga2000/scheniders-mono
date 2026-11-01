@@ -27,9 +27,9 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, t
     const { t } = useLanguage();
 
     const sortLabels: Record<string, string> = {
-        trust_score: t("customers.sort.reliability"),
+        trust_score: t("customers.sort.trustScore"),
         last_order_date: t("customers.lastOrder"),
-        total_spent: t("customers.totalSpent"),
+        total_spent: t("customers.spentOnItems"),
         total_orders: t("customers.orders"),
         name: t("customers.table.customer", "Name"),
     };

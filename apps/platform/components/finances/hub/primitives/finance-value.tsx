@@ -61,7 +61,7 @@ export function FinanceValue({
         >
             {body}
             {unit && (
-                <span className={cn("ml-1 font-medium opacity-60", compact ? "text-[0.75em]" : "text-[0.6em]")}>
+                <span className={cn("ml-1 font-medium opacity-60", compact ? "text-[max(11px,0.75em)]" : "text-[max(11px,0.6em)]")}>
                     {unit}
                 </span>
             )}

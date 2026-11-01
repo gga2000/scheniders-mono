@@ -2,15 +2,25 @@
 // Section — order_tracker
 // =====================================================================
 // Order lookup + status timeline. Lookups POST `{ tenant_id, phone,
-// order_number }` to `/api/orders/lookup`; the response's customer stage
+// order_number? }` to `/api/orders/lookup`; the response's customer stage
 // picks the merchant's narrative and lights the 5-step timeline.
 //
-// Honest contract (P1-24): the lookup API requires BOTH the phone and the
-// order number — a phone alone is not a safe key (one number can hold
-// many orders, and phone-only lookup would let anyone enumerate a
-// customer's history). `lookup_method` is kept in the schema so stored
-// configs parse, but every value renders both fields as required; the
-// copy never promises "just your phone number".
+// Contract (P1-24, revised 2026-11-01): the phone is required, the order
+// number is optional.
+//   - phone + number: one order, and (both matching) the customer's name
+//     and governorate.
+//   - phone alone: the phone's latest orders (at most five), MASKED: number,
+//     stage, date, piece count. No name, no address, no product. A phone is
+//     weaker proof than phone + number, so it unlocks less.
+//   - number alone is never accepted: numbers are sequential, so it would
+//     let anyone walk every order's status.
+// `lookup_method` is kept in the schema so stored configs parse.
+//
+// Live: once a lookup succeeds the page re-asks every two minutes while the
+// tab is visible (and once on return to the tab), until every order shown
+// has reached a final stage. The interval sits inside the API's per-phone
+// limit (10 per 10 minutes) with room left for the shopper's own tries. A
+// stage change is announced to screen readers.
 // =====================================================================
 // Client half of `order_tracker` — the component (hooks / browser APIs). The
 // schema, defaults and registry entry live in `./order_tracker.tsx` so the
@@ -19,9 +29,10 @@
 
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   TIMELINE_STAGES,
+  governorateLabel,
   isValidIraqiMobile,
   resolveI18n,
   coerceStage,
@@ -33,6 +44,9 @@ import {
 } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, ChunkyLink, MaterialIcon } from "./helpers/primitives";
+import { formatCount } from "./helpers/format";
+import { readsRtl } from "./helpers/reading";
+import { cn } from "./helpers/utils";
 import { resolveTenantWhatsapp, resolveTrackerContact, whatsappDigits } from "./helpers/whatsapp";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./order_tracker";
@@ -65,20 +79,29 @@ const HERO_BG: Record<"progress" | "positive" | "attention", string> = {
 /** Chrome strings. Every entry carries Sorani — _kurdish-coverage.test.ts fails the build otherwise. */
 const STRINGS = {
   intro: {
-    en: "Enter the phone number you ordered with and your order number.",
-    ar: "أدخل رقم الهاتف الذي طلبت به ورقم الطلب.",
-    ku: "ئەو ژمارە مۆبایلەی پێی داواکاریت کردووە و ژمارەی داواکارییەکەت بنووسە.",
+    en: "Enter the phone number you ordered with. The order number is optional.",
+    ar: "اكتب رقم الموبايل اللي طلبت بيه. رقم الطلب اختياري.",
+    ku: "ئەو ژمارە مۆبایلەی پێی داواکاریت کردووە بنووسە. ژمارەی داواکاری ئارەزوومەندانەیە.",
   },
   phone: { en: "Phone number", ar: "رقم الهاتف", ku: "ژمارەی مۆبایل" },
   orderNumber: { en: "Order number", ar: "رقم الطلب", ku: "ژمارەی داواکاری" },
+  optional: { en: "optional", ar: "اختياري", ku: "ئارەزوومەندانە" },
+  yourOrders: { en: "Your latest orders", ar: "آخر طلباتك", ku: "دوایین داواکارییەکانت" },
+  live: { en: "Updates by itself", ar: "تتحدّث وحدها", ku: "خۆی نوێ دەبێتەوە" },
+  updated: { en: "Updated {time}", ar: "آخر تحديث {time}", ku: "دوایین نوێکردنەوە {time}" },
+  changed: {
+    en: "Your order {number} changed: {title}",
+    ar: "تغيّرت حالة طلبك {number}: {title}",
+    ku: "دۆخی داواکاری {number} گۆڕا: {title}",
+  },
   find: { en: "Find order", ar: "ابحث عن الطلب", ku: "داواکاری بدۆزەرەوە" },
   searching: { en: "Searching…", ar: "جارٍ البحث…", ku: "گەڕان…" },
   order: { en: "Order", ar: "رقم الطلب", ku: "داواکاری" },
   // One message per failure class so the shopper knows what to change.
   errInvalid: {
-    en: "Check the phone number and order number, then try again.",
-    ar: "تحقّق من رقم الهاتف ورقم الطلب ثم حاول مرة أخرى.",
-    ku: "ژمارەی مۆبایل و ژمارەی داواکاری بپشکنە، پاشان دووبارە هەوڵ بدەرەوە.",
+    en: "Check the phone number, then try again.",
+    ar: "تأكّد من رقم الموبايل وجرّب مرة ثانية.",
+    ku: "ژمارەی مۆبایل بپشکنە، پاشان دووبارە هەوڵ بدەرەوە.",
   },
   errNotFound: {
     en: "No order matches those details.",
@@ -116,6 +139,75 @@ export interface OrderResult {
   review_product_slug?: string;
 }
 
+/** One row of a phone-only lookup: masked, nothing that names the buyer. */
+export interface PhoneOrder {
+  order_number: string;
+  stage: string;
+  /** ISO timestamp the order was placed. */
+  placed_at: string;
+  item_count: number;
+}
+
+/** A successful lookup: one order (phone + number) or a phone's list. */
+export type LookupResult =
+  | { kind: "single"; order: OrderResult }
+  | { kind: "list"; orders: [PhoneOrder, ...PhoneOrder[]] };
+
+/** Stages an order never leaves; once every order shown is in one, the
+ *  live refresh stops. */
+const FINAL_STAGES: ReadonlySet<CustomerOrderStage> = new Set(["delivered", "cancelled", "refunded"]);
+
+/** Live refresh period. The lookup API allows 10 tries per phone per 10
+ *  minutes; one every two minutes leaves the shopper five of their own. */
+const LIVE_REFRESH_MS = 120_000;
+
+/** A list row as the panel's order: the stage is all it carries. */
+export function phoneOrderAsResult(row: PhoneOrder): OrderResult {
+  return { order_number: row.order_number, status: row.stage, stage: row.stage };
+}
+
+/** Every order the result shows, as panel orders. */
+function ordersOf(result: LookupResult): OrderResult[] {
+  return result.kind === "single" ? [result.order] : result.orders.map(phoneOrderAsResult);
+}
+
+/** True while any order shown can still move. */
+export function isLive(result: LookupResult | null): boolean {
+  return result !== null && ordersOf(result).some((o) => !FINAL_STAGES.has(stageOf(o)));
+}
+
+/** The first order whose stage differs between two answers, as it is now. */
+export function firstStageChange(before: LookupResult, after: LookupResult): OrderResult | null {
+  const was = new Map(ordersOf(before).map((o) => [o.order_number, stageOf(o)]));
+  return ordersOf(after).find((o) => {
+    const prev = was.get(o.order_number);
+    return prev !== undefined && prev !== stageOf(o);
+  }) ?? null;
+}
+
+/** Parse the API's 200 body into a result; null when it is neither shape. */
+export function parseLookup(body: unknown): LookupResult | null {
+  if (typeof body !== "object" || body === null) return null;
+  const b = body as { orders?: unknown; order_number?: unknown; status?: unknown };
+  if (Array.isArray(b.orders)) {
+    const orders = b.orders.filter(
+      (r): r is PhoneOrder =>
+        typeof r === "object" &&
+        r !== null &&
+        typeof (r as PhoneOrder).order_number === "string" &&
+        typeof (r as PhoneOrder).stage === "string" &&
+        typeof (r as PhoneOrder).placed_at === "string" &&
+        typeof (r as PhoneOrder).item_count === "number",
+    );
+    const [first, ...rest] = orders;
+    return first ? { kind: "list", orders: [first, ...rest] } : null;
+  }
+  if (typeof b.order_number === "string" && typeof b.status === "string") {
+    return { kind: "single", order: body as OrderResult };
+  }
+  return null;
+}
+
 /** The customer stage for a result: the RPC's `stage` when it sends one,
  *  otherwise derived from the coarse bucket (which is itself a stage name). */
 export function stageOf(order: OrderResult): CustomerOrderStage {
@@ -136,6 +228,67 @@ const DASHED_DIVIDER =
 
 /** sessionStorage key the lookup form uses to hand over the phone. */
 const TRACK_PHONE_KEY = "sch:track:phone";
+
+interface LookupQuery {
+  phone: string;
+  /** Null = phone-only lookup. */
+  orderNumber: string | null;
+}
+
+type LookupOutcome = { ok: true; result: LookupResult } | { ok: false; error: LookupError };
+
+async function requestLookup(tenantId: string, q: LookupQuery): Promise<LookupOutcome> {
+  try {
+    // SEC: POST, not GET. A query string carrying the customer's phone is
+    // written to edge access logs and to any referrer sent onward. The body
+    // is not.
+    const res = await fetch("/api/orders/lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenant_id: tenantId,
+        phone: q.phone,
+        ...(q.orderNumber ? { order_number: q.orderNumber } : {}),
+      }),
+    });
+    if (!res.ok) return { ok: false, error: classify(res.status) };
+    const result = parseLookup(await res.json());
+    return result ? { ok: true, result } : { ok: false, error: "server" };
+  } catch {
+    // Offline / DNS / aborted — nothing the shopper typed is wrong.
+    return { ok: false, error: "server" };
+  }
+}
+
+/** Baghdad wall-clock time with Latin digits, e.g. «10:42 ص». */
+function clockTime(ms: number, locale: LocaleCode): string {
+  return new Intl.DateTimeFormat(locale === "en" ? "en" : "ar-u-nu-latn", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Baghdad",
+  }).format(new Date(ms));
+}
+
+/** «30 أكتوبر» — the day an order was placed, Baghdad time. */
+function placedDay(iso: string, locale: LocaleCode): string {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "";
+  return new Intl.DateTimeFormat(locale === "en" ? "en" : "ar-u-nu-latn", {
+    day: "numeric",
+    month: "long",
+    timeZone: "Asia/Baghdad",
+  }).format(new Date(ms));
+}
+
+function pieceCount(n: number, locale: LocaleCode): string {
+  return formatCount(n, locale, {
+    one: locale === "en" ? "1 item" : "قطعة وحدة",
+    two: locale === "en" ? "2 items" : "قطعتين",
+    few: locale === "en" ? "{count} items" : "{count} قطع",
+    many: locale === "en" ? "{count} items" : "{count} قطعة",
+    other: locale === "en" ? "{count} items" : "{count} قطعة",
+  });
+}
 
 export function OrderTrackerRender({
   props,
@@ -163,7 +316,41 @@ export function OrderTrackerRender({
     "idle",
   );
   const [error, setError] = useState<LookupError | null>(null);
-  const [order, setOrder] = useState<OrderResult | null>(null);
+  const [result, setResult] = useState<LookupResult | null>(null);
+  /** The order picked from a phone's list; null = the latest. */
+  const [selected, setSelected] = useState<string | null>(null);
+  /** The query behind `result`, re-asked by the live refresh. */
+  const [query, setQuery] = useState<LookupQuery | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  /** Set when the live refresh hit the rate limit; it stops until the next search. */
+  const [livePaused, setLivePaused] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const resultRef = useRef<LookupResult | null>(null);
+  resultRef.current = result;
+  const tenantId = ctx.tenant.id;
+
+  const search = useCallback(
+    async (q: LookupQuery) => {
+      setStatus("loading");
+      setError(null);
+      setResult(null);
+      setSelected(null);
+      setAnnouncement("");
+      const outcome = await requestLookup(tenantId, q);
+      if (!outcome.ok) {
+        setError(outcome.error);
+        setStatus("error");
+        setQuery(null);
+        return;
+      }
+      setResult(outcome.result);
+      setQuery(q);
+      setLivePaused(false);
+      setUpdatedAt(Date.now());
+      setStatus("ok");
+    },
+    [tenantId],
+  );
 
   // Prefill from the URL (`?order=`) and from sessionStorage (the phone).
   //
@@ -177,10 +364,13 @@ export function OrderTrackerRender({
   // before this change exist in the wild and should not simply break — but it
   // is stripped from the address bar immediately so it is not carried into any
   // onward navigation, and it is never re-emitted.
+  //
+  // A handed-over phone was typed by the shopper on the page before, with a
+  // "track" press: the lookup runs at once instead of asking for a second one.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const orderParam = params.get("order");
+    const orderParam = params.get("order")?.trim() || null;
     if (orderParam) setOrderNumber(orderParam);
 
     let stored: string | null = null;
@@ -203,49 +393,76 @@ export function OrderTrackerRender({
     }
 
     const resolved = stored ?? legacy;
-    if (resolved) setPhone(resolved);
-  }, []);
+    if (resolved) {
+      setPhone(resolved);
+      if (isValidIraqiMobile(resolved)) void search({ phone: resolved, orderNumber: orderParam });
+    }
+  }, [search]);
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // Live refresh. Quiet: a failed refresh keeps what is on screen (the last
+  // good answer is still true enough); only the rate limit stops it.
+  const live = status === "ok" && !livePaused && isLive(result);
+  useEffect(() => {
+    if (!live || !query) return;
+    let cancelled = false;
+    let lastRun = Date.now();
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      lastRun = Date.now();
+      const outcome = await requestLookup(tenantId, query);
+      if (cancelled) return;
+      if (!outcome.ok) {
+        if (outcome.error === "rate") setLivePaused(true);
+        return;
+      }
+      const before = resultRef.current;
+      const changed = before ? firstStageChange(before, outcome.result) : null;
+      if (changed) {
+        const title = resolveNarrative(stageOf(changed), locale, narratives, phone_number).title;
+        setAnnouncement(
+          resolveI18n(STRINGS.changed, locale)
+            .replace("{number}", changed.order_number)
+            .replace("{title}", title),
+        );
+      }
+      setResult(outcome.result);
+      setUpdatedAt(Date.now());
+    };
+    const timer = window.setInterval(() => void refresh(), LIVE_REFRESH_MS);
+    // Back on the tab after a while: refresh now rather than at the next tick.
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastRun >= LIVE_REFRESH_MS / 2) {
+        void refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [live, query, tenantId, locale, narratives, phone_number]);
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === "loading") return;
     // The API's own 400 covers this, but validating first spares a round trip
     // and gives the shopper the "check your inputs" message instantly.
-    if (!isValidIraqiMobile(phone) || orderNumber.trim() === "") {
+    if (!isValidIraqiMobile(phone)) {
       setError("invalid");
       setStatus("error");
       return;
     }
-    setStatus("loading");
-    setError(null);
-    setOrder(null);
-    try {
-      // SEC: POST, not GET. A query string carrying the customer's phone is
-      // written to edge access logs and to any referrer sent onward. The body
-      // is not.
-      const res = await fetch("/api/orders/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone,
-          order_number: orderNumber.trim(),
-          tenant_id: ctx.tenant.id,
-        }),
-      });
-      if (!res.ok) {
-        setError(classify(res.status));
-        setStatus("error");
-        return;
-      }
-      const data = (await res.json()) as OrderResult;
-      setOrder(data);
-      setStatus("ok");
-    } catch {
-      // Offline / DNS / aborted — nothing the shopper typed is wrong.
-      setError("server");
-      setStatus("error");
-    }
+    void search({ phone, orderNumber: orderNumber.trim() || null });
   }
+
+  const shown: OrderResult | null = result
+    ? result.kind === "single"
+      ? result.order
+      : phoneOrderAsResult(
+          result.orders.find((o) => o.order_number === selected) ?? result.orders[0],
+        )
+    : null;
 
   const inputCls =
     "w-full px-3 py-3 font-body text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus";
@@ -303,7 +520,10 @@ export function OrderTrackerRender({
           </label>
           <label className="block">
             <span className={labelCls}>
-              {resolveI18n(STRINGS.orderNumber, locale)}
+              {resolveI18n(STRINGS.orderNumber, locale)}{" "}
+              <span className="font-normal normal-case tracking-normal">
+                ({resolveI18n(STRINGS.optional, locale)})
+              </span>
             </span>
             <input
               type="text"
@@ -314,9 +534,6 @@ export function OrderTrackerRender({
               onChange={(e) => setOrderNumber(e.target.value)}
               className={inputCls}
               style={inputStyle}
-              required
-              aria-invalid={error === "invalid" || undefined}
-              aria-describedby={error ? errorId : undefined}
             />
           </label>
           {/* Stays focusable while pending so focus isn't dropped mid-submit. */}
@@ -351,18 +568,135 @@ export function OrderTrackerRender({
           )}
         </form>
 
-        {order && status === "ok" && (
-          <OrderStatusPanel
-            order={order}
-            narrative={narrative(order)}
-            showTimeline={props.show_timeline}
-            locale={locale}
-            whatsapp={whatsapp}
-            phone={phone_number}
-          />
+        {/* Polite: a stage that changes during a live refresh is read out
+            once; the visible panel below already shows it. */}
+        <p className="sr-only" aria-live="polite">
+          {announcement}
+        </p>
+
+        {result && shown && status === "ok" && (
+          <>
+            {result.kind === "list" && (
+              <PhoneOrderList
+                orders={result.orders}
+                selected={shown.order_number}
+                onSelect={setSelected}
+                locale={locale}
+                titleOf={(row) => narrative(phoneOrderAsResult(row)).title}
+              />
+            )}
+            <OrderStatusPanel
+              order={shown}
+              narrative={narrative(shown)}
+              showTimeline={props.show_timeline}
+              locale={locale}
+              whatsapp={whatsapp}
+              phone={phone_number}
+            />
+            {updatedAt !== null && (
+              <p
+                data-tracker-live={live ? "on" : "off"}
+                className={cn(
+                  "mt-bk-md flex items-center gap-2 font-body text-xs text-bk-ink-soft",
+                  readsRtl(locale) ? "flex-row-reverse" : "flex-row",
+                )}
+              >
+                {live && (
+                  <span aria-hidden="true" className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-bk-success opacity-75 motion-safe:animate-ping" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-bk-success" />
+                  </span>
+                )}
+                <bdi>
+                  {live ? `${resolveI18n(STRINGS.live, locale)} · ` : ""}
+                  {resolveI18n(STRINGS.updated, locale).replace("{time}", clockTime(updatedAt, locale))}
+                </bdi>
+              </p>
+            )}
+          </>
         )}
       </div>
     </section>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* A phone's latest orders — pure                                        */
+/* ─────────────────────────────────────────────────────────────────── */
+
+export function PhoneOrderList({
+  orders,
+  selected,
+  onSelect,
+  locale,
+  titleOf,
+}: {
+  orders: PhoneOrder[];
+  /** The order the panel below shows. */
+  selected: string;
+  onSelect: (orderNumber: string) => void;
+  locale: LocaleCode;
+  /** The merchant's short title for a row's stage. */
+  titleOf: (row: PhoneOrder) => string;
+}) {
+  const rtl = readsRtl(locale);
+  return (
+    <div className="mt-bk-lg pt-bk-lg" style={{ borderTop: DASHED_DIVIDER }}>
+      <p className="mb-bk-xs font-label font-bold text-xs bk-caps tracking-[0.2em] text-bk-ink-soft">
+        {resolveI18n(STRINGS.yourOrders, locale)}
+      </p>
+      <ul className="space-y-2" data-tracker-orders="">
+        {orders.map((row) => {
+          const current = row.order_number === selected;
+          return (
+            <li key={row.order_number}>
+              <button
+                type="button"
+                onClick={() => onSelect(row.order_number)}
+                aria-pressed={current}
+                data-tracker-order={row.order_number}
+                className={cn(
+                  "flex min-h-14 w-full items-center gap-3 px-4 py-2 transition-colors duration-bk-fast motion-reduce:transition-none",
+                  rtl ? "flex-row-reverse text-right" : "flex-row text-left",
+                )}
+                style={{
+                  border: current ? INK_BORDER : DASHED_DIVIDER,
+                  borderRadius: "var(--bk-radius-input, 0.75rem)",
+                  backgroundColor: current
+                    ? "var(--bk-surface-alt, #f7f4ee)"
+                    : "var(--bk-surface, #ffffff)",
+                }}
+              >
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="font-display text-base font-black tabular-nums text-bk-ink">
+                    <bdi>{row.order_number}</bdi>
+                  </span>
+                  {/* Each part isolated (bdi) so «30 أكتوبر» keeps its digits
+                      on the right side in the LTR document. */}
+                  <span
+                    className={cn(
+                      "flex flex-wrap gap-x-1.5 font-body text-xs tabular-nums text-bk-ink-soft",
+                      rtl ? "flex-row-reverse" : "flex-row",
+                    )}
+                  >
+                    {placedDay(row.placed_at, locale) && (
+                      <>
+                        <bdi>{placedDay(row.placed_at, locale)}</bdi>
+                        <span aria-hidden="true">·</span>
+                      </>
+                    )}
+                    <bdi>{pieceCount(row.item_count, locale)}</bdi>
+                  </span>
+                </span>
+                <bdi className="max-w-[45%] truncate font-body text-sm font-bold text-bk-ink">
+                  {titleOf(row)}
+                </bdi>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
@@ -471,7 +805,7 @@ export function OrderStatusPanel({
       {order.customer_name && (
         <p className="font-body text-sm text-bk-ink-soft mt-bk-2xs">
           {order.customer_name}
-          {order.governorate ? ` — ${order.governorate}` : ""}
+          {order.governorate ? ` — ${governorateLabel(order.governorate, locale)}` : ""}
         </p>
       )}
 

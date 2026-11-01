@@ -1230,6 +1230,18 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         // Keep the new id, so the next save updates this
                         // variant instead of creating it again.
                         savedVariants.push({ ...variant, id: created.id });
+                        // Record it now, not at the end: if a later step fails the
+                        // save is retried, and without this the retry would create
+                        // the same variant a second time.
+                        const createdId = created.id;
+                        initialDataRef.current = {
+                            ...initialDataRef.current,
+                            variants: [...initialDataRef.current.variants, { ...variant, id: createdId }],
+                        };
+                        setFormData((current) => ({
+                            ...current,
+                            variants: current.variants.map((v) => (v === variant ? { ...v, id: createdId } : v)),
+                        }));
                     }
                 }
 

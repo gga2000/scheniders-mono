@@ -96,6 +96,9 @@ function costMaps(rows: ProductCostRow[]) {
  */
 const BULK_ID_CHUNK = 100;
 
+/** Rows of per-product history the editor loads (newest first). */
+const HISTORY_LIMIT = 300;
+
 async function inChunks(
     op: string,
     ids: string[],
@@ -116,7 +119,11 @@ async function inChunks(
 export const productRepository = {
     /** Fetch the tenant's products with variants, newest first. */
     async findAll(tenantId: string): Promise<Product[]> {
-        return withRetry('productRepository.findAll', async () => {
+        // No whole-call timeout or retry here: the catalogue is read in pages and
+        // a single 15 s budget over all of them aborts a large store mid-download
+        // while the requests keep running. A failed read is retried by the
+        // query layer, page by page being the unit of work.
+        return (async () => {
             const _t = performance.now();
             diag.log(`[Diag:ProductRepo] findAll query START`);
 
@@ -124,7 +131,7 @@ export const productRepository = {
             // what this member may see (everything for admins, supplies only
             // for other editors, nothing otherwise).
             // Every read is paged: the API silently stops at 1000 rows.
-            const [data, costs, supplierRows, supplierCosts] = await Promise.all([
+            const [data, costs] = await Promise.all([
                 fetchAllPages<Product>((from, to) =>
                     supabase
                         .from("products")
@@ -138,8 +145,31 @@ export const productRepository = {
                     // The functions have no ORDER BY: a stable order keeps pages from skipping or repeating rows.
                     supabase.rpc("product_costs", { p_tenant_id: tenantId }).order("product_id").order("variant_id").range(from, to),
                 ),
-                // The Supplies tab and reorder drawer group by supplier; without
-                // these rows every supply lands in "no supplier" and cannot get a PO.
+            ]);
+
+            diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data.length}`);
+            const { productCost, variantCost } = costMaps(costs);
+            return data.map((product) => ({
+                ...product,
+                cost: productCost.get(product.id)?.cost ?? null,
+                cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
+                variants: (product.variants ?? []).map((variant) => ({
+                    ...variant,
+                    cost: variantCost.get(variant.id) ?? null,
+                })),
+            })) as Product[];
+        })();
+    },
+
+    /**
+     * Supplier links by product id, primary first. Kept out of findAll so the
+     * product list (re-read after every edit) stays light: only the Supplies tab
+     * and the reorder drawer need them. unit_cost comes from supplier_unit_costs
+     * and is null for a member who may not see cost.
+     */
+    async findSupplierLinks(tenantId: string): Promise<Map<string, ProductSupplier[]>> {
+        return withRetry('productRepository.findSupplierLinks', async () => {
+            const [supplierRows, supplierCosts] = await Promise.all([
                 fetchAllPages<ProductSupplier>((from, to) =>
                     supabase
                         .from("product_suppliers")
@@ -150,14 +180,10 @@ export const productRepository = {
                         .order("id")
                         .range(from, to),
                 ),
-                // Supplier unit cost only for members who may see cost.
                 fetchAllPages<{ id: string; unit_cost: number | null }>((from, to) =>
                     supabase.rpc("supplier_unit_costs", { p_tenant_id: tenantId }).order("id").range(from, to),
                 ),
             ]);
-
-            diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data.length}`);
-            const { productCost, variantCost } = costMaps(costs);
             const unitCostBySupplier = new Map(supplierCosts.map((row) => [row.id, row.unit_cost]));
             const suppliersByProduct = new Map<string, ProductSupplier[]>();
             for (const row of supplierRows) {
@@ -167,16 +193,7 @@ export const productRepository = {
                 if (list) list.push(withCost);
                 else suppliersByProduct.set(row.product_id, [withCost]);
             }
-            return data.map((product) => ({
-                ...product,
-                suppliers: suppliersByProduct.get(product.id) ?? [],
-                cost: productCost.get(product.id)?.cost ?? null,
-                cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
-                variants: (product.variants ?? []).map((variant) => ({
-                    ...variant,
-                    cost: variantCost.get(variant.id) ?? null,
-                })),
-            })) as Product[];
+            return suppliersByProduct;
         });
     },
 
@@ -501,7 +518,9 @@ export const productRepository = {
                 .from("product_price_history")
                 .select("*")
                 .eq("product_id", productId)
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                // The editor shows the recent trail; a hot product has tens of thousands of rows.
+                .limit(HISTORY_LIMIT);
 
             if (error) throw error;
             return data || [];
@@ -655,7 +674,8 @@ export const productRepository = {
                 .from("inventory_history")
                 .select("*")
                 .eq("product_id", productId)
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .limit(HISTORY_LIMIT);
 
             if (error) throw error;
             return data || [];

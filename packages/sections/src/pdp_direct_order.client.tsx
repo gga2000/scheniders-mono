@@ -57,7 +57,7 @@ import {
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { useCart } from "./helpers/cart-store";
-import { trackPixel, newPixelEventId } from "./helpers/pixels";
+import { trackPixel, newPixelEventId, handOffPurchase } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import { focusVariantPicker, stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import {
@@ -1134,22 +1134,30 @@ export function PdpDirectOrderRender({
       } catch {
         /* sessionStorage unavailable — the recap just won't render */
       }
-      // Pixel Purchase — same event_id the server sent to CAPI (dedup).
-      trackPixel(
-        "Purchase",
-        pixelContentsFromItems(
-          items.map((i) => ({
-            product_id: i.product_id,
-            price: i.price,
-            quantity: i.quantity,
-          })),
-        ),
-        purchaseEventIdRef.current ?? undefined,
-      );
+      // The order is placed: settle this form's state now, before anything
+      // async, so nothing later (a slow hash below) can leave it half-done.
+      const purchaseEventId = purchaseEventIdRef.current;
       clearOrderDraft(ctx.tenant.id, product.id);
       retireCartLines(product.id);
       idempotencyKeyRef.current = null;
       purchaseEventIdRef.current = null;
+      // Pixel Purchase — same event_id the server sent to CAPI (dedup),
+      // handed to the thank-you page so the navigation below cannot cancel
+      // it (helpers/pixels handOffPurchase).
+      if (purchaseEventId) {
+        await handOffPurchase({
+          tenantId: ctx.tenant.id,
+          phone: form.phone,
+          data: pixelContentsFromItems(
+            items.map((i) => ({
+              product_id: i.product_id,
+              price: i.price,
+              quantity: i.quantity,
+            })),
+          ),
+          eventId: purchaseEventId,
+        });
+      }
       setStatus("ok");
       // Navigate to the celebratory thank-you page (full nav keeps the stash).
       window.location.href = `${base}/checkout/success${

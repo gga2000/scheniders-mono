@@ -3,7 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { SourcePerformanceMetrics } from "@/lib/analytics/source-metrics";
-import { Trophy, Medal, Package, CheckCircle2, Clock, DollarSign, TrendingUp } from "lucide-react";
+import { Trophy, Medal, Package, CheckCircle2, Clock, Banknote, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 

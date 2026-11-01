@@ -1,6 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import {
   computeDeliveryFee,
   computeDiscount,
@@ -18,8 +18,11 @@ import {
   type OrderBumpOffer,
 } from "@scheniders/shared";
 import type { StoreConfigV2, AnalyticsConfig } from "@scheniders/shared";
+import { AD_ATTRIBUTION_COOKIE, deserializeAdAttribution } from "@scheniders/shared/ad-attribution";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
+import { capiRequestContext } from "@/lib/capi-context";
+import { after } from "next/server";
 import { isDraftViewRequest } from "@/lib/draft-view";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
@@ -646,6 +649,12 @@ export async function submitCheckout(
   // that discount, and the courier collects `price + delivery_fee`. Every
   // other source already stores it this way; a gross `price` here made the
   // courier collect the discount back from the shopper.
+  // Last ad click recorded by the proxy (cookie, not client payload: the buyer
+  // cannot pick which ad gets credit through the checkout request itself).
+  const adAttribution = deserializeAdAttribution(
+    (await cookies()).get(AD_ATTRIBUTION_COOKIE)?.value,
+  );
+
   const orderData = {
     customer_name: payload.customer.customer_name.trim(),
     phone,
@@ -681,6 +690,9 @@ export async function submitCheckout(
     status: "new",
     payment_status: "pending",
     source: "storefront",
+    ...(adAttribution
+      ? { attribution: adAttribution, ad_channel: adAttribution.channel }
+      : {}),
     ...(risk
       ? {
           risk_metadata: risk.risk_metadata,
@@ -847,22 +859,28 @@ export async function submitCheckout(
   const analytics = tenant.store_config_v2?.globals?.analytics_pixels?.base as
     | AnalyticsConfig
     | undefined;
+  // Sent after the response (next/server `after`): a slow ad API never
+  // delays the shopper's thank-you page. sendPurchaseCapi logs its own
+  // failures and never throws.
   if (payload.purchaseEventId && analytics && !draftView) {
-    try {
-      await sendPurchaseCapi({
-        analytics,
-        eventId: payload.purchaseEventId,
-        customer: { phone, name: payload.customer.customer_name },
-        value: grandTotal,
-        contents: verifiedItems.map((i) => ({
-          id: i.product_id,
-          quantity: i.quantity,
-          item_price: i.price,
-        })),
-      });
-    } catch {
-      /* CAPI is best-effort */
-    }
+    const capiInput = {
+      analytics,
+      tenantId: payload.tenantId,
+      eventId: payload.purchaseEventId,
+      customer: {
+        phone,
+        name: payload.customer.customer_name,
+        governorate: payload.customer.governorate_code,
+      },
+      value: grandTotal,
+      contents: verifiedItems.map((i) => ({
+        id: i.product_id,
+        quantity: i.quantity,
+        item_price: i.price,
+      })),
+      context: await capiRequestContext(),
+    };
+    after(() => sendPurchaseCapi(capiInput));
   }
 
   // Post-purchase offer: hand THIS browser — and only this one — the proof

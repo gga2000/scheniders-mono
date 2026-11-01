@@ -11,6 +11,7 @@ import {
 import { V2Page } from "@/components/v2-page";
 import { SchneidersPolicyPage } from "@/components/schneiders/policy-page";
 import { formatPrice } from "@/components/schneiders/format";
+import { storeCanonical } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -31,6 +32,7 @@ export async function generateMetadata({
     : pageName;
   return {
     title: fallbackTitle,
+    ...(await storeCanonical(tenantParam, "/policies/shipping")),
     ...resolveV2PageMetadata(v2, "policy_shipping", locale),
   };
 }

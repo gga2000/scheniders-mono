@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
+import { MessageTextarea } from "@/components/customers/message-textarea";
 
 // An Iraqi mobile in E.164 (9647XXXXXXXXX). Phones are normalized first, so a number
 // stored as 07…, 7… or +964… is judged by the digits, not by how it was typed.
@@ -111,13 +112,13 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
                             <label htmlFor="broadcast-message" className="block text-sm font-bold text-foreground mb-2">
                                 {t("customers.broadcast.message")}
                             </label>
-                            <textarea
+                            <MessageTextarea
                                 id="broadcast-message"
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 placeholder={t("customers.broadcast.placeholder")}
                                 dir="auto"
-                                className="w-full p-4 bg-background border border-(--card-border) rounded-xl text-sm min-h-40 resize-y focus:outline-none focus:ring-2 focus:ring-foreground/30"
+                                className="min-h-40 resize-y"
                             />
                             <p dir="auto" className="text-xs text-muted-foreground mt-2 text-start">{t("customers.broadcast.nameHint")}</p>
                         </div>
@@ -164,14 +165,23 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
                                         {t("customers.broadcast.copyNumbers")}
                                     </button>
                                 ) : <span />}
-                                <button
-                                    onClick={() => setStep("send")}
-                                    disabled={!message.trim() || sendable.length === 0}
-                                    className="min-h-11 px-5 inline-flex items-center gap-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
-                                >
-                                    <Send className="w-4 h-4" />
-                                    {t("customers.broadcast.next")}
-                                </button>
+                                {/* Cancel beside Next, like every other customers dialog. */}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={close}
+                                        className="min-h-11 px-4 rounded-xl border border-(--card-border) text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors"
+                                    >
+                                        {t("common.cancel")}
+                                    </button>
+                                    <button
+                                        onClick={() => setStep("send")}
+                                        disabled={!message.trim() || sendable.length === 0}
+                                        className="min-h-11 px-5 inline-flex items-center gap-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                        <Send className="w-4 h-4" />
+                                        {t("customers.broadcast.next")}
+                                    </button>
+                                </div>
                             </>
                         ) : (
                             <>

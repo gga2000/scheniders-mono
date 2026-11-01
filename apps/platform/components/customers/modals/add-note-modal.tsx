@@ -5,6 +5,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useAddCustomerNote } from "@/hooks/use-customer-notes";
 import { ModalShell } from "./modal-shell";
+import { MessageTextarea } from "@/components/customers/message-textarea";
 import { toast } from "@/hooks/use-toast";
 
 interface AddNoteModalProps {
@@ -38,7 +39,7 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
             title={t("customers.notes.add")}
         >
             <div className="space-y-5">
-                <textarea
+                <MessageTextarea
                     value={text}
                     onChange={(e) => setText(e.target.value.slice(0, 1000))}
                     placeholder={t("customers.notes.placeholder")}
@@ -47,7 +48,6 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
                     dir={text ? "auto" : language === "ar" ? "rtl" : "ltr"}
                     autoFocus
                     rows={6}
-                    className="w-full bg-muted/20 border border-(--card-border) rounded-xl p-3 text-sm resize-none focus:ring-2 focus:ring-foreground/10 focus:outline-none"
                 />
                 <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground tabular-nums">
@@ -56,7 +56,7 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleClose}
-                            className="px-5 py-2.5 rounded-xl border border-(--card-border) font-semibold text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                            className="px-5 py-2.5 rounded-xl border border-(--card-border) font-semibold text-sm text-foreground hover:bg-muted/30 transition-colors"
                         >
                             {t("common.cancel")}
                         </button>

@@ -450,3 +450,24 @@ dd,
     transform: translateX(100%);
   }
 }
+
+/* --- site_header overlay: menu drawer --------------------------------- */
+/* The sheet grows out of the menu chip (top-right corner, where the chip
+   sits in both lockups), then its rows lift in one after another. The
+   component gates these behind motion-safe and swaps in a plain fade for
+   motion-reduce; the media query is a floor for anything else. */
+@keyframes bk-drawer-open {
+  from { clip-path: circle(1.375rem at calc(100% - 2.125rem) calc(2.125rem + env(safe-area-inset-top, 0px))); }
+  to   { clip-path: circle(150% at calc(100% - 2.125rem) calc(2.125rem + env(safe-area-inset-top, 0px))); }
+}
+@keyframes bk-drawer-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes bk-drawer-row {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-menu-drawer], [data-menu-drawer] * { animation-duration: 1ms !important; }
+}

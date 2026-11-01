@@ -7,28 +7,20 @@ import {
     Calendar,
     Repeat,
     PieChart,
-    MapPin,
     Phone,
-    Users,
-    ShieldCheck,
     Sparkles,
 } from "lucide-react";
-import { governorateLabel } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
-import { formatPhoneDisplay } from "@/lib/customer-format";
-import { useCustomerLinks } from "@/hooks/use-customer-links";
-import type { TrustTier } from "@/types/customer";
 
 type Order = { created_at: string; status: string };
 
+/** Buying patterns need this many orders; below it the card is at most a one-line snapshot. */
+export const PATTERNS_FROM_ORDERS = 3;
+
 interface BehavioralPatternsCardProps {
     orders: Order[];
-    firstOrderDate?: string | null;
-    city?: string | null;
-    governorate?: string | null;
     phone: string;
-    trustTier: TrustTier;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,31 +82,17 @@ function isValidIraqiMobile(phone: string): boolean {
     return /^7[789]\d{8}$/.test(digits) || /^07[789]\d{8}$/.test(digits) || /^9647[789]\d{8}$/.test(digits);
 }
 
-function trustSignalKey(tier: TrustTier, orderCount: number): string {
-    if (tier === "watch") return "customers.snapshot.trustWatch";
-    if (tier === "risky" || tier === "critical" || tier === "blocked")
-        return "customers.snapshot.trustRisky";
-    if (tier === "platinum" || tier === "gold") return "customers.snapshot.trustHigh";
-    if (orderCount === 0 || tier === "new") return "customers.snapshot.trustNew";
-    return "customers.snapshot.trustNew";
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function BehavioralPatternsCard({
     orders,
-    firstOrderDate,
-    city,
-    governorate,
     phone,
-    trustTier,
 }: BehavioralPatternsCardProps) {
-    const { t, language } = useLanguage();
-    const { data: links = [] } = useCustomerLinks(phone);
+    const { t } = useLanguage();
 
-    const mode: "patterns" | "snapshot" = orders.length >= 3 ? "patterns" : "snapshot";
+    const mode: "patterns" | "snapshot" = orders.length >= PATTERNS_FROM_ORDERS ? "patterns" : "snapshot";
 
     // ----- Pattern computations (only meaningful when mode === "patterns") -----
     const patterns = useMemo(() => {
@@ -166,10 +144,12 @@ export function BehavioralPatternsCard({
             else if (s === "cancelled" || s === "canceled") counts.cancelled++;
         }
         const total = orders.length || 1;
+        // One segment per outcome, never joined into one string: an Arabic segment
+        // starts with its number ("93% وصلت"), and a joined line lets the number of
+        // the first segment drift away from its word. OutcomeMix isolates each one.
         const statusMix = (Object.keys(counts) as (keyof typeof counts)[])
             .filter((k) => k === "delivered" || counts[k] > 0)
-            .map((k) => t(`customers.behavioral.mix.${k}`, { pct: Math.round((counts[k] / total) * 100).toString() }))
-            .join(" · ");
+            .map((k) => ({ key: k, label: t(`customers.behavioral.mix.${k}`, { pct: Math.round((counts[k] / total) * 100).toString() }) }));
 
         return {
             // Refusals at the door are the one pattern worth colour: the outcomes tile turns rose.
@@ -181,61 +161,34 @@ export function BehavioralPatternsCard({
         };
     }, [mode, orders, t]);
 
-    // ----- Snapshot computations -----
-    const snapshot = useMemo(() => {
-        if (mode !== "snapshot") return null;
-
-        const joinedDays = firstOrderDate
-            ? Math.max(0, Math.floor((Date.now() - new Date(firstOrderDate).getTime()) / 86_400_000))
-            : null;
-
-        const joinedLabel =
-            joinedDays === null
-                ? t("customers.snapshot.joinedNew")
-                : joinedDays === 0
-                ? t("customers.snapshot.joinedToday")
-                : joinedDays === 1
-                ? t("customers.snapshot.joinedYesterday")
-                : t("customers.snapshot.joined", { days: joinedDays.toString() });
-
-        // The governorate is stored as a code ("BG"): shown by its name, like the list and the drawer.
-        const govName = governorate ? governorateLabel(governorate, language) || governorate : null;
-        const locationLabel =
-            city || govName
-                ? [city, govName].filter(Boolean).join(language === "ar" ? "، " : ", ")
-                : t("customers.snapshot.locationUnknown");
-
-        const phoneValid = isValidIraqiMobile(phone);
-
-        const linkCount = links.length;
-        const linksLabel =
-            linkCount === 0
-                ? t("customers.snapshot.linksNone")
-                : linkCount === 1
-                ? t("customers.snapshot.linksOne")
-                : t("customers.snapshot.linksMany", { count: linkCount.toString() });
-
-        const trustLabel = t(trustSignalKey(trustTier, orders.length));
-
-        return { joinedLabel, locationLabel, phoneValid, linksLabel, trustLabel };
-    }, [mode, firstOrderDate, city, governorate, phone, trustTier, orders.length, links, t, language]);
+    // Too few orders for patterns: the hero already shows the place and the Link strip the
+    // linked customers, so the snapshot has something to say only for a bad phone number. A
+    // valid number is the norm and says nothing; a bad one earns one line in caution amber.
+    if (mode === "snapshot") {
+        if (isValidIraqiMobile(phone)) return null;
+        return (
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 h-14 flex items-center gap-2.5">
+                <Sparkles className="w-4 h-4 text-foreground shrink-0" />
+                <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.snapshot.title")}</span>
+                <span className="text-sm text-muted-foreground" aria-hidden>·</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                    <Phone className="w-3.5 h-3.5" />
+                    {t("customers.snapshot.phoneInvalid")}
+                </span>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] h-full">
             <div className="flex items-center gap-2.5 mb-5">
-                {mode === "patterns" ? (
-                    <BrainCircuit className="w-5 h-5 text-foreground shrink-0" />
-                ) : (
-                    <Sparkles className="w-5 h-5 text-foreground shrink-0" />
-                )}
+                <BrainCircuit className="w-5 h-5 text-foreground shrink-0" />
                 <h3 className="font-headline font-extrabold text-lg leading-none">
-                    {mode === "patterns"
-                        ? t("customers.behavioral.title")
-                        : t("customers.snapshot.title")}
+                    {t("customers.behavioral.title")}
                 </h3>
             </div>
 
-            {mode === "patterns" && patterns ? (
+            {patterns && (
                 <div className="space-y-4">
                     {patterns.timeLabel && (
                         <Row
@@ -260,43 +213,31 @@ export function BehavioralPatternsCard({
                         icon={<PieChart className="w-4.5 h-4.5" />}
                         tone={patterns.hasRefusals ? "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" : undefined}
                         title={t("customers.behavioral.statusMix")}
-                        value={patterns.statusMix}
+                        value={<OutcomeMix segments={patterns.statusMix} />}
                     />
                 </div>
-            ) : snapshot ? (
-                <div className="space-y-4">
-                    <Row
-                        icon={<Calendar className="w-4.5 h-4.5" />}
-                        title={t("customers.snapshot.customerSince")}
-                        value={snapshot.joinedLabel}
-                    />
-                    <Row
-                        icon={<MapPin className="w-4.5 h-4.5" />}
-                        title={t("customers.snapshot.location")}
-                        value={snapshot.locationLabel}
-                    />
-                    {/* A valid number is the norm and says nothing; only a bad one earns a row, in caution amber. */}
-                    {!snapshot.phoneValid && (
-                        <Row
-                            icon={<Phone className="w-4.5 h-4.5" />}
-                            tone="bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
-                            title={t("customers.snapshot.phoneInvalid")}
-                            value={formatPhoneDisplay(phone)}
-                        />
-                    )}
-                    <Row
-                        icon={<Users className="w-4.5 h-4.5" />}
-                        title={snapshot.linksLabel}
-                        value=""
-                    />
-                    <Row
-                        icon={<ShieldCheck className="w-4.5 h-4.5" />}
-                        title={snapshot.trustLabel}
-                        value=""
-                    />
-                </div>
-            ) : null}
+            )}
         </div>
+    );
+}
+
+/**
+ * The outcome mix, "93% delivered · 7% returned". Each segment is its own
+ * bidi-isolated run, so an Arabic number stays beside its word. The runs are
+ * spans with unicode-bidi: isolate rather than <bdi>: the row's dir="auto"
+ * skips <bdi> text, and it needs the first segment's word to set the reading
+ * direction, so Arabic segments run right to left like the outcome flags.
+ */
+function OutcomeMix({ segments }: { segments: { key: string; label: string }[] }) {
+    return (
+        <>
+            {segments.map((s, i) => (
+                <span key={s.key}>
+                    {i > 0 && <span aria-hidden> · </span>}
+                    <span className="[unicode-bidi:isolate] whitespace-nowrap">{s.label}</span>
+                </span>
+            ))}
+        </>
     );
 }
 
@@ -313,7 +254,7 @@ function Row({
     /** Tile colours when the row carries a meaning; neutral otherwise. */
     tone?: string;
     title: string;
-    value: string;
+    value: React.ReactNode;
 }) {
     return (
         <div className="flex items-start gap-4">
@@ -325,7 +266,9 @@ function Row({
             <div className="min-w-0 flex-1">
                 <p className="font-semibold text-sm leading-snug truncate">{title}</p>
                 {value && (
-                    <p className="text-[13px] text-muted-foreground leading-relaxed mt-0.5 wrap-break-word">
+                    // dir="auto": an Arabic value (cadence, day, outcome mix) reads in its own order;
+                    // text-left keeps it on the left edge of the LTR page like every other row.
+                    <p dir="auto" className="text-[13px] text-muted-foreground leading-relaxed mt-0.5 wrap-break-word text-left">
                         {value}
                     </p>
                 )}

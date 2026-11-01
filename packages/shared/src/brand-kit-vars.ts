@@ -113,6 +113,37 @@ function mix(a: Rgb, b: Rgb, t: number): Rgb {
   };
 }
 
+/** Secondary text must clear WCAG AA (4.5:1); a hair over so rounding in
+ *  the browser's compositing never lands it at 4.49. */
+const SOFT_INK_MIN_CONTRAST = 4.6;
+/** De-emphasised marks (placeholders, decorative counts): WCAG 1.4.11's 3:1. */
+const FAINT_INK_MIN_CONTRAST = 3;
+
+/**
+ * The alpha at which `ink`, composited over each of `grounds`, reaches
+ * `minContrast` on all of them, never below `floor`.
+ *
+ * A fixed alpha is only right for one ink/ground pair: 0.7 black on white is
+ * about 8:1, but 0.7 of a warm brown ink on a cream ground is 4.3:1 and fails
+ * AA. Solving per kit keeps the tint where it already passes and darkens it
+ * only as far as each brand needs. Returns 1 when even solid ink cannot reach
+ * the target (the kit itself is low-contrast; nothing lighter can do better).
+ */
+function readableInkAlpha(
+  ink: Rgb,
+  grounds: readonly Rgb[],
+  floor: number,
+  minContrast: number,
+): number {
+  for (let step = Math.round(floor * 100); step <= 100; step += 1) {
+    const alpha = step / 100;
+    if (grounds.every((g) => contrastRatio(mix(g, ink, alpha), g) >= minContrast)) {
+      return alpha;
+    }
+  }
+  return 1;
+}
+
 /** `rgb(r g b / a)` string with `a` clamped to [0, 1]. */
 function rgba(rgb: Rgb, alpha: number): string {
   const a = Math.max(0, Math.min(1, alpha));
@@ -336,6 +367,8 @@ export const SELF_HOSTED_FONT_VARS: Readonly<Record<string, string>> = {
   "DM Sans": "--font-dm-sans",
   Cairo: "--font-cairo",
   "Noto Sans Arabic": "--font-noto-arabic",
+  "IBM Plex Sans Arabic": "--font-plex-arabic",
+  "Readex Pro": "--font-readex-pro",
 };
 
 /** A single font-family entry: the self-hosted `var()` when available, else the quoted name. */
@@ -488,8 +521,9 @@ export function buildBrandKitVars(
   // 0.7 clears WCAG AA (4.5:1) for secondary text on the cream/white
   // surfaces; 0.25 failed badly so faint is bumped for de-emphasised labels
   // (placeholders, decorative) while real text uses ink-soft.
-  const inkSoft = rgba(ink, 0.7);
-  const inkFaint = rgba(ink, 0.38);
+  const textGrounds = [surface, surfaceAltC.rgb];
+  const inkSoft = rgba(ink, readableInkAlpha(ink, textGrounds, 0.7, SOFT_INK_MIN_CONTRAST));
+  const inkFaint = rgba(ink, readableInkAlpha(ink, textGrounds, 0.38, FAINT_INK_MIN_CONTRAST));
   const divider = rgba(ink, 0.1);
 
   // Typography

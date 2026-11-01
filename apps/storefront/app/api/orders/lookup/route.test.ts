@@ -46,11 +46,10 @@ beforeEach(() => {
 });
 
 describe("POST /api/orders/lookup", () => {
-  it("400s without both an order number and a phone, before touching the limiter or the RPC", async () => {
+  it("400s without a phone or a valid tenant, before touching the limiter or the RPC", async () => {
     expect((await POST(req({ tenant_id: TENANT, order_number: "4260910007" }))).status).toBe(400);
-    expect((await POST(req({ tenant_id: TENANT, phone: "07701234567" }))).status).toBe(400);
     expect((await POST(req({ tenant_id: "nope", order_number: "1", phone: "07701234567" }))).status).toBe(400);
-    expect((await POST(req({ tenant_id: TENANT, order_number: "   ", phone: "07701234567" }))).status).toBe(400);
+    expect((await POST(req({ tenant_id: TENANT, order_number: "1".repeat(41), phone: "07701234567" }))).status).toBe(400);
     expect(consumeRateLimit).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
   });
@@ -114,5 +113,46 @@ describe("POST /api/orders/lookup", () => {
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("120");
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  describe("phone only", () => {
+    const PHONE_ROW = { order_number: "4260910007", stage: "shipped", placed_at: "2026-10-30T10:00:00+00:00", item_count: 2 };
+
+    it("lists the phone's latest orders through lookup_orders_by_phone, masked", async () => {
+      rpc.mockResolvedValue({ data: [{ ...PHONE_ROW, customer_name: "Ali" }], error: null });
+      const res = await POST(req({ tenant_id: TENANT, phone: "07701234567" }));
+      expect(res.status).toBe(200);
+      expect(rpc).toHaveBeenCalledWith("lookup_orders_by_phone", { p_tenant_id: TENANT, p_phone: "07701234567" });
+      const body = (await res.json()) as { orders: Record<string, unknown>[] };
+      expect(body.orders).toHaveLength(1);
+      // No name, no governorate: the phone alone is not proof enough.
+      expect(Object.keys(body.orders[0] ?? {}).sort()).toEqual(["item_count", "order_number", "placed_at", "stage"]);
+    });
+
+    it("treats a blank order number as phone only", async () => {
+      rpc.mockResolvedValue({ data: [PHONE_ROW], error: null });
+      await POST(req({ tenant_id: TENANT, order_number: "   ", phone: "07701234567" }));
+      expect(rpc).toHaveBeenCalledWith("lookup_orders_by_phone", expect.anything());
+    });
+
+    it("404s when the phone has no orders", async () => {
+      rpc.mockResolvedValue({ data: [], error: null });
+      expect((await POST(req({ tenant_id: TENANT, phone: "07709999999" }))).status).toBe(404);
+    });
+
+    it("500s on an RPC error", async () => {
+      rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      expect((await POST(req({ tenant_id: TENANT, phone: "07701234567" }))).status).toBe(500);
+    });
+
+    it("is bounded by the per-phone bucket, with no per-order bucket", async () => {
+      rpc.mockResolvedValue({ data: [], error: null });
+      await POST(req({ tenant_id: TENANT, phone: "07701234567" }, { "x-real-ip": "198.51.100.2" }));
+      const keys = consumeRateLimit.mock.calls.map((c) => String(c[0]));
+      expect(keys.some((k) => k.startsWith("track:order:"))).toBe(false);
+      expect(keys.some((k) => k.startsWith("track:phone:"))).toBe(true);
+      expect(keys.some((k) => k.startsWith("track:ip:"))).toBe(true);
+    });
   });
 });

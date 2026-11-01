@@ -1,11 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Ban, MessageCircle, Phone, Plus, ShieldAlert, ShieldCheck, Star } from "lucide-react";
+import { Ban, ChevronRight, MessageCircle, Phone, Plus, Star } from "lucide-react";
 import { formatBaghdadMonthYear, formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
 import { useLanguage } from "@/hooks/use-language";
 import { useCustomerStore } from "@/store/use-customer-store";
-import { TRUST_TIER_CONFIG, tagColorClasses, type TagColor, type TrustTier } from "@/types/customer";
+import { TRUST_TIER_CONFIG, type TrustTier } from "@/types/customer";
+import { CustomerTagChip } from "@/components/customers/customer-tag-chip";
 import { cn } from "@/lib/utils";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -13,11 +14,15 @@ import { PeerComparisonBadge } from "@/components/customers/detail/peer-comparis
 import { codRiskKey, customerAccent, displayScore, isBlockedCustomer, showsTrustScore, VALUE_META, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
 import { RiskChip, ValuePill, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { CustomerBlockAction } from "@/components/customers/customer-block-action";
+import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
+import { CustomerPlace } from "@/components/customers/customer-place";
 
 interface HeroIdentityBannerProps {
     name: string;
     phone: string;
     city?: string | null;
+    /** Governorate code: the place leads with it, as in the drawer and the list. */
+    governorate?: string | null;
     tier: TrustTier;
     /** Value and COD-risk axes, the same labels the list and drawer show. Null until the reliability read is in. */
     valueTier: ValueTier | null;
@@ -34,22 +39,11 @@ interface HeroIdentityBannerProps {
     onNewOrder?: () => void;
 }
 
-const TRUST_SCORE_SUBTITLE_KEY: Record<TrustTier, string> = {
-    platinum: "customers.trust.subtitle.platinum",
-    gold: "customers.trust.subtitle.gold",
-    silver: "customers.trust.subtitle.silver",
-    bronze: "customers.trust.subtitle.bronze",
-    new: "customers.trust.subtitle.new",
-    watch: "customers.trust.subtitle.watch",
-    risky: "customers.trust.subtitle.risky",
-    critical: "customers.trust.subtitle.critical",
-    blocked: "customers.trust.subtitle.blocked",
-};
-
 export function HeroIdentityBanner({
     name,
     phone,
     city,
+    governorate,
     tier,
     valueTier,
     riskLevel,
@@ -73,9 +67,8 @@ export function HeroIdentityBanner({
     const avatarTone = valueTier
         ? customerAccent(valueTier, blocked ? "blocked" : riskLevel ?? "clean")
         : { surfaceBg: config.bgClass, surfaceText: config.textClass };
-    // A shield with a tick next to a failing score contradicts it.
+    // A failing customer never leads with a value tier.
     const unsafe = blocked || riskLevel === "high" || tier === "risky" || tier === "critical";
-    const ShieldIcon = unsafe ? ShieldAlert : ShieldCheck;
     // A tag that only repeats the value tier ("VIP" under the VIP pill) adds nothing.
     const valueLabel = valueTier ? t(`customers.value.${valueTier}`, VALUE_META[valueTier].label).trim().toLowerCase() : null;
     const shownTags = (tags ?? []).filter((tag) => tag.name.trim().toLowerCase() !== valueLabel);
@@ -133,6 +126,8 @@ export function HeroIdentityBanner({
                         {/* An unsafe customer is never shown with a (green) value tier. */}
                         {showAxes && valueTier && !unsafe && <ValuePill tier={valueTier} variant="compact" />}
                         {showAxes && (blocked ? <RiskChip risk="blocked" /> : riskLevel && <RiskChip risk={riskLevel} showClean />)}
+                        {/* Without the value/risk banner below, the pills are explained here. */}
+                        {showAxes && <CustomerRatingHelp />}
                     </div>
 
                     {/* Phone, then place and tenure */}
@@ -141,7 +136,7 @@ export function HeroIdentityBanner({
                             <Phone className="w-3.5 h-3.5 text-muted-foreground" />
                             {formatPhoneDisplay(phone)}
                         </span>
-                        {city && <><span aria-hidden>•</span><bdi>{city}</bdi></>}
+                        {(governorate || city) && <><span aria-hidden>•</span><CustomerPlace governorate={governorate} city={city} locale={language} /></>}
                         {memberSince && <><span aria-hidden>•</span><span>{t("customers.profile.memberSince")} {memberSince}</span></>}
                     </p>
 
@@ -149,14 +144,7 @@ export function HeroIdentityBanner({
                     {/* Tags (in their colour) and the peer badge on one line */}
                     {(shownTags.length > 0 || shownScore !== null) && (
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                            {shownTags.map((tag) => {
-                                const tone = tagColorClasses[tag.color as TagColor] ?? tagColorClasses.gray;
-                                return (
-                                    <span key={tag.id} className={cn("px-2.5 py-0.5 rounded-full text-xs font-semibold", tone.bg, tone.text)}>
-                                        <bdi>{tag.name}</bdi>
-                                    </span>
-                                );
-                            })}
+                            {shownTags.map((tag) => <CustomerTagChip key={tag.id} name={tag.name} color={tag.color} />)}
                             {shownScore !== null && <PeerComparisonBadge phone={phone} />}
                         </div>
                     )}
@@ -217,6 +205,13 @@ export function HeroIdentityBanner({
                         {t(codRiskKey("blocked"))}
                     </p>
                 )
+            ) : shownScore === null ? (
+                // Not scored yet: said in words, as the drawer says it, with no breakdown to open.
+                // The trust card below says when the score appears.
+                <div className="flex flex-col items-end shrink-0 gap-1">
+                    <span className="text-muted-foreground font-semibold text-xs">{t("customers.profile.trustScore")}</span>
+                    <span className="text-sm font-semibold text-muted-foreground">{t("customers.trust.notScored")}</span>
+                </div>
             ) : (
                 <button
                     onClick={() => {
@@ -230,29 +225,17 @@ export function HeroIdentityBanner({
                     </span>
 
                     <div className="flex items-end gap-1.5">
-                        {shownScore === null ? (
-                            <span className="text-2xl font-semibold text-muted-foreground leading-none">—</span>
-                        ) : (
-                            <>
-                                <span className="text-4xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
-                                    {shownScore.toLocaleString("en-US")}
-                                </span>
-                                <span className="text-lg text-muted-foreground mb-0.5">/100</span>
-                            </>
-                        )}
+                        <span className="text-4xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
+                            {shownScore.toLocaleString("en-US")}
+                        </span>
+                        <span className="text-lg text-muted-foreground mb-0.5">/100</span>
                     </div>
 
-                    {/* Shield icon */}
-                    {/* Green for a strong score; amber reads as a warning. */}
-                    <p className={cn(
-                        "inline-flex items-center gap-1.5 text-xs font-medium",
-                        unsafe ? "text-rose-600 dark:text-rose-400"
-                            : shownScore !== null && shownScore >= 80 ? "text-emerald-700 dark:text-emerald-300"
-                            : "text-muted-foreground",
-                    )}>
-                        <ShieldIcon className="w-4 h-4 shrink-0" />
-                        {t(TRUST_SCORE_SUBTITLE_KEY[tier])}
-                    </p>
+                    {/* The way in to how the number is built, visible rather than a hidden click on the number. */}
+                    <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-muted-foreground underline-offset-2 group-hover:text-foreground group-hover:underline">
+                        {t("customers.trust.seeBreakdown")}
+                        <ChevronRight className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                    </span>
                 </button>
             )}
         </motion.div>

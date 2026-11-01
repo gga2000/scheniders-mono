@@ -17,6 +17,19 @@ import type { Category, Product } from "../types";
 
 afterEach(cleanup);
 
+// jsdom has no HTMLDialogElement.showModal/close. The browser's versions add
+// focus trapping and inertness on top; the open/closed state is what the
+// tests below rely on, and that is all this stands in for.
+beforeEach(() => {
+  const proto = window.HTMLDialogElement.prototype;
+  proto.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  proto.close = function close(this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  };
+});
+
 // The controls write themselves into the URL, and read it back on mount. That
 // is the point of them — but it means one case's filter would otherwise arrive
 // as the next case's starting state.
@@ -67,6 +80,16 @@ const cards = (root: HTMLElement) =>
 function press(el: HTMLElement | null): void {
   if (!el) throw new Error("expected a control to press");
   fireEvent.click(el);
+}
+
+/** Facets and the price split sit in the «فلتر» sheet; open it first. */
+function openFilters(root: HTMLElement): void {
+  press(root.querySelector<HTMLButtonElement>("[data-catalog-filter-open]"));
+}
+
+/** The sheet's primary action: shows the results and closes the sheet. */
+function applyFilters(root: HTMLElement): void {
+  press(root.querySelector<HTMLButtonElement>("[data-catalog-filter-apply]"));
 }
 
 function chip(name: string): HTMLElement {
@@ -168,8 +191,10 @@ describe("CatalogGrid", () => {
   it("counts every chip against the price filter that is already on", () => {
     const { container } = mount();
     // The split for this catalogue is the median 40,000.
+    openFilters(container);
     const under = chip("أقل من");
     fireEvent.click(under);
+    applyFilters(container);
     const night = chip("ليلي");
     const promised = Number(within(night).getByText(/^\d+$/).textContent);
     // p1 and p2 are under 40,000; p3 is not. A chip that ignored the active
@@ -397,7 +422,9 @@ describe("CatalogGrid — attribute facets", () => {
     expect(
       container.querySelector('[data-attribute-facet="scent_family"]'),
     ).not.toBeNull();
+    openFilters(container);
     press(chip("شرقي"));
+    applyFilters(container);
     expect(cards(container).sort()).toEqual(["p1", "p2"]);
     // Category chips count inside the facet selection, so "night" now
     // advertises the two oriental products it actually yields.
@@ -407,7 +434,9 @@ describe("CatalogGrid — attribute facets", () => {
 
   it("clears the facet together with the other filters", () => {
     const { container } = mountFacets(true);
+    openFilters(container);
     press(chip("خشبي"));
+    applyFilters(container);
     expect(cards(container)).toEqual(["p3"]);
     press(container.querySelector<HTMLButtonElement>("[data-clear-filters]"));
     expect(cards(container)).toHaveLength(5);
@@ -418,6 +447,34 @@ describe("CatalogGrid — attribute facets", () => {
     window.history.replaceState(null, "", "/?attr=scent_family%3Awoody");
     const { container } = mountFacets(true);
     expect(cards(container)).toEqual(["p3"]);
+    openFilters(container);
     expect(chip("خشبي").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("keeps the facet rails off the page until «فلتر» is pressed", () => {
+    const { container } = mountFacets(true);
+    const sheet = container.querySelector("[data-catalog-filter-sheet]");
+    expect(sheet?.hasAttribute("open")).toBe(false);
+    openFilters(container);
+    expect(sheet?.hasAttribute("open")).toBe(true);
+  });
+
+  it("badges the filter button with what the sheet is narrowing by", () => {
+    const { container } = mountFacets(true);
+    expect(container.querySelector("[data-catalog-filter-count]")).toBeNull();
+    openFilters(container);
+    press(chip("شرقي"));
+    press(chip("أقل من"));
+    expect(container.querySelector("[data-catalog-filter-count]")?.textContent).toBe("2");
+  });
+
+  it("names the live yield on the sheet's apply button", () => {
+    const { container } = mountFacets(true);
+    openFilters(container);
+    press(chip("شرقي"));
+    const apply = container.querySelector("[data-catalog-filter-apply]");
+    // Two oriental perfumes: Arabic says it with the dual, not a numeral.
+    expect(cards(container)).toHaveLength(2);
+    expect(apply?.textContent).toBe("اعرض عطران");
   });
 });

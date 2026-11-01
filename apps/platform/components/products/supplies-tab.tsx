@@ -1,4 +1,5 @@
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useSupplierLinks } from "@/hooks/use-supplier-links";
 import { useQueryClient } from "@tanstack/react-query";
 import { productKeys } from "@/hooks/use-products-query";
 import { productRepository } from "@/lib/repositories/product-repository";
@@ -33,7 +34,7 @@ import { SuppliesBulkActionsBar } from "@/components/products/supplies/supplies-
 import { useOpenPosBySupply } from "@/hooks/use-open-pos-by-supply";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
 import { useTenantSupplyHistory } from "@/hooks/use-tenant-supply-history";
-import { aggregateSuppliers, type AggregatedSupplier } from "@/lib/utils/suppliers-aggregate";
+import { aggregateSuppliers } from "@/lib/utils/suppliers-aggregate";
 import { Users } from "lucide-react";
 import { Product } from "@/lib/supabase";
 
@@ -83,7 +84,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     const [reorderOpen, setReorderOpen] = useState(false);
     const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
     const [section, setSection] = useState<Section>("supplies");
-    const [selectedSupplier, setSelectedSupplier] = useState<AggregatedSupplier | null>(null);
+    const [selectedSupplierKey, setSelectedSupplierKey] = useState<string | null>(null);
     const [selectedSupplyId, setSelectedSupplyId] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -122,9 +123,15 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         } catch {}
     };
 
+    const { data: supplierLinks, isError: supplierLinksFailed } = useSupplierLinks();
+    // Until the links are in, every supply would read as "no supplier" with default lead time.
+    const supplierLinksReady = supplierLinks !== undefined && !supplierLinksFailed;
     const supplies = useMemo(
-        () => products.filter((p) => p.is_supply && !p.is_archived),
-        [products]
+        () =>
+            products
+                .filter((p) => p.is_supply && !p.is_archived)
+                .map((p) => ({ ...p, suppliers: supplierLinks?.get(p.id) ?? [] })),
+        [products, supplierLinks]
     );
 
     const supplyIds = useMemo(() => supplies.map((s) => s.id), [supplies]);
@@ -299,6 +306,12 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     const aggregatedSuppliers = useMemo(
         () => aggregateSuppliers({ supplies, pos: supplierPos }),
         [supplies, supplierPos]
+    );
+
+    // Derived from the live roll-up so a send or receive shows in the open drawer.
+    const selectedSupplier = useMemo(
+        () => aggregatedSuppliers.find((sp) => sp.key === selectedSupplierKey) ?? null,
+        [aggregatedSuppliers, selectedSupplierKey]
     );
 
     const selectedSupplies = useMemo(
@@ -678,7 +691,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     <SuppliersGrid
                         suppliers={aggregatedSuppliers}
                         searchQuery={searchQuery}
-                        onSelect={setSelectedSupplier}
+                        onSelect={(sp) => setSelectedSupplierKey(sp.key)}
                     />
                 </div>
             )}
@@ -688,6 +701,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                 onClose={() => setReorderOpen(false)}
                 supplies={supplies}
                 openPoBySupply={openPoBySupply}
+                supplierLinksReady={supplierLinksReady}
                 snoozedIds={snoozedIds}
                 onSnooze={handleSnooze}
                 onUnsnooze={handleUnsnooze}
@@ -696,7 +710,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
             <SupplierDetailDrawer
                 open={selectedSupplier !== null}
                 supplier={selectedSupplier}
-                onClose={() => setSelectedSupplier(null)}
+                onClose={() => setSelectedSupplierKey(null)}
                 onSelectSupply={onEdit}
             />
 

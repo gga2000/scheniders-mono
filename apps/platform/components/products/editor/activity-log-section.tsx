@@ -14,6 +14,7 @@ import {
     Clock,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ActivityLogEntry {
     id?: string;
@@ -150,6 +151,7 @@ function formatValue(val: any): string {
 const INITIAL_LIMIT = 10;
 
 export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
+    const { t } = useLanguage();
     const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
     const [showAll, setShowAll] = useState(false);
 
@@ -172,7 +174,7 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
         <div className="space-y-5">
             {entries.length === 0 ? (
                 <p className="text-sm text-muted py-4 text-center">
-                    No activity recorded yet
+                    {t("products.activity.empty")}
                 </p>
             ) : (
                 <div className="relative pl-8 before:absolute before:left-3 before:top-0 before:bottom-0 before:w-0.5 before:bg-[var(--card-border)]">
@@ -224,12 +226,12 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
                                                 {isExpanded ? (
                                                     <>
                                                         <ChevronUp className="w-3.5 h-3.5" />
-                                                        Hide changes
+                                                        {t("products.activity.hide")}
                                                     </>
                                                 ) : (
                                                     <>
                                                         <ChevronDown className="w-3.5 h-3.5" />
-                                                        Show changes
+                                                        {t("products.activity.show")}
                                                     </>
                                                 )}
                                             </button>
@@ -288,7 +290,7 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
                         {showAll ? (
                             <>
                                 <ChevronUp className="w-4 h-4" />
-                                Show less
+                                {t("products.activity.less")}
                             </>
                         ) : (
                             <>

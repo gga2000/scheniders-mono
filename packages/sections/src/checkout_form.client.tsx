@@ -40,7 +40,7 @@ import {
   normalizeReferralCode,
   stackDiscounts,
 } from "@scheniders/shared";
-import { trackPixel, newPixelEventId } from "./helpers/pixels";
+import { trackPixel, newPixelEventId, handOffPurchase } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import {
   clearCustomerMemory,
@@ -631,17 +631,25 @@ export function CheckoutFormRender({
         } catch {
           /* sessionStorage unavailable — the recap just won't render */
         }
-        // Pixel Purchase — same event_id the server sent to CAPI (dedup).
-        trackPixel(
-          "Purchase",
-          pixelContentsFromItems(items),
-          purchaseEventIdRef.current ?? undefined,
-        );
+        // The order is placed: settle the cart and keys now, before anything
+        // async, so nothing later (a slow hash below) can leave them half-done.
+        const purchaseEventId = purchaseEventIdRef.current;
         clearCart();
         // EC17: order placed — retire the key so a future order isn't deduped
         // against this one.
         idempotencyKeyRef.current = null;
         purchaseEventIdRef.current = null;
+        // Pixel Purchase — same event_id the server sent to CAPI (dedup),
+        // handed to the thank-you page so the navigation below cannot cancel
+        // it (helpers/pixels handOffPurchase).
+        if (purchaseEventId) {
+          await handOffPurchase({
+            tenantId,
+            phone: form.phone,
+            data: pixelContentsFromItems(items),
+            eventId: purchaseEventId,
+          });
+        }
         setStatus("ok");
         // Navigate to the celebratory thank-you page (full nav keeps the stash).
         window.location.href = `${base}/checkout/success${

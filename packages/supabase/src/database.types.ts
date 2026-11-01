@@ -2428,11 +2428,13 @@ export type Database = {
           created_at: string
           description: string | null
           expense_date: string
+          external_key: string | null
           id: string
           is_recurring: boolean | null
           notes: string | null
           order_id: string | null
           recurring_period: string | null
+          source: string | null
           tenant_id: string | null
           updated_at: string | null
         }
@@ -2442,11 +2444,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           expense_date: string
+          external_key?: string | null
           id?: string
           is_recurring?: boolean | null
           notes?: string | null
           order_id?: string | null
           recurring_period?: string | null
+          source?: string | null
           tenant_id?: string | null
           updated_at?: string | null
         }
@@ -2456,11 +2460,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           expense_date?: string
+          external_key?: string | null
           id?: string
           is_recurring?: boolean | null
           notes?: string | null
           order_id?: string | null
           recurring_period?: string | null
+          source?: string | null
           tenant_id?: string | null
           updated_at?: string | null
         }
@@ -8952,6 +8958,15 @@ export type Database = {
           review_product_slug: string
           stage: string
           status: string
+        }[]
+      }
+      lookup_orders_by_phone: {
+        Args: { p_phone: string; p_tenant_id: string }
+        Returns: {
+          item_count: number
+          order_number: string
+          placed_at: string
+          stage: string
         }[]
       }
       loyalty_phone_key: { Args: { _phone: string }; Returns: string }

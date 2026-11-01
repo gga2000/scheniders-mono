@@ -10,6 +10,7 @@ import { useReportsMetrics, useDateRangePresets, DateRange } from "@/hooks/use-r
 import { useEmployeeMetrics } from "@/hooks/use-employee-metrics";
 import { useBatchAnalytics } from "@/hooks/use-batch-analytics";
 import { useChannelPerformance } from "@/hooks/use-channel-performance";
+import { cn } from "@/lib/utils";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 import { exportReportsToCSV, exportReportsToExcel, printOperationalReport } from "@/lib/reports-export";
@@ -106,6 +107,7 @@ export default function ReportsPage() {
         [returns, current]
     );
     const loading = reportOrders.isPending;
+    const refreshing = reportOrders.isPlaceholderData;
     const error = reportOrders.error ? reportOrders.error.message : null;
 
     // Use real employee metrics from activity_logs
@@ -208,7 +210,10 @@ export default function ReportsPage() {
 
     return (
         <div className="min-h-screen p-6 md:p-8 bg-[var(--background)]">
-            <div className="max-w-[1920px] mx-auto space-y-8">
+            <div
+                className={cn("max-w-[1920px] mx-auto space-y-8 transition-opacity", refreshing && "opacity-60")}
+                aria-busy={refreshing}
+            >
 
                 {/* Header */}
                 <motion.div

@@ -2,7 +2,7 @@
 
 import { MessageCircle, Phone, Check, User } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { TOOLBAR_STICKY_TOP } from "@/components/customers/list/customer-toolbar";
-import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
+import { formatPhoneDisplay, monogram, spentLabel, toIraqE164 } from "@/lib/customer-format";
 
 function successTone(rate: number): string {
     if (rate >= 80) return "text-lime-700 dark:text-lime-300";
@@ -93,7 +93,8 @@ export function CustomerListTable({
                         <Th>{t("customers.value.label", "Value")}</Th>
                         <Th>{t("customers.risk.label", "COD risk")}</Th>
                         <Th right>{t("customers.table.ordersRate", "Orders · rate")}</Th>
-                        <Th right>{t("customers.totalSpent")}</Th>
+                        {/* What the figure leaves out (delivery, undelivered orders) is on hover, so the header stays short. */}
+                        <Th right><span title={t("customers.spentOnItemsHint")}>{t("customers.spentOnItems")}</span></Th>
                         <Th>{t("customers.lastOrder")}</Th>
                         <Th className="rounded-tr-2xl"><span className="sr-only">{t("customers.actions.whatsapp")}</span></Th>
                     </tr>
@@ -159,10 +160,12 @@ export function CustomerListTable({
                                     <RiskChip risk={c.risk_level} showClean />
                                     {/* Wraps onto a second line rather than clipping a flag. Each flag after the
                                         first carries its "·" in a 0.75rem lead; the row is pulled back by that lead
-                                        and clipped, so a flag that starts a line never shows a dangling separator. */}
+                                        and clipped, so a flag that starts a line never shows a dangling separator.
+                                        dir="auto": Arabic flags read count-first and run right to left; the clip box
+                                        hugs the list (w-fit), so it stays under the risk chip on the left. */}
                                     {flags.length > 0 && (
-                                        <div className="mt-0.5 overflow-hidden">
-                                            <ul className="-ms-3 flex flex-wrap text-xs text-muted-foreground leading-snug">
+                                        <div className="mt-0.5 w-fit max-w-full overflow-hidden">
+                                            <ul dir="auto" className="-ms-3 flex flex-wrap text-xs text-muted-foreground leading-snug">
                                                 {flags.map((f) => (
                                                     <li key={f} className="whitespace-nowrap before:content-['·'] before:inline-block before:w-3 before:text-center">{f}</li>
                                                 ))}
@@ -180,7 +183,7 @@ export function CustomerListTable({
                                 </td>
                                 {/* Lifetime value */}
                                 <td className={cn(td, "text-right font-mono text-sm tabular-nums text-foreground whitespace-nowrap")}>
-                                    {pending && c.total_spent === 0 ? "—" : formatIQD(c.total_spent)}
+                                    {spentLabel(c.total_spent, pending)}
                                 </td>
                                 {/* Last order: one line, the full recency in the tooltip */}
                                 <td className={td}>

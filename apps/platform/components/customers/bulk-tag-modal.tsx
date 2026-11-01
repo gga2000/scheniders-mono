@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tag as TagIcon, Search, Plus, Loader2 } from "lucide-react";
+import { Tag as TagIcon, Search, Plus, Loader2, Info } from "lucide-react";
 import { useCustomerTags } from "@/hooks/use-customer-management";
-import { tagColorClasses } from "@/types/customer";
+import { tagNameMatchesRating } from "@/lib/customer-reliability";
+import { CustomerTagChip } from "@/components/customers/customer-tag-chip";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
@@ -36,6 +37,8 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
     );
     const newTagName = search.trim();
     const canCreate = newTagName.length > 0 && !tags.some((tag) => tag.name.trim().toLowerCase() === newTagName.toLowerCase());
+    // A tag named "VIP" or "Blocked" changes neither the rating nor its saved view: say so before it is made.
+    const clashesWithRating = canCreate && tagNameMatchesRating(newTagName);
 
     // Same create-and-pick the customer drawer offers, so a store with no
     // tags yet can tag a selection without leaving the list.
@@ -77,7 +80,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                 <>
                     <button
                         onClick={onClose}
-                        className="flex-1 h-11 px-4 bg-(--card-bg) border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted/30 font-semibold rounded-xl transition-colors"
+                        className="flex-1 h-11 px-4 bg-(--card-bg) border border-(--card-border) text-foreground hover:bg-muted/30 font-semibold rounded-xl transition-colors"
                         disabled={isLoading}
                     >
                         {t("customers.bulk.cancel")}
@@ -111,6 +114,13 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
 
             {/* Tag List */}
             <div className="max-h-60 overflow-y-auto pr-1 space-y-1.5">
+                {/* The warning comes before the action it warns about. */}
+                {clashesWithRating && (
+                    <p role="status" className="flex items-start gap-2 px-3 py-2 rounded-xl bg-muted/40 text-xs text-muted-foreground">
+                        <Info className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
+                        <span dir="auto">{t("customers.tag.ratingClash", { name: newTagName })}</span>
+                    </p>
+                )}
                 {canCreate && (
                     <button
                         onClick={handleCreate}
@@ -118,7 +128,8 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                         className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-(--card-border) hover:border-foreground/40 bg-background text-left text-sm font-medium transition-colors disabled:opacity-60"
                     >
                         {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        {t("customers.bulkTag.create", { name: newTagName })}
+                        {/* dir="auto": an Arabic label keeps its «quotes» around the name. */}
+                        <span dir="auto">{t("customers.bulkTag.create", { name: newTagName })}</span>
                     </button>
                 )}
                 {filteredTags.length === 0 ? (
@@ -130,7 +141,6 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                 ) : (
                     filteredTags.map((tag) => {
                         const isSelected = selectedTagIds.has(tag.id);
-                        const colorTheme = tagColorClasses[tag.color] ?? tagColorClasses.gray;
                         return (
                             <button
                                 key={tag.id}
@@ -148,9 +158,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                                 )}>
                                     {isSelected && <span className="w-2 h-2 bg-background rounded-full" />}
                                 </span>
-                                <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", colorTheme.bg, colorTheme.text)}>
-                                    <bdi>{tag.name}</bdi>
-                                </span>
+                                <CustomerTagChip name={tag.name} color={tag.color} />
                             </button>
                         );
                     })

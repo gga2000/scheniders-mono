@@ -4,6 +4,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { ContactAttemptMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { ORDINAL_BLUES } from "@/lib/analytics/chart-categories";
 import { MessageCircle, TrendingDown, Zap } from "lucide-react";
 
 interface ContactHeatmapProps {
@@ -40,7 +41,7 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
     const pieData = data.map(d => ({
         name: d.label,
         value: d.count,
-        color: d.color,
+        color: ORDINAL_BLUES[d.attempts],
         confirmationRate: d.confirmationRate,
     }));
 
@@ -121,25 +122,19 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                             <motion.div
                                 key={d.attempts}
                                 variants={item}
-                                className="p-3 rounded-xl border-2 transition-all hover:scale-[1.02] cursor-pointer"
-                                style={{
-                                    borderColor: `${d.color}40`,
-                                    backgroundColor: `${d.color}10`
-                                }}
+                                className="p-3 rounded-xl border border-gray-200 bg-gray-50"
                             >
-                                <div
-                                    className="text-xs font-bold mb-1"
-                                    style={{ color: d.color }}
-                                >
+                                <div className="flex items-center gap-2 text-xs font-bold mb-1 text-foreground">
+                                    <span
+                                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: ORDINAL_BLUES[d.attempts] }}
+                                    />
                                     {t(`reports.contact.bucket.${d.attempts}`, d.label)}
                                 </div>
                                 <div className="text-xl font-bold text-foreground">{d.count}</div>
                                 <div className="flex items-center gap-1 mt-1">
                                     <span className="text-[10px] text-muted">{t("reports.contact.conv")}</span>
-                                    <span
-                                        className="text-xs font-bold"
-                                        style={{ color: d.confirmationRate >= 50 ? '#22C55E' : '#F59E0B' }}
-                                    >
+                                    <span className="text-xs font-bold text-foreground">
                                         {d.confirmationRate.toFixed(0)}%
                                     </span>
                                 </div>

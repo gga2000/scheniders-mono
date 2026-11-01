@@ -24,6 +24,7 @@ vi.mock("@/lib/draft-view", () => ({
 }));
 // The loyalty proof's per-IP limiter reads the request's address.
 vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: () => undefined }),
   headers: vi.fn(async () => new Headers({ "x-forwarded-for": "203.0.113.7" })),
 }));
 // Piece 1's instant WhatsApp confirmation: queued for a new order only.

@@ -32,14 +32,14 @@ describe("aggregateSuppliers", () => {
         expect(result[0].avgLeadTimeDays).toBe(6);
     });
 
-    it("counts draft, sent, confirmed and partial POs as open", () => {
+    it("counts sent, confirmed and partial POs as open, not drafts", () => {
         const [acme] = aggregateSuppliers({
             supplies: [],
             pos: ["draft", "sent", "confirmed", "partial", "received", "cancelled"].map((status, i) =>
                 po({ id: `po${i}`, status })
             ),
         });
-        expect(acme.openPoCount).toBe(4);
+        expect(acme.openPoCount).toBe(3);
     });
 
     it("counts this year's spend on ordered POs only: not drafts, not cancelled", () => {
