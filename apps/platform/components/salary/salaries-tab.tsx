@@ -18,7 +18,6 @@ import { exportCurrentPeriodCSV } from "@/lib/payroll-csv-export";
 import { generatePayrollSummaryPDF, downloadSummaryBlob } from "@/lib/payroll-summary-pdf";
 
 import { SalaryOverviewCards } from "./salary-overview-cards";
-import { OrderQualityStrip } from "./order-quality-strip";
 import { SalariesCommandBar } from "./salaries-command-bar";
 import { SalariesTabBar, type SalariesSort, type SalariesSubTab } from "./salaries-tab-bar";
 import { EmployeePayrollCard } from "./employee-payroll-card";
@@ -178,7 +177,7 @@ function ConfirmPayrollDialog({
                                 value={notes}
                                 onChange={e => setNotes(e.target.value)}
                                 placeholder={t("payroll.confirm.notesPlaceholder")}
-                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all"
+                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all"
                             />
                         </div>
 
@@ -571,18 +570,16 @@ export function SalariesTab() {
                 </div>
             )}
 
-            {/* ── Row 2: Inline stats strip ── */}
-            <SalaryOverviewCards
+                        <SalaryOverviewCards
                 totalDue={totalDue}
                 employeeCount={effectiveEmployeeData.length}
                 totalPendingAdvances={totalPendingAdvances}
                 totalPendingPenalties={totalPendingPenalties}
+                breakdown={periodBreakdown}
                 onAdvancesClick={() => setActiveSubTab("advances")}
                 onPenaltiesClick={() => setActiveSubTab("penalties")}
             />
 
-            {/* ── Row 2b: Order-quality strip (business-wide, selected period) ── */}
-            <OrderQualityStrip breakdown={periodBreakdown} />
 
             <SalariesTabBar
                 activeTab={activeSubTab}

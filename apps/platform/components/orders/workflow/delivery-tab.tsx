@@ -396,7 +396,7 @@ export function DeliveryTab({
                                         value={customReason}
                                         onChange={(e) => setCustomReason(e.target.value)}
                                         placeholder="أدخل سبب الرفض..."
-                                        className="w-full px-4 py-3 rounded-xl border-2 border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-muted focus:border-rose-300 focus:outline-none transition-all"
+                                        className="w-full px-4 py-3 rounded-xl border-2 border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-[var(--foreground-muted)] focus:border-rose-300 focus:outline-none transition-all"
                                     />
                                 )}
                             </div>

@@ -676,7 +676,7 @@ export function EmployeePayrollCard({
                                         title={calculation.netSalary === 0 ? t("payroll.card.nothingToPayShort") : undefined}
                                         className={cn(
                                             "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
-                                            "bg-emerald-600 text-white hover:bg-emerald-700",
+                                            "bg-[var(--ink)] text-white hover:opacity-90",
                                             "disabled:opacity-50 disabled:cursor-not-allowed"
                                         )}
                                     >

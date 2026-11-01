@@ -149,7 +149,7 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
                                 onChange={(e) => setQuery(e.target.value)}
                                 onKeyDown={onKey}
                                 placeholder="Jump to a tab, change the period, or run an action…"
-                                className="flex-1 bg-transparent text-[14px] text-foreground placeholder:text-muted focus:outline-none"
+                                className="flex-1 bg-transparent text-[14px] text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none"
                             />
                             <kbd className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--card-border)] text-muted font-mono">ESC</kbd>
                         </div>

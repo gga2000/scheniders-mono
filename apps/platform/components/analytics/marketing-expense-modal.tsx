@@ -102,7 +102,7 @@ export function MarketingExpenseModal({
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
                                         placeholder="Enter amount..."
-                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
+                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
                                         required
                                         min="0"
                                     />
@@ -143,7 +143,7 @@ export function MarketingExpenseModal({
                                         onChange={(e) => setNotes(e.target.value)}
                                         placeholder="e.g., Facebook ads, Instagram promotion..."
                                         rows={3}
-                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all resize-none"
+                                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all resize-none"
                                     />
                                 </div>
 
