@@ -85,12 +85,12 @@ export function CustomersAcquisitionMix({ data }: Props) {
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" vertical={false} />
                         <XAxis
                             dataKey="label"
-                            tick={{ fontSize: 11, fill: "var(--muted)" }}
+                            tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                             axisLine={false}
                             tickLine={false}
                         />
                         <YAxis
-                            tick={{ fontSize: 11, fill: "var(--muted)" }}
+                            tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
                             axisLine={false}
                             tickLine={false}
                             tickFormatter={(v) => abbrev(v)}
