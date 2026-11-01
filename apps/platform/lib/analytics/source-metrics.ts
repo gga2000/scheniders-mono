@@ -201,7 +201,7 @@ export function calculatePeriodComparison(
 
     // Calculate percentage changes
     const calcChange = (curr: number, prev: number) => {
-        if (prev === 0) return curr > 0 ? 100 : 0;
+        if (prev === 0) return 0; // no baseline: no trend
         return ((curr - prev) / prev) * 100;
     };
 

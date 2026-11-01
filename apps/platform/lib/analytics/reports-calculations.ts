@@ -20,6 +20,7 @@ export interface KPIMetrics {
     totalOrders: number;
     totalOrdersChange: number;
     deliveryRate: number;
+    /** Percentage points (rates), not relative percent. */
     deliveryRateChange: number;
     contactSuccessRate: number;
     contactSuccessChange: number;
@@ -153,22 +154,28 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
     const current = calcMetrics(currentOrders);
     const previous = calcMetrics(previousOrders);
 
+    // Relative change for counts and times; 0 (no trend shown) when there is no baseline —
+    // "+100%" against an empty previous period is not a trend.
     const calcChange = (curr: number, prev: number) => {
-        if (prev === 0) return curr > 0 ? 100 : 0;
+        if (prev === 0) return 0;
         return ((curr - prev) / prev) * 100;
     };
+    // Rates change in percentage POINTS: 80% -> 79% is -1pp, not -1.2%. Needs a baseline too.
+    const calcRateChange = (curr: number, prev: number, hasBaseline: boolean) =>
+        hasBaseline ? curr - prev : 0;
+    const hasBaseline = previousOrders.length > 0;
 
     return {
         totalOrders: current.total,
         totalOrdersChange: calcChange(current.total, previous.total),
         deliveryRate: current.deliveryRate,
-        deliveryRateChange: calcChange(current.deliveryRate, previous.deliveryRate),
+        deliveryRateChange: calcRateChange(current.deliveryRate, previous.deliveryRate, hasBaseline),
         contactSuccessRate: current.contactSuccessRate,
-        contactSuccessChange: calcChange(current.contactSuccessRate, previous.contactSuccessRate),
+        contactSuccessChange: calcRateChange(current.contactSuccessRate, previous.contactSuccessRate, hasBaseline),
         rejectionRate: current.rejectionRate,
-        rejectionRateChange: calcChange(current.rejectionRate, previous.rejectionRate),
+        rejectionRateChange: calcRateChange(current.rejectionRate, previous.rejectionRate, hasBaseline),
         noResponseRate: current.noResponseRate,
-        noResponseChange: calcChange(current.noResponseRate, previous.noResponseRate),
+        noResponseChange: calcRateChange(current.noResponseRate, previous.noResponseRate, hasBaseline),
         avgProcessingTime: current.avgProcessingTime,
         avgProcessingTimeChange: calcChange(current.avgProcessingTime, previous.avgProcessingTime),
     };

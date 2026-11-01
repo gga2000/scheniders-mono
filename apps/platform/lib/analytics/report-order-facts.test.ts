@@ -57,3 +57,15 @@ describe("csvCell", () => {
         expect(csvCell("-cmd")).toBe(`"'-cmd"`);
     });
 });
+
+describe("KPI change", () => {
+    it("rates change in points and an empty baseline shows no trend", () => {
+        const cur = [order({}), order({ status: "rejected" })]; // 50% delivery
+        const prev = [order({}), order({}), order({ status: "rejected" }), order({})]; // 75%
+        const k = calculateKPIs(cur, prev);
+        expect(k.deliveryRateChange).toBeCloseTo(-25);
+        const none = calculateKPIs(cur, []);
+        expect(none.totalOrdersChange).toBe(0);
+        expect(none.deliveryRateChange).toBe(0);
+    });
+});
