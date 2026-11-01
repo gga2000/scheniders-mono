@@ -6,6 +6,8 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useMetaAdsAutoRefresh, useMetaAdsConnection, useMetaAdsReport, useMetaAdsSyncNow, type CampaignTotals } from "@/hooks/use-meta-ads";
 import { MetaAdsConnectCard } from "@/components/ads/meta-ads-connect-card";
+import { MetaTokenBanner } from "@/components/ads/meta-token-banner";
+import { tokenWarning } from "@/lib/meta-token-warning";
 import { AdLinkCard } from "@/components/ads/ad-link-card";
 import { AdsDailyChart } from "@/components/ads/ads-daily-chart";
 import { AD_RANGE_PRESETS, pctChange, type AdRangePreset } from "@/lib/ads-report";
@@ -121,11 +123,12 @@ export default function AdsPage() {
                     {t("ads.syncFailed")}: {connection.data.last_error}
                 </p>
             ) : null}
+            <MetaTokenBanner health={connection.data?.tokenHealth} />
             {sync.isError && sync.error.message !== connection.data?.last_error ? (
                 <p className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600">{sync.error.message}</p>
             ) : null}
 
-            {connection.isSuccess && (!connection.data || connection.data.last_error) ? (
+            {connection.isSuccess && (!connection.data || connection.data.last_error || tokenWarning(connection.data.tokenHealth, new Date()) !== null) ? (
                 <MetaAdsConnectCard initialAdAccountId={connection.data?.ad_account_id ?? ""} initialUsdToIqd={connection.data?.usd_to_iqd ?? 1717} />
             ) : null}
 
