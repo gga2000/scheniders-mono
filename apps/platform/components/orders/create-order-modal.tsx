@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { DeliverySlotPicker } from "@/components/orders/delivery-slot-picker";
 import {
     Dialog,
     DialogContent,
@@ -975,28 +976,10 @@ export function CreateOrderModal({
                                                 <Clock className="h-2.5 w-2.5" />
                                                 {t("orders.create.deliverySlot")}
                                             </span>
-                                            <div className="flex gap-1">
-                                                {[
-                                                    { value: "morning" as const, label: t("orders.create.morning"), icon: Sun, active: "bg-amber-50 border-amber-300 text-amber-700" },
-                                                    { value: "afternoon" as const, label: t("orders.create.afternoon"), icon: CloudSun, active: "bg-orange-50 border-orange-300 text-orange-700" },
-                                                    { value: "evening" as const, label: t("orders.create.evening"), icon: Moon, active: "bg-indigo-50 border-indigo-300 text-indigo-700" },
-                                                ].map(({ value, label, icon: Icon, active }) => (
-                                                    <button
-                                                        key={value}
-                                                        type="button"
-                                                        onClick={() => updateField("delivery_slot", formData.delivery_slot === value ? undefined : value)}
-                                                        className={cn(
-                                                            "flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium border transition-all",
-                                                            formData.delivery_slot === value
-                                                                ? active
-                                                                : "bg-white border-[var(--card-border)] text-muted hover:bg-gray-50"
-                                                        )}
-                                                    >
-                                                        <Icon className="h-3 w-3" />
-                                                        {label}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                            <DeliverySlotPicker
+                                                value={formData.delivery_slot}
+                                                onChange={(slot) => updateField("delivery_slot", slot)}
+                                            />
                                         </div>
                                     )}
                                 </div>

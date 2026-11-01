@@ -1,3 +1,4 @@
+import type { DeliverySlot } from '@/lib/orders/delivery-slot';
 // =============================================
 // ORDER DOMAIN TYPES
 // Centralized type definitions for all order-related entities
@@ -34,7 +35,8 @@ export type OrderPriority = 'normal' | 'high' | 'urgent';
 
 export type PaymentStatus = 'pending' | 'cod' | 'prepaid' | 'partial' | 'paid';
 
-export type DeliverySlot = 'morning' | 'afternoon' | 'evening';
+/** A default window or the customer's exact time (lib/orders/delivery-slot.ts). */
+export type { DeliverySlot };
 
 // Every value orders.source holds in production (checked 2026-11-01), incl.
 // 'prime', 'excel_import' and 'manual', which the old union left out.
