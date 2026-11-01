@@ -20,8 +20,9 @@ import { ChapterHeading } from "./helpers/chapter-heading";
 import { formatCount, formatPrice } from "./helpers/format";
 import { useCart } from "./helpers/cart-store";
 import { readsRtl } from "./helpers/reading";
-import { SOFT_CARD, SOFT_RECEIPT } from "./helpers/soft-commerce";
+import { SOFT_RECEIPT } from "./helpers/soft-commerce";
 import { cn } from "./helpers/utils";
+import { EmptyCartState } from "./helpers/empty-cart";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./cart_line_items";
 
@@ -85,26 +86,7 @@ export function CartLineItemsRender({
   }
 
   if (items.length === 0) {
-    return (
-      <section className="px-4 py-bk-section">
-        <div
-          className="p-bk-xl text-center"
-          style={{
-            backgroundColor: "var(--bk-surface-alt, #f7f4ee)",
-            border: INK_BORDER,
-            borderRadius: "var(--bk-radius-card, 1rem)",
-          }}
-        >
-          <MaterialIcon
-            name="shopping_bag"
-            className="text-5xl text-bk-ink-faint"
-          />
-          <h1 className="mt-bk-sm font-display font-black text-bk-h2 text-bk-ink text-balance">
-            {emptyMessage}
-          </h1>
-        </div>
-      </section>
-    );
+    return <EmptyCartState message={emptyMessage} locale={locale} />;
   }
 
   const itemCount = items.reduce((n, i) => n + i.quantity, 0);
@@ -259,14 +241,7 @@ function SoftCartLines({
 }) {
   const rtl = readsRtl(locale);
   if (items.length === 0) {
-    return (
-      <section className="px-4 py-bk-section" data-cart-style="soft">
-        <div className={cn(SOFT_CARD, "flex flex-col items-center gap-bk-sm p-bk-xl text-center")}>
-          <MaterialIcon name="shopping_bag" className="text-5xl text-bk-ink-faint" />
-          <h1 className="font-bk-display text-bk-chapter font-black text-bk-ink text-balance">{emptyMessage}</h1>
-        </div>
-      </section>
-    );
+    return <EmptyCartState message={emptyMessage} locale={locale} soft />;
   }
   const itemCount = items.reduce((n, i) => n + i.quantity, 0);
   return (

@@ -21,10 +21,8 @@ export const IRAQ_TENANT: Tenant = {
   id: "b5c4f2d4-834f-4af4-822d-9b9826a8f45a",
   business_name: "شنايدر",
   slug: "scheniders-iraq",
-  plan: "pro",
   status: "active",
   branding: {},
-  settings: {},
   store_config: { contact: { whatsapp_number: "07779703832", phone_number: null } },
   store_config_v2: {
     enabled_locales: ["ar", "en"],
@@ -37,10 +35,8 @@ export const BARE_TENANT: Tenant = {
   id: "t-bare",
   business_name: "bare",
   slug: "bare",
-  plan: "pro",
   status: "active",
   branding: {},
-  settings: {},
   store_config: {},
 };
 
