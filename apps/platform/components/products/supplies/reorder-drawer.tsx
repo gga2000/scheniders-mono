@@ -21,6 +21,7 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
+import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import type { PoStatusInfo } from "./po-status-chip";
 
@@ -55,33 +56,6 @@ interface SupplierGroup {
 }
 
 const NO_SUPPLIER_KEY = "__no_supplier__";
-
-function urgencyFor(days: number | null, leadTime: number): ReorderItem["urgency"] {
-    if (days === null) return "ok";
-    if (days <= leadTime) return "critical";
-    if (days <= leadTime * 2) return "warning";
-    return "ok";
-}
-
-function calcSuggestedQty({
-    leadTimeDays,
-    dailyRate,
-    reorderPoint,
-    stock,
-    moq,
-}: {
-    leadTimeDays: number;
-    dailyRate: number;
-    reorderPoint: number;
-    stock: number;
-    moq: number;
-}): number {
-    // Cover lead time × 1.3 safety factor, land at reorder point after receipt.
-    const raw = leadTimeDays * dailyRate * 1.3 + (reorderPoint - stock);
-    const needed = Math.max(moq, Math.ceil(raw));
-    if (moq <= 1) return needed;
-    return Math.ceil(needed / moq) * moq;
-}
 
 interface ReorderDrawerProps {
     open: boolean;
@@ -439,7 +413,7 @@ export function ReorderDrawer({
                                                                         <span>·</span>
                                                                         <span className="inline-flex items-center gap-1 text-rose-600 font-medium">
                                                                             <AlertTriangle className="w-3 h-3" />
-                                                                            critical
+                                                                            {t("supplies.ro.critical")}
                                                                         </span>
                                                                     </>
                                                                 )}
@@ -606,14 +580,14 @@ function ReorderItemRow({
                             label={t("supplies.ro.velocity")}
                             value={
                                 item.dailyRate > 0
-                                    ? `${item.dailyRate.toFixed(1)}/d`
+                                    ? t("supplies.ro.perDay", { n: item.dailyRate.toFixed(1) })
                                     : "—"
                             }
                             tone="muted"
                         />
                         <Stat
                             label={t("supplies.ro.leadTime")}
-                            value={`${item.leadTimeDays}d`}
+                            value={t("supplies.ro.leadDaysShort", { n: item.leadTimeDays })}
                             tone="muted"
                         />
                     </div>

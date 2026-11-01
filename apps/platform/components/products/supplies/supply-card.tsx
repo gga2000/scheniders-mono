@@ -148,7 +148,7 @@ export function SupplyCard({
             {/* Footer */}
             <div className="mt-3 pt-3 border-t border-[var(--card-border)] flex items-end justify-between gap-2">
                 <div className="min-w-0">
-                    <p className="text-[10px] text-muted uppercase tracking-wide">Unit cost</p>
+                    <p className="text-[10px] text-muted uppercase tracking-wide">{t("supplies.sc.unitCost")}</p>
                     <p className="font-semibold text-sm leading-tight">{formatIQD(supply.cost || 0)}</p>
                     {supplierNames && supplierNames.length > 0 && (
                         <div className="mt-1.5">
