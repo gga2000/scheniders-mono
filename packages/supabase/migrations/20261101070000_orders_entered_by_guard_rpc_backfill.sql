@@ -3,12 +3,7 @@
 -- so `source` alone cannot say an order was entered by hand.
 --
 -- NULL = the order arrived on its own (LightFunnels, storefront, webhooks).
-
-ALTER TABLE public.orders
-  ADD COLUMN IF NOT EXISTS entered_by uuid
-  REFERENCES public.user_profiles(id) ON DELETE SET NULL;
-
-GRANT SELECT (entered_by) ON public.orders TO authenticated;
+-- The column itself is 20261101040308_orders_entered_by.
 
 -- Only the server sets it: a browser may not rewrite who entered an order.
 CREATE OR REPLACE FUNCTION public.orders_entered_by_server_only()
