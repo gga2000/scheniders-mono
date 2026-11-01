@@ -20,8 +20,8 @@ import { useCartBump } from "./helpers/cart-bump";
 import { MaterialIcon } from "./helpers/primitives";
 import { StoreLink } from "./helpers/store-context";
 import { isOptimizableImageHost } from "./helpers/image";
-import { MobileMenuSheet, useMenuSheet, type NavLink } from "./site_header.menu";
-import { readsRtl } from "./pdp_express/text";
+import { useMenuSheet, type NavLink } from "./site_header.menu";
+import { MenuDrawer, type DrawerCategory } from "./site_header.drawer";
 
 const HERO_END_SELECTOR = "[data-pdp-hero-end]";
 
@@ -92,6 +92,7 @@ function CartChip({
 }
 
 export function OverlayHeader({
+  drawer,
   wordmark,
   logo,
   locale,
@@ -100,6 +101,12 @@ export function OverlayHeader({
   menuLabel,
   cart = null,
 }: {
+  /** What the menu drawer lists besides the nav links. */
+  drawer: {
+    categories: DrawerCategory[];
+    whatsappHref: string | null;
+    showSearch: boolean;
+  };
   wordmark: string;
   logo: string | null;
   locale: LocaleCode;
@@ -119,10 +126,12 @@ export function OverlayHeader({
   useMenuSheet({ open, onClose: close, sheetRef, toggleRef });
   const overHero = useOverHero(barRef);
   const glass = overHero && !open;
-  const hasSheet = navLinks.length > 0 || enabledLocales.length > 1;
-  // Arabic-script rows sit against the right edge — under the toggle that
-  // opened them — by visual-order classes; the document stays LTR.
-  const sheetRowAlign = readsRtl(locale) ? "justify-end text-right" : null;
+  const hasSheet =
+    navLinks.length > 0 ||
+    enabledLocales.length > 1 ||
+    drawer.categories.length > 0 ||
+    drawer.whatsappHref !== null ||
+    drawer.showSearch;
 
   const chip = cn(
     "flex h-11 items-center rounded-bk-pill border-bk text-bk-ink transition-[background-color,box-shadow,border-color] duration-bk-base motion-reduce:transition-none",
@@ -154,10 +163,10 @@ export function OverlayHeader({
         className={cn(
           "px-3 pb-2 pt-[max(12px,env(safe-area-inset-top,0px))] transition-[background-color,box-shadow] duration-bk-base motion-reduce:transition-none",
           glass ? "bg-transparent" : "bg-bk-surface shadow-bk-card",
-          // The sheet's backdrop is a positioned `fixed inset-0` layer in
-          // this header's stacking context; an unpositioned bar would paint
-          // under its scrim (dimmed wordmark, and a tap on the X landing on
-          // the backdrop). Lift the bar above it while the sheet is open.
+          // The drawer is a positioned `fixed inset-0` layer in this
+          // header's stacking context; an unpositioned bar would paint under
+          // it (and a tap on the X would land on the drawer). Lift the bar
+          // above it while the drawer is open.
           open && "relative z-20",
         )}
       >
@@ -204,28 +213,18 @@ export function OverlayHeader({
         </div>
       </div>
       {hasSheet && (
-        // Same gutter + column as the bar, so from `sm` up the sheet drops
-        // under the menu chip instead of stretching across the page; on a
-        // phone it spans the column exactly as before.
-        <div className="px-3">
-          <div className="mx-auto flex max-w-6xl justify-end">
-            <MobileMenuSheet
-              id={sheetId}
-              open={open}
-              onClose={close}
-              sheetRef={sheetRef}
-              links={navLinks}
-              linkClassName={cn(
-                "flex min-h-11 items-center font-bk-body text-sm font-bold transition-opacity duration-bk-fast motion-reduce:transition-none active:opacity-60",
-                sheetRowAlign,
-              )}
-              locale={locale}
-              enabledLocales={enabledLocales}
-              allWidths
-              className="mt-1 w-full rounded-bk-card bg-bk-surface px-5 py-1 text-bk-ink shadow-bk-card sm:w-80"
-            />
-          </div>
-        </div>
+        <MenuDrawer
+          id={sheetId}
+          open={open}
+          onClose={close}
+          sheetRef={sheetRef}
+          locale={locale}
+          categories={drawer.categories}
+          navLinks={navLinks}
+          enabledLocales={enabledLocales}
+          whatsappHref={drawer.whatsappHref}
+          showSearch={drawer.showSearch}
+        />
       )}
     </header>
   );

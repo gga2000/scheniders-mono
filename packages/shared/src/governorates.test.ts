@@ -52,3 +52,17 @@ describe("resolveGovernorate", () => {
     expect(resolveGovernorate("KI")?.name_ku).toBe("کەرکووک");
   });
 });
+
+describe("governorateLabel — stored order codes", () => {
+  it("names the three-letter codes the order editor stores", () => {
+    // /track showed «MOS» to a shopper whose order was in Mosul.
+    expect(governorateLabel("MOS", "ar")).toBe("نينوى");
+    expect(governorateLabel("BGD", "ar")).toBe("بغداد");
+    expect(governorateLabel("SAM", "en")).toBe("Muthanna");
+  });
+
+  it("gives every governorate a distinct OMS code", () => {
+    const codes = IRAQ_GOVERNORATES.map((g) => g.oms_code);
+    expect(new Set(codes).size).toBe(IRAQ_GOVERNORATES.length);
+  });
+});

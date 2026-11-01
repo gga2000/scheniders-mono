@@ -35,6 +35,8 @@ import type { SectionRenderContext } from "./_types";
 import type { Props } from "./site_header";
 import { OverlayHeader } from "./site_header.overlay";
 import { MobileMenuSheet, useMenuSheet, type NavLink } from "./site_header.menu";
+import { buildDrawerCategories } from "./site_header.drawer-data";
+import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";
 
 /** Circular surface bento control (menu / back). 44px touch target. */
 const circleBtn =
@@ -107,8 +109,20 @@ export function SiteHeaderRender({
     // tenant's uploaded logo instead of suppressing the image entirely.
     const pillLogo = props.logo_image_url || logo;
     if (props.surface === "overlay") {
+      const overlayWhatsapp = resolveTenantWhatsapp(ctx.tenant);
       return (
         <OverlayHeader
+          drawer={{
+            categories: buildDrawerCategories(
+              ctx.categories,
+              ctx.products,
+              ctx.category_product_ids,
+            ),
+            whatsappHref: overlayWhatsapp
+              ? `https://wa.me/${whatsappDigits(overlayWhatsapp)}`
+              : null,
+            showSearch: props.show_search,
+          }}
           wordmark={wordmark}
           logo={pillLogo}
           locale={locale}

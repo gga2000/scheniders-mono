@@ -20,6 +20,8 @@ import {
 import type { StoreConfigV2, AnalyticsConfig } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
+import { capiRequestContext } from "@/lib/capi-context";
+import { after } from "next/server";
 import { isDraftViewRequest } from "@/lib/draft-view";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
 import { productsSoldByVariant, VariantReadError } from "@/lib/variant-products";
@@ -847,22 +849,28 @@ export async function submitCheckout(
   const analytics = tenant.store_config_v2?.globals?.analytics_pixels?.base as
     | AnalyticsConfig
     | undefined;
+  // Sent after the response (next/server `after`): a slow ad API never
+  // delays the shopper's thank-you page. sendPurchaseCapi logs its own
+  // failures and never throws.
   if (payload.purchaseEventId && analytics && !draftView) {
-    try {
-      await sendPurchaseCapi({
-        analytics,
-        eventId: payload.purchaseEventId,
-        customer: { phone, name: payload.customer.customer_name },
-        value: grandTotal,
-        contents: verifiedItems.map((i) => ({
-          id: i.product_id,
-          quantity: i.quantity,
-          item_price: i.price,
-        })),
-      });
-    } catch {
-      /* CAPI is best-effort */
-    }
+    const capiInput = {
+      analytics,
+      tenantId: payload.tenantId,
+      eventId: payload.purchaseEventId,
+      customer: {
+        phone,
+        name: payload.customer.customer_name,
+        governorate: payload.customer.governorate_code,
+      },
+      value: grandTotal,
+      contents: verifiedItems.map((i) => ({
+        id: i.product_id,
+        quantity: i.quantity,
+        item_price: i.price,
+      })),
+      context: await capiRequestContext(),
+    };
+    after(() => sendPurchaseCapi(capiInput));
   }
 
   // Post-purchase offer: hand THIS browser — and only this one — the proof
