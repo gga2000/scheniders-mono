@@ -123,7 +123,9 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         } catch {}
     };
 
-    const { data: supplierLinks } = useSupplierLinks();
+    const { data: supplierLinks, isError: supplierLinksFailed } = useSupplierLinks();
+    // Until the links are in, every supply would read as "no supplier" with default lead time.
+    const supplierLinksReady = supplierLinks !== undefined && !supplierLinksFailed;
     const supplies = useMemo(
         () =>
             products
@@ -693,6 +695,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                 onClose={() => setReorderOpen(false)}
                 supplies={supplies}
                 openPoBySupply={openPoBySupply}
+                supplierLinksReady={supplierLinksReady}
                 snoozedIds={snoozedIds}
                 onSnooze={handleSnooze}
                 onUnsnooze={handleUnsnooze}

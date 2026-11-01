@@ -37,6 +37,7 @@ export function usePurchaseOrderActions() {
                 refreshPurchaseOrders(),
                 queryClient.invalidateQueries({ queryKey: productKeys.all }),
                 queryClient.invalidateQueries({ queryKey: ["supply-history"] }),
+                queryClient.invalidateQueries({ queryKey: ["po-lines"] }),
                 queryClient.invalidateQueries({ queryKey: ["tenant-supply-history"] }),
             ]);
         },
