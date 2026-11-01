@@ -28,6 +28,13 @@ export interface Expense {
     notes?: string;
     is_recurring: boolean;
     recurring_period?: string;
+    /** Who wrote the row: null/absent = typed by hand, otherwise an integration (e.g. 'meta_ads'). */
+    source?: string | null;
+}
+
+/** A row an integration posts and keeps in sync; the merchant cannot edit or delete it. */
+export function isAutoExpense(expense: Pick<Expense, "source">): boolean {
+    return expense.source != null && expense.source !== "";
 }
 
 // Category labels for display

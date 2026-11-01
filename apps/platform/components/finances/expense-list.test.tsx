@@ -42,4 +42,20 @@ describe("ExpenseList", () => {
         // 2026-10-01 is a Thursday; a local-time parse west of UTC would say Wednesday.
         expect(screen.getByText(/الخميس/)).toBeTruthy();
     });
+
+    it("marks integration rows Auto and takes away their edit and delete menu", () => {
+        render(
+            <ExpenseList
+                expenses={[
+                    expense({ id: "auto", category: "marketing", amount: 90000, source: "meta_ads" }),
+                    expense({ id: "hand", category: "shipping", amount: 5000 }),
+                ]}
+                onEdit={() => {}}
+                onDelete={() => {}}
+            />,
+        );
+        expect(screen.getAllByText("تلقائي")).toHaveLength(1);
+        // One actions button, for the hand-typed row only.
+        expect(document.querySelectorAll("button.p-2")).toHaveLength(1);
+    });
 });

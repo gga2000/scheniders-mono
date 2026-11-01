@@ -181,6 +181,10 @@ export function ExpenseFormModal({
                             </select>
                         </div>
 
+                        {formData.category === "marketing" && (
+                            <p className="text-[12px] text-muted -mt-3">{t("finances.expense.form.marketingAutoHint")}</p>
+                        )}
+
                         {/* Description */}
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
