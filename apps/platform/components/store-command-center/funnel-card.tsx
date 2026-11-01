@@ -79,19 +79,17 @@ export function FunnelCard({ funnel, isLoading, isError, locale }: FunnelCardPro
                         {stages.map((stage, i) => {
                             const prev = i === 0 ? null : stages[i - 1].value;
                             return (
-                                <li key={stage.key} data-testid={`funnel-stage-${stage.key}`} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3">
+                                <li key={stage.key} data-testid={`funnel-stage-${stage.key}`} className="grid grid-cols-[auto_9rem_1fr_auto_auto] items-center gap-3">
                                     <stage.icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-                                    <div className="relative h-8 overflow-hidden rounded-lg bg-black/5">
+                                    <span className="truncate text-xs font-medium text-foreground">{stage.label}</span>
+                                    <div className="relative h-6 overflow-hidden rounded-md bg-black/5" aria-hidden="true">
                                         <div
-                                            className={cn("absolute inset-y-0 start-0 rounded-lg", i === 3 ? "bg-emerald-500/70" : "bg-primary/60")}
+                                            className={cn("absolute inset-y-0 start-0 rounded-md", i === 3 ? "bg-emerald-500" : "bg-primary/70")}
                                             style={{ width: `${Math.max(2, (stage.value / max) * 100)}%` }}
                                         />
-                                        <span className="relative z-10 flex h-full items-center px-2.5 text-xs font-medium text-foreground">
-                                            {stage.label}
-                                        </span>
                                     </div>
-                                    <span className="text-sm font-semibold tabular-nums text-foreground">{NUM.format(stage.value)}</span>
-                                    <span className="w-10 text-end text-xs tabular-nums text-muted-foreground" title={prev === null ? undefined : t(s.funnel_of_previous, locale)}>
+                                    <span className="min-w-12 text-end text-sm font-semibold tabular-nums text-foreground" dir="ltr">{NUM.format(stage.value)}</span>
+                                    <span className="w-10 text-end text-xs tabular-nums text-muted-foreground" dir="ltr" title={prev === null ? undefined : t(s.funnel_of_previous, locale)}>
                                         {prev === null ? "" : pct(stage.value, prev)}
                                     </span>
                                 </li>
@@ -100,9 +98,9 @@ export function FunnelCard({ funnel, isLoading, isError, locale }: FunnelCardPro
                     </ol>
                     <p className="mt-3 text-xs text-muted-foreground">
                         {t(s.funnel_conversion, locale)}{" "}
-                        <span className="font-semibold tabular-nums text-foreground" data-testid="funnel-conversion">
+                        <bdi dir="ltr" className="font-semibold tabular-nums text-foreground" data-testid="funnel-conversion">
                             {funnel ? pct(funnel.buyers, funnel.visitors) : "—"}
-                        </span>
+                        </bdi>
                     </p>
                     {funnel && funnel.top_products.length > 0 && (
                         <div className="mt-4">
@@ -111,7 +109,7 @@ export function FunnelCard({ funnel, isLoading, isError, locale }: FunnelCardPro
                                 {funnel.top_products.slice(0, 5).map((p) => (
                                     <li key={p.product_id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
                                         <span className="min-w-0 truncate text-foreground">{p.name ?? "—"}</span>
-                                        <span className="shrink-0 tabular-nums text-xs text-muted-foreground">
+                                        <span dir="ltr" className="shrink-0 tabular-nums text-xs text-muted-foreground">
                                             {NUM.format(p.viewers)} → {NUM.format(p.buyers)} · {pct(p.buyers, p.viewers)}
                                         </span>
                                     </li>

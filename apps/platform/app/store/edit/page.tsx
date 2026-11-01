@@ -117,13 +117,28 @@ export default async function StoreV2Page({
     } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
-    const { data: member } = await supabase
+    // The editor must open the same store the hub shows: the user's ACTIVE
+    // tenant (user_profiles.current_tenant_id), not whichever membership row
+    // comes back first. `.single()` over every membership errors for anyone in
+    // two tenants and bounces them to /store; an inactive membership must not
+    // open an editor at all.
+    const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("current_tenant_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    let memberQuery = supabase
         .from("tenant_members")
         .select(
             "tenant_id, tenants(id, slug, business_name, store_config_v2, store_config_v2_draft, updated_at, store_config_rev, store_config, contact_phone)",
         )
         .eq("user_id", user.id)
-        .single<TenantMemberRow>();
+        .eq("status", "active");
+    if (profile?.current_tenant_id) {
+        memberQuery = memberQuery.eq("tenant_id", profile.current_tenant_id);
+    }
+    const { data: member } = await memberQuery.limit(1).maybeSingle<TenantMemberRow>();
 
     if (!member?.tenants) redirect("/store");
 
