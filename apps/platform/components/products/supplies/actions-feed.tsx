@@ -104,13 +104,14 @@ export function ActionsFeed({
     onOpenReorder,
 }: ActionsFeedProps) {
     const { t } = useLanguage();
-    const [collapsed, setCollapsed] = useState<boolean>(false);
+    const [collapsed, setCollapsed] = useState<boolean>(true);
     const [dismissed, setDismissed] = useState<Set<string>>(new Set());
     const { data: supplierPos = [] } = useSupplierPos();
 
     useEffect(() => {
         try {
-            if (localStorage.getItem(COLLAPSE_KEY) === "1") setCollapsed(true);
+            // Collapsed unless the member opened it: keeps the first supply row above the fold.
+            if (localStorage.getItem(COLLAPSE_KEY) === "0") setCollapsed(false);
         } catch {}
     }, []);
 
@@ -287,7 +288,7 @@ export function ActionsFeed({
             <div className="rounded-2xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50 to-emerald-50/30 dark:from-emerald-950/40 dark:to-emerald-950/10 dark:border-emerald-900/50 px-4 py-2.5 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
-                    All clear — no urgent supply actions right now.
+                    {t("supplies.af.allClear")}
                 </p>
             </div>
         );

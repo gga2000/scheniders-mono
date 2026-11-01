@@ -402,7 +402,7 @@ function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                             {p.totalCost != null && p.totalCost > 0 && (
-                                <span className="text-sm font-semibold tabular-nums">
+                                <span className={`text-sm font-semibold tabular-nums ${p.status === "cancelled" ? "text-muted line-through font-normal" : ""}`}>
                                     {formatIQD(p.totalCost)}
                                 </span>
                             )}
