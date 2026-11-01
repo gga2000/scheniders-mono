@@ -20,7 +20,11 @@ const VISITOR = "22222222-2222-4222-8222-222222222222";
 const req = (body: unknown, ip = "203.0.113.7") =>
   new Request("http://x/api/events", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": ip },
+    headers: {
+      "content-type": "application/json",
+      "x-forwarded-for": ip,
+      "user-agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36",
+    },
     body: JSON.stringify(body),
   });
 
@@ -73,6 +77,18 @@ beforeEach(() => {
 });
 
 describe("POST /api/events", () => {
+  it("drops beacons from crawlers", async () => {
+    visitorCookie(VISITOR);
+    const { inserted } = svcWithInsert();
+    const bot = new Request("http://x/api/events", {
+      method: "POST",
+      headers: { "content-type": "application/json", "user-agent": "Googlebot/2.1" },
+      body: JSON.stringify({ tenant_id: TENANT, events: [{ type: "page_view" }] }),
+    });
+    expect((await POST(bot)).status).toBe(204);
+    expect(inserted).toEqual([]);
+  });
+
   it("writes the batch under the cookie's visitor key, never a client one", async () => {
     visitorCookie(VISITOR);
     const { inserted, tenantFilters } = svcWithInsert();
