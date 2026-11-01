@@ -203,7 +203,6 @@ export type {
     Product,
     ProductVariant,
     ProductPriceHistory,
-    QCItem,
     StockStatus,
 } from '@/types/product';
 

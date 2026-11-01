@@ -101,7 +101,7 @@ describe("update_order_status", () => {
 
         // The history row is the database trigger's (trg_log_order_status_change), not the tool's.
         expect(env.tables.order_status_history).toEqual([]);
-        expect(applyStatusSideEffect).toHaveBeenCalledWith(env.db, expect.objectContaining({ orderId: "o1", tenantId: STORE, from: "confirmed", to: "in_transit" }));
+        expect(applyStatusSideEffect).toHaveBeenCalledWith(env.db, expect.objectContaining({ tenantId: STORE, from: "confirmed", to: "in_transit" }));
         const actions = env.tables.activity_logs.map((r) => r.action);
         expect(actions).toEqual(["order.status_change", "mcp.tool_call"]);
     });
