@@ -84,7 +84,17 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
 
     const gridCols = canSetCost ? "grid-cols-[1fr_7rem_6rem]" : "grid-cols-[1fr_6rem]";
 
+    // More than was ordered would be clamped silently and the extra never reach stock.
+    const overOrdered = (lines ?? []).some((line) => {
+        const raw = Number.parseInt(entered[line.id] ?? "", 10);
+        return Number.isFinite(raw) && raw > (outstanding.get(line.id) ?? 0);
+    });
+
     const submit = () => {
+        if (overOrdered) {
+            toast.error(t("supplies.po.overOrdered"));
+            return;
+        }
         if (badCost) {
             toast.error(t("supplies.po.badCost"));
             return;
@@ -181,6 +191,12 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     </div>
                 )}
 
+                {overOrdered && (
+                    <p role="alert" className="text-xs text-rose-600">
+                        {t("supplies.po.overOrdered")}
+                    </p>
+                )}
+
                 {badCost && (
                     <p role="alert" className="text-xs text-rose-600">
                         {t("supplies.po.badCost")}
@@ -198,7 +214,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     <button
                         type="button"
                         onClick={submit}
-                        disabled={receive.isPending || quantities.length === 0 || badCost}
+                        disabled={receive.isPending || quantities.length === 0 || badCost || overOrdered}
                         className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
                     >
                         {receive.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("supplies.po.receiveSubmit")}

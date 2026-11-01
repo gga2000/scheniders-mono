@@ -26,6 +26,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
+import { useSupplierPos } from "@/hooks/use-supplier-pos";
 import type { PoStatusInfo } from "./po-status-chip";
 
 interface SupplySupplierRaw {
@@ -92,6 +93,18 @@ export function ReorderDrawer({
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["__all__"]));
     const [generating, setGenerating] = useState<Set<string>>(new Set());
     const [showSnoozed, setShowSnoozed] = useState(false);
+
+    // A draft is not "on order" so its lines are still listed here; a second
+    // Create PO would double the draft. Newest first, so the first match wins.
+    const { data: supplierPos = [] } = useSupplierPos();
+    const draftBySupplier = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const po of supplierPos) {
+            const key = (po.supplier_name ?? "").trim().toLowerCase();
+            if (po.status === "draft" && key && !map.has(key)) map.set(key, po.po_number);
+        }
+        return map;
+    }, [supplierPos]);
 
     // 30-day sales data for velocity.
     const { data: salesMap = new Map<string, number>() } = useQuery({
@@ -246,7 +259,8 @@ export function ReorderDrawer({
                 supplierName: group.supplierName,
                 supplierContact: group.supplierContact || null,
                 supplierEmail: group.supplierEmail || null,
-                expectedDate: new Date(Date.now() + maxLeadTime * 86_400_000)
+                // Baghdad calendar day (UTC+3), like the database numbering.
+                expectedDate: new Date(Date.now() + 3 * 3_600_000 + maxLeadTime * 86_400_000)
                     .toISOString()
                     .split("T")[0],
                 lines,
@@ -275,6 +289,11 @@ export function ReorderDrawer({
                 toast.error(t("supplies.ro.linksNotReady"));
                 return;
             }
+            const existingDraft = draftBySupplier.get(group.supplierName.trim().toLowerCase());
+            if (existingDraft) {
+                toast.error(t("supplies.ro.draftExists", { number: existingDraft }));
+                return;
+            }
             const uncosted = group.items.filter((i) => i.unitCost <= 0);
             if (uncosted.length > 0) {
                 // A zero-cost line would create a PO that understates what is owed.
@@ -296,7 +315,7 @@ export function ReorderDrawer({
                 });
             }
         },
-        [generatePO, t, canSeeCost, supplierLinksReady]
+        [generatePO, t, canSeeCost, supplierLinksReady, draftBySupplier]
     );
 
     return (
@@ -440,7 +459,12 @@ export function ReorderDrawer({
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
-                                                        {!noSupplier && (
+                                                        {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
+                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
+                                                                {t("supplies.ro.draftExists", { number: draftBySupplier.get(group.supplierName.trim().toLowerCase()) ?? "" })}
+                                                            </span>
+                                                        )}
+                                                        {!noSupplier && !draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();

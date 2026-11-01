@@ -241,6 +241,7 @@ function CategoryRow({
     onScopeChange,
     depth,
 }: CategoryRowProps) {
+    const { t } = useLanguage();
     const [expanded, setExpanded] = useState(true);
     const hasChildren = children.length > 0;
     const isConfirming = deleteConfirmId === category.id;
@@ -328,23 +329,30 @@ function CategoryRow({
                     {/* Actions */}
                     {isConfirming ? (
                         <div className="flex items-center gap-2">
+                            {(hasChildren || productCount > 0) && (
+                                <span className="text-xs text-rose-600 max-w-[16rem]">
+                                    {t("products.cats.deleteWarn", { subs: children.length, products: productCount })}
+                                </span>
+                            )}
                             <button
                                 onClick={() => onConfirmDelete(category.id)}
                                 className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-medium hover:bg-rose-600 transition-colors"
                             >
-                                Delete
+                                {t("products.cats.delete")}
                             </button>
                             <button
                                 onClick={onCancelDelete}
                                 className="px-3 py-1.5 bg-[var(--background)] text-foreground rounded-lg text-xs font-medium hover:bg-[var(--card-border)] transition-colors"
                             >
-                                Cancel
+                                {t("products.cats.cancel")}
                             </button>
                         </div>
                     ) : (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                                 onClick={() => onEdit(category)}
+                                aria-label={t("products.cats.edit")}
+                                title={t("products.cats.edit")}
                                 className="p-2 rounded-lg hover:bg-[var(--background)] text-muted hover:text-foreground transition-colors"
                             >
                                 <Pencil className="w-4 h-4" />
@@ -352,6 +360,8 @@ function CategoryRow({
                             {onDelete && (
                                 <button
                                     onClick={() => onDelete(category.id)}
+                                    aria-label={t("products.cats.delete")}
+                                    title={t("products.cats.delete")}
                                     className="p-2 rounded-lg hover:bg-rose-50 text-muted hover:text-rose-500 transition-colors"
                                 >
                                     <Trash2 className="w-4 h-4" />
