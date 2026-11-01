@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { payrollKeys, type PayrollWriteResult } from "@/hooks/payroll-query-keys";
 import type { RoleSalaryDefault, EmployeeSalaryConfig, EffectiveSalaryRate } from "@/types/salary";
 
 export interface SalaryConfigHistoryRow {
@@ -17,29 +19,37 @@ export interface SalaryConfigHistoryRow {
     created_at: string;
 }
 
+interface SalaryConfigData {
+    roleSalaryDefaults: RoleSalaryDefault[];
+    employeeSalaryConfigs: EmployeeSalaryConfig[];
+}
+
+const EMPTY: SalaryConfigData = { roleSalaryDefaults: [], employeeSalaryConfigs: [] };
+
+/** Pay rates for the current store: role defaults and per-member overrides. */
 export function useSalaryConfig() {
     const { tenantId } = useAuth();
-    const [roleSalaryDefaults, setRoleSalaryDefaults] = useState<RoleSalaryDefault[]>([]);
-    const [employeeSalaryConfigs, setEmployeeSalaryConfigs] = useState<EmployeeSalaryConfig[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
 
-    const fetchAll = useCallback(async () => {
-        await Promise.resolve();
-        setIsLoading(true);
-        const [roleRes, empRes] = await Promise.all([
-            supabase.from("role_salary_defaults").select("*").order("role"),
-            supabase.from("employee_salary_configs").select("*"),
-        ]);
-        if (roleRes.data) setRoleSalaryDefaults(roleRes.data);
-        if (empRes.data) setEmployeeSalaryConfigs(empRes.data);
-        setIsLoading(false);
-    }, []);
+    const query = useQuery<SalaryConfigData>({
+        queryKey: payrollKeys.config(tenantId),
+        enabled: !!tenantId,
+        queryFn: async () => {
+            if (!tenantId) return EMPTY;
+            // RLS lets a member of several stores read all of them; pay rates are per store.
+            const [roleRes, empRes] = await Promise.all([
+                supabase.from("role_salary_defaults").select("*").eq("tenant_id", tenantId).order("role"),
+                supabase.from("employee_salary_configs").select("*").eq("tenant_id", tenantId),
+            ]);
+            if (roleRes.error) throw roleRes.error;
+            if (empRes.error) throw empRes.error;
+            return { roleSalaryDefaults: roleRes.data ?? [], employeeSalaryConfigs: empRes.data ?? [] };
+        },
+    });
 
-    useEffect(() => {
-        // fetchAll() awaits Promise.resolve() before any setState.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        void fetchAll();
-    }, [fetchAll]);
+    const { roleSalaryDefaults, employeeSalaryConfigs } = query.data ?? EMPTY;
+
+    const invalidate = useCallback(() => queryClient.invalidateQueries({ queryKey: payrollKeys.all }), [queryClient]);
 
     /** Returns the effective salary rates for a given employee + role */
     const getEffectiveRate = useCallback(
@@ -70,17 +80,16 @@ export function useSalaryConfig() {
             employeeId: string,
             config: { base_monthly_salary: number; per_order_bonus: number; use_role_defaults: boolean },
             changedBy?: string
-        ) => {
+        ): Promise<PayrollWriteResult> => {
+            if (!tenantId) return { error: "No store selected" };
             const existing = employeeSalaryConfigs.find(c => c.employee_id === employeeId);
 
             // Log the change if values differ from existing
             if (!config.use_role_defaults) {
                 const oldBase = existing?.use_role_defaults ? null : (existing?.base_monthly_salary ?? null);
                 const oldOrder = existing?.use_role_defaults ? null : (existing?.per_order_bonus ?? null);
-                const baseChanged = oldBase !== config.base_monthly_salary;
-                const orderChanged = oldOrder !== config.per_order_bonus;
-                if (baseChanged || orderChanged) {
-                    await supabase.from("salary_config_history").insert({
+                if (oldBase !== config.base_monthly_salary || oldOrder !== config.per_order_bonus) {
+                    const { error } = await supabase.from("salary_config_history").insert({
                         employee_id: employeeId,
                         changed_by: changedBy ?? null,
                         old_base_salary: oldBase,
@@ -89,56 +98,64 @@ export function useSalaryConfig() {
                         new_per_order: config.per_order_bonus,
                         tenant_id: tenantId,
                     });
+                    if (error) return { error: error.message };
                 }
             }
 
-            if (existing) {
-                await supabase
+            const { error } = existing
+                ? await supabase
                     .from("employee_salary_configs")
                     .update({ ...config, updated_at: new Date().toISOString() })
-                    .eq("employee_id", employeeId);
-            } else {
-                await supabase
+                    .eq("tenant_id", tenantId)
+                    .eq("employee_id", employeeId)
+                : await supabase
                     .from("employee_salary_configs")
                     .insert({ employee_id: employeeId, ...config, tenant_id: tenantId });
-            }
-            await fetchAll();
+            if (error) return { error: error.message };
+            await invalidate();
+            return { error: null };
         },
-        [employeeSalaryConfigs, fetchAll, tenantId]
+        [employeeSalaryConfigs, invalidate, tenantId]
     );
 
     const fetchConfigHistory = useCallback(async (employeeId: string): Promise<SalaryConfigHistoryRow[]> => {
+        if (!tenantId) return [];
         const { data, error } = await supabase
             .from("salary_config_history")
             .select("*")
+            .eq("tenant_id", tenantId)
             .eq("employee_id", employeeId)
             .order("created_at", { ascending: false })
             .limit(10);
         if (error) throw error;
         return (data ?? []) as SalaryConfigHistoryRow[];
-    }, []);
+    }, [tenantId]);
 
     const upsertRoleDefault = useCallback(
-        async (role: string, config: { base_monthly_salary: number; per_order_bonus: number }) => {
-            await supabase
+        async (role: string, config: { base_monthly_salary: number; per_order_bonus: number }): Promise<PayrollWriteResult> => {
+            if (!tenantId) return { error: "No store selected" };
+            const { error } = await supabase
                 .from("role_salary_defaults")
                 .upsert(
                     { tenant_id: tenantId, role, ...config, updated_at: new Date().toISOString() },
                     { onConflict: "tenant_id,role" }
                 );
-            await fetchAll();
+            if (error) return { error: error.message };
+            await invalidate();
+            return { error: null };
         },
-        [fetchAll, tenantId]
+        [invalidate, tenantId]
     );
 
     return {
         roleSalaryDefaults,
         employeeSalaryConfigs,
-        isLoading,
+        isLoading: query.isPending,
+        failed: query.isError,
         getEffectiveRate,
         upsertEmployeeConfig,
         upsertRoleDefault,
         fetchConfigHistory,
-        refresh: fetchAll,
+        refresh: query.refetch,
     };
 }
