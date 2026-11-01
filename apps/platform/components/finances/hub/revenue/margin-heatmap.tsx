@@ -55,7 +55,7 @@ export function MarginHeatmap({ data }: Props) {
         >
             <div className="overflow-x-auto -mx-2 px-2">
                 <div className="inline-block min-w-full">
-                    <table className="text-[12px] border-separate border-spacing-0">
+                    <table className="w-full text-[12px] border-separate border-spacing-0">
                         <thead>
                             <tr>
                                 <th className="sticky left-0 z-10 bg-[var(--card-bg)] text-left text-muted font-semibold px-2.5 py-2 min-w-[180px]">

@@ -136,7 +136,7 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
                         variants={item}
                         onClick={() => onTileClick?.(tile.id)}
                         className={cn(
-                            "group relative text-left rounded-2xl border p-4 transition-all overflow-hidden",
+                            "group relative flex flex-col items-stretch justify-start text-left rounded-2xl border p-4 transition-all overflow-hidden",
                             "bg-[var(--card-bg)] border-[var(--card-border)] hover:border-[var(--ink)]",
                             isActive && "ring-2 ring-[var(--ink)]"
                         )}
