@@ -92,7 +92,7 @@ export function RevenueCard() {
                 <WidgetPending className="mt-4 min-h-[260px]" />
             ) : (
                 <>
-                    <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2.5 font-mono text-[40px] font-medium leading-none tracking-[-0.04em] tabular-nums">
+                    <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2.5 font-mono text-[46px] font-medium leading-none tracking-[-0.04em] tabular-nums">
                         <CountUp value={fig.total} format={whole} />
                         {measure === "revenue" && <span className="font-sans text-[13px] font-normal tracking-normal text-[var(--foreground-muted)]">IQD</span>}
                         <Delta pct={fig.deltaPct} className="self-center text-sm" />

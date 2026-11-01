@@ -43,7 +43,7 @@ export function RevenueLine({ series, caption, tick, describe, onTip, onTipEnd, 
     const step = integer ? Math.max(1, Math.ceil(niceStep(span))) : niceStep(span);
     // The line sits in the upper part of the well; the lower part is breathing
     // room for the fill. A flat series still gets a visible band.
-    const min = lo - span * 0.45, max = hi + span * 0.08;
+    const min = lo - span * 0.22, max = hi + span * 0.08;
     const Y = (v: number) => TOP + (1 - (v - min) / (max - min || 1)) * (H - TOP - BOTTOM);
     const X = (i: number) => LEFT + (n > 1 ? i / (n - 1) : 0) * (W - LEFT - RIGHT);
     const ticks: number[] = [];

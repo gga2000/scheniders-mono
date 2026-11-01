@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useReducedMotion } from "framer-motion";
 import { useElementSize } from "@/hooks/use-element-size";
-import { easeOutCubic, smoothPath, type Pt } from "./chart-geometry";
+import { easeOutCubic, smoothCircular, smoothPath, type Pt } from "./chart-geometry";
 import type { TooltipContent } from "./chart-tooltip";
 
 interface WavesChartProps {
@@ -19,6 +19,8 @@ interface WavesChartProps {
 
 const PAD = 24;
 const WEEK_OPACITY = [1, 0.55, 0.3];
+/** Hours of Gaussian smoothing on the drawn curves (the tooltip shows raw counts). */
+const SMOOTH_HOURS = 1.4;
 
 /**
  * Two mirrored families of curves around a shared axis: one lane rises above it,
@@ -34,17 +36,17 @@ export function WavesChart({ up, down, label, describe, onTip, onTipEnd }: Waves
     const [hover, setHover] = useState<number | null>(null);
 
     const hours = up[0]?.length ?? 24;
-    const max = Math.max(1, ...up.flat(), ...down.flat());
     const mid = H / 2;
     const X = (i: number) => PAD + (i / (hours - 1)) * (W - 2 * PAD);
 
     // Oldest week first so the current week paints on top.
     const sets = useMemo(() => {
         const s: { values: number[]; dir: 1 | -1; week: number; lane: "up" | "down" }[] = [];
-        for (let w = up.length - 1; w >= 0; w--) s.push({ values: up[w], dir: -1, week: w, lane: "up" });
-        for (let w = down.length - 1; w >= 0; w--) s.push({ values: down[w], dir: 1, week: w, lane: "down" });
+        for (let w = up.length - 1; w >= 0; w--) s.push({ values: smoothCircular(up[w], SMOOTH_HOURS), dir: -1, week: w, lane: "up" });
+        for (let w = down.length - 1; w >= 0; w--) s.push({ values: smoothCircular(down[w], SMOOTH_HOURS), dir: 1, week: w, lane: "down" });
         return s;
     }, [up, down]);
+    const max = Math.max(1, ...sets.flatMap((s) => s.values));
 
     useEffect(() => {
         if (!W || !H) return;

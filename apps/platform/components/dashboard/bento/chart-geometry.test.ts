@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { niceStep, radarPath, radarPoint, radarShape, smoothPath, squarify } from "./chart-geometry";
+import { niceStep, radarPath, radarPoint, radarShape, smoothCircular, smoothPath, squarify } from "./chart-geometry";
 
 describe("smoothPath", () => {
     it("is empty for no points and a bare move for one", () => {
@@ -98,5 +98,21 @@ describe("radar", () => {
         expect(d.startsWith("M")).toBe(true);
         expect(d.endsWith("Z")).toBe(true);
         expect(d.match(/L/g)).toHaveLength(36);
+    });
+});
+
+describe("smoothCircular", () => {
+    it("keeps the total and wraps across midnight", () => {
+        const hours = new Array(24).fill(0);
+        hours[0] = 12;
+        const out = smoothCircular(hours, 1.4);
+        expect(out.reduce((a, b) => a + b, 0)).toBeCloseTo(12, 9);
+        expect(out[23]).toBeCloseTo(out[1], 9);
+        expect(out[0]).toBeLessThan(12);
+        expect(out[12]).toBeCloseTo(0, 9);
+    });
+
+    it("leaves a flat series flat", () => {
+        expect(smoothCircular([3, 3, 3, 3], 2).every((v) => Math.abs(v - 3) < 1e-9)).toBe(true);
     });
 });
