@@ -117,7 +117,10 @@ export function ReorderDrawer({
                 .from("inventory_history")
                 .select("product_id, quantity_change, change_type")
                 .eq("tenant_id", tenantId)
-                .in("change_type", ["sale", "sold"])
+                // Supplies are used, not sold (reason supply_used): count every
+                // stock-out movement except a recount, which is a correction.
+                .lt("quantity_change", 0)
+                .neq("change_type", "count")
                 .gte("created_at", since.toISOString());
             if (error) throw error;
             const m = new Map<string, number>();

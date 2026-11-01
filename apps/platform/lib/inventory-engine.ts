@@ -104,14 +104,29 @@ export async function resolveQuarantine(
         if (extras?.credit_expected !== undefined) updatePayload.credit_expected = extras.credit_expected;
         if (extras?.notes !== undefined) updatePayload.notes = extras.notes;
 
-        await supabase
+        // Claim the item first, only while it is still open: a double click or a
+        // second tab updates no row and so deducts nothing a second time.
+        const { data: claimed, error: claimError } = await supabase
             .from('qc_quarantine')
             .update(updatePayload)
-            .eq('id', qcItemId);
+            .eq('id', qcItemId)
+            .in('status', ['pending_inspection', 'in_inspection'])
+            .select('id');
+        if (claimError) throw claimError;
+        if (!claimed || claimed.length === 0) throw new Error('Item is already resolved');
 
         const deductsPhysical = resolution === 'written_off' || resolution === 'returned_to_supplier';
         if (deductsPhysical) {
-            await productRepository.adjustStock({ productId, delta: -quantity, reason: resolution });
+            try {
+                await productRepository.adjustStock({ productId, delta: -quantity, reason: resolution });
+            } catch (stockError) {
+                // Stock did not move, so the item goes back to open for a retry.
+                await supabase
+                    .from('qc_quarantine')
+                    .update({ status: 'pending_inspection', resolved_at: null })
+                    .eq('id', qcItemId);
+                throw stockError;
+            }
         }
 
         return { success: true };

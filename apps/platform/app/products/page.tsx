@@ -121,6 +121,8 @@ function ProductsContent() {
         bulkUpdateVisibility,
         deleteProduct,
         reorderProducts,
+        salesUnavailable,
+        retrySales,
     } = useProductsCrud({ withSales: true });
     const recomputeInventory = useRecomputeInventoryMutation();
     const [isStockCountOpen, setIsStockCountOpen] = useState(false);
@@ -819,11 +821,20 @@ function ProductsContent() {
                                     <ShoppingCart className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-lg font-bold text-foreground leading-none tabular-nums">
-                                            {stats.totalSold}
+                                            {salesUnavailable ? "—" : stats.totalSold}
                                         </span>
                                         <span className="text-xs font-medium text-[var(--foreground-muted)]">
                                             {t("products.sold")}
                                         </span>
+                                        {salesUnavailable && (
+                                            <button
+                                                type="button"
+                                                onClick={retrySales}
+                                                className="text-xs font-medium text-rose-600 dark:text-rose-400 underline underline-offset-2"
+                                            >
+                                                {t("products.salesUnavailableRetry")}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -832,7 +843,7 @@ function ProductsContent() {
                                     <DollarSign className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-lg font-bold text-foreground leading-none tabular-nums">
-                                            {maskIQD(stats.totalRevenue, showFinancials)}
+                                            {salesUnavailable ? "—" : maskIQD(stats.totalRevenue, showFinancials)}
                                         </span>
                                         <span className="text-xs font-medium text-[var(--foreground-muted)]">
                                             {t("products.revenue")}
@@ -846,7 +857,7 @@ function ProductsContent() {
                                     <TrendingUp className="w-4 h-4 text-muted" aria-hidden />
                                     <div className="flex items-baseline gap-1.5">
                                         <span className="text-lg font-bold text-foreground leading-none tabular-nums">
-                                            {maskIQD(stats.avgUnitPrice, showFinancials)}
+                                            {salesUnavailable ? "—" : maskIQD(stats.avgUnitPrice, showFinancials)}
                                         </span>
                                         <span className="text-xs font-medium text-[var(--foreground-muted)]">
                                             {t("products.avgUnitPrice")}

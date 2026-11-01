@@ -32,7 +32,7 @@ vi.mock("@/lib/repositories/product-repository", () => ({
     productRepository: { findAll: H.findAllProducts },
 }));
 // Product sales are folded in SQL (get_product_sales); its own test covers the RPC.
-vi.mock("@/hooks/use-product-sales-query", () => ({ useProductSalesQuery: () => H.sales }));
+vi.mock("@/hooks/use-product-sales-query", () => ({ useProductSalesQuery: () => ({ sales: H.sales, unavailable: false, retry: () => {} }) }));
 vi.mock("@/components/auth/auth-provider", () => ({
     useAuth: () => ({
         session: { access_token: "t", user: { id: "u1" } },

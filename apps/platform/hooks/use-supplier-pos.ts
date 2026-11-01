@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { fetchPurchaseOrderCosts } from "@/lib/repositories/purchase-costs";
 
 export interface SupplierPoRow {
     id: string;
@@ -30,12 +31,15 @@ export function useSupplierPos() {
             const { data, error } = await supabase
                 .from("purchase_orders")
                 .select(
-                    "id, po_number, status, expected_date, received_at, total_cost, created_at, supplier_name, supplier_contact, supplier_email"
+                    "id, po_number, status, expected_date, received_at, created_at, supplier_name, supplier_contact, supplier_email"
                 )
                 .eq("tenant_id", tenantId)
                 .order("created_at", { ascending: false });
             if (error) throw error;
-            return data ?? [];
+            // total_cost is not a readable column; only members who may see
+            // cost get it, everyone else sees it as unknown.
+            const costs = await fetchPurchaseOrderCosts(tenantId);
+            return (data ?? []).map((po) => ({ ...po, total_cost: costs.get(po.id) ?? null }));
         },
     });
 }

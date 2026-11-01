@@ -54,11 +54,16 @@ export function productSalesQueryOptions(tenantId: string | null | undefined) {
  * page uses for spend, so the two pages agree. Cancelled, rejected, no-answer
  * and in-flight orders are not sales. The RPC checks membership of the tenant.
  */
-export function useProductSalesQuery(enabled = true): ReadonlyMap<string, ProductSales> {
+export function useProductSalesQuery(enabled = true): {
+    sales: ReadonlyMap<string, ProductSales>;
+    /** True when sales could not be loaded: callers show "—" and a retry, never zeros. */
+    unavailable: boolean;
+    retry: () => void;
+} {
     const { session, clientReady, tenantId } = useAuth();
-    const { data } = useQuery({
+    const { data, isError, refetch } = useQuery({
         ...productSalesQueryOptions(tenantId),
         enabled: enabled && !!session && clientReady && !!tenantId,
     });
-    return data ?? EMPTY;
+    return { sales: data ?? EMPTY, unavailable: isError && !data, retry: () => void refetch() };
 }

@@ -37,12 +37,12 @@ describe("useProductSalesQuery", () => {
 
         const { result } = renderHook(() => useProductSalesQuery(), { wrapper: wrapper() });
 
-        await waitFor(() => expect(result.current.size).toBe(2));
+        await waitFor(() => expect(result.current.sales.size).toBe(2));
         expect(H.rpc).toHaveBeenCalledWith("get_product_sales", { p_tenant_id: "tenant-1" });
-        expect(result.current.get("p1")).toEqual({
+        expect(result.current.sales.get("p1")).toEqual({
             timesSold: 16, totalRevenue: 740500, averageOrderValue: 246833, timesSold30d: 4, revenue30d: 185000,
         });
-        expect(result.current.get("p2")).toEqual({
+        expect(result.current.sales.get("p2")).toEqual({
             timesSold: 0, totalRevenue: 0, averageOrderValue: 0, timesSold30d: 0, revenue30d: 0,
         });
     });
@@ -52,7 +52,7 @@ describe("useProductSalesQuery", () => {
 
         await new Promise((r) => setTimeout(r, 20));
         expect(H.rpc).not.toHaveBeenCalled();
-        expect(result.current.size).toBe(0);
+        expect(result.current.sales.size).toBe(0);
     });
 
     it("does not call the RPC before the active tenant is known", async () => {
@@ -61,6 +61,14 @@ describe("useProductSalesQuery", () => {
 
         await new Promise((r) => setTimeout(r, 20));
         expect(H.rpc).not.toHaveBeenCalled();
-        expect(result.current.size).toBe(0);
+        expect(result.current.sales.size).toBe(0);
+    });
+
+    it("reports sales as unavailable when the RPC fails, so callers show a dash and not zeros", async () => {
+        H.rpc.mockResolvedValue({ data: null, error: { message: "statement timeout" } });
+        const { result } = renderHook(() => useProductSalesQuery(), { wrapper: wrapper() });
+
+        await waitFor(() => expect(result.current.unavailable).toBe(true));
+        expect(result.current.sales.size).toBe(0);
     });
 });
