@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * The total under the score-factor bars: the shown score out of 100 and, when
- * the factors add up to more (or less) than that, the raw total and the cap.
+ * the raw total runs past 100 (or below 0), that total and the limit it hit.
  * The profile's Trust factors card and the score-breakdown modal both end with
  * it, so the two never disagree about what the bars add up to. Only a rated
  * customer has one: without a score, the bars' "a score appears from the 3rd
@@ -21,9 +21,11 @@ export function ScoreTotalRow({ score, raw, size = "lg" }: {
 }) {
     const { t } = useLanguage();
 
-    const capped = raw !== score && (
+    // Said only when the score is clamped: above 100 it is capped (the help's word), below 0 it stops at 0.
+    const limitKey = raw > 100 ? "customers.scoreBreakdown.capped" : raw < 0 ? "customers.scoreBreakdown.floored" : null;
+    const capped = limitKey && (
         <span className="text-xs text-muted-foreground">
-            {t("customers.scoreBreakdown.capped", { raw: String(raw) })}
+            {t(limitKey, { raw: String(Math.round(raw)) })}
         </span>
     );
 

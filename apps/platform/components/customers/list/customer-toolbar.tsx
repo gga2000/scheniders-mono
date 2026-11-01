@@ -3,6 +3,8 @@
 import { motion } from "framer-motion";
 import { Search, LayoutGrid, List, ChevronDown, X, Tag } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { APP_HEADER_SLIDE } from "@/hooks/use-app-header-offset";
+import { cn } from "@/lib/utils";
 
 interface CustomerToolbarProps {
     search: string;
@@ -17,9 +19,11 @@ interface CustomerToolbarProps {
     onTag: (tagId: string) => void;
     /** The sticky bar itself, so the page can measure it: the table header sticks at its height. */
     stickyRef?: (element: HTMLDivElement | null) => void;
+    /** Where the bar sticks: right under the shell's header while it is shown (useAppHeaderOffset). */
+    stickyTop: number;
 }
 
-export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, tags, tagId, onTag, view, onView, stickyRef }: CustomerToolbarProps) {
+export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, tags, tagId, onTag, view, onView, stickyRef, stickyTop }: CustomerToolbarProps) {
     const { t } = useLanguage();
 
     const sortLabels: Record<string, string> = {
@@ -34,8 +38,9 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, t
     return (
         // The sticky bar is page-coloured and opaque edge to edge, padding included, and the
         // table header sticks at its measured height: the two make one solid block, so a
-        // scrolled row never shows above, beside or under the bar.
-        <div ref={stickyRef} className="sm:sticky sm:top-0 z-40 -mx-1 px-1 py-1.5 bg-background">
+        // scrolled row never shows above, beside or under the bar. It sticks under the shell's
+        // header while that is shown, never half over it, and follows the header's slide.
+        <div ref={stickyRef} style={{ top: stickyTop }} className={cn("sm:sticky z-40 -mx-1 px-1 py-1.5 bg-background", APP_HEADER_SLIDE)}>
             <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}

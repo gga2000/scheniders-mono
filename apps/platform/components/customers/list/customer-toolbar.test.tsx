@@ -18,10 +18,18 @@ afterEach(cleanup);
 
 const base = {
     search: "", onSearch: () => {}, sortBy: "total_spent", sortOrder: "asc" as const, onSort: () => {},
-    view: "grid" as const, onView: () => {}, tagId: "", onTag: () => {},
+    view: "grid" as const, onView: () => {}, tagId: "", onTag: () => {}, stickyTop: 0,
 };
 
 describe("CustomerToolbar", () => {
+    it("sticks under the shell header's offset and follows its slide", () => {
+        const { container } = render(<CustomerToolbar {...base} tags={[]} stickyTop={72} />);
+        const band = container.firstElementChild as HTMLElement;
+        expect(band.style.top).toBe("72px");
+        expect(band.className).toContain("sm:sticky");
+        expect(band.className).toContain("transition-[top]");
+    });
+
     it("hides the tag filter when the store has no tags", () => {
         render(<CustomerToolbar {...base} tags={[]} />);
         expect(screen.queryByLabelText("Filter by tag")).toBeNull();

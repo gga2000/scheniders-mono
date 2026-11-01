@@ -125,7 +125,12 @@ export function BlacklistDialog({
                         <>
                             {/* Reason presets */}
                             <div className="space-y-2">
-                                <Label className="text-xs text-muted">{t("orders.blacklist.reason")} <span className={customers ? CUSTOMERS_DANGER_TEXT : "text-red-500"}>{t("orders.blacklist.required")}</span></Label>
+                                {customers ? (
+                                    // One run in the label's own direction, so the star trails "السبب" in Arabic as it trails "Reason" in English.
+                                    <Label className="text-xs text-muted"><span dir="auto">{t("orders.blacklist.reason")} <span className={CUSTOMERS_DANGER_TEXT}>{t("orders.blacklist.required")}</span></span></Label>
+                                ) : (
+                                    <Label className="text-xs text-muted">{t("orders.blacklist.reason")} <span className="text-red-500">{t("orders.blacklist.required")}</span></Label>
+                                )}
                                 <div className="flex flex-wrap gap-2">
                                     {REASON_PRESETS.map((preset) => (
                                         <button
@@ -153,7 +158,7 @@ export function BlacklistDialog({
                                 {reason === otherLabel && (
                                     <input
                                         type="text"
-                                        placeholder={t("orders.blacklist.writeReason")}
+                                        placeholder={t(customers ? "customers.block.writeReason" : "orders.blacklist.writeReason")}
                                         value={customReason}
                                         onChange={(e) => setCustomReason(e.target.value)}
                                         className="w-full h-9 rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
@@ -165,7 +170,8 @@ export function BlacklistDialog({
                             <div className="space-y-1">
                                 <Label className="text-xs text-muted">{t("orders.blacklist.additionalNotes")}</Label>
                                 <Textarea
-                                    placeholder={t("orders.blacklist.anyDetails")}
+                                    // The customers wording has no Arabic trailing "...", which an LTR field would put at the sentence's start.
+                                    placeholder={t(customers ? "customers.block.anyDetails" : "orders.blacklist.anyDetails")}
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
                                     rows={2}

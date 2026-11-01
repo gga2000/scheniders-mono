@@ -6,7 +6,7 @@ import { BarChart3, Layers } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import {
-    buildScoreBreakdown, monthlyScoreSeries, type MonthlyScore, type ScoreFactor,
+    buildScoreBreakdown, monthlyScoreSeries, historyAxisFloor, type MonthlyScore, type ScoreFactor,
 } from "@/lib/customer-reliability";
 import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
 import { ScoreTotalRow } from "@/components/customers/detail/score-total-row";
@@ -28,9 +28,6 @@ interface TrustHistoryCardProps {
 
 type ViewMode = "history" | "factors";
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
-
-/** Horizontal guides of the history chart, on the 0–100 score scale. */
-const GUIDES = [100, 50, 0] as const;
 
 export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustHistoryCardProps) {
     const { t, language } = useLanguage();
@@ -149,82 +146,115 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
 }
 
 /**
- * Monthly average score, one bar per calendar month (empty months stay as
- * gaps). Faint 0/50/100 guides give the scale; the first and the latest scored
- * months carry their value, any other shows it on hover. Bars are neutral: the
- * latest in ink, earlier months muted, at full opacity in both themes.
+ * Monthly average score as a line over calendar months, oldest first. The axis
+ * starts at 50 while every shown month is at 50 or more, so steady scores read
+ * as a level line high on the chart, not as identical full bars from zero; it
+ * starts at 0 once a month falls below 50. Months before the first score are
+ * one labelled "Not scored yet" span; a quiet month later on is a dashed join.
+ * The first and the latest scored months carry their value, any other shows
+ * it on hover. Neutral ink in both themes: the latest point solid, the rest muted.
  */
 function HistoryChart({ series, language, t }: { series: MonthlyScore[]; language: string; t: Translate }) {
     const scored = series.flatMap((m, i) => (m.score === null ? [] : [i]));
     const first = scored[0];
     const latest = scored[scored.length - 1];
+    const floor = historyAxisFloor(series);
+    const guides = [100, (100 + floor) / 2, floor];
+    const count = series.length;
+    // Percent from the left for a month's centre, from the top for a score.
+    const x = (i: number) => ((i + 0.5) / count) * 100;
+    const y = (score: number) => 100 - ((score - floor) / (100 - floor)) * 100;
+    const unscoredMonths = first ?? count;
+    const segments = scored.slice(1).map((b, k) => ({ a: scored[k], b }));
+    const scoreAt = (i: number) => series[i].score ?? floor;
 
     return (
         <figure aria-label={t("customers.trust.chartLabel")} className="flex gap-2">
             {/* Y scale */}
             <div className="relative h-48 w-7 shrink-0 text-[11px] text-muted-foreground tabular-nums" aria-hidden>
-                {GUIDES.map((g) => (
-                    <span key={g} className="absolute end-0 -translate-y-1/2 leading-none" style={{ top: `${100 - g}%` }}>{g}</span>
+                {guides.map((g) => (
+                    <span key={g} className="absolute end-0 -translate-y-1/2 leading-none" style={{ top: `${y(g)}%` }}>{g}</span>
                 ))}
             </div>
             <div className="flex-1 min-w-0">
                 <div className="relative h-48">
-                    {GUIDES.map((g) => (
+                    {guides.map((g) => (
                         <div
                             key={g}
                             aria-hidden
-                            className={cn("absolute inset-x-0 border-t", g === 0 ? "border-(--card-border)" : "border-dashed border-(--card-border)/70")}
-                            style={{ top: `${100 - g}%` }}
+                            className={cn("absolute inset-x-0 border-t", g === floor ? "border-(--card-border)" : "border-dashed border-(--card-border)/70")}
+                            style={{ top: `${y(g)}%` }}
                         />
                     ))}
-                    <ol className="absolute inset-0 flex items-end gap-2">
+                    {/* The months before the first score: said once, not left blank. */}
+                    {unscoredMonths > 0 && (
+                        <div
+                            aria-hidden
+                            className="absolute inset-y-0 left-0 flex items-center justify-center rounded-lg bg-muted/40 px-2"
+                            style={{ width: `${(unscoredMonths / count) * 100}%` }}
+                        >
+                            <span className="text-center text-xs font-medium leading-tight text-muted-foreground">{t("customers.trust.notScored")}</span>
+                        </div>
+                    )}
+                    <svg aria-hidden className="absolute inset-0 h-full w-full overflow-visible text-muted-foreground" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        {segments.map(({ a, b }) => (
+                            <line
+                                key={`${a}-${b}`}
+                                x1={x(a)} y1={y(scoreAt(a))} x2={x(b)} y2={y(scoreAt(b))}
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeDasharray={b === a + 1 ? undefined : "4 4"}
+                                vectorEffect="non-scaling-stroke"
+                            />
+                        ))}
+                    </svg>
+                    <ol className="absolute inset-0">
                         {series.map((m, i) => {
                             const month = formatMonthShort(m.month, language);
+                            const value = m.score === null
+                                ? (i < unscoredMonths ? t("customers.trust.notScored") : "—")
+                                : String(m.score);
                             const labelled = i === first || i === latest;
                             return (
                                 <li
                                     key={m.month}
-                                    className="group relative flex-1 h-full flex flex-col justify-end"
-                                    title={m.score === null ? month : `${month}: ${m.score}`}
+                                    className="group absolute inset-y-0"
+                                    style={{ left: `${(i / count) * 100}%`, width: `${100 / count}%` }}
+                                    title={`${month}: ${value}`}
                                 >
-                                    <span className="sr-only">{m.score === null ? `${month}: —` : `${month}: ${m.score}`}</span>
+                                    <span className="sr-only">{`${month}: ${value}`}</span>
                                     {m.score !== null && (
-                                        <>
+                                        <span aria-hidden className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ top: `${y(m.score)}%` }}>
                                             <span
-                                                aria-hidden
                                                 className={cn(
-                                                    "mb-1 text-center text-xs tabular-nums transition-opacity",
+                                                    "absolute bottom-full left-1/2 -translate-x-1/2 mb-1 text-xs tabular-nums transition-opacity",
                                                     i === latest ? "font-bold text-foreground" : "font-medium text-muted-foreground",
                                                     labelled ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                                                 )}
                                             >
                                                 {m.score}
                                             </span>
-                                            <motion.div
-                                                aria-hidden
+                                            <span
                                                 className={cn(
-                                                    "w-full rounded-t-[4px]",
-                                                    // A neutral ramp, not a status colour: ink for the latest month, muted for the rest (amber means "Needs confirming").
-                                                    i === latest ? "bg-foreground/85" : "bg-muted-foreground/30 group-hover:bg-muted-foreground/50",
+                                                    "block rounded-full ring-2 ring-(--card-bg)",
+                                                    i === latest ? "size-3 bg-foreground" : "size-2.5 bg-muted-foreground group-hover:bg-foreground/70",
                                                 )}
-                                                initial={{ height: 0 }}
-                                                animate={{ height: `${Math.max(m.score, 2)}%` }}
-                                                transition={{ delay: i * 0.03, duration: 0.4, ease: "easeOut" }}
                                             />
-                                        </>
+                                        </span>
                                     )}
                                 </li>
                             );
                         })}
                     </ol>
                 </div>
-                {/* Month names under their own bars; a two-word Iraqi month ("تشرين الثاني") wraps rather than clipping. */}
-                <div className="flex gap-2 mt-2 text-[11px] font-medium leading-tight text-muted-foreground" aria-hidden>
+                {/* Month names under their own points; a two-word Iraqi month ("تشرين الثاني") wraps rather than clipping. */}
+                <div className="flex mt-2 text-[11px] font-medium leading-tight text-muted-foreground" aria-hidden>
                     {series.map((m) => (
-                        <span key={m.month} className="flex-1 min-w-0 text-center">{formatMonthShort(m.month, language)}</span>
+                        <span key={m.month} className="flex-1 min-w-0 px-0.5 text-center">{formatMonthShort(m.month, language)}</span>
                     ))}
                 </div>
-                {/* Each bar is that month's average, so the latest bar can sit below today's score. */}
+                {/* Each point is that month's average, so the latest can sit below today's score. */}
                 <figcaption className="mt-3 text-xs text-muted-foreground">{t("customers.trust.monthlyAverage")}</figcaption>
             </div>
         </figure>
