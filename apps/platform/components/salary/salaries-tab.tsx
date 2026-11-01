@@ -2,11 +2,11 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings2, Clock, History, TrendingDown, AlertCircle, CheckCircle, RefreshCw, Download, FileSpreadsheet, Eye } from "lucide-react";
+import { CheckCircle, Clock, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, subDays } from "date-fns";
 
-import { useSalaries, type OrderAttributionMode, type EmployeePeriodOverrides } from "@/hooks/use-salaries";
+import { useSalaries, type OrderAttributionMode, type EmployeePeriodOverrides, type PeriodMode } from "@/hooks/use-salaries";
 import { useSalaryConfig } from "@/hooks/use-salary-config";
 import { useSalaryDeductions } from "@/hooks/use-salary-deductions";
 import { usePayroll } from "@/hooks/use-payroll";
@@ -19,7 +19,8 @@ import { generatePayrollSummaryPDF, downloadSummaryBlob } from "@/lib/payroll-su
 
 import { SalaryOverviewCards } from "./salary-overview-cards";
 import { OrderQualityStrip } from "./order-quality-strip";
-import { PayrollPeriodSelector, type PeriodMode } from "./payroll-period-selector";
+import { SalariesCommandBar } from "./salaries-command-bar";
+import { SalariesTabBar, type SalariesSort, type SalariesSubTab } from "./salaries-tab-bar";
 import { EmployeePayrollCard } from "./employee-payroll-card";
 import { PayrollHistoryTable } from "./payroll-history-table";
 import { SalaryDeductionsTab } from "./salary-deductions-tab";
@@ -29,7 +30,6 @@ import { PayslipPreviewModal } from "./payslip-preview-modal";
 import type { EmployeePayrollData } from "@/types/salary";
 import { useLanguage } from "@/hooks/use-language";
 
-type SubTab = "current" | "history" | "advances" | "penalties";
 
 function today() {
     return format(new Date(), "yyyy-MM-dd");
@@ -223,14 +223,14 @@ export function SalariesTab() {
     const [periodMode, setPeriodMode] = useState<PeriodMode>("since_last");
     const [customStart, setCustomStart] = useState(thirtyDaysAgo);
     const [customEnd, setCustomEnd] = useState(today);
-    const [activeSubTab, setActiveSubTab] = useState<SubTab>("current");
+    const [activeSubTab, setActiveSubTab] = useState<SalariesSubTab>("current");
     const [roleDefaultsOpen, setRoleDefaultsOpen] = useState(false);
     const [attributionMode, setAttributionMode] = useState<OrderAttributionMode>("all");
     const [payingEmployeeId, setPayingEmployeeId] = useState<string | null>(null);
     const [confirmData, setConfirmData] = useState<EmployeePayrollData | null>(null);
     const [periodOverrides, setPeriodOverrides] = useState<EmployeePeriodOverrides>(new Map());
     const [search, setSearch] = useState("");
-    const [sortBy, setSortBy] = useState<"name" | "net_desc" | "net_asc" | "last_paid">("name");
+    const [sortBy, setSortBy] = useState<SalariesSort>("name");
     const [bulkPayOpen, setBulkPayOpen] = useState(false);
     const [bulkPayProgress, setBulkPayProgress] = useState<{ done: number; total: number } | null>(null);
     const [previewOpen, setPreviewOpen] = useState(false);
@@ -537,101 +537,24 @@ export function SalariesTab() {
         [user, t, effectiveEmployeeData, periodOverrides, periodStart, periodEnd, periodMode, lastPayrollDates, runPayroll, handleRefreshAll]
     );
 
-    const subTabs: { key: SubTab; label: string; icon: React.ElementType }[] = [
-        { key: "current", label: t("payroll.tab.current"), icon: Clock },
-        { key: "history", label: t("payroll.tab.history"), icon: History },
-        { key: "advances", label: t("payroll.tab.advances"), icon: TrendingDown },
-        { key: "penalties", label: t("payroll.tab.penalties"), icon: AlertCircle },
-    ];
+    const payableCount = effectiveEmployeeData.filter(d => d.calculation.netSalary > 0 && !d.overlappingPayroll?.fullyCovered).length;
 
     return (
         <div className="space-y-3">
-            {/* ── Row 1: Command bar ── */}
-            <div className="flex flex-wrap items-center gap-2">
-                {/* Period mode toggle */}
-                <div className="flex bg-[var(--card-bg)] rounded-xl p-0.5 border border-[var(--card-border)]">
-                    <button
-                        onClick={() => setPeriodMode("since_last")}
-                        className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
-                            periodMode === "since_last" ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground"
-                        )}
-                    >
-                        <Clock className="w-3 h-3" />
-                        {t("payroll.period.sinceLast")}
-                    </button>
-                    <button
-                        onClick={() => setPeriodMode("custom")}
-                        className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all",
-                            periodMode === "custom" ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground"
-                        )}
-                    >
-                        <Settings2 className="w-3 h-3" />
-                        {t("payroll.period.custom")}
-                    </button>
-                </div>
-
-                {/* Date inputs — only in custom mode */}
-                {periodMode === "custom" && (
-                    <>
-                        <input
-                            type="date"
-                            value={customStart}
-                            onChange={e => { setCustomStart(e.target.value); }}
-                            className="px-2.5 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/30"
-                        />
-                        <span className="text-muted text-xs">→</span>
-                        <input
-                            type="date"
-                            value={customEnd}
-                            onChange={e => { setCustomEnd(e.target.value); }}
-                            className="px-2.5 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/30"
-                        />
-                    </>
-                )}
-
-                {/* Resolved date range label */}
-                {periodStart && periodEnd && (
-                    <span className="text-xs text-muted px-2 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl whitespace-nowrap">
-                        {periodStart} — {periodEnd}
-                    </span>
-                )}
-
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Attribution toggle */}
-                <div className="flex bg-[var(--card-bg)] rounded-xl p-0.5 border border-[var(--card-border)]" title={t("payroll.attribution.hint")}>
-                    <button
-                        onClick={() => setAttributionMode("all")}
-                        className={cn("px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all", attributionMode === "all" ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground")}
-                    >
-                        {t("payroll.attribution.all")}
-                    </button>
-                    <button
-                        onClick={() => setAttributionMode("last_touched")}
-                        className={cn("px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all", attributionMode === "last_touched" ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground")}
-                    >
-                        {t("payroll.attribution.byEmployee")}
-                    </button>
-                </div>
-
-                <button onClick={handleRefreshAll} className="p-1.5 rounded-lg hover:bg-[var(--card-bg)] text-muted hover:text-foreground transition-colors" title={t("common.refresh")}>
-                    <RefreshCw className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => setRoleDefaultsOpen(true)} className="p-1.5 rounded-lg hover:bg-[var(--card-bg)] text-muted hover:text-foreground transition-colors" title={t("payroll.roleDefaults")}>
-                    <Settings2 className="w-3.5 h-3.5" />
-                </button>
-                <button
-                    onClick={() => setBulkPayOpen(true)}
-                    disabled={effectiveEmployeeData.filter(d => d.calculation.netSalary > 0 && !d.overlappingPayroll?.fullyCovered).length === 0}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-medium hover:bg-emerald-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm shadow-emerald-500/20"
-                >
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    {t("payroll.payAll")}
-                </button>
-            </div>
+            <SalariesCommandBar
+                periodMode={periodMode}
+                onPeriodModeChange={setPeriodMode}
+                customStart={customStart}
+                customEnd={customEnd}
+                onCustomStartChange={setCustomStart}
+                onCustomEndChange={setCustomEnd}
+                attributionMode={attributionMode}
+                onAttributionModeChange={setAttributionMode}
+                onRefresh={handleRefreshAll}
+                onOpenRoleDefaults={() => setRoleDefaultsOpen(true)}
+                payableCount={payableCount}
+                onPayAll={() => setBulkPayOpen(true)}
+            />
 
             {/* Bulk pay progress bar */}
             {bulkPayProgress && (
@@ -661,86 +584,23 @@ export function SalariesTab() {
             {/* ── Row 2b: Order-quality strip (business-wide, selected period) ── */}
             <OrderQualityStrip breakdown={periodBreakdown} />
 
-            {/* ── Row 3: Sub-tabs + tools ── */}
-            <div className="flex items-center gap-2 flex-wrap">
-                {/* Sub-tabs */}
-                <div className="flex bg-[var(--card-bg)] rounded-xl p-0.5 border border-[var(--card-border)] overflow-x-auto">
-                    {subTabs.map(tab => {
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveSubTab(tab.key)}
-                                className={cn(
-                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap",
-                                    activeSubTab === tab.key ? "bg-[var(--ink)] text-white" : "text-muted hover:text-foreground"
-                                )}
-                            >
-                                <Icon className="w-3 h-3" />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Tools — only on Current Period tab */}
-                {activeSubTab === "current" && (
-                    <>
-                        <div className="flex-1" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder={t("common.search")}
-                            className="w-40 px-3 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--ink)]/20 transition-all"
-                        />
-                        <select
-                            value={sortBy}
-                            onChange={e => setSortBy(e.target.value as typeof sortBy)}
-                            className="px-2.5 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none cursor-pointer"
-                        >
-                            <option value="name">{t("payroll.sort.name")}</option>
-                            <option value="net_desc">{t("payroll.sort.highest")}</option>
-                            <option value="net_asc">{t("payroll.sort.lowest")}</option>
-                            <option value="last_paid">{t("payroll.sort.lastPaid")}</option>
-                        </select>
-                        <button
-                            onClick={() => exportCurrentPeriodCSV(effectiveEmployeeData, periodStart, periodEnd)}
-                            disabled={effectiveEmployeeData.length === 0}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-muted hover:text-foreground transition-colors disabled:opacity-40"
-                            title={t("payroll.exportCsv")}
-                        >
-                            <FileSpreadsheet className="w-3.5 h-3.5" />
-                            CSV
-                        </button>
-                        <button
-                            onClick={async () => {
-                                const blob = await generatePayrollSummaryPDF(effectiveEmployeeData, periodStart, periodEnd, undefined, periodBreakdown);
-                                downloadSummaryBlob(blob, periodStart, periodEnd);
-                            }}
-                            disabled={effectiveEmployeeData.length === 0}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-muted hover:text-foreground transition-colors disabled:opacity-40"
-                            title={t("payroll.summaryPdf")}
-                        >
-                            <Download className="w-3.5 h-3.5" />
-                            {t("payroll.summaryPdfShort")}
-                        </button>
-                        {hiddenEmployeeIds.size > 0 && (
-                            <button
-                                onClick={() => setShowHidden(v => !v)}
-                                className={cn(
-                                    "flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-xl border transition-colors",
-                                    showHidden
-                                        ? "bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800 text-rose-600"
-                                        : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:text-foreground"
-                                )}
-                            >
-                                {showHidden ? t("payroll.hidden.hide") : t("payroll.hidden.show", { count: hiddenEmployeeIds.size })}
-                            </button>
-                        )}
-                    </>
-                )}
-            </div>
+            <SalariesTabBar
+                activeTab={activeSubTab}
+                onTabChange={setActiveSubTab}
+                search={search}
+                onSearchChange={setSearch}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                exportDisabled={effectiveEmployeeData.length === 0}
+                onExportCsv={() => exportCurrentPeriodCSV(effectiveEmployeeData, periodStart, periodEnd)}
+                onExportPdf={async () => {
+                    const blob = await generatePayrollSummaryPDF(effectiveEmployeeData, periodStart, periodEnd, undefined, periodBreakdown);
+                    downloadSummaryBlob(blob, periodStart, periodEnd);
+                }}
+                hiddenCount={hiddenEmployeeIds.size}
+                showHidden={showHidden}
+                onToggleHidden={() => setShowHidden(v => !v)}
+            />
 
             {/* Tab content */}
             {activeSubTab === "current" && (

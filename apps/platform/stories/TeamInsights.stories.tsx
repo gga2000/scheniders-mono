@@ -7,6 +7,7 @@ import { teamInsightsWindow } from "@/lib/team-time-window";
 import { employeesAdapter, weekRollup } from "./team-fixtures";
 
 const insights = buildTeamInsights(weekRollup, teamInsightsWindow("week").dayKeys);
+const quietWeek = buildTeamInsights({ ...weekRollup, by_day: [], by_hour: [], by_action: [] }, teamInsightsWindow("week").dayKeys);
 
 /** /team "Insights" tab with a week of sample history. */
 function Insights() {
@@ -29,3 +30,12 @@ const meta: Meta<typeof Insights> = {
 export default meta;
 
 export const Week: StoryObj<typeof Insights> = {};
+
+/** A week with no recorded actions: one plain message instead of three empty charts. */
+export const QuietWeek: StoryObj<typeof Insights> = {
+    render: () => (
+        <div className="min-h-screen bg-[var(--background)] p-6 max-w-7xl mx-auto">
+            <TeamAnalyticsTab range="week" insights={quietWeek} loading={false} failed={false} />
+        </div>
+    ),
+};

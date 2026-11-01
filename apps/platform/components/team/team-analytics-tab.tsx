@@ -67,6 +67,11 @@ export function TeamAnalyticsTab({ range, insights, loading, failed, className }
                     <p className="py-24 text-center text-sm text-[#6B6B6B] dark:text-gray-400">{t("team.analytics.loadFailed")}</p>
                 ) : loading || !insights ? (
                     <Skeleton className="h-[320px] rounded-2xl" />
+                ) : insights.byDay.every((d) => d.totalActions === 0) ? (
+                    <div className="py-24 text-center">
+                        <p className="text-base font-semibold text-[#1E1E1E] dark:text-white">{t("team.analytics.emptyTitle")}</p>
+                        <p className="mt-1 text-sm text-[#6B6B6B] dark:text-gray-400 max-w-md mx-auto">{t("team.analytics.emptyBody")}</p>
+                    </div>
                 ) : activeChart === "trends" ? (
                     <PerformanceTrendsChart
                         data={insights.byDay}

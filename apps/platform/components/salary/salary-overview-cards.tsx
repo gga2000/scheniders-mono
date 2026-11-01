@@ -9,26 +9,10 @@ function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
 }
 
-type Tone = "emerald" | "amber" | "rose" | "blue";
-
-const TONE_BG: Record<Tone, string> = {
-    emerald: "bg-emerald-100 dark:bg-emerald-900/30",
-    amber: "bg-amber-100 dark:bg-amber-900/30",
-    rose: "bg-rose-100 dark:bg-rose-900/30",
-    blue: "bg-blue-100 dark:bg-blue-900/30",
-};
-const TONE_ICON: Record<Tone, string> = {
-    emerald: "text-emerald-600 dark:text-emerald-400",
-    amber: "text-amber-600 dark:text-amber-400",
-    rose: "text-rose-600 dark:text-rose-400",
-    blue: "text-blue-600 dark:text-blue-400",
-};
-
 function Tile({
-    Icon, tone, label, value, primary = false, onClick,
+    Icon, label, value, primary = false, onClick,
 }: {
     Icon: React.ElementType;
-    tone: Tone;
     label: string;
     value: string;
     primary?: boolean;
@@ -36,11 +20,11 @@ function Tile({
 }) {
     const content = (
         <>
-            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", TONE_BG[tone])}>
-                <Icon className={cn("w-4 h-4", TONE_ICON[tone])} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--background)]">
+                <Icon className="w-4 h-4 text-muted" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
-                <p className="text-[11px] text-muted leading-none mb-1">{label}</p>
+                <p className="text-xs text-muted leading-none mb-1.5">{label}</p>
                 <p className={cn("font-bold text-foreground tabular-nums truncate tracking-tight", primary ? "text-lg leading-none" : "text-sm")}>
                     {value}
                 </p>
@@ -88,10 +72,10 @@ export function SalaryOverviewCards({
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="flex items-stretch flex-wrap sm:flex-nowrap bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden divide-x divide-[var(--card-border)]"
         >
-            <Tile Icon={DollarSign} tone="emerald" label={t("payroll.overview.totalDue")} value={`${fmtIQD(totalDue)} ${iqd}`} primary />
-            <Tile Icon={TrendingDown} tone="amber" label={t("payroll.overview.advances")} value={`${fmtIQD(totalPendingAdvances)} ${iqd}`} onClick={onAdvancesClick} />
-            <Tile Icon={AlertCircle} tone="rose" label={t("payroll.overview.penalties")} value={`${fmtIQD(totalPendingPenalties)} ${iqd}`} onClick={onPenaltiesClick} />
-            <Tile Icon={Users} tone="blue" label={t("payroll.overview.employees")} value={String(employeeCount)} />
+            <Tile Icon={DollarSign} label={t("payroll.overview.totalDue")} value={`${fmtIQD(totalDue)} ${iqd}`} primary />
+            <Tile Icon={TrendingDown} label={t("payroll.overview.advances")} value={`${fmtIQD(totalPendingAdvances)} ${iqd}`} onClick={onAdvancesClick} />
+            <Tile Icon={AlertCircle} label={t("payroll.overview.penalties")} value={`${fmtIQD(totalPendingPenalties)} ${iqd}`} onClick={onPenaltiesClick} />
+            <Tile Icon={Users} label={t("payroll.overview.employees")} value={String(employeeCount)} />
         </motion.div>
     );
 }

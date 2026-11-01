@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { SalaryOverviewCards } from "@/components/salary/salary-overview-cards";
@@ -5,16 +6,41 @@ import { OrderQualityStrip } from "@/components/salary/order-quality-strip";
 import { EmployeePayrollCard } from "@/components/salary/employee-payroll-card";
 import { SalaryDeductionsTab } from "@/components/salary/salary-deductions-tab";
 import { PayrollHistoryTable } from "@/components/salary/payroll-history-table";
+import { SalariesCommandBar } from "@/components/salary/salaries-command-bar";
+import { SalariesTabBar, type SalariesSort, type SalariesSubTab } from "@/components/salary/salaries-tab-bar";
+import type { OrderAttributionMode, PeriodMode } from "@/hooks/use-salaries";
 import { payrollHistory, payrollAdvances, payrollBonuses, payrollBreakdown, payrollEmployees, payrollPenalties, payrollPeriod, recentPayment } from "./payroll-fixtures";
 
 const noop = async () => undefined;
 const names = new Map(payrollEmployees.map((e) => [e.employee.id, e.employee.displayName ?? e.employee.email]));
 
-/** /salaries "Current period": totals, order quality and one card per member (the page's command bar lives in the container). */
+/** /salaries "Current period": command bar, totals, order quality, tab bar and one card per member. */
 function CurrentPeriod() {
     const totalDue = payrollEmployees.reduce((s, e) => s + e.calculation.netSalary, 0);
+    const [periodMode, setPeriodMode] = useState<PeriodMode>("since_last");
+    const [customStart, setCustomStart] = useState(payrollPeriod.start);
+    const [customEnd, setCustomEnd] = useState(payrollPeriod.end);
+    const [attribution, setAttribution] = useState<OrderAttributionMode>("all");
+    const [tab, setTab] = useState<SalariesSubTab>("current");
+    const [search, setSearch] = useState("");
+    const [sortBy, setSortBy] = useState<SalariesSort>("name");
+    const [showHidden, setShowHidden] = useState(false);
     return (
         <div className="min-h-screen bg-[var(--background)] p-6 space-y-3">
+            <SalariesCommandBar
+                periodMode={periodMode}
+                onPeriodModeChange={setPeriodMode}
+                customStart={customStart}
+                customEnd={customEnd}
+                onCustomStartChange={setCustomStart}
+                onCustomEndChange={setCustomEnd}
+                attributionMode={attribution}
+                onAttributionModeChange={setAttribution}
+                onRefresh={() => undefined}
+                onOpenRoleDefaults={() => undefined}
+                payableCount={payrollEmployees.filter((e) => e.calculation.netSalary > 0).length}
+                onPayAll={() => undefined}
+            />
             <SalaryOverviewCards
                 totalDue={totalDue}
                 employeeCount={payrollEmployees.length}
@@ -22,6 +48,20 @@ function CurrentPeriod() {
                 totalPendingPenalties={payrollPenalties.reduce((s, a) => s + a.amount, 0)}
             />
             <OrderQualityStrip breakdown={payrollBreakdown} />
+            <SalariesTabBar
+                activeTab={tab}
+                onTabChange={setTab}
+                search={search}
+                onSearchChange={setSearch}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                exportDisabled={false}
+                onExportCsv={() => undefined}
+                onExportPdf={() => undefined}
+                hiddenCount={1}
+                showHidden={showHidden}
+                onToggleHidden={() => setShowHidden((v) => !v)}
+            />
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
                 {payrollEmployees.map((data, i) => (
                     <EmployeePayrollCard

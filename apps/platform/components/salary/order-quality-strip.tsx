@@ -29,16 +29,16 @@ export function OrderQualityStrip({ breakdown }: OrderQualityStripProps) {
             transition={{ duration: 0.3, ease: "easeOut", delay: reduce ? 0 : 0.05 }}
             className="flex items-stretch flex-wrap sm:flex-nowrap bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden divide-x divide-[var(--card-border)]"
         >
-            <Cell icon={<Package className="w-4 h-4 text-foreground" />} bg="bg-[var(--background)]" label={t("payroll.strip.completed")} value={breakdown.completedTotal} />
-            <Cell icon={<CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />} bg="bg-emerald-100 dark:bg-emerald-900/30" label={t("payroll.strip.payable")} value={breakdown.genuine} valueCls="text-emerald-600 dark:text-emerald-400" />
-            <Cell icon={<RefreshCw className="w-4 h-4 text-amber-600 dark:text-amber-400" />} bg="bg-amber-100 dark:bg-amber-900/30" label={t("payroll.breakdown.replacements")} value={breakdown.replacements} valueCls="text-amber-600 dark:text-amber-400" />
-            <Cell icon={<Undo2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />} bg="bg-rose-100 dark:bg-rose-900/30" label={t("payroll.strip.refunds")} value={breakdown.refunds} valueCls="text-rose-600 dark:text-rose-400" />
+            <Cell Icon={Package} label={t("payroll.strip.completed")} value={breakdown.completedTotal} />
+            <Cell Icon={CheckCircle} label={t("payroll.strip.payable")} value={breakdown.genuine} />
+            <Cell Icon={RefreshCw} label={t("payroll.breakdown.replacements")} value={breakdown.replacements} />
+            <Cell Icon={Undo2} label={t("payroll.strip.refunds")} value={breakdown.refunds} />
             <div className="flex items-center gap-2.5 px-4 py-3">
-                <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                    <Gauge className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <div className="w-7 h-7 rounded-lg bg-[var(--background)] flex items-center justify-center shrink-0">
+                    <Gauge className="w-4 h-4 text-muted" aria-hidden="true" />
                 </div>
                 <div>
-                    <p className="text-[11px] text-muted leading-none mb-1">{t("payroll.breakdown.quality")}</p>
+                    <p className="text-xs text-muted leading-none mb-1.5">{t("payroll.breakdown.quality")}</p>
                     <p className={cn("text-sm font-bold tabular-nums tracking-tight", qualityTone)}>
                         {breakdown.completedTotal > 0 ? `${qualityPct}%` : "—"}
                     </p>
@@ -48,23 +48,15 @@ export function OrderQualityStrip({ breakdown }: OrderQualityStripProps) {
     );
 }
 
-function Cell({
-    icon, bg, label, value, valueCls = "text-foreground",
-}: {
-    icon: React.ReactNode;
-    bg: string;
-    label: string;
-    value: number;
-    valueCls?: string;
-}) {
+function Cell({ Icon, label, value }: { Icon: React.ElementType; label: string; value: number }) {
     return (
         <div className="flex items-center gap-2.5 px-4 py-3 flex-1 min-w-0">
-            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", bg)}>
-                {icon}
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--background)]">
+                <Icon className="w-4 h-4 text-muted" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-                <p className="text-[11px] text-muted leading-none mb-1">{label}</p>
-                <p className={cn("text-sm font-bold tabular-nums truncate tracking-tight", valueCls)}>{new Intl.NumberFormat("en-IQ").format(value)}</p>
+                <p className="text-xs text-muted leading-none mb-1.5">{label}</p>
+                <p className="text-sm font-bold text-foreground tabular-nums truncate tracking-tight">{new Intl.NumberFormat("en-IQ").format(value)}</p>
             </div>
         </div>
     );

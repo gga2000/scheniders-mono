@@ -7,7 +7,8 @@ import {
     ChevronUp, ChevronRight, Undo2, TrendingUp,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
-import { format, differenceInCalendarDays } from "date-fns";
+import { format, differenceInCalendarDays, type Locale } from "date-fns";
+import { ar } from "date-fns/locale";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
@@ -23,9 +24,9 @@ function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
 }
 
-function fmtDate(d: string | null | undefined, fmt = "MMM d") {
+function fmtDate(d: string | null | undefined, fmt: string, locale: Locale | undefined) {
     if (!d) return "";
-    try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), fmt); } catch { return d; }
+    try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), fmt, { locale }); } catch { return d; }
 }
 
 /** Inclusive day count of a yyyy-mm-dd period (so a 1-day period = 1). */
@@ -202,8 +203,12 @@ export function EmployeePayrollCard({
     index = 0,
 }: EmployeePayrollCardProps) {
     const reduce = useReducedMotion();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const iqd = t("common.iqd");
+    const dateLocale = language === "ar" ? ar : undefined;
+    /** Short dates in the reader's language ("d MMM" in Arabic, "MMM d" in English). */
+    const fd = (d: string | null | undefined, withYear = false) =>
+        fmtDate(d, language === "ar" ? (withYear ? "d MMM yyyy" : "d MMM") : (withYear ? "MMM d, yyyy" : "MMM d"), dateLocale);
     const { employee, calculation, effectiveRate, overlappingPayroll } = data;
     const breakdown = calculation.orderBreakdown;
     const qualityPct = Math.round(breakdown.qualityScore * 100);
@@ -402,7 +407,7 @@ export function EmployeePayrollCard({
                             title={t("payroll.card.customPeriod")}
                         >
                             <Calendar className="w-3 h-3" />
-                            {fmtDate(calculation.periodStart, "MMM d")} – {fmtDate(calculation.periodEnd, "MMM d")}
+                            <bdi>{fd(calculation.periodStart)}</bdi> – <bdi>{fd(calculation.periodEnd)}</bdi>
                         </button>
                         {hasOverride && (
                             <button
@@ -439,7 +444,7 @@ export function EmployeePayrollCard({
                         <span>
                             <span className="font-semibold">{t("payroll.card.partialOverlap")}</span>
                             {" — "}
-                            {t("payroll.card.partialOverlapBody", { from: fmtDate(overlappingPayroll.period_start), to: fmtDate(overlappingPayroll.period_end) })}
+                            {t("payroll.card.partialOverlapBody", { from: fd(overlappingPayroll.period_start), to: fd(overlappingPayroll.period_end) })}
                         </span>
                     </div>
                 )}
@@ -608,11 +613,11 @@ export function EmployeePayrollCard({
                                             {t("payroll.card.paid")}
                                         </span>
                                         <span className="text-xs text-muted tabular-nums">
-                                            {fmtDate(overlappingPayroll.paid_at, "MMM d, yyyy")} · {fmtIQD(overlappingPayroll.net_salary)} {iqd}
+                                            <bdi>{fd(overlappingPayroll.paid_at, true)}</bdi> · <bdi>{fmtIQD(overlappingPayroll.net_salary)} {iqd}</bdi>
                                         </span>
                                     </div>
                                     <p className="text-xs text-muted mt-1 tabular-nums">
-                                        {fmtDate(overlappingPayroll.period_start)} — {fmtDate(overlappingPayroll.period_end)}
+                                        <bdi>{fd(overlappingPayroll.period_start)}</bdi> – <bdi>{fd(overlappingPayroll.period_end)}</bdi>
                                     </p>
                                 </div>
                                 {!confirmVoid ? (
@@ -690,7 +695,7 @@ export function EmployeePayrollCard({
                                 )}
                                 {lastPayment && (
                                     <p className="text-xs text-muted mt-2 tabular-nums">
-                                        {t("payroll.card.lastPaid")} {fmtDate(lastPayment.paid_at)} · {fmtIQD(lastPayment.net_salary)} {iqd}
+                                        {t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{fmtIQD(lastPayment.net_salary)} {iqd}</bdi>
                                     </p>
                                 )}
                             </>
@@ -704,21 +709,21 @@ export function EmployeePayrollCard({
                         onClick={() => setAdvanceOpen(true)}
                         className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium border border-[var(--card-border)] bg-[var(--background)] text-foreground hover:border-[var(--ink)]/30 transition-colors"
                     >
-                        <TrendingDown className="w-3 h-3 text-amber-600" aria-hidden="true" />
+                        <TrendingDown className="w-3 h-3 text-muted" aria-hidden="true" />
                         {t("payroll.card.addAdvance")}
                     </button>
                     <button
                         onClick={() => setPenaltyOpen(true)}
                         className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium border border-[var(--card-border)] bg-[var(--background)] text-foreground hover:border-[var(--ink)]/30 transition-colors"
                     >
-                        <AlertCircle className="w-3 h-3 text-rose-600" aria-hidden="true" />
+                        <AlertCircle className="w-3 h-3 text-muted" aria-hidden="true" />
                         {t("payroll.card.addPenalty")}
                     </button>
                     <button
                         onClick={() => setBonusOpen(true)}
                         className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium border border-[var(--card-border)] bg-[var(--background)] text-foreground hover:border-[var(--ink)]/30 transition-colors"
                     >
-                        <Star className="w-3 h-3 text-emerald-600" aria-hidden="true" />
+                        <Star className="w-3 h-3 text-muted" aria-hidden="true" />
                         {t("payroll.card.addBonus")}
                     </button>
                     <button
@@ -773,7 +778,7 @@ export function EmployeePayrollCard({
                                 <div className="space-y-1">
                                     {calculation.pendingAdvances.map(a => (
                                         <div key={a.id} className="flex items-center justify-between text-xs">
-                                            <span className="text-muted truncate">{a.reason || t("payroll.card.noReason")} · {fmtDate(a.created_at)}</span>
+                                            <span className="text-muted truncate">{a.reason || t("payroll.card.noReason")} · {fd(a.created_at)}</span>
                                             <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{fmtIQD(a.amount)} {iqd}</span>
                                         </div>
                                     ))}
@@ -788,7 +793,7 @@ export function EmployeePayrollCard({
                                 <div className="space-y-1">
                                     {calculation.pendingPenalties.map(p => (
                                         <div key={p.id} className="flex items-center justify-between text-xs">
-                                            <span className="text-muted truncate">{p.reason || t("payroll.card.noReason")} · {fmtDate(p.created_at)}</span>
+                                            <span className="text-muted truncate">{p.reason || t("payroll.card.noReason")} · {fd(p.created_at)}</span>
                                             <span className="text-rose-600 dark:text-rose-400 font-medium tabular-nums shrink-0 ml-2">−{fmtIQD(p.amount)} {iqd}</span>
                                         </div>
                                     ))}
@@ -803,7 +808,7 @@ export function EmployeePayrollCard({
                                 <div className="space-y-1">
                                     {calculation.pendingBonuses.map(b => (
                                         <div key={b.id} className="flex items-center justify-between text-xs">
-                                            <span className="text-muted truncate">{b.reason || t("payroll.card.noReason")} · {fmtDate(b.created_at)}</span>
+                                            <span className="text-muted truncate">{b.reason || t("payroll.card.noReason")} · {fd(b.created_at)}</span>
                                             <span className="text-emerald-600 dark:text-emerald-400 font-medium tabular-nums shrink-0 ml-2">+{fmtIQD(b.amount)} {iqd}</span>
                                         </div>
                                     ))}
@@ -820,10 +825,10 @@ export function EmployeePayrollCard({
                                         <div key={p.id} className="flex items-start justify-between py-1.5 border-b border-[var(--card-border)] last:border-0 gap-2">
                                             <div className="min-w-0">
                                                 <p className="text-xs font-medium text-foreground tabular-nums">
-                                                    {fmtDate(p.period_start)} → {fmtDate(p.period_end)}
+                                                    <bdi>{fd(p.period_start)}</bdi> – <bdi>{fd(p.period_end)}</bdi>
                                                 </p>
                                                 <p className="text-xs text-muted tabular-nums">
-                                                    {t("payroll.card.paymentRow", { count: p.completed_orders_count, date: fmtDate(p.paid_at ?? p.period_end) })}
+                                                    {t("payroll.card.paymentRow", { count: p.completed_orders_count, date: fd(p.paid_at ?? p.period_end) })}
                                                 </p>
                                                 {p.notes && (
                                                     <p className="text-xs text-muted italic mt-0.5">&ldquo;{p.notes}&rdquo;</p>
