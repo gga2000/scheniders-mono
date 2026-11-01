@@ -482,12 +482,12 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         {formatPhoneGrouped(order.phone)}
                     </span>
                     {isDuplicate && (
-                        <button onClick={(e) => { e.stopPropagation(); setDuplicateOrder(order); setShowDuplicateModal(true); }} className="p-0.5 rounded hover:bg-amber-100 transition-colors" title="View duplicate orders">
+                        <button onClick={(e) => { e.stopPropagation(); setDuplicateOrder(order); setShowDuplicateModal(true); }} className="p-0.5 rounded hover:bg-amber-100 transition-colors" title={t("orders.tip.viewDuplicates")}>
                             <CopyPlus className={cn("w-3 h-3", duplicateSeverity === "critical" ? "text-rose-500" : "text-amber-500")} />
                         </button>
                     )}
-                    {!validatePhoneDetailed(order.phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Invalid Phone" />}
-                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.phone.replace(/^\+964/, "0").replace(/^964/, "0"), order.phone); }} className="p-0.5 rounded opacity-0 group-hover/phone:opacity-100 transition-opacity hover:bg-gray-100" title="Copy phone">
+                    {!validatePhoneDetailed(order.phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title={t("orders.tip.invalidPhone")} />}
+                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.phone.replace(/^\+964/, "0").replace(/^964/, "0"), order.phone); }} className="p-0.5 rounded opacity-0 group-hover/phone:opacity-100 transition-opacity hover:bg-gray-100" title={t("orders.tip.copyPhone")}>
                         <Copy className="w-3 h-3 text-muted" />
                     </button>
                 </div>
@@ -504,7 +504,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         >
                             {formatPhoneGrouped(order.secondary_phone)}
                         </span>
-                        {!validatePhoneDetailed(order.secondary_phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="Invalid Phone" />}
+                        {!validatePhoneDetailed(order.secondary_phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title={t("orders.tip.invalidPhone")} />}
                     </div>
                 ) : (
                     <span className="text-xs text-muted">—</span>
