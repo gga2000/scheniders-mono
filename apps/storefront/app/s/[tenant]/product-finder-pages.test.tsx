@@ -146,10 +146,8 @@ function tenantWith(configure: (v2: StoreConfigV2) => void): Tenant {
     id: "t1",
     business_name: "متجر العطور",
     slug: "shop",
-    plan: "pro",
     status: "active",
     branding: {},
-    settings: {},
     store_config_v2: v2,
   };
 }

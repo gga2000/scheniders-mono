@@ -10,7 +10,9 @@ export type { Category, CartItem, CheckoutFormData } from "@scheniders/shared";
 export type { TenantBranding, TenantSettings, TenantStatus } from "@scheniders/shared";
 export type { TemplateName, StoreConfig, DesignTokens, SectionConfig, SEOConfig, HeroConfig, AboutConfig, ContactConfig } from "@scheniders/shared";
 
-export interface Tenant extends BaseTenant {
+/** The storefront never loads the tenant's plan or internal settings (costs,
+ *  integrations): they are not public, so the row it reads omits them. */
+export interface Tenant extends Omit<BaseTenant, "plan" | "settings"> {
   store_config?: StoreConfig | null;
   store_config_v2?: StoreConfigV2 | null;
   store_config_v2_draft?: StoreConfigV2 | null;
