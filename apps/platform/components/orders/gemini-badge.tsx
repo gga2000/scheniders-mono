@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { useLanguage } from "@/hooks/use-language";
 
 /**
  * Tiny badge that marks an order item as having been auto-extracted via the
@@ -8,9 +9,10 @@ import { useId } from "react";
 export function GeminiBadge({ size = "sm" }: { size?: "sm" | "xs" }) {
     const dim = size === "xs" ? 10 : 12;
     const gradientId = useId();
+    const { t } = useLanguage();
     return (
         <span
-            title="Auto-extracted by Gemini from chat screenshot"
+            title={t("orders.ui.geminiTip")}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 text-purple-700 border border-purple-200 dark:text-purple-300 dark:border-purple-500/30 shrink-0"
         >
             {/* Gemini 4-point star glyph */}

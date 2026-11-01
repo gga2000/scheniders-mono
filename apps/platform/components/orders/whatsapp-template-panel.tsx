@@ -19,7 +19,6 @@ import {
     Phone,
     Eye,
     EyeOff,
-    Percent,
     Send,
     Loader2,
     Clock,
@@ -32,6 +31,7 @@ import type { MessageTemplate, Order } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRecordContact } from "@/hooks/use-record-contact";
+import { useLanguage } from "@/hooks/use-language";
 
 interface WhatsAppTemplatePanelProps {
     open: boolean;
@@ -47,44 +47,41 @@ interface WhatsAppTemplatePanelProps {
 const templateConfig = {
     confirmation: {
         icon: MessageCircle,
-        label: "تأكيد الطلب",
-        labelEn: "Confirmation",
-        description: "First contact message",
+        labelKey: "orders.tpl.confirmation",
+        descriptionKey: "orders.tpl.confirmationHint",
         color: "emerald",
         bgClass: "bg-emerald-50 border-emerald-200",
         iconBgClass: "bg-emerald-100",
         iconClass: "text-emerald-600",
         badgeClass: "bg-emerald-100 text-emerald-700",
         recommended: true,
-        sendLabel: "إرسال قالب التأكيد",
+        sendLabelKey: "orders.tpl.confirmationSend",
         gradient: "from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700",
     },
     reminder: {
         icon: Bell,
-        label: "تذكير",
-        labelEn: "Reminder",
-        description: "No response follow-up",
+        labelKey: "orders.tpl.reminder",
+        descriptionKey: "orders.tpl.reminderHint",
         color: "amber",
         bgClass: "bg-amber-50 border-amber-200",
         iconBgClass: "bg-amber-100",
         iconClass: "text-amber-600",
         badgeClass: "bg-amber-100 text-amber-700",
         recommended: false,
-        sendLabel: "إرسال قالب التذكير",
+        sendLabelKey: "orders.tpl.reminderSend",
         gradient: "from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700",
     },
     discount: {
         icon: Gift,
-        label: "عرض خاص",
-        labelEn: "Discount Offer",
-        description: "Sweeten the deal",
+        labelKey: "orders.tpl.discount",
+        descriptionKey: "orders.tpl.discountHint",
         color: "rose",
         bgClass: "bg-rose-50 border-rose-200",
         iconBgClass: "bg-rose-100",
         iconClass: "text-rose-600",
         badgeClass: "bg-rose-100 text-rose-700",
         recommended: false,
-        sendLabel: "إرسال قالب العرض",
+        sendLabelKey: "orders.tpl.discountSend",
         gradient: "from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700",
     },
 };
@@ -118,8 +115,9 @@ export function WhatsAppTemplatePanel({
     onContactSent,
     onStatusUpdate,
 }: WhatsAppTemplatePanelProps) {
+    const { t } = useLanguage();
     const isBulkMode = !!(bulkOrders && bulkOrders.length > 0);
-    const targetOrders = isBulkMode ? bulkOrders! : (order ? [order] : []);
+    const targetOrders = bulkOrders && bulkOrders.length > 0 ? bulkOrders : (order ? [order] : []);
     const previewOrder = targetOrders[0] || null;
 
     const [selectedType, setSelectedType] = useState<'confirmation' | 'reminder' | 'discount'>('confirmation');
@@ -300,23 +298,23 @@ export function WhatsAppTemplatePanel({
                     }
                 } else {
                     failCount++;
-                    lastError = data.error || "فشل الإرسال";
+                    lastError = data.error || t("orders.tpl.sendFailed");
                 }
             }
 
-            const typeLabels = { confirmation: "التأكيد", reminder: "التذكير", discount: "العرض الخاص" };
+            const typeLabel = t(templateConfig[selectedType].labelKey);
 
             if (isBulkMode) {
                 const total = targetOrders.length;
                 if (failCount === 0) {
-                    setSendResult({ success: true, message: `تم الإرسال لـ ${successCount} عميل بنجاح` });
-                    toast.success("نجاح التعميم", `تم إرسال قالب ${typeLabels[selectedType]} إلى ${successCount} عملاء`);
+                    setSendResult({ success: true, message: t("orders.tpl.bulkAllSent", { count: successCount }) });
+                    toast.success(t("orders.tpl.bulkAllSentTitle"), t("orders.tpl.bulkAllSentBody", { label: typeLabel, count: successCount }));
                 } else if (successCount === 0) {
-                    setSendResult({ success: false, message: `فشل الإرسال للجميع: ${lastError}` });
-                    toast.error("خطأ", `فشل الإرسال لجميع ${total} عملاء`);
+                    setSendResult({ success: false, message: t("orders.tpl.bulkAllFailed", { error: lastError }) });
+                    toast.error(t("orders.tpl.bulkAllFailedTitle"), t("orders.tpl.bulkAllFailedBody", { count: total }));
                 } else {
-                    setSendResult({ success: false, message: `نجح ${successCount}، وفشل ${failCount}` });
-                    toast.warning("إرسال جزئي", `تم الإرسال لـ ${successCount} وفشل ${failCount}`);
+                    setSendResult({ success: false, message: t("orders.tpl.bulkPartial", { ok: successCount, failed: failCount }) });
+                    toast.warning(t("orders.tpl.bulkPartialTitle"), t("orders.tpl.bulkPartial", { ok: successCount, failed: failCount }));
                 }
 
                 setTimeout(() => {
@@ -325,25 +323,22 @@ export function WhatsAppTemplatePanel({
                 }, 2000);
             } else {
                 if (failCount === 0) {
-                    setSendResult({ success: true, message: `تم إرسال قالب ${typeLabels[selectedType]} بنجاح` });
-                    toast.success("نجاح", `تم إرسال قالب ${typeLabels[selectedType]} بنجاح`);
+                    setSendResult({ success: true, message: t("orders.tpl.singleSent", { label: typeLabel }) });
+                    toast.success(t("orders.tpl.singleSentTitle"), t("orders.tpl.singleSent", { label: typeLabel }));
                     setTimeout(() => {
                         onClose();
                         setSendResult(null);
                     }, 1500);
                 } else {
                     setSendResult({ success: false, message: lastError });
-                    toast.error("خطأ في الإرسال", lastError);
+                    toast.error(t("orders.tpl.sendErrorTitle"), lastError);
                 }
             }
 
         } catch (err) {
             console.error("Fetch error sending template:", err);
-            setSendResult({ success: false, message: "خطأ في الاتصال" });
-            toast.error(
-                "خطأ في الاتصال",
-                "تعذر الاتصال بالخادم"
-            );
+            setSendResult({ success: false, message: t("orders.tpl.connectionError") });
+            toast.error(t("orders.tpl.connectionError"), t("orders.tpl.connectionErrorBody"));
         } finally {
             setSendingTo(null);
         }
@@ -356,6 +351,9 @@ export function WhatsAppTemplatePanel({
     const primaryDisplay = previewOrder ? (formatPhoneGrouped(previewOrder.phone) || previewOrder.phone) : "";
     const secondaryDisplay = previewOrder?.secondary_phone ? formatPhoneGrouped(previewOrder.secondary_phone) : null;
     const currentConfig = templateConfig[selectedType];
+    const currentLabel = t(currentConfig.labelKey);
+    const primaryPhone = previewOrder?.phone ?? "";
+    const secondaryPhone = previewOrder?.secondary_phone ?? null;
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -366,9 +364,9 @@ export function WhatsAppTemplatePanel({
                             <MessageCircle className="w-5 h-5 text-white" />
                         </div>
                         <div className="flex-1">
-                            <span className="text-lg">Select WhatsApp Template</span>
+                            <span className="text-lg">{t("orders.tpl.title")}</span>
                             <p className="text-sm text-muted font-normal">
-                                Sending to <strong>{previewOrder.customer_name}</strong>
+                                {t("orders.tpl.sendingTo")} <strong>{previewOrder.customer_name}</strong>
                             </p>
                         </div>
                         {/* Contact info badges */}
@@ -376,13 +374,13 @@ export function WhatsAppTemplatePanel({
                             {contactCount > 0 && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold">
                                     <MessageCircle className="w-3 h-3" />
-                                    {contactCount}x contacted
+                                    {t("orders.tpl.contactedTimes", { count: contactCount })}
                                 </span>
                             )}
                             {timeSinceContact && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-semibold">
                                     <Clock className="w-3 h-3" />
-                                    {timeSinceContact} ago
+                                    {t("orders.tpl.ago", { time: timeSinceContact })}
                                 </span>
                             )}
                         </div>
@@ -418,7 +416,7 @@ export function WhatsAppTemplatePanel({
                                 >
                                     {config.recommended && (
                                         <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500 text-white shadow-sm">
-                                            NEW
+                                            {t("orders.tpl.recommended")}
                                         </span>
                                     )}
 
@@ -433,10 +431,10 @@ export function WhatsAppTemplatePanel({
                                     </div>
 
                                     <h3 className="font-bold text-foreground text-sm text-right">
-                                        {config.label}
+                                        {t(config.labelKey)}
                                     </h3>
                                     <p className="text-[11px] text-muted mt-0.5">
-                                        {config.description}
+                                        {t(config.descriptionKey)}
                                     </p>
                                 </motion.button>
                             );
@@ -456,7 +454,7 @@ export function WhatsAppTemplatePanel({
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-semibold text-gray-900 truncate text-right">
-                                                {isBulkMode ? `إرسال تعميم ${currentConfig.label}` : `رسالة ${currentConfig.label}`}
+                                                {isBulkMode ? t("orders.tpl.bulkHeading", { label: currentLabel }) : t("orders.tpl.singleHeading", { label: currentLabel })}
                                             </h3>
                                             {!isBulkMode ? (
                                                 <div className="flex flex-row-reverse items-center gap-1.5 mt-0.5 text-right">
@@ -513,7 +511,7 @@ export function WhatsAppTemplatePanel({
                                                     : "bg-white text-rose-600 border-rose-300 hover:bg-rose-50"
                                             )}
                                         >
-                                            {useCustomPrice ? "Custom Price ON" : "Enter Custom Price"}
+                                            {useCustomPrice ? t("orders.tpl.customPriceOn") : t("orders.tpl.customPriceEnter")}
                                         </button>
 
                                         {useCustomPrice && (
@@ -522,7 +520,7 @@ export function WhatsAppTemplatePanel({
                                                     type="number"
                                                     value={customPrice}
                                                     onChange={(e) => setCustomPrice(e.target.value)}
-                                                    placeholder="Enter price..."
+                                                    placeholder={t("orders.tpl.pricePlaceholder")}
                                                     className="flex-1 px-3 py-1.5 rounded-lg border border-rose-300 text-sm font-mono font-bold text-rose-700 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400"
                                                     dir="ltr"
                                                 />
@@ -534,16 +532,16 @@ export function WhatsAppTemplatePanel({
                                     {/* Price summary */}
                                     <div className="mt-3 p-2 bg-white rounded-lg border border-rose-100">
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-muted">Original Price:</span>
+                                            <span className="text-muted">{t("orders.tpl.originalPrice")}</span>
                                             <span className="font-mono">{formatIQD(previewOrder?.price || 0)}</span>
                                         </div>
                                         <div className="flex justify-between text-sm font-bold text-rose-600">
-                                            <span>After Discount:</span>
+                                            <span>{t("orders.tpl.afterDiscount")}</span>
                                             <span className="font-mono">{formatIQD(effectiveDiscountedPrice)}</span>
                                         </div>
                                         {previewOrder && effectiveDiscountedPrice < previewOrder.price && (
                                             <div className="flex justify-between text-xs text-muted mt-1">
-                                                <span>Savings:</span>
+                                                <span>{t("orders.tpl.savings")}</span>
                                                 <span className="font-mono text-emerald-600">
                                                     -{formatIQD(previewOrder.price - effectiveDiscountedPrice)} ({Math.round((1 - effectiveDiscountedPrice / previewOrder.price) * 100)}%)
                                                 </span>
@@ -562,7 +560,7 @@ export function WhatsAppTemplatePanel({
                             className="flex items-center gap-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
                         >
                             {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            {showPreview ? "Hide Preview" : "Show Preview"}
+                            {showPreview ? t("orders.tpl.hidePreview") : t("orders.tpl.showPreview")}
                         </button>
 
                         <AnimatePresence>
@@ -632,26 +630,26 @@ export function WhatsAppTemplatePanel({
                                 ) : (
                                     <Send className="w-4 h-4" />
                                 )}
-                                <span>{isBulkMode ? `إرسال لـ ${targetOrders.length} عملاء` : currentConfig.sendLabel}</span>
+                                <span>{isBulkMode ? t("orders.tpl.sendToN", { count: targetOrders.length }) : t(currentConfig.sendLabelKey)}</span>
                                 {!isBulkMode && <span className="text-xs opacity-75">({primaryDisplay})</span>}
                             </button>
 
-                            {!isBulkMode && previewOrder?.secondary_phone && (
+                            {!isBulkMode && secondaryPhone && (
                                 <button
-                                    onClick={() => handleSendTemplate(previewOrder.secondary_phone!)}
+                                    onClick={() => handleSendTemplate(secondaryPhone)}
                                     disabled={!!sendingTo}
                                     className={cn(
                                         "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-white font-semibold transition-all disabled:opacity-60 bg-gradient-to-r",
                                         currentConfig.gradient
                                     )}
-                                    title={`إرسال إلى ${secondaryDisplay}`}
+                                    title={t("orders.tpl.sendToNumber", { phone: secondaryDisplay ?? secondaryPhone })}
                                 >
-                                    {sendingTo === previewOrder.secondary_phone ? (
+                                    {sendingTo === secondaryPhone ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                     ) : (
                                         <Send className="w-4 h-4" />
                                     )}
-                                    <span className="text-xs">2nd</span>
+                                    <span className="text-xs">{t("orders.tpl.second")}</span>
                                 </button>
                             )}
                         </div>
@@ -669,27 +667,27 @@ export function WhatsAppTemplatePanel({
                                     )}
                                 >
                                     {copiedId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                    {copiedId ? "Copied!" : "Copy"}
+                                    {copiedId ? t("orders.tpl.copied") : t("orders.ui.copy")}
                                 </button>
 
                                 <div className="flex-1 flex gap-2">
                                     <button
-                                        onClick={() => handleSendWhatsApp(previewOrder!.phone)}
+                                        onClick={() => handleSendWhatsApp(primaryPhone)}
                                         className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold hover:from-green-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg"
                                     >
                                         <MessageCircle className="w-5 h-5" />
-                                        <span>Send WhatsApp</span>
+                                        <span>{t("orders.tpl.sendWhatsApp")}</span>
                                         <ArrowRight className="w-4 h-4" />
                                     </button>
 
-                                    {previewOrder?.secondary_phone && (
+                                    {secondaryPhone && (
                                         <button
-                                            onClick={() => handleSendWhatsApp(previewOrder!.secondary_phone!)}
+                                            onClick={() => handleSendWhatsApp(secondaryPhone)}
                                             className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500 text-white font-semibold hover:bg-emerald-600 transition-all"
-                                            title="Send to secondary phone"
+                                            title={t("orders.tpl.sendSecondary")}
                                         >
                                             <Phone className="w-4 h-4" />
-                                            <span className="text-xs">2nd</span>
+                                            <span className="text-xs">{t("orders.tpl.second")}</span>
                                         </button>
                                     )}
                                 </div>

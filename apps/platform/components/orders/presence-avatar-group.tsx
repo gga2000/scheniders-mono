@@ -2,6 +2,7 @@
 
 import { usePresence } from "@/hooks/use-presence";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import { UserCircle } from "lucide-react";
 
 interface PresenceAvatarGroupProps {
@@ -11,6 +12,7 @@ interface PresenceAvatarGroupProps {
 }
 
 export function PresenceAvatarGroup({ orderId, showLimit = 3, className }: PresenceAvatarGroupProps) {
+    const { t } = useLanguage();
     const { otherUsers, isConnected } = usePresence(orderId);
 
     if (!isConnected || otherUsers.length === 0) return null;
@@ -22,7 +24,7 @@ export function PresenceAvatarGroup({ orderId, showLimit = 3, className }: Prese
         <div
             className={cn("flex items-center -space-x-2 overflow-hidden py-1 px-1", className)}
             role="group"
-            aria-label="Active users viewing this order"
+            aria-label={t("orders.ui.viewersLabel")}
         >
             {visibleUsers.map((user) => (
                 <div
@@ -66,7 +68,7 @@ export function PresenceAvatarGroup({ orderId, showLimit = 3, className }: Prese
 
             {otherUsers.length > 0 && (
                 <div className="ml-3 text-xs text-muted-foreground hidden sm:block">
-                    viewing now
+                    {t("orders.ui.viewingNow")}
                 </div>
             )}
         </div>

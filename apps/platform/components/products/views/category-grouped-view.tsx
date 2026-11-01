@@ -729,6 +729,7 @@ function MiniProductCard({
     onDelete,
     onVisibilityToggle,
 }: MiniProductCardProps) {
+    const { t } = useLanguage();
     const stockStatus = getStockStatus(product);
     const availableStock = Math.max(
         0,
@@ -769,7 +770,7 @@ function MiniProductCard({
                     onToggleSelection(product.id, e);
                 }}
                 className="absolute top-1.5 left-1.5 z-10 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label="Toggle selection"
+                aria-label={t("products.toggleSelection")}
             >
                 {isSelected ? (
                     <CheckSquare className="w-3.5 h-3.5 text-[var(--foreground)]" />

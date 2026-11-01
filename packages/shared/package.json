@@ -14,7 +14,8 @@
     "./consent-version": "./src/consent-version.ts",
     "./health-rules": "./src/health-rules.ts",
     "./provider-base-url": "./src/provider-base-url.ts",
-    "./font-stack": "./src/font-stack.ts"
+    "./font-stack": "./src/font-stack.ts",
+    "./ad-attribution": "./src/ad-attribution.ts"
   },
   "scripts": {
     "test": "vitest run"

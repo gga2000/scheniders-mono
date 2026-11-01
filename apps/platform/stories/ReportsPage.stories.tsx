@@ -47,3 +47,45 @@ function Reports() {
 const meta: Meta = { title: "Reports/Full page", component: Reports, parameters: { layout: "fullscreen" } };
 export default meta;
 export const Default: StoryObj = {};
+
+// ---- Team / Batch / Channel cards ----
+import { TrueEmployeePerformance } from "@/components/reports/true-employee-performance";
+import { BatchAnalytics } from "@/components/reports/batch-analytics";
+import { ChannelPerformance } from "@/components/reports/channel-performance";
+import { calculateChannelPerformance } from "@/lib/analytics/channel-metrics";
+import type { EmployeeActivityMetrics } from "@/hooks/use-employee-metrics";
+import type { BatchMetrics, BatchAnalyticsSummary } from "@/hooks/use-batch-analytics";
+
+const staff: EmployeeActivityMetrics[] = ["Mohammed", "Noor", "Karrar", "Ali2", "Sara"].map((name, i) => ({
+    userId: `u${i}`, userEmail: `${name.toLowerCase()}@x.iq`, displayName: name,
+    totalActions: 900 - i * 170, ordersCreated: 120 - i * 20, statusChanges: 400 - i * 60, ordersEdited: 90, ordersPrinted: 200,
+    confirmedOrders: 210 - i * 30, deliveredOrders: 150 - i * 25, avgActionsPerDay: 31 - i * 5,
+    mostRecentAction: new Date(), isOnline: i < 2, rank: i + 1,
+}));
+const batches: BatchMetrics[] = Array.from({ length: 5 }, (_, i) => ({
+    id: `b${i}`, name: `Batch ${i + 1}`, createdAt: new Date(end.getTime() - i * 86400000 * 3), orderCount: 40 + i * 7,
+    totalValue: 1_800_000 + i * 240_000, cities: ["Baghdad", "Basra", "Erbil"], deliveryRate: 82 - i * 9, rejectionRate: 8 + i * 3,
+    avgDeliveryTime: 0, status: (["completed", "mixed", "in_progress", "pending", "completed"] as const)[i],
+}));
+const summary: BatchAnalyticsSummary = {
+    totalBatches: 5, totalOrders: 270, totalValue: 10_000_000, avgOrdersPerBatch: 54, avgBatchValue: 2_000_000, avgDeliveryRate: 64,
+    topCities: [{ city: "Baghdad", count: 120 }, { city: "Basra", count: 80 }, { city: "Erbil", count: 70 }], batchesByDay: [],
+};
+const channel = calculateChannelPerformance(
+    [...Array(40)].map((_, i) => ({ ad_channel: i % 3 ? "instagram" : "tiktok", status: i % 4 ? "delivered" : "rejected", price: 25000 })), true);
+
+function Operations() {
+    return (
+        <LanguageProvider>
+            <div className="p-8 space-y-8 bg-[var(--background)]" style={{ width: 1440 }}>
+                <div className="grid grid-cols-2 gap-6">
+                    <TrueEmployeePerformance data={staff} loading={false} error={null} onRefresh={() => {}} />
+                    <SourcePerformance data={calculateSourcePerformance(current)} />
+                </div>
+                <ChannelPerformance data={channel} loading={false} error={null} onRetry={() => {}} />
+                <BatchAnalytics batches={batches} summary={summary} loading={false} error={null} onRefresh={() => {}} />
+            </div>
+        </LanguageProvider>
+    );
+}
+export const Operations_: StoryObj = { render: () => <Operations />, name: "Operations" };

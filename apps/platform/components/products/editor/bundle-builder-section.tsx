@@ -120,7 +120,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                     </div>
                     <div className="max-h-48 overflow-y-auto border-t border-[var(--card-border)]">
                         {availableProducts.length === 0 ? (
-                            <p className="p-4 text-sm text-muted text-center">No products found</p>
+                            <p className="p-4 text-sm text-muted text-center">{t("products.noProducts")}</p>
                         ) : (
                             availableProducts.slice(0, 10).map((product) => (
                                 <button
@@ -221,7 +221,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                             {totalItems} item{totalItems !== 1 ? "s" : ""} in bundle
                         </p>
                         <div className="text-right">
-                            <p className="text-xs text-muted">Sum of parts</p>
+                            <p className="text-xs text-muted">{t("products.bundle.sumOfParts")}</p>
                             <p className="text-lg font-bold text-foreground">{formatIQD(totalPrice)}</p>
                         </div>
                     </div>

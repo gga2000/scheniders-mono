@@ -39,7 +39,6 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
     const bestDay = data.dailyDistribution.reduce((max, curr) =>
         curr.count > max.count ? curr : max, { day: '', count: 0, dayIndex: 0 });
 
-    const dayColors = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6'];
 
     return (
         <motion.div
@@ -111,7 +110,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                         {hourlyChartData.map((entry, index) => (
                                             <Cell
                                                 key={`cell-${index}`}
-                                                fill={entry.hour === peakHour.hour ? '#6366F1' : '#C7D2FE'}
+                                                fill={entry.hour === peakHour.hour ? '#1b4f93' : '#7fb0ec'}
                                             />
                                         ))}
                                     </Bar>
@@ -169,7 +168,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                             animate={{ width: `${width}%` }}
                                             transition={{ duration: 0.5, delay: index * 0.05 }}
                                             className="h-full rounded-full"
-                                            style={{ backgroundColor: dayColors[d.dayIndex] }}
+                                            style={{ backgroundColor: "#2a78d6" }}
                                         />
                                     </div>
                                 </motion.div>

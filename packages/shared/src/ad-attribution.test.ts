@@ -4,6 +4,9 @@ import {
     resolveChannel,
     channelLabel,
     placementLabel,
+    parseAdUrlParams,
+    serializeAdAttribution,
+    deserializeAdAttribution,
 } from "./ad-attribution";
 
 // Copied verbatim from LightFunnels' API on 2026-09-12 for orders #7401 / #7402.
@@ -176,5 +179,47 @@ describe("unrendered Meta macros", () => {
 
     it("catches the url-encoded form too", () => {
         expect(parseAdAttribution([{ k: "source", v: "%7B%7Bsite_source_name%7D%7D" }])).toBeUndefined();
+    });
+});
+
+describe("parseAdUrlParams", () => {
+    const url = (qs: string) => new URL(`https://shop.example/?${qs}`).searchParams;
+
+    it("reads a Meta ad link", () => {
+        const a = parseAdUrlParams(
+            url("utm_source=fb&utm_medium=Instagram_Reels&utm_campaign=Eid&utm_content=Video1&utm_id=123&utm_term=456&campaign_id=789&fbclid=abc"),
+        );
+        expect(a).toMatchObject({
+            channel: "facebook",
+            medium: "Instagram_Reels",
+            campaign: "Eid",
+            content: "Video1",
+            adId: "123",
+            term: "456",
+            campaignId: "789",
+            fbclid: "abc",
+        });
+    });
+
+    it("treats a bare fbclid as a Facebook click", () => {
+        expect(parseAdUrlParams(url("fbclid=xyz"))).toMatchObject({ channel: "facebook", fbclid: "xyz" });
+    });
+
+    it("returns undefined for organic visits and unrendered macros", () => {
+        expect(parseAdUrlParams(url("ref=home"))).toBeUndefined();
+        expect(parseAdUrlParams(url("utm_source=%7B%7Bsite_source_name%7D%7D"))).toBeUndefined();
+    });
+});
+
+describe("ad attribution cookie", () => {
+    it("round-trips Arabic campaign names", () => {
+        const a = { channel: "instagram" as const, campaign: "عيد الفطر", adId: "1" };
+        expect(deserializeAdAttribution(serializeAdAttribution(a))).toEqual(a);
+    });
+
+    it("drops forged or malformed cookies", () => {
+        expect(deserializeAdAttribution(encodeURIComponent(JSON.stringify({ channel: "evil" })))).toBeUndefined();
+        expect(deserializeAdAttribution("%%%not-json")).toBeUndefined();
+        expect(deserializeAdAttribution(undefined)).toBeUndefined();
     });
 });

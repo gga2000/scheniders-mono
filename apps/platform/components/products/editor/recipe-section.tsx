@@ -39,27 +39,10 @@ interface DraftRule {
     unit: BomUnit;
 }
 
-const UNIT_COPY: Record<
-    BomUnit,
-    { label: string; short: string; description: string }
-> = {
-    per_order: {
-        label: "per order",
-        short: "/ order",
-        description: "Applied once per order, regardless of quantity.",
-    },
-    per_item: {
-        label: "per order line",
-        short: "/ line",
-        description:
-            "Applied once per order line — 3 bottles on one line = 1 deduction.",
-    },
-    per_unit: {
-        label: "per unit sold",
-        short: "× units",
-        description:
-            "Multiplied by the ordered quantity — 3 bottles = 3 deductions.",
-    },
+const UNIT_COPY: Record<BomUnit, { label: string; short: string; description: string }> = {
+    per_order: { label: "recipe.unit.perOrder", short: "/ order", description: "recipe.unit.perOrder.desc" },
+    per_item: { label: "recipe.unit.perItem", short: "/ line", description: "recipe.unit.perItem.desc" },
+    per_unit: { label: "recipe.unit.perUnit", short: "× units", description: "recipe.unit.perUnit.desc" },
 };
 
 interface RecipeSectionProps {
@@ -68,6 +51,7 @@ interface RecipeSectionProps {
 }
 
 export function RecipeSection({ productId, productName }: RecipeSectionProps) {
+    const { t } = useLanguage();
     const { tenantId } = useAuth();
     const queryClient = useQueryClient();
     const [drafts, setDrafts] = useState<DraftRule[] | null>(null);
@@ -132,13 +116,15 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
 
     // Running cost preview: (cost per supply × qty) summed across rules, per
     // single order line (per_unit treated as 1 unit for the preview).
+    // null = a supply's cost is hidden from this member, so the total is unknown (never 0).
     const packagingCostPerLine = useMemo(() => {
         let total = 0;
         for (const d of activeDrafts) {
             if (!d.supply_id) continue;
             const s = supplyById.get(d.supply_id);
             if (!s) continue;
-            total += (s.cost ?? 0) * d.quantity;
+            if (s.cost == null) return null;
+            total += s.cost * d.quantity;
         }
         return total;
     }, [activeDrafts, supplyById]);
@@ -216,12 +202,13 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
             }
         },
         onSuccess: () => {
-            toast.success("Recipe saved");
+            toast.success(t("recipe.saved"));
             setDrafts(null);
             queryClient.invalidateQueries({ queryKey: ["bom-items", productId] });
         },
         onError: (err: Error) => {
-            toast.error("Could not save recipe", err.message);
+            // The raw database message is English and technical: show a translated one.
+            toast.error(t("recipe.saveFailed"), t("recipe.err.saveGeneric"));
         },
     });
 
@@ -262,7 +249,7 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
     if (!productId) {
         return (
             <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 text-center text-sm text-muted">
-                Save the product first to start defining its recipe.
+                {t("recipe.saveFirst")}
             </div>
         );
     }
@@ -275,23 +262,18 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                         <ChefHat className="w-4 h-4" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-sm">Recipe</h3>
+                        <h3 className="font-semibold text-sm">{t("recipe.title")}</h3>
                         <p className="text-[12px] text-muted mt-0.5 max-w-md">
-                            Define the internal supplies consumed when{" "}
-                            <span className="font-medium text-foreground">
-                                {productName || "this product"}
-                            </span>{" "}
-                            ships. Deductions run automatically when the order is marked
-                            completed.
+                            {t("recipe.intro", { name: productName || t("recipe.thisProduct") })}
                         </p>
                     </div>
                 </div>
                 <div className="text-right shrink-0">
                     <div className="text-[10px] uppercase tracking-wide text-muted">
-                        Packaging cost / line
+                        {t("recipe.packagingCost")}
                     </div>
                     <div className="text-sm font-semibold tabular-nums">
-                        {formatIQD(packagingCostPerLine)}
+                        {packagingCostPerLine == null ? t("recipe.costUnknown") : formatIQD(packagingCostPerLine)}
                     </div>
                 </div>
             </div>
@@ -300,7 +282,7 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                 {isLoading ? (
                     <div className="py-8 text-center text-sm text-muted">
                         <Loader2 className="w-4 h-4 animate-spin inline-block mr-2" />
-                        Loading recipe…
+                        {t("recipe.loading")}
                     </div>
                 ) : activeDrafts.length === 0 ? (
                     <EmptyRecipe onAdd={addRule} />
@@ -325,25 +307,14 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                         className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-[var(--card-border)] text-sm text-muted hover:text-foreground hover:border-teal-300 transition-colors"
                     >
                         <Plus className="w-4 h-4" />
-                        Add supply to recipe
+                        {t("recipe.addSupply")}
                     </button>
                 )}
 
                 {activeDrafts.length > 0 && (
                     <div className="rounded-xl bg-teal-50/60 border border-teal-100 px-3 py-2 text-[12px] text-teal-800 flex items-start gap-2">
                         <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                        <p>
-                            Rules apply when the order is marked{" "}
-                            <code className="px-1 py-0.5 rounded bg-white/60 text-[11px]">
-                                completed
-                            </code>{" "}
-                            or{" "}
-                            <code className="px-1 py-0.5 rounded bg-white/60 text-[11px]">
-                                delivered
-                            </code>
-                            . Products without a recipe fall back to the legacy 1:1
-                            rule.
-                        </p>
+                        <p>{t("recipe.note")}</p>
                     </div>
                 )}
 
@@ -356,7 +327,7 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                             disabled={saveMutation.isPending}
                             className="px-3 py-1.5 text-sm text-muted hover:text-foreground rounded-lg transition-colors disabled:opacity-60"
                         >
-                            Discard
+                            {t("recipe.discard")}
                         </button>
                         <button
                             type="button"
@@ -372,7 +343,7 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                             ) : (
                                 <Save className="w-3.5 h-3.5" />
                             )}
-                            Save recipe
+                            {t("recipe.save")}
                         </button>
                     </div>
                 )}
@@ -382,23 +353,21 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
 }
 
 function EmptyRecipe({ onAdd }: { onAdd: () => void }) {
+    const { t } = useLanguage();
     return (
         <div className="rounded-xl border border-dashed border-[var(--card-border)] py-8 text-center">
             <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-3">
                 <Box className="w-5 h-5" />
             </div>
-            <p className="font-medium text-sm">No recipe yet</p>
-            <p className="text-[12px] text-muted mt-1 max-w-xs mx-auto">
-                Add supplies that are consumed when this product ships. Leave empty
-                to keep the 1:1 legacy deduction rule.
-            </p>
+            <p className="font-medium text-sm">{t("recipe.empty")}</p>
+            <p className="text-[12px] text-muted mt-1 max-w-xs mx-auto">{t("recipe.emptyHint")}</p>
             <button
                 type="button"
                 onClick={onAdd}
                 className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-teal-500 text-white text-sm font-medium hover:bg-teal-600"
             >
                 <Plus className="w-4 h-4" />
-                Add first rule
+                {t("recipe.addFirst")}
             </button>
         </div>
     );
@@ -460,13 +429,13 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                         onChange({ unit: e.target.value as BomUnit })
                     }
                     className="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
-                    title={UNIT_COPY[rule.unit].description}
+                    title={t(UNIT_COPY[rule.unit].description)}
                 >
                     {(
                         ["per_item", "per_unit", "per_order"] as const
                     ).map((u) => (
                         <option key={u} value={u}>
-                            {UNIT_COPY[u].label}
+                            {t(UNIT_COPY[u].label)}
                         </option>
                     ))}
                 </select>

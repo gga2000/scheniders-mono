@@ -107,7 +107,7 @@ export function OrdersAnalyticsPanel({
                                         </div>
                                         <div className="flex items-baseline gap-1">
                                             <h3 className="text-3xl font-bold text-rose-900 dark:text-white">{countsHidden ? HIDDEN : statusCounts.new}</h3>
-                                            <span className="text-sm font-medium text-rose-600/80">orders</span>
+                                            <span className="text-sm font-medium text-rose-600/80">{t("orders.ui.unitOrders")}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -126,7 +126,7 @@ export function OrdersAnalyticsPanel({
                                         </div>
                                         <div className="flex items-baseline gap-1">
                                             <h3 className="text-3xl font-bold text-amber-900 dark:text-white">{countsHidden ? HIDDEN : statusCounts.contacted}</h3>
-                                            <span className="text-sm font-medium text-amber-600/80">active</span>
+                                            <span className="text-sm font-medium text-amber-600/80">{t("orders.ui.unitActive")}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -145,7 +145,7 @@ export function OrdersAnalyticsPanel({
                                         </div>
                                         <div className="flex items-baseline gap-1">
                                             <h3 className="text-3xl font-bold text-violet-900 dark:text-white">{countsHidden ? HIDDEN : statusCounts.confirmed}</h3>
-                                            <span className="text-sm font-medium text-violet-600/80">ready</span>
+                                            <span className="text-sm font-medium text-violet-600/80">{t("orders.ui.unitReady")}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -164,7 +164,7 @@ export function OrdersAnalyticsPanel({
                                         </div>
                                         <div className="flex items-baseline gap-1">
                                             <h3 className="text-3xl font-bold text-orange-900 dark:text-white">{countsHidden ? HIDDEN : statusCounts.in_transit}</h3>
-                                            <span className="text-sm font-medium text-orange-600/80">shipped</span>
+                                            <span className="text-sm font-medium text-orange-600/80">{t("orders.ui.unitShipped")}</span>
                                         </div>
                                     </div>
                                 </div>

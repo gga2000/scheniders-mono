@@ -5,12 +5,13 @@ import { motion } from "framer-motion";
 import { MessageCircle, CheckCircle, XCircle, Clock, MapPin, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, generateWhatsAppLink, getBaseOrderId } from "@/lib/utils";
-import { validatePhoneDetailed, formatPhoneForDisplay } from "@/lib/order-utils";
+import { validatePhoneDetailed } from "@/lib/order-utils";
 import { DualPhoneDisplay } from "@/components/ui/phone-display";
 import { CancellationReasonDialog } from "@/components/orders/cancellation-reason-dialog";
 import { WhatsAppTemplatePanel } from "@/components/orders/whatsapp-template-panel";
 import type { Order, MessageTemplate } from "@/lib/supabase";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ConfirmTabProps {
     orders: Order[];
@@ -29,6 +30,7 @@ export function ConfirmTab({
     messageTemplates = [],
     onUpdateOrder,
 }: ConfirmTabProps) {
+    const { t } = useLanguage();
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
     const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
@@ -93,8 +95,8 @@ export function ConfirmTab({
                 <div className="w-16 h-16 rounded-2xl bg-[var(--pastel-green)] flex items-center justify-center mb-4">
                     <Sparkles className="w-8 h-8 text-emerald-700" />
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">All Confirmed!</h3>
-                <p className="text-muted text-center">No pending orders to confirm 🎉</p>
+                <h3 className="text-xl font-bold text-foreground mb-2">{t("orders.wf.allConfirmed")}</h3>
+                <p className="text-muted text-center">{t("orders.wf.noPending")}</p>
             </div>
         );
     }
@@ -106,11 +108,11 @@ export function ConfirmTab({
                 <div className="flex items-center justify-center gap-3">
                     <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100 text-orange-800 text-sm font-medium">
                         <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                        {newOrders.length} New
+                        {t("orders.wf.nNew", { count: newOrders.length })}
                     </span>
                     <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--pastel-green)] text-emerald-800 text-sm font-medium">
                         <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        {contactedOrders.length} Contacted
+                        {t("orders.wf.nContacted", { count: contactedOrders.length })}
                     </span>
                 </div>
 
@@ -145,7 +147,7 @@ export function ConfirmTab({
                                     </span>
                                     {isBlack && (
                                         <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">
-                                            ⚠️ Blacklisted
+                                            {t("orders.wf.blacklisted")}
                                         </span>
                                     )}
                                 </div>
@@ -222,7 +224,7 @@ export function ConfirmTab({
                                                 : "bg-gray-200 text-gray-400 cursor-not-allowed",
                                             order.secondary_phone ? "flex-none" : "flex-1"
                                         )}
-                                        title={validatePhoneDetailed(order.phone).isValid ? "WhatsApp - الرقم الأول" : validatePhoneDetailed(order.phone).errorMessageAr}
+                                        title={validatePhoneDetailed(order.phone).isValid ? t("orders.wf.waPrimary") : validatePhoneDetailed(order.phone).errorMessageAr}
                                     >
                                         <MessageCircle className="w-4 h-4" />
                                         {!order.secondary_phone && "WhatsApp"}
@@ -231,7 +233,7 @@ export function ConfirmTab({
                                         <button
                                             onClick={() => handleWhatsAppClick(order)}
                                             className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 transition-all"
-                                            title="WhatsApp - الرقم الثاني"
+                                            title={t("orders.wf.waSecondary")}
                                         >
                                             <MessageCircle className="w-4 h-4" />
                                         </button>
@@ -242,7 +244,7 @@ export function ConfirmTab({
                                         className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500 text-white font-semibold text-sm hover:bg-emerald-600 transition-all disabled:opacity-50"
                                     >
                                         <CheckCircle className="w-4 h-4" />
-                                        Confirm
+                                        {t("common.confirm")}
                                     </button>
                                     <button
                                         onClick={() => handleCancelClick(order)}
@@ -250,7 +252,7 @@ export function ConfirmTab({
                                         className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-rose-500 text-white font-semibold text-sm hover:bg-rose-600 transition-all disabled:opacity-50"
                                     >
                                         <XCircle className="w-4 h-4" />
-                                        Cancel
+                                        {t("common.cancel")}
                                     </button>
                                 </div>
                             </motion.div>

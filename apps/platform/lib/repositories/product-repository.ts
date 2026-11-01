@@ -91,6 +91,26 @@ function costMaps(rows: ProductCostRow[]) {
 }
 
 /**
+ * A bulk write names its rows in the URL (`id=in.(...)`), and a thousand uuids
+ * is a ~37 KB URL the API refuses. Run in chunks; each chunk is one statement.
+ */
+const BULK_ID_CHUNK = 100;
+
+async function inChunks(
+    op: string,
+    ids: string[],
+    run: (chunk: string[]) => PromiseLike<{ data: { id: string }[] | null; error: { message: string } | null }>,
+): Promise<void> {
+    let changed = 0;
+    for (let i = 0; i < ids.length; i += BULK_ID_CHUNK) {
+        const { data, error } = await run(ids.slice(i, i + BULK_ID_CHUNK));
+        if (error) throw error;
+        changed += data?.length ?? 0;
+    }
+    if (changed < ids.length) throw new ProductWriteDeniedError(op);
+}
+
+/**
  * ProductRepository — Centralized data access for products.
  */
 export const productRepository = {
@@ -402,90 +422,76 @@ export const productRepository = {
     /** Bulk-archive multiple products. */
     async bulkArchive(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkArchive', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ is_archived: true })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkArchive", changed, ids.length);
+            await inChunks("productRepository.bulkArchive", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .update({ is_archived: true })
+                    .in("id", chunk)
+                    .select("id"),
+            );
         });
     },
 
     /** Bulk-restore multiple archived products. */
     async bulkRestore(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkRestore', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ is_archived: false })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkRestore", changed, ids.length);
+            await inChunks("productRepository.bulkRestore", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .update({ is_archived: false })
+                    .in("id", chunk)
+                    .select("id"),
+            );
         });
     },
 
     /** Bulk-delete multiple products permanently. */
     async bulkDelete(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkDelete', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .delete()
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkDelete", changed, ids.length);
+            await inChunks("productRepository.bulkDelete", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .delete()
+                    .in("id", chunk)
+                    .select("id"),
+            );
         }, WRITE_ONCE);
     },
 
     /** Bulk-update storefront visibility for multiple products. */
     async bulkUpdateVisibility(ids: string[], isVisible: boolean): Promise<void> {
         return withRetry('productRepository.bulkUpdateVisibility', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ is_visible: isVisible })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkUpdateVisibility", changed, ids.length);
+            await inChunks("productRepository.bulkUpdateVisibility", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .update({ is_visible: isVisible })
+                    .in("id", chunk)
+                    .select("id"),
+            );
         });
     },
 
     /** Bulk-update category for multiple products. Pass null to clear category. */
     async bulkUpdateCategory(ids: string[], categoryId: string | null): Promise<void> {
         return withRetry('productRepository.bulkUpdateCategory', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ category_id: categoryId })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkUpdateCategory", changed, ids.length);
+            await inChunks("productRepository.bulkUpdateCategory", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .update({ category_id: categoryId })
+                    .in("id", chunk)
+                    .select("id"),
+            );
         });
     },
 
     /** Bulk-update display_order for multiple products. */
     async bulkUpdateDisplayOrder(updates: { id: string; display_order: number }[]): Promise<void> {
         return withRetry('productRepository.bulkUpdateDisplayOrder', async () => {
-            // Supabase doesn't support batch updates with different values per row,
-            // so we run them in parallel with Promise.all
-            const promises = updates.map(({ id, display_order }) =>
-                supabase
-                    .from("products")
-                    .update({ display_order })
-                    .eq("id", id)
-                    .select("id")
-            );
-            const results = await Promise.all(promises);
-            const firstError = results.find((r) => r.error);
-            if (firstError?.error) throw firstError.error;
-            for (const r of results) assertChanged("productRepository.bulkUpdateDisplayOrder", r.data, 1);
-        });
+            // One statement: a failure leaves the list as it was, never half-reordered.
+            const { error } = await supabase.rpc("set_product_display_order", { p_orders: updates });
+            if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError("productRepository.bulkUpdateDisplayOrder");
+            if (error) throw error;
+        }, WRITE_ONCE);
     },
 
     /** Fetch price history for a product. */

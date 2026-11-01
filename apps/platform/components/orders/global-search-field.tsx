@@ -103,7 +103,7 @@ export const GlobalSearchField = React.memo(function GlobalSearchField({ setFilt
             {onScannerOpen && (
                 <button
                     onClick={onScannerOpen}
-                    title="Scan barcode"
+                    title={t("orders.ui.scanBarcode")}
                     className={cn(
                         "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all text-[var(--foreground-subtle)] hover:text-foreground hover:bg-[var(--pastel-yellow)]/30",
                     )}
