@@ -12,6 +12,7 @@ import {
     customerAccent,
     recencyStatus,
     firstDeliveryPending,
+    FIRST_DELIVERY_DOT,
     effectiveSuccessRate,
 } from "@/lib/customer-reliability";
 import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
@@ -144,7 +145,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 <div className="pt-3 border-t border-(--card-border) flex items-center justify-between gap-2">
                     {/* The dot is recency only (active, cooling, dormant); risk has its own pill. */}
                     <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground min-w-0" title={pending ? t("customers.card.firstDeliveryPending") : recency.label}>
-                        <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? "bg-blue-400" : recency.dot)} aria-hidden />
+                        <span className={cn("w-2 h-2 rounded-full shrink-0", pending ? FIRST_DELIVERY_DOT : recency.dot)} aria-hidden />
                         <span dir="auto" className="truncate">
                             {pending ? t("customers.card.firstDelivery") : <><span className="sr-only">{recency.stateLabel}: </span>{recency.ago}</>}
                         </span>

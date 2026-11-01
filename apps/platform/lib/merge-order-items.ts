@@ -90,3 +90,21 @@ export function mergeOrderItems<T extends QuantifiedLine>(items: readonly T[] | 
 
     return merged;
 }
+
+/**
+ * How many units an order holds: the sum of its line quantities, the number a
+ * packer counts. The customer drawer and the customer profile both print it as
+ * "N items", so they must never disagree for one order. It is the same before
+ * and after `mergeOrderItems`, because merging only adds quantities together.
+ *
+ * A line with no usable quantity (missing, not finite, or below 1) still holds
+ * the item it names, so it counts as one. `null` when the order carries no line
+ * array at all, so the caller can show "—" rather than an invented 0.
+ */
+export function orderUnitCount(items: readonly QuantifiedLine[] | null | undefined): number | null {
+    if (!Array.isArray(items)) return null;
+    return items.reduce((total, item) => {
+        const quantity = item.quantity;
+        return total + (typeof quantity === "number" && Number.isFinite(quantity) && quantity >= 1 ? quantity : 1);
+    }, 0);
+}

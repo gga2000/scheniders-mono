@@ -17,6 +17,11 @@
 // =============================================
 
 import type { TrustTier } from '@/types/customer';
+import type { Locale } from '@/lib/i18n';
+import { baghdadMonthKey } from '@/lib/customer-format';
+import {
+    ORDER_STATUS_TONE, REFUND_ORDER_STATUS_LABELS, getOrderStatusLabel, orderStatusTone, type OrderStatusKey,
+} from '@/lib/order-status-labels';
 
 // ───────────────────────── VALUE axis ─────────────────────────
 
@@ -32,8 +37,10 @@ export interface ValueMeta {
 
 export const VALUE_META: Record<ValueTier, ValueMeta> = {
     vip: { label: 'VIP', pillBg: 'bg-purple-100 dark:bg-purple-500/15', pillText: 'text-purple-800 dark:text-purple-200', dot: 'bg-purple-500' },
-    good: { label: 'Good', pillBg: 'bg-lime-50 dark:bg-lime-500/15', pillText: 'text-lime-800 dark:text-lime-200', dot: 'bg-lime-500' },
-    newcomer: { label: 'Newcomer', pillBg: 'bg-blue-50 dark:bg-blue-500/15', pillText: 'text-blue-800 dark:text-blue-200', dot: 'bg-blue-400' },
+    // Green means "safe to ship" (COD risk Clean) and nothing else, so a spend tier is never green.
+    good: { label: 'Good', pillBg: 'bg-sky-50 dark:bg-sky-500/15', pillText: 'text-sky-800 dark:text-sky-200', dot: 'bg-sky-500' },
+    // No value proven yet, so no colour: neutral ink, which also keeps sky "Good" from reading as a second blue.
+    newcomer: { label: 'Newcomer', pillBg: 'bg-zinc-100 dark:bg-white/10', pillText: 'text-zinc-700 dark:text-zinc-200', dot: 'bg-zinc-400' },
 };
 
 /** Mirror of value_tier_calc: VALUE by completed (delivered) orders. */
@@ -58,7 +65,8 @@ export const RISK_META: Record<RiskLevel, RiskMeta> = {
     clean: { label: 'Clean', chipBg: 'bg-emerald-50 dark:bg-emerald-500/15', chipText: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500' },
     caution: { label: 'Caution', chipBg: 'bg-amber-50 dark:bg-amber-500/15', chipText: 'text-amber-800 dark:text-amber-300', dot: 'bg-amber-500' },
     high: { label: 'High risk', chipBg: 'bg-rose-50 dark:bg-rose-500/15', chipText: 'text-rose-700 dark:text-rose-300', dot: 'bg-rose-600' },
-    blocked: { label: 'Blocked', chipBg: 'bg-zinc-800 dark:bg-rose-500/20', chipText: 'text-white dark:text-rose-200', dot: 'bg-rose-600' },
+    // The same solid rose in both themes, as on the drawer band and the profile.
+    blocked: { label: 'Blocked', chipBg: 'bg-rose-700', chipText: 'text-white', dot: 'bg-rose-700' },
 };
 
 /** The colours a customer's band and banner are drawn in. */
@@ -226,12 +234,22 @@ export function daysAgoLabel(days: number, t: RecencyTranslate): string {
     return t('customers.recency.daysAgo', { days });
 }
 
+/**
+ * Recency is a single neutral ramp, ink fading to a hollow ring, so it can
+ * never be read as a status colour (amber already means "Needs confirming").
+ */
 const RECENCY_DOT: Record<RecencyState, string> = {
-    active: 'bg-emerald-500',
-    cooling: 'bg-amber-500',
-    dormant: 'bg-zinc-400',
-    none: 'bg-zinc-300 dark:bg-zinc-600',
+    active: 'bg-foreground',
+    cooling: 'bg-muted-foreground/60',
+    dormant: 'ring-1 ring-inset ring-muted-foreground/60',
+    none: 'ring-1 ring-inset ring-muted-foreground/30',
 };
+
+/**
+ * The dot beside "First delivery" on the card and the table row: the colour of
+ * the "First delivery" saved view, so the row and the view it belongs to match.
+ */
+export const FIRST_DELIVERY_DOT = 'bg-teal-500';
 
 /**
  * Recency line + status dot. The dot means one thing only, how recently the
@@ -271,9 +289,51 @@ export function firstDeliveryPending(c: {
 export interface StatusFlag {
     key: 'rejected' | 'cancelled' | 'no_response' | 'returned' | 'refund';
     count: number;
-    /** bg + text classes for the chip. */
+    /** bg + text classes for the chip: the order-status pill's tone, so an outcome reads the same everywhere. */
     tone: string;
     i18nKey: string;
+}
+
+/** The order status each outcome flag counts, whose pill colour the flag wears. */
+export const FLAG_ORDER_STATUS: Record<StatusFlag['key'], OrderStatusKey> = {
+    rejected: 'rejected',
+    no_response: 'no_response',
+    returned: 'return_pending',
+    cancelled: 'cancelled',
+    refund: 'refund_delivered',
+};
+
+/** The order status behind each trust-engine event, so its icon wears that outcome's colour. */
+const TRUST_EVENT_ORDER_STATUS: Record<string, OrderStatusKey> = {
+    order_delivered: 'delivered',
+    order_rejected: 'rejected',
+    order_cancelled: 'cancelled',
+    order_no_response: 'no_response',
+    order_refund: 'refund_delivered',
+};
+
+/** Icon tone for a score event: the order-status tone for an order outcome, neutral for anything else. */
+export function trustEventTone(eventType: string): string {
+    return orderStatusTone(TRUST_EVENT_ORDER_STATUS[eventType] ?? null);
+}
+
+/**
+ * The customers pages call each outcome by one word wherever it appears: the
+ * order pill, the outcome flag, the score event and the order-outcomes line.
+ * Where that word differs from the shared order table these override it here
+ * only; the Orders page keeps the shared table's wording until its own design
+ * review changes it.
+ */
+const CUSTOMER_STATUS_WORDING: Record<Locale, Partial<Record<OrderStatusKey, string>>> = {
+    en: { cancelled: 'Cancelled' },
+    ar: { cancelled: 'ملغاة', no_response: 'بلا رد' },
+};
+
+/** An order status as the customer drawer and profile print it (see CUSTOMER_STATUS_WORDING). */
+export function customerOrderStatusLabel(status: string, isReturn: boolean, locale: Locale): string {
+    const key = status.toLowerCase() as OrderStatusKey;
+    const refund = isReturn ? REFUND_ORDER_STATUS_LABELS[locale][key] : undefined;
+    return refund ?? CUSTOMER_STATUS_WORDING[locale][key] ?? getOrderStatusLabel(status, locale, isReturn);
 }
 
 /**
@@ -288,16 +348,16 @@ export function statusFlags(c: {
     returned_count: number;
     refund_count: number;
 }): StatusFlag[] {
-    const defs: Array<[StatusFlag['key'], number, string, string]> = [
-        ['rejected', c.rejected_count, 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300', 'customers.flag.rejected'],
-        ['no_response', c.no_response_count, 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300', 'customers.flag.noResponse'],
-        ['returned', c.returned_count, 'bg-fuchsia-50 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300', 'customers.flag.returned'],
-        ['cancelled', c.cancelled_count, 'bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300', 'customers.flag.cancelled'],
-        ['refund', c.refund_count, 'bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300', 'customers.flag.refunded'],
+    const defs: Array<[StatusFlag['key'], number, string]> = [
+        ['rejected', c.rejected_count, 'customers.flag.rejected'],
+        ['no_response', c.no_response_count, 'customers.flag.noResponse'],
+        ['returned', c.returned_count, 'customers.flag.returned'],
+        ['cancelled', c.cancelled_count, 'customers.flag.cancelled'],
+        ['refund', c.refund_count, 'customers.flag.refunded'],
     ];
     return defs
         .filter(([, n]) => n > 0)
-        .map(([key, count, tone, i18nKey]) => ({ key, count, tone, i18nKey }));
+        .map(([key, count, i18nKey]) => ({ key, count, tone: ORDER_STATUS_TONE[FLAG_ORDER_STATUS[key]], i18nKey }));
 }
 
 /**
@@ -312,6 +372,37 @@ const FINISHED_STATUSES = new Set([
 /** True when the order has a final outcome (delivered or failed), so it counts toward the delivery rate. */
 export function isFinishedOrder(status: string | null | undefined): boolean {
     return !!status && FINISHED_STATUSES.has(status.toLowerCase());
+}
+
+// ───────────────────────── trust history ─────────────────────────
+
+export interface MonthlyScore {
+    /** "YYYY-MM". */
+    month: string;
+    /** The month's average score on the 0–100 scale; null for a month with no scored events. */
+    score: number | null;
+}
+
+/**
+ * The Trust history chart's months: exactly `months` calendar months ending
+ * with the current Baghdad month, oldest first. A month the history has no
+ * row for is kept as a gap (score null), so "1Y" always spans a year and a
+ * quiet stretch reads as quiet rather than disappearing.
+ */
+export function monthlyScoreSeries(
+    rows: readonly { month: string; avg_score: number }[],
+    months: number,
+    now: Date = new Date(),
+): MonthlyScore[] {
+    const byMonth = new Map(rows.map((r) => [r.month.slice(0, 7), displayScore(r.avg_score)]));
+    const [year, month] = baghdadMonthKey(now).split('-').map(Number);
+    const series: MonthlyScore[] = [];
+    for (let back = months - 1; back >= 0; back--) {
+        const index = year * 12 + (month - 1) - back;
+        const key = `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+        series.push({ month: key, score: byMonth.get(key) ?? null });
+    }
+    return series;
 }
 
 // ───────────────────────── score breakdown ─────────────────────────

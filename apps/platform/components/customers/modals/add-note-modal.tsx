@@ -12,7 +12,7 @@ interface AddNoteModalProps {
 }
 
 export function AddNoteModal({ phone }: AddNoteModalProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { isAddNoteModalOpen, setAddNoteModalOpen } = useCustomerStore();
     const addNote = useAddCustomerNote(phone);
     const [text, setText] = useState("");
@@ -42,7 +42,9 @@ export function AddNoteModal({ phone }: AddNoteModalProps) {
                     value={text}
                     onChange={(e) => setText(e.target.value.slice(0, 1000))}
                     placeholder={t("customers.notes.placeholder")}
-                    dir="auto"
+                    // An empty dir="auto" box resolves to LTR, which puts an Arabic placeholder's
+                    // ellipsis on the wrong side; until there is text, follow the UI language.
+                    dir={text ? "auto" : language === "ar" ? "rtl" : "ltr"}
                     autoFocus
                     rows={6}
                     className="w-full bg-muted/20 border border-(--card-border) rounded-xl p-3 text-sm resize-none focus:ring-2 focus:ring-foreground/10 focus:outline-none"

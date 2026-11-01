@@ -11,10 +11,10 @@ import {
     X, Phone, MapPin, Calendar, MessageCircle, Plus, ExternalLink, Tag,
     Package, ChevronDown, User, Home, ShoppingBag, StickyNote, CreditCard, Truck, Clock,
 } from "lucide-react";
-import { cn, formatIQD, getStatusLabel } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 import { orderStatusTone } from "@/lib/order-status-labels";
 import type { Locale } from "@/lib/i18n";
-import { mergeOrderItems } from "@/lib/merge-order-items";
+import { mergeOrderItems, orderUnitCount } from "@/lib/merge-order-items";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { trustEngine } from "@/lib/fraud-detector";
@@ -23,7 +23,7 @@ import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
     averageBasket, displayScore, effectiveSuccessRate, codVerdictKey, firstDeliveryPending, isBlockedCustomer, showsTrustScore,
-    VALUE_META, RISK_META, customerAccent, statusFlags,
+    VALUE_META, RISK_META, customerAccent, statusFlags, customerOrderStatusLabel,
 } from "@/lib/customer-reliability";
 import { computeRefundPayout, orderReceipt } from "@/lib/order-money";
 import { ValueIcon, RiskIcon, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
@@ -180,7 +180,8 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
     // so the receipt is built from the shared helper: Subtotal − Discount + Delivery = Total.
     const receipt = orderReceipt(order);
     const pillCls = orderStatusTone(order.status);
-    const itemCount = items.reduce((s, it) => s + (Number(it.quantity) || 1), 0);
+    // Units, the same count the profile's order table prints (orderUnitCount).
+    const itemCount = orderUnitCount(items) ?? 0;
     const lines = mergeOrderItems(items);
 
     return (
@@ -188,7 +189,7 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
             {/* Header */}
             <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background transition-colors text-left">
                 <span className="text-xs text-muted-foreground min-w-24 shrink-0 tabular-nums whitespace-nowrap">{fmtDate(locale, order.created_at)}</span>
-                <span className={cn("text-xs font-bold px-2.5 py-1 rounded-full shrink-0", pillCls)}>{getStatusLabel(order.status, !!order.is_return, locale)}</span>
+                <span className={cn("text-xs font-bold px-2.5 py-1 rounded-full shrink-0", pillCls)}>{customerOrderStatusLabel(order.status, !!order.is_return, locale)}</span>
                 {order.order_id && <span className="font-mono text-xs text-muted-foreground/70 hidden sm:inline">#{order.order_id}</span>}
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">{itemCount} {t(itemCount === 1 ? "customers.dialog.item" : "customers.dialog.items", itemCount === 1 ? "item" : "items")}</span>
                 <span className="font-mono font-bold text-sm shrink-0 tabular-nums">{formatIQD(receipt.total)}</span>
@@ -248,8 +249,8 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
                                 )}
                             </div>
                             {order.notes && (
-                                <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[13px] text-amber-900 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-200">
-                                    <StickyNote className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
+                                <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-muted/30 border border-(--card-border) px-3 py-2 text-[13px] text-foreground">
+                                    <StickyNote className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
                                     <span dir="auto">{order.notes}</span>
                                 </div>
                             )}
@@ -459,12 +460,12 @@ function Body({
                     ))}
                 </div>
 
-                {/* Notes are instructions for whoever ships next: above the orders, not under them. */}
+                {/* Notes are instructions for whoever ships next: above the orders, not under them. A note is not a warning, so it is drawn neutral; amber stays for caution. */}
                 {data && data.notes.length > 0 && (
                     <div className="space-y-2">
                         {data.notes.map((n, i) => (
-                            <div key={i} className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[13px] text-amber-900 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-200">
-                                <StickyNote className="w-4 h-4 mt-0.5 shrink-0 text-amber-500" />
+                            <div key={i} className="flex items-start gap-2 rounded-xl bg-muted/30 border border-(--card-border) px-3 py-2 text-[13px] text-foreground">
+                                <StickyNote className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
                                 <span dir="auto" className="text-left">{n.note}</span>
                             </div>
                         ))}

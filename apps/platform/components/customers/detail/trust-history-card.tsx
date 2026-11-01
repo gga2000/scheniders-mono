@@ -1,20 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-    BarChart3,
-    Layers,
-    CheckCircle2,
-    XCircle,
-    AlertCircle,
-    Star,
-    Pencil,
-    User as UserIcon,
-} from "lucide-react";
+import { BarChart3, Layers } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
-import { buildScoreBreakdown, daysAgoLabel, daysSince, SCORE_FACTOR_TONE, type ScoreFactor } from "@/lib/customer-reliability";
+import {
+    buildScoreBreakdown, daysAgoLabel, daysSince, monthlyScoreSeries, SCORE_FACTOR_TONE, type MonthlyScore, type ScoreFactor,
+} from "@/lib/customer-reliability";
+import { formatMonthShort } from "@/lib/customer-format";
+import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
 import { cn } from "@/lib/utils";
 
 interface TrustHistoryCardProps {
@@ -22,31 +17,20 @@ interface TrustHistoryCardProps {
     phone: string;
     /** The stored trust score, the total the factors add up to (as on the hero and in the breakdown). */
     score: number | null;
-    /** From isBlockedCustomer: no score, no factors and no score history, only the do-not-ship note. */
+    /** From isBlockedCustomer: no score, no factors and no score history, only the "not scored" note. */
     blocked: boolean;
+    /** From showsTrustScore, the hero's rule: without a shown score there is no monthly score history either. */
+    scored: boolean;
 }
 
 type ViewMode = "history" | "factors";
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
-const EVENT_ICONS: Record<string, React.ElementType> = {
-    order_delivered: CheckCircle2,
-    order_rejected: XCircle,
-    order_cancelled: AlertCircle,
-    order_no_response: AlertCircle,
-    order_refund: XCircle,
-    community_rating: Star,
-    admin_override: Pencil,
-    rejection_edit: Pencil,
-};
+/** Horizontal guides of the history chart, on the 0–100 score scale. */
+const GUIDES = [100, 50, 0] as const;
 
-function eventIconColor(deltaSign: number): string {
-    if (deltaSign > 0) return "text-emerald-600 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-500/15";
-    if (deltaSign < 0) return "text-rose-600 bg-rose-50 dark:text-rose-300 dark:bg-rose-500/15";
-    return "text-muted-foreground bg-muted/40";
-}
-
-export function TrustHistoryCard({ data, phone, score, blocked }: TrustHistoryCardProps) {
-    const { t } = useLanguage();
+export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustHistoryCardProps) {
+    const { t, language } = useLanguage();
     const [period, setPeriod] = useState<6 | 12>(12);
 
     const { data: breakdownData } = useTrustScoreBreakdown(phone);
@@ -57,20 +41,23 @@ export function TrustHistoryCard({ data, phone, score, blocked }: TrustHistoryCa
     const { data: auditData } = useTrustAuditLog(phone, 5);
     const recentEvents = auditData?.events ?? [];
 
-    // A blocked customer's monthly scores would bring back the score the hero hides.
-    const hasHistory = data.length > 0 && !blocked;
+    // Monthly scores for a blocked or unrated customer would bring back the score the hero hides.
+    const hasHistory = data.length > 0 && scored;
     const hasFactors = breakdown.length > 0 || recentEvents.length > 0 || blocked;
 
-    // Default to whichever has data; prefer history when both exist
-    const [view, setView] = useState<ViewMode>(hasHistory ? "history" : "factors");
+    // History leads once there is any; a choice the user made sticks while it still has data.
+    const [chosenView, setChosenView] = useState<ViewMode | null>(null);
+    const view: ViewMode = chosenView === "history" && hasHistory ? "history"
+        : chosenView === "factors" && hasFactors ? "factors"
+        : hasHistory ? "history" : "factors";
 
-    useEffect(() => {
-        if (!hasHistory && view === "history") setView("factors");
-        if (hasHistory && view === "factors" && !hasFactors) setView("history");
-    }, [hasHistory, hasFactors, view]);
+    const series = useMemo(() => monthlyScoreSeries(data, period), [data, period]);
 
-    const displayData = data.slice(-period);
-    const lastIndex = displayData.length - 1;
+    const toggleCls = (active: boolean, enabled: boolean) => cn(
+        "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
+        active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+        !enabled && "opacity-40 cursor-not-allowed",
+    );
 
     return (
         <div className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col justify-start h-full min-h-[280px]">
@@ -83,39 +70,17 @@ export function TrustHistoryCard({ data, phone, score, blocked }: TrustHistoryCa
                         <Layers className="w-5 h-5 text-foreground" />
                     )}
                     <span className="font-headline font-extrabold text-lg leading-none">
-                        {view === "history"
-                            ? t("customers.trust.history")
-                            : t("customers.trust.factors")}
+                        {view === "history" ? t("customers.trust.history") : t("customers.trust.factors")}
                     </span>
                 </div>
 
                 {/* View toggle (history vs factors); a blocked customer has no score history to show */}
                 {!blocked && (
                     <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-full">
-                        <button
-                            onClick={() => setView("history")}
-                            disabled={!hasHistory}
-                            className={cn(
-                                "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
-                                view === "history"
-                                    ? "bg-foreground text-background"
-                                    : "text-muted-foreground hover:text-foreground",
-                                !hasHistory && "opacity-40 cursor-not-allowed"
-                            )}
-                        >
+                        <button onClick={() => setChosenView("history")} disabled={!hasHistory} aria-pressed={view === "history"} className={toggleCls(view === "history", hasHistory)}>
                             {t("customers.trust.viewHistory")}
                         </button>
-                        <button
-                            onClick={() => setView("factors")}
-                            disabled={!hasFactors}
-                            className={cn(
-                                "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
-                                view === "factors"
-                                    ? "bg-foreground text-background"
-                                    : "text-muted-foreground hover:text-foreground",
-                                !hasFactors && "opacity-40 cursor-not-allowed"
-                            )}
-                        >
+                        <button onClick={() => setChosenView("factors")} disabled={!hasFactors} aria-pressed={view === "factors"} className={toggleCls(view === "factors", hasFactors)}>
                             {t("customers.trust.viewFactors")}
                         </button>
                     </div>
@@ -125,11 +90,7 @@ export function TrustHistoryCard({ data, phone, score, blocked }: TrustHistoryCa
                 {view === "history" && (
                     <div className="flex items-center gap-1">
                         {([6, 12] as const).map((p) => (
-                            <button
-                                key={p}
-                                onClick={() => setPeriod(p)}
-                                className="relative"
-                            >
+                            <button key={p} onClick={() => setPeriod(p)} aria-pressed={period === p} className="relative">
                                 {period === p && (
                                     <motion.div
                                         layoutId="trust-history-period-pill"
@@ -152,81 +113,108 @@ export function TrustHistoryCard({ data, phone, score, blocked }: TrustHistoryCa
             </div>
 
             <AnimatePresence mode="wait">
-                {view === "history" ? (
-                    <motion.div
-                        key="history"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        {hasHistory ? (
-                            <>
-                                <div className="h-48 w-full flex items-end justify-between gap-4 px-2">
-                                    {displayData.map((entry, i) => {
-                                        const heightPct = Math.max((entry.avg_score / 100) * 100, 2);
-                                        const isCurrent = i === lastIndex;
-                                        const score = Math.round(entry.avg_score);
-                                        return (
-                                            <div
-                                                key={`${period}-${i}`}
-                                                className="group flex-1 flex flex-col items-stretch relative"
-                                                style={{ height: "100%" }}
-                                            >
-                                                {/* The score sits on top of its own bar, not at the top of the chart. */}
-                                                <div className="flex-1 flex flex-col justify-end">
-                                                    <div
-                                                        className={cn(
-                                                            "mb-1 w-full flex justify-center transition-opacity duration-200",
-                                                            isCurrent ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                                                        )}
-                                                    >
-                                                        <span className="text-xs font-bold text-foreground tabular-nums">{score}</span>
-                                                    </div>
-                                                    <motion.div
-                                                        className={cn(
-                                                            "w-full rounded-t-2xl transition-colors duration-200",
-                                                            isCurrent ? "bg-[#FBE38E]" : "bg-[#FBE38E]/45 hover:bg-[#FBE38E]/70 dark:bg-[#FBE38E]/25"
-                                                        )}
-                                                        initial={{ height: 0 }}
-                                                        animate={{ height: `${heightPct}%` }}
-                                                        transition={{ delay: i * 0.04, duration: 0.45, ease: "easeOut" }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="flex justify-between mt-6 px-4 text-xs font-medium text-muted-foreground">
-                                    {displayData.map((entry, i) => (
-                                        <span key={i} className="tabular-nums">
-                                            {entry.month.slice(5)}
-                                        </span>
-                                    ))}
-                                </div>
-                            </>
-                        ) : (
-                            <FactorsView breakdown={breakdown} recentEvents={recentEvents} blocked={blocked} t={t} />
-                        )}
-                    </motion.div>
-                ) : (
-                    <motion.div
-                        key="factors"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <FactorsView breakdown={breakdown} recentEvents={recentEvents} blocked={blocked} t={t} />
-                    </motion.div>
-                )}
+                <motion.div
+                    key={view}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    {view === "history" ? (
+                        <HistoryChart series={series} language={language} t={t} />
+                    ) : (
+                        <FactorsView breakdown={breakdown} rated={scored} recentEvents={recentEvents} blocked={blocked} t={t} />
+                    )}
+                </motion.div>
             </AnimatePresence>
         </div>
     );
 }
 
+/**
+ * Monthly average score, one bar per calendar month (empty months stay as
+ * gaps). Faint 0/50/100 guides give the scale; the first and the latest scored
+ * months carry their value, any other shows it on hover. Bars use the theme's
+ * pastel-yellow token, the latest at full strength.
+ */
+function HistoryChart({ series, language, t }: { series: MonthlyScore[]; language: string; t: Translate }) {
+    const scored = series.flatMap((m, i) => (m.score === null ? [] : [i]));
+    const first = scored[0];
+    const latest = scored[scored.length - 1];
+
+    return (
+        <figure aria-label={t("customers.trust.chartLabel")} className="flex gap-2">
+            {/* Y scale */}
+            <div className="relative h-48 w-7 shrink-0 text-[11px] text-muted-foreground tabular-nums" aria-hidden>
+                {GUIDES.map((g) => (
+                    <span key={g} className="absolute end-0 -translate-y-1/2 leading-none" style={{ top: `${100 - g}%` }}>{g}</span>
+                ))}
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="relative h-48">
+                    {GUIDES.map((g) => (
+                        <div
+                            key={g}
+                            aria-hidden
+                            className={cn("absolute inset-x-0 border-t", g === 0 ? "border-(--card-border)" : "border-dashed border-(--card-border)/70")}
+                            style={{ top: `${100 - g}%` }}
+                        />
+                    ))}
+                    <ol className="absolute inset-0 flex items-end gap-2">
+                        {series.map((m, i) => {
+                            const month = formatMonthShort(m.month, language);
+                            const labelled = i === first || i === latest;
+                            return (
+                                <li
+                                    key={m.month}
+                                    className="group relative flex-1 h-full flex flex-col justify-end"
+                                    title={m.score === null ? month : `${month}: ${m.score}`}
+                                >
+                                    <span className="sr-only">{m.score === null ? `${month}: —` : `${month}: ${m.score}`}</span>
+                                    {m.score !== null && (
+                                        <>
+                                            <span
+                                                aria-hidden
+                                                className={cn(
+                                                    "mb-1 text-center text-xs tabular-nums transition-opacity",
+                                                    i === latest ? "font-bold text-foreground" : "font-medium text-muted-foreground",
+                                                    labelled ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                                                )}
+                                            >
+                                                {m.score}
+                                            </span>
+                                            <motion.div
+                                                aria-hidden
+                                                className={cn(
+                                                    "w-full rounded-t-[4px]",
+                                                    i === latest ? "bg-(--pastel-yellow)" : "bg-(--pastel-yellow)/50 group-hover:bg-(--pastel-yellow)/80",
+                                                )}
+                                                initial={{ height: 0 }}
+                                                animate={{ height: `${Math.max(m.score, 2)}%` }}
+                                                transition={{ delay: i * 0.03, duration: 0.4, ease: "easeOut" }}
+                                            />
+                                        </>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ol>
+                </div>
+                {/* Month names under their own bars; a two-word Iraqi month ("تشرين الثاني") wraps rather than clipping. */}
+                <div className="flex gap-2 mt-2 text-[11px] font-medium leading-tight text-muted-foreground" aria-hidden>
+                    {series.map((m) => (
+                        <span key={m.month} className="flex-1 min-w-0 text-center">{formatMonthShort(m.month, language)}</span>
+                    ))}
+                </div>
+            </div>
+        </figure>
+    );
+}
+
 interface FactorsViewProps {
     breakdown: ScoreFactor[];
+    /** False for a customer without a rated score yet: the bars are shown greyed, without points. */
+    rated: boolean;
     recentEvents: Array<{
         id: string;
         event_date: string;
@@ -235,10 +223,10 @@ interface FactorsViewProps {
         reason: string | null;
     }>;
     blocked: boolean;
-    t: (key: string, vars?: Record<string, string | number>) => string;
+    t: Translate;
 }
 
-function FactorsView({ breakdown, recentEvents, blocked, t }: FactorsViewProps) {
+function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsViewProps) {
     const maxAbs = useMemo(
         () => Math.max(1, ...breakdown.map((f) => Math.abs(f.value))),
         [breakdown]
@@ -254,77 +242,68 @@ function FactorsView({ breakdown, recentEvents, blocked, t }: FactorsViewProps) 
         );
     }
 
+    // "Recent events" takes a column only when there are events; otherwise the breakdown spans the card.
+    const showEvents = recentEvents.length > 0;
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={cn("grid grid-cols-1 gap-6", showEvents && "md:grid-cols-2")}>
             {/* Score breakdown */}
             <div>
                 <p className="text-xs font-semibold text-muted-foreground mb-3">
                     {t("customers.trust.factorsBreakdown")}
                 </p>
                 {blocked ? (
-                    <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
-                        {t("customers.scoreBreakdown.blockedNote")}
+                    <p className="text-sm text-muted-foreground">
+                        {t("customers.scoreBreakdown.notScored")}
                     </p>
                 ) : breakdown.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
                         {t("customers.trust.noFactors")}
                     </p>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                         {breakdown.map((factor, i) => {
                             const widthPct = (Math.abs(factor.value) / maxAbs) * 100;
                             const tone = SCORE_FACTOR_TONE[factor.type];
                             return (
                                 <div key={factor.label} className="flex items-center gap-3">
-                                    <span className="text-xs font-medium text-foreground flex-1 truncate">
+                                    <span className="text-xs font-medium text-foreground w-36 shrink-0 truncate">
                                         {t(`customers.scoreBreakdown.${factor.label}`)}
                                     </span>
-                                    <div className="flex items-center gap-2 w-32">
-                                        <div className="flex-1 h-2 bg-muted/30 rounded-full overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${widthPct}%` }}
-                                                transition={{ delay: i * 0.05, duration: 0.4 }}
-                                                className={cn("h-full rounded-full", tone.bar)}
-                                            />
-                                        </div>
-                                        <span className={cn("text-xs font-bold tabular-nums w-8 text-right", tone.text)}>
-                                            {factor.value > 0 ? "+" : ""}
-                                            {factor.value}
-                                        </span>
+                                    <div className="flex-1 h-2 bg-muted/40 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${widthPct}%` }}
+                                            transition={{ delay: i * 0.05, duration: 0.4 }}
+                                            className={cn("h-full rounded-full", rated ? tone.bar : "bg-muted-foreground/25")}
+                                        />
                                     </div>
+                                    {/* No points before the first delivery: the hero shows no score either. */}
+                                    <span className={cn("text-xs font-bold tabular-nums w-9 text-end shrink-0", rated ? tone.text : "text-muted-foreground")}>
+                                        {rated ? `${factor.value > 0 ? "+" : ""}${factor.value}` : "—"}
+                                    </span>
                                 </div>
                             );
                         })}
+                        {!rated && (
+                            <p className="text-xs text-muted-foreground pt-1">{t("customers.trust.scoredAfterFirstDelivery")}</p>
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* Recent events feed */}
-            <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-3">
-                    {t("customers.trust.recentEvents")}
-                </p>
-                {recentEvents.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                        {t("customers.trust.noRecentEvents")}
+            {showEvents && (
+                <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-3">
+                        {t("customers.trust.recentEvents")}
                     </p>
-                ) : (
                     <ul className="space-y-2">
                         {recentEvents.slice(0, 5).map((evt) => {
-                            const Icon = EVENT_ICONS[evt.event_type] || UserIcon;
                             const sign = Math.sign(evt.score_change);
                             const days = daysSince(evt.event_date);
                             return (
                                 <li key={evt.id} className="flex items-start gap-2.5">
-                                    <div
-                                        className={cn(
-                                            "w-7 h-7 rounded-full flex items-center justify-center shrink-0",
-                                            eventIconColor(sign)
-                                        )}
-                                    >
-                                        <Icon className="w-3.5 h-3.5" />
-                                    </div>
+                                    <TrustEventIcon eventType={evt.event_type} />
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs font-medium text-foreground truncate">
                                             {t(`customers.trust.event.${evt.event_type}`)}
@@ -338,7 +317,7 @@ function FactorsView({ breakdown, recentEvents, blocked, t }: FactorsViewProps) 
                                         <span
                                             className={cn(
                                                 "text-xs font-bold tabular-nums shrink-0",
-                                                sign > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                                                sign > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"
                                             )}
                                         >
                                             {sign > 0 ? "+" : ""}
@@ -349,8 +328,8 @@ function FactorsView({ breakdown, recentEvents, blocked, t }: FactorsViewProps) 
                             );
                         })}
                     </ul>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

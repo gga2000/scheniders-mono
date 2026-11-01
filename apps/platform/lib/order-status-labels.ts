@@ -78,7 +78,9 @@ const NEUTRAL_TONE = "bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-
  * The pill colour for an order status on the customer drawer and the customer
  * profile, so the same order reads the same in both. Every tone has a dark
  * variant. Delivered outcomes are teal/green, failures rose, returns fuchsia,
- * in-flight states orange/amber/blue, and cancelled or unanswered neutral.
+ * in-flight states orange/amber/blue, no response a lighter rose and cancelled
+ * neutral. The customers pages' outcome flags and score events wear these same
+ * tones (statusFlags, trustEventTone). The Orders page does not read this map.
  */
 export const ORDER_STATUS_TONE: Record<OrderStatusKey, string> = {
     new: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-200",
@@ -88,7 +90,8 @@ export const ORDER_STATUS_TONE: Record<OrderStatusKey, string> = {
     delivered: "bg-teal-100 text-teal-800 dark:bg-teal-500/15 dark:text-teal-200",
     completed: "bg-emerald-200 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-100",
     rejected: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200",
-    no_response: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300",
+    // A refusal like rejected (the engine counts it as severe), one step lighter so the two stay apart.
+    no_response: "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300",
     cancelled: NEUTRAL_TONE,
     return_pending: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-500/15 dark:text-fuchsia-200",
     refund_delivered: "bg-pink-200 text-pink-900 dark:bg-pink-500/15 dark:text-pink-200",

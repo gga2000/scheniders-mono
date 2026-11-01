@@ -7,6 +7,7 @@ import { buildScoreBreakdown, SCORE_FACTOR_TONE } from "@/lib/customer-reliabili
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import { ModalShell } from "./modal-shell";
+import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
 import { cn } from "@/lib/utils";
 
 /**
@@ -56,7 +57,7 @@ export function ScoreBreakdownModal({ score: storedScore, blocked }: {
                     </div>
                 ) : blocked ? (
                     // No factors for a blocked customer: they would add up to the score the hero hides.
-                    <p className="text-sm font-medium text-rose-700 dark:text-rose-300 py-2">{t("customers.scoreBreakdown.blockedNote")}</p>
+                    <p className="text-sm text-muted-foreground py-2">{t("customers.scoreBreakdown.notScored")}</p>
                 ) : items.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4">{t("customers.scoreBreakdown.empty")}</p>
                 ) : (
@@ -107,37 +108,39 @@ export function ScoreBreakdownModal({ score: storedScore, blocked }: {
                     </div>
                 )}
 
-                {/* Audit log */}
+                {/* The same events, by the same name and icons, as the Trust factors card's "Recent events".
+                    The modal body scrolls (ModalShell), so no row is ever clipped in a nested box. */}
                 {auditData && auditData.events.length > 0 && (
                     <div>
-                        <h4 className="text-sm font-semibold text-foreground mb-3">{t("customers.trust.auditLog")}</h4>
-                        <div className="space-y-2 max-h-48 overflow-y-auto no-scrollbar">
+                        <h4 className="text-sm font-semibold text-foreground mb-3">{t("customers.trust.recentEvents")}</h4>
+                        <ul className="space-y-2">
                             {auditData.events.map((event) => (
-                                <div
+                                <li
                                     key={event.id}
                                     className={cn(
-                                        "flex items-center gap-3 p-3 rounded-xl text-sm",
+                                        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm",
                                         event.edited_at ? "bg-amber-50 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/25" : "bg-muted/20"
                                     )}
                                 >
-                                    <span className="text-xs text-muted-foreground w-28 shrink-0 tabular-nums whitespace-nowrap">
-                                        {formatBaghdadDate(event.event_date, language)}
-                                    </span>
+                                    <TrustEventIcon eventType={event.event_type} />
                                     <span className="text-foreground flex-1 truncate">
                                         {t(`customers.trust.event.${event.event_type}`)}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap">
+                                        {formatBaghdadDate(event.event_date, language)}
                                     </span>
                                     {/* A blocked customer's points are not shown, here or on the hero. */}
                                     {!blocked && (
                                         <span className={cn(
-                                            "text-xs font-bold tabular-nums",
-                                            event.score_change > 0 ? "text-green-600 dark:text-green-400" : event.score_change < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
+                                            "text-xs font-bold tabular-nums w-8 text-end shrink-0",
+                                            event.score_change > 0 ? "text-emerald-700 dark:text-emerald-300" : event.score_change < 0 ? "text-rose-700 dark:text-rose-300" : "text-muted-foreground"
                                         )}>
                                             {event.score_change > 0 ? "+" : ""}{event.score_change}
                                         </span>
                                     )}
-                                </div>
+                                </li>
                             ))}
-                        </div>
+                        </ul>
                     </div>
                 )}
             </div>
