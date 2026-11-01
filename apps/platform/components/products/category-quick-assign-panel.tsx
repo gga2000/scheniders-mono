@@ -254,7 +254,7 @@ export function CategoryQuickAssignPanel({
                                     type="button"
                                     onClick={() => onOpenChange(false)}
                                     className="p-1.5 rounded-lg hover:bg-[var(--background)] transition-colors"
-                                    aria-label="Close"
+                                    aria-label={t("common.close")}
                                 >
                                     <X className="w-4 h-4 text-muted" />
                                 </button>

@@ -56,11 +56,12 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                 .map((line) => {
                     const raw = Number.parseInt(entered[line.id] ?? "", 10);
                     const max = outstanding.get(line.id) ?? 0;
-                    const cost = Number.parseInt(costs[line.id] ?? "", 10);
+                    const rawCost = (costs[line.id] ?? "").trim();
+                    const cost = rawCost === "" ? Number.NaN : Number(rawCost);
                     return {
                         itemId: line.id,
                         quantity: Number.isFinite(raw) ? Math.min(Math.max(raw, 0), max) : 0,
-                        ...(canSetCost && Number.isFinite(cost) && cost >= 0 ? { unitCost: cost } : {}),
+                        ...(canSetCost && Number.isInteger(cost) && cost >= 0 ? { unitCost: cost } : {}),
                     };
                 })
                 .filter((line) => line.quantity > 0),
@@ -74,7 +75,18 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
             )
         );
 
+    // A typed cost that is not a whole number of dinars would be dropped silently
+    // and the PO price used instead: refuse it so the merchant fixes it.
+    const badCost = canSetCost && Object.values(costs).some((raw) => {
+        const trimmed = raw.trim();
+        return trimmed !== "" && !(Number.isInteger(Number(trimmed)) && Number(trimmed) >= 0);
+    });
+
     const submit = () => {
+        if (badCost) {
+            toast.error(t("supplies.po.badCost"));
+            return;
+        }
         if (quantities.length === 0) {
             toast.error(t("supplies.po.receiveNothing"));
             return;
@@ -173,7 +185,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     <button
                         type="button"
                         onClick={submit}
-                        disabled={receive.isPending || quantities.length === 0}
+                        disabled={receive.isPending || quantities.length === 0 || badCost}
                         className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
                     >
                         {receive.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("supplies.po.receiveSubmit")}
