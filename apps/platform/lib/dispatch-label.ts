@@ -197,7 +197,7 @@ export const DISPATCH_LABEL_FONTS = "family=IBM+Plex+Sans+Arabic:wght@400;600;70
 export const DISPATCH_LABEL_CSS = `
     .dispatch-label {
         width: 80mm; height: 120mm; padding: 3mm; overflow: hidden; box-sizing: border-box;
-        display: flex; flex-direction: column; gap: 2.4mm;
+        display: flex; flex-direction: column; gap: 1.5mm;
         background: #fff; color: #000; direction: rtl;
         font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
     }
@@ -228,11 +228,12 @@ export const DISPATCH_LABEL_CSS = `
         -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .dl-tape-in { background: #fff; display: flex; align-items: center; gap: 1.6mm; padding: 0 2.2mm; height: 6.8mm; border: .4mm solid #000; font-weight: 700; font-size: 9pt; }
     .dl-ico { height: 5.4mm; width: auto; }
-    .dl-perf { display: flex; align-items: center; gap: 2mm; padding: .5mm 2mm; border: .7mm solid #000; }
-    .dl-perf .dl-ico { height: 6mm; flex-shrink: 0; }
-    .dl-perf-t { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-    .dl-perf-t b { font-size: 10pt; }
-    .dl-perf-t span { font-size: 8.5pt; font-weight: 700; }
+    /* One line wherever it fits: the label is already full, so the warning takes a single row. */
+    .dl-perf { display: flex; align-items: center; gap: 1.6mm; padding: .5mm 1.8mm; border: .6mm solid #000; }
+    .dl-perf .dl-ico { height: 5mm; flex-shrink: 0; }
+    .dl-perf-t { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 1.2mm; min-width: 0; line-height: 1.2; }
+    .dl-perf-t b { font-size: 9pt; }
+    .dl-perf-t span { font-size: 7.5pt; font-weight: 700; }
     .dl-as { border: .7mm solid #000; }
     .dl-as-l { display: flex; align-items: baseline; gap: 1.6mm; padding: .5mm 2mm; font-size: 9pt; font-weight: 700; line-height: 1.3; }
     .dl-as-l + .dl-as-l { border-top: .3mm dashed #000; }
@@ -268,11 +269,9 @@ export const DISPATCH_LABEL_CSS = `
     .dl-dense .dl-tape { height: 6.6mm; margin-top: -.6mm; }
     .dl-dense .dl-tape-in { height: 5.4mm; font-size: 8pt; }
     .dl-dense .dl-ico { height: 4.2mm; }
-    .dl-dense .dl-perf { padding: .4mm 1.6mm; gap: 1.4mm; }
-    .dl-dense .dl-perf .dl-ico { height: 4.6mm; }
-    .dl-dense .dl-perf-t { flex-direction: row; flex-wrap: wrap; column-gap: 1.2mm; align-items: baseline; }
+    .dl-dense .dl-perf { padding: .3mm 1.6mm; }
+    .dl-dense .dl-perf .dl-ico { height: 4.4mm; }
     .dl-dense .dl-perf-t b { font-size: 8.5pt; }
-    .dl-dense .dl-perf-t span { font-size: 7.5pt; }
     .dl-dense .dl-tel { padding: .6mm 2mm; }
     .dl-dense .dl-addr { display: flex; align-items: baseline; gap: 1.4mm; }
     .dl-dense .dl-addr .dl-k { flex-shrink: 0; }
