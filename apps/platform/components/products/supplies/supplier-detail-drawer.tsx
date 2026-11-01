@@ -402,16 +402,16 @@ function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                             {p.totalCost != null && p.totalCost > 0 && (
-                                <span className="text-sm font-semibold tabular-nums">
+                                <span className={`text-sm font-semibold tabular-nums ${p.status === "cancelled" ? "text-muted line-through font-normal" : ""}`}>
                                     {formatIQD(p.totalCost)}
                                 </span>
                             )}
                             {p.status === "received" ? (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200 dark:ring-emerald-800/60">
                                     {t("supplies.sd.receivedChip")}
                                 </span>
                             ) : p.status === "partial" || p.status === "cancelled" ? (
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
                                     {t(p.status === "partial" ? "supplies.po.statusPartial" : "supplies.po.statusCancelled")}
                                 </span>
                             ) : (

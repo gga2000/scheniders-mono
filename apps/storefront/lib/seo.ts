@@ -65,6 +65,23 @@ export async function getStorefrontBase(tenantParam: string): Promise<{
   return { origin, storeBase, baseUrl };
 }
 
+/**
+ * `alternates.canonical` for a store page at `path` ("/about", "/categories/x").
+ * Without it Google may index the same page under /s/<slug>, a subdomain and
+ * a custom domain at once. Empty when the request has no host to build from.
+ */
+export async function storeCanonical(
+  tenantParam: string,
+  path: string,
+): Promise<{ alternates?: { canonical: string } }> {
+  const { origin, baseUrl } = await getStorefrontBase(tenantParam);
+  if (!origin) return {};
+  return { alternates: { canonical: `${baseUrl}${path}` } };
+}
+
+/** Cart / checkout: no search value, but links out (products) still count. */
+export const NOINDEX_FOLLOW = { robots: { index: false, follow: true } } as const;
+
 type JsonLdObject = Record<string, unknown>;
 type I18nInput = Parameters<typeof resolveI18n>[0];
 

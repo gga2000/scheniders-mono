@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { StickyNote, Plus, Trash2, ArrowUp, ArrowDown, Upload, X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { NoteCardFormData } from "@/hooks/use-product-editor";
+import { useLanguage } from "@/hooks/use-language";
 
 // Re-exported so ProductCMSTabs can import the row type from its tab file.
 export type { NoteCardFormData } from "@/hooks/use-product-editor";
@@ -22,6 +23,7 @@ interface NoteCardsTabProps {
  * Cards without a title are stripped on save (see use-product-editor).
  */
 export function NoteCardsTab({ noteCards, onChange, productId }: NoteCardsTabProps) {
+    const { t } = useLanguage();
     const addCard = () => {
         onChange([...noteCards, { image_url: "", title: "", body: "" }]);
     };
@@ -47,7 +49,7 @@ export function NoteCardsTab({ noteCards, onChange, productId }: NoteCardsTabPro
             {/* Header */}
             <div className="flex items-center justify-between gap-3">
                 <p className="text-xs text-muted">
-                    Shown on the storefront product page as highlight cards. Cards without a title are not published.
+                    {t("products.notes.hint")}
                 </p>
                 <button
                     type="button"
@@ -55,7 +57,7 @@ export function NoteCardsTab({ noteCards, onChange, productId }: NoteCardsTabPro
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Card
+                    {t("products.notes.add")}
                 </button>
             </div>
 
@@ -104,6 +106,7 @@ function NoteCardRow({
     onRemove: () => void;
     onMove: (direction: -1 | 1) => void;
 }) {
+    const { t } = useLanguage();
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -169,7 +172,7 @@ function NoteCardRow({
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={uploading}
-                                    title="Replace image"
+                                    title={t("products.notes.replaceImage")}
                                     className="p-1.5 text-white hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
                                 >
                                     {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
@@ -177,7 +180,7 @@ function NoteCardRow({
                                 <button
                                     type="button"
                                     onClick={() => onUpdate({ image_url: "" })}
-                                    title="Remove image"
+                                    title={t("products.notes.removeImage")}
                                     className="p-1.5 text-rose-300 hover:bg-rose-500/20 hover:text-rose-100 rounded-lg transition-colors"
                                 >
                                     <X className="w-4 h-4" />
@@ -196,7 +199,7 @@ function NoteCardRow({
                             ) : (
                                 <>
                                     <Upload className="w-4 h-4" />
-                                    <span className="text-[10px]">Image</span>
+                                    <span className="text-[10px]">{t("products.notes.image")}</span>
                                 </>
                             )}
                         </button>
@@ -209,13 +212,13 @@ function NoteCardRow({
                         type="text"
                         value={card.title}
                         onChange={(e) => onUpdate({ title: e.target.value })}
-                        placeholder="Card title"
+                        placeholder={t("products.notes.titlePh")}
                         className="w-full px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                     />
                     <textarea
                         value={card.body}
                         onChange={(e) => onUpdate({ body: e.target.value })}
-                        placeholder="Card text"
+                        placeholder={t("products.notes.textPh")}
                         rows={2}
                         className="w-full px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] resize-none"
                     />
@@ -233,7 +236,7 @@ function NoteCardRow({
                         type="button"
                         onClick={() => onMove(-1)}
                         disabled={index === 0}
-                        title="Move up"
+                        title={t("products.notes.moveUp")}
                         className="p-1.5 text-muted hover:text-foreground hover:bg-[var(--card-border)] rounded-lg transition-colors disabled:opacity-30 disabled:pointer-events-none"
                     >
                         <ArrowUp className="w-4 h-4" />
@@ -242,7 +245,7 @@ function NoteCardRow({
                         type="button"
                         onClick={() => onMove(1)}
                         disabled={index === total - 1}
-                        title="Move down"
+                        title={t("products.notes.moveDown")}
                         className="p-1.5 text-muted hover:text-foreground hover:bg-[var(--card-border)] rounded-lg transition-colors disabled:opacity-30 disabled:pointer-events-none"
                     >
                         <ArrowDown className="w-4 h-4" />
@@ -250,7 +253,7 @@ function NoteCardRow({
                     <button
                         type="button"
                         onClick={onRemove}
-                        title="Remove card"
+                        title={t("products.notes.remove")}
                         className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
                     >
                         <Trash2 className="w-4 h-4" />

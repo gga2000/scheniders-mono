@@ -1,5 +1,7 @@
 // Shared formatting helpers for the customers page (card, list, drawer).
 
+import { formatIQD } from '@scheniders/shared';
+
 /**
  * Iraqi phone for display: any input → "0780 123 4567" (LTR, Western digits).
  * A number that is not 10 national digits is shown as typed, not padded with
@@ -28,6 +30,16 @@ export function monogram(name: string): string {
     return trimmed.slice(0, 2);
 }
 
+/**
+ * Lifetime spend for the card, the table and the drawer. Spend counts delivered
+ * orders only, so a customer whose first order is still on the road has nothing
+ * to show yet: "—" (like the delivery rate beside it), never "IQD 0", which reads
+ * as a free order.
+ */
+export function spentLabel(totalSpent: number, firstDeliveryPending: boolean): string {
+    return firstDeliveryPending && totalSpent === 0 ? '—' : formatIQD(totalSpent);
+}
+
 /** Safe whole-number percentage. */
 export function pct(part: number, whole: number): number {
     if (!whole) return 0;
@@ -40,6 +52,21 @@ export function formatBaghdadDate(iso: string, language: string): string {
         month: "short",
         day: "numeric",
         year: "numeric",
+        timeZone: "Asia/Baghdad",
+    });
+}
+
+/**
+ * A timestamp as a short Baghdad calendar day: "Jul 12" within the current Baghdad year,
+ * "Jul 12, 2025" before it, so an older date is never mistaken for this year's.
+ */
+export function formatBaghdadShortDate(iso: string, language: string, now: Date = new Date()): string {
+    const at = new Date(iso);
+    const year = (d: Date) => new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Baghdad", year: "numeric" }).format(d);
+    return at.toLocaleDateString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", {
+        month: "short",
+        day: "numeric",
+        ...(year(at) === year(now) ? {} : { year: "numeric" }),
         timeZone: "Asia/Baghdad",
     });
 }

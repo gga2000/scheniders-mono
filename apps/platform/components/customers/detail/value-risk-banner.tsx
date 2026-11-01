@@ -3,11 +3,12 @@
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import {
-    statusFlags, codVerdictKey, customerAccent, firstDeliveryPending, isFinishedOrder, RISK_META, type ValueTier, type RiskLevel,
+    codVerdictKey, customerAccent, firstDeliveryPending, isFinishedOrder, RISK_META, type ValueTier, type RiskLevel,
 } from "@/lib/customer-reliability";
 import { Clock } from "lucide-react";
 import { CustomerHeroBand } from "@/components/customers/reliability-pill";
 import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
+import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 
 export interface CustomerReliability {
     total_orders: number;
@@ -61,7 +62,6 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
     // The rate's base: orders with a final outcome. Orders still on the road
     // have neither succeeded nor failed, so with none finished there is no rate yet.
     const finished = orders.filter((o) => isFinishedOrder(o.status)).length;
-    const flags = statusFlags(reliability);
     const recent = orders.slice(0, 6).reverse();
     const verdictKey = codVerdictKey(risk, firstDeliveryPending({ ...reliability, last_order_status: orders[0]?.status }));
 
@@ -77,42 +77,45 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
                         <Clock className="w-3.5 h-3.5" />{t(verdictKey)}
                     </span>
                 ) : t(verdictKey)}
-                {flags.length > 0 && (
-                    <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                        {flags.map((f) => (
-                            <span key={f.key} className={cn("inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full", f.tone)}>
-                                <span className="font-mono tabular-nums">{f.count}</span>
-                                {t(f.i18nKey)}
-                            </span>
-                        ))}
-                    </div>
-                )}
+                <CustomerStatusFlags customer={reliability} surface="tinted" className="mt-1.5" />
             </div>
 
-            <div className={cn("flex items-end gap-6 ml-auto", accent.surfaceText)}>
-                <div>
-                    <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{reliability.total_orders.toLocaleString("en-US")}</div>
-                    <div className="text-xs opacity-75 mt-1">{t("customers.orders")}</div>
-                </div>
-                <div>
-                    <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{reliability.completed_count.toLocaleString("en-US")}</div>
-                    <div className="text-xs opacity-75 mt-1">{t("customers.stat.delivered")}</div>
-                </div>
-                <div>
-                    <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{finished > 0 ? `${Math.round(successRate)}%` : "—"}</div>
-                    <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{t("customers.banner.rateBase", { count: finished.toLocaleString("en-US") })}</div>
-                </div>
-                {recent.length > 0 && (
-                    <div>
-                        <div className="flex items-center gap-1 h-6" aria-hidden>
-                            {recent.map((o) => <span key={o.id} className={cn("w-2.5 h-5 rounded-sm", OUTCOME_DOT[outcomeTone(o.status)])} />)}
+            {/* What Value, COD risk, the rate and the score mean, the same rules as the list and the drawer.
+                It drops below the figures block, over Order history, so neither the hero's trust score
+                nor its action buttons above are covered. In two columns it is short enough to fit
+                under the banner whole, without scrolling, on a 1280x800 screen. */}
+            <CustomerRatingHelp
+                side="bottom"
+                align="end"
+                keepSide
+                layout="wide"
+                className="self-center text-current opacity-75 hover:opacity-100 hover:text-current"
+                anchor={(trigger) => (
+                    <div className={cn("flex items-end gap-6 ml-auto", accent.surfaceText)}>
+                        <div>
+                            <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{reliability.total_orders.toLocaleString("en-US")}</div>
+                            <div className="text-xs opacity-75 mt-1">{t("customers.orders")}</div>
                         </div>
-                        <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{recent.length === 1 ? t("customers.banner.lastOutcomesOne") : t("customers.banner.lastOutcomes", { count: String(recent.length) })}</div>
+                        <div>
+                            <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{reliability.completed_count.toLocaleString("en-US")}</div>
+                            <div className="text-xs opacity-75 mt-1">{t("customers.stat.delivered")}</div>
+                        </div>
+                        <div>
+                            <div className="font-mono text-2xl font-extrabold tabular-nums leading-none">{finished > 0 ? `${Math.round(successRate)}%` : "—"}</div>
+                            <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{t("customers.banner.rateBase", { count: finished.toLocaleString("en-US") })}</div>
+                        </div>
+                        {recent.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-1 h-6" aria-hidden>
+                                    {recent.map((o) => <span key={o.id} className={cn("w-2.5 h-5 rounded-sm", OUTCOME_DOT[outcomeTone(o.status)])} />)}
+                                </div>
+                                <div className="text-xs opacity-75 mt-1 whitespace-nowrap">{recent.length === 1 ? t("customers.banner.lastOutcomesOne") : t("customers.banner.lastOutcomes", { count: String(recent.length) })}</div>
+                            </div>
+                        )}
+                        {trigger}
                     </div>
                 )}
-                {/* What Value, COD risk, the rate and the score mean, the same popover as the list and the drawer */}
-                <CustomerRatingHelp align="end" className="self-center text-current opacity-75 hover:opacity-100 hover:text-current" />
-            </div>
+            />
         </div>
     );
 }

@@ -33,6 +33,21 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
 
     const bundleItems: BundleItem[] = formData.bundle_items || [];
 
+    // Saved rows carry only ids; name, price and image come from the catalogue.
+    const shownItems: BundleItem[] = useMemo(
+        () =>
+            bundleItems.map((item: BundleItem) => {
+                const live = products.find((p) => p.id === item.child_product_id);
+                return {
+                    ...item,
+                    name: item.name || live?.name || "",
+                    price: item.price ?? live?.price ?? 0,
+                    image_url: item.image_url || live?.image_url || undefined,
+                };
+            }),
+        [bundleItems, products]
+    );
+
     // Available products (exclude current product and already-added items)
     const addedIds = new Set(bundleItems.map((item: BundleItem) => item.child_product_id));
     const availableProducts = useMemo(() => {
@@ -80,10 +95,10 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
     };
 
     // Calculate bundle totals
-    const totalPrice = bundleItems.reduce((sum: number, item: BundleItem) =>
+    const totalPrice = shownItems.reduce((sum: number, item: BundleItem) =>
         sum + (item.price || 0) * item.quantity, 0
     );
-    const totalItems = bundleItems.reduce((sum: number, item: BundleItem) =>
+    const totalItems = shownItems.reduce((sum: number, item: BundleItem) =>
         sum + item.quantity, 0
     );
 
@@ -92,7 +107,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
             <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                     <Layers className="w-4 h-4" />
-                    Bundle Contents
+                    {t("products.bundle.contents")}
                 </h2>
                 <button
                     type="button"
@@ -100,7 +115,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Product
+                    {t("products.bundle.addProduct")}
                 </button>
             </div>
 
@@ -162,7 +177,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {bundleItems.map((item: BundleItem, index: number) => (
+                    {shownItems.map((item: BundleItem, index: number) => (
                         <div
                             key={item.child_product_id}
                             className="flex items-center gap-3 p-3 bg-[var(--background)] rounded-xl border border-[var(--card-border)]"
@@ -183,7 +198,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
 
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-foreground truncate">
-                                    {item.name || "Unknown Product"}
+                                    {item.name || t("products.ed.related.unknown")}
                                 </p>
                                 <p className="text-xs text-muted">
                                     {formatIQD(item.price || 0)} {t("products.bundle.each")}
@@ -191,7 +206,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <label className="text-xs text-muted">Qty:</label>
+                                <label className="text-xs text-muted">{t("products.bundle.qty")}</label>
                                 <input
                                     type="number"
                                     value={item.quantity}

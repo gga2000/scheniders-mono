@@ -262,7 +262,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 icon={Package}
                 iconBg="bg-teal-500/15"
                 iconColor="text-teal-600"
-                tileClass="bg-gradient-to-br from-teal-50 to-white border-teal-100"
+                tileClass="bg-gradient-to-br from-teal-50 to-white border-teal-100 dark:from-teal-950/40 dark:to-transparent dark:border-teal-900/50"
                 sparkline={<MiniSparkline data={stats.valueBuckets} color="#0d9488" />}
             />
 
@@ -273,7 +273,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 icon={AlertTriangle}
                 iconBg="bg-amber-500/15"
                 iconColor="text-amber-600"
-                tileClass="bg-gradient-to-br from-amber-50 to-white border-amber-100"
+                tileClass="bg-gradient-to-br from-amber-50 to-white border-amber-100 dark:from-amber-950/40 dark:to-transparent dark:border-amber-900/50"
                 sparkline={<MiniBars data={stats.atRiskBuckets} color="#d97706" />}
             />
 
@@ -284,7 +284,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 icon={XCircle}
                 iconBg="bg-rose-500/15"
                 iconColor="text-rose-600"
-                tileClass="bg-gradient-to-br from-rose-50 to-white border-rose-100"
+                tileClass="bg-gradient-to-br from-rose-50 to-white border-rose-100 dark:from-rose-950/40 dark:to-transparent dark:border-rose-900/50"
                 emphasis={stats.outOfStock > 0}
             />
 
@@ -295,7 +295,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 icon={Clock}
                 iconBg="bg-sky-500/15"
                 iconColor="text-sky-600"
-                tileClass="bg-gradient-to-br from-sky-50 to-white border-sky-100"
+                tileClass="bg-gradient-to-br from-sky-50 to-white border-sky-100 dark:from-sky-950/40 dark:to-transparent dark:border-sky-900/50"
                 sparkline={<MiniSparkline data={stats.daysBuckets} color="#0284c7" />}
             />
 
@@ -306,7 +306,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 icon={Truck}
                 iconBg="bg-indigo-500/15"
                 iconColor="text-indigo-600"
-                tileClass="bg-gradient-to-br from-indigo-50 to-white border-indigo-100"
+                tileClass="bg-gradient-to-br from-indigo-50 to-white border-indigo-100 dark:from-indigo-950/40 dark:to-transparent dark:border-indigo-900/50"
             />
 
             <Tile
@@ -316,7 +316,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 icon={Activity}
                 iconBg="bg-violet-500/15"
                 iconColor="text-violet-600"
-                tileClass="bg-gradient-to-br from-violet-50 to-white border-violet-100"
+                tileClass="bg-gradient-to-br from-violet-50 to-white border-violet-100 dark:from-violet-950/40 dark:to-transparent dark:border-violet-900/50"
                 sparkline={<MiniBars data={consumption?.days ?? []} color="#7c3aed" />}
             />
         </div>

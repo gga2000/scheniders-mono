@@ -6,11 +6,13 @@ import { BarChart3, Layers } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import {
-    buildScoreBreakdown, daysAgoLabel, daysSince, monthlyScoreSeries, type MonthlyScore, type ScoreFactor,
+    buildScoreBreakdown, monthlyScoreSeries, type MonthlyScore, type ScoreFactor,
 } from "@/lib/customer-reliability";
 import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
+import { ScoreTotalRow } from "@/components/customers/detail/score-total-row";
 import { formatMonthShort } from "@/lib/customer-format";
 import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
+import { TrustEventDate } from "@/components/customers/detail/trust-event-date";
 import { cn } from "@/lib/utils";
 
 interface TrustHistoryCardProps {
@@ -36,7 +38,7 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
 
     const { data: breakdownData } = useTrustScoreBreakdown(phone);
     // The same factors as the score-breakdown modal: zeros dropped, the gap to the stored score closed.
-    const { factors: breakdown } = buildScoreBreakdown(breakdownData?.items ?? [], {
+    const { factors: breakdown, raw, score: shownScore } = buildScoreBreakdown(breakdownData?.items ?? [], {
         storedScore: score, blocked, tier: breakdownData?.tier ?? null,
     });
     const { data: auditData } = useTrustAuditLog(phone, 5);
@@ -53,6 +55,19 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
         : hasHistory ? "history" : "factors";
 
     const series = useMemo(() => monthlyScoreSeries(data, period), [data, period]);
+
+    // Not scored yet and nothing has happened: one line, like the Ratings strip, never a
+    // card of empty bars (an unscored bar drawn full width reads as a full score).
+    if (!blocked && !scored && !hasHistory && recentEvents.length === 0) {
+        return (
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 h-14 flex items-center gap-2.5">
+                <Layers className="w-4 h-4 text-foreground shrink-0" />
+                <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.trust.factors")}</span>
+                <span className="text-sm text-muted-foreground" aria-hidden>·</span>
+                <span className="text-sm text-muted-foreground truncate">{t("customers.trust.scoredFromThirdOrder")}</span>
+            </div>
+        );
+    }
 
     const toggleCls = (active: boolean, enabled: boolean) => cn(
         "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
@@ -124,7 +139,7 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
                     {view === "history" ? (
                         <HistoryChart series={series} language={language} t={t} />
                     ) : (
-                        <FactorsView breakdown={breakdown} rated={scored} recentEvents={recentEvents} blocked={blocked} t={t} />
+                        <FactorsView breakdown={breakdown} rated={scored && score !== null} raw={raw} score={shownScore} recentEvents={recentEvents} blocked={blocked} t={t} />
                     )}
                 </motion.div>
             </AnimatePresence>
@@ -208,6 +223,8 @@ function HistoryChart({ series, language, t }: { series: MonthlyScore[]; languag
                         <span key={m.month} className="flex-1 min-w-0 text-center">{formatMonthShort(m.month, language)}</span>
                     ))}
                 </div>
+                {/* Each bar is that month's average, so the latest bar can sit below today's score. */}
+                <figcaption className="mt-3 text-xs text-muted-foreground">{t("customers.trust.monthlyAverage")}</figcaption>
             </div>
         </figure>
     );
@@ -217,18 +234,22 @@ interface FactorsViewProps {
     breakdown: ScoreFactor[];
     /** False for a customer without a rated score yet: the bars are shown greyed, without points. */
     rated: boolean;
+    /** What the factors add up to before the 0–100 cap, and the shown score (buildScoreBreakdown). */
+    raw: number;
+    score: number;
     recentEvents: Array<{
         id: string;
         event_date: string;
         event_type: string;
         score_change: number;
         reason: string | null;
+        order_id: string | null;
     }>;
     blocked: boolean;
     t: Translate;
 }
 
-function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsViewProps) {
+function FactorsView({ breakdown, rated, raw, score, recentEvents, blocked, t }: FactorsViewProps) {
     if (!blocked && breakdown.length === 0 && recentEvents.length === 0) {
         return (
             <div className="py-8 text-center">
@@ -258,7 +279,11 @@ function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsView
                         {t("customers.trust.noFactors")}
                     </p>
                 ) : (
-                    <ScoreFactorBars factors={breakdown} rated={rated} />
+                    <div className="space-y-2">
+                        <ScoreFactorBars factors={breakdown} rated={rated} />
+                        {/* The modal's total, so the card and "See breakdown" agree on what the bars add up to. */}
+                        {rated && <ScoreTotalRow score={score} raw={raw} size="sm" />}
+                    </div>
                 )}
             </div>
 
@@ -270,7 +295,6 @@ function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsView
                     <ul className="space-y-2">
                         {recentEvents.slice(0, 5).map((evt) => {
                             const sign = Math.sign(evt.score_change);
-                            const days = daysSince(evt.event_date);
                             return (
                                 <li key={evt.id} className="flex items-start gap-2.5">
                                     <TrustEventIcon eventType={evt.event_type} />
@@ -278,9 +302,7 @@ function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsView
                                         <p className="text-xs font-medium text-foreground truncate">
                                             {t(`customers.trust.event.${evt.event_type}`)}
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {days === null ? "—" : daysAgoLabel(days, t)}
-                                        </p>
+                                        <TrustEventDate date={evt.event_date} orderId={evt.order_id} className="block text-xs text-muted-foreground truncate" />
                                     </div>
                                     {/* A blocked customer's points are not shown anywhere. */}
                                     {evt.score_change !== 0 && !blocked && (

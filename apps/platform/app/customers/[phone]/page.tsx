@@ -28,7 +28,7 @@ import { useCustomerStore } from "@/store/use-customer-store";
 import { HeroIdentityBanner } from "@/components/customers/detail/hero-identity-banner";
 import { CustomerValueRiskBanner, type CustomerReliability } from "@/components/customers/detail/value-risk-banner";
 import { TrustHistoryCard } from "@/components/customers/detail/trust-history-card";
-import { BehavioralPatternsCard } from "@/components/customers/detail/behavioral-patterns-card";
+import { BehavioralPatternsCard, PATTERNS_FROM_ORDERS } from "@/components/customers/detail/behavioral-patterns-card";
 import { DossierNotesCard } from "@/components/customers/detail/dossier-notes-card";
 import { RatingsCard } from "@/components/customers/detail/ratings-card";
 import { ScoreBreakdownModal } from "@/components/customers/modals/score-breakdown-modal";
@@ -217,6 +217,9 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     const blocked = isBlockedCustomer(block);
     // The hero's rule for showing a score; the Trust history chart follows it, so an unrated customer shows no monthly scores either.
     const scored = showsTrustScore(block);
+    // Too few orders for buying patterns: the snapshot is at most a one-line strip (and an unscored
+    // Trust factors card is one too), so each takes the full width instead of a half-empty column.
+    const fewOrders = profile.orders.length < PATTERNS_FROM_ORDERS;
 
     return (
         <div className="customers-page customer-profile relative min-h-screen px-6 md:px-8 pt-4 pb-10 space-y-4">
@@ -256,7 +259,8 @@ function CustomerProfileContent({ phone }: { phone: string }) {
             <HeroIdentityBanner
                 name={displayName}
                 phone={profile.phone}
-                city={profile.city ?? undefined}
+                city={profile.city}
+                governorate={profile.governorate}
                 tier={profile.trustTier}
                 valueTier={profile.reliability ? profile.reliability.value_tier : null}
                 riskLevel={profile.reliability ? profile.reliability.risk_level : null}
@@ -357,16 +361,12 @@ function CustomerProfileContent({ phone }: { phone: string }) {
 
             {/* Trust trend, buying patterns, notes */}
             <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-12 xl:col-span-7">
+                <div className={fewOrders ? "col-span-12" : "col-span-12 xl:col-span-7"}>
                     <TrustHistoryCard data={historyData || []} phone={profile.phone} score={profile.trustScore} blocked={blocked} scored={scored} />
                 </div>
-                <div className="col-span-12 xl:col-span-5">
-                    <BehavioralPatternsCard
-                        orders={profile.orders}
-                        city={profile.city}
-                        governorate={profile.governorate}
-                        phone={profile.phone}
-                    />
+                {/* empty:hidden: a snapshot with nothing beyond the hero's place line renders nothing, and leaves no gap. */}
+                <div className={fewOrders ? "col-span-12 empty:hidden" : "col-span-12 xl:col-span-5"}>
+                    <BehavioralPatternsCard orders={profile.orders} phone={profile.phone} />
                 </div>
                 <div className="col-span-12">
                     <DossierNotesCard
@@ -375,13 +375,15 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     />
                 </div>
 
-                {/* Ratings and links (one line each while empty) stacked in one column, the identity
-                    timeline beside them, so the page does not end in a wide empty strip. */}
-                <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
+                {/* Ratings and links are full-width strips (one line each while empty) and the identity
+                    timeline runs the full width in two columns, so no short column sits beside a tall one. */}
+                <div className="col-span-12">
                     <RatingsCard ratings={profile.ratings} />
+                </div>
+                <div className="col-span-12">
                     <LinkedPeopleSection phone={profile.phone} />
                 </div>
-                <div className="col-span-12 lg:col-span-8">
+                <div className="col-span-12">
                     <IdentityTimeline phone={profile.phone} />
                 </div>
             </div>

@@ -6,6 +6,7 @@ import type { Category, CategoryStatus } from "@/types/product";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
 import { ProductWriteDeniedError } from "@/lib/repositories/product-repository";
+import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
 
 export const categoryKeys = {
     all: ["categories"] as const,
@@ -202,32 +203,16 @@ export interface ReorderEntry {
     display_order: number;
 }
 
-// Batches reorder + re-parent into a single round trip per row. Supabase JS client does
-// not expose `UPDATE ... FROM (VALUES ...)` so we fan out with Promise.all; RLS applies
-// per-row. Future optimization: expose an RPC that takes a JSON array.
+// One database call: the whole move applies or none of it does, and the database
+// refuses a category moved under its own descendant or under another store's parent.
 export function useReorderCategoriesMutation() {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: async (entries: ReorderEntry[]) => {
             if (entries.length === 0) return [] as string[];
-            const results = await Promise.all(
-                entries.map((e) =>
-                    supabase
-                        .from("categories")
-                        .update({
-                            parent_id: e.parent_id,
-                            display_order: e.display_order,
-                        } as never)
-                        .eq("id", e.id)
-                        .select("id"),
-                ),
-            );
-            const firstError = results.find((r) => r.error)?.error;
-            if (firstError) throw firstError;
-            // RLS refusal matches no rows instead of erroring.
-            if (results.some((r) => (r.data ?? []).length === 0)) {
-                throw new ProductWriteDeniedError("reorder categories");
-            }
+            const { error } = await supabase.rpc("reorder_categories", { p_entries: entries });
+            if (error?.code === "42501") throw new ProductWriteDeniedError("reorder categories");
+            if (error) throw error;
             return entries.map((e) => e.id);
         },
         onSuccess: () => {
@@ -280,22 +265,38 @@ export function useDuplicateCategoryMutation() {
             const newCategory = inserted as unknown as Category;
 
             if (withProducts) {
-                const { data: assignments } = await supabase
-                    .from("product_categories")
-                    .select("product_id, is_featured, featured_order")
-                    .eq("category_id", id);
-                if (assignments && assignments.length > 0) {
-                    const rows = assignments.map((a) => ({
-                        tenant_id: tenantId!,
-                        category_id: newCategory.id,
-                        product_id: a.product_id,
-                        is_primary: false,
-                        is_featured: a.is_featured,
-                        featured_order: a.featured_order,
-                        source: "manual" as const,
-                    }));
-                    const { error: copyErr } = await supabase.from("product_categories").insert(rows as never);
-                    if (copyErr) throw copyErr;
+                try {
+                    // Paged: the API silently stops at 1000 rows.
+                    const assignments = await fetchAllPages<{
+                        product_id: string;
+                        is_featured: boolean | null;
+                        featured_order: number | null;
+                    }>((from, to) =>
+                        supabase
+                            .from("product_categories")
+                            .select("product_id, is_featured, featured_order")
+                            .eq("tenant_id", tenantId!)
+                            .eq("category_id", id)
+                            .order("product_id")
+                            .range(from, to),
+                    );
+                    if (assignments.length > 0) {
+                        const rows = assignments.map((a) => ({
+                            tenant_id: tenantId!,
+                            category_id: newCategory.id,
+                            product_id: a.product_id,
+                            is_primary: false,
+                            is_featured: a.is_featured,
+                            featured_order: a.featured_order,
+                            source: "manual" as const,
+                        }));
+                        const { error: copyErr } = await supabase.from("product_categories").insert(rows as never);
+                        if (copyErr) throw copyErr;
+                    }
+                } catch (copyFailure) {
+                    // Do not leave an empty copy behind.
+                    await supabase.from("categories").delete().eq("id", newCategory.id);
+                    throw copyFailure;
                 }
             }
             return newCategory;

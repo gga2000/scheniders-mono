@@ -9,7 +9,8 @@ import type { ReactNode } from "react";
 const toast = vi.fn();
 vi.mock("@/hooks/use-toast", () => ({ toast: (options: unknown) => toast(options) }));
 vi.mock("@/hooks/use-language", () => ({
-    useLanguage: () => ({ t: (key: string, fallback?: string) => fallback ?? key }),
+    // The second argument is a fallback string or the message's variables, as in the real t().
+    useLanguage: () => ({ t: (key: string, fallback?: string | Record<string, string>) => (typeof fallback === "string" ? fallback : key) }),
 }));
 
 const assignTag = vi.fn<(tagId: string) => Promise<boolean>>();
@@ -68,5 +69,11 @@ describe("CustomerQuickActions failures", () => {
         renderActions();
         fireEvent.click(screen.getByText("VIP"));
         await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: "error" })));
+    });
+
+    it("says a rating-named tag changes no rating before it is added", () => {
+        renderActions();
+        const note = screen.getByRole("tooltip", { hidden: true });
+        expect(note.textContent).toBe("customers.tag.ratingClash");
     });
 });

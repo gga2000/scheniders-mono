@@ -40,9 +40,9 @@ interface DraftRule {
 }
 
 const UNIT_COPY: Record<BomUnit, { label: string; short: string; description: string }> = {
-    per_order: { label: "recipe.unit.perOrder", short: "/ order", description: "recipe.unit.perOrder.desc" },
-    per_item: { label: "recipe.unit.perItem", short: "/ line", description: "recipe.unit.perItem.desc" },
-    per_unit: { label: "recipe.unit.perUnit", short: "× units", description: "recipe.unit.perUnit.desc" },
+    per_order: { label: "recipe.unit.perOrder", short: "recipe.unit.perOrder.short", description: "recipe.unit.perOrder.desc" },
+    per_item: { label: "recipe.unit.perItem", short: "recipe.unit.perItem.short", description: "recipe.unit.perItem.desc" },
+    per_unit: { label: "recipe.unit.perUnit", short: "recipe.unit.perUnit.short", description: "recipe.unit.perUnit.desc" },
 };
 
 interface RecipeSectionProps {
@@ -383,7 +383,7 @@ interface RuleRowProps {
 function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
     const { t } = useLanguage();
     const selected = supplies.find((s) => s.id === rule.supply_id);
-    const lineCost = (selected?.cost ?? 0) * rule.quantity;
+    const lineCost = selected?.cost == null ? null : selected.cost * rule.quantity;
 
     return (
         <div className="rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-3">
@@ -457,11 +457,11 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                     <span>
                         {rule.quantity} × {selected.name} @{" "}
                         <span className="tabular-nums">
-                            {formatIQD(selected.cost ?? 0)}
+                            {selected.cost == null ? "—" : formatIQD(selected.cost)}
                         </span>
                     </span>
                     <span className="font-semibold text-foreground tabular-nums">
-                        {formatIQD(lineCost)} {UNIT_COPY[rule.unit].short}
+                        {lineCost == null ? t("recipe.costHidden") : `${formatIQD(lineCost)} ${t(UNIT_COPY[rule.unit].short)}`}
                     </span>
                 </div>
             )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLanguage } from "@/hooks/use-language";
 
 interface PriceHistoryEntry {
     date: string; // ISO date
@@ -34,6 +35,7 @@ const PLOT_W = CHART_WIDTH - PADDING_X * 2;
 const PLOT_H = CHART_HEIGHT - PADDING_Y * 2;
 
 export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartProps) {
+    const { t } = useLanguage();
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
     const dataPoints = useMemo(() => {
@@ -104,7 +106,7 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
         <div className="space-y-5">
             {entries.length === 0 ? (
                 <p className="text-sm text-muted py-4 text-center">
-                    No price changes recorded yet
+                    {t("products.priceHistory.empty")}
                 </p>
             ) : (
                 <div className="relative w-full">

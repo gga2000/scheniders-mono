@@ -49,13 +49,12 @@ export function BulkCategoryConfirmDialog({
             await productRepository.bulkUpdateCategory(productIds, targetCategoryId);
             queryClient.invalidateQueries({ queryKey: productKeys.lists() });
             toast.success(
-                t("products.bulkCategory.success", { count, targetName: targetCategoryName }) ||
-                `Moved ${count} products to "${targetCategoryName}"`
+                t("products.bulkCategory.success", { count, targetName: targetCategoryName })
             );
             onConfirmed?.();
             onOpenChange(false);
         } catch {
-            toast.error(t("products.bulkCategory.error") || "Failed to move products");
+            toast.error(t("products.bulkCategory.error"));
         } finally {
             setIsSubmitting(false);
         }
@@ -105,12 +104,10 @@ export function BulkCategoryConfirmDialog({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h2 className="text-base font-semibold text-[var(--foreground)]">
-                                        {t("products.bulkCategory.confirmTitle", { count, targetName: targetCategoryName }) ||
-                                            `Move ${count} products to "${targetCategoryName}"?`}
+                                        {t("products.bulkCategory.confirmTitle", { count, targetName: targetCategoryName })}
                                     </h2>
                                     <p className="mt-1 text-sm text-muted">
-                                        {t("products.bulkCategory.confirmBody") ||
-                                            "The products will be removed from their current categories."}
+                                        {t("products.bulkCategory.confirmBody")}
                                     </p>
                                 </div>
                             </div>

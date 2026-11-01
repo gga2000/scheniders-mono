@@ -1,13 +1,14 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
-import { formatBaghdadDate } from "@/lib/customer-format";
 import { buildScoreBreakdown } from "@/lib/customer-reliability";
 import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
+import { ScoreTotalRow } from "@/components/customers/detail/score-total-row";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import { ModalShell } from "./modal-shell";
 import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
+import { TrustEventDate } from "@/components/customers/detail/trust-event-date";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,7 +26,7 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
     /** From showsTrustScore, the hero's and the Trust factors card's rule for showing a number. */
     scored: boolean;
 }) {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const { isScoreBreakdownModalOpen, setScoreBreakdownModalOpen, scoreBreakdownPhone } = useCustomerStore();
     const { data: breakdown, isLoading } = useTrustScoreBreakdown(scoreBreakdownPhone || undefined);
     const { data: auditData } = useTrustAuditLog(scoreBreakdownPhone || undefined);
@@ -43,9 +44,8 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
         <ModalShell
             isOpen={isScoreBreakdownModalOpen}
             onClose={handleClose}
-            title={rated
-                ? t("customers.scoreBreakdown.titleWithScore", { score: String(score) })
-                : t("customers.trust.breakdown")}
+            // The score is the total row's to show, once; the title only names the view.
+            title={t("customers.scoreBreakdown.title")}
             maxWidth="max-w-2xl"
         >
             <div className="space-y-6">
@@ -68,25 +68,7 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
                         <ScoreFactorBars factors={items} rated={rated} />
 
                         {/* The stored score, the number the user clicked; the bars above add up to it */}
-                        <div className="flex items-center gap-3 pt-3 mt-1 border-t border-(--card-border)">
-                            <span className="text-sm font-semibold text-foreground w-36 shrink-0 text-start">
-                                {t("customers.scoreBreakdown.total")}
-                            </span>
-                            {rated ? (
-                                <div className="flex items-baseline gap-3 min-w-0">
-                                    <span className="text-3xl font-headline font-black tabular-nums text-foreground leading-none">
-                                        {score}<span className="text-base font-semibold text-muted-foreground">/100</span>
-                                    </span>
-                                    {raw !== score && (
-                                        <span className="text-xs text-muted-foreground">
-                                            {t("customers.scoreBreakdown.capped", { raw: String(raw) })}
-                                        </span>
-                                    )}
-                                </div>
-                            ) : (
-                                <span className="text-sm text-muted-foreground">{t("customers.trust.notScored")}</span>
-                            )}
-                        </div>
+                        {rated && <ScoreTotalRow score={score} raw={raw} />}
                     </div>
                 )}
 
@@ -108,9 +90,8 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
                                     <span className="text-foreground flex-1 truncate">
                                         {t(`customers.trust.event.${event.event_type}`)}
                                     </span>
-                                    <span className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap">
-                                        <bdi>{formatBaghdadDate(event.event_date, language)}</bdi>
-                                    </span>
+                                    {/* Written as on the Trust factors card: the order, then relative or the short day, the full day on hover. */}
+                                    <TrustEventDate date={event.event_date} orderId={event.order_id} className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap" />
                                     {/* A blocked customer's points are not shown, here or on the hero. */}
                                     {!blocked && (
                                         <span className={cn(
