@@ -38,6 +38,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { loadFailureKind } from "@/lib/load-failure";
 import { useBorderBoxHeight } from "@/hooks/use-border-box-height";
+import { useAppHeaderOffset } from "@/hooks/use-app-header-offset";
 
 const PAGE_LIMIT = 24;
 const EXPORT_PAGE = 1000;
@@ -52,6 +53,8 @@ function CustomersPageContent() {
     const { viewMode, setViewMode, setLastListQuery, setProfileFromList } = useCustomerStore();
     // The sticky toolbar's real height: the table header sticks right under it.
     const { height: toolbarHeight, ref: toolbarRef } = useBorderBoxHeight<HTMLDivElement>();
+    // The toolbar sticks under the shell's header while that is shown, at the top while it is slid away.
+    const headerOffset = useAppHeaderOffset();
     // Back on the list: any "opened from the list" mark is spent.
     useEffect(() => { setProfileFromList(null); }, [setProfileFromList]);
 
@@ -318,6 +321,7 @@ function CustomersPageContent() {
                     view={effectiveView}
                     onView={(mode) => { setViewMode(mode); setView(mode); }}
                     stickyRef={toolbarRef}
+                    stickyTop={headerOffset}
                 />
 
                 {/* A failed background refresh keeps whatever is on screen. */}
@@ -391,7 +395,7 @@ function CustomersPageContent() {
                 ) : (
                     <>
                         {effectiveView === "list" ? (
-                            <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} stickyTop={toolbarHeight} />
+                            <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} stickyTop={headerOffset + toolbarHeight} />
                         ) : (
                             <CustomerGrid customers={displayed} onCustomerClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} />
                         )}

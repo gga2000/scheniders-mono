@@ -29,6 +29,7 @@ import {
     trustEventTone,
     customerOrderStatusLabel,
     monthlyScoreSeries,
+    historyAxisFloor,
     type RiskInput,
 } from './customer-reliability';
 import { ORDER_STATUS_TONE } from './order-status-labels';
@@ -438,5 +439,14 @@ describe('tagNameMatchesRating (a tag named like a value tier or COD risk)', () 
     it('leaves other names alone', () => {
         expect(tagNameMatchesRating('Wholesale')).toBe(false);
         expect(tagNameMatchesRating('  ')).toBe(false);
+    });
+});
+
+describe('historyAxisFloor (Trust history y-axis)', () => {
+    it('starts at 50 while every scored month is 50 or more, ignoring unscored months', () => {
+        expect(historyAxisFloor([{ month: '2026-05', score: null }, { month: '2026-06', score: 90 }, { month: '2026-07', score: 50 }])).toBe(50);
+    });
+    it('starts at 0 once a month falls below 50', () => {
+        expect(historyAxisFloor([{ month: '2026-06', score: 90 }, { month: '2026-07', score: 42 }])).toBe(0);
     });
 });

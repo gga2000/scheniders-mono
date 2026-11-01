@@ -17,6 +17,7 @@ import {
 import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { formatPhoneDisplay, monogram, spentLabel, toIraqE164 } from "@/lib/customer-format";
 import { useBorderBoxHeight } from "@/hooks/use-border-box-height";
+import { APP_HEADER_SLIDE } from "@/hooks/use-app-header-offset";
 
 function successTone(rate: number): string {
     if (rate >= 80) return "text-lime-700 dark:text-lime-300";
@@ -24,11 +25,12 @@ function successTone(rate: number): string {
     return "text-rose-600 dark:text-rose-300";
 }
 
-/** Header cells stick right under the sticky toolbar (`top`, its measured height), so column names stay while scrolling. */
+/** Header cells stick right under the sticky toolbar (`top`, where its bottom edge sticks), so column names stay while scrolling. */
 function Th({ children, right, top }: { children?: React.ReactNode; right?: boolean; top: number }) {
     return (
         <th style={{ top }} className={cn(
             "sticky z-10 bg-background px-3 h-11 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-(--card-border)",
+            APP_HEADER_SLIDE,
             right ? "text-right" : "text-left",
         )}>
             {children}
@@ -51,7 +53,7 @@ export function CustomerListTable({
     onRowClick: (phone: string) => void;
     selectedPhones?: Set<string>;
     onToggleSelect?: (phone: string) => void;
-    /** The sticky toolbar's measured height: the header sticks right under it. */
+    /** Where the sticky toolbar's bottom edge sticks (the shell header's offset plus its measured height): the header sticks right under it. */
     stickyTop: number;
 }) {
     const { t, language } = useLanguage();

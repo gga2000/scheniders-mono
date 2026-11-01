@@ -5,8 +5,10 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 
+const ui = vi.hoisted(() => ({ language: "en" }));
 vi.mock("@/hooks/use-language", () => ({
     useLanguage: () => ({
+        language: ui.language,
         t: (key: string, arg?: string | { count?: number }) =>
             typeof arg === "object" ? `${key}:${arg.count}` : arg ?? key,
     }),
@@ -47,5 +49,28 @@ describe("BroadcastModal recipients", () => {
         render(<BroadcastModal isOpen onClose={onClose} canCopyNumbers={false} recipients={[{ phone: "7701234567", name: "A", is_blacklisted: false }]} />);
         fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
         expect(onClose).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("BroadcastModal message field direction", () => {
+    afterEach(() => { ui.language = "en"; });
+    const one = [{ phone: "7701234567", name: "A", is_blacklisted: false }];
+
+    it("lays the empty field's placeholder out in the UI language's direction, left-set", () => {
+        ui.language = "ar";
+        render(<BroadcastModal isOpen onClose={() => {}} canCopyNumbers={false} recipients={one} />);
+        const box = screen.getByRole("textbox");
+        expect(box.getAttribute("dir")).toBe("rtl");
+        expect(box.className).toContain("text-left");
+        expect(document.documentElement.getAttribute("dir")).toBeNull();
+    });
+
+    it("lets typed text set its own direction", () => {
+        render(<BroadcastModal isOpen onClose={() => {}} canCopyNumbers={false} recipients={one} />);
+        const box = screen.getByRole("textbox");
+        expect(box.getAttribute("dir")).toBe("ltr");
+        fireEvent.change(box, { target: { value: "هلا" } });
+        // Queried again: the motion stub above remounts the dialog's subtree on each render.
+        expect(screen.getByRole("textbox").getAttribute("dir")).toBe("auto");
     });
 });

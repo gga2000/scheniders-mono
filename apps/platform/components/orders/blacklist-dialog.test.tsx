@@ -60,3 +60,26 @@ describe("BlacklistDialog reason chips", () => {
         expect(screen.getByText("orders.blacklist.required").className).not.toMatch(/\bred-/);
     });
 });
+
+describe("BlacklistDialog reason label and placeholders", () => {
+    it("keeps the Orders page's label markup and placeholders", () => {
+        fireEvent.click(renderDialog());
+        const star = screen.getByText("orders.blacklist.required");
+        // The label holds the text and the star directly, with no direction run.
+        expect(star.parentElement?.tagName).toBe("LABEL");
+        expect(star.parentElement?.hasAttribute("dir")).toBe(false);
+        expect(screen.getByPlaceholderText("orders.blacklist.anyDetails")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "orders.blacklist.reasonPreset.other" }));
+        expect(screen.getByPlaceholderText("orders.blacklist.writeReason")).toBeTruthy();
+    });
+
+    it("puts the customers variant's star in the label's own direction run and uses its own placeholders", () => {
+        fireEvent.click(renderDialog("customers"));
+        const run = screen.getByText("orders.blacklist.required").parentElement;
+        expect(run?.getAttribute("dir")).toBe("auto");
+        expect(run?.textContent).toBe("orders.blacklist.reason orders.blacklist.required");
+        expect(screen.getByPlaceholderText("customers.block.anyDetails")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "orders.blacklist.reasonPreset.other" }));
+        expect(screen.getByPlaceholderText("customers.block.writeReason")).toBeTruthy();
+    });
+});

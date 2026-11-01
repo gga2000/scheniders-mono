@@ -5,6 +5,7 @@ import { Tag as TagIcon, Search, Plus, Loader2, Info } from "lucide-react";
 import { useCustomerTags } from "@/hooks/use-customer-management";
 import { tagNameMatchesRating } from "@/lib/customer-reliability";
 import { CustomerTagChip } from "@/components/customers/customer-tag-chip";
+import { RatingClashNote } from "@/components/customers/rating-clash-note";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
@@ -118,7 +119,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                 {clashesWithRating && (
                     <p role="status" className="flex items-start gap-2 px-3 py-2 rounded-xl bg-muted/40 text-xs text-muted-foreground">
                         <Info className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
-                        <span dir="auto">{t("customers.tag.ratingClash", { name: newTagName })}</span>
+                        <RatingClashNote name={newTagName} />
                     </p>
                 )}
                 {canCreate && (

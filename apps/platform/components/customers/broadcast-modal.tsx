@@ -40,7 +40,7 @@ function personalise(message: string, name: string): string {
  * left out.
  */
 export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: BroadcastModalProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [message, setMessage] = useState("");
     const [step, setStep] = useState<"compose" | "send">("compose");
     const [sent, setSent] = useState<Set<string>>(new Set());
@@ -117,8 +117,10 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 placeholder={t("customers.broadcast.placeholder")}
-                                dir="auto"
-                                className="min-h-40 resize-y"
+                                // An empty field has no text for dir="auto" to read, so the placeholder (an Arabic sentence
+                                // around a Latin "{name}") takes the UI language's direction. Typed text sets its own.
+                                dir={message ? "auto" : language === "ar" ? "rtl" : "ltr"}
+                                className="min-h-40 resize-y text-left"
                             />
                             {/* Left-set like the label and the placeholder above it; dir="auto" only orders the words. */}
                             <p dir="auto" className="text-xs text-muted-foreground mt-2 text-left">{t("customers.broadcast.nameHint")}</p>

@@ -428,6 +428,15 @@ export function monthlyScoreSeries(
     return series;
 }
 
+/**
+ * The Trust history axis's lowest value: 50 while every scored month is at
+ * least 50, so steady high scores keep their differences visible instead of
+ * standing as identical bars from zero; 0 once any month falls below 50.
+ */
+export function historyAxisFloor(series: readonly MonthlyScore[]): 0 | 50 {
+    return series.every((m) => m.score === null || m.score >= 50) ? 50 : 0;
+}
+
 // ───────────────────────── score breakdown ─────────────────────────
 
 export interface ScoreFactor {
@@ -447,7 +456,7 @@ export interface ScoreBreakdownView {
     factors: ScoreFactor[];
     /** The stored score (or, before one is stored, the factor sum), unclamped. */
     raw: number;
-    /** The total as shown on a 0–100 scale. */
+    /** The shown total: the raw total rounded and held between 0 and 100. */
     score: number;
     /** Whether the total is shown as a number (not for a new or a blocked customer). */
     rated: boolean;
