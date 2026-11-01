@@ -126,8 +126,8 @@ export default function PrintingPage() {
         else void printLabels(selected);
     };
 
-    const shipRun = async (list: Order[]) => {
-        if (!(await run.ship(list))) return;
+    const shipRun = async (list: Order[], options: { moveToTransit: boolean }) => {
+        if (!(await run.ship(list, options))) return;
         setShipOpen(false);
         setTicks(new Map());
         await refreshQueue();
@@ -288,6 +288,8 @@ export default function PrintingPage() {
             </div>
 
             <ShipRunDialog
+                // A fresh dialog on every open: its switches start from their defaults.
+                key={shipOpen ? "open" : "closed"}
                 open={shipOpen}
                 onOpenChange={setShipOpen}
                 orders={selected}
@@ -296,7 +298,7 @@ export default function PrintingPage() {
                 getDispatchTwin={getDispatchTwin}
                 onRemove={(ids) => setTick(ids, false)}
                 shipping={run.shipping}
-                onShip={(list) => void shipRun(list)}
+                onShip={(list, options) => void shipRun(list, options)}
             />
 
             <ReprintWarningModal

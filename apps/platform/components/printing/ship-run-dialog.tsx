@@ -28,7 +28,7 @@ interface ShipRunDialogProps {
     onRemove: (orderIds: string[]) => void;
     shipping: boolean;
     /** Ship exactly these orders: labels PDF, Prime file, in transit. */
-    onShip: (orders: Order[]) => void;
+    onShip: (orders: Order[], options: { moveToTransit: boolean }) => void;
 }
 
 const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
@@ -54,6 +54,9 @@ export function ShipRunDialog({
     const { t } = useLanguage();
     // Off on every open: shipping a postponed order early has to be a decision.
     const [includeLater, setIncludeLater] = useState(false);
+    // On by default: the hand-off is what normally follows the labels. Off
+    // prints and downloads the Prime file but leaves the orders on the desk.
+    const [moveToTransit, setMoveToTransit] = useState(true);
 
     const { scheduledLater } = useMemo(() => partitionByShipDay(orders), [orders]);
     const shipNow = useMemo(() => {
@@ -103,7 +106,6 @@ export function ShipRunDialog({
 
     const handleOpenChange = (next: boolean) => {
         if (shipping) return;
-        if (next) setIncludeLater(false);
         onOpenChange(next);
     };
 
@@ -196,8 +198,15 @@ export function ShipRunDialog({
                         <ol className="mt-2.5 space-y-2 text-sm text-foreground">
                             <Step icon={FileText} text={names.labels} mono />
                             <Step icon={FileSpreadsheet} text={names.prime} mono />
-                            <Step icon={Truck} text={t("printing.shipStepTransit", { count })} />
                         </ol>
+                        <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--background)] px-3 py-2.5">
+                            <Truck className="h-4 w-4 shrink-0 text-muted" />
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-sm font-medium text-foreground">{t("printing.shipStepTransit", { count })}</span>
+                                {!moveToTransit && <span className="block text-xs text-muted">{t("printing.shipStayOnDesk")}</span>}
+                            </span>
+                            <Switch checked={moveToTransit} onCheckedChange={setMoveToTransit} aria-label={t("printing.shipStepTransit", { count })} />
+                        </label>
                         <p className="mt-3 text-xs text-muted">{t("printing.shipStepsNote")}</p>
                     </section>
                 </div>
@@ -217,7 +226,7 @@ export function ShipRunDialog({
                     </button>
                     <button
                         type="button"
-                        onClick={() => onShip(shipNow)}
+                        onClick={() => onShip(shipNow, { moveToTransit })}
                         disabled={count === 0 || shipping}
                         className={cn(
                             "flex h-11 min-w-[190px] items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold text-white transition-colors disabled:opacity-50",
@@ -227,7 +236,7 @@ export function ShipRunDialog({
                         {shipping ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
                         {shipping
                             ? t("printing.shipping")
-                            : t(risky ? "printing.shipAnyway" : "printing.shipConfirm", { count })}
+                            : t(!moveToTransit ? "printing.shipFilesOnly" : risky ? "printing.shipAnyway" : "printing.shipConfirm", { count })}
                     </button>
                 </div>
             </DialogContent>
