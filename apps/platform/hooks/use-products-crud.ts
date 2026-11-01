@@ -43,6 +43,7 @@ interface ProductFormData {
     display_order?: number;
     category_id?: string | null;
     website_price?: number | null;
+    storefront_stock?: number | null;
     short_description?: string;
 }
 

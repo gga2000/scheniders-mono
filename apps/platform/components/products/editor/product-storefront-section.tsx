@@ -3,6 +3,7 @@
 import { Globe, Link as LinkIcon } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
+import { parseStorefrontStock } from "@/lib/storefront-stock";
 
 interface ProductStorefrontSectionProps {
     formData: ProductEditorFormData;
@@ -70,6 +71,23 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
                         updateField("website_price", v === "" ? null : parseInt(v, 10) || 0);
                     }}
                     placeholder={t("products.ed.websitePricePh").replace("{price}", formData.price.toLocaleString())}
+                    min={0}
+                    className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                />
+            </div>
+
+            <div>
+                <label htmlFor="storefront-stock" className="block text-sm font-medium text-foreground mb-2">
+                    {t("products.ed.storefrontStock")}
+                    <span className="text-xs text-muted ms-1">{t("products.ed.storefrontStockHint")}</span>
+                </label>
+                <input
+                    id="storefront-stock"
+                    type="number"
+                    inputMode="numeric"
+                    value={formData.storefront_stock ?? ""}
+                    onChange={(e) => updateField("storefront_stock", parseStorefrontStock(e.target.value))}
+                    placeholder={t("products.ed.storefrontStockPh").replace("{count}", formData.stock_quantity.toLocaleString())}
                     min={0}
                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 />
