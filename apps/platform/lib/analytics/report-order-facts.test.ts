@@ -47,3 +47,13 @@ describe("range-scoped calculators", () => {
         expect(calculatePeriodComparison(cur, prev).current.totalOrders).toBe(2);
     });
 });
+
+describe("csvCell", () => {
+    it("escapes quotes and neutralises formulas", async () => {
+        const { csvCell } = await import("@/lib/reports-export");
+        expect(csvCell('a"b')).toBe('"a""b"');
+        expect(csvCell("=HYPERLINK(1)")).toBe(`"'=HYPERLINK(1)"`);
+        expect(csvCell("-5.2%")).toBe('"-5.2%"');
+        expect(csvCell("-cmd")).toBe(`"'-cmd"`);
+    });
+});

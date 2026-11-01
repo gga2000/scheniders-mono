@@ -69,7 +69,6 @@ export interface AttentionFlagMetrics {
     label: string;
     count: number;
     severity: 'low' | 'medium' | 'high';
-    icon: string;
 }
 
 // ============================================
@@ -392,11 +391,11 @@ export function calculateAttentionFlags(orders: ReportOrder[]): AttentionFlagMet
     });
 
     return [
-        { flagType: 'missing_phone', label: 'Missing Phone', count: missingPhone, severity: 'high' as const, icon: '📱' },
-        { flagType: 'missing_product', label: 'Missing Product', count: missingProduct, severity: 'high' as const, icon: '📦' },
-        { flagType: 'invalid_address', label: 'Invalid Address', count: invalidAddress, severity: 'medium' as const, icon: '📍' },
-        { flagType: 'needs_review', label: 'Needs Review', count: needsReview, severity: 'low' as const, icon: '👁️' },
-        { flagType: 'price_issues', label: 'Price Issues', count: priceIssues, severity: 'medium' as const, icon: '💰' },
+        { flagType: 'missing_phone', label: 'Missing Phone', count: missingPhone, severity: 'high' as const },
+        { flagType: 'missing_product', label: 'Missing Product', count: missingProduct, severity: 'high' as const },
+        { flagType: 'invalid_address', label: 'Invalid Address', count: invalidAddress, severity: 'medium' as const },
+        { flagType: 'needs_review', label: 'Needs Review', count: needsReview, severity: 'low' as const },
+        { flagType: 'price_issues', label: 'Price Issues', count: priceIssues, severity: 'medium' as const },
     ].filter(flag => flag.count > 0);
 }
 

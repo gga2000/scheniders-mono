@@ -23,6 +23,11 @@ const item = {
 };
 
 export function ContactHeatmap({ data }: ContactHeatmapProps) {
+    // Best-converting bucket, among buckets with orders (needs 2+ to be a comparison).
+    const populated = data.filter(d => d.count > 0);
+    const best = populated.length > 1
+        ? populated.reduce((top, d) => (d.confirmationRate > top.confirmationRate ? d : top))
+        : null;
     const totalCount = data.reduce((sum, d) => sum + d.count, 0);
 
     // Calculate the best performing bucket
@@ -141,26 +146,27 @@ export function ContactHeatmap({ data }: ContactHeatmapProps) {
                     </motion.div>
                 </div>
 
-                {/* Insight banner */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="mt-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl"
-                >
-                    <div className="flex items-start gap-3">
-                        <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
-                            <Zap className="w-4 h-4" />
+                {/* Insight: derived from the buckets, only when there is something to compare */}
+                {best && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="mt-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl"
+                    >
+                        <div className="flex items-start gap-3">
+                            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
+                                <Zap className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-amber-900">Insight</p>
+                                <p className="text-xs text-amber-700 mt-0.5">
+                                    {best.label} orders confirm at the highest rate ({best.confirmationRate.toFixed(0)}%).
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-sm font-semibold text-amber-900">Insight</p>
-                            <p className="text-xs text-amber-700 mt-0.5">
-                                First-contact orders convert at the highest rate.
-                                Focus on quality over quantity for better results.
-                            </p>
-                        </div>
-                    </div>
-                </motion.div>
+                    </motion.div>
+                )}
             </div>
         </motion.div>
     );

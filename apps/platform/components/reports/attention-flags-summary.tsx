@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { AttentionFlagMetrics } from "@/lib/analytics/reports-calculations";
-import { AlertTriangle, ChevronRight, CheckCircle2, ArrowRight } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ArrowRight, Phone, Package, MapPin, Eye, Coins, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,14 @@ const container = {
 const item = {
     hidden: { scale: 0.9, opacity: 0 },
     show: { scale: 1, opacity: 1 }
+};
+
+const FLAG_ICONS: Record<string, LucideIcon> = {
+    missing_phone: Phone,
+    missing_product: Package,
+    invalid_address: MapPin,
+    needs_review: Eye,
+    price_issues: Coins,
 };
 
 export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
@@ -63,7 +71,7 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
                         <CheckCircle2 className="w-7 h-7 text-emerald-600" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-emerald-900">All Clear! ✨</h3>
+                        <h3 className="text-xl font-bold text-emerald-900">All Clear</h3>
                         <p className="text-sm text-emerald-700">No orders require attention right now</p>
                     </div>
                 </div>
@@ -79,7 +87,7 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
         >
             <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-100 rounded-xl text-amber-600 animate-pulse">
+                    <div className="p-2 bg-amber-100 rounded-xl text-amber-600">
                         <AlertTriangle className="w-6 h-6" />
                     </div>
                     <div>
@@ -103,17 +111,17 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
             >
                 {data.map((flag) => {
                     const styles = getSeverityStyles(flag.severity);
+                    const Icon = FLAG_ICONS[flag.flagType] ?? AlertTriangle;
                     return (
                         <motion.div
                             key={flag.flagType}
                             variants={item}
                             className={cn(
-                                "p-4 rounded-2xl text-white shadow-lg cursor-pointer",
-                                "hover:scale-[1.02] transition-transform",
+                                "p-4 rounded-2xl text-white shadow-lg",
                                 styles.card
                             )}
                         >
-                            <div className="text-3xl mb-2">{flag.icon}</div>
+                            <Icon className="w-7 h-7 mb-2" aria-hidden />
                             <div className="text-3xl font-bold">{flag.count}</div>
                             <div className="text-xs opacity-90 mt-1 font-medium">{flag.label}</div>
                             <div className={cn("mt-3 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase", styles.badge)}>

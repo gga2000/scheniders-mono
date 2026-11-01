@@ -188,7 +188,9 @@ export function calculatePeriodComparison(
             totalOrders: total,
             deliveredOrders: delivered,
             rejectedOrders: rejected,
-            deliveryRate: total > 0 ? (delivered / total) * 100 : 0,
+            // delivered ÷ (delivered + rejected): the KPI card's rule, so one page never shows two
+            // different "delivery rates".
+            deliveryRate: delivered + rejected > 0 ? (delivered / (delivered + rejected)) * 100 : 0,
             totalRevenue: revenue,
             avgProcessingTime,
         };

@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { StatusFlowMetrics } from "@/lib/analytics/reports-calculations";
-import { ResponsiveContainer, FunnelChart, Funnel, LabelList, Tooltip, Cell } from "recharts";
 import { ArrowDown, Zap } from "lucide-react";
 
 interface StatusFlowDiagramProps {
@@ -32,16 +31,11 @@ export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
         );
     }
 
-    // Prepare funnel data
-    const funnelData = data.map(status => ({
-        name: status.label,
-        value: status.count,
-        fill: STATUS_COLORS[status.status] || "#64748B",
-        percentage: status.percentage,
-    })).slice(0, 8);
-
     const totalOrders = data.reduce((sum, d) => sum + d.count, 0);
-    const deliveredCount = data.find(d => d.status === 'delivered' || d.status === 'completed')?.count || 0;
+    // Delivered AND completed both count: `find` kept only the first of the two.
+    const deliveredCount = data
+        .filter(d => d.status === 'delivered' || d.status === 'completed')
+        .reduce((sum, d) => sum + d.count, 0);
     const conversionRate = totalOrders > 0 ? (deliveredCount / totalOrders * 100) : 0;
 
     return (
@@ -67,55 +61,16 @@ export function StatusFlowDiagram({ data }: StatusFlowDiagramProps) {
 
                     {/* Conversion rate badge */}
                     <div className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl text-white shadow-lg shadow-emerald-500/20">
-                        <p className="text-xs opacity-80">Conversion</p>
+                        <p className="text-xs opacity-80">Delivered</p>
                         <p className="text-xl font-bold">{conversionRate.toFixed(1)}%</p>
                     </div>
                 </div>
 
                 {/* Main content grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Funnel Chart */}
-                    <div className="h-[350px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <FunnelChart>
-                                <Tooltip
-                                    content={({ active, payload }) => {
-                                        if (active && payload && payload.length) {
-                                            const data = payload[0].payload;
-                                            return (
-                                                <div className="bg-white/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
-                                                    <p className="font-bold mb-1 text-sm">{data.name}</p>
-                                                    <p>Count: <span className="font-bold">{data.value}</span></p>
-                                                    <p>Share: <span className="font-bold">{data.percentage.toFixed(1)}%</span></p>
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    }}
-                                />
-                                <Funnel
-                                    dataKey="value"
-                                    data={funnelData}
-                                    isAnimationActive
-                                >
-                                    {funnelData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                    ))}
-                                    <LabelList
-                                        position="right"
-                                        fill="#374151"
-                                        stroke="none"
-                                        dataKey="name"
-                                        className="text-sm font-medium"
-                                    />
-                                </Funnel>
-                            </FunnelChart>
-                        </ResponsiveContainer>
-                    </div>
-
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-4">
                     {/* Status bars */}
-                    <div className="space-y-3">
-                        {data.slice(0, 8).map((status, index) => {
+                    <div className="contents">
+                        {data.map((status, index) => {
                             const color = STATUS_COLORS[status.status] || "#64748B";
                             const maxCount = Math.max(...data.map(d => d.count), 1);
                             const width = (status.count / maxCount) * 100;
