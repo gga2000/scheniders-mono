@@ -32,6 +32,16 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/capi", () => ({
   sendPurchaseCapi: vi.fn(),
 }));
+vi.mock("@/lib/capi-context", () => ({
+  capiRequestContext: vi.fn(async () => ({})),
+}));
+// The CAPI send runs after the response; run it inline so the count holds.
+vi.mock("next/server", async (orig) => ({
+  ...(await orig<typeof import("next/server")>()),
+  after: (task: () => unknown) => {
+    void task();
+  },
+}));
 vi.mock("@/lib/tenant", () => ({
   getTenantBySlug: vi.fn(),
   getTenantByCustomDomain: vi.fn(),

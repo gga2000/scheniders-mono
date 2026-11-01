@@ -3,6 +3,7 @@
 import { Loader2, Search, X } from "lucide-react";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
+import { useLanguage } from "@/hooks/use-language";
 
 /**
  * Says what the list is showing while a search is active.
@@ -12,6 +13,7 @@ import { useOrderStore } from "@/store/use-order-store";
  * above it. Clearing returns to that filtered view exactly as it was.
  */
 export function OrderSearchBanner({ count }: { count: number }) {
+    const { t } = useLanguage();
     const { filters, setFilters, orderSearch } = useOrdersContext();
     if (!orderSearch.active) return null;
 
@@ -34,13 +36,13 @@ export function OrderSearchBanner({ count }: { count: number }) {
             )}
             <span className="min-w-0 truncate">
                 {orderSearch.error ? (
-                    <span className="text-rose-600">Search failed: {orderSearch.error.message}</span>
+                    <span className="text-rose-600">{t("orders.ui.searchFailed", { message: orderSearch.error.message })}</span>
                 ) : orderSearch.pending ? (
-                    <>Searching all orders for &ldquo;{filters.searchQuery}&rdquo;…</>
+                    <>{t("orders.ui.searchingFor", { query: filters.searchQuery ?? "" })}</>
                 ) : (
                     <>
-                        <span className="font-semibold">{count}</span> {count === 1 ? "match" : "matches"} for &ldquo;{filters.searchQuery}&rdquo;
-                        <span className="text-muted"> · all dates and statuses, archived and trash included</span>
+                        <span className="font-semibold">{count}</span> {t(count === 1 ? "orders.ui.matchesFor" : "orders.ui.matchesForPlural", { query: filters.searchQuery ?? "" })}
+                        <span className="text-muted">{t("orders.ui.searchScope")}</span>
                     </>
                 )}
             </span>
@@ -49,7 +51,7 @@ export function OrderSearchBanner({ count }: { count: number }) {
                 onClick={clear}
                 className="ml-auto inline-flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg text-xs font-semibold text-muted hover:text-foreground hover:bg-[var(--background)]"
             >
-                <X className="w-3.5 h-3.5" aria-hidden /> Clear search
+                <X className="w-3.5 h-3.5" aria-hidden /> {t("orders.ui.clearSearch")}
             </button>
         </div>
     );

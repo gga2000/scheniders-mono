@@ -12,7 +12,18 @@ import {
 } from "@scheniders/shared";
 import { StoreBaseProvider } from "./helpers/store-context";
 import { resolveTrackerContact } from "./helpers/whatsapp";
-import { OrderStatusPanel, safeLinkTarget, stageOf, type OrderResult } from "./order_tracker.client";
+import {
+  OrderStatusPanel,
+  PhoneOrderList,
+  firstStageChange,
+  isLive,
+  parseLookup,
+  phoneOrderAsResult,
+  safeLinkTarget,
+  stageOf,
+  type OrderResult,
+  type PhoneOrder,
+} from "./order_tracker.client";
 
 const ORDER: OrderResult = { order_number: "4260910007", status: "placed", review_product_slug: "فيوجن" };
 
@@ -156,5 +167,64 @@ describe("safeLinkTarget", () => {
       expect(safeLinkTarget(bad), bad).toBeNull();
     }
     expect(safeLinkTarget(undefined)).toBeNull();
+  });
+});
+
+const ROWS: [PhoneOrder, PhoneOrder] = [
+  { order_number: "4261030012", stage: "shipped", placed_at: "2026-10-30T09:00:00+00:00", item_count: 2 },
+  { order_number: "4261001003", stage: "delivered", placed_at: "2026-10-01T09:00:00+00:00", item_count: 1 },
+];
+
+describe("phone-only lookup", () => {
+  it("parses the list and the single shapes, and rejects anything else", () => {
+    expect(parseLookup({ orders: ROWS })).toEqual({ kind: "list", orders: ROWS });
+    expect(parseLookup({ order_number: "1", status: "placed" })).toEqual({
+      kind: "single",
+      order: { order_number: "1", status: "placed" },
+    });
+    expect(parseLookup({ orders: [] })).toBeNull();
+    expect(parseLookup({ orders: [{ order_number: 1 }] })).toBeNull();
+    expect(parseLookup(null)).toBeNull();
+  });
+
+  it("stays live while any order can still move, and stops once all are final", () => {
+    expect(isLive({ kind: "list", orders: ROWS })).toBe(true);
+    expect(isLive({ kind: "list", orders: [ROWS[1]] })).toBe(false);
+    expect(isLive({ kind: "single", order: { order_number: "x", status: "placed", stage: "cancelled" } })).toBe(false);
+    expect(isLive(null)).toBe(false);
+  });
+
+  it("finds the order whose stage moved between two answers", () => {
+    const after = { kind: "list" as const, orders: [{ ...ROWS[0], stage: "delivered" }, ROWS[1]] as [PhoneOrder, PhoneOrder] };
+    expect(firstStageChange({ kind: "list", orders: ROWS }, after)?.order_number).toBe("4261030012");
+    expect(firstStageChange({ kind: "list", orders: ROWS }, { kind: "list", orders: ROWS })).toBeNull();
+  });
+
+  it("lists number, day, piece count and stage — and never a name", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(PhoneOrderList, {
+        orders: ROWS,
+        selected: ROWS[0].order_number,
+        onSelect: () => undefined,
+        locale: "ar",
+        titleOf: (row) => resolveNarrative(stageOf(phoneOrderAsResult(row)), "ar", null, null).title,
+      }),
+    );
+    expect(html).toContain("4261030012");
+    expect(html).toContain("قطعتين");
+    expect(html).toContain("قطعة وحدة");
+    expect(html).toContain("30 أكتوبر");
+    expect(html).toContain(DEFAULT_NARRATIVES.shipped.title_i18n.ar);
+    expect(html).toContain('aria-pressed="true"');
+    // Arabic rows start at the right edge without setting dir.
+    expect(html).toContain("flex-row-reverse");
+    expect(html).not.toMatch(/\sdir=/);
+  });
+
+  it("shows a governorate code as its name", () => {
+    const html = panel("shipped", {
+      order: { order_number: "1", status: "shipped", customer_name: "علي", governorate: "BGD" },
+    });
+    expect(html).toContain("علي — بغداد");
   });
 });

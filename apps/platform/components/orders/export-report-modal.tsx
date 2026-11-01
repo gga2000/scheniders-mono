@@ -23,6 +23,7 @@ import { toast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
 
 // ============================================
 // TYPES
@@ -85,6 +86,8 @@ export function ExportReportModal({
     currentDateTo,
 }: ExportReportModalProps) {
     const { tenantId } = useAuth();
+    const { t, language } = useLanguage();
+    const dateLocale = language === "ar" ? "ar-IQ" : "en-US";
     const [format, setFormat] = useState<ExportFormat | null>(null);
     const [scope, setScope] = useState<ExportScope | null>(null);
     const [reportType, setReportType] = useState<ReportType>("order_list");
@@ -214,6 +217,15 @@ export function ExportReportModal({
         return scope ? scopeLabels[scope] : "Orders Report";
     }, [scope]);
 
+    const handleClose = useCallback(() => {
+        setFormat(null);
+        setScope(null);
+        setReportType("order_list");
+        setIsGenerating(false);
+        setGenerationComplete(false);
+        onClose();
+    }, [onClose]);
+
     const handleGenerate = useCallback(async () => {
         // Never build a file from a half-loaded scope — that would silently
         // export fewer orders than the merchant asked for.
@@ -240,10 +252,7 @@ export function ExportReportModal({
             }
 
             setGenerationComplete(true);
-            toast.success(
-                "Report Generated",
-                `${format === "pdf" ? "PDF" : "Excel"} report with ${scopedOrders.length} orders has been downloaded.`
-            );
+            toast.success(t("orders.export.doneTitle"), t("orders.export.doneBody", { count: scopedOrders.length }));
 
             // Auto-close after a moment
             setTimeout(() => {
@@ -251,20 +260,11 @@ export function ExportReportModal({
             }, 1500);
         } catch (error) {
             console.error("Report generation failed:", error);
-            toast.error("Generation Failed", "Something went wrong while generating the report. Please try again.");
+            toast.error(t("orders.export.failTitle"), t("orders.export.failBody"));
         } finally {
             setIsGenerating(false);
         }
-    }, [format, scope, scopedOrders, reportTitle, dateRange, reportType, isFetchingScope, scopeFetchFailed]);
-
-    const handleClose = useCallback(() => {
-        setFormat(null);
-        setScope(null);
-        setReportType("order_list");
-        setIsGenerating(false);
-        setGenerationComplete(false);
-        onClose();
-    }, [onClose]);
+    }, [format, scope, scopedOrders, reportTitle, dateRange, reportType, isFetchingScope, scopeFetchFailed, handleClose, t]);
 
     const handleBack = useCallback(() => {
         if (currentStep === 3) setScope(null);
@@ -279,44 +279,44 @@ export function ExportReportModal({
     const scopeOptions: { id: ExportScope; label: string; sublabel: string; count: number | null; icon: React.ReactNode; disabled?: boolean }[] = [
         {
             id: "selected",
-            label: "Selected Orders",
-            sublabel: `${selectedOrderIds.size} orders selected`,
+            label: t("orders.export.scopeSelected"),
+            sublabel: t("orders.export.scopeSelectedSub", { count: selectedOrderIds.size }),
             count: selectedOrderIds.size,
             icon: <MousePointerClick className="w-5 h-5" />,
             disabled: selectedOrderIds.size === 0,
         },
         {
             id: "current_view",
-            label: "Current View",
-            sublabel: `${filteredOrders.length} orders in current filter`,
+            label: t("orders.export.scopeView"),
+            sublabel: t("orders.export.scopeViewSub", { count: filteredOrders.length }),
             count: filteredOrders.length,
             icon: <ListFilter className="w-5 h-5" />,
         },
         {
             id: "today",
-            label: "Today",
-            sublabel: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+            label: t("orders.export.scopeToday"),
+            sublabel: new Date().toLocaleDateString(dateLocale, { month: "long", day: "numeric", year: "numeric" }),
             count: scopeCounts?.today ?? null,
             icon: <Calendar className="w-5 h-5" />,
         },
         {
             id: "this_week",
-            label: "This Week",
-            sublabel: "Saturday to today",
+            label: t("orders.export.scopeWeek"),
+            sublabel: t("orders.export.scopeWeekSub"),
             count: scopeCounts?.this_week ?? null,
             icon: <Calendar className="w-5 h-5" />,
         },
         {
             id: "this_month",
-            label: "This Month",
-            sublabel: new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+            label: t("orders.export.scopeMonth"),
+            sublabel: new Date().toLocaleDateString(dateLocale, { month: "long", year: "numeric" }),
             count: scopeCounts?.this_month ?? null,
             icon: <Calendar className="w-5 h-5" />,
         },
         {
             id: "all",
-            label: "All Orders",
-            sublabel: scopeCounts ? `${scopeCounts.all} total orders` : "every order",
+            label: t("orders.export.scopeAll"),
+            sublabel: scopeCounts ? t("orders.export.scopeAllSub", { count: scopeCounts.all }) : t("orders.export.scopeAllSubUnknown"),
             count: scopeCounts?.all ?? null,
             icon: <Sparkles className="w-5 h-5" />,
         },
@@ -364,12 +364,12 @@ export function ExportReportModal({
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-bold text-foreground dark:text-white">
-                                        Export Report
+                                        {t("orders.export.title")}
                                     </h2>
                                     <p className="text-xs text-muted-foreground dark:text-[#888]">
-                                        {currentStep === 1 && "Choose format"}
-                                        {currentStep === 2 && "Select scope"}
-                                        {currentStep === 3 && "Ready to generate"}
+                                        {currentStep === 1 && t("orders.export.stepFormat")}
+                                        {currentStep === 2 && t("orders.export.stepScope")}
+                                        {currentStep === 3 && t("orders.export.stepReady")}
                                     </p>
                                 </div>
                             </div>
@@ -396,7 +396,7 @@ export function ExportReportModal({
                                     className="space-y-3"
                                 >
                                     <p className="text-sm font-medium text-muted-foreground dark:text-[#aaa] mb-4">
-                                        Choose your export format
+                                        {t("orders.export.chooseFormat")}
                                     </p>
 
                                     <div className="grid grid-cols-2 gap-3">
@@ -422,7 +422,7 @@ export function ExportReportModal({
                                                 </div>
                                                 <h3 className="font-bold text-foreground dark:text-white text-base">PDF</h3>
                                                 <p className="text-xs text-muted-foreground dark:text-[#888] mt-1">
-                                                    Professional multi-page report with charts
+                                                    {t("orders.export.pdfHint")}
                                                 </p>
                                             </div>
                                         </button>
@@ -449,7 +449,7 @@ export function ExportReportModal({
                                                 </div>
                                                 <h3 className="font-bold text-foreground dark:text-white text-base">Excel</h3>
                                                 <p className="text-xs text-muted-foreground dark:text-[#888] mt-1">
-                                                    Multi-sheet workbook with filters & formulas
+                                                    {t("orders.export.excelHint")}
                                                 </p>
                                             </div>
                                         </button>
@@ -469,13 +469,13 @@ export function ExportReportModal({
                                 >
                                     <div className="flex items-center justify-between mb-3">
                                         <p className="text-sm font-medium text-muted-foreground dark:text-[#aaa]">
-                                            Which orders to include?
+                                            {t("orders.export.whichOrders")}
                                         </p>
                                         <button
                                             onClick={handleBack}
                                             className="text-xs text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
                                         >
-                                            ← Back
+                                            {t("orders.export.back")}
                                         </button>
                                     </div>
 
@@ -540,20 +540,20 @@ export function ExportReportModal({
                                 >
                                     <div className="flex items-center justify-between">
                                         <p className="text-sm font-medium text-muted-foreground dark:text-[#aaa]">
-                                            Review & generate
+                                            {t("orders.export.review")}
                                         </p>
                                         <button
                                             onClick={handleBack}
                                             className="text-xs text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
                                         >
-                                            ← Back
+                                            {t("orders.export.back")}
                                         </button>
                                     </div>
 
                                     {/* Summary Card */}
                                     <div className="p-4 rounded-2xl bg-gray-50 dark:bg-[#222] border border-gray-200 dark:border-[#333] space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">Format</span>
+                                            <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">{t("orders.export.format")}</span>
                                             <div className="flex items-center gap-2">
                                                 <div className={cn(
                                                     "p-1 rounded-md",
@@ -565,28 +565,28 @@ export function ExportReportModal({
                                                     }
                                                 </div>
                                                 <span className="text-sm font-semibold text-foreground dark:text-white">
-                                                    {format === "pdf" ? "PDF Report" : "Excel Workbook"}
+                                                    {format === "pdf" ? t("orders.export.pdfReport") : t("orders.export.excelWorkbook")}
                                                 </span>
                                             </div>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">Scope</span>
+                                            <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">{t("orders.export.scope")}</span>
                                             <span className="text-sm font-semibold text-foreground dark:text-white">
-                                                {reportTitle}
+                                                {scopeOptions.find((o) => o.id === scope)?.label ?? reportTitle}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">Orders</span>
+                                            <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">{t("orders.export.orders")}</span>
                                             <span className="text-sm font-bold text-amber-600 dark:text-[#EFFF00]">
-                                                {isFetchingScope ? "counting…" : `${scopedOrders.length} orders`}
+                                                {isFetchingScope ? t("orders.export.counting") : t("orders.export.nOrders", { count: scopedOrders.length })}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between">
-                                            <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">Period</span>
+                                            <span className="text-xs text-muted-foreground dark:text-[#888] uppercase tracking-wider font-bold">{t("orders.export.period")}</span>
                                             <span className="text-xs text-muted-foreground dark:text-[#aaa]">
-                                                {dateRange.from && new Date(dateRange.from + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                                {dateRange.from && new Date(dateRange.from + "T00:00:00").toLocaleDateString(dateLocale, { month: "short", day: "numeric" })}
                                                 {dateRange.from !== dateRange.to && dateRange.to &&
-                                                    ` — ${new Date(dateRange.to + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                                                    ` — ${new Date(dateRange.to + "T00:00:00").toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" })}`
                                                 }
                                             </span>
                                         </div>
@@ -603,7 +603,7 @@ export function ExportReportModal({
                                                     : "text-muted-foreground hover:text-foreground dark:hover:text-white"
                                             )}
                                         >
-                                            Order List
+                                            {t("orders.export.orderList")}
                                         </button>
                                         <button
                                             onClick={() => setReportType("summary")}
@@ -614,7 +614,7 @@ export function ExportReportModal({
                                                     : "text-muted-foreground hover:text-foreground dark:hover:text-white"
                                             )}
                                         >
-                                            Summary Only
+                                            {t("orders.export.summaryOnly")}
                                         </button>
                                     </div>
 
@@ -636,27 +636,27 @@ export function ExportReportModal({
                                         {generationComplete ? (
                                             <>
                                                 <CheckCircle2 className="w-5 h-5" />
-                                                Downloaded!
+                                                {t("orders.export.downloaded")}
                                             </>
                                         ) : scopeFetchFailed ? (
                                             <>
                                                 <X className="w-5 h-5" />
-                                                Couldn&apos;t load orders — try again
+                                                {t("orders.export.loadFailed")}
                                             </>
                                         ) : isFetchingScope ? (
                                             <>
                                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                                Loading orders...
+                                                {t("orders.export.loading")}
                                             </>
                                         ) : isGenerating ? (
                                             <>
                                                 <Loader2 className="w-5 h-5 animate-spin" />
-                                                Generating report...
+                                                {t("orders.export.generating")}
                                             </>
                                         ) : (
                                             <>
                                                 <Download className="w-5 h-5" />
-                                                Generate & Download
+                                                {t("orders.export.generate")}
                                             </>
                                         )}
                                     </button>

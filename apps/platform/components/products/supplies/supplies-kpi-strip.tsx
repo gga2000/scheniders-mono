@@ -13,9 +13,7 @@ import {
 import { cn, formatIQD } from "@/lib/utils";
 import { supabase, Product } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
-import { fetchPurchaseOrderCosts } from "@/lib/repositories/purchase-costs";
 import { useLanguage } from "@/hooks/use-language";
-import { OPEN_PO_STATUSES } from "./po-status-chip";
 
 interface SuppliesKpiStripProps {
     supplies: Product[];
@@ -216,58 +214,38 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
         };
     }, [supplies]);
 
-    // Open POs: count drafts/sent; also sum total_cost for subtitle.
+    // Open POs: how many, and what is still owed on them (ordered minus received).
     const { data: poData } = useQuery({
         queryKey: ["supplies-open-pos", tenantId],
         queryFn: async () => {
             if (!tenantId) return { count: 0, totalCost: null };
-            const { data, error } = await supabase
-                .from("purchase_orders")
-                .select("id,status")
-                .eq("tenant_id", tenantId)
-                .in("status", OPEN_PO_STATUSES);
+            const { data, error } = await supabase.rpc("open_po_summary", { p_tenant_id: tenantId });
             if (error) throw error;
-            const list = data ?? [];
-            // total_cost is not a readable column. A member who may not see
-            // cost gets no totals back, which must read as unknown, not 0.
-            const costs = await fetchPurchaseOrderCosts(tenantId);
-            const known = list.filter((po) => costs.get(po.id) != null);
-            return {
-                count: list.length,
-                totalCost: known.length > 0 ? known.reduce((sum, po) => sum + (costs.get(po.id) ?? 0), 0) : null,
-            };
+            const row = (data as { open_count: number; outstanding_value: number | null }[] | null)?.[0];
+            // outstanding_value is null for a member who may not see cost: unknown, not 0.
+            return { count: Number(row?.open_count ?? 0), totalCost: row?.outstanding_value ?? null };
         },
         enabled: !!tenantId,
         staleTime: 60_000,
     });
 
-    // Consumption this week: units taken out of supplies (last 7d), recounts excluded.
-    const supplyIds = useMemo(() => supplies.map((s) => s.id), [supplies]);
+    // Consumption this week: units taken out of supplies (today and the 6 days
+    // before, Baghdad days), recounts excluded. Summed in the database.
     const { data: consumption } = useQuery({
-        queryKey: ["supplies-consumption-7d", tenantId, supplyIds.length],
+        queryKey: ["supplies-consumption-7d", tenantId],
         queryFn: async () => {
-            if (!tenantId || supplyIds.length === 0) return { total: 0, days: [0, 0, 0, 0, 0, 0, 0] };
-            const since = new Date();
-            since.setDate(since.getDate() - 6);
-            since.setHours(0, 0, 0, 0);
-            const { data, error } = await supabase
-                .from("inventory_history")
-                .select("quantity_change,change_type,created_at,product_id")
-                .in("product_id", supplyIds)
-                .lt("quantity_change", 0)
-                .not("change_type", "in", "(count,written_off,returned_to_supplier,open_box_count,qc_undo)")
-                .gte("created_at", since.toISOString());
-            if (error) throw error;
-            const rows =
-                (data as { quantity_change: number; created_at: string }[]) ?? [];
             const days = new Array(7).fill(0);
-            const startDay = new Date(since).getTime();
+            if (!tenantId) return { total: 0, days };
+            const { data, error } = await supabase.rpc("supply_usage_7d", { p_tenant_id: tenantId });
+            if (error) throw error;
+            const todayBaghdad = new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 10);
+            const todayMs = Date.parse(`${todayBaghdad}T00:00:00Z`);
             let total = 0;
-            for (const r of rows) {
-                const units = Math.abs(r.quantity_change ?? 0);
-                total += units;
-                const d = Math.floor((new Date(r.created_at).getTime() - startDay) / 86400000);
-                if (d >= 0 && d < 7) days[d] += units;
+            for (const r of (data as { day: string; used: number }[] | null) ?? []) {
+                const offset = 6 - Math.round((todayMs - Date.parse(`${r.day}T00:00:00Z`)) / 86_400_000);
+                const used = Number(r.used);
+                total += used;
+                if (offset >= 0 && offset < 7) days[offset] += used;
             }
             return { total, days };
         },

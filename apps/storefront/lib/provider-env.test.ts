@@ -63,9 +63,10 @@ describe("sendPurchaseCapi reaches the hosts from env (against the provider mock
       analytics: {
         meta_pixel_id: "123456789012345",
         meta_capi_token: "meta-secret-token",
-        tiktok_pixel_id: "TT123",
+        tiktok_pixel_id: "D6K0A2BC77U5VG9U2BRG",
         tiktok_capi_token: "tiktok-secret-token",
       },
+      tenantId: "b5c4f2d4-834f-4af4-822d-9b9826a8f45a",
       eventId: "evt-1",
       customer: { phone: "07700000000" },
       value: 25000,
@@ -76,7 +77,7 @@ describe("sendPurchaseCapi reaches the hosts from env (against the provider mock
 
     const calls = mock.calls().map((c) => `${c.provider} ${c.method} ${c.path}`).sort();
     expect(calls).toEqual([
-      "meta POST /v19.0/123456789012345/events",
+      "meta POST /v21.0/123456789012345/events",
       "tiktok POST /open_api/v1.3/event/track/",
     ]);
     expect(JSON.stringify(mock.calls())).not.toContain("meta-secret-token");

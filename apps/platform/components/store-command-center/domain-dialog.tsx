@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     X,
@@ -16,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/auth/auth-provider";
+import { CUSTOM_DOMAIN_CNAME_TARGET, normalizeCustomDomain } from "@/lib/custom-domain";
 
 interface DomainDialogProps {
     tenantId: string;
@@ -34,8 +37,18 @@ interface TenantDomain {
     created_at: string;
 }
 
+const verifyResponse = z.object({ verified: z.boolean() });
+
+class DomainInputError extends Error {
+    constructor(readonly reason: "invalid" | "taken" | "failed") {
+        super(reason);
+    }
+}
+
 export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogProps) {
     const queryClient = useQueryClient();
+    const { session } = useAuth();
+    const accessToken = session?.access_token ?? null;
     const verifyFailed = t(STRINGS.command_center.domain_toast_verify_failed, locale);
     const [showConnect, setShowConnect] = useState(false);
     const [domainInput, setDomainInput] = useState("");
@@ -50,32 +63,37 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
     }, [onClose]);
 
     // Fetch existing domains
-    const { data: domains = [], isLoading } = useQuery<TenantDomain[]>({
+    const {
+        data: domains = [],
+        isLoading,
+        isError: listFailed,
+    } = useQuery<TenantDomain[]>({
         queryKey: ["tenant-domains", tenantId],
         queryFn: async () => {
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from("tenant_domains")
-                .select("*")
+                .select("id, tenant_id, domain, verified, verified_at, created_at")
                 .eq("tenant_id", tenantId)
                 .order("created_at", { ascending: false });
-            return (data as TenantDomain[]) ?? [];
+            if (error) throw error;
+            return data ?? [];
         },
     });
 
     // Add domain mutation
     const addDomain = useMutation({
         mutationFn: async (domain: string) => {
-            const cleaned = domain
-                .toLowerCase()
-                .trim()
-                .replace(/^https?:\/\//, "")
-                .replace(/\/.*$/, "");
+            const cleaned = normalizeCustomDomain(domain);
+            if (!cleaned) throw new DomainInputError("invalid");
             const { data, error } = await supabase
                 .from("tenant_domains")
                 .insert({ tenant_id: tenantId, domain: cleaned })
                 .select()
                 .single();
-            if (error) throw error;
+            if (error) {
+                // 23505 = unique_violation on tenant_domains.domain
+                throw new DomainInputError(error.code === "23505" ? "taken" : "failed");
+            }
             return data;
         },
         onSuccess: () => {
@@ -84,8 +102,15 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
             setDomainInput("");
             toast.success(t(STRINGS.command_center.domain_toast_added, locale));
         },
-        onError: () => {
-            toast.error(t(STRINGS.command_center.domain_toast_add_failed, locale));
+        onError: (err: Error) => {
+            const reason = err instanceof DomainInputError ? err.reason : "failed";
+            toast.error(
+                reason === "invalid"
+                    ? t(STRINGS.command_center.domain_invalid, locale)
+                    : reason === "taken"
+                      ? t(STRINGS.command_center.domain_taken, locale)
+                      : t(STRINGS.command_center.domain_toast_add_failed, locale),
+            );
         },
     });
 
@@ -94,18 +119,24 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
         mutationFn: async (domainId: string) => {
             const res = await fetch("/api/domains/verify", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${accessToken}`,
+                },
                 body: JSON.stringify({ domain_id: domainId }),
             });
-            if (!res.ok) {
-                const err = (await res.json()) as { error?: string };
-                throw new Error(err.error ?? verifyFailed);
-            }
-            return res.json();
+            const body = verifyResponse.safeParse(await res.json().catch(() => null));
+            if (!res.ok || !body.success) throw new Error(verifyFailed);
+            return body.data;
         },
-        onSuccess: () => {
+        onSuccess: (result) => {
             queryClient.invalidateQueries({ queryKey: ["tenant-domains", tenantId] });
-            toast.success(t(STRINGS.command_center.domain_toast_verified, locale));
+            if (result.verified) {
+                toast.success(t(STRINGS.command_center.domain_toast_verified, locale));
+            } else {
+                // The endpoint answers 200 + verified:false while DNS has not caught up.
+                toast.error(t(STRINGS.command_center.domain_toast_not_pointing, locale));
+            }
         },
         onError: (err: Error) => {
             toast.error(err.message || verifyFailed);
@@ -123,13 +154,19 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                 className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative rounded-2xl border border-border bg-(--card-bg) p-6 w-full max-w-sm shadow-2xl">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="domain-dialog-title"
+                className="relative rounded-2xl border border-border bg-(--card-bg) p-6 w-full max-w-sm shadow-2xl"
+            >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-semibold text-foreground">
+                    <h3 id="domain-dialog-title" className="text-base font-semibold text-foreground">
                         {t(STRINGS.command_center.domain_heading, locale)}
                     </h3>
                     <button
+                        type="button"
                         onClick={onClose}
                         aria-label={t(STRINGS.command_center.dialog_close, locale)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
@@ -147,6 +184,10 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                     <div className="flex items-center justify-center py-6">
                         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                     </div>
+                ) : listFailed ? (
+                    <p role="alert" className="mb-4 text-xs text-destructive">
+                        {t(STRINGS.command_center.domain_list_error, locale)}
+                    </p>
                 ) : domains.length > 0 ? (
                     <div className="space-y-2 mb-4">
                         {domains.map((domain) => (
@@ -175,7 +216,7 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                                     <button
                                         type="button"
                                         onClick={() => verifyDomain.mutate(domain.id)}
-                                        disabled={verifyDomain.isPending}
+                                        disabled={verifyDomain.isPending || !accessToken}
                                         className="flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50 shrink-0 ml-2"
                                     >
                                         {verifyDomain.isPending ? (
@@ -204,10 +245,11 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                 ) : (
                     <div className="rounded-xl border border-border bg-muted/10 p-4 space-y-3">
                         <div>
-                            <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                            <label htmlFor="domain-name-input" className="text-xs font-medium text-muted-foreground mb-1 block">
                                 {t(STRINGS.command_center.domain_name_label, locale)}
                             </label>
                             <input
+                                id="domain-name-input"
                                 type="text"
                                 value={domainInput}
                                 onChange={(e) => setDomainInput(e.target.value)}
@@ -234,7 +276,7 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                                 </p>
                                 <p>
                                     {t(STRINGS.command_center.domain_dns_value, locale)}{" "}
-                                    <strong>cname.scheniders.com</strong>
+                                    <strong>{CUSTOM_DOMAIN_CNAME_TARGET}</strong>
                                 </p>
                             </div>
                         </div>

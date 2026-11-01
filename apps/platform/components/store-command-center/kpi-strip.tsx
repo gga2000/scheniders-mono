@@ -10,6 +10,8 @@ import type { StoreAnalytics } from "@/hooks/use-store-analytics";
 interface KpiStripProps {
     analytics: StoreAnalytics | undefined;
     isLoading: boolean;
+    /** The read failed — show "—", never a believable zero. */
+    isError?: boolean;
     /** Hub chrome locale — the store's `default_locale` (UX2-14). */
     locale: LocaleCode;
 }
@@ -45,7 +47,7 @@ function KpiCard({ label, value, icon, tint, sub, loading }: KpiCardProps) {
     );
 }
 
-export function KpiStrip({ analytics, isLoading, locale }: KpiStripProps) {
+export function KpiStrip({ analytics, isLoading, isError = false, locale }: KpiStripProps) {
     const orderCount = analytics?.orderCount ?? 0;
     const revenue = analytics?.revenue ?? 0;
     const aov = orderCount > 0 ? revenue / orderCount : null;
@@ -55,15 +57,15 @@ export function KpiStrip({ analytics, isLoading, locale }: KpiStripProps) {
         <div className="grid grid-cols-3 gap-3">
             <KpiCard
                 label={t(STRINGS.command_center.kpi_orders, locale)}
-                value={isLoading ? "—" : String(orderCount)}
+                value={isLoading || isError ? "—" : String(orderCount)}
                 icon={<ShoppingBag className="h-4 w-4" />}
                 tint="bg-blue-100 text-blue-700"
-                sub={last7Days}
+                sub={isError ? t(STRINGS.command_center.kpi_error, locale) : last7Days}
                 loading={isLoading}
             />
             <KpiCard
                 label={t(STRINGS.command_center.kpi_revenue, locale)}
-                value={isLoading ? "—" : formatIQD(revenue)}
+                value={isLoading || isError ? "—" : formatIQD(revenue)}
                 icon={<Banknote className="h-4 w-4" />}
                 tint="bg-emerald-100 text-emerald-700"
                 sub={last7Days}
@@ -71,10 +73,10 @@ export function KpiStrip({ analytics, isLoading, locale }: KpiStripProps) {
             />
             <KpiCard
                 label={t(STRINGS.command_center.kpi_aov, locale)}
-                value={isLoading ? "—" : aov !== null ? formatIQD(aov) : "—"}
+                value={isLoading || isError ? "—" : aov !== null ? formatIQD(aov) : "—"}
                 icon={<TrendingUp className="h-4 w-4" />}
                 tint="bg-violet-100 text-violet-700"
-                sub={orderCount === 0 ? t(STRINGS.command_center.kpi_no_orders_yet, locale) : undefined}
+                sub={isError ? undefined : orderCount === 0 ? t(STRINGS.command_center.kpi_no_orders_yet, locale) : undefined}
                 loading={isLoading}
             />
         </div>

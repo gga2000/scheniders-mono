@@ -1,6 +1,8 @@
 import Script from "next/script";
 import type { AnalyticsConfig } from "@scheniders/shared";
+import { PENDING_PURCHASE_KEY } from "@scheniders/shared";
 import { PixelRouteChange } from "./pixel-route-change";
+import { PendingPurchasePixel } from "./pending-purchase-pixel";
 
 /**
  * Injects Meta / TikTok / Google Analytics / Snapchat / GTM pixels.
@@ -112,7 +114,8 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window,document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${escapeJs(meta)}');
+${metaAdvancedMatchingJs()}
+fbq('init', '${escapeJs(meta)}', am);
 fbq('track', 'PageView');`,
           }}
         />
@@ -163,8 +166,23 @@ snaptr('track', 'PAGE_VIEW');`,
           }}
         />
       )}
+
+      {/* Last, so its effect runs after the pixel scripts above have set up
+          fbq / ttq. */}
+      {(meta || tiktokIds.length > 0) && <PendingPurchasePixel />}
     </>
   );
+}
+
+/**
+ * Meta advanced matching on the page after an order: the order form's
+ * Purchase handoff carries the buyer's hashed phone and external id, and
+ * `fbq('init')` is the one place Meta takes them for browser events. Only
+ * values that are already 64-char SHA-256 hex are passed; any other page
+ * inits with no user data, as before.
+ */
+function metaAdvancedMatchingJs(): string {
+  return `var am={};try{var hp=JSON.parse(sessionStorage.getItem('${escapeJs(PENDING_PURCHASE_KEY)}')||'null');var hx=/^[a-f0-9]{64}$/;if(hp&&hx.test(hp.ph||''))am.ph=hp.ph;if(hp&&hx.test(hp.external_id||''))am.external_id=hp.external_id;}catch(e){}`;
 }
 
 /** Minimal JS-string escaper for inline-script tag IDs. Pixel IDs are

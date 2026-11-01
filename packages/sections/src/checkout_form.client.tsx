@@ -40,7 +40,7 @@ import {
   normalizeReferralCode,
   stackDiscounts,
 } from "@scheniders/shared";
-import { trackPixel, newPixelEventId } from "./helpers/pixels";
+import { trackPixel, newPixelEventId, handOffPurchase } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import {
   clearCustomerMemory,
@@ -631,12 +631,17 @@ export function CheckoutFormRender({
         } catch {
           /* sessionStorage unavailable — the recap just won't render */
         }
-        // Pixel Purchase — same event_id the server sent to CAPI (dedup).
-        trackPixel(
-          "Purchase",
-          pixelContentsFromItems(items),
-          purchaseEventIdRef.current ?? undefined,
-        );
+        // Pixel Purchase — same event_id the server sent to CAPI (dedup),
+        // handed to the thank-you page so the navigation below cannot cancel
+        // it (helpers/pixels handOffPurchase).
+        if (purchaseEventIdRef.current) {
+          await handOffPurchase({
+            tenantId,
+            phone: form.phone,
+            data: pixelContentsFromItems(items),
+            eventId: purchaseEventIdRef.current,
+          });
+        }
         clearCart();
         // EC17: order placed — retire the key so a future order isn't deduped
         // against this one.

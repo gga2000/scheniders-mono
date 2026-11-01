@@ -43,7 +43,7 @@ describe("buildBrandKitVars — default snapshot", () => {
         "--bk-font-display": "var(--font-bricolage, 'Bricolage Grotesque'), var(--font-bricolage, 'Bricolage Grotesque'), var(--font-noto-arabic, 'Noto Sans Arabic'), sans-serif",
         "--bk-font-display-ar": "var(--font-bricolage, 'Bricolage Grotesque'), var(--font-bricolage, 'Bricolage Grotesque'), var(--font-noto-arabic, 'Noto Sans Arabic'), sans-serif",
         "--bk-ink": "#1a1a1a",
-        "--bk-ink-faint": "rgb(26 26 26 / 0.38)",
+        "--bk-ink-faint": "rgb(26 26 26 / 0.47)",
         "--bk-ink-soft": "rgb(26 26 26 / 0.7)",
         "--bk-motion": "auto",
         "--bk-on-accent": "#1a1a1a",
@@ -132,12 +132,25 @@ describe("buildBrandKitVars — color derivations", () => {
     expect(v["--bk-primary-soft"]).toBe("rgb(255 0 0 / 0.12)");
   });
 
+  it("darkens ink-soft until secondary text passes AA on the kit's own grounds", () => {
+    // Schneiders: warm brown ink on cream. A fixed 0.7 alpha gave #7e746e,
+    // 4.3:1 on #fdf8ef, which fails AA on every page that used it.
+    const v = buildBrandKitVars({
+      colors: { ink: "#483b36", surface: "#fdf8ef", surface_alt: "#f8efdf" },
+    } as never) as Record<string, string>;
+    const alpha = (s: string) => Number(/\/ ([\d.]+)\)$/.exec(s)?.[1]);
+    expect(alpha(v["--bk-ink-soft"] ?? "")).toBeGreaterThan(0.7);
+    expect(alpha(v["--bk-ink-soft"] ?? "")).toBeLessThan(0.9);
+    expect(alpha(v["--bk-ink-faint"] ?? "")).toBeGreaterThan(0.38);
+  });
+
   it("emits ink-soft / ink-faint / divider as alpha mixes of ink", () => {
     const k = cloneKit();
     k.colors.ink = "#000000";
     const v = buildBrandKitVars(k) as Record<string, string>;
     expect(v["--bk-ink-soft"]).toBe("rgb(0 0 0 / 0.7)");
-    expect(v["--bk-ink-faint"]).toBe("rgb(0 0 0 / 0.38)");
+    // 0.38 black on white is 2.9:1, under the 3:1 non-text floor.
+    expect(v["--bk-ink-faint"]).toBe("rgb(0 0 0 / 0.42)");
     expect(v["--bk-divider"]).toBe("rgb(0 0 0 / 0.1)");
   });
 });

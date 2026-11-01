@@ -140,7 +140,7 @@ export function RelatedProductsSection({
                     </div>
                     <div className="max-h-48 overflow-y-auto border-t border-[var(--card-border)]">
                         {availableProducts.length === 0 ? (
-                            <p className="p-4 text-sm text-muted text-center">No products found</p>
+                            <p className="p-4 text-sm text-muted text-center">{t("products.noProducts")}</p>
                         ) : (
                             availableProducts.slice(0, 10).map((product) => (
                                 <button

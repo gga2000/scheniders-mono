@@ -212,7 +212,7 @@ export function CategorySuggester({
                                 <button
                                     type="button"
                                     onClick={handleClose}
-                                    aria-label="Close"
+                                    aria-label={t("common.close")}
                                     className="shrink-0 p-1.5 rounded-lg text-muted hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
                                 >
                                     <X className="w-4 h-4" />

@@ -79,16 +79,10 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
                 {/* Left column */}
                 <div className="space-y-6">
-                    <PreviewCard
-                        storefrontUrl={storefrontUrl}
-                        published={storeStatus.published}
-                        isBrandNew={isBrandNew}
-                        locale={locale}
-                        slug={tenant.slug}
-                    />
                     <KpiStrip
                         analytics={analyticsQuery.data}
                         isLoading={analyticsQuery.isLoading}
+                        isError={analyticsQuery.isError}
                         locale={locale}
                     />
                     <FunnelCard
@@ -96,6 +90,13 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                         isLoading={funnelQuery.isLoading}
                         isError={funnelQuery.isError}
                         locale={locale}
+                    />
+                    <PreviewCard
+                        storefrontUrl={storefrontUrl}
+                        published={storeStatus.published}
+                        isBrandNew={isBrandNew}
+                        locale={locale}
+                        slug={tenant.slug}
                     />
                 </div>
 
