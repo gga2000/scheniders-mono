@@ -9,7 +9,8 @@ import { CACHE_PRESETS } from "@/lib/query-config";
 export const attributeKeys = {
     all: ["product-attributes"] as const,
     defs: (tenantId: string | null) => [...attributeKeys.all, "defs", tenantId] as const,
-    usage: () => [...attributeKeys.all, "usage"] as const,
+    usage: (tenantId?: string | null) =>
+        (tenantId === undefined ? [...attributeKeys.all, "usage"] : [...attributeKeys.all, "usage", tenantId]) as readonly unknown[],
 };
 
 /** Columns the editor needs — the same set the storefront reads. */
@@ -57,16 +58,24 @@ export async function fetchAttributeDefs(tenantId: string): Promise<ProductAttri
  * row so the merchant can see what a deletion would actually remove —
  * `ON DELETE CASCADE` takes the values with the definition.
  */
-async function fetchAttributeUsage(): Promise<Record<string, number>> {
-    const { data, error } = await supabase
-        .from("product_attribute_values")
-        .select("attribute_def_id");
-    if (error) throw error;
+async function fetchAttributeUsage(tenantId: string): Promise<Record<string, number>> {
+    // Only this store's values (another store's visible values are readable by
+    // everyone), paged so a large store is counted in full, not cut at 1000.
+    const PAGE = 1000;
     const counts: Record<string, number> = {};
-    for (const row of data ?? []) {
-        counts[row.attribute_def_id] = (counts[row.attribute_def_id] ?? 0) + 1;
+    for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+            .from("product_attribute_values")
+            .select("attribute_def_id")
+            .eq("tenant_id", tenantId)
+            .order("id")
+            .range(from, from + PAGE - 1);
+        if (error) throw error;
+        for (const row of data ?? []) {
+            counts[row.attribute_def_id] = (counts[row.attribute_def_id] ?? 0) + 1;
+        }
+        if ((data?.length ?? 0) < PAGE) return counts;
     }
-    return counts;
 }
 
 export function useAttributeDefsQuery() {
@@ -84,11 +93,14 @@ export function useAttributeDefsQuery() {
 }
 
 export function useAttributeUsageQuery() {
-    const { session, clientReady } = useAuth();
+    const { session, clientReady, tenantId } = useAuth();
     return useQuery({
-        queryKey: attributeKeys.usage(),
-        queryFn: fetchAttributeUsage,
-        enabled: !!session && clientReady,
+        queryKey: attributeKeys.usage(tenantId),
+        queryFn: () => {
+            if (!tenantId) throw new Error("attribute usage requested without a tenant");
+            return fetchAttributeUsage(tenantId);
+        },
+        enabled: !!session && clientReady && !!tenantId,
         staleTime: CACHE_PRESETS.STANDARD.staleTime,
         gcTime: CACHE_PRESETS.STANDARD.gcTime,
     });
@@ -140,11 +152,14 @@ export function useDeleteAttributeDefMutation() {
     const invalidate = useInvalidateAttributes();
     return useMutation({
         mutationFn: async (id: string) => {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from("product_attribute_defs")
                 .delete()
-                .eq("id", id);
+                .eq("id", id)
+                .select("id");
             if (error) throw error;
+            // RLS filters a denied delete to zero rows, not an error.
+            if (!data || data.length === 0) throw new Error("Attribute was not deleted: no permission or already gone");
         },
         onSuccess: invalidate,
     });
