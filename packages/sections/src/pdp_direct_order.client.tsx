@@ -57,7 +57,7 @@ import {
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { useCart } from "./helpers/cart-store";
-import { trackPixel, newPixelEventId } from "./helpers/pixels";
+import { trackPixel, newPixelEventId, handOffPurchase } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import { focusVariantPicker, stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import {
@@ -1134,18 +1134,23 @@ export function PdpDirectOrderRender({
       } catch {
         /* sessionStorage unavailable — the recap just won't render */
       }
-      // Pixel Purchase — same event_id the server sent to CAPI (dedup).
-      trackPixel(
-        "Purchase",
-        pixelContentsFromItems(
-          items.map((i) => ({
-            product_id: i.product_id,
-            price: i.price,
-            quantity: i.quantity,
-          })),
-        ),
-        purchaseEventIdRef.current ?? undefined,
-      );
+      // Pixel Purchase — same event_id the server sent to CAPI (dedup),
+      // handed to the thank-you page so the navigation below cannot cancel
+      // it (helpers/pixels handOffPurchase).
+      if (purchaseEventIdRef.current) {
+        await handOffPurchase({
+          tenantId: ctx.tenant.id,
+          phone: form.phone,
+          data: pixelContentsFromItems(
+            items.map((i) => ({
+              product_id: i.product_id,
+              price: i.price,
+              quantity: i.quantity,
+            })),
+          ),
+          eventId: purchaseEventIdRef.current,
+        });
+      }
       clearOrderDraft(ctx.tenant.id, product.id);
       retireCartLines(product.id);
       idempotencyKeyRef.current = null;
