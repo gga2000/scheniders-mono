@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { tagNameMatchesRating } from "@/lib/customer-reliability";
 import { tagTone } from "@/components/customers/customer-tag-chip";
 import { Tooltip } from "@/components/ui/tooltip";
+import { RatingClashNote } from "@/components/customers/rating-clash-note";
 
 interface Assignment { tag_id: string }
 
@@ -113,7 +114,7 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                             <Tooltip
                                 key={tag.id}
                                 side="top"
-                                content={<span dir="auto" className="block text-start">{t("customers.tag.ratingClash", { name: tag.name })}</span>}
+                                content={<RatingClashNote name={tag.name} className="block" />}
                                 contentClassName="w-max max-w-64 rounded-lg bg-foreground text-background text-xs font-medium leading-snug px-2.5 py-1.5 shadow-lg"
                             >
                                 {button}
@@ -139,7 +140,7 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                 {newTag.trim() && !tags.some((x) => x.name.trim().toLowerCase() === newTag.trim().toLowerCase()) && tagNameMatchesRating(newTag) && (
                     <p role="status" className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground">
                         <Info className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
-                        <span dir="auto">{t("customers.tag.ratingClash", { name: newTag.trim() })}</span>
+                        <RatingClashNote name={newTag.trim()} />
                     </p>
                 )}
             </div>

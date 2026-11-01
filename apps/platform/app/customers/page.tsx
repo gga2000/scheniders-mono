@@ -37,6 +37,8 @@ import { cn } from "@/lib/utils";
 import { PERMISSIONS } from "@/lib/permissions";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { loadFailureKind } from "@/lib/load-failure";
+import { useBorderBoxHeight } from "@/hooks/use-border-box-height";
+import { useAppHeaderOffset } from "@/hooks/use-app-header-offset";
 
 const PAGE_LIMIT = 24;
 const EXPORT_PAGE = 1000;
@@ -49,6 +51,10 @@ function CustomersPageContent() {
     const { state, chips, setChips, rawSearch, setSearch, setSort, setView, setTag } = useCustomerUrlState();
     const { tags } = useCustomerTags();
     const { viewMode, setViewMode, setLastListQuery, setProfileFromList } = useCustomerStore();
+    // The sticky toolbar's real height: the table header sticks right under it.
+    const { height: toolbarHeight, ref: toolbarRef } = useBorderBoxHeight<HTMLDivElement>();
+    // The toolbar sticks under the shell's header while that is shown, at the top while it is slid away.
+    const headerOffset = useAppHeaderOffset();
     // Back on the list: any "opened from the list" mark is spent.
     useEffect(() => { setProfileFromList(null); }, [setProfileFromList]);
 
@@ -314,12 +320,14 @@ function CustomersPageContent() {
                     onTag={setTag}
                     view={effectiveView}
                     onView={(mode) => { setViewMode(mode); setView(mode); }}
+                    stickyRef={toolbarRef}
+                    stickyTop={headerOffset}
                 />
 
                 {/* A failed background refresh keeps whatever is on screen. */}
                 {isRefetchError && (
                     <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-                        <span>{t("customers.refreshFailed", "Couldn't refresh. Showing the last loaded list.")}</span>
+                        <span dir="auto">{t("customers.refreshFailed", "Couldn't refresh. Showing the last loaded list.")}</span>
                         <button
                             onClick={() => refetch()}
                             disabled={isRefetching}
@@ -341,8 +349,9 @@ function CustomersPageContent() {
                         <div className="mx-auto w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-500/15 flex items-center justify-center mb-4">
                             <AlertTriangle className="w-6 h-6 text-rose-600 dark:text-rose-300" />
                         </div>
-                        <p className="text-lg font-bold text-foreground mb-1">{t("customers.loadFailed")}</p>
-                        <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">{failureHint}</p>
+                        {/* dir="auto": an Arabic sentence ends with its own full stop, not one at its start. */}
+                        <p dir="auto" className="text-lg font-bold text-foreground mb-1">{t("customers.loadFailed")}</p>
+                        <p dir="auto" className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">{failureHint}</p>
                         <button
                             onClick={() => refetch()}
                             disabled={isRefetching}
@@ -363,7 +372,7 @@ function CustomersPageContent() {
                                         ? <>{t("customers.noMatchFor")} <bdi className="font-mono px-2 py-0.5 rounded-lg bg-foreground/5">{state.search}</bdi></>
                                         : t("customers.noCustomers")}
                                 </p>
-                                <p className="text-sm text-muted-foreground">{t("customers.adjustFilters")}</p>
+                                <p dir="auto" className="text-sm text-muted-foreground">{t("customers.adjustFilters")}</p>
                                 {state.search && (
                                     <button
                                         onClick={() => setSearch("")}
@@ -375,8 +384,8 @@ function CustomersPageContent() {
                             </>
                         ) : (
                             <>
-                                <p className="text-lg font-bold text-foreground mb-1">{t("customers.empty.title")}</p>
-                                <p className="text-sm text-muted-foreground mb-5">{t("customers.empty.body")}</p>
+                                <p dir="auto" className="text-lg font-bold text-foreground mb-1">{t("customers.empty.title")}</p>
+                                <p dir="auto" className="text-sm text-muted-foreground mb-5">{t("customers.empty.body")}</p>
                                 <Link href="/orders" className="inline-flex items-center h-11 px-6 rounded-2xl bg-foreground text-background text-sm font-semibold">
                                     {t("customers.empty.cta")}
                                 </Link>
@@ -386,14 +395,14 @@ function CustomersPageContent() {
                 ) : (
                     <>
                         {effectiveView === "list" ? (
-                            <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} />
+                            <CustomerListTable customers={displayed} onRowClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} stickyTop={headerOffset + toolbarHeight} />
                         ) : (
                             <CustomerGrid customers={displayed} onCustomerClick={handleCustomerClick} selectedPhones={selectedSet} onToggleSelect={toggleSelect} />
                         )}
                         {hasNextPage && (
                             <div className="flex flex-col items-center gap-2 pt-2">
                                 {isFetchNextPageError && (
-                                    <p role="alert" className="text-sm text-rose-600">{t("customers.loadMoreFailed", "Couldn't load more customers. Try again.")}</p>
+                                    <p role="alert" dir="auto" className="text-sm text-rose-600">{t("customers.loadMoreFailed", "Couldn't load more customers. Try again.")}</p>
                                 )}
                                 <button
                                     onClick={() => fetchNextPage()}

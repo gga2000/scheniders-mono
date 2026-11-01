@@ -11,13 +11,14 @@ const AR_MIX: Record<string, string> = {
     "customers.behavioral.mix.rejected": "{pct}% مرفوضة",
     "customers.snapshot.title": "لمحة عن العميل",
     "customers.snapshot.phoneInvalid": "صيغة الرقم قد تكون غير صحيحة",
+    "customers.behavioral.cadenceWeekly": "cadence days={days} count={count}",
 };
 
 vi.mock("@/hooks/use-language", () => ({
     useLanguage: () => ({
         language: "ar",
-        t: (key: string, vars?: Record<string, string>) =>
-            (AR_MIX[key] ?? key).replace("{pct}", vars?.pct ?? ""),
+        t: (key: string, vars?: Record<string, string | number>) =>
+            (AR_MIX[key] ?? key).replace(/\{(\w+)\}/g, (_, k: string) => String(vars?.[k] ?? "")),
     }),
 }));
 vi.mock("@/hooks/use-customer-links", () => ({ useCustomerLinks: () => ({ data: [] }) }));
@@ -69,5 +70,14 @@ describe("BehavioralPatternsCard snapshot (fewer than three orders)", () => {
         render(<BehavioralPatternsCard orders={[order("delivered", 1)]} phone="0123" />);
         expect(screen.getByText("لمحة عن العميل")).toBeTruthy();
         expect(screen.getByText("صيغة الرقم قد تكون غير صحيحة")).toBeTruthy();
+    });
+});
+
+describe("BehavioralPatternsCard order cadence", () => {
+    it("passes the day count as a number, so the plural helper can pick the Arabic form", () => {
+        // An order every 23 days: "~23 يوماً", the accusative singular, needs the count.
+        const orders = [1, 24, 47].map((d) => ({ status: "delivered", created_at: new Date(Date.UTC(2026, 6, d, 12)).toISOString() }));
+        render(<BehavioralPatternsCard orders={orders} phone="07701234567" />);
+        expect(screen.getByText("cadence days=23 count=23")).toBeTruthy();
     });
 });

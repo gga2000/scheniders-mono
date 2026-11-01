@@ -522,7 +522,7 @@ function Body({
                         </div>
                     ) : failed ? (
                         <div className="rounded-2xl border border-(--card-border) p-8 text-center">
-                            <p className="text-sm text-foreground mb-4">{t("customers.dialog.loadFailed")}</p>
+                            <p dir="auto" className="text-sm text-foreground mb-4">{t("customers.dialog.loadFailed")}</p>
                             <button onClick={onRetry} className="h-11 px-5 rounded-xl bg-foreground text-background text-sm font-semibold">
                                 {t("customers.profile.retry")}
                             </button>

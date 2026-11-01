@@ -10,6 +10,7 @@ vi.mock("@/hooks/use-language", () => ({
 }));
 
 import { CustomerRatingHelp } from "./customer-rating-help";
+import { FIRST_DELIVERY_DOT } from "@/lib/customer-reliability";
 
 afterEach(cleanup);
 
@@ -45,5 +46,18 @@ describe("CustomerRatingHelp", () => {
             expect(el.getAttribute("dir")).toBe("auto");
             expect(el.className).toContain("text-left");
         }
+    });
+
+    it("lists every last-order dot, the teal first-delivery dot included", () => {
+        render(<CustomerRatingHelp layout="wide" />);
+        fireEvent.click(screen.getByLabelText("customers.help.trigger"));
+        const rows = ["active", "cooling", "dormant", "firstDelivery"].map((key) => screen.getByText(`customers.help.activity.${key}`));
+        // One section, in this order: the three recency states, then the first delivery.
+        const section = rows[0].closest("section");
+        for (const row of rows) expect(row.closest("section")).toBe(section);
+        expect(rows.map((r) => r.textContent)).toEqual([...section?.querySelectorAll("p span[dir=auto]") ?? []].map((e) => e.textContent));
+        const dot = rows[3].previousElementSibling;
+        expect(dot?.className).toContain(FIRST_DELIVERY_DOT);
+        expect(rows[3].getAttribute("dir")).toBe("auto");
     });
 });

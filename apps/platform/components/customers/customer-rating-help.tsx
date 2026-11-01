@@ -4,17 +4,21 @@ import { Info } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
-import type { RiskLevel, ValueTier } from "@/lib/customer-reliability";
+import { FIRST_DELIVERY_DOT, type RiskLevel, type ValueTier } from "@/lib/customer-reliability";
 import { RiskChip, ValuePill } from "@/components/customers/reliability-pill";
 
 const VALUE_ROWS: ValueTier[] = ["vip", "good", "newcomer"];
 const RISK_ROWS: RiskLevel[] = ["clean", "caution", "high", "blocked"];
 
-/** The recency dot's three states, drawn the way the card and table draw them (recencyStatus). */
+/**
+ * Every last-order dot, drawn the way the card and table draw it: the three recency
+ * states (recencyStatus), then the teal dot of a customer whose first order is not yet delivered.
+ */
 const ACTIVITY_ROWS = [
     { key: "active", dot: "bg-foreground" },
     { key: "cooling", dot: "bg-muted-foreground/60" },
     { key: "dormant", dot: "ring-1 ring-inset ring-muted-foreground/60" },
+    { key: "firstDelivery", dot: FIRST_DELIVERY_DOT },
 ] as const;
 
 /**
@@ -86,12 +90,15 @@ export function CustomerRatingHelp({ className, side = "bottom", align = "start"
             </Section>
 
             <Section title={t("customers.help.activity.title")}>
-                {ACTIVITY_ROWS.map((row) => (
-                    <p key={row.key} className="flex items-center gap-2.5">
-                        <span className={cn("w-2 h-2 rounded-full shrink-0", row.dot)} aria-hidden />
-                        <span dir="auto" className="text-left">{t(`customers.help.activity.${row.key}`)}</span>
-                    </p>
-                ))}
+                {/* One-line rows set close, so the four dots stay one compact legend. */}
+                <div className="space-y-0.5">
+                    {ACTIVITY_ROWS.map((row) => (
+                        <p key={row.key} className="flex items-center gap-2.5">
+                            <span className={cn("w-2 h-2 rounded-full shrink-0", row.dot)} aria-hidden />
+                            <span dir="auto" className="text-left">{t(`customers.help.activity.${row.key}`)}</span>
+                        </p>
+                    ))}
+                </div>
             </Section>
 
             <p dir="auto" className="pt-2.5 border-t border-(--card-border) text-left text-muted-foreground">{t("customers.help.delivery")}</p>
@@ -127,15 +134,15 @@ export function CustomerRatingHelp({ className, side = "bottom", align = "start"
                 // inside the popover instead of its title running off the screen.
                 className={cn(wide ? "w-[880px]" : "w-[380px]", "max-w-[calc(100vw-2rem)] max-h-[min(40rem,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain p-0 rounded-2xl border-(--card-border) bg-(--card-bg) text-foreground shadow-xl z-[60]")}
             >
-                <p className="sticky top-0 z-10 px-4 pt-3.5 pb-2.5 text-sm font-bold border-b border-(--card-border) bg-(--card-bg)">{label}</p>
+                <p className="sticky top-0 z-10 px-4 pt-3 pb-2 text-sm font-bold border-b border-(--card-border) bg-(--card-bg)">{label}</p>
                 {wide ? (
                     // Two columns: the ratings with pills on the left, the score, dot and rate on the right.
                     <div className="px-4 py-3 grid grid-cols-[1.2fr_1fr] gap-x-7 text-[13px] leading-snug">
-                        <div className="space-y-3">{ratings}</div>
-                        <div className="space-y-3">{numbers}</div>
+                        <div className="space-y-2.5">{ratings}</div>
+                        <div className="space-y-2.5">{numbers}</div>
                     </div>
                 ) : (
-                    <div className="px-4 py-3 space-y-3 text-[13px] leading-snug">
+                    <div className="px-4 py-3 space-y-2.5 text-[13px] leading-snug">
                         {ratings}
                         {numbers}
                     </div>

@@ -3,6 +3,8 @@
 import { motion } from "framer-motion";
 import { Search, LayoutGrid, List, ChevronDown, X, Tag } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { APP_HEADER_SLIDE } from "@/hooks/use-app-header-offset";
+import { cn } from "@/lib/utils";
 
 interface CustomerToolbarProps {
     search: string;
@@ -15,15 +17,13 @@ interface CustomerToolbarProps {
     tags: { id: string; name: string }[];
     tagId: string;
     onTag: (tagId: string) => void;
+    /** The sticky bar itself, so the page can measure it: the table header sticks at its height. */
+    stickyRef?: (element: HTMLDivElement | null) => void;
+    /** Where the bar sticks: right under the shell's header while it is shown (useAppHeaderOffset). */
+    stickyTop: number;
 }
 
-/**
- * The toolbar is one row of a fixed height, so the table header can stick
- * right under it. Keep the two values in step.
- */
-export const TOOLBAR_STICKY_TOP = "top-[68px]";
-
-export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, tags, tagId, onTag, view, onView }: CustomerToolbarProps) {
+export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, tags, tagId, onTag, view, onView, stickyRef, stickyTop }: CustomerToolbarProps) {
     const { t } = useLanguage();
 
     const sortLabels: Record<string, string> = {
@@ -36,12 +36,16 @@ export function CustomerToolbar({ search, onSearch, sortBy, sortOrder, onSort, t
     const currentSort = `${sortBy}:${sortOrder}`;
 
     return (
-        <div className="sm:sticky sm:top-0 z-40 -mx-1 px-1 h-[68px] flex items-center">
+        // The sticky bar is page-coloured and opaque edge to edge, padding included, and the
+        // table header sticks at its measured height: the two make one solid block, so a
+        // scrolled row never shows above, beside or under the bar. It sticks under the shell's
+        // header while that is shown, never half over it, and follows the header's slide.
+        <div ref={stickyRef} style={{ top: stickyTop }} className={cn("sm:sticky z-40 -mx-1 px-1 py-1.5 bg-background", APP_HEADER_SLIDE)}>
             <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35 }}
-                className="w-full rounded-2xl border border-(--card-border) bg-(--card-bg)/85 backdrop-blur-md p-2 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.04)]"
+                className="w-full rounded-2xl border border-(--card-border) bg-(--card-bg)/85 p-2 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.04)]"
             >
                 <div className="flex items-center gap-2">
                     {/* Search */}

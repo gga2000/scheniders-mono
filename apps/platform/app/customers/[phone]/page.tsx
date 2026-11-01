@@ -187,7 +187,7 @@ function CustomerProfileContent({ phone }: { phone: string }) {
     if (isError) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-                <p className="text-sm text-muted-foreground">{t("customers.profile.loadFailed")}</p>
+                <p dir="auto" className="text-sm text-muted-foreground">{t("customers.profile.loadFailed")}</p>
                 <button
                     onClick={() => refetch()}
                     disabled={isRefetching}

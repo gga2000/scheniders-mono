@@ -33,6 +33,26 @@ describe("t() singular forms", () => {
         expect(t("customers.banner.rateBase", { count: 5 })).toBe("نسبة التوصيل · 5 طلبات منتهية");
     });
 
+    it("says the order cadence with the Arabic form its number takes", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const { result } = renderHook(() => useLanguage(), { wrapper });
+        const cadence = (days: number) => result.current.t("customers.behavioral.cadenceWeekly", { count: days, days: String(days) });
+        expect(cadence(2)).toBe("يطلب كل ~يومين");
+        expect(cadence(5)).toBe("يطلب كل ~5 أيام");
+        expect(cadence(23)).toBe("يطلب كل ~23 يوماً");
+        expect(cadence(100)).toBe("يطلب كل ~100 يوم");
+    });
+
+    it("uses the .zero entry for a count of 0 in both languages", () => {
+        localStorage.setItem("schneiders_language", "ar");
+        const ar = renderHook(() => useLanguage(), { wrapper });
+        expect(ar.result.current.t("customers.banner.rateBase", { count: 0 })).toBe("نسبة التوصيل · لا طلبات منتهية");
+        localStorage.setItem("schneiders_language", "en");
+        const en = renderHook(() => useLanguage(), { wrapper });
+        expect(en.result.current.t("customers.banner.rateBase", { count: 0 })).toBe("Delivery rate · none finished yet");
+        expect(en.result.current.t("customers.banner.rateBase", { count: 4 })).toBe("Delivery rate · 4 finished");
+    });
+
     it("picks no plural form when the count is not a number", () => {
         localStorage.setItem("schneiders_language", "ar");
         const { result } = renderHook(() => useLanguage(), { wrapper });
