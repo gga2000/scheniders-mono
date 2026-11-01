@@ -12,8 +12,8 @@ export interface PendingPayItem {
     reason: string | null;
 }
 
-function iqd(n: number): string {
-    return `${new Intl.NumberFormat("en-US").format(Math.round(n))} IQD`;
+function fmtNumber(n: number): string {
+    return new Intl.NumberFormat("en-US").format(Math.round(n));
 }
 
 const SOURCE_KEYS: Record<EffectiveSalaryRate["source"], string> = {
@@ -35,6 +35,8 @@ export function EmployeeSalarySummary({ rate, pending, onEdit }: {
     onEdit: () => void;
 }) {
     const { t } = useLanguage();
+    // Same currency label as /salaries ("IQD" / "د.ع"), isolated so the sign and digits stay put in Arabic.
+    const iqd = (n: number, sign = "") => <bdi>{sign}{fmtNumber(n)} {t("common.iqd")}</bdi>;
     return (
         <div className="space-y-6">
             <dl className="divide-y divide-[#F0ECE4] dark:divide-white/5 rounded-2xl border border-[#E8E4DC] dark:border-white/10">
@@ -73,7 +75,7 @@ export function EmployeeSalarySummary({ rate, pending, onEdit }: {
                                     {item.reason && <p className="text-xs text-[#9A9A9A] dark:text-gray-500">{t(KIND_KEYS[item.kind])}</p>}
                                 </div>
                                 <p className={cn("text-sm font-semibold tabular-nums shrink-0", item.kind === "bonus" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400")}>
-                                    {item.kind === "bonus" ? "+" : "−"}{iqd(item.amount)}
+                                    {iqd(item.amount, item.kind === "bonus" ? "+" : "−")}
                                 </p>
                             </li>
                         ))}

@@ -164,7 +164,7 @@ export function OrderBreakdownModal({
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-xs text-muted tabular-nums">{fmtIQD(o.amount)} IQD</span>
+                                        <span className="text-xs text-muted tabular-nums"><bdi>{fmtIQD(o.amount)} {t("common.iqd")}</bdi></span>
                                         <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", BUCKET_META[o.bucket].cls)}>
                                             {t(BUCKET_META[o.bucket].labelKey)}
                                         </span>

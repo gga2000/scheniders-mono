@@ -693,9 +693,12 @@ export function EmployeePayrollCard({
                                 </div>
                                 {calculation.inTransit.orders > 0 && (
                                     <p className="text-xs text-muted mt-2 tabular-nums" title={t("payroll.projection.hint")}>
-                                        {t("payroll.projection.card", { count: calculation.inTransit.orders.toLocaleString("en-US") })}:{" "}
-                                        <bdi className="font-semibold text-foreground">{fmtIQD(calculation.inTransit.projectedNet)} {iqd}</bdi>{" "}
-                                        <bdi className="text-emerald-700 dark:text-emerald-400">+{fmtIQD(calculation.inTransit.extraOrderBonus)}</bdi>
+                                        {/* One isolate per sentence: in Arabic the label, amount and gain read right to left in order. */}
+                                        <bdi>
+                                            {t("payroll.projection.card", { count: calculation.inTransit.orders.toLocaleString("en-US") })}:{" "}
+                                            <bdi className="font-semibold text-foreground">{fmtIQD(calculation.inTransit.projectedNet)} {iqd}</bdi>{" "}
+                                            <bdi className="text-emerald-700 dark:text-emerald-400">+{fmtIQD(calculation.inTransit.extraOrderBonus)}</bdi>
+                                        </bdi>
                                     </p>
                                 )}
                                 {calculation.netSalary === 0 && !overDeducted && (
@@ -703,7 +706,7 @@ export function EmployeePayrollCard({
                                 )}
                                 {lastPayment && (
                                     <p className="text-xs text-muted mt-2 tabular-nums">
-                                        {t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{fmtIQD(lastPayment.net_salary)} {iqd}</bdi>
+                                        <bdi>{t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{fmtIQD(lastPayment.net_salary)} {iqd}</bdi></bdi>
                                     </p>
                                 )}
                             </>
