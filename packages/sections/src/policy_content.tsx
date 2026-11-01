@@ -64,7 +64,9 @@ function renderInline(text: string): React.ReactNode {
         <a
           key={i}
           href={href}
-          className="font-bold underline underline-offset-4"
+          // before: layer stretches the 24px text line to a 44px tap target
+          // without changing the paragraph's line height.
+          className="relative font-bold underline underline-offset-4 before:absolute before:inset-x-0 before:-inset-y-[10px] before:content-['']"
           style={{ color: "var(--bk-ink, #1a1a1a)" }}
           {...(external
             ? { target: "_blank", rel: "noopener noreferrer" }
