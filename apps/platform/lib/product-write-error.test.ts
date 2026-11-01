@@ -19,6 +19,10 @@ describe("productWriteErrorKey", () => {
         expect(productWriteErrorKey({ message: "tenant is paused" })).toBe("products.errors.storePaused");
     });
 
+    it("tells the merchant a later price edit blocked the undo", () => {
+        expect(productWriteErrorKey({ code: "40001" })).toBe("products.priceChangedSinceUndo");
+    });
+
     it("falls back to a retryable save failure", () => {
         expect(productWriteErrorKey(new Error("fetch failed"))).toBe("products.errors.saveFailed");
     });

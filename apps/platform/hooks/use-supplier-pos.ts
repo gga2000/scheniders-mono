@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
 import { fetchPurchaseOrderCosts } from "@/lib/repositories/purchase-costs";
 
 export interface SupplierPoRow {
@@ -28,18 +29,22 @@ export function useSupplierPos() {
         staleTime: 60_000,
         queryFn: async (): Promise<SupplierPoRow[]> => {
             if (!tenantId) return [];
-            const { data, error } = await supabase
-                .from("purchase_orders")
-                .select(
-                    "id, po_number, status, expected_date, received_at, created_at, supplier_name, supplier_contact, supplier_email"
-                )
-                .eq("tenant_id", tenantId)
-                .order("created_at", { ascending: false });
-            if (error) throw error;
+            // The API silently stops at 1000 rows; YTD spend must see every PO.
+            const data = await fetchAllPages<Omit<SupplierPoRow, "total_cost">>((from, to) =>
+                supabase
+                    .from("purchase_orders")
+                    .select(
+                        "id, po_number, status, expected_date, received_at, created_at, supplier_name, supplier_contact, supplier_email"
+                    )
+                    .eq("tenant_id", tenantId)
+                    .order("created_at", { ascending: false })
+                    .order("id")
+                    .range(from, to)
+            );
             // total_cost is not a readable column; only members who may see
             // cost get it, everyone else sees it as unknown.
             const costs = await fetchPurchaseOrderCosts(tenantId);
-            return (data ?? []).map((po) => ({ ...po, total_cost: costs.get(po.id) ?? null }));
+            return data.map((po) => ({ ...po, total_cost: costs.get(po.id) ?? null }));
         },
     });
 }
