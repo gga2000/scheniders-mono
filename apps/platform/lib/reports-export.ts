@@ -135,7 +135,7 @@ function kpiLines(data: ReportsExportData): KpiLine[] {
         { label: t("reports.kpi.contact"), value: pct(k.contactSuccessRate), change: k.contactSuccessChange, unit: "pp", higherIsBetter: true },
         { label: t("reports.kpi.rejection"), value: pct(k.rejectionRate), change: k.rejectionRateChange, unit: "pp", higherIsBetter: false },
         { label: t("reports.kpi.noResponse"), value: pct(k.noResponseRate), change: k.noResponseChange, unit: "pp", higherIsBetter: false },
-        { label: t("reports.kpi.processing"), value: `${k.avgProcessingTime.toFixed(0)}h`, change: k.avgProcessingTimeChange, unit: "%", higherIsBetter: false },
+        { label: t("reports.kpi.processing"), value: t("reports.unit.hours", { n: k.avgProcessingTime.toFixed(0) }), change: k.avgProcessingTimeChange, unit: "%", higherIsBetter: false },
     ];
 }
 
@@ -424,7 +424,7 @@ export function printOperationalReport(data: ReportsExportData) {
                         <td>${city.delivered}</td>
                         <td>${city.rejected}</td>
                         <td class="${city.deliveryRate >= 85 ? 'rate-good' : city.deliveryRate >= 70 ? 'rate-warn' : 'rate-bad'}">${city.deliveryRate.toFixed(1)}%</td>
-                        <td>${city.avgDeliveryDays > 0 ? city.avgDeliveryDays.toFixed(1) + 'd' : '-'}</td>
+                        <td>${city.avgDeliveryDays > 0 ? escapeMarkup(t("reports.unit.days", { n: city.avgDeliveryDays.toFixed(1) })) : '-'}</td>
                     </tr>
                 `).join('')}
             </tbody>

@@ -89,7 +89,7 @@ export function PeriodComparison({ data, currentRange }: PeriodComparisonProps) 
             current: data.current.avgProcessingTime,
             previous: data.previous.avgProcessingTime,
             change: relative(data.current.avgProcessingTime, data.previous.avgProcessingTime),
-            format: (v: number) => `${v.toFixed(0)}h`,
+            format: (v: number) => t("reports.unit.hours", { n: v.toFixed(0) }),
             goodWhenPositive: false, // Lower is better
         },
     ];

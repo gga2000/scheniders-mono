@@ -54,10 +54,12 @@ export function CityPerformance({ data }: CityPerformanceProps) {
     // The podium is always the busiest cities, whatever column the table is sorted by.
     const topCities = [...data].sort((a, b) => b.totalOrders - a.totalOrders).slice(0, 3);
 
-    const getMedalColor = (index: number) => {
-        if (index === 0) return "from-yellow-400 to-amber-500";
-        if (index === 1) return "from-gray-300 to-gray-400";
-        return "from-amber-600 to-orange-700";
+    // Calm rank accents: a tinted surface with readable text instead of loud gradients
+    // (white text on silver failed contrast).
+    const getMedalStyle = (index: number) => {
+        if (index === 0) return { card: "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30", icon: "text-amber-500" };
+        if (index === 1) return { card: "bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10", icon: "text-slate-400" };
+        return { card: "bg-orange-50 dark:bg-orange-500/10 border-orange-200 dark:border-orange-500/30", icon: "text-orange-500" };
     };
 
     const getDeliveryRateColor = (rate: number) => {
@@ -113,23 +115,19 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
-                            className={cn(
-                                "p-4 rounded-2xl text-white shadow-lg relative overflow-hidden",
-                                `bg-gradient-to-br ${getMedalColor(index)}`,
-                                index === 0 ? "shadow-yellow-500/30" : index === 1 ? "shadow-gray-400/30" : "shadow-orange-500/30"
-                            )}
+                            className={cn("p-4 rounded-2xl border relative overflow-hidden", getMedalStyle(index).card)}
                         >
-                            <div className="absolute top-2 right-2 opacity-20">
-                                <Medal className="w-10 h-10" />
+                            <div className={cn("absolute top-2 right-2 opacity-40", getMedalStyle(index).icon)}>
+                                <Medal className="w-10 h-10" aria-hidden />
                             </div>
                             <div className="relative z-10">
-                                <span className="text-xs font-bold opacity-80">#{index + 1}</span>
-                                <h4 className="text-lg font-bold mt-1">{city.city}</h4>
+                                <span className="text-xs font-bold text-muted">#{index + 1}</span>
+                                <h4 className="text-lg font-bold mt-1 text-foreground">{city.city}</h4>
                                 <div className="flex items-baseline gap-2 mt-2">
-                                    <span className="text-2xl font-bold">{city.totalOrders}</span>
-                                    <span className="text-xs opacity-80">{t("reports.common.orders")}</span>
+                                    <span className="text-2xl font-bold text-foreground tabular-nums">{city.totalOrders}</span>
+                                    <span className="text-xs text-muted">{t("reports.common.orders")}</span>
                                 </div>
-                                <div className="text-xs mt-1 opacity-80">
+                                <div className="text-xs mt-1 text-muted">
                                     {t("reports.city.deliveredPct", { pct: city.deliveryRate.toFixed(0) })}
                                 </div>
                             </div>
@@ -192,7 +190,7 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                             </span>
                                         </td>
                                         <td className="py-3 px-4 text-muted">
-                                            {city.avgDeliveryDays > 0 ? `${city.avgDeliveryDays.toFixed(1)}d` : '-'}
+                                            {city.avgDeliveryDays > 0 ? t("reports.unit.days", { n: city.avgDeliveryDays.toFixed(1) }) : '-'}
                                         </td>
                                     </motion.tr>
                                 );
