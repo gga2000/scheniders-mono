@@ -9,11 +9,10 @@ import type { Order } from "@/lib/supabase";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { useOrdersContext } from "@/components/providers/orders-provider";
-import type { OrderItem } from "@/types/order";
 
 interface DeliveryTabProps {
     orders: Order[];
+    onUpdate: (orderId: string, updates: Partial<Order>) => Promise<{ success: boolean; error?: string }>;
     onStatusUpdate: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string }>;
     onViewDetails: (order: Order) => void;
 }
@@ -44,11 +43,11 @@ const REJECTION_REASONS = [
 
 export function DeliveryTab({
     orders,
+    onUpdate,
     onStatusUpdate,
     onViewDetails,
 }: DeliveryTabProps) {
     const { t } = useLanguage();
-    const { splitOrder } = useOrdersContext();
     const [partialModal, setPartialModal] = useState<PartialDeliveryState | null>(null);
     const [loadingId, setLoadingId] = useState<string | null>(null);
     // Rejection modal state
@@ -115,22 +114,15 @@ export function DeliveryTab({
             } else if (totalAccepted === totalOriginal) {
                 await handleDelivered(order);
             } else {
-                // A partial delivery is a split: the received items stay on this
-                // order at their own price and it is marked delivered; the rest
-                // become a rejected return order. Marking the whole order
-                // delivered (as this used to) booked its full price as revenue.
-                const kept: OrderItem[] = [];
-                const returned: OrderItem[] = [];
-                (order.items ?? []).forEach((item, idx) => {
-                    const accepted = partialModal.items[idx]?.accepted ?? item.quantity;
-                    if (accepted > 0) kept.push({ ...item, quantity: accepted });
-                    if (accepted < item.quantity) returned.push({ ...item, quantity: item.quantity - accepted });
-                });
-                const result = await splitOrder(order.id, kept, returned);
-                if (!result.success) {
-                    toast.error(t("orders.toast.splitFailed"), result.error || t("orderDetail.splitError"));
-                    return;
-                }
+                await onStatusUpdate(order.id, "delivered");
+                const partialInfo = partialModal.items
+                    .filter(i => i.accepted < i.quantity)
+                    .map(i => `${i.name}: ${i.accepted}/${i.quantity}`)
+                    .join(", ");
+                // Append: this used to replace the order's notes, wiping
+                // whatever the team had written there before.
+                const partialNote = `Partial: ${partialInfo}`;
+                await onUpdate(order.id, { notes: order.notes ? `${order.notes}\n${partialNote}` : partialNote });
             }
             setPartialModal(null);
         } finally {
