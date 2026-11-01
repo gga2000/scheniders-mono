@@ -1,6 +1,7 @@
 "use client";
 
-import { Order } from "@/lib/supabase";
+import { baghdadHour, baghdadDayOfWeek } from "@/lib/analytics/dashboard-calculations";
+import type { ReportOrder } from "@/lib/analytics/report-order-facts";
 
 // ============================================
 // TYPE DEFINITIONS
@@ -20,6 +21,7 @@ export interface KPIMetrics {
     totalOrders: number;
     totalOrdersChange: number;
     deliveryRate: number;
+    /** Percentage points (rates), not relative percent. */
     deliveryRateChange: number;
     contactSuccessRate: number;
     contactSuccessChange: number;
@@ -69,7 +71,6 @@ export interface AttentionFlagMetrics {
     label: string;
     count: number;
     severity: 'low' | 'medium' | 'high';
-    icon: string;
 }
 
 // ============================================
@@ -90,7 +91,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; order: numbe
     pending_checkout: { label: "Pending Checkout", color: "#A855F7", order: -1 },
 };
 
-export function calculateStatusFlow(orders: Order[]): StatusFlowMetrics[] {
+export function calculateStatusFlow(orders: ReportOrder[]): StatusFlowMetrics[] {
     const statusCounts: Record<string, number> = {};
     const total = orders.length;
 
@@ -119,8 +120,8 @@ export function calculateStatusFlow(orders: Order[]): StatusFlowMetrics[] {
 // KPI CALCULATIONS
 // ============================================
 
-export function calculateKPIs(currentOrders: Order[], previousOrders: Order[] = []): KPIMetrics {
-    const calcMetrics = (orders: Order[]) => {
+export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: ReportOrder[] = []): KPIMetrics {
+    const calcMetrics = (orders: ReportOrder[]) => {
         const total = orders.length;
         const delivered = orders.filter(o => o.status === 'delivered' || o.status === 'completed').length;
         const rejected = orders.filter(o => o.status === 'rejected').length;
@@ -154,22 +155,28 @@ export function calculateKPIs(currentOrders: Order[], previousOrders: Order[] = 
     const current = calcMetrics(currentOrders);
     const previous = calcMetrics(previousOrders);
 
+    // Relative change for counts and times; 0 (no trend shown) when there is no baseline —
+    // "+100%" against an empty previous period is not a trend.
     const calcChange = (curr: number, prev: number) => {
-        if (prev === 0) return curr > 0 ? 100 : 0;
+        if (prev === 0) return 0;
         return ((curr - prev) / prev) * 100;
     };
+    // Rates change in percentage POINTS: 80% -> 79% is -1pp, not -1.2%. Needs a baseline too.
+    const calcRateChange = (curr: number, prev: number, hasBaseline: boolean) =>
+        hasBaseline ? curr - prev : 0;
+    const hasBaseline = previousOrders.length > 0;
 
     return {
         totalOrders: current.total,
         totalOrdersChange: calcChange(current.total, previous.total),
         deliveryRate: current.deliveryRate,
-        deliveryRateChange: calcChange(current.deliveryRate, previous.deliveryRate),
+        deliveryRateChange: calcRateChange(current.deliveryRate, previous.deliveryRate, hasBaseline),
         contactSuccessRate: current.contactSuccessRate,
-        contactSuccessChange: calcChange(current.contactSuccessRate, previous.contactSuccessRate),
+        contactSuccessChange: calcRateChange(current.contactSuccessRate, previous.contactSuccessRate, hasBaseline),
         rejectionRate: current.rejectionRate,
-        rejectionRateChange: calcChange(current.rejectionRate, previous.rejectionRate),
+        rejectionRateChange: calcRateChange(current.rejectionRate, previous.rejectionRate, hasBaseline),
         noResponseRate: current.noResponseRate,
-        noResponseChange: calcChange(current.noResponseRate, previous.noResponseRate),
+        noResponseChange: calcRateChange(current.noResponseRate, previous.noResponseRate, hasBaseline),
         avgProcessingTime: current.avgProcessingTime,
         avgProcessingTimeChange: calcChange(current.avgProcessingTime, previous.avgProcessingTime),
     };
@@ -179,7 +186,7 @@ export function calculateKPIs(currentOrders: Order[], previousOrders: Order[] = 
 // CONTACT ATTEMPT ANALYSIS
 // ============================================
 
-export function calculateContactAttempts(orders: Order[]): ContactAttemptMetrics[] {
+export function calculateContactAttempts(orders: ReportOrder[]): ContactAttemptMetrics[] {
     const buckets: Record<number, { count: number; confirmed: number }> = {
         0: { count: 0, confirmed: 0 },
         1: { count: 0, confirmed: 0 },
@@ -211,7 +218,7 @@ export function calculateContactAttempts(orders: Order[]): ContactAttemptMetrics
 // CITY PERFORMANCE ANALYSIS
 // ============================================
 
-export function calculateCityPerformance(orders: Order[]): CityPerformanceMetrics[] {
+export function calculateCityPerformance(orders: ReportOrder[]): CityPerformanceMetrics[] {
     const cityData: Record<string, {
         total: number;
         delivered: number;
@@ -278,7 +285,7 @@ export function calculateCityPerformance(orders: Order[]): CityPerformanceMetric
 // REJECTION REASON ANALYSIS
 // ============================================
 
-export function calculateRejectionReasons(orders: Order[]): RejectionReasonMetrics[] {
+export function calculateRejectionReasons(orders: ReportOrder[]): RejectionReasonMetrics[] {
     const rejectedOrders = orders.filter(o => o.status === 'rejected');
     const reasonCounts: Record<string, { count: number; cities: Record<string, number> }> = {};
 
@@ -313,7 +320,7 @@ export function calculateRejectionReasons(orders: Order[]): RejectionReasonMetri
 // TIME-BASED ANALYSIS
 // ============================================
 
-export function calculateTimeAnalysis(orders: Order[]): TimeAnalysisMetrics {
+export function calculateTimeAnalysis(orders: ReportOrder[]): TimeAnalysisMetrics {
     // Hourly distribution
     const hourlyData: Record<number, number> = {};
     for (let i = 0; i < 24; i++) hourlyData[i] = 0;
@@ -335,8 +342,10 @@ export function calculateTimeAnalysis(orders: Order[]): TimeAnalysisMetrics {
 
     orders.forEach(order => {
         const createdDate = new Date(order.created_at);
-        hourlyData[createdDate.getHours()]++;
-        dailyData[createdDate.getDay()]++;
+        // Baghdad clock, like the dashboard and the server: the viewer's device zone must not move an order
+        // into another hour or day.
+        hourlyData[baghdadHour(createdDate)]++;
+        dailyData[baghdadDayOfWeek(createdDate)]++;
 
         // Processing time for delivered orders
         if (order.delivered_at) {
@@ -373,7 +382,7 @@ export function calculateTimeAnalysis(orders: Order[]): TimeAnalysisMetrics {
 // ATTENTION FLAGS ANALYSIS
 // ============================================
 
-export function calculateAttentionFlags(orders: Order[]): AttentionFlagMetrics[] {
+export function calculateAttentionFlags(orders: ReportOrder[]): AttentionFlagMetrics[] {
     let missingPhone = 0;
     let missingProduct = 0;
     let invalidAddress = 0;
@@ -392,11 +401,11 @@ export function calculateAttentionFlags(orders: Order[]): AttentionFlagMetrics[]
     });
 
     return [
-        { flagType: 'missing_phone', label: 'Missing Phone', count: missingPhone, severity: 'high' as const, icon: '📱' },
-        { flagType: 'missing_product', label: 'Missing Product', count: missingProduct, severity: 'high' as const, icon: '📦' },
-        { flagType: 'invalid_address', label: 'Invalid Address', count: invalidAddress, severity: 'medium' as const, icon: '📍' },
-        { flagType: 'needs_review', label: 'Needs Review', count: needsReview, severity: 'low' as const, icon: '👁️' },
-        { flagType: 'price_issues', label: 'Price Issues', count: priceIssues, severity: 'medium' as const, icon: '💰' },
+        { flagType: 'missing_phone', label: 'Missing Phone', count: missingPhone, severity: 'high' as const },
+        { flagType: 'missing_product', label: 'Missing Product', count: missingProduct, severity: 'high' as const },
+        { flagType: 'invalid_address', label: 'Invalid Address', count: invalidAddress, severity: 'medium' as const },
+        { flagType: 'needs_review', label: 'Needs Review', count: needsReview, severity: 'low' as const },
+        { flagType: 'price_issues', label: 'Price Issues', count: priceIssues, severity: 'medium' as const },
     ].filter(flag => flag.count > 0);
 }
 
@@ -424,15 +433,15 @@ export interface ReturnAnalyticsMetrics {
 }
 
 /**
- * Calculate comprehensive return/refund analytics
+ * Return/refund analytics for one range: `returnOrders` are the range's return orders, `salesOrders` its sales orders.
  */
-export function calculateReturnAnalytics(orders: Order[]): ReturnAnalyticsMetrics {
-    // Get all return orders (is_return = true)
-    const returnOrders = orders.filter(o => o.is_return === true);
-
-    // Get delivered/completed orders for return rate calculation
-    const deliveredOrders = orders.filter(o =>
-        (o.status === 'delivered' || o.status === 'completed') && !o.is_return
+export function calculateReturnAnalytics(
+    returnOrders: ReportOrder[],
+    salesOrders: ReportOrder[]
+): ReturnAnalyticsMetrics {
+    // Delivered/completed sales orders of the same range, for the return rate
+    const deliveredOrders = salesOrders.filter(o =>
+        o.status === 'delivered' || o.status === 'completed'
     );
 
     const totalReturns = returnOrders.length;

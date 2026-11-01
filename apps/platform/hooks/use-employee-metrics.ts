@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
+import { CACHE_PRESETS } from "@/lib/query-config";
+import { fetchAllPages } from "@/lib/analytics/dashboard-order-facts";
 import { DateRange } from "@/hooks/use-reports-metrics";
 
 /**
@@ -50,57 +54,62 @@ interface UserProfileRow {
     last_login_at: string | null;
 }
 
+/** Rows per `.in()` request: keeps the URL well under the gateway limit. */
+const ID_CHUNK = 200;
+
 export function useEmployeeMetrics(dateRange: DateRange): UseEmployeeMetricsResult {
-    const [rawData, setRawData] = useState<ActivityLogRow[]>([]);
-    const [profiles, setProfiles] = useState<Map<string, UserProfileRow>>(new Map());
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { session, clientReady, tenantId } = useAuth();
+    const from = dateRange.from.toISOString();
+    const to = dateRange.to.toISOString();
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
+    const query = useQuery({
+        queryKey: ["reports", "employee-activity", tenantId, from, to],
+        queryFn: async () => {
+            if (!tenantId) throw new Error("employee metrics requested without a tenant");
+            // Every page: a response is capped at 1,000 rows, and a busy month has far more
+            // actions — stopping at the first page silently under-counts every employee.
+            const logs = await fetchAllPages<ActivityLogRow>(async (start, end) => {
+                const { data, error } = await supabase
+                    .from("activity_logs")
+                    .select("user_id, user_email, action, created_at, details")
+                    .eq("tenant_id", tenantId)
+                    .gte("created_at", from)
+                    .lte("created_at", to)
+                    .not("user_id", "is", null)
+                    .order("created_at", { ascending: false })
+                    .order("id", { ascending: false })
+                    .range(start, end);
+                if (error) throw new Error(error.message);
+                return (data ?? []) as ActivityLogRow[];
+            });
 
-        try {
-            // Fetch activity logs for the date range
-            const { data: logs, error: logsError } = await supabase
-                .from("activity_logs")
-                .select("user_id, user_email, action, created_at, details")
-                .gte("created_at", dateRange.from.toISOString())
-                .lte("created_at", dateRange.to.toISOString())
-                .not("user_id", "is", null)
-                .order("created_at", { ascending: false });
-
-            if (logsError) {
-                throw new Error(logsError.message);
-            }
-
-            setRawData(logs || []);
-
-            // Get unique user IDs
-            const userIds = [...new Set((logs || []).map(l => l.user_id))];
-
-            if (userIds.length > 0) {
-                // Fetch user profiles
-                const { data: profileData } = await supabase
+            const userIds = [...new Set(logs.map(l => l.user_id))];
+            const profiles: UserProfileRow[] = [];
+            for (let i = 0; i < userIds.length; i += ID_CHUNK) {
+                const { data, error } = await supabase
                     .from("user_profiles")
                     .select("id, display_name, avatar_url, last_login_at")
-                    .in("id", userIds);
-
-                const profileMap = new Map<string, UserProfileRow>();
-                (profileData || []).forEach(p => profileMap.set(p.id, p));
-                setProfiles(profileMap);
+                    .in("id", userIds.slice(i, i + ID_CHUNK));
+                if (error) throw new Error(error.message);
+                profiles.push(...(data ?? []));
             }
+            return { logs, profiles };
+        },
+        enabled: !!session && clientReady && !!tenantId,
+        staleTime: CACHE_PRESETS.FREQUENT.staleTime,
+        gcTime: CACHE_PRESETS.FREQUENT.gcTime,
+        retry: 2,
+    });
 
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to fetch employee metrics");
-        } finally {
-            setLoading(false);
-        }
-    }, [dateRange.from, dateRange.to]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    const rawData = useMemo(() => query.data?.logs ?? [], [query.data]);
+    const profiles = useMemo(
+        () => new Map((query.data?.profiles ?? []).map(p => [p.id, p])),
+        [query.data]
+    );
+    const loading = query.isPending;
+    const error = query.error ? query.error.message : null;
+    const { refetch } = query;
+    const refresh = useCallback(async () => { await refetch(); }, [refetch]);
 
     // Process raw data into employee metrics
     const employees = useMemo(() => {
@@ -218,7 +227,7 @@ export function useEmployeeMetrics(dateRange: DateRange): UseEmployeeMetricsResu
         employees,
         loading,
         error,
-        refresh: fetchData,
+        refresh,
         totalActions,
         topPerformer,
     };
