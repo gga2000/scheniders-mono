@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 /**
  * The trust-score factors as bars, the one drawing the profile's Trust factors
  * card and the score-breakdown modal share. A customer without a shown score
- * (showsTrustScore) gets greyed bars, "—" for every value and the line that
- * says when a score appears, never points that add up to a hidden number.
+ * (showsTrustScore) gets empty tracks, "—" for every value and the line that
+ * says when a score appears, never points that add up to a hidden number (a
+ * full grey bar would read as a full score).
  */
 export function ScoreFactorBars({ factors, rated }: {
     /** From buildScoreBreakdown: zero factors dropped, the gap to the stored score closed. */
@@ -33,9 +34,9 @@ export function ScoreFactorBars({ factors, rated }: {
                         <div className="flex-1 h-2 bg-muted/40 rounded-full overflow-hidden">
                             <motion.div
                                 initial={{ width: 0 }}
-                                animate={{ width: `${(Math.abs(factor.value) / maxAbs) * 100}%` }}
+                                animate={{ width: rated ? `${(Math.abs(factor.value) / maxAbs) * 100}%` : "0%" }}
                                 transition={{ delay: i * 0.05, duration: 0.4 }}
-                                className={cn("h-full rounded-full", rated ? tone.bar : "bg-muted-foreground/25")}
+                                className={cn("h-full rounded-full", tone.bar)}
                             />
                         </div>
                         {/* No points without a shown score: the hero shows none either. */}

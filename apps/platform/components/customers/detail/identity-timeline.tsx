@@ -52,7 +52,6 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
     const { data, isLoading } = useIdentityTimeline(phone);
     const [expanded, setExpanded] = useState(false);
     const shown = data ? (expanded ? data : data.slice(0, VISIBLE_EVENTS)) : [];
-    const rows = Math.max(1, Math.ceil(shown.length / 2));
 
     // Nothing recorded: one line, not a full empty card.
     if (!isLoading && (!data || data.length === 0)) {
@@ -74,11 +73,13 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
             className="bg-(--card-bg) rounded-2xl p-6 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
         >
             {/* Header */}
-            <div className="flex items-center gap-2.5 mb-6">
-                <Clock className="w-5 h-5 text-amber-500 shrink-0" />
+            <div className="flex items-baseline gap-2.5 mb-6">
+                <Clock className="w-5 h-5 text-amber-500 shrink-0 self-center" />
                 <h3 className="font-headline font-extrabold text-lg leading-none">
                     {t("customers.identity.title")}
                 </h3>
+                {/* Two columns read across, row by row: the caption names the order so a row is never read as a pair. */}
+                {!isLoading && <span className="text-xs text-muted-foreground">{t("customers.identity.order")}</span>}
             </div>
 
             {/* Body */}
@@ -96,25 +97,20 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                 </div>
             ) : (data && (
                 <>
-                    {/* Two columns, read down the first and then the second (newest first). Each entry
-                        draws the line down to the next one in its column, so the line ends at the last. */}
-                    <ul
-                        className="grid grid-cols-2 grid-flow-col gap-x-8 gap-y-5"
-                        style={{ gridTemplateRows: `repeat(${rows}, auto)` }}
-                    >
+                    {/* Two columns in reading order, row by row. No connector line: across two
+                        columns it would no longer read as one line. */}
+                    <ol className="grid grid-cols-2 gap-x-8 gap-y-5">
                         {shown.map((event, i) => {
                             const Icon = getIcon(event.type);
-                            const lastInColumn = i === rows - 1 || i === shown.length - 1;
                             return (
                                 <motion.li
                                     key={`${event.type}-${event.value}-${event.created_at}`}
                                     initial={{ opacity: 0, x: -8 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.35, ease: "easeOut", delay: i * 0.08 }}
-                                    className="relative flex items-start gap-4 min-w-0"
+                                    className="flex items-start gap-4 min-w-0"
                                 >
-                                    {!lastInColumn && <span className="absolute left-5 top-10 -bottom-5 w-px bg-muted/40" aria-hidden />}
-                                    <div className="relative z-10 w-10 h-10 rounded-full bg-background border border-(--card-border) flex items-center justify-center shrink-0 shadow-sm">
+                                    <div className="w-10 h-10 rounded-full bg-background border border-(--card-border) flex items-center justify-center shrink-0 shadow-sm">
                                         <Icon className={`w-4 h-4 ${getIconColor(event.type)}`} />
                                     </div>
                                     <div className="flex-1 min-w-0 pt-2">
@@ -128,7 +124,7 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                                 </motion.li>
                             );
                         })}
-                    </ul>
+                    </ol>
                     {data.length > VISIBLE_EVENTS && (
                         <button
                             onClick={() => setExpanded((v) => !v)}

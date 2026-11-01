@@ -25,8 +25,14 @@ const ACTIVITY_ROWS = [
  * explain. The rules mirror value_tier_calc, risk_level_calc and
  * calculate_customer_trust (lib/customer-reliability.ts).
  */
-export function CustomerRatingHelp({ className, side = "bottom", align = "start", keepSide = false, showLabel = false, anchor }: {
+export function CustomerRatingHelp({ className, side = "bottom", align = "start", keepSide = false, layout = "stacked", showLabel = false, anchor }: {
     className?: string;
+    /**
+     * "stacked" is one 380px column (the list header, the drawer). "wide" is two columns,
+     * about half as tall: the profile opens it under its banner, where a short laptop
+     * screen leaves too little height for the stacked one.
+     */
+    layout?: "stacked" | "wide";
     /** "left" beside the drawer's band, "bottom" under the profile banner, so the popover never sits over the score. */
     side?: "top" | "right" | "bottom" | "left";
     align?: "start" | "center" | "end";
@@ -47,6 +53,50 @@ export function CustomerRatingHelp({ className, side = "bottom", align = "start"
 }) {
     const { t } = useLanguage();
     const label = t("customers.help.trigger");
+    const wide = layout === "wide";
+
+    // The two rated axes, each rule beside the pill it explains.
+    const ratings = (
+        <>
+            <Section title={t("customers.help.value.title")}>
+                {VALUE_ROWS.map((tier) => (
+                    <Row key={tier} marker={<ValuePill tier={tier} variant="compact" className="py-0.5" />}>
+                        {t(`customers.help.value.${tier}`)}
+                    </Row>
+                ))}
+                <p dir="auto" className="text-xs text-muted-foreground pt-0.5">{t("customers.help.value.unsafe")}</p>
+            </Section>
+
+            <Section title={t("customers.help.risk.title")}>
+                {RISK_ROWS.map((risk) => (
+                    <Row key={risk} marker={<RiskChip risk={risk} showClean className="py-0.5" />}>
+                        {t(`customers.help.risk.${risk}`)}
+                    </Row>
+                ))}
+            </Section>
+        </>
+    );
+
+    // The numbers beside them: the trust score, the last-order dot and the delivery rate.
+    const numbers = (
+        <>
+            <Section title={t("customers.help.score.title")}>
+                <p dir="auto">{t("customers.help.score.body")}</p>
+                <p dir="auto" className="text-xs text-muted-foreground">{t("customers.help.score.shown")}</p>
+            </Section>
+
+            <Section title={t("customers.help.activity.title")}>
+                {ACTIVITY_ROWS.map((row) => (
+                    <p key={row.key} className="flex items-center gap-2.5">
+                        <span className={cn("w-2 h-2 rounded-full shrink-0", row.dot)} aria-hidden />
+                        <span dir="auto">{t(`customers.help.activity.${row.key}`)}</span>
+                    </p>
+                ))}
+            </Section>
+
+            <p dir="auto" className="pt-2.5 border-t border-(--card-border) text-muted-foreground">{t("customers.help.delivery")}</p>
+        </>
+    );
 
     const trigger = (
         <PopoverTrigger
@@ -75,43 +125,21 @@ export function CustomerRatingHelp({ className, side = "bottom", align = "start"
                 onClick={(e) => e.stopPropagation()}
                 // Never taller than the room the viewport leaves: on a 13" laptop the rest scrolls
                 // inside the popover instead of its title running off the screen.
-                className="w-[380px] max-w-[calc(100vw-2rem)] max-h-[min(40rem,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain p-0 rounded-2xl border-(--card-border) bg-(--card-bg) text-foreground shadow-xl z-[60]"
+                className={cn(wide ? "w-[880px]" : "w-[380px]", "max-w-[calc(100vw-2rem)] max-h-[min(40rem,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain p-0 rounded-2xl border-(--card-border) bg-(--card-bg) text-foreground shadow-xl z-[60]")}
             >
                 <p className="sticky top-0 z-10 px-4 pt-3.5 pb-2.5 text-sm font-bold border-b border-(--card-border) bg-(--card-bg)">{label}</p>
-                <div className="px-4 py-3 space-y-3 text-[13px] leading-snug">
-                    <Section title={t("customers.help.value.title")}>
-                        {VALUE_ROWS.map((tier) => (
-                            <Row key={tier} marker={<ValuePill tier={tier} variant="compact" className="py-0.5" />}>
-                                {t(`customers.help.value.${tier}`)}
-                            </Row>
-                        ))}
-                        <p dir="auto" className="text-xs text-muted-foreground pt-0.5">{t("customers.help.value.unsafe")}</p>
-                    </Section>
-
-                    <Section title={t("customers.help.risk.title")}>
-                        {RISK_ROWS.map((risk) => (
-                            <Row key={risk} marker={<RiskChip risk={risk} showClean className="py-0.5" />}>
-                                {t(`customers.help.risk.${risk}`)}
-                            </Row>
-                        ))}
-                    </Section>
-
-                    <Section title={t("customers.help.score.title")}>
-                        <p dir="auto">{t("customers.help.score.body")}</p>
-                        <p dir="auto" className="text-xs text-muted-foreground">{t("customers.help.score.shown")}</p>
-                    </Section>
-
-                    <Section title={t("customers.help.activity.title")}>
-                        {ACTIVITY_ROWS.map((row) => (
-                            <p key={row.key} className="flex items-center gap-2.5">
-                                <span className={cn("w-2 h-2 rounded-full shrink-0", row.dot)} aria-hidden />
-                                <span dir="auto">{t(`customers.help.activity.${row.key}`)}</span>
-                            </p>
-                        ))}
-                    </Section>
-
-                    <p dir="auto" className="pt-2.5 border-t border-(--card-border) text-muted-foreground">{t("customers.help.delivery")}</p>
-                </div>
+                {wide ? (
+                    // Two columns: the ratings with pills on the left, the score, dot and rate on the right.
+                    <div className="px-4 py-3 grid grid-cols-[1.2fr_1fr] gap-x-7 text-[13px] leading-snug">
+                        <div className="space-y-3">{ratings}</div>
+                        <div className="space-y-3">{numbers}</div>
+                    </div>
+                ) : (
+                    <div className="px-4 py-3 space-y-3 text-[13px] leading-snug">
+                        {ratings}
+                        {numbers}
+                    </div>
+                )}
             </PopoverContent>
         </Popover>
     );

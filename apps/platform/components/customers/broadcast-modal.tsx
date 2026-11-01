@@ -165,14 +165,23 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
                                         {t("customers.broadcast.copyNumbers")}
                                     </button>
                                 ) : <span />}
-                                <button
-                                    onClick={() => setStep("send")}
-                                    disabled={!message.trim() || sendable.length === 0}
-                                    className="min-h-11 px-5 inline-flex items-center gap-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
-                                >
-                                    <Send className="w-4 h-4" />
-                                    {t("customers.broadcast.next")}
-                                </button>
+                                {/* Cancel beside Next, like every other customers dialog. */}
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={close}
+                                        className="min-h-11 px-4 rounded-xl border border-(--card-border) text-sm font-semibold text-foreground hover:bg-muted/30 transition-colors"
+                                    >
+                                        {t("common.cancel")}
+                                    </button>
+                                    <button
+                                        onClick={() => setStep("send")}
+                                        disabled={!message.trim() || sendable.length === 0}
+                                        className="min-h-11 px-5 inline-flex items-center gap-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                        <Send className="w-4 h-4" />
+                                        {t("customers.broadcast.next")}
+                                    </button>
+                                </div>
                             </>
                         ) : (
                             <>

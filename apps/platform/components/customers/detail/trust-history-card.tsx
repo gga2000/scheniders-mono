@@ -6,12 +6,13 @@ import { BarChart3, Layers } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import {
-    buildScoreBreakdown, daysAgoLabel, daysSince, monthlyScoreSeries, type MonthlyScore, type ScoreFactor,
+    buildScoreBreakdown, monthlyScoreSeries, type MonthlyScore, type ScoreFactor,
 } from "@/lib/customer-reliability";
 import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
 import { ScoreTotalRow } from "@/components/customers/detail/score-total-row";
 import { formatMonthShort } from "@/lib/customer-format";
 import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
+import { TrustEventDate } from "@/components/customers/detail/trust-event-date";
 import { cn } from "@/lib/utils";
 
 interface TrustHistoryCardProps {
@@ -54,6 +55,19 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
         : hasHistory ? "history" : "factors";
 
     const series = useMemo(() => monthlyScoreSeries(data, period), [data, period]);
+
+    // Not scored yet and nothing has happened: one line, like the Ratings strip, never a
+    // card of empty bars (an unscored bar drawn full width reads as a full score).
+    if (!blocked && !scored && !hasHistory && recentEvents.length === 0) {
+        return (
+            <div className="bg-(--card-bg) rounded-2xl border border-(--card-border) px-5 h-14 flex items-center gap-2.5">
+                <Layers className="w-4 h-4 text-foreground shrink-0" />
+                <span className="font-semibold text-sm text-foreground whitespace-nowrap">{t("customers.trust.factors")}</span>
+                <span className="text-sm text-muted-foreground" aria-hidden>·</span>
+                <span className="text-sm text-muted-foreground truncate">{t("customers.trust.scoredFromThirdOrder")}</span>
+            </div>
+        );
+    }
 
     const toggleCls = (active: boolean, enabled: boolean) => cn(
         "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors",
@@ -280,7 +294,6 @@ function FactorsView({ breakdown, rated, raw, score, recentEvents, blocked, t }:
                     <ul className="space-y-2">
                         {recentEvents.slice(0, 5).map((evt) => {
                             const sign = Math.sign(evt.score_change);
-                            const days = daysSince(evt.event_date);
                             return (
                                 <li key={evt.id} className="flex items-start gap-2.5">
                                     <TrustEventIcon eventType={evt.event_type} />
@@ -288,9 +301,7 @@ function FactorsView({ breakdown, rated, raw, score, recentEvents, blocked, t }:
                                         <p className="text-xs font-medium text-foreground truncate">
                                             {t(`customers.trust.event.${evt.event_type}`)}
                                         </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {days === null ? "—" : daysAgoLabel(days, t)}
-                                        </p>
+                                        <TrustEventDate date={evt.event_date} className="block text-xs text-muted-foreground" />
                                     </div>
                                     {/* A blocked customer's points are not shown anywhere. */}
                                     {evt.score_change !== 0 && !blocked && (

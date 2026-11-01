@@ -1,7 +1,6 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
-import { formatBaghdadDate } from "@/lib/customer-format";
 import { buildScoreBreakdown } from "@/lib/customer-reliability";
 import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
 import { ScoreTotalRow } from "@/components/customers/detail/score-total-row";
@@ -9,6 +8,7 @@ import { useCustomerStore } from "@/store/use-customer-store";
 import { useTrustScoreBreakdown, useTrustAuditLog } from "@/hooks/use-customer-trust";
 import { ModalShell } from "./modal-shell";
 import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
+import { TrustEventDate } from "@/components/customers/detail/trust-event-date";
 import { cn } from "@/lib/utils";
 
 /**
@@ -26,7 +26,7 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
     /** From showsTrustScore, the hero's and the Trust factors card's rule for showing a number. */
     scored: boolean;
 }) {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const { isScoreBreakdownModalOpen, setScoreBreakdownModalOpen, scoreBreakdownPhone } = useCustomerStore();
     const { data: breakdown, isLoading } = useTrustScoreBreakdown(scoreBreakdownPhone || undefined);
     const { data: auditData } = useTrustAuditLog(scoreBreakdownPhone || undefined);
@@ -90,9 +90,8 @@ export function ScoreBreakdownModal({ score: storedScore, blocked, scored }: {
                                     <span className="text-foreground flex-1 truncate">
                                         {t(`customers.trust.event.${event.event_type}`)}
                                     </span>
-                                    <span className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap">
-                                        <bdi>{formatBaghdadDate(event.event_date, language)}</bdi>
-                                    </span>
+                                    {/* Written as on the Trust factors card: relative, the calendar day on hover. */}
+                                    <TrustEventDate date={event.event_date} className="text-xs text-muted-foreground shrink-0 tabular-nums whitespace-nowrap" />
                                     {/* A blocked customer's points are not shown, here or on the hero. */}
                                     {!blocked && (
                                         <span className={cn(
