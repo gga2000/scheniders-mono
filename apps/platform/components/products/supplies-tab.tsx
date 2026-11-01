@@ -1,4 +1,5 @@
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useSupplierLinks } from "@/hooks/use-supplier-links";
 import { useQueryClient } from "@tanstack/react-query";
 import { productKeys } from "@/hooks/use-products-query";
 import { productRepository } from "@/lib/repositories/product-repository";
@@ -122,9 +123,15 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         } catch {}
     };
 
+    const { data: supplierLinks, isError: supplierLinksFailed } = useSupplierLinks();
+    // Until the links are in, every supply would read as "no supplier" with default lead time.
+    const supplierLinksReady = supplierLinks !== undefined && !supplierLinksFailed;
     const supplies = useMemo(
-        () => products.filter((p) => p.is_supply && !p.is_archived),
-        [products]
+        () =>
+            products
+                .filter((p) => p.is_supply && !p.is_archived)
+                .map((p) => ({ ...p, suppliers: supplierLinks?.get(p.id) ?? [] })),
+        [products, supplierLinks]
     );
 
     const supplyIds = useMemo(() => supplies.map((s) => s.id), [supplies]);
@@ -688,6 +695,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                 onClose={() => setReorderOpen(false)}
                 supplies={supplies}
                 openPoBySupply={openPoBySupply}
+                supplierLinksReady={supplierLinksReady}
                 snoozedIds={snoozedIds}
                 onSnooze={handleSnooze}
                 onUnsnooze={handleUnsnooze}

@@ -43,15 +43,15 @@ export interface CustomerTagAssignment {
 }
 
 // Tag color mappings for UI
-export const tagColorClasses: Record<TagColor, { bg: string; text: string }> = {
-    yellow: { bg: 'bg-amber-100 dark:bg-amber-500/15', text: 'text-amber-800 dark:text-amber-200' },
-    green: { bg: 'bg-green-100 dark:bg-green-500/15', text: 'text-green-800 dark:text-green-200' },
-    blue: { bg: 'bg-blue-100 dark:bg-blue-500/15', text: 'text-blue-800 dark:text-blue-200' },
-    pink: { bg: 'bg-pink-100 dark:bg-pink-500/15', text: 'text-pink-800 dark:text-pink-200' },
-    purple: { bg: 'bg-purple-100 dark:bg-purple-500/15', text: 'text-purple-800 dark:text-purple-200' },
-    orange: { bg: 'bg-orange-100 dark:bg-orange-500/15', text: 'text-orange-800 dark:text-orange-200' },
-    red: { bg: 'bg-red-100 dark:bg-red-500/15', text: 'text-red-800 dark:text-red-200' },
-    gray: { bg: 'bg-gray-100 dark:bg-white/10', text: 'text-gray-800 dark:text-gray-200' },
+export const tagColorClasses: Record<TagColor, { text: string; border: string }> = {
+    yellow: { text: 'text-amber-800 dark:text-amber-200', border: 'border-amber-300 dark:border-amber-400/40' },
+    green: { text: 'text-green-800 dark:text-green-200', border: 'border-green-300 dark:border-green-400/40' },
+    blue: { text: 'text-blue-800 dark:text-blue-200', border: 'border-blue-300 dark:border-blue-400/40' },
+    pink: { text: 'text-pink-800 dark:text-pink-200', border: 'border-pink-300 dark:border-pink-400/40' },
+    purple: { text: 'text-purple-800 dark:text-purple-200', border: 'border-purple-300 dark:border-purple-400/40' },
+    orange: { text: 'text-orange-800 dark:text-orange-200', border: 'border-orange-300 dark:border-orange-400/40' },
+    red: { text: 'text-red-800 dark:text-red-200', border: 'border-red-300 dark:border-red-400/40' },
+    gray: { text: 'text-gray-800 dark:text-gray-200', border: 'border-gray-300 dark:border-white/25' },
 };
 
 // Aggregate customer entity (computed from orders)

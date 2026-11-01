@@ -30,6 +30,7 @@ import { ValueIcon, RiskIcon, WHATSAPP_TONE } from "@/components/customers/relia
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
 import { CustomerBlockAction } from "@/components/customers/customer-block-action";
+import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
 import { monogram, formatPhoneDisplay, formatBaghdadDate, formatBaghdadMonthYear, toIraqE164 } from "@/lib/customer-format";
 import { fetchBlacklistEntry } from "@/lib/blacklist";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
@@ -188,10 +189,11 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
         <div className="rounded-2xl border border-(--card-border) overflow-hidden bg-(--card-bg)">
             {/* Header */}
             <button onClick={() => setOpen((v) => !v)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-background transition-colors text-left">
-                <span className="text-xs text-muted-foreground min-w-24 shrink-0 tabular-nums whitespace-nowrap">{fmtDate(locale, order.created_at)}</span>
+                {/* dir="auto": an Arabic date ("22 آب 2026") lays out as one right-to-left run, day first, inside the LTR row. */}
+                <span dir="auto" className="text-xs text-muted-foreground min-w-24 shrink-0 tabular-nums whitespace-nowrap text-left">{fmtDate(locale, order.created_at)}</span>
                 <span className={cn("text-xs font-bold px-2.5 py-1 rounded-full shrink-0", pillCls)}>{customerOrderStatusLabel(order.status, !!order.is_return, locale)}</span>
                 {order.order_id && <span className="font-mono text-xs text-muted-foreground/70 hidden sm:inline">#{order.order_id}</span>}
-                <span className="text-xs text-muted-foreground ml-auto shrink-0">{itemCount} {t(itemCount === 1 ? "customers.dialog.item" : "customers.dialog.items", itemCount === 1 ? "item" : "items")}</span>
+                <span dir="auto" className="text-xs text-muted-foreground ml-auto shrink-0 whitespace-nowrap">{itemCount} {t(itemCount === 1 ? "customers.dialog.item" : "customers.dialog.items", itemCount === 1 ? "item" : "items")}</span>
                 <span className="font-mono font-bold text-sm shrink-0 tabular-nums">{formatIQD(receipt.total)}</span>
                 <ChevronDown className={cn("w-4 h-4 text-muted-foreground shrink-0 transition-transform", open && "rotate-180")} />
             </button>
@@ -223,7 +225,8 @@ function OrderCard({ order, defaultOpen, t, locale }: { order: DialogOrder; defa
                             {/* Money breakdown */}
                             <div className="mt-3 pt-3 border-t border-(--card-border) space-y-1.5 text-sm">
                                 <div className="flex items-center justify-between text-muted-foreground"><span>{t("customers.dialog.subtotal", "Subtotal")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(receipt.subtotal)}</span></div>
-                                {receipt.discount > 0 && <div className="flex items-center justify-between text-rose-600 dark:text-rose-300"><span>{t("customers.dialog.discount", "Discount")}</span><span className="font-mono tabular-nums">−{formatIQD(receipt.discount)}</span></div>}
+                                {/* A discount is money given, not an error: muted like Subtotal, never rose. */}
+                                {receipt.discount > 0 && <div className="flex items-center justify-between text-muted-foreground"><span>{t("customers.dialog.discount", "Discount")}</span><span className="font-mono tabular-nums text-foreground">−{formatIQD(receipt.discount)}</span></div>}
                                 {receipt.delivery > 0 && <div className="flex items-center justify-between text-muted-foreground"><span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5" />{t("customers.dialog.delivery", "Delivery")}</span><span className="font-mono tabular-nums text-foreground">{formatIQD(receipt.delivery)}</span></div>}
                                 <div className="flex items-center justify-between pt-1.5 border-t border-(--card-border) font-bold"><span>{t("customers.dialog.total", "Total")}</span><span className="font-mono tabular-nums">{formatIQD(receipt.total)}</span></div>
                                 {/* A refund order moves cash the other way; a prepaid order is worth its total, but the courier collects nothing. */}
@@ -393,7 +396,8 @@ function Body({
         { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders"), span: "col-span-2" },
         { v: completed.toLocaleString("en-US"), k: t("customers.stat.delivered"), span: "col-span-2" },
         { v: pending ? "—" : `${successRate}%`, k: pending ? t("customers.card.firstDeliveryPending") : t("customers.table.success", "Delivery rate"), span: "col-span-2" },
-        { v: pending && spent === 0 ? "—" : formatIQD(spent), k: t("customers.drawer.lifetime"), span: "col-span-3" },
+        // Spend counts delivered orders only, so an order still on the road adds nothing yet: IQD 0, labelled as such.
+        { v: formatIQD(spent), k: t("customers.drawer.lifetime"), span: "col-span-3" },
         { v: avgBasket === null ? "—" : formatIQD(avgBasket), k: t("customers.drawer.avgBasket"), span: "col-span-3" },
     ];
 
@@ -445,7 +449,17 @@ function Body({
                                 )}
                             </div>
                         </div>
-                        {rated && <div className={cn("font-mono text-3xl font-semibold tabular-nums shrink-0", accent.surfaceText)}>{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>}
+                        {/* The score is named, as on the profile; the ⓘ explains it with the value and risk above. */}
+                        <div className={cn("flex flex-col items-end shrink-0", accent.surfaceText)}>
+                            <div className="flex items-center gap-0.5 -me-1.5">
+                                {/* A blocked customer has no score: "Do not ship" is the whole instruction. */}
+                                {!blocked && <span className="text-xs font-medium opacity-75">{t("customers.trust.score")}</span>}
+                                <CustomerRatingHelp align="end" className="text-current opacity-75 hover:opacity-100 hover:text-current" />
+                            </div>
+                            {!blocked && (rated
+                                ? <div className="font-mono text-3xl font-semibold tabular-nums leading-none">{displayScore(customer.trust_score)}<span className="text-sm opacity-60">/100</span></div>
+                                : <div className="text-sm font-semibold opacity-75">{t("customers.trust.notScored")}</div>)}
+                        </div>
                     </div>
                     {flagged && <CustomerStatusFlags customer={customer} max={4} className="mt-3 ps-12" />}
                 </div>
@@ -536,7 +550,7 @@ function Body({
                                         <div key={i} className="flex items-start gap-2.5">
                                             <span className={cn("w-6 h-6 rounded-lg flex items-center justify-center shrink-0", im.cls)}><Icon className="w-3.5 h-3.5" /></span>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-xs text-muted-foreground">{t(`customers.dialog.field.${ev.type}`, im.label)} · {fmtDate(locale, ev.at)}</div>
+                                                <div className="text-xs text-muted-foreground">{t(`customers.dialog.field.${ev.type}`, im.label)} · <bdi>{fmtDate(locale, ev.at)}</bdi></div>
                                                 <div dir="auto" className="text-[13px] truncate text-left">{ev.type === "phone" ? formatPhoneDisplay(ev.value) : ev.value}</div>
                                             </div>
                                         </div>

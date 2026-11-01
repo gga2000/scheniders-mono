@@ -12,7 +12,7 @@ function rng(seed: number) {
 const CITIES: [string, string][] = [
     ["Baghdad", "BG"], ["Basra", "BA"], ["Erbil", "AR"], ["Najaf", "NA"], ["Mosul", "NI"], ["Kirkuk", "TS"], ["Karbala", "KA"],
 ];
-const REASONS = ["Customer refused", "Wrong address", "Price objection", "Not reachable"];
+const REASONS = ["Customer refused", "Wrong address", "Price objection", "Not reachable", "Changed mind", "Found cheaper", "Late delivery", "Fake order"];
 const STATUSES = ["new", "contacted", "confirmed", "no_response", "cancelled", "in_transit", "delivered", "delivered", "delivered", "completed", "rejected"];
 const SOURCES = ["lightfunnels", "whatsapp", "manual", "meta"];
 

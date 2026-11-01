@@ -71,7 +71,7 @@ export function DossierNotesCard({ notes, onAddNote }: DossierNotesCardProps) {
                             className="group/note bg-muted/30 px-4 py-3 rounded-xl relative"
                         >
                             <div className="flex items-start justify-between gap-3 mb-2">
-                                <p className="text-xs text-muted-foreground tabular-nums">{formatBaghdadDate(entry.created_at, language)}</p>
+                                <p className="text-xs text-muted-foreground tabular-nums"><bdi>{formatBaghdadDate(entry.created_at, language)}</bdi></p>
                                 {canDelete(entry) && <button
                                     onClick={() => onDelete(entry.id)}
                                     disabled={deleteNote.isPending}

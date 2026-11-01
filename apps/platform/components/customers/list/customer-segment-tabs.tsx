@@ -4,6 +4,7 @@ import { Ban, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { FIRST_DELIVERY_DOT, type ValueTier, type RiskLevel } from "@/lib/customer-reliability";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { useCustomerDashboardStats } from "@/hooks/use-paginated-customers";
 
 type Stats = NonNullable<ReturnType<typeof useCustomerDashboardStats>["data"]>;
@@ -98,31 +99,39 @@ export function CustomerSegmentTabs({
 
     return (
         <nav aria-label={t("customers.title")} className="flex items-center gap-1 flex-wrap">
-            {SEGMENTS.map((seg) => {
+            {SEGMENTS.map((seg, index) => {
                 const isActive = active === seg.id;
                 const count = seg.count(stats);
                 // An empty actionable view is noise; All and VIP always show.
                 if (count === 0 && !isActive && seg.id !== "all" && seg.id !== "vips") return null;
                 return (
-                    <button
+                    // Each view says the rule it filters by, so "Dormant VIPs" or "Needs confirming" is never a guess.
+                    <Tooltip
                         key={seg.id}
-                        onClick={() => onSelect(seg.state, seg.id)}
-                        aria-pressed={isActive}
-                        className={cn(
-                            "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-colors border",
-                            isActive
-                                ? "bg-foreground text-background border-foreground"
-                                : "bg-(--card-bg) text-foreground border-(--card-border) hover:bg-muted/30",
-                        )}
+                        side="bottom"
+                        align={index < SEGMENTS.length / 2 ? "start" : "end"}
+                        content={<span dir="auto" className="block text-start">{t(`customers.segment.rule.${seg.id}`)}</span>}
+                        contentClassName="w-max max-w-64 rounded-lg bg-foreground text-background text-xs font-medium leading-snug px-2.5 py-1.5 shadow-lg"
                     >
-                        {seg.glyph ? (
-                            <seg.glyph className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-background" : "text-rose-700 dark:text-rose-400")} aria-hidden />
-                        ) : seg.dot && <span className={cn("w-2 h-2 rounded-full shrink-0", seg.dot)} aria-hidden />}
-                        {label(seg.id)}
-                        <span className={cn("text-xs tabular-nums font-medium", isActive ? "text-background/70" : "text-muted-foreground")}>
-                            {count.toLocaleString("en-US")}
-                        </span>
-                    </button>
+                        <button
+                            onClick={() => onSelect(seg.state, seg.id)}
+                            aria-pressed={isActive}
+                            className={cn(
+                                "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-colors border",
+                                isActive
+                                    ? "bg-foreground text-background border-foreground"
+                                    : "bg-(--card-bg) text-foreground border-(--card-border) hover:bg-muted/30",
+                            )}
+                        >
+                            {seg.glyph ? (
+                                <seg.glyph className={cn("w-3.5 h-3.5 shrink-0", isActive ? "text-background" : "text-rose-700 dark:text-rose-400")} aria-hidden />
+                            ) : seg.dot && <span className={cn("w-2 h-2 rounded-full shrink-0", seg.dot)} aria-hidden />}
+                            {label(seg.id)}
+                            <span className={cn("text-xs tabular-nums font-medium", isActive ? "text-background/70" : "text-muted-foreground")}>
+                                {count.toLocaleString("en-US")}
+                            </span>
+                        </button>
+                    </Tooltip>
                 );
             })}
             {active === null && (

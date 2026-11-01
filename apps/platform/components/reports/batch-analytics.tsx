@@ -6,11 +6,12 @@ import { BatchMetrics, BatchAnalyticsSummary } from "@/hooks/use-batch-analytics
 import {
     Package, Truck, Receipt, TrendingUp, MapPin, Calendar,
     CheckCircle2, XCircle, Clock, Loader2, RefreshCw, ChevronRight,
-    Boxes, DollarSign
+    Boxes, Banknote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { format, formatDistanceToNow } from "date-fns";
+import { ar as arLocale } from "date-fns/locale";
 
 interface BatchAnalyticsProps {
     batches: BatchMetrics[];
@@ -43,15 +44,6 @@ const getStatusColor = (status: BatchMetrics['status']) => {
     }
 };
 
-const getStatusLabel = (status: BatchMetrics['status']) => {
-    switch (status) {
-        case 'completed': return 'Completed';
-        case 'in_progress': return 'In Progress';
-        case 'pending': return 'Pending';
-        case 'mixed': return 'Mixed';
-        default: return 'Unknown';
-    }
-};
 
 export function BatchAnalytics({
     batches,
@@ -60,7 +52,7 @@ export function BatchAnalytics({
     error,
     onRefresh
 }: BatchAnalyticsProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     // Loading state
     if (loading) {
         return (
@@ -128,7 +120,7 @@ export function BatchAnalytics({
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-foreground">{t("reports.batch.title")}</h3>
-                            <p className="text-sm text-muted">{summary.totalBatches} batches shipped</p>
+                            <p className="text-sm text-muted">{t("reports.batch.shipped", { n: summary.totalBatches })}</p>
                         </div>
                     </div>
 
@@ -166,9 +158,9 @@ export function BatchAnalytics({
                             bg: "bg-blue-100"
                         },
                         {
-                            icon: DollarSign,
+                            icon: Banknote,
                             label: t("reports.batch.value"),
-                            value: `${(summary.totalValue / 1000).toFixed(0)}K`,
+                            value: formatIQD(summary.totalValue),
                             color: "text-emerald-600",
                             bg: "bg-emerald-100"
                         },
@@ -245,15 +237,15 @@ export function BatchAnalytics({
                                             "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
                                             getStatusColor(batch.status)
                                         )}>
-                                            {getStatusLabel(batch.status)}
+                                            {t(`reports.batch.status.${batch.status}`, batch.status)}
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted mt-0.5 flex items-center gap-3">
-                                        <span>{batch.orderCount} orders</span>
+                                        <span>{t("reports.batch.ordersCount", { n: batch.orderCount })}</span>
                                         <span>•</span>
                                         <span>{formatIQD(batch.totalValue)}</span>
                                         <span>•</span>
-                                        <span>{formatDistanceToNow(batch.createdAt, { addSuffix: true })}</span>
+                                        <span>{formatDistanceToNow(batch.createdAt, { addSuffix: true, locale: language === "ar" ? arLocale : undefined })}</span>
                                     </div>
                                 </div>
 
@@ -290,8 +282,7 @@ export function BatchAnalytics({
                             <div>
                                 <p className="font-semibold text-violet-900">{t("reports.batch.insights")}</p>
                                 <p className="text-sm text-violet-700">
-                                    Average of {summary.avgOrdersPerBatch.toFixed(1)} orders per batch,
-                                    worth {formatIQD(summary.avgBatchValue)} each
+                                    {t("reports.batch.avgLine", { orders: summary.avgOrdersPerBatch.toFixed(1), value: formatIQD(summary.avgBatchValue) })}
                                 </p>
                             </div>
                         </div>

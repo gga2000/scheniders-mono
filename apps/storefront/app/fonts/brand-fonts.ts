@@ -207,6 +207,109 @@ const notoSansArabicArabic = localFont({
 });
 
 
+// IBM Plex Sans Arabic and Readex Pro: Arabic body / display faces a store
+// can pick in its brand kit. Unlike the four faces above, no store gets them
+// by default, so none of their files is preloaded: the browser fetches one
+// only when the page's kit names the family and the text needs that range.
+// Plex ships one static file per weight (400–700, the weights body copy and
+// labels use); Readex Pro is one variable file per subset (wght 160–700).
+
+const plexArabicLatin = localFont({
+  src: [
+    { path: "./ibm-plex-sans-arabic/latin-400.woff2", weight: "400" },
+    { path: "./ibm-plex-sans-arabic/latin-500.woff2", weight: "500" },
+    { path: "./ibm-plex-sans-arabic/latin-600.woff2", weight: "600" },
+    { path: "./ibm-plex-sans-arabic/latin-700.woff2", weight: "700" },
+  ],
+  display: "swap",
+  preload: false,
+  declarations: [{ prop: "unicode-range", value: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD" }],
+});
+const plexArabicLatinExt = localFont({
+  src: [
+    { path: "./ibm-plex-sans-arabic/latin-ext-400.woff2", weight: "400" },
+    { path: "./ibm-plex-sans-arabic/latin-ext-500.woff2", weight: "500" },
+    { path: "./ibm-plex-sans-arabic/latin-ext-600.woff2", weight: "600" },
+    { path: "./ibm-plex-sans-arabic/latin-ext-700.woff2", weight: "700" },
+  ],
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF" }],
+});
+const plexArabicCyrillicExt = localFont({
+  src: [
+    { path: "./ibm-plex-sans-arabic/cyrillic-ext-400.woff2", weight: "400" },
+    { path: "./ibm-plex-sans-arabic/cyrillic-ext-500.woff2", weight: "500" },
+    { path: "./ibm-plex-sans-arabic/cyrillic-ext-600.woff2", weight: "600" },
+    { path: "./ibm-plex-sans-arabic/cyrillic-ext-700.woff2", weight: "700" },
+  ],
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F" }],
+});
+const plexArabicArabic = localFont({
+  src: [
+    { path: "./ibm-plex-sans-arabic/arabic-400.woff2", weight: "400" },
+    { path: "./ibm-plex-sans-arabic/arabic-500.woff2", weight: "500" },
+    { path: "./ibm-plex-sans-arabic/arabic-600.woff2", weight: "600" },
+    { path: "./ibm-plex-sans-arabic/arabic-700.woff2", weight: "700" },
+  ],
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC7, U+10EC9-10EEE, U+10EF0-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1" }],
+});
+const readexProLatin = localFont({
+  src: [
+    { path: "./readex-pro/latin.woff2", weight: "400" },
+    { path: "./readex-pro/latin.woff2", weight: "500" },
+    { path: "./readex-pro/latin.woff2", weight: "600" },
+    { path: "./readex-pro/latin.woff2", weight: "700" },
+  ],
+  display: "swap",
+  preload: false,
+  declarations: [{ prop: "unicode-range", value: "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD" }],
+});
+const readexProLatinExt = localFont({
+  src: [
+    { path: "./readex-pro/latin-ext.woff2", weight: "400" },
+    { path: "./readex-pro/latin-ext.woff2", weight: "500" },
+    { path: "./readex-pro/latin-ext.woff2", weight: "600" },
+    { path: "./readex-pro/latin-ext.woff2", weight: "700" },
+  ],
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF" }],
+});
+const readexProVietnamese = localFont({
+  src: [
+    { path: "./readex-pro/vietnamese.woff2", weight: "400" },
+    { path: "./readex-pro/vietnamese.woff2", weight: "500" },
+    { path: "./readex-pro/vietnamese.woff2", weight: "600" },
+    { path: "./readex-pro/vietnamese.woff2", weight: "700" },
+  ],
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB" }],
+});
+const readexProArabic = localFont({
+  src: [
+    { path: "./readex-pro/arabic.woff2", weight: "400" },
+    { path: "./readex-pro/arabic.woff2", weight: "500" },
+    { path: "./readex-pro/arabic.woff2", weight: "600" },
+    { path: "./readex-pro/arabic.woff2", weight: "700" },
+  ],
+  display: "swap",
+  preload: false,
+  adjustFontFallback: false,
+  declarations: [{ prop: "unicode-range", value: "U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC7, U+10EC9-10EEE, U+10EF0-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1" }],
+});
+
+
 // The size-adjusted Arial for Bricolage, declared in globals.css.
 const bricolageFallback = { style: { fontFamily: "'Bricolage Grotesque Fallback'" } };
 
@@ -230,5 +333,17 @@ export const brandFontVars: FontVariables = {
     notoSansArabicSymbols,
     notoSansArabicMath,
     notoSansArabicArabic,
+  ]),
+  "--font-plex-arabic": subsetFontStack([
+    plexArabicLatin,
+    plexArabicLatinExt,
+    plexArabicCyrillicExt,
+    plexArabicArabic,
+  ]),
+  "--font-readex-pro": subsetFontStack([
+    readexProLatin,
+    readexProLatinExt,
+    readexProVietnamese,
+    readexProArabic,
   ]),
 };

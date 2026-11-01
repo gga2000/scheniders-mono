@@ -16,6 +16,7 @@ vi.mock("@/lib/capi", () => ({ sendPurchaseCapi: vi.fn() }));
 vi.mock("@/lib/draft-view", () => ({ isDraftViewRequest: vi.fn(async () => false) }));
 vi.mock("@/lib/order-confirmation-queue", () => ({ queueOrderConfirmation: vi.fn() }));
 vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: () => undefined }),
   headers: async () => new Headers({ "x-forwarded-for": "203.0.113.7" }),
 }));
 vi.mock("@/lib/checkout-rate-limit", () => ({ checkoutRateLimited: vi.fn() }));

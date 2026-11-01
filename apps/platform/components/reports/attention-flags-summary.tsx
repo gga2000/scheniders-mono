@@ -34,28 +34,18 @@ const FLAG_ICONS: Record<string, LucideIcon> = {
 
 export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
     const { t } = useLanguage();
+    // Severity tints a light card: red / amber / blue, dark text on a pale ground (readable, and
+    // the badge states the severity in words, so colour is never the only signal).
     const getSeverityStyles = (severity: string) => {
         switch (severity) {
             case 'high':
-                return {
-                    card: 'bg-gradient-to-br from-rose-500 to-red-600 shadow-rose-500/30',
-                    badge: 'bg-white/20'
-                };
+                return { card: 'bg-rose-50 border-rose-200 text-rose-900', badge: 'bg-rose-100 text-rose-800' };
             case 'medium':
-                return {
-                    card: 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/30',
-                    badge: 'bg-white/20'
-                };
+                return { card: 'bg-amber-50 border-amber-200 text-amber-900', badge: 'bg-amber-100 text-amber-800' };
             case 'low':
-                return {
-                    card: 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/30',
-                    badge: 'bg-white/20'
-                };
+                return { card: 'bg-blue-50 border-blue-200 text-blue-900', badge: 'bg-blue-100 text-blue-800' };
             default:
-                return {
-                    card: 'bg-gradient-to-br from-gray-500 to-gray-600 shadow-gray-500/30',
-                    badge: 'bg-white/20'
-                };
+                return { card: 'bg-gray-50 border-gray-200 text-gray-900', badge: 'bg-gray-100 text-gray-800' };
         }
     };
 
@@ -119,7 +109,7 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
                             key={flag.flagType}
                             variants={item}
                             className={cn(
-                                "p-4 rounded-2xl text-white shadow-lg",
+                                "p-4 rounded-2xl border",
                                 styles.card
                             )}
                         >

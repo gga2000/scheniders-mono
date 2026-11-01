@@ -1,7 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
 import type { HistoryEntry } from "@/lib/utils/supply-forecasting";
+
+interface SupplyHistoryRow {
+    product_id: string;
+    change_type: string;
+    quantity_change: number;
+    created_at: string;
+}
 
 /**
  * Batched inventory history for all supplies in one query so the actions feed
@@ -10,37 +18,29 @@ import type { HistoryEntry } from "@/lib/utils/supply-forecasting";
  */
 export function useTenantSupplyHistory(supplyIds: string[]) {
     const { tenantId } = useAuth();
-    const key = supplyIds.slice().sort().join(",");
 
     return useQuery({
-        queryKey: ["tenant-supply-history", tenantId, key],
+        // The ids are not part of the key: the database already limits the rows to supplies.
+        queryKey: ["tenant-supply-history", tenantId],
         enabled: !!tenantId && supplyIds.length > 0,
         staleTime: 60_000,
         queryFn: async (): Promise<Map<string, HistoryEntry[]>> => {
-            if (!tenantId || supplyIds.length === 0) return new Map();
-            const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-            const { data, error } = await supabase
-                .from("inventory_history")
-                .select("product_id, change_type, quantity_change, created_at")
-                .eq("tenant_id", tenantId)
-                .gte("created_at", since)
-                .order("created_at", { ascending: false })
-                .limit(5000);
-            if (error) throw error;
-
-            const allowed = new Set(supplyIds);
+            if (!tenantId) return new Map();
+            // Supplies' rows only, read in pages: a whole-tenant read capped at 5000
+            // rows silently dropped older supply movements once orders piled up.
+            const rows = await fetchAllPages<SupplyHistoryRow>((from, to) =>
+                supabase.rpc("supply_history_30d", { p_tenant_id: tenantId }).order("created_at", { ascending: false }).range(from, to)
+            );
             const out = new Map<string, HistoryEntry[]>();
-            for (const row of data ?? []) {
-                const pid = (row as { product_id: string }).product_id;
-                if (!allowed.has(pid)) continue;
-                const existing = out.get(pid);
+            for (const row of rows) {
                 const entry: HistoryEntry = {
                     change_type: row.change_type,
                     quantity_change: row.quantity_change,
                     created_at: row.created_at,
                 };
+                const existing = out.get(row.product_id);
                 if (existing) existing.push(entry);
-                else out.set(pid, [entry]);
+                else out.set(row.product_id, [entry]);
             }
             return out;
         },

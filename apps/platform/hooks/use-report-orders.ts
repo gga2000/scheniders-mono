@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
@@ -48,6 +48,9 @@ export function useReportOrders(range: ReportRange) {
             });
             return reportOrderSchema.array().parse(rows);
         },
+        // Changing the range keeps the last report on screen (dimmed by the page) instead of
+        // tearing the whole page down to a skeleton and closing the date picker.
+        placeholderData: keepPreviousData,
         enabled: !!session && clientReady && !!tenantId,
         staleTime: CACHE_PRESETS.FREQUENT.staleTime,
         gcTime: CACHE_PRESETS.FREQUENT.gcTime,

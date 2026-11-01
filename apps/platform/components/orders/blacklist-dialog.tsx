@@ -168,12 +168,17 @@ export function BlacklistDialog({
                             </div>
 
                             {customers ? (
-                                <ConfirmRow onCancel={onClose} cancelLabel={t("common.cancel")}>
+                                <ConfirmRow
+                                    onCancel={onClose}
+                                    cancelLabel={t("common.cancel")}
+                                    // Why the action is not ready yet, said beside it rather than left to a faded button.
+                                    hint={!finalReason ? t("customers.block.pickReason") : undefined}
+                                >
                                     <button
                                         type="button"
                                         onClick={handleConfirm}
                                         disabled={!finalReason || loading}
-                                        className={cn(CUSTOMERS_ACTION, "bg-rose-700 hover:bg-rose-800 text-white")}
+                                        className={cn(CUSTOMERS_ACTION, "bg-rose-700 hover:bg-rose-800 disabled:hover:bg-rose-700 text-white disabled:opacity-50")}
                                     >
                                         {loading ? t("orders.blacklist.blocking") : t("orders.blacklist.blockCustomer")}
                                     </button>
@@ -191,8 +196,20 @@ export function BlacklistDialog({
                         </>
                     ) : (
                         <>
-                            {/* Show existing entry info */}
-                            {existingEntry && (
+                            {/* The reason on record: a labelled fact in the customers variant, the Orders page's alert box otherwise. */}
+                            {existingEntry && customers && (
+                                <div className="bg-gray-50 dark:bg-white/5 rounded-xl px-4 py-3 space-y-1 text-sm">
+                                    <p className="text-xs text-muted-foreground">{t("customers.block.blockedFor")}</p>
+                                    <p className="font-semibold text-foreground text-start"><bdi>{existingEntry.reason}</bdi></p>
+                                    {existingEntry.notes && (
+                                        <p className="text-muted-foreground text-xs text-start"><bdi>{existingEntry.notes}</bdi></p>
+                                    )}
+                                    {existingEntry.added_by && (
+                                        <p className="text-muted-foreground text-xs">{t("orders.blacklist.addedBy", { name: existingEntry.added_by })}</p>
+                                    )}
+                                </div>
+                            )}
+                            {existingEntry && !customers && (
                                 <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 space-y-1 text-sm">
                                     <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400 font-medium">
                                         <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
@@ -218,7 +235,7 @@ export function BlacklistDialog({
                                         type="button"
                                         onClick={handleConfirm}
                                         disabled={loading}
-                                        className={cn(CUSTOMERS_ACTION, "bg-foreground text-background hover:opacity-90")}
+                                        className={cn(CUSTOMERS_ACTION, "bg-foreground text-background hover:opacity-90 disabled:opacity-50")}
                                     >
                                         {loading ? t("orders.blacklist.unblocking") : t("orders.blacklist.unblock")}
                                     </button>
@@ -241,13 +258,14 @@ export function BlacklistDialog({
     );
 }
 
-/** The customers variant's action: a disabled one drops its fill, so it never reads as ready in either theme. */
-const CUSTOMERS_ACTION = "h-10 px-4 rounded-xl font-semibold transition-colors disabled:bg-muted disabled:text-muted-foreground disabled:opacity-60 disabled:cursor-not-allowed";
+/** The customers variant's action: a disabled one stays itself at half strength, with the reason written beside it (ConfirmRow hint). */
+const CUSTOMERS_ACTION = "h-10 px-4 rounded-xl font-semibold whitespace-nowrap transition-colors disabled:cursor-not-allowed";
 
-/** Cancel beside the action, right-aligned: the way out is a button, not only the X. */
-function ConfirmRow({ onCancel, cancelLabel, children }: { onCancel: () => void; cancelLabel: string; children: React.ReactNode }) {
+/** Cancel beside the action, right-aligned: the way out is a button, not only the X. A hint says what the action still needs. */
+function ConfirmRow({ onCancel, cancelLabel, hint, children }: { onCancel: () => void; cancelLabel: string; hint?: string; children: React.ReactNode }) {
     return (
-        <div className="flex items-center justify-end gap-2 pt-1">
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+            {hint && <p role="status" className="basis-full text-end text-xs text-muted-foreground">{hint}</p>}
             <button
                 type="button"
                 onClick={onCancel}

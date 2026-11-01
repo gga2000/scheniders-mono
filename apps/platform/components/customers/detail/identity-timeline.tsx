@@ -111,7 +111,7 @@ export function IdentityTimeline({ phone }: IdentityTimelineProps) {
                                             <bdi>{t(LABEL_KEY[event.type], { value: event.value })}</bdi>
                                         </p>
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                            {formatBaghdadDate(event.created_at, language)}
+                                            <bdi>{formatBaghdadDate(event.created_at, language)}</bdi>
                                         </p>
                                     </div>
                                 </motion.li>

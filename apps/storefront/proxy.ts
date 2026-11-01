@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  AD_ATTRIBUTION_COOKIE,
+  parseAdUrlParams,
+  serializeAdAttribution,
+} from "@scheniders/shared/ad-attribution";
 import { extractSlug, storefrontRootDomain } from "@/lib/store-host";
 
 const VISITOR_COOKIE = "sb_vid";
@@ -6,6 +11,8 @@ const VISITOR_COOKIE = "sb_vid";
 const VISITOR_MAX_AGE = 60 * 60 * 24 * 365;
 /** 30 days in seconds — first-touch traffic source window */
 const TRAFFIC_SOURCE_MAX_AGE = 60 * 60 * 24 * 30;
+/** 30 days in seconds — last-touch ad window */
+const AD_ATTRIBUTION_MAX_AGE = 60 * 60 * 24 * 30;
 
 /**
  * Ensure every storefront request carries a stable first-party visitor key.
@@ -89,6 +96,25 @@ function ensureTrafficSourceCookie(
   }
 }
 
+/**
+ * Last-touch ad click: the latest landing URL that carries ad parameters
+ * (utm_*, fbclid) replaces the stored one, so the order is credited to the ad
+ * the buyer last clicked. Organic visits leave the cookie alone.
+ */
+function recordAdAttributionCookie(
+  request: NextRequest,
+  response: NextResponse,
+): void {
+  const attribution = parseAdUrlParams(request.nextUrl.searchParams);
+  if (!attribution) return;
+  response.cookies.set(AD_ATTRIBUTION_COOKIE, serializeAdAttribution(attribution), {
+    maxAge: AD_ATTRIBUTION_MAX_AGE,
+    path: "/",
+    sameSite: "lax",
+    httpOnly: true,
+  });
+}
+
 const ROOT_DOMAIN = storefrontRootDomain();
 
 /**
@@ -144,6 +170,7 @@ export function proxy(request: NextRequest) {
         ensureVisitorCookie(request, response);
         ensureFirstSeenCookie(request, response);
         ensureTrafficSourceCookie(request, response);
+        recordAdAttributionCookie(request, response);
         return response;
       }
     }
@@ -161,6 +188,7 @@ export function proxy(request: NextRequest) {
   ensureVisitorCookie(request, response);
   ensureFirstSeenCookie(request, response);
   ensureTrafficSourceCookie(request, response);
+  recordAdAttributionCookie(request, response);
   return response;
 }
 

@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import { Package, CheckSquare, Square, Printer, Truck, Eye, BoxSelect, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
-import { formatPhoneForDisplay } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { fulfillLabelHTML } from "@/lib/fulfill-label";
 import { useLanguage } from "@/hooks/use-language";
 
 interface FulfillTabProps {
@@ -100,32 +100,7 @@ export function FulfillTab({
 
     const handlePrintLabel = async (order: Order) => {
         // Auto-mark as in_transit when printing (user wants this behavior)
-        const labelContent = `
-            <html>
-            <head><title>Shipping Label - #${getBaseOrderId(order.order_id)}</title>
-            <style>
-                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; }
-                .label { border: 2px solid #333; padding: 24px; max-width: 400px; margin: auto; border-radius: 12px; }
-                .header { font-size: 24px; font-weight: bold; margin-bottom: 16px; }
-                .info { margin: 6px 0; font-size: 14px; }
-                .barcode { font-family: monospace; font-size: 20px; letter-spacing: 6px; margin-top: 20px; text-align: center; padding: 12px; background: #f5f5f5; border-radius: 8px; }
-            </style>
-            </head>
-            <body>
-                <div class="label">
-                    <div class="header">📦 SHIPPING LABEL</div>
-                    <div class="info"><strong>Order:</strong> #${getBaseOrderId(order.order_id)}</div>
-                    <div class="info"><strong>Customer:</strong> ${order.customer_name}</div>
-                    <div class="info"><strong>Phone 1:</strong> ${formatPhoneForDisplay(order.phone)}</div>
-                    ${order.secondary_phone ? `<div class="info"><strong>Phone 2:</strong> ${formatPhoneForDisplay(order.secondary_phone)}</div>` : ''}
-                    <div class="info"><strong>City:</strong> ${order.city || 'N/A'}</div>
-                    <div class="info" style="margin-top:12px;"><strong>Items:</strong></div>
-                    ${mergeOrderItems(order.items).map(i => `<div class="info">• ${i.name} ×${i.quantity}</div>`).join('') || 'N/A'}
-                    <div class="barcode">${getBaseOrderId(order.order_id)}</div>
-                </div>
-            </body>
-            </html>
-        `;
+        const labelContent = fulfillLabelHTML(order);
         const printWindow = window.open('', '_blank');
         if (printWindow) {
             printWindow.document.write(labelContent);
