@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { clientIp, consumeRateLimit } from "@/lib/rate-limit";
+import { isLikelyBot } from "@/lib/bot-user-agent";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -71,6 +72,10 @@ export async function POST(req: Request): Promise<NextResponse> {
   const visitor = visitorKeySchema.safeParse((await cookies()).get("sb_vid")?.value);
   if (!visitor.success) return NO_CONTENT();
   const visitorKey = visitor.data;
+
+  // Crawlers run the page's JS too; they are not shoppers and would drag the
+  // merchant's conversion rate down.
+  if (isLikelyBot(req.headers.get("user-agent"))) return NO_CONTENT();
 
   // Fail open: the funnel is a nice-to-have count, and a limiter outage must
   // not take the storefront's beacon down. A beacon never reports failure to
