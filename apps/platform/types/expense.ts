@@ -56,18 +56,6 @@ export const expenseCategoryColors: Record<ExpenseCategory, string> = {
     other: '#6b7280',
 };
 
-// =============================================
-// ORDER COST CONSTANTS (IQD)
-// =============================================
-
-export const ORDER_FIXED_COSTS = {
-    DELIVERY: 5000,
-    SWEETS: 125,
-    PACKAGING_PER_BAG: 355,
-    VIAL_COST: 40,
-    VIAL_ML: 1,
-} as const;
-
 export interface OrderCostBreakdown {
     orderId: string;
     orderNumber?: number;

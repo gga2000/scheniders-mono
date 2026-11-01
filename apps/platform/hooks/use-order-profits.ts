@@ -3,8 +3,8 @@
 import { useMemo, useCallback } from "react";
 import { Order, Product } from "@/lib/supabase";
 import { resolveOrderLineCost, type CostSnapshots } from "@/lib/finance/item-cost";
+import { NO_ORDER_COSTS, type OrderCostDefaults } from "@/lib/finance/order-cost-defaults";
 import {
-    ORDER_FIXED_COSTS,
     OrderCostBreakdown,
     ProfitSummary,
     CustomerAnalytics,
@@ -20,6 +20,8 @@ export function useOrderProfits(
     products: Product[],
     marketingCost: number = 0,
     snapshots?: CostSnapshots,
+    /** The store's own per-order costs (courier, bag, vial, sweets). None unless it set them. */
+    costDefaults: OrderCostDefaults = NO_ORDER_COSTS,
 ) {
     /**
      * Find product by name, SKU, or alias
@@ -104,19 +106,19 @@ export function useOrderProfits(
         });
 
         // Fixed costs per order
-        const deliveryCost = ORDER_FIXED_COSTS.DELIVERY;
-        const sweetsCost = ORDER_FIXED_COSTS.SWEETS;
+        const deliveryCost = costDefaults.delivery;
+        const sweetsCost = costDefaults.sweets;
 
         // Packaging: 1 bag per item
-        const packagingCost = ORDER_FIXED_COSTS.PACKAGING_PER_BAG * itemCount;
+        const packagingCost = costDefaults.packaging_per_bag * itemCount;
 
         // Vial cost: 1 vial per unique product
-        const vialCost = ORDER_FIXED_COSTS.VIAL_COST * uniqueProductCount;
+        const vialCost = costDefaults.vial * uniqueProductCount;
 
-        // Sample perfume cost: (wholesale cost / 100) for each unique product
-        // This represents the 1ml of perfume we put in each sample vial
+        // Sample cost: the store's share of each distinct product's cost
+        // (e.g. the 1ml of perfume put in each sample vial)
         const samplePerfumeCost = matchedProducts.reduce((sum, product) => {
-            return sum + (product.cost || 0) / 100;
+            return sum + (product.cost || 0) * costDefaults.sample_share;
         }, 0);
 
         // Total cost
@@ -145,7 +147,7 @@ export function useOrderProfits(
             itemCount,
             uniqueProductCount,
         };
-    }, [findProduct, lineCost]);
+    }, [findProduct, lineCost, costDefaults]);
 
     /**
      * Calculate cost breakdowns for delivered/completed orders only

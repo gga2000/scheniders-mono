@@ -10,6 +10,7 @@ import { OrderFunnelCard } from "@/components/analytics/order-funnel-card";
 import { CostCompositionChart } from "@/components/analytics/cost-composition-chart";
 import { ProfitBreakdownTable } from "@/components/analytics/profit-breakdown-table";
 import { useOrderProfits } from "@/hooks/use-order-profits";
+import { useOrderCostDefaults } from "@/hooks/use-order-cost-defaults";
 import type { CostSnapshots } from "@/lib/finance/item-cost";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ interface ProfitAnalysisTabProps {
  */
 export function ProfitAnalysisTab({ orders, products, expenses, period, dateRange, addExpense, costSnapshots }: ProfitAnalysisTabProps) {
     const { t } = useLanguage();
+    const costDefaults = useOrderCostDefaults();
 
     const [isDeliveryImportOpen, setIsDeliveryImportOpen] = useState(false);
     const [isMarketingModalOpen, setIsMarketingModalOpen] = useState(false);
@@ -77,7 +79,7 @@ export function ProfitAnalysisTab({ orders, products, expenses, period, dateRang
         productProfitAnalysis,
         pipelineSummary,
         funnelSummary,
-    } = useOrderProfits(ordersInRange, products, marketingCost, costSnapshots);
+    } = useOrderProfits(ordersInRange, products, marketingCost, costSnapshots, costDefaults);
 
     return (
         <div className="space-y-6">
