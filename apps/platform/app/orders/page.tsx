@@ -112,6 +112,7 @@ import {
 import { cn } from "@/lib/utils";
 import { canOfferSelectAll } from "@/lib/order-bulk-scope";
 import { AdsTodayChips } from "@/components/ads/ads-today-chips";
+import { AdsChipsToggle } from "@/components/ads/ads-chips-toggle";
 import { notificationService } from "@/lib/notification-service";
 import { toast } from "@/hooks/use-toast";
 
@@ -132,6 +133,7 @@ export default function OrdersPage() {
     // Ad-channel chips — hidden by default, toggled from the search bar like the
     // sub-filters above. Per-device pref.
     const [showAdChannels, toggleAdChannels] = usePersistedToggle("ordersShowAdChannels");
+    const [showAdsChips, toggleAdsChips] = usePersistedToggle("ordersShowAdsChips");
     // Order pipeline funnel — hidden by default, surfaced via toolbar toggle.
     // Per-device pref, mirrors the sub-filters pattern above.
     const [showPipeline, togglePipeline] = usePersistedToggle("ordersShowPipeline");
@@ -1147,7 +1149,7 @@ export default function OrdersPage() {
                                                         </AnimatePresence>
                                                     </div>
 
-                                                    <AdsTodayChips />
+                                                    {showAdsChips ? <AdsTodayChips /> : null}
                                                 </div>
 
                                                 {/* Row 2: Control Groups - Premium Glass Cards.
@@ -1441,6 +1443,9 @@ export default function OrdersPage() {
                                                             >
                                                                 <BarChart3 className="w-4 h-4" />
                                                             </button>
+
+                                                            {/* Meta chips toggle (off by default) */}
+                                                            <AdsChipsToggle active={showAdsChips} onToggle={toggleAdsChips} />
 
                                                             {/* Map Toggle */}
                                                             <button
