@@ -16,7 +16,6 @@ const DELETE_ALLOWED_ROLES = ['admin', 'super_admin', 'employee'];
  * Body: { ids: string[] }
  */
 export async function POST(request: NextRequest) {
-    const startTime = performance.now();
     try {
         // Verify the requesting user via access token
         const authHeader = request.headers.get('Authorization');
@@ -28,10 +27,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const t1 = performance.now();
         const { user, error: authError } = await verifyAccessToken(token);
-        const t2 = performance.now();
-        console.log(`[Perf] verifyAccessToken took: ${(t2 - t1).toFixed(2)}ms`);
 
         if (authError || !user) {
             return NextResponse.json(
@@ -44,10 +40,7 @@ export async function POST(request: NextRequest) {
 
         // Tenant comes from the caller's session, never from the request body,
         // and only while they are an active member of it.
-        const t3 = performance.now();
         const active = await resolveActiveTenant(user.id);
-        const t4 = performance.now();
-        console.log(`[Perf] Tenant + role check took: ${(t4 - t3).toFixed(2)}ms`);
         if (!active.ok) {
             return NextResponse.json({ success: false, error: active.error }, { status: active.status });
         }
@@ -79,34 +72,19 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const t5 = performance.now();
-        // Snapshot orders before deletion for audit trail
-        const { data: orderSnapshots } = await supabaseAdmin
-            .from('orders')
-            .select('id, order_id, customer_name, phone, status, price, items')
-            .in('id', ids)
-            .eq('tenant_id', tenantId);
-        const t6 = performance.now();
-        console.log(`[Perf] Snapshot fetch took: ${(t6 - t5).toFixed(2)}ms`);
-
-        if (orderSnapshots && orderSnapshots.length > 0) {
-            // Always log to console (captured by Vercel) before attempting so we have a trace if it crashes
-            console.warn(`[Deletion Audit] User ${user.email || user.id} attempting to delete ${orderSnapshots.length} orders:`,
-                orderSnapshots.map(o => `${o.order_id} (${o.status})`).join(', '));
-        }
-
         // Soft-delete only. original_order_id links on returns, replacements
         // and exchanges are left intact so the after-sale chain survives a
-        // delete and a restore.
-        const t11 = performance.now();
+        // delete and a restore. Rows already in the trash are skipped, so a
+        // repeat delete does not restart their 30-day purge clock. RETURNING
+        // gives the audit record exactly the rows that changed (the old
+        // pre-read snapshot ignored its own error and cost a round trip).
         const { data: deletedRows, error: deleteError } = await supabaseAdmin
             .from('orders')
             .update({ deleted_at: new Date().toISOString() })
             .in('id', ids)
             .eq('tenant_id', tenantId)
-            .select('id');
-        const t12 = performance.now();
-        console.log(`[Perf] Actual delete took: ${(t12 - t11).toFixed(2)}ms`);
+            .is('deleted_at', null)
+            .select('id, order_id, status');
 
         if (deleteError) {
             console.error('[Deletion] Error deleting orders:', deleteError.message);
@@ -117,44 +95,39 @@ export async function POST(request: NextRequest) {
         }
 
         const deletedIds = (deletedRows || []).map(r => r.id);
-        
+
         // Record who deleted what, for the orders that actually got deleted.
         // Deliberately no customer data: orders are soft-deleted, so the order
         // row itself is the recovery path and a second copy of names and phones
         // would be PII duplicated into another table. See OBS-2.
-        if (orderSnapshots && deletedIds.length > 0) {
-            const deleted = orderSnapshots.filter(s => deletedIds.includes(s.id));
-            if (deleted.length > 0) {
-                const t7 = performance.now();
-                const { error: logError } = await supabaseAdmin
-                    .from('order_deletion_log')
-                    .insert({
-                        tenant_id: tenantId,
-                        deleted_by: user.id,
-                        deleted_by_email: user.email ?? null,
-                        deleted_at: new Date().toISOString(),
-                        order_count: deleted.length,
-                        order_ids: deleted.map(s => s.id),
-                        order_numbers: deleted.map(s => String(s.order_id)),
-                    });
+        const deleted = deletedRows ?? [];
+        if (deleted.length > 0) {
+            console.warn(`[Deletion Audit] User ${user.email || user.id} deleted ${deleted.length} orders:`,
+                deleted.map(o => `${o.order_id} (${o.status})`).join(', '));
+            const { error: logError } = await supabaseAdmin
+                .from('order_deletion_log')
+                .insert({
+                    tenant_id: tenantId,
+                    deleted_by: user.id,
+                    deleted_by_email: user.email ?? null,
+                    deleted_at: new Date().toISOString(),
+                    order_count: deleted.length,
+                    order_ids: deleted.map(s => s.id),
+                    order_numbers: deleted.map(s => String(s.order_id)),
+                });
 
-                const t8 = performance.now();
-                console.log(`[Perf] Audit log insert took: ${(t8 - t7).toFixed(2)}ms`);
-                if (logError) {
-                    // The deletion itself succeeded, so this must not fail the
-                    // request — but a lost audit record was previously only a
-                    // console warning, which is how the trail went missing
-                    // unnoticed for the entire life of the feature.
-                    reportOrderError(new Error(`Deletion audit write failed: ${logError.message}`), {
-                        operation: 'orders-deletion-audit-write',
-                        tenantId,
-                        extra: { orderCount: deleted.length },
-                    });
-                }
+            if (logError) {
+                // The deletion itself succeeded, so this must not fail the
+                // request — but a lost audit record was previously only a
+                // console warning, which is how the trail went missing
+                // unnoticed for the entire life of the feature.
+                reportOrderError(new Error(`Deletion audit write failed: ${logError.message}`), {
+                    operation: 'orders-deletion-audit-write',
+                    tenantId,
+                    extra: { orderCount: deleted.length },
+                });
             }
         }
-
-        console.log(`[Perf] Total backend deletion process took: ${(performance.now() - startTime).toFixed(2)}ms`);
 
         return NextResponse.json({
             success: true,
