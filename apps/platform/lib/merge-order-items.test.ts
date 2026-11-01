@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Order, OrderItem } from "@/types/order";
 import { mergeOrderItems } from "./merge-order-items";
 import { getItemsDisplay } from "./order-format-utils";
-import { generateInvoiceHTML, type EnhancedLabelOptions } from "./enhanced-label-generator";
+import { shippingLabelHTML } from "./shipping-labels";
 import { formatOrderRow, formatDeliveryRow } from "./order-export-utils";
 import { mapOrderToWaseet } from "./waseet-api";
 import type { WaseetCityMapping } from "@/types/waseet";
@@ -197,19 +197,10 @@ describe("display, print and export surfaces show one line × 3", () => {
         expect(display[0]).toMatchObject({ name: "انفوي", quantity: 3 });
     });
 
-    it("invoice prints one row and the same totals as a clean order", () => {
-        const options: EnhancedLabelOptions = {
-            size: "a5",
-            showPrice: true,
-            isGift: false,
-            showQrCode: false,
-            showBarcode: false,
-            showCompanyLogo: false,
-            showDeliveryLogo: false,
-        };
-        const html = generateInvoiceHTML(split, options);
-        expect(html.match(/<td>انفوي<\/td>/g)).toHaveLength(1);
-        expect(html).toBe(generateInvoiceHTML(clean, options));
+    it("shipping label names the product once, like a clean order", () => {
+        const html = shippingLabelHTML(split);
+        expect(html.match(/انفوي/g)).toHaveLength(1);
+        expect(html).toBe(shippingLabelHTML(clean));
     });
 
     it("CSV / Excel and courier export rows", () => {
