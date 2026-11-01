@@ -29,7 +29,7 @@ import { BulkTagModal } from "@/components/customers/bulk-tag-modal";
 import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
 import { useCustomerBulkActions } from "@/hooks/use-bulk-actions";
 import { pct } from "@/lib/customer-format";
-import { displayScore } from "@/lib/customer-reliability";
+import { displayScore, valueTierKey } from "@/lib/customer-reliability";
 import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { usePermission } from "@/hooks/use-permission";
 import { useCustomerTags } from "@/hooks/use-customer-management";
@@ -145,7 +145,7 @@ function CustomersPageContent() {
         c.name, csvPhone(c.phone),
         c.governorate ? governorateLabel(c.governorate, language) || c.governorate : "",
         c.total_orders, c.completed_count, Math.round(c.total_spent),
-        t(`customers.value.${c.value_tier}`, c.value_tier), t(`customers.risk.${c.risk_level}`, c.risk_level),
+        t(valueTierKey(c.value_tier), c.value_tier), t(`customers.risk.${c.risk_level}`, c.risk_level),
         csvDate(c.last_order_date), csvDate(c.first_order_date),
         c.city ?? "", c.secondary_phone ? csvPhone(c.secondary_phone) : "",
         c.is_blacklisted ? t("common.yes", "Yes") : t("common.no", "No"),
@@ -166,7 +166,7 @@ function CustomersPageContent() {
             toast({ variant: "error", title: t("customers.bulk.tagFailed") });
             return false;
         }
-        toast({ variant: "success", title: t("customers.bulk.tagged", { count: String(selectedPhones.length) }) });
+        toast({ variant: "success", title: t("customers.bulk.tagged", { count: selectedPhones.length }) });
         setShowBulkTag(false);
         clearSelected();
         return true;
@@ -253,6 +253,8 @@ function CustomersPageContent() {
     const failureHint = loadFailureKind(error, online) === "network" ? t("customers.loadFailedOfflineHint") : t("customers.loadFailedHint");
     const subtitle = filtered && !listFailed
         ? t("customers.subtitleFiltered", {
+            // The total picks the noun's form ("of 2 customers" is a dual in Arabic).
+            count: stats?.total_customers ?? totalCount,
             shown: totalCount.toLocaleString("en-US"),
             total: (stats?.total_customers ?? totalCount).toLocaleString("en-US"),
         })

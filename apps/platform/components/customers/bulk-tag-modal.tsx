@@ -74,7 +74,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
             onClose={onClose}
             title={t("customers.bulkTag.title")}
             icon={<TagIcon className="w-5 h-5 text-foreground" />}
-            description={t("customers.bulkTag.subtitle", { count: selectedCount.toLocaleString("en-US") })}
+            description={t("customers.bulkTag.subtitle", { count: selectedCount, n: selectedCount.toLocaleString("en-US") })}
             maxWidth="max-w-md"
             footer={
                 <>

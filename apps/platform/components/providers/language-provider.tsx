@@ -25,19 +25,29 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
     return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? `{${k}}`));
 }
 
+/** One PluralRules per language: "one", "two", "few", "many", "zero" or "other" for a count. */
+const PLURAL_RULES: Record<Locale, Intl.PluralRules> = {
+    en: new Intl.PluralRules("en"),
+    ar: new Intl.PluralRules("ar"),
+};
+
 /**
- * The text for `key`. When the call passes `count: 1` and the dictionary has a
- * `<key>.one` entry, that singular form is used ("1 order", not "1 orders").
- * Languages that need no separate singular simply omit the entry.
+ * The text for `key`. When the call passes a numeric `count`, the language's
+ * plural form for it is used if the dictionary has one: `<key>.one` ("1 order",
+ * not "1 orders"), and for Arabic also `<key>.two` (the dual), `<key>.few`
+ * (3–10, plural noun), `<key>.many` (11–99, singular accusative) and
+ * `<key>.zero`. The plain `<key>` is the "other" form and the fallback, so a
+ * language that needs no separate form simply omits the entry.
  */
 function lookup(
     language: Locale,
     key: string,
     vars: Record<string, string | number> | undefined,
 ): string | undefined {
-    const one = vars?.count === 1 ? `${key}.one` : null;
-    const singular = one ? translations[language]?.[one] : undefined;
-    return singular ?? translations[language]?.[key] ?? translations.en?.[key];
+    const count = vars?.count;
+    const category = typeof count === "number" ? PLURAL_RULES[language].select(count) : "other";
+    const form = category === "other" ? undefined : translations[language]?.[`${key}.${category}`];
+    return form ?? translations[language]?.[key] ?? translations.en?.[key];
 }
 
 function resolveFallback(

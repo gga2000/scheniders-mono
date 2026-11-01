@@ -28,7 +28,7 @@ describe("CustomerRatingHelp", () => {
             expect(rule.getAttribute("dir")).toBe("auto");
             expect(rule.className).toContain("text-left");
             // The pill is the cell just before its rule.
-            expect(rule.previousElementSibling?.textContent).toBe(`customers.value.${key}`);
+            expect(rule.previousElementSibling?.textContent).toBe(`customers.tier.${key}`);
         }
     });
 
