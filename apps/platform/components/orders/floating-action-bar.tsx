@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Archive, Eye, EyeOff, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface FloatingActionBarProps {
     selectedCount: number;
@@ -20,6 +21,7 @@ export function FloatingActionBar({
     onDelete,
     disabled = false,
 }: FloatingActionBarProps) {
+    const { t } = useLanguage();
     const [isVisible, setIsVisible] = useState(true);
     const [isHidden, setIsHidden] = useState(() => {
         if (typeof window !== "undefined") {
@@ -75,7 +77,7 @@ export function FloatingActionBar({
                     // Expanded state
                     <div className="flex items-center gap-3 px-4 py-3 bg-white rounded-2xl shadow-2xl border border-[var(--card-border)]">
                         <span className="text-sm font-medium text-foreground px-2">
-                            {selectedCount} selected
+                            {t("orders.ui.selectedCount", { count: selectedCount })}
                         </span>
 
                         <div className="h-6 w-px bg-[var(--card-border)]" />
@@ -90,7 +92,7 @@ export function FloatingActionBar({
                             )}
                         >
                             <Check className="w-4 h-4" />
-                            Confirm
+                            {t("common.confirm")}
                         </button>
 
                         <button
@@ -103,7 +105,7 @@ export function FloatingActionBar({
                             )}
                         >
                             <X className="w-4 h-4" />
-                            Reject
+                            {t("orders.ui.reject")}
                         </button>
 
                         <button
@@ -116,7 +118,7 @@ export function FloatingActionBar({
                             )}
                         >
                             <Archive className="w-4 h-4" />
-                            Archive
+                            {t("common.archive")}
                         </button>
 
                         <div className="h-6 w-px bg-[var(--card-border)]" />
@@ -132,7 +134,7 @@ export function FloatingActionBar({
                                 )}
                             >
                                 <Trash2 className="w-4 h-4" />
-                                Delete
+                                {t("common.delete")}
                             </button>
                         )}
 
@@ -141,7 +143,7 @@ export function FloatingActionBar({
                         <button
                             onClick={toggleHidden}
                             className="p-2 text-muted hover:text-foreground hover:bg-gray-100 rounded-lg transition-all"
-                            title="Hide quick actions"
+                            title={t("orders.ui.hideQuickActions")}
                         >
                             <EyeOff className="w-4 h-4" />
                         </button>

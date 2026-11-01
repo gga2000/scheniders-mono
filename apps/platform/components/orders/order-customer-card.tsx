@@ -555,7 +555,7 @@ export function OrderCustomerCard({
                                             title={t("orderDetail.originalDate")}
                                         >
                                             <Calendar className="w-3 h-3 text-amber-600" />
-                                            <span className="text-amber-500 mr-0.5">was</span>
+                                            <span className="text-amber-500 mr-0.5">{t("orders.ui.wasLower")}</span>
                                             {formatOrderDayMonthTime(order.original_created_at)}
                                         </span>
                                     )}
@@ -602,9 +602,9 @@ export function OrderCustomerCard({
                                     <option value="lightfunnels">LightFunnels</option>
                                     <option value="meta">Instagram (Meta)</option>
                                     <option value="tiktok">TikTok</option>
-                                    <option value="delivery_import">Delivery Import</option>
+                                    <option value="delivery_import">{t("orders.ui.sourceDeliveryImport")}</option>
                                     <option value="shop">{t("orderDetail.source.shop")}</option>
-                                    <option value="other">Other</option>
+                                    <option value="other">{t("orders.source.other")}</option>
                                 </select>
                                 <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-down"><path d="m6 9 6 6 6-6" /></svg>
@@ -654,7 +654,7 @@ export function OrderCustomerCard({
                                             return (
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-2 h-2 rounded-full bg-gray-400" />
-                                                    <span className="text-sm font-medium">Other</span>
+                                                    <span className="text-sm font-medium">{t("orders.source.other")}</span>
                                                 </div>
                                             );
                                     }

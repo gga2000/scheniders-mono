@@ -8,6 +8,7 @@ import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import type { Order } from "@/lib/supabase";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { useLanguage } from "@/hooks/use-language";
 
 interface FulfillTabProps {
     orders: Order[];
@@ -26,6 +27,7 @@ export function FulfillTab({
     onUpdate,
     onViewDetails,
 }: FulfillTabProps) {
+    const { t } = useLanguage();
     const [packedState, setPackedState] = useState<Record<string, PackedItem[]>>({});
     const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
     const [isShippingAll, setIsShippingAll] = useState(false);
@@ -140,8 +142,8 @@ export function FulfillTab({
                 <div className="w-16 h-16 rounded-2xl bg-purple-100 flex items-center justify-center mb-4">
                     <Package className="w-8 h-8 text-purple-700" />
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">Nothing to Pack</h3>
-                <p className="text-muted text-center">Confirm some orders first 📦</p>
+                <h3 className="text-xl font-bold text-foreground mb-2">{t("orders.wf.nothingToPack")}</h3>
+                <p className="text-muted text-center">{t("orders.wf.confirmFirst")}</p>
             </div>
         );
     }
@@ -153,10 +155,10 @@ export function FulfillTab({
                 <div className="flex items-center gap-3">
                     <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 text-purple-800 text-sm font-medium">
                         <BoxSelect className="w-4 h-4" />
-                        {orders.length} To Pack
+                        {t("orders.wf.nToPack", { count: orders.length })}
                     </span>
                     <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--pastel-green)] text-emerald-800 text-sm font-medium">
-                        {orders.filter(o => isFullyPacked(o.id)).length} Ready
+                        {t("orders.wf.nReady", { count: orders.filter(o => isFullyPacked(o.id)).length })}
                     </span>
                 </div>
 
@@ -169,7 +171,7 @@ export function FulfillTab({
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold text-sm hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg disabled:opacity-50"
                         >
                             <Truck className="w-4 h-4" />
-                            Ship {selectedOrders.size} Selected
+                            {t("orders.wf.shipSelected", { count: selectedOrders.size })}
                         </button>
                     )}
                     {orders.filter(o => isFullyPacked(o.id)).length > 0 && (
@@ -179,7 +181,7 @@ export function FulfillTab({
                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold text-sm hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg disabled:opacity-50"
                         >
                             <Send className="w-4 h-4" />
-                            {isShippingAll ? "Shipping..." : `Ship All Ready (${orders.filter(o => isFullyPacked(o.id)).length})`}
+                            {isShippingAll ? t("orders.wf.shipping") : t("orders.wf.shipAllReady", { count: orders.filter(o => isFullyPacked(o.id)).length })}
                         </button>
                     )}
                 </div>
@@ -224,20 +226,20 @@ export function FulfillTab({
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-foreground">{formatIQD(Number(order.price))}</p>
-                                        <p className="text-xs text-muted">{packedCount}/{packedItems.length} packed</p>
+                                        <p className="text-xs text-muted">{t("orders.wf.packed", { done: packedCount, total: packedItems.length })}</p>
                                     </div>
                                 </div>
 
                                 {/* Ready Badge */}
                                 {allPacked && (
                                     <div className="mb-3 px-3 py-1.5 bg-[var(--pastel-green)] rounded-lg text-sm font-medium text-emerald-800 text-center">
-                                        ✓ Ready to Ship
+                                        {t("orders.wf.readyToShip")}
                                     </div>
                                 )}
 
                                 {/* Packing Checklist */}
                                 <div className="space-y-2 mb-4">
-                                    <p className="text-xs text-muted font-bold uppercase tracking-wider">Packing Checklist</p>
+                                    <p className="text-xs text-muted font-bold uppercase tracking-wider">{t("orders.wf.packingChecklist")}</p>
                                     {packedItems.map((item, idx) => (
                                         <button
                                             key={idx}
@@ -272,14 +274,14 @@ export function FulfillTab({
                                         className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border-2 border-[var(--card-border)] text-muted hover:bg-[var(--background)] transition-all text-sm font-medium"
                                     >
                                         <Eye className="w-4 h-4" />
-                                        Details
+                                        {t("orders.wf.details")}
                                     </button>
                                     <button
                                         onClick={() => handlePrintLabel(order)}
                                         className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-gray-800 text-white hover:bg-gray-900 transition-all text-sm font-medium"
                                     >
                                         <Printer className="w-4 h-4" />
-                                        Print
+                                        {t("orders.wf.print")}
                                     </button>
                                     <button
                                         onClick={() => handleMarkShipped(order)}
@@ -292,7 +294,7 @@ export function FulfillTab({
                                         )}
                                     >
                                         <Truck className="w-4 h-4" />
-                                        Ship
+                                        {t("orders.wf.ship")}
                                     </button>
                                 </div>
                             </div>

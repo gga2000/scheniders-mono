@@ -289,7 +289,7 @@ export function OrdersFilterBar({
                                                     className="flex items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-all"
                                                 >
                                                     <X className="w-3.5 h-3.5" />
-                                                    Clear all filters
+                                                    {t("orders.ui.clearAllFilters")}
                                                 </button>
                                             )}
 
@@ -304,7 +304,7 @@ export function OrdersFilterBar({
                                                 )}
                                             >
                                                 <Bookmark className="w-3.5 h-3.5" />
-                                                Presets {filterPresets.length > 0 && `(${filterPresets.length})`}
+                                                {t("orders.ui.presets")} {filterPresets.length > 0 && `(${filterPresets.length})`}
                                             </button>
                                         </div>
 
@@ -339,7 +339,7 @@ export function OrdersFilterBar({
                                                                     className="flex items-center gap-1.5 px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all disabled:opacity-50"
                                                                 >
                                                                     <Save className="w-3.5 h-3.5" />
-                                                                    Save
+                                                                    {t("common.save")}
                                                                 </button>
                                                             </div>
                                                         )}

@@ -95,7 +95,7 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                                     {t("orderDetail.dateCorrected")}
                                 </span>
                                 <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[11px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                                    Was: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
+                                    {t("orders.ui.originalDate", { date: `${formatShortDate(order.original_created_at)} ${formatTime(order.original_created_at)}` })}
                                 </span>
                             </span>
                         )}

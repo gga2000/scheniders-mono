@@ -1536,7 +1536,7 @@ export default function OrdersPage() {
                                                             <button
                                                                 onClick={() => setIsExportModalOpen(true)}
                                                                 className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
-                                                                title="Export"
+                                                                title={t("orders.ui.export")}
                                                             >
                                                                 <Download className="w-4 h-4" />
                                                             </button>
@@ -1547,7 +1547,7 @@ export default function OrdersPage() {
                                                                     setShipConfirmOpen(true);
                                                                 }}
                                                                 className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-2"
-                                                                title="Ship via Prime"
+                                                                title={t("orders.ui.shipViaPrime")}
                                                             >
                                                                 <Truck className="w-4 h-4" />
                                                             </button>
@@ -1564,7 +1564,7 @@ export default function OrdersPage() {
                                                                 title={t("orders.tip.returnsCockpit")}
                                                             >
                                                                 <PackageX className="w-4 h-4" />
-                                                                <span className="whitespace-nowrap hidden lg:inline">Returns</span>
+                                                                <span className="whitespace-nowrap hidden lg:inline">{t("orders.ui.returns")}</span>
                                                             </button>
                                                             <button
                                                                 onClick={() => setIsCreateModalOpen(true)}
@@ -1742,7 +1742,7 @@ export default function OrdersPage() {
                                                                 : "bg-blue-50 text-blue-700 border border-blue-100"
                                                         )}
                                                     >
-                                                        <span className="font-semibold">{selectedOrders.size} orders selected</span>
+                                                        <span className="font-semibold">{t("orders.ui.nSelected", { count: selectedOrders.size })}</span>
                                                         {canOfferSelectAll({
                                                             selectedCount: selectedOrders.size,
                                                             loadedCount: filteredOrders.length,
@@ -1755,14 +1755,14 @@ export default function OrdersPage() {
                                                                 }}
                                                                 className="underline font-bold hover:opacity-80 transition-opacity"
                                                             >
-                                                                Select all {filteredOrders.length} orders
+                                                                {t("orders.ui.selectAllN", { count: filteredOrders.length })}
                                                             </button>
                                                         )}
                                                         <button
                                                             onClick={() => setSelectedOrders(new Set())}
                                                             className="text-xs underline opacity-70 hover:opacity-100 transition-opacity"
                                                         >
-                                                            Clear selection
+                                                            {t("orders.ui.clearSelection")}
                                                         </button>
                                                     </motion.div>
                                                 )}
