@@ -11,7 +11,7 @@ import {
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { resolveStoreTenant, requireStoreTenant } from "@/lib/route-guards";
-import { getRequestOrigin, htmlLangFor, ogLocaleFor, getStorefrontBase } from "@/lib/seo";
+import { getRequestOrigin, htmlLangFor, ogLocaleFor, getStorefrontBase, storeDisplayName } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { CartHydrator } from "@/components/cart-hydrator";
@@ -348,7 +348,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
   const description =
     seo?.meta_description ||
     (typeof homeDescription === "string" && homeDescription.trim()) ||
-    `${tenant.business_name} — اطلب الآن من أفضل المنتجات`;
+    `${storeDisplayName(tenant)} — اطلب الآن من أفضل المنتجات`;
   const origin = await getRequestOrigin();
   const ogImage = v2Identity?.og_image_url || seo?.og_image_url;
   // Home-screen install: the manifest is per tenant and lives under the
@@ -381,7 +381,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
         (tenant as Tenant & { store_config_v2?: StoreConfigV2 | null })
           .store_config_v2?.default_locale,
       ),
-      siteName: tenant.business_name,
+      siteName: storeDisplayName(tenant),
       title,
       description,
       ...(ogImage ? { images: [{ url: ogImage }] } : {}),

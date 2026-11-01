@@ -14,6 +14,7 @@ import {
   returnPolicyJsonLd,
   shippingDetailsJsonLd,
   storeCanonical,
+  storeDisplayName,
 } from "./seo";
 
 describe("itemListJsonLd", () => {
@@ -427,5 +428,26 @@ describe("storeCanonical", () => {
 
   it("emits nothing without a host", async () => {
     expect(await storeCanonical("acme", "/about")).toEqual({});
+  });
+});
+
+describe("storeDisplayName", () => {
+  it("prefers the builder brand name over the legal business name", () => {
+    expect(
+      storeDisplayName({
+        business_name: "Scheniders Iraq",
+        store_config_v2: { brand_kit: { identity: { name: " شنايدر " } } },
+      }),
+    ).toBe("شنايدر");
+  });
+
+  it("falls back to the business name when no brand name is set", () => {
+    expect(storeDisplayName({ business_name: "Scheniders Iraq", store_config_v2: null })).toBe("Scheniders Iraq");
+    expect(
+      storeDisplayName({
+        business_name: "Scheniders Iraq",
+        store_config_v2: { brand_kit: { identity: { name: "  " } } },
+      }),
+    ).toBe("Scheniders Iraq");
   });
 });

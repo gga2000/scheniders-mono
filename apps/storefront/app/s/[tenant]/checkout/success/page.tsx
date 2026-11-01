@@ -22,6 +22,7 @@ import {
 } from "@/components/schneiders/primitives";
 import { SchneidersProductCard } from "@/components/schneiders/product-card";
 import { OrderRecap } from "@/components/schneiders/order-recap";
+import { storeDisplayName } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ tenant: string }>;
@@ -41,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = v2?.default_locale ?? "ar";
   const pageName = locale === "en" ? "Order received" : "تم استلام طلبك";
   return {
-    title: tenant ? `${pageName} — ${tenant.business_name}` : pageName,
+    title: tenant ? `${pageName} — ${storeDisplayName(tenant)}` : pageName,
     // A per-order thank-you URL is never a search result.
     robots: { index: false, follow: false },
     ...resolveV2PageMetadata(v2, "checkout_success", locale),

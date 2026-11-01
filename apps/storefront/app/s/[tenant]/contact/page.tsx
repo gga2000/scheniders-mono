@@ -8,7 +8,7 @@ import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { BentoCard, ChunkyLink, MaterialIcon, WhatsAppIcon } from "@/components/schneiders/primitives";
-import { storeCanonical } from "@/lib/seo";
+import { storeCanonical, storeDisplayName } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -24,7 +24,7 @@ export async function generateMetadata({
   // Fallback title: localised page name + the tenant's own name.
   const pageName = locale === "en" ? "Contact" : "تواصل معنا";
   return {
-    title: tenant ? `${pageName} — ${tenant.business_name}` : pageName,
+    title: tenant ? `${pageName} — ${storeDisplayName(tenant)}` : pageName,
     ...(await storeCanonical(tenantParam, "/contact")),
     ...resolveV2PageMetadata(v2, "contact", locale),
   };

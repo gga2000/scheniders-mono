@@ -10,7 +10,7 @@ import {
 } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
 import { SchneidersPolicyPage } from "@/components/schneiders/policy-page";
-import { storeCanonical } from "@/lib/seo";
+import { storeCanonical, storeDisplayName } from "@/lib/seo";
 
 export async function generateMetadata({
   params,
@@ -28,7 +28,7 @@ export async function generateMetadata({
   const pageName =
     locale === "en" ? "Returns & exchanges" : "الإرجاع والاستبدال";
   const fallbackTitle = tenant
-    ? `${pageName} — ${tenant.business_name}`
+    ? `${pageName} — ${storeDisplayName(tenant)}`
     : pageName;
   return {
     title: fallbackTitle,

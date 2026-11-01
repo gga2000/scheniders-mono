@@ -25,6 +25,7 @@ import {
   breadcrumbJsonLd,
   shippingDetailsJsonLd,
   returnPolicyJsonLd,
+  storeDisplayName,
 } from "@/lib/seo";
 
 interface Props {
@@ -43,7 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getProductBySlug(tenant.id, slug);
   if (!product) return {}; // the route's layout has already answered 404 or redirected
 
-  const title = `${product.name} — ${tenant.business_name}`;
+  const title = `${product.name} — ${storeDisplayName(tenant)}`;
   const description = product.description ?? undefined;
   const { baseUrl } = await getStorefrontBase(tenantParam);
   const productUrl = baseUrl
@@ -136,7 +137,7 @@ export default async function ProductPage({ params }: Props) {
               description: product.description ?? null,
               price: product.price,
               inStock,
-              brand: tenant.business_name,
+              brand: product.brand?.trim() || storeDisplayName(tenant),
               ratingAverage: product.avg_rating ?? null,
               ratingCount: product.review_count ?? null,
               sku: product.sku ?? null,
