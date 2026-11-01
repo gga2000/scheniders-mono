@@ -17,7 +17,7 @@
  *
  * This list only says what Google serves. The families in
  * SELF_HOSTED_FONT_VARS (Bricolage Grotesque, DM Sans, Cairo, Noto Sans
- * Arabic) are left out of that URL and served by next/font in the storefront
+ * Arabic, IBM Plex Sans Arabic, Readex Pro) are left out of that URL and served by next/font in the storefront
  * root layout, so the weights a store actually gets for them are whatever
  * that layout loads. A self-hosted family on this list is only complete on
  * the storefront when the layout loads it variable or with 400-700.
