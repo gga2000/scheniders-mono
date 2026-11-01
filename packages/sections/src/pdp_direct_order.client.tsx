@@ -1134,10 +1134,17 @@ export function PdpDirectOrderRender({
       } catch {
         /* sessionStorage unavailable — the recap just won't render */
       }
+      // The order is placed: settle this form's state now, before anything
+      // async, so nothing later (a slow hash below) can leave it half-done.
+      const purchaseEventId = purchaseEventIdRef.current;
+      clearOrderDraft(ctx.tenant.id, product.id);
+      retireCartLines(product.id);
+      idempotencyKeyRef.current = null;
+      purchaseEventIdRef.current = null;
       // Pixel Purchase — same event_id the server sent to CAPI (dedup),
       // handed to the thank-you page so the navigation below cannot cancel
       // it (helpers/pixels handOffPurchase).
-      if (purchaseEventIdRef.current) {
+      if (purchaseEventId) {
         await handOffPurchase({
           tenantId: ctx.tenant.id,
           phone: form.phone,
@@ -1148,13 +1155,9 @@ export function PdpDirectOrderRender({
               quantity: i.quantity,
             })),
           ),
-          eventId: purchaseEventIdRef.current,
+          eventId: purchaseEventId,
         });
       }
-      clearOrderDraft(ctx.tenant.id, product.id);
-      retireCartLines(product.id);
-      idempotencyKeyRef.current = null;
-      purchaseEventIdRef.current = null;
       setStatus("ok");
       // Navigate to the celebratory thank-you page (full nav keeps the stash).
       window.location.href = `${base}/checkout/success${
