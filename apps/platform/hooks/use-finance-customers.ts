@@ -1,5 +1,6 @@
 "use client";
 
+import { bucketsBetween, periodBucket } from "@/lib/finance/buckets";
 import { useMemo } from "react";
 import type { Order } from "@/lib/supabase";
 import type { DateInterval } from "./use-finance-overview";
@@ -88,7 +89,8 @@ export function useFinanceCustomers(
         const customerMap = new Map<string, CustomerSummary>();
         for (const o of orders) {
             const phone = o.phone;
-            if (!phone) continue;
+            // Refund and return rows are money going back, not orders the customer placed.
+            if (!phone || o.is_return) continue;
             const isRevenue = REVENUE_STATUSES.has(o.status);
             const created = o.created_at ? new Date(o.created_at).getTime() : 0;
             const price = Number(o.price) || 0;
@@ -296,12 +298,7 @@ function buildAcquisitionMix(
     };
 
     // Pre-fill buckets for the period
-    const cursor = new Date(range.start);
-    while (cursor.getTime() <= end) {
-        const { key, ts } = bucketKey(cursor, granularity);
-        ensureBucket(key, ts);
-        advanceCursor(cursor, granularity);
-    }
+    for (const { key, ts } of bucketsBetween(range.start, range.end, granularity)) ensureBucket(key, ts);
 
     for (const o of orders) {
         if (!o.created_at) continue;
@@ -311,7 +308,7 @@ function buildAcquisitionMix(
         const c = customerMap.get(o.phone);
         if (!c) continue;
         const price = Number(o.price) || 0;
-        const { key, ts } = bucketKey(new Date(o.created_at), granularity);
+        const { key, ts } = periodBucket(new Date(o.created_at), granularity);
         const b = ensureBucket(key, ts);
         if (c.is_new_in_period) {
             b.new_revenue += price;
@@ -323,38 +320,4 @@ function buildAcquisitionMix(
     }
 
     return Array.from(bucketsMap.values()).sort((a, b) => a.bucketTs - b.bucketTs);
-}
-
-function bucketKey(d: Date, g: Granularity): { key: string; ts: number } {
-    const dd = new Date(d);
-    if (g === "day") {
-        dd.setHours(0, 0, 0, 0);
-        return { key: dd.toISOString().slice(0, 10), ts: dd.getTime() };
-    }
-    if (g === "week") {
-        const day = dd.getDay();
-        const diff = dd.getDate() - day + (day === 0 ? -6 : 1);
-        dd.setDate(diff);
-        dd.setHours(0, 0, 0, 0);
-        return { key: `W-${dd.toISOString().slice(0, 10)}`, ts: dd.getTime() };
-    }
-    if (g === "month") {
-        const first = new Date(dd.getFullYear(), dd.getMonth(), 1);
-        return { key: `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, "0")}`, ts: first.getTime() };
-    }
-    if (g === "quarter") {
-        const q = Math.floor(dd.getMonth() / 3);
-        const first = new Date(dd.getFullYear(), q * 3, 1);
-        return { key: `${first.getFullYear()}-Q${q + 1}`, ts: first.getTime() };
-    }
-    const first = new Date(dd.getFullYear(), 0, 1);
-    return { key: `${first.getFullYear()}`, ts: first.getTime() };
-}
-
-function advanceCursor(d: Date, g: Granularity) {
-    if (g === "day") d.setDate(d.getDate() + 1);
-    else if (g === "week") d.setDate(d.getDate() + 7);
-    else if (g === "month") d.setMonth(d.getMonth() + 1);
-    else if (g === "quarter") d.setMonth(d.getMonth() + 3);
-    else d.setFullYear(d.getFullYear() + 1);
 }

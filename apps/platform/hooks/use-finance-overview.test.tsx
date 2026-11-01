@@ -3,7 +3,8 @@ import { renderHook } from "@testing-library/react";
 import type { Expense } from "@/types/expense";
 import type { Order } from "@/types/order";
 import type { Product } from "@/types/product";
-import { bucketKey, useFinanceOverview } from "./use-finance-overview";
+import { useFinanceOverview } from "./use-finance-overview";
+import { periodBucket as bucketKey } from "@/lib/finance/buckets";
 
 describe("bucketKey", () => {
     it("files the first Baghdad hours under the Baghdad day, not the UTC day", () => {
