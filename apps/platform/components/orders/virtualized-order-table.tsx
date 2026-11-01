@@ -26,6 +26,7 @@ import type { TableDensity } from '@/components/orders/table/density-toggle';
 import { useLanguage } from '@/components/providers/language-provider';
 import type { DuplicateWindowAlert } from '@/lib/duplicate-window';
 import { mergeOrderItems } from '@/lib/merge-order-items';
+import { getOrderStatusLabel } from '@/lib/order-status-labels';
 
 // Column definitions for resizable columns
 const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
@@ -280,11 +281,11 @@ const ColorTagPicker = memo(function ColorTagPicker({ currentColor, orderId, upd
 });
 
 // Copy helper
-const copyToClipboard = (text: string, label: string) => {
+const copyToClipboard = (text: string, label: string, t: (key: string, vars?: Record<string, string | number>) => string) => {
     navigator.clipboard.writeText(text).then(() => {
-        toast.success(`Copied ${label}`);
+        toast.success(t("orders.toast.copied", { label }));
     }).catch(() => {
-        toast.error("Failed to copy");
+        toast.error(t("orders.toast.copyFailed"));
     });
 };
 
@@ -522,7 +523,7 @@ const VirtualTableRow = memo(function VirtualTableRow({
                         </button>
                     )}
                     {!validatePhoneDetailed(order.phone).isValid && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title={t("orders.tip.invalidPhone")} />}
-                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.phone.replace(/^\+964/, "0").replace(/^964/, "0"), order.phone); }} className="p-0.5 rounded opacity-0 group-hover/phone:opacity-100 transition-opacity hover:bg-gray-100" title={t("orders.tip.copyPhone")}>
+                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(order.phone.replace(/^\+964/, "0").replace(/^964/, "0"), order.phone, t); }} className="p-0.5 rounded opacity-0 group-hover/phone:opacity-100 transition-opacity hover:bg-gray-100" title={t("orders.tip.copyPhone")}>
                         <Copy className="w-3 h-3 text-muted" />
                     </button>
                 </div>
@@ -775,9 +776,9 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
         const targetOrder = displayedOrders.find(o => o.id === targetOrderId);
         if (targetOrder?.sequence_number) {
             updateOrder(sourceId, { sequence_number: targetOrder.sequence_number });
-            toast.success("Row reordered");
+            toast.success(t("orders.toast.rowReordered"));
         }
-    }, [updateOrder, displayedOrders]);
+    }, [updateOrder, displayedOrders, t]);
 
     const handleStatusChanged = useCallback((orderId: string) => {
         setFlashingOrderId(orderId);
@@ -1126,11 +1127,6 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                             const item = flatItems[virtualRow.index];
 
                             if (item.type === 'header') {
-                                const statusLabelsHeader: Record<string, string> = {
-                                    new: "جديد", contacted: "تم الاتصال", confirmed: "مؤكد",
-                                    in_transit: "قيد التوصيل", delivered: "تم التسليم",
-                                    rejected: "مرفوض", cancelled: "ملغي"
-                                };
                                 return (
                                     <div
                                         key={virtualRow.key}
@@ -1153,7 +1149,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                                         item.groupName === 'rejected' && "bg-rose-500",
                                                     )} />
                                                 )}
-                                                {groupBy === 'status' ? (statusLabelsHeader[item.groupName!] || item.groupName) : item.groupName}
+                                                {groupBy === 'status' ? getOrderStatusLabel(item.groupName, language) : item.groupName}
                                                 <span className="text-xs bg-white border border-gray-200 px-2 py-0.5 rounded-full text-muted-foreground">{item.data}</span>
                                             </div>
                                         </div>

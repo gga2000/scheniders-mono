@@ -470,7 +470,7 @@ export default function OrdersPage() {
                 setIsModalOpen(true);
             } else {
                 // Order was deleted or doesn't exist
-                toast.error("Order not found", "This order may have been deleted.");
+                toast.error(t("orders.toast.notFound"), t("orders.toast.notFoundDesc"));
             }
         } catch (err) {
             // Falling back to the list row is better than refusing to open, but
@@ -484,7 +484,7 @@ export default function OrdersPage() {
             setSelectedOrder(order);
             setIsModalOpen(true);
         }
-    }, [setSelectedOrder, setIsModalOpen]);
+    }, [setSelectedOrder, setIsModalOpen, t]);
 
     /**
      * Wrapper for setSelectedOrder that lazy-fetches full order data.
@@ -1621,9 +1621,9 @@ export default function OrdersPage() {
                                                                             // identical to a successful one.
                                                                             const result = await undoLastAction();
                                                                             if (result.success) {
-                                                                                toast.success("Undone", result.undoneAction);
+                                                                                toast.success(t("orders.toast.undone"), result.undoneAction);
                                                                             } else if (result.error) {
-                                                                                toast.warning("Nothing was undone", result.error);
+                                                                                toast.warning(t("orders.toast.nothingUndone"), result.error);
                                                                             }
                                                                         }}
                                                                         className="p-2.5 rounded-xl bg-lime-100/50 text-lime-700 hover:bg-lime-100 transition-all shadow-sm"
