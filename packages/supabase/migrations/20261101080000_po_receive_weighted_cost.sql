@@ -5,8 +5,12 @@
 --   profit and the cost shown on the Supplies tab drifted from what was really
 --   paid. New cost = weighted average of the stock on hand (at its current
 --   cost) and the quantity received (at the PO line price), rounded to a whole
---   dinar. Stock below zero counts as zero. A variant that carries its own cost
+--   dinar. Stock below zero counts as zero. A line may carry the real invoice
+--   price ("unit_cost", whole dinars, members who may see cost only): it
+--   replaces the PO line price, and the PO total is recomputed from the lines. A variant that carries its own cost
 --   is updated; otherwise the product cost is.
+--
+-- p_lines: [{ "item_id": uuid, "quantity": int > 0, "unit_cost": whole number >= 0 (optional) }]
 --
 -- Same SECURITY INVOKER contract as before: RLS and the cost column grants
 -- (UPDATE on cost is granted to authenticated) still decide who may write.
@@ -47,11 +51,20 @@ BEGIN
     END IF;
 
     FOR v_line IN
-        SELECT l.item_id, l.quantity
-          FROM jsonb_to_recordset(p_lines) AS l(item_id uuid, quantity integer)
+        SELECT l.item_id, l.quantity, l.unit_cost
+          FROM jsonb_to_recordset(p_lines) AS l(item_id uuid, quantity integer, unit_cost numeric)
     LOOP
         IF v_line.item_id IS NULL OR v_line.quantity IS NULL OR v_line.quantity <= 0 THEN
             RAISE EXCEPTION 'every received line needs an item and a quantity above zero' USING ERRCODE = '22023';
+        END IF;
+
+        IF v_line.unit_cost IS NOT NULL THEN
+            IF v_line.unit_cost < 0 OR v_line.unit_cost <> trunc(v_line.unit_cost) THEN
+                RAISE EXCEPTION 'a received cost must be a whole number of dinars' USING ERRCODE = '22023';
+            END IF;
+            IF NOT public.can_see_product_cost(v_tenant) THEN
+                RAISE EXCEPTION 'not allowed to set costs' USING ERRCODE = '42501';
+            END IF;
         END IF;
 
         SELECT i.id, i.product_id, i.variant_id, i.quantity_ordered, i.unit_cost,
@@ -91,8 +104,10 @@ BEGIN
         END IF;
 
         UPDATE public.purchase_order_items
-           SET quantity_received = v_item.received + v_line.quantity
+           SET quantity_received = v_item.received + v_line.quantity,
+               unit_cost         = coalesce(v_line.unit_cost, unit_cost)
          WHERE id = v_item.id;
+        v_item.unit_cost := coalesce(v_line.unit_cost, v_item.unit_cost);
 
         PERFORM public.adjust_product_stock(
             v_item.product_id, v_line.quantity, 'received', v_item.variant_id, 'PO ' || v_number
@@ -124,7 +139,9 @@ BEGIN
     v_new_state := CASE WHEN v_open = 0 THEN 'received' ELSE 'partial' END;
 
     UPDATE public.purchase_orders
-       SET status      = v_new_state,
+       SET total_cost  = (SELECT coalesce(sum(quantity_ordered * unit_cost), 0)
+                            FROM public.purchase_order_items WHERE po_id = p_po_id),
+           status      = v_new_state,
            received_at = CASE WHEN v_new_state = 'received' THEN now() ELSE received_at END,
            updated_at  = now()
      WHERE id = p_po_id;

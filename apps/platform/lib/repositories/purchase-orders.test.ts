@@ -48,7 +48,7 @@ describe("setPurchaseOrderStatus / receivePurchaseOrder", () => {
         const status = await receivePurchaseOrder("po1", [{ itemId: "i1", quantity: 6 }]);
         expect(rpc).toHaveBeenCalledWith("receive_purchase_order", {
             p_po_id: "po1",
-            p_lines: [{ item_id: "i1", quantity: 6 }],
+            p_lines: [{ item_id: "i1", quantity: 6, unit_cost: null }],
         });
         expect(status).toBe("partial");
     });
