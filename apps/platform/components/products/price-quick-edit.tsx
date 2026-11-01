@@ -54,7 +54,11 @@ export function PriceQuickEdit({ product, cost, onClose }: PriceQuickEditProps) 
         try {
             await update.mutateAsync({
                 id: product.id,
-                data: { price },
+                // A struck-through "was" price at or below the new price would read as a markup.
+                data:
+                    product.compare_at_price != null && product.compare_at_price <= price
+                        ? { price, compare_at_price: null }
+                        : { price },
                 expectedUpdatedAt: product.updated_at,
             });
             await productRepository.addPriceHistoryEntry(

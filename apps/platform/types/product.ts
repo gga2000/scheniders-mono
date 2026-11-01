@@ -25,7 +25,7 @@ export interface Product {
     sku?: string;
     lightfunnels_aliases?: string[];
     price: number;
-    compare_at_price?: number;
+    compare_at_price?: number | null;
     cost?: number;
     stock_quantity: number;
     reserved_quantity: number;

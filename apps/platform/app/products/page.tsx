@@ -42,6 +42,7 @@ import { RevealToggle } from "@/components/ui/reveal-toggle";
 // Import components
 import { ProductDetailModal } from "@/components/products/product-detail-modal";
 import { LowStockAlert } from "@/components/products/low-stock-alert";
+import { parseFilterParam } from "@/lib/product-filter-param";
 import { AdvancedFilters, EMPTY_ADVANCED_FILTERS, FilterValues } from "@/components/products/advanced-filters";
 import { ActiveFilterPills } from "@/components/products/active-filter-pills";
 import { FilterBottomSheet } from "@/components/products/filter-bottom-sheet";
@@ -51,6 +52,9 @@ import { ExportMenu } from "@/components/products/export-menu";
 import { AbcTierProvider } from "@/components/products/abc-tier-context";
 import { exportToCSV, exportToExcel, printProductReport } from "@/lib/export-utils";
 import { PageSkeleton, TableSkeleton } from "@scheniders/ui/skeletons";
+
+const PRODUCTS_TABS = ["products", "categories", "attributes", "quarantine", "supplies"] as const;
+type ProductsTab = (typeof PRODUCTS_TABS)[number];
 
 // Tabs and views other than the default grid load on first use, so opening
 // /products does not parse their code (supplies, QC, categories, attributes,
@@ -176,7 +180,8 @@ function ProductsContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
-    const activeTab = (searchParams?.get("tab") as "products" | "categories" | "attributes" | "quarantine" | "supplies") || "products";
+    const tabParam = searchParams?.get("tab");
+    const activeTab: ProductsTab = PRODUCTS_TABS.find((tab) => tab === tabParam) ?? "products";
     const [advancedFilters, setAdvancedFilters] = useState<FilterValues | null>(null);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const [isFilterStuck, setIsFilterStuck] = useState(false);
@@ -222,14 +227,8 @@ function ProductsContent() {
         if (requestedView) setViewMode(requestedView);
         const filterParam = searchParams.get("filters");
         if (filterParam) {
-            try {
-                const decoded = JSON.parse(atob(filterParam));
-                if (decoded && typeof decoded === "object") {
-                    setAdvancedFilters(decoded as FilterValues);
-                }
-            } catch {
-                // ignore malformed filter param
-            }
+            const decoded = parseFilterParam(filterParam);
+            if (decoded) setAdvancedFilters(decoded);
         }
     }, [searchParams, setViewMode]);
 
@@ -331,8 +330,9 @@ function ProductsContent() {
             } else if (advancedFilters.hasVariants === "no") {
                 result = result.filter((p) => !p.variants?.length);
             }
-            if (advancedFilters.tagId && tagMemberIds) {
-                result = result.filter((p) => tagMemberIds.has(p.id));
+            if (advancedFilters.tagId) {
+                // Until the tag's members load (or if that fails) show none, not everything.
+                result = result.filter((p) => tagMemberIds?.has(p.id) ?? false);
             }
         } else {
             result = result.filter((p) => !p.is_archived);
@@ -359,7 +359,7 @@ function ProductsContent() {
                 case "newest":
                     return (b.created_at ?? "").localeCompare(a.created_at ?? "");
                 case "name":
-                    return a.name.localeCompare(b.name);
+                    return a.name.localeCompare(b.name, language);
                 case "displayOrder":
                     return (a.display_order || 0) - (b.display_order || 0);
                 default: // "sales"
@@ -368,7 +368,7 @@ function ProductsContent() {
         });
 
         return result;
-    }, [products, searchQuery, sortBy, advancedFilters, tagMemberIds, showFiller, curatedIdsByCategory]);
+    }, [products, searchQuery, sortBy, advancedFilters, tagMemberIds, showFiller, curatedIdsByCategory, language]);
 
     // A selection never outlives what is on screen: bulk price, archive and
     // delete act on the selected ids, so one hidden by a search or filter

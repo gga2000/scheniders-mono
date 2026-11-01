@@ -95,7 +95,7 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
         return (rawProducts || []).map((product) => {
             const salesData = salesByProductId.get(product.id)
                 ?? { timesSold: 0, totalRevenue: 0, averageOrderValue: 0, timesSold30d: 0, revenue30d: 0 };
-            const profitMargin = product.cost
+            const profitMargin = product.cost && product.price > 0
                 ? ((product.price - product.cost) / product.price) * 100
                 : undefined;
 
