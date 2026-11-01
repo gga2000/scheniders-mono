@@ -1,5 +1,7 @@
 // Shared formatting helpers for the customers page (card, list, drawer).
 
+import { formatIQD } from '@scheniders/shared';
+
 /**
  * Iraqi phone for display: any input → "0780 123 4567" (LTR, Western digits).
  * A number that is not 10 national digits is shown as typed, not padded with
@@ -26,6 +28,16 @@ export function monogram(name: string): string {
     const trimmed = (name || '').trim();
     if (!trimmed) return '؟';
     return trimmed.slice(0, 2);
+}
+
+/**
+ * Lifetime spend for the card, the table and the drawer. Spend counts delivered
+ * orders only, so a customer whose first order is still on the road has nothing
+ * to show yet: "—" (like the delivery rate beside it), never "IQD 0", which reads
+ * as a free order.
+ */
+export function spentLabel(totalSpent: number, firstDeliveryPending: boolean): string {
+    return firstDeliveryPending && totalSpent === 0 ? '—' : formatIQD(totalSpent);
 }
 
 /** Safe whole-number percentage. */

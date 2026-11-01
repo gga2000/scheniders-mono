@@ -32,7 +32,7 @@ import { CustomerQuickActions } from "@/components/customers/customer-quick-acti
 import { CustomerBlockAction } from "@/components/customers/customer-block-action";
 import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
 import { CustomerPlace } from "@/components/customers/customer-place";
-import { monogram, formatPhoneDisplay, formatBaghdadDate, formatBaghdadMonthYear, toIraqE164 } from "@/lib/customer-format";
+import { monogram, formatPhoneDisplay, formatBaghdadDate, formatBaghdadMonthYear, spentLabel, toIraqE164 } from "@/lib/customer-format";
 import { fetchBlacklistEntry } from "@/lib/blacklist";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useOrderCrud } from "@/hooks/use-order-crud";
@@ -396,8 +396,8 @@ function Body({
         { v: totalOrders.toLocaleString("en-US"), k: t("customers.orders"), span: "col-span-2" },
         { v: completed.toLocaleString("en-US"), k: t("customers.stat.delivered"), span: "col-span-2" },
         { v: pending ? "—" : `${successRate}%`, k: pending ? t("customers.card.firstDeliveryPending") : t("customers.table.success", "Delivery rate"), span: "col-span-2" },
-        // Spend counts delivered orders only, so an order still on the road adds nothing yet: IQD 0, labelled as such.
-        { v: formatIQD(spent), k: t("customers.drawer.lifetime"), span: "col-span-3" },
+        // Spend counts delivered orders only: the same "—" as the card and the table while the first delivery is pending.
+        { v: spentLabel(spent, pending), k: t("customers.drawer.lifetime"), span: "col-span-3" },
         { v: avgBasket === null ? "—" : formatIQD(avgBasket), k: t("customers.drawer.avgBasket"), span: "col-span-3" },
     ];
 
@@ -471,7 +471,7 @@ function Body({
                             )}
                         />
                     </div>
-                    {flagged && <CustomerStatusFlags customer={customer} max={4} className="mt-3 pl-12" />}
+                    {flagged && <CustomerStatusFlags customer={customer} max={4} surface="tinted" className="mt-3 pl-12" />}
                 </div>
 
                 {/* Stat strip */}

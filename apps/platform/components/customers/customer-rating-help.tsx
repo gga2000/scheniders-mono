@@ -25,11 +25,16 @@ const ACTIVITY_ROWS = [
  * explain. The rules mirror value_tier_calc, risk_level_calc and
  * calculate_customer_trust (lib/customer-reliability.ts).
  */
-export function CustomerRatingHelp({ className, side = "bottom", align = "start", showLabel = false, anchor }: {
+export function CustomerRatingHelp({ className, side = "bottom", align = "start", keepSide = false, showLabel = false, anchor }: {
     className?: string;
-    /** "left" beside a band (the drawer, the profile banner), so the popover never sits over the figures it explains. */
+    /** "left" beside the drawer's band, "bottom" under the profile banner, so the popover never sits over the score. */
     side?: "top" | "right" | "bottom" | "left";
     align?: "start" | "center" | "end";
+    /**
+     * Never flip to the other side when room is short: the body scrolls instead. The profile
+     * banner needs it, since flipped above the banner the popover would cover the trust score.
+     */
+    keepSide?: boolean;
     /** Print "How customers are rated" beside the icon (the list header); otherwise the icon alone, named for screen readers. */
     showLabel?: boolean;
     /**
@@ -64,6 +69,7 @@ export function CustomerRatingHelp({ className, side = "bottom", align = "start"
             <PopoverContent
                 side={side}
                 align={align}
+                avoidCollisions={!keepSide}
                 sideOffset={8}
                 collisionPadding={16}
                 onClick={(e) => e.stopPropagation()}

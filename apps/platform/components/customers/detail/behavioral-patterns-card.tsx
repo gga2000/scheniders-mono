@@ -151,10 +151,12 @@ export function BehavioralPatternsCard({
             else if (s === "cancelled" || s === "canceled") counts.cancelled++;
         }
         const total = orders.length || 1;
+        // One segment per outcome, never joined into one string: an Arabic segment
+        // starts with its number ("93% وصلت"), and a joined line lets the number of
+        // the first segment drift away from its word. OutcomeMix isolates each one.
         const statusMix = (Object.keys(counts) as (keyof typeof counts)[])
             .filter((k) => k === "delivered" || counts[k] > 0)
-            .map((k) => t(`customers.behavioral.mix.${k}`, { pct: Math.round((counts[k] / total) * 100).toString() }))
-            .join(" · ");
+            .map((k) => ({ key: k, label: t(`customers.behavioral.mix.${k}`, { pct: Math.round((counts[k] / total) * 100).toString() }) }));
 
         return {
             // Refusals at the door are the one pattern worth colour: the outcomes tile turns rose.
@@ -228,7 +230,7 @@ export function BehavioralPatternsCard({
                         icon={<PieChart className="w-4.5 h-4.5" />}
                         tone={patterns.hasRefusals ? "bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" : undefined}
                         title={t("customers.behavioral.statusMix")}
-                        value={patterns.statusMix}
+                        value={<OutcomeMix segments={patterns.statusMix} />}
                     />
                 </div>
             ) : snapshot ? (
@@ -259,6 +261,26 @@ export function BehavioralPatternsCard({
     );
 }
 
+/**
+ * The outcome mix, "93% delivered · 7% returned". Each segment is its own
+ * bidi-isolated run, so an Arabic number stays beside its word. The runs are
+ * spans with unicode-bidi: isolate rather than <bdi>: the row's dir="auto"
+ * skips <bdi> text, and it needs the first segment's word to set the reading
+ * direction, so Arabic segments run right to left like the outcome flags.
+ */
+function OutcomeMix({ segments }: { segments: { key: string; label: string }[] }) {
+    return (
+        <>
+            {segments.map((s, i) => (
+                <span key={s.key}>
+                    {i > 0 && <span aria-hidden> · </span>}
+                    <span className="[unicode-bidi:isolate] whitespace-nowrap">{s.label}</span>
+                </span>
+            ))}
+        </>
+    );
+}
+
 /** Neutral icon tiles; colour only where the row means something (refusals, a bad number). */
 const NEUTRAL_TILE = "bg-muted text-foreground dark:bg-white/10";
 
@@ -284,7 +306,9 @@ function Row({
             <div className="min-w-0 flex-1">
                 <p className="font-semibold text-sm leading-snug truncate">{title}</p>
                 {value && (
-                    <p className="text-[13px] text-muted-foreground leading-relaxed mt-0.5 wrap-break-word">
+                    // dir="auto": an Arabic value (cadence, day, outcome mix) reads in its own order;
+                    // text-left keeps it on the left edge of the LTR page like every other row.
+                    <p dir="auto" className="text-[13px] text-muted-foreground leading-relaxed mt-0.5 wrap-break-word text-left">
                         {value}
                     </p>
                 )}

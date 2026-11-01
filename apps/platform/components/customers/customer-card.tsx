@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, MessageCircle, Phone, Tag, X, Check, User } from "lucide-react";
 import { governorateLabel } from "@scheniders/shared";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { PaginatedCustomer } from "@/hooks/use-paginated-customers";
 import {
@@ -18,7 +18,7 @@ import {
 import { ValuePill, RiskChip, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { CustomerStatusFlags } from "@/components/customers/customer-status-flags";
 import { CustomerQuickActions } from "@/components/customers/customer-quick-actions";
-import { formatPhoneDisplay, monogram, toIraqE164 } from "@/lib/customer-format";
+import { formatPhoneDisplay, monogram, spentLabel, toIraqE164 } from "@/lib/customer-format";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 
@@ -130,7 +130,7 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
                 </div>
                 <div className="min-w-0 flex flex-col-reverse">
                     <dt className="text-xs text-muted-foreground truncate">{t("customers.card.statSpent")}</dt>
-                    <dd className="font-semibold text-foreground tabular-nums truncate">{formatIQD(customer.total_spent)}</dd>
+                    <dd className="font-semibold text-foreground tabular-nums truncate">{spentLabel(customer.total_spent, pending)}</dd>
                 </div>
                 <div className="min-w-0 flex flex-col-reverse">
                     <dt className="text-xs text-muted-foreground truncate">{t("customers.table.success")}</dt>

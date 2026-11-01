@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { formatPhoneDisplay, toIraqE164 } from "@/lib/customer-format";
+import { MessageTextarea } from "@/components/customers/message-textarea";
 
 // An Iraqi mobile in E.164 (9647XXXXXXXXX). Phones are normalized first, so a number
 // stored as 07…, 7… or +964… is judged by the digits, not by how it was typed.
@@ -111,13 +112,13 @@ export function BroadcastModal({ isOpen, onClose, recipients, canCopyNumbers }: 
                             <label htmlFor="broadcast-message" className="block text-sm font-bold text-foreground mb-2">
                                 {t("customers.broadcast.message")}
                             </label>
-                            <textarea
+                            <MessageTextarea
                                 id="broadcast-message"
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 placeholder={t("customers.broadcast.placeholder")}
                                 dir="auto"
-                                className="w-full p-4 bg-background border border-(--card-border) rounded-xl text-sm min-h-40 resize-y focus:outline-none focus:ring-2 focus:ring-foreground/30"
+                                className="min-h-40 resize-y"
                             />
                             <p dir="auto" className="text-xs text-muted-foreground mt-2 text-start">{t("customers.broadcast.nameHint")}</p>
                         </div>

@@ -376,13 +376,15 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     />
                 </div>
 
-                {/* Ratings and links (one line each while empty) stacked in one column, the identity
-                    timeline beside them, so the page does not end in a wide empty strip. */}
-                <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
+                {/* Ratings and links are full-width strips (one line each while empty) and the identity
+                    timeline runs the full width in two columns, so no short column sits beside a tall one. */}
+                <div className="col-span-12">
                     <RatingsCard ratings={profile.ratings} />
+                </div>
+                <div className="col-span-12">
                     <LinkedPeopleSection phone={profile.phone} />
                 </div>
-                <div className="col-span-12 lg:col-span-8">
+                <div className="col-span-12">
                     <IdentityTimeline phone={profile.phone} />
                 </div>
             </div>

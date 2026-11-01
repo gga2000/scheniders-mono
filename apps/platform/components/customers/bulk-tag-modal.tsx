@@ -80,7 +80,7 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                 <>
                     <button
                         onClick={onClose}
-                        className="flex-1 h-11 px-4 bg-(--card-bg) border border-(--card-border) text-muted-foreground hover:text-foreground hover:bg-muted/30 font-semibold rounded-xl transition-colors"
+                        className="flex-1 h-11 px-4 bg-(--card-bg) border border-(--card-border) text-foreground hover:bg-muted/30 font-semibold rounded-xl transition-colors"
                         disabled={isLoading}
                     >
                         {t("customers.bulk.cancel")}

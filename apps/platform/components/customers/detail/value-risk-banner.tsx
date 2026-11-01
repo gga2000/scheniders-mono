@@ -77,15 +77,16 @@ export function CustomerValueRiskBanner({ reliability, successRate, orders }: {
                         <Clock className="w-3.5 h-3.5" />{t(verdictKey)}
                     </span>
                 ) : t(verdictKey)}
-                <CustomerStatusFlags customer={reliability} className="mt-1.5" />
+                <CustomerStatusFlags customer={reliability} surface="tinted" className="mt-1.5" />
             </div>
 
             {/* What Value, COD risk, the rate and the score mean, the same popover as the list and the drawer.
-                It opens left of the whole figures block, beside the numbers rather than over them, and
-                below the hero, so the trust score above stays in view. */}
+                It drops below the figures block, over Order history, so neither the hero's trust score
+                nor its action buttons above are covered. It keeps that side on a short screen and its body scrolls. */}
             <CustomerRatingHelp
-                side="left"
-                align="start"
+                side="bottom"
+                align="end"
+                keepSide
                 className="self-center text-current opacity-75 hover:opacity-100 hover:text-current"
                 anchor={(trigger) => (
                     <div className={cn("flex items-end gap-6 ml-auto", accent.surfaceText)}>
