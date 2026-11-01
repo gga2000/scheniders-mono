@@ -107,7 +107,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
             <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                     <Layers className="w-4 h-4" />
-                    Bundle Contents
+                    {t("products.bundle.contents")}
                 </h2>
                 <button
                     type="button"
@@ -115,7 +115,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                     className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Product
+                    {t("products.bundle.addProduct")}
                 </button>
             </div>
 

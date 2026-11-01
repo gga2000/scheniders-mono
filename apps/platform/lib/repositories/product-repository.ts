@@ -119,7 +119,11 @@ async function inChunks(
 export const productRepository = {
     /** Fetch the tenant's products with variants, newest first. */
     async findAll(tenantId: string): Promise<Product[]> {
-        return withRetry('productRepository.findAll', async () => {
+        // No whole-call timeout or retry here: the catalogue is read in pages and
+        // a single 15 s budget over all of them aborts a large store mid-download
+        // while the requests keep running. A failed read is retried by the
+        // query layer, page by page being the unit of work.
+        return (async () => {
             const _t = performance.now();
             diag.log(`[Diag:ProductRepo] findAll query START`);
 
@@ -154,7 +158,7 @@ export const productRepository = {
                     cost: variantCost.get(variant.id) ?? null,
                 })),
             })) as Product[];
-        });
+        })();
     },
 
     /**
