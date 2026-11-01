@@ -90,11 +90,13 @@ export function SalaryOverviewCards({
                 <p className="text-2xl font-bold text-foreground tabular-nums tracking-tight leading-tight">
                     <bdi>{fmtNumber(totalDue)} <span className="text-sm font-medium text-muted">{iqd}</span></bdi>
                 </p>
-                <p className="text-xs text-muted mt-1">{t("payroll.overview.membersCount", { count: fmtNumber(employeeCount) })}</p>
+                <p className="text-xs text-muted mt-1"><bdi>{t("payroll.overview.membersCount", { count: fmtNumber(employeeCount) })}</bdi></p>
                 {inTransitOrders > 0 && (
                     <p className="text-xs text-muted mt-2 pt-2 border-t border-dashed border-[var(--card-border)]" title={t("payroll.projection.hint")}>
-                        {t("payroll.projection.total", { count: fmtNumber(inTransitOrders) })}:{" "}
-                        <bdi className="font-semibold text-foreground tabular-nums">{fmtNumber(projectedTotal)} {iqd}</bdi>
+                        <bdi>
+                            {t("payroll.projection.total", { count: fmtNumber(inTransitOrders) })}:{" "}
+                            <bdi className="font-semibold text-foreground tabular-nums">{fmtNumber(projectedTotal)} {iqd}</bdi>
+                        </bdi>
                     </p>
                 )}
             </div>
@@ -103,7 +105,7 @@ export function SalaryOverviewCards({
 
             <div className="flex-1 px-5 py-4 min-w-0">
                 <p className="text-xs text-muted mb-1.5">
-                    {t("payroll.overview.ordersTitle", { count: fmtNumber(breakdown.completedTotal) })}
+                    <bdi>{t("payroll.overview.ordersTitle", { count: fmtNumber(breakdown.completedTotal) })}</bdi>
                 </p>
                 <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
                     {orderFigures.map((f) => (

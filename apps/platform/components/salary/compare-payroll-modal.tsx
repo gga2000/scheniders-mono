@@ -35,7 +35,7 @@ interface DiffRowProps {
 function DiffRow({ label, valueA, valueB, isCount = false, isTotal = false }: DiffRowProps) {
     const { t } = useLanguage();
     const diff = valueB - valueA;
-    const fmt = (n: number) => isCount ? String(n) : `${fmtIQD(n)} IQD`;
+    const fmt = (n: number) => isCount ? String(n) : `${fmtIQD(n)} ${t("common.iqd")}`;
 
     return (
         <tr className={isTotal ? "border-t-2 border-[var(--card-border)] font-bold" : ""}>
