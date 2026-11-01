@@ -62,7 +62,10 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: outcome.ok, rows: outcome.rows, error: outcome.error });
 }
 
-/** "Sync now" (tenant admins only). */
+/** Auto-refresh calls skip Meta when the last sync is newer than this; "Sync now" passes ?force=1. */
+const AUTO_SYNC_MIN_AGE_MS = 4 * 60_000;
+
+/** Sync (tenant admins only). Throttled unless ?force=1, so a page left open cannot hammer Meta. */
 export async function POST(request: NextRequest) {
     const caller = await requireRequestCaller(request, "tenant-admin");
     if (!caller.ok) return caller.response;
@@ -70,12 +73,18 @@ export async function POST(request: NextRequest) {
     const db = createSupabaseServiceClient();
     const { data: conn, error } = await db
         .from("meta_ads_connections")
-        .select("tenant_id, ad_account_id, access_token, usd_to_iqd")
+        .select("tenant_id, ad_account_id, access_token, usd_to_iqd, last_synced_at")
         .eq("tenant_id", caller.tenantId)
         .eq("is_active", true)
         .maybeSingle();
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     if (!conn) return NextResponse.json({ success: false, error: "Meta Ads is not connected" }, { status: 404 });
+
+    const force = new URL(request.url).searchParams.get("force") === "1";
+    const age = conn.last_synced_at ? Date.now() - new Date(conn.last_synced_at).getTime() : Infinity;
+    if (!force && age < AUTO_SYNC_MIN_AGE_MS) {
+        return NextResponse.json({ success: true, rows: 0, skipped: true });
+    }
 
     const outcome = await syncMetaAdsForTenant(db, conn);
     return NextResponse.json({ success: outcome.ok, rows: outcome.rows, error: outcome.error });

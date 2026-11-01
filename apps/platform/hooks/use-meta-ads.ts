@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
@@ -132,17 +132,31 @@ export function useMetaAdsConnection() {
     });
 }
 
+/** Page-open auto refresh cadence; the server throttles anyway. */
+const AUTO_REFRESH_MS = 5 * 60_000;
+
 export function useMetaAdsSyncNow() {
     const { session } = useAuth();
     const qc = useQueryClient();
     const token = session?.access_token ?? "";
     return useMutation({
-        mutationFn: async () => {
-            const res = await fetch("/api/settings/meta-ads", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+        mutationFn: async (opts?: { force?: boolean }) => {
+            const res = await fetch(`/api/settings/meta-ads${opts?.force ? "?force=1" : ""}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
             const body: unknown = await res.json();
             const parsed = z.object({ success: z.boolean(), error: z.string().optional() }).parse(body);
             if (!parsed.success) throw new Error(parsed.error ?? "Sync failed");
         },
         onSettled: () => qc.invalidateQueries({ queryKey: ["meta-ads"] }),
     });
+}
+
+/** While mounted and connected, ask the server to sync every 5 minutes (throttled server-side). */
+export function useMetaAdsAutoRefresh(enabled: boolean) {
+    const { mutate } = useMetaAdsSyncNow();
+    useEffect(() => {
+        if (!enabled) return;
+        mutate(undefined);
+        const id = setInterval(() => mutate(undefined), AUTO_REFRESH_MS);
+        return () => clearInterval(id);
+    }, [enabled, mutate]);
 }

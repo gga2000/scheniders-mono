@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Megaphone, RefreshCw } from "lucide-react";
 import { cn, formatIQD } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
-import { useMetaAdsConnection, useMetaAdsReport, useMetaAdsSyncNow, type CampaignTotals } from "@/hooks/use-meta-ads";
+import { useMetaAdsAutoRefresh, useMetaAdsConnection, useMetaAdsReport, useMetaAdsSyncNow, type CampaignTotals } from "@/hooks/use-meta-ads";
 import { MetaAdsConnectCard } from "@/components/ads/meta-ads-connect-card";
 
 const RANGES = [7, 30, 90] as const;
@@ -43,6 +43,7 @@ export default function AdsPage() {
     const connection = useMetaAdsConnection();
     const report = useMetaAdsReport(days);
     const sync = useMetaAdsSyncNow();
+    useMetaAdsAutoRefresh(connection.data?.is_active === true);
 
     const data = report.data;
     const costPerDelivered = data ? ratio(data.spendIqd, data.deliveredOrders) : null;
@@ -83,7 +84,7 @@ export default function AdsPage() {
                     {connection.data ? (
                         <button
                             type="button"
-                            onClick={() => sync.mutate()}
+                            onClick={() => sync.mutate({ force: true })}
                             disabled={sync.isPending}
                             className="flex items-center gap-2 rounded-xl border border-[var(--card-border)] px-3 py-2 text-sm disabled:opacity-60"
                         >
