@@ -73,6 +73,7 @@ import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { PriorityBadge } from "./card/priority-badge";
 import { SourceBadge } from "./card/source-badge";
 import { CardStatusMenu } from "./card/status-menu";
+import { OrderIdChip } from "./card/order-id-chip";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
 
 
@@ -344,7 +345,7 @@ export const OrderCard = memo(function OrderCard({
     if (compact === 2 && gridMode) {
         const itemsText = items.length > 0
             ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
-            : 'No products';
+            : t("orders.card.noProducts");
 
         return (
             <div className="group relative w-full h-full">
@@ -390,24 +391,7 @@ export const OrderCard = memo(function OrderCard({
                         {/* Row 2: Order ID + Priority */}
                         <div className="flex items-center gap-1.5">
                             <span className="text-[11px] font-mono text-muted flex items-center gap-1">
-                                {(() => {
-                                    const id = getDisplayOrderId(order.order_id);
-                                    if (order.order_id?.startsWith('CHK-')) {
-                                        return (
-                                            <span className="flex items-center gap-1">
-                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase font-bold text-[11px]">CHK</span>
-                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
-                                                    <HighlightedText text={id} query={localSearchQuery} />
-                                                </span>
-                                            </span>
-                                        );
-                                    }
-                                    return (
-                                        <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
-                                            #<HighlightedText text={id} query={localSearchQuery} />
-                                        </span>
-                                    );
-                                })()}
+                                <OrderIdChip orderId={order.order_id} query={localSearchQuery} />
                             </span>
                             <OrderPlacementBadge order={order} />
                             <AbandonedCartBadge order={order} />
@@ -450,7 +434,7 @@ export const OrderCard = memo(function OrderCard({
         const isValidPhone = validatePhoneDetailed(order.phone).isValid;
         const itemsText = items.length > 0
             ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
-            : 'No products';
+            : t("orders.card.noProducts");
         const cityDisplay = order.city || '';
 
         return (
@@ -509,24 +493,7 @@ export const OrderCard = memo(function OrderCard({
                         {/* Row 2: Order ID + Date */}
                         <div className="flex items-center gap-2 text-[11px]">
                             <span className="font-mono text-muted flex items-center gap-1">
-                                {(() => {
-                                    const id = getDisplayOrderId(order.order_id);
-                                    if (order.order_id?.startsWith('CHK-')) {
-                                        return (
-                                            <span className="flex items-center gap-1">
-                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase font-bold text-[8.5px]">CHK</span>
-                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
-                                                    <HighlightedText text={id} query={localSearchQuery} />
-                                                </span>
-                                            </span>
-                                        );
-                                    }
-                                    return (
-                                        <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
-                                            #<HighlightedText text={id} query={localSearchQuery} />
-                                        </span>
-                                    );
-                                })()}
+                                <OrderIdChip orderId={order.order_id} query={localSearchQuery} />
                             </span>
                             <OrderPlacementBadge order={order} />
                             <AbandonedCartBadge order={order} />
@@ -637,7 +604,7 @@ export const OrderCard = memo(function OrderCard({
         const isValidPhone = validatePhoneDetailed(order.phone).isValid;
         const itemsText = items.length > 0
             ? items.map(i => `${i.name}${i.quantity > 1 ? ` ×${i.quantity}` : ''}`).join(', ')
-            : 'No products';
+            : t("orders.card.noProducts");
         const cityDisplay = order.city || '';
 
         return (
@@ -708,25 +675,7 @@ export const OrderCard = memo(function OrderCard({
                                 </span>
                             )}
                             <span className="text-xs font-mono text-muted flex-shrink-0 flex items-center gap-1">
-                                {(() => {
-                                    const lfMatch = order.order_id.match(/LF-(\d+)-\d+$/);
-                                    const id = lfMatch ? lfMatch[1] : getDisplayOrderId(order.order_id);
-                                    if (order.order_id?.startsWith('CHK-')) {
-                                        return (
-                                            <span className="flex items-center gap-1">
-                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 uppercase font-bold text-[8.5px]">CHK</span>
-                                                <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
-                                                    <HighlightedText text={id} query={localSearchQuery} />
-                                                </span>
-                                            </span>
-                                        );
-                                    }
-                                    return (
-                                        <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
-                                            #<HighlightedText text={id} query={localSearchQuery} />
-                                        </span>
-                                    );
-                                })()}
+                                <OrderIdChip orderId={order.order_id} query={localSearchQuery} />
                             </span>
                         </div>
 
