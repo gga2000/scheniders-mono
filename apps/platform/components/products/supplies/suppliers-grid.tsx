@@ -14,6 +14,7 @@ import {
 import { cn, formatIQD } from "@/lib/utils";
 import type { AggregatedSupplier } from "@/lib/utils/suppliers-aggregate";
 import { SupplierInitialsBadge } from "./supplier-initials-badge";
+import { useLanguage } from "@/hooks/use-language";
 
 interface SuppliersGridProps {
     suppliers: AggregatedSupplier[];
@@ -21,19 +22,20 @@ interface SuppliersGridProps {
     searchQuery?: string;
 }
 
-function relativeDate(iso: string | null): string {
+function relativeDate(iso: string | null, t: (key: string, vars?: Record<string, string | number>) => string): string {
     if (!iso) return "—";
     const then = new Date(iso).getTime();
     if (Number.isNaN(then)) return "—";
     const days = Math.round((Date.now() - then) / (1000 * 60 * 60 * 24));
-    if (days < 1) return "today";
-    if (days === 1) return "1 day ago";
-    if (days < 30) return `${days} days ago`;
-    if (days < 365) return `${Math.round(days / 30)} mo ago`;
-    return `${Math.round(days / 365)}y ago`;
+    if (days < 1) return t("supplies.rel.today");
+    if (days === 1) return t("supplies.rel.oneDay");
+    if (days < 30) return t("supplies.rel.days", { count: days });
+    if (days < 365) return t("supplies.rel.months", { count: Math.round(days / 30) });
+    return t("supplies.rel.years", { count: Math.round(days / 365) });
 }
 
 export function SuppliersGrid({ suppliers, onSelect, searchQuery = "" }: SuppliersGridProps) {
+    const { t } = useLanguage();
     const filtered = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         if (!q) return suppliers;
@@ -50,12 +52,12 @@ export function SuppliersGrid({ suppliers, onSelect, searchQuery = "" }: Supplie
             <div className="pastel-card p-12 text-center">
                 <Users className="h-12 w-12 text-muted mx-auto mb-4" />
                 <p className="text-lg font-medium">
-                    {searchQuery ? "No suppliers match" : "No suppliers yet"}
+                    {searchQuery ? t("supplies.suppliers.noMatch") : t("supplies.suppliers.none")}
                 </p>
                 <p className="text-sm text-muted mt-1">
                     {searchQuery
-                        ? "Try a different search."
-                        : "Attach suppliers to your supplies or create a PO to start tracking them here."}
+                        ? t("supplies.suppliers.tryOther")
+                        : t("supplies.suppliers.noneHint")}
                 </p>
             </div>
         );
@@ -76,6 +78,7 @@ interface SupplierCardProps {
 }
 
 function SupplierCard({ supplier, onSelect }: SupplierCardProps) {
+    const { t } = useLanguage();
     const handleClick = onSelect ? () => onSelect(supplier) : undefined;
 
     return (
@@ -114,7 +117,7 @@ function SupplierCard({ supplier, onSelect }: SupplierCardProps) {
                 {supplier.openPoCount > 0 && (
                     <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 ring-1 ring-sky-200 text-[10px] font-medium">
                         <Truck className="w-2.5 h-2.5" />
-                        {supplier.openPoCount} open
+                        {t("supplies.suppliers.openCount", { count: supplier.openPoCount })}
                     </span>
                 )}
             </div>
@@ -122,12 +125,12 @@ function SupplierCard({ supplier, onSelect }: SupplierCardProps) {
             <div className="mt-4 grid grid-cols-2 gap-3 text-left">
                 <Stat
                     icon={Package}
-                    label="Supplies"
+                    label={t("supplies.suppliers.stat.supplies")}
                     value={supplier.supplies.length.toString()}
                 />
                 <Stat
                     icon={Clock}
-                    label="Lead time"
+                    label={t("supplies.suppliers.stat.leadTime")}
                     value={
                         supplier.avgLeadTimeDays != null
                             ? `${supplier.avgLeadTimeDays}d`
@@ -136,12 +139,12 @@ function SupplierCard({ supplier, onSelect }: SupplierCardProps) {
                 />
                 <Stat
                     icon={FileText}
-                    label="Last order"
-                    value={relativeDate(supplier.lastOrderAt)}
+                    label={t("supplies.suppliers.stat.lastOrder")}
+                    value={relativeDate(supplier.lastOrderAt, t)}
                 />
                 <Stat
                     icon={TrendingUp}
-                    label="YTD spend"
+                    label={t("supplies.suppliers.stat.ytd")}
                     value={formatIQD(supplier.ytdSpend || 0)}
                 />
             </div>

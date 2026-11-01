@@ -54,14 +54,14 @@ type SortKey =
 type ViewMode = "grid" | "list";
 type Section = "supplies" | "suppliers";
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-    { value: "updated_desc", label: "Recently updated" },
-    { value: "name_asc", label: "Name A–Z" },
-    { value: "name_desc", label: "Name Z–A" },
-    { value: "stock_asc", label: "Stock: low to high" },
-    { value: "stock_desc", label: "Stock: high to low" },
-    { value: "cost_asc", label: "Cost: low to high" },
-    { value: "cost_desc", label: "Cost: high to low" },
+const SORT_OPTIONS: { value: SortKey; labelKey: string }[] = [
+    { value: "updated_desc", labelKey: "supplies.sort.updated" },
+    { value: "name_asc", labelKey: "supplies.sort.nameAsc" },
+    { value: "name_desc", labelKey: "supplies.sort.nameDesc" },
+    { value: "stock_asc", labelKey: "supplies.sort.stockAsc" },
+    { value: "stock_desc", labelKey: "supplies.sort.stockDesc" },
+    { value: "cost_asc", labelKey: "supplies.sort.costAsc" },
+    { value: "cost_desc", labelKey: "supplies.sort.costDesc" },
 ];
 
 const DASHBOARD_COLLAPSE_KEY = "supplies.dashboard.collapsed";
@@ -368,7 +368,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     };
 
     if (loading) {
-        return <div className="py-12 text-center text-muted">Loading supplies...</div>;
+        return <div className="py-12 text-center text-muted">{t("supplies.loading")}</div>;
     }
 
     return (
@@ -379,10 +379,10 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     <div>
                         <h2 className="text-xl font-bold flex items-center gap-2">
                             <Box className="w-6 h-6 text-teal-500" />
-                            Internal Supplies
+                            {t("supplies.title")}
                         </h2>
                         <p className="text-muted text-sm mt-1">
-                            Packaging, vials, and collateral deducted automatically via BOM.
+                            {t("supplies.subtitle")}
                         </p>
                     </div>
 
@@ -400,7 +400,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             aria-pressed={section === "supplies"}
                         >
                             <Box className="w-3.5 h-3.5" />
-                            Supplies
+                            {t("supplies.section.supplies")}
                             <span className="text-[10px] opacity-70 tabular-nums">
                                 {supplies.length}
                             </span>
@@ -417,7 +417,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             aria-pressed={section === "suppliers"}
                         >
                             <Users className="w-3.5 h-3.5" />
-                            Suppliers
+                            {t("supplies.section.suppliers")}
                             <span className="text-[10px] opacity-70 tabular-nums">
                                 {aggregatedSuppliers.length}
                             </span>
@@ -431,7 +431,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                         <input
                             ref={searchInputRef}
                             type="text"
-                            placeholder={section === "suppliers" ? "Search suppliers…  ( / )" : "Search supplies…  ( / )"}
+                            placeholder={section === "suppliers" ? t("supplies.search.suppliers") : t("supplies.search.supplies")}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-9 pr-4 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
@@ -445,11 +445,11 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                                 value={sortKey}
                                 onChange={(e) => setSortKey(e.target.value as SortKey)}
                                 className="appearance-none pl-9 pr-8 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] cursor-pointer"
-                                aria-label="Sort supplies"
+                                aria-label={t("supplies.sort.label")}
                             >
                                 {SORT_OPTIONS.map((o) => (
                                     <option key={o.value} value={o.value}>
-                                        {o.label}
+                                        {t(o.labelKey)}
                                     </option>
                                 ))}
                             </select>
@@ -468,7 +468,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                                     ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)]"
                                     : "text-muted hover:text-foreground"
                             )}
-                            title="Grid view"
+                            title={t("supplies.view.grid")}
                             aria-pressed={viewMode === "grid"}
                         >
                             <LayoutGrid className="w-4 h-4" />
@@ -482,7 +482,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                                     ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)]"
                                     : "text-muted hover:text-foreground"
                             )}
-                            title="List view"
+                            title={t("supplies.view.list")}
                             aria-pressed={viewMode === "list"}
                         >
                             <ListIcon className="w-4 h-4" />
@@ -499,10 +499,10 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                                 ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
                                 : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:text-foreground"
                         )}
-                        title="Review supplies to reorder"
+                        title={t("supplies.reorder.title")}
                     >
                         <ShoppingCart className="w-4 h-4" />
-                        Reorder
+                        {t("supplies.reorder")}
                         {reorderCandidateCount > 0 && (
                             <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-semibold tabular-nums">
                                 {reorderCandidateCount}
@@ -515,10 +515,10 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                         <button
                             onClick={onAdd}
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-500 text-white font-medium text-sm shadow-sm hover:bg-teal-600 active:scale-[0.98] transition-all"
-                            title="Add supply (press N)"
+                            title={t("supplies.add.title")}
                         >
                             <Plus className="w-4 h-4" />
-                            Add Supply
+                            {t("supplies.add")}
                         </button>
                     )}
                 </div>
@@ -542,7 +542,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs font-medium text-muted uppercase tracking-wide">
                             <LayoutGrid className="w-3.5 h-3.5" />
-                            Overview
+                            {t("supplies.overview")}
                         </div>
                         <button
                             onClick={toggleDashboard}
@@ -551,12 +551,12 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             {dashboardCollapsed ? (
                                 <>
                                     <ChevronDown className="w-3.5 h-3.5" />
-                                    Expand dashboard
+                                    {t("supplies.dashboard.expand")}
                                 </>
                             ) : (
                                 <>
                                     <ChevronUp className="w-3.5 h-3.5" />
-                                    Collapse dashboard
+                                    {t("supplies.dashboard.collapse")}
                                 </>
                             )}
                         </button>
@@ -583,7 +583,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                                 : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:text-foreground hover:border-foreground/30"
                         )}
                     >
-                        All
+                        {t("supplies.category.all")}
                         <span className="text-[10px] opacity-70">{supplies.length}</span>
                     </button>
                     {supplyCategories.list.map((c) => (
@@ -612,7 +612,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             )}
                         >
                             <Package className="w-3 h-3" />
-                            Uncategorized
+                            {t("supplies.category.none")}
                             <span className="text-[10px] opacity-70">
                                 {supplyCategories.uncategorizedCount}
                             </span>
@@ -634,12 +634,12 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                 <div className="pastel-card p-12 text-center">
                     <Box className="h-12 w-12 text-muted mx-auto mb-4" />
                     <p className="text-lg font-medium">
-                        {searchQuery || selectedCategoryId ? "No supplies match" : "No supplies yet"}
+                        {searchQuery || selectedCategoryId ? t("supplies.empty.noMatch") : t("supplies.empty.none")}
                     </p>
                     <p className="text-sm text-muted mt-1">
                         {searchQuery || selectedCategoryId
-                            ? "Try clearing your filters or use a different search."
-                            : "Track packaging, vials, and collateral that get auto-deducted when orders ship."}
+                            ? t("supplies.empty.noMatchHint")
+                            : t("supplies.empty.noneHint")}
                     </p>
                     {!searchQuery && !selectedCategoryId && onAdd && (
                         <button
@@ -647,7 +647,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-500 text-white font-medium text-sm shadow-sm hover:bg-teal-600 active:scale-[0.98] transition-all"
                         >
                             <Plus className="w-4 h-4" />
-                            Add your first supply
+                            {t("supplies.addFirst")}
                         </button>
                     )}
                 </div>
@@ -677,13 +677,13 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             <tr>
                                 <th className="px-3 py-2 text-left w-10"></th>
                                 <th className="px-3 py-2 text-left"></th>
-                                <th className="px-3 py-2 text-left">Name</th>
-                                <th className="px-3 py-2 text-left">Category</th>
-                                <th className="px-3 py-2 text-left">Stock</th>
-                                <th className="px-3 py-2 text-right">Reorder pt</th>
-                                <th className="px-3 py-2 text-left">Days supply</th>
-                                <th className="px-3 py-2 text-right">Unit cost</th>
-                                <th className="px-3 py-2 text-right">Value</th>
+                                <th className="px-3 py-2 text-left">{t("supplies.col.name")}</th>
+                                <th className="px-3 py-2 text-left">{t("supplies.col.category")}</th>
+                                <th className="px-3 py-2 text-left">{t("supplies.col.stock")}</th>
+                                <th className="px-3 py-2 text-right">{t("supplies.col.reorderPoint")}</th>
+                                <th className="px-3 py-2 text-left">{t("supplies.col.daysSupply")}</th>
+                                <th className="px-3 py-2 text-right">{t("supplies.col.unitCost")}</th>
+                                <th className="px-3 py-2 text-right">{t("supplies.col.value")}</th>
                                 <th className="px-3 py-2 text-right sticky right-0 bg-[var(--background)]"></th>
                             </tr>
                         </thead>
@@ -716,8 +716,10 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     {aggregatedSuppliers.length > 0 && (
                         <p className="text-xs text-muted">
                             {searchQuery
-                                ? `Matching "${searchQuery}" across ${aggregatedSuppliers.length} suppliers`
-                                : `${aggregatedSuppliers.length} ${aggregatedSuppliers.length === 1 ? "supplier" : "suppliers"}`}
+                                ? t("supplies.suppliers.matching", { query: searchQuery, count: aggregatedSuppliers.length })
+                                : aggregatedSuppliers.length === 1
+                                    ? t("supplies.suppliers.countOne")
+                                    : t("supplies.suppliers.count", { count: aggregatedSuppliers.length })}
                         </p>
                     )}
                     <SuppliersGrid

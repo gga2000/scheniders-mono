@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Infinity as InfinityIcon } from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
 
 interface DaysOfSupplyPillProps {
     /** Estimated days of supply remaining. null = no data (no sales velocity). */
@@ -42,6 +43,7 @@ export function DaysOfSupplyPill({
     size = "md",
     className,
 }: DaysOfSupplyPillProps) {
+    const { t: tr } = useLanguage();
     const t = tone(days);
     const big = size === "md";
     return (
@@ -53,7 +55,7 @@ export function DaysOfSupplyPill({
                 t.ring,
                 className
             )}
-            title={days === null ? "No sales velocity data yet" : `Approximately ${days} days of supply left`}
+            title={days === null ? tr("supplies.dos.none") : tr("supplies.dos.approx", { days })}
         >
             <span
                 className={cn(

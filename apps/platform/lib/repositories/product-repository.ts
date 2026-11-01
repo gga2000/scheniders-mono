@@ -370,6 +370,41 @@ export const productRepository = {
         }
     },
 
+    /**
+     * Put products back to the price (and "was" price) they had before a bulk
+     * price change, and record the reversal in each price history.
+     */
+    async restorePrices(
+        previous: { id: string; price: number; compare_at_price: number | null; currentPrice: number }[],
+        tenantId: string | null,
+    ): Promise<void> {
+        await Promise.all(previous.map((p) => withRetry('productRepository.restorePrice', async () => {
+            const { data: changed, error } = await supabase
+                .from("products")
+                .update({ price: p.price, compare_at_price: p.compare_at_price })
+                .eq("id", p.id)
+                .select("id");
+            if (error) throw error;
+            assertChanged("productRepository.restorePrice", changed, 1);
+        })));
+
+        const history = previous
+            .filter((p) => p.currentPrice !== p.price)
+            .map((p) => ({
+                product_id: p.id,
+                tenant_id: tenantId,
+                old_price: p.currentPrice,
+                new_price: p.price,
+                reason: "Bulk price change undone",
+            }));
+        if (history.length > 0) {
+            await withRetry('productRepository.restorePriceHistory', async () => {
+                const { error } = await supabase.from("product_price_history").insert(history);
+                if (error) throw error;
+            }, WRITE_ONCE);
+        }
+    },
+
     /** Bulk-archive multiple products. */
     async bulkArchive(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkArchive', async () => {
