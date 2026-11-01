@@ -65,7 +65,6 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
                     { key: "nav.allProducts", label: "All Products", href: "/products", tab: "products" },
                     { key: "nav.categories", label: "Categories", href: "/products?tab=categories", tab: "categories" },
                     { key: "nav.attributes", label: "Attributes", href: "/products?tab=attributes", tab: "attributes" },
-                    { key: "nav.qcQuarantine", label: "QC Quarantine", href: "/products?tab=quarantine", tab: "quarantine" },
                     { key: "nav.internalSupplies", label: "Internal Supplies", href: "/products?tab=supplies", tab: "supplies" },
                 ],
             },

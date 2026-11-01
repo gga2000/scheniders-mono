@@ -161,12 +161,10 @@ async function changeOrderStatus(
     });
 
     const effect = await applyStatusSideEffect(caller.db, {
-        orderId: order.id,
         tenantId: caller.tenantId,
         items: order.items ?? [],
         from: order.status,
         to: status,
-        reason: reason || `Changed to ${status} via Claude`,
     });
 
     const logWarning = await logOrderActivity(caller, "order.status_change", order, {

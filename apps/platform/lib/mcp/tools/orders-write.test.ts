@@ -102,7 +102,7 @@ describe("update_order_status", () => {
         expect(env.tables.order_status_history).toEqual([
             expect.objectContaining({ order_id: "o1", from_status: "confirmed", to_status: "in_transit", tenant_id: STORE }),
         ]);
-        expect(applyStatusSideEffect).toHaveBeenCalledWith(env.db, expect.objectContaining({ orderId: "o1", tenantId: STORE, from: "confirmed", to: "in_transit" }));
+        expect(applyStatusSideEffect).toHaveBeenCalledWith(env.db, expect.objectContaining({ tenantId: STORE, from: "confirmed", to: "in_transit" }));
         const actions = env.tables.activity_logs.map((r) => r.action);
         expect(actions).toEqual(["order.status_change", "mcp.tool_call"]);
     });
