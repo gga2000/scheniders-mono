@@ -23,7 +23,8 @@ const range = { from: new Date(end.getTime() - 30 * 86400000), to: end };
 const rows = buildReportFixtures(end, 60, 700);
 const { current, previous, returns } = splitReportOrders(rows, range);
 
-function Reports() {
+function Reports({ rows: source = rows }: { rows?: typeof rows } = {}) {
+    const { current, previous, returns } = splitReportOrders(source, range);
     return (
         <LanguageProvider>
             <div className="p-8 space-y-8 bg-[var(--background)]" style={{ width: 1440 }}>
@@ -47,6 +48,10 @@ function Reports() {
 const meta: Meta = { title: "Reports/Full page", component: Reports, parameters: { layout: "fullscreen" } };
 export default meta;
 export const Default: StoryObj = {};
+
+// A merchant on day three: a handful of orders, no rejections, no returns, no previous period.
+const sparse = rows.filter((r) => r.status === "delivered" && !r.is_return && new Date(r.created_at) > new Date(end.getTime() - 3 * 86400000)).slice(0, 4);
+export const Sparse: StoryObj = { render: () => <Reports rows={sparse} /> };
 
 // ---- Team / Batch / Channel cards ----
 import { TrueEmployeePerformance } from "@/components/reports/true-employee-performance";
