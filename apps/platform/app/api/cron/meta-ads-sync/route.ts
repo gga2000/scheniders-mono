@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { Receiver } from "@upstash/qstash";
+import { env } from "@/lib/env";
 import { requireCronAuth } from "@/lib/cron-auth";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { syncMetaAdsForTenant } from "@/lib/meta-ads-sync";
@@ -6,11 +8,8 @@ import { syncMetaAdsForTenant } from "@/lib/meta-ads-sync";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Daily: pull the last week of Meta ad spend for every tenant with an active connection. */
-export async function GET(request: Request) {
-    const denied = requireCronAuth(request);
-    if (denied) return denied;
-
+/** Pull the last week of Meta ad spend for every tenant with an active connection. */
+async function syncAllTenants(): Promise<NextResponse> {
     const db = createSupabaseServiceClient();
     const { data: connections, error } = await db
         .from("meta_ads_connections")
@@ -26,4 +25,29 @@ export async function GET(request: Request) {
         else failed += 1;
     }
     return NextResponse.json({ success: true, synced, failed });
+}
+
+/** Daily Vercel cron (Bearer CRON_SECRET). */
+export async function GET(request: Request) {
+    const denied = requireCronAuth(request);
+    if (denied) return denied;
+    return syncAllTenants();
+}
+
+/** QStash schedule (every 5 min): the Upstash signature proves the caller. */
+export async function POST(request: Request) {
+    const currentSigningKey = env.QSTASH_CURRENT_SIGNING_KEY;
+    const nextSigningKey = env.QSTASH_NEXT_SIGNING_KEY;
+    if (!currentSigningKey || !nextSigningKey) {
+        return NextResponse.json({ error: "QStash signing keys not configured" }, { status: 401 });
+    }
+    const receiver = new Receiver({ currentSigningKey, nextSigningKey });
+    const body = await request.text();
+    const signature = request.headers.get("upstash-signature") ?? "";
+    try {
+        await receiver.verify({ signature, body });
+    } catch {
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+    return syncAllTenants();
 }
