@@ -1,42 +1,60 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { payrollKeys, type PayrollWriteResult } from "@/hooks/payroll-query-keys";
 import type { SalaryAdvance, SalaryPenalty, PerformanceBonus } from "@/types/salary";
 
+interface DeductionsData {
+    advances: SalaryAdvance[];
+    penalties: SalaryPenalty[];
+    bonuses: PerformanceBonus[];
+}
+
+const EMPTY: DeductionsData = { advances: [], penalties: [], bonuses: [] };
+
+type AdjustmentTable = "salary_advances" | "salary_penalties" | "performance_bonuses";
+
+/** Advances, penalties and bonuses for the current store, with add/delete writes. */
 export function useSalaryDeductions() {
     const { tenantId } = useAuth();
-    const [advances, setAdvances] = useState<SalaryAdvance[]>([]);
-    const [penalties, setSalaryPenalties] = useState<SalaryPenalty[]>([]);
-    const [bonuses, setBonuses] = useState<PerformanceBonus[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
 
-    const fetchAll = useCallback(async () => {
-        await Promise.resolve();
-        setIsLoading(true);
-        const [advRes, penRes, bonRes] = await Promise.all([
-            supabase.from("salary_advances").select("*").order("created_at", { ascending: false }),
-            supabase.from("salary_penalties").select("*").order("created_at", { ascending: false }),
-            supabase.from("performance_bonuses").select("*").order("created_at", { ascending: false }),
-        ]);
-        if (advRes.data) setAdvances(advRes.data);
-        if (penRes.data) setSalaryPenalties(penRes.data);
-        if (bonRes.data) setBonuses(bonRes.data);
-        setIsLoading(false);
-    }, []);
+    const query = useQuery<DeductionsData>({
+        queryKey: payrollKeys.deductions(tenantId),
+        enabled: !!tenantId,
+        queryFn: async () => {
+            if (!tenantId) return EMPTY;
+            const [advRes, penRes, bonRes] = await Promise.all([
+                supabase.from("salary_advances").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+                supabase.from("salary_penalties").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+                supabase.from("performance_bonuses").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
+            ]);
+            if (advRes.error) throw advRes.error;
+            if (penRes.error) throw penRes.error;
+            if (bonRes.error) throw bonRes.error;
+            return { advances: advRes.data ?? [], penalties: penRes.data ?? [], bonuses: bonRes.data ?? [] };
+        },
+    });
 
-    useEffect(() => {
-        // fetchAll() awaits Promise.resolve() before any setState, so updates land in
-        // the next microtask — outside React's effect-sync window.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        void fetchAll();
-    }, [fetchAll]);
+    const invalidate = useCallback(() => queryClient.invalidateQueries({ queryKey: payrollKeys.all }), [queryClient]);
+
+    const settle = useCallback(
+        async (error: { message: string } | null): Promise<PayrollWriteResult> => {
+            if (error) return { error: error.message };
+            await invalidate();
+            return { error: null };
+        },
+        [invalidate]
+    );
 
     // ── Advances ──
 
     const addAdvance = useCallback(
         async (employeeId: string, amount: number, reason?: string, createdBy?: string) => {
+            if (!tenantId) return { error: "No store selected" };
             const { error } = await supabase.from("salary_advances").insert({
                 employee_id: employeeId,
                 amount,
@@ -45,25 +63,16 @@ export function useSalaryDeductions() {
                 is_deducted: false,
                 tenant_id: tenantId,
             });
-            if (!error) await fetchAll();
-            return { error };
+            return settle(error);
         },
-        [fetchAll, tenantId]
-    );
-
-    const deleteAdvance = useCallback(
-        async (id: string) => {
-            const { error } = await supabase.from("salary_advances").delete().eq("id", id).eq("is_deducted", false);
-            if (!error) await fetchAll();
-            return { error };
-        },
-        [fetchAll]
+        [settle, tenantId]
     );
 
     // ── Penalties ──
 
     const addPenalty = useCallback(
         async (employeeId: string, amount: number, reason: string, createdBy?: string) => {
+            if (!tenantId) return { error: "No store selected" };
             const { error } = await supabase.from("salary_penalties").insert({
                 employee_id: employeeId,
                 amount,
@@ -72,25 +81,16 @@ export function useSalaryDeductions() {
                 is_applied: false,
                 tenant_id: tenantId,
             });
-            if (!error) await fetchAll();
-            return { error };
+            return settle(error);
         },
-        [fetchAll, tenantId]
-    );
-
-    const deletePenalty = useCallback(
-        async (id: string) => {
-            const { error } = await supabase.from("salary_penalties").delete().eq("id", id).eq("is_applied", false);
-            if (!error) await fetchAll();
-            return { error };
-        },
-        [fetchAll]
+        [settle, tenantId]
     );
 
     // ── Performance Bonuses ──
 
     const addBonus = useCallback(
         async (employeeId: string, amount: number, reason?: string, createdBy?: string) => {
+            if (!tenantId) return { error: "No store selected" };
             const { error } = await supabase.from("performance_bonuses").insert({
                 employee_id: employeeId,
                 amount,
@@ -99,32 +99,39 @@ export function useSalaryDeductions() {
                 is_applied: false,
                 tenant_id: tenantId,
             });
-            if (!error) await fetchAll();
-            return { error };
+            return settle(error);
         },
-        [fetchAll, tenantId]
+        [settle, tenantId]
     );
 
-    const deleteBonus = useCallback(
-        async (id: string) => {
-            const { error } = await supabase.from("performance_bonuses").delete().eq("id", id).eq("is_applied", false);
-            if (!error) await fetchAll();
-            return { error };
+    /** Deletes a still-pending item; one already taken into a payroll is left alone. */
+    const deletePending = useCallback(
+        async (table: AdjustmentTable, id: string) => {
+            const lockColumn = table === "salary_advances" ? "is_deducted" : "is_applied";
+            const { error } = await supabase.from(table).delete().eq("id", id).eq(lockColumn, false);
+            return settle(error);
         },
-        [fetchAll]
+        [settle]
     );
+
+    const deleteAdvance = useCallback((id: string) => deletePending("salary_advances", id), [deletePending]);
+    const deletePenalty = useCallback((id: string) => deletePending("salary_penalties", id), [deletePending]);
+    const deleteBonus = useCallback((id: string) => deletePending("performance_bonuses", id), [deletePending]);
+
+    const { advances, penalties, bonuses } = query.data ?? EMPTY;
 
     return {
         advances,
         penalties,
         bonuses,
-        isLoading,
+        isLoading: query.isPending,
+        failed: query.isError,
         addAdvance,
         deleteAdvance,
         addPenalty,
         deletePenalty,
         addBonus,
         deleteBonus,
-        refresh: fetchAll,
+        refresh: query.refetch,
     };
 }

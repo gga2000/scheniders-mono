@@ -9,6 +9,7 @@ import { format, subDays } from "date-fns";
 import { useSalaries, type OrderAttributionMode, type EmployeePeriodOverrides, type PeriodMode } from "@/hooks/use-salaries";
 import { useSalaryConfig } from "@/hooks/use-salary-config";
 import { useSalaryDeductions } from "@/hooks/use-salary-deductions";
+import type { PayrollWriteResult } from "@/hooks/payroll-query-keys";
 import { usePayroll } from "@/hooks/use-payroll";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
@@ -276,7 +277,7 @@ export function SalariesTab() {
         };
     }, [periodMode, customStart, customEnd]);
 
-    const { employeePayrollData, isLoading, totalDue, totalProjected, inTransitOrderCount, totalPendingAdvances, totalPendingPenalties, periodBreakdown, lastPayrollDates, refresh: refreshSalaries } = useSalaries(periodStart, periodEnd, attributionMode, periodOverrides, periodMode);
+    const { employeePayrollData, isLoading, totalDue, totalProjected, inTransitOrderCount, totalPendingAdvances, totalPendingPenalties, periodBreakdown, lastPayrollDates, failed: salariesFailed, refresh: refreshSalaries } = useSalaries(periodStart, periodEnd, attributionMode, periodOverrides, periodMode);
 
     const effectiveEmployeeData = useMemo(() => {
         let list = [...employeePayrollData];
@@ -314,6 +315,11 @@ export function SalariesTab() {
         }
         return map;
     }, [employeePayrollData]);
+
+    // Writes refetch the period on success (shared "payroll" query key); a failure is shown, never dropped.
+    const reportWrite = useCallback((result: PayrollWriteResult) => {
+        if (result.error) toast({ title: t("payroll.toast.saveFailed"), description: result.error, variant: "error" });
+    }, [t]);
 
     const handleRefreshAll = useCallback(() => {
         refreshSalaries();
@@ -601,7 +607,9 @@ export function SalariesTab() {
             {/* Tab content */}
             {activeSubTab === "current" && (
                 <div className="space-y-4">
-                    {isLoading ? (
+                    {salariesFailed ? (
+                        <p role="alert" className="py-12 text-center text-sm text-rose-600">{t("payroll.loadFailed")}</p>
+                    ) : isLoading ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {[1, 2, 3].map(i => (
                                 <div key={i} className="h-64 skeleton rounded-2xl" />
@@ -621,15 +629,12 @@ export function SalariesTab() {
                                     data={data}
                                     globalPeriodStart={periodStart}
                                     globalPeriodEnd={periodEnd}
-                                    onAddAdvance={async (id, amount, reason) => { await addAdvance(id, amount, reason); }}
-                                    onAddPenalty={async (id, amount, reason) => { await addPenalty(id, amount, reason); }}
-                                    onAddBonus={async (id, amount, reason) => { await addBonus(id, amount, reason); }}
+                                    onAddAdvance={async (id, amount, reason) => reportWrite(await addAdvance(id, amount, reason))}
+                                    onAddPenalty={async (id, amount, reason) => reportWrite(await addPenalty(id, amount, reason))}
+                                    onAddBonus={async (id, amount, reason) => reportWrite(await addBonus(id, amount, reason))}
                                     onMarkAsPaid={handleMarkAsPaid}
                                     onVoidPayment={handleVoidPayment}
-                                    onUpdateConfig={async (empId, config) => {
-                                        await upsertEmployeeConfig(empId, config);
-                                        refreshSalaries();
-                                    }}
+                                    onUpdateConfig={async (empId, config) => reportWrite(await upsertEmployeeConfig(empId, config))}
                                     onPeriodOverride={(empId, start, end) => {
                                         setPeriodOverrides(prev => {
                                             const next = new Map(prev);
@@ -694,9 +699,9 @@ export function SalariesTab() {
                     penalties={penalties}
                     bonuses={bonuses}
                     employeeNames={employeeNames}
-                    onDeleteAdvance={async (id) => { await deleteAdvance(id); refreshSalaries(); }}
-                    onDeletePenalty={async (id) => { await deletePenalty(id); refreshSalaries(); }}
-                    onDeleteBonus={async (id) => { await deleteBonus(id); refreshSalaries(); }}
+                    onDeleteAdvance={async (id) => reportWrite(await deleteAdvance(id))}
+                    onDeletePenalty={async (id) => reportWrite(await deletePenalty(id))}
+                    onDeleteBonus={async (id) => reportWrite(await deleteBonus(id))}
                 />
             )}
 
@@ -707,9 +712,9 @@ export function SalariesTab() {
                     penalties={penalties}
                     bonuses={bonuses}
                     employeeNames={employeeNames}
-                    onDeleteAdvance={async (id) => { await deleteAdvance(id); refreshSalaries(); }}
-                    onDeletePenalty={async (id) => { await deletePenalty(id); refreshSalaries(); }}
-                    onDeleteBonus={async (id) => { await deleteBonus(id); refreshSalaries(); }}
+                    onDeleteAdvance={async (id) => reportWrite(await deleteAdvance(id))}
+                    onDeletePenalty={async (id) => reportWrite(await deletePenalty(id))}
+                    onDeleteBonus={async (id) => reportWrite(await deleteBonus(id))}
                 />
             )}
 
@@ -718,10 +723,7 @@ export function SalariesTab() {
                 isOpen={roleDefaultsOpen}
                 onClose={() => setRoleDefaultsOpen(false)}
                 roleDefaults={roleSalaryDefaults}
-                onSave={async (role, config) => {
-                    await upsertRoleDefault(role, config);
-                    refreshSalaries();
-                }}
+                onSave={async (role, config) => reportWrite(await upsertRoleDefault(role, config))}
             />
 
             {/* Confirm payroll dialog */}

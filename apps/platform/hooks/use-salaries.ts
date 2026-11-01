@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { addDaysToDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 import { IN_TRANSIT_STATUSES, projectInTransit } from "@/lib/payroll-projection";
+import { payrollKeys } from "@/hooks/payroll-query-keys";
 import type {
     EmployeePayrollData,
     PayrollCalculation,
@@ -194,7 +196,7 @@ interface ActivityLogRow {
  * `build(from, to)` must return a query with the same filters plus a stable order.
  */
 async function fetchAllRows<T>(
-    build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+    build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
 ): Promise<T[]> {
     const PAGE = 1000;
     const all: T[] = [];
@@ -202,7 +204,9 @@ async function fetchAllRows<T>(
     // Cap total pages defensively (50k rows) to avoid runaway loops.
     for (let page = 0; page < 50; page++) {
         const { data, error } = await build(from, from + PAGE - 1);
-        if (error || !data || data.length === 0) break;
+        // A failed page must fail the load: a short list would underpay silently.
+        if (error) throw new Error(error.message);
+        if (!data || data.length === 0) break;
         all.push(...data);
         if (data.length < PAGE) break;
         from += PAGE;
@@ -231,6 +235,217 @@ export type PeriodMode = "since_last" | "custom";
 /** Per-employee period override. If absent for an employee, the global period is used. */
 export type EmployeePeriodOverrides = Map<string, { start: string; end: string }>;
 
+interface SalaryConfigRow {
+    employee_id: string;
+    base_monthly_salary: number;
+    per_order_bonus: number;
+    use_role_defaults: boolean;
+}
+
+interface RoleDefaultRow {
+    role: string;
+    base_monthly_salary: number;
+    per_order_bonus: number;
+}
+
+interface PaidRecordRow {
+    id: string;
+    employee_id: string;
+    period_start: string;
+    period_end: string;
+    net_salary: number;
+    paid_at: string;
+}
+
+/** Everything the payroll calculation reads for one store and one date window. */
+interface PayrollSource {
+    employees: UserProfileRow[];
+    activityLogs: ActivityLogRow[];
+    completedOrders: CompletedOrderRow[];
+    inTransitOrderIds: string[];
+    allOrders: StatusOrderRow[];
+    returnOrders: ReturnOrderRow[];
+    advances: SalaryAdvance[];
+    penalties: SalaryPenalty[];
+    bonuses: PerformanceBonus[];
+    salaryConfigs: SalaryConfigRow[];
+    roleDefaults: RoleDefaultRow[];
+    /** Latest paid period_end per employee. */
+    lastPayrollDates: Map<string, string>;
+    /** Paid records overlapping the fetch window: the double-payment guard. */
+    paidRecordsInWindow: PaidRecordRow[];
+}
+
+const EMPTY_SOURCE: PayrollSource = {
+    employees: [], activityLogs: [], completedOrders: [], inTransitOrderIds: [], allOrders: [], returnOrders: [],
+    advances: [], penalties: [], bonuses: [], salaryConfigs: [], roleDefaults: [],
+    lastPayrollDates: new Map(), paidRecordsInWindow: [],
+};
+
+function must<T>(res: { data: T | null; error: { message: string } | null }): T {
+    if (res.error) throw new Error(res.error.message);
+    if (res.data === null) throw new Error("Payroll query returned no data");
+    return res.data;
+}
+
+/**
+ * Loads one store's payroll inputs. Every read is filtered by `tenantId`: RLS alone
+ * would add every other store the viewer belongs to. Any failed read throws, so a
+ * partial load can never show a smaller salary as if it were correct.
+ */
+async function fetchPayrollSource(tenantId: string, fetchStart: string, fetchEnd: string, periodMode: PeriodMode): Promise<PayrollSource> {
+    // ── Phase 1: roster, configs, deductions, and payroll history ──
+    // We need the payroll history first to learn each employee's "since last"
+    // start, which may predate the 90-day default fetch window.
+    const [membersRes, configRes, roleRes, advRes, penRes, bonRes, payrollRes] = await Promise.all([
+        // The roster is this store's active members; their role here sets the default rate.
+        supabase.from("tenant_members").select("user_id, role").eq("tenant_id", tenantId).eq("status", "active"),
+        supabase.from("employee_salary_configs")
+            .select("employee_id, base_monthly_salary, per_order_bonus, use_role_defaults")
+            .eq("tenant_id", tenantId),
+        supabase.from("role_salary_defaults").select("role, base_monthly_salary, per_order_bonus").eq("tenant_id", tenantId),
+        supabase.from("salary_advances").select("*").eq("tenant_id", tenantId).eq("is_deducted", false),
+        supabase.from("salary_penalties").select("*").eq("tenant_id", tenantId).eq("is_applied", false),
+        supabase.from("performance_bonuses").select("*").eq("tenant_id", tenantId).eq("is_applied", false),
+        supabase
+            .from("payroll_records")
+            .select("employee_id, period_end")
+            .eq("tenant_id", tenantId)
+            .eq("status", "paid")
+            .order("period_end", { ascending: false }),
+    ]);
+
+    const members = must(membersRes);
+    const memberRole = new Map<string, string>(members.map((m) => [m.user_id, m.role]));
+    const profiles = memberRole.size === 0
+        ? []
+        : must(await supabase
+            .from("user_profiles")
+            .select("id, email, display_name, role, avatar_url, is_active")
+            .in("id", [...memberRole.keys()])
+            .eq("is_active", true));
+    const employees: UserProfileRow[] = profiles.map((p) => ({ ...p, role: memberRole.get(p.id) ?? p.role }));
+
+    const lastPayrollDates = new Map<string, string>();
+    for (const row of must(payrollRes)) {
+        if (!lastPayrollDates.has(row.employee_id)) lastPayrollDates.set(row.employee_id, row.period_end);
+    }
+
+    // In "since last" mode, extend the window back to cover the earliest
+    // per-employee period so order/activity counts aren't silently truncated.
+    // This is what makes "Since Last Payroll" and an equivalent Custom range agree.
+    let windowStart = fetchStart;
+    if (periodMode === "since_last") {
+        for (const periodEnd of lastPayrollDates.values()) {
+            if (periodEnd < windowStart) windowStart = periodEnd;
+        }
+    }
+
+    // ── Phase 2: time-windowed data (activity, orders, returns, overlap guard) ──
+    // Orders and activity logs are paginated past Supabase's 1000-row cap —
+    // without this, a wide window (e.g. "Since Last Payroll") silently truncates
+    // the order set and undercounts every employee.
+    const bounds = periodBounds(windowStart, fetchEnd);
+    const wStart = new Date(bounds.from).toISOString();
+    const wEnd = new Date(bounds.to).toISOString();
+    const [activityLogs, paidInWindowRes, completedOrders, returnOrders, inTransit, allOrders] = await Promise.all([
+        // Wide window — we'll slice per-employee client-side
+        fetchAllRows<ActivityLogRow>((from, to) =>
+            supabase
+                .from("activity_logs")
+                .select("user_id, action, entity_id, details, created_at")
+                .eq("tenant_id", tenantId)
+                .gte("created_at", wStart)
+                .lte("created_at", wEnd)
+                .order("created_at", { ascending: true })
+                .range(from, to)
+        ),
+
+        // For duplicate guard: all paid records that overlap the fetch window
+        supabase
+            .from("payroll_records")
+            .select("id, employee_id, period_start, period_end, net_salary, paid_at")
+            .eq("tenant_id", tenantId)
+            .eq("status", "paid")
+            .lte("period_start", fetchEnd)
+            .gte("period_end", windowStart),
+
+        // Completed orders — filter by completed_at (when the order was MARKED completed),
+        // NOT created_at. An order placed before the window but completed inside it (late-arriving
+        // money) belongs to the period it completed in; created_at bucketing would lose it.
+        // Pull the flags + sequence so we can split genuine deliveries from replacements/refunds.
+        fetchAllRows<CompletedOrderRow>((from, to) =>
+            supabase
+                .from("orders")
+                .select("id, created_at, completed_at, order_id, customer_name, status, is_replacement, is_return, price, sequence_number, refund_status, refunded_amount")
+                .eq("tenant_id", tenantId)
+                .eq("status", "completed")
+                .gte("completed_at", wStart)
+                .lte("completed_at", wEnd)
+                .order("completed_at", { ascending: true })
+                .range(from, to)
+        ),
+
+        // ALL return/refund orders (any status, any date) — used to detect which
+        // completed originals were refunded, and for the returned-after-payment flag.
+        // A refund can be created long after the original delivery, so we don't
+        // window this; the set is small.
+        fetchAllRows<ReturnOrderRow>((from, to) =>
+            supabase
+                .from("orders")
+                .select("id, created_at, order_id, customer_name, status, original_order_id")
+                .eq("tenant_id", tenantId)
+                .eq("is_return", true)
+                .order("created_at", { ascending: true })
+                .range(from, to)
+        ),
+
+        // Genuine orders out with the courier right now (any date): the "if they all
+        // arrive" projection only. Pay itself counts completed orders.
+        fetchAllRows<{ id: string }>((from, to) =>
+            supabase
+                .from("orders")
+                .select("id")
+                .eq("tenant_id", tenantId)
+                .in("status", [...IN_TRANSIT_STATUSES])
+                .eq("is_return", false)
+                .eq("is_replacement", false)
+                .order("id", { ascending: true })
+                .range(from, to)
+        ),
+
+        // ALL orders (any status) created in the window — lightweight (id/date/status only).
+        // Drives the whole-pipeline status breakdown shown on the payslip (came in,
+        // cancelled, no-response, rejected, in-transit, …), not just completed deliveries.
+        fetchAllRows<StatusOrderRow>((from, to) =>
+            supabase
+                .from("orders")
+                .select("id, created_at, status")
+                .eq("tenant_id", tenantId)
+                .gte("created_at", wStart)
+                .lte("created_at", wEnd)
+                .order("created_at", { ascending: true })
+                .range(from, to)
+        ),
+    ]);
+
+    return {
+        employees,
+        activityLogs,
+        completedOrders,
+        inTransitOrderIds: inTransit.map((o) => o.id),
+        allOrders,
+        returnOrders,
+        advances: must(advRes),
+        penalties: must(penRes),
+        bonuses: must(bonRes),
+        salaryConfigs: must(configRes),
+        roleDefaults: must(roleRes),
+        lastPayrollDates,
+        paidRecordsInWindow: must(paidInWindowRes),
+    };
+}
+
 export function useSalaries(
     globalPeriodStart: string,
     globalPeriodEnd: string,
@@ -239,27 +454,6 @@ export function useSalaries(
     periodMode: PeriodMode = "custom"
 ) {
     const { tenantId } = useAuth();
-    const [employees, setEmployees] = useState<UserProfileRow[]>([]);
-    const [activityLogs, setActivityLogs] = useState<ActivityLogRow[]>([]);
-    const [completedOrders, setCompletedOrders] = useState<CompletedOrderRow[]>([]);
-    const [inTransitOrderIds, setInTransitOrderIds] = useState<string[]>([]);
-    const [allOrders, setAllOrders] = useState<StatusOrderRow[]>([]);
-    const [returnOrders, setReturnOrders] = useState<ReturnOrderRow[]>([]);
-    const [advances, setAdvances] = useState<SalaryAdvance[]>([]);
-    const [penalties, setPenalties] = useState<SalaryPenalty[]>([]);
-    const [bonuses, setBonuses] = useState<PerformanceBonus[]>([]);
-    const [salaryConfigs, setSalaryConfigs] = useState<
-        { employee_id: string; base_monthly_salary: number; per_order_bonus: number; use_role_defaults: boolean }[]
-    >([]);
-    const [roleDefaults, setRoleDefaults] = useState<
-        { role: string; base_monthly_salary: number; per_order_bonus: number }[]
-    >([]);
-    const [lastPayrollDates, setLastPayrollDates] = useState<Map<string, string>>(new Map());
-    // All paid records overlapping the fetch window — used for duplicate guard
-    const [paidRecordsInWindow, setPaidRecordsInWindow] = useState<
-        { id: string; employee_id: string; period_start: string; period_end: string; net_salary: number; paid_at: string }[]
-    >([]);
-    const [isLoading, setIsLoading] = useState(true);
 
     // Compute the widest date window across global + all overrides so one fetch covers everything
     const { fetchStart, fetchEnd } = useMemo(() => {
@@ -272,163 +466,17 @@ export function useSalaries(
         return { fetchStart: start, fetchEnd: end };
     }, [globalPeriodStart, globalPeriodEnd, periodOverrides]);
 
-    const fetchData = useCallback(async () => {
-        // Payroll counts this tenant's orders only; RLS alone would add every
-        // other tenant the viewer belongs to.
-        if (!fetchStart || !fetchEnd || !tenantId) return;
-        await Promise.resolve();
-        setIsLoading(true);
+    const query = useQuery<PayrollSource>({
+        queryKey: payrollKeys.period(tenantId, fetchStart, fetchEnd, periodMode),
+        enabled: !!tenantId && !!fetchStart && !!fetchEnd,
+        placeholderData: keepPreviousData,
+        queryFn: () => (tenantId ? fetchPayrollSource(tenantId, fetchStart, fetchEnd, periodMode) : Promise.resolve(EMPTY_SOURCE)),
+    });
 
-        // ── Phase 1: profiles, configs, deductions, and payroll history ──
-        // We need the payroll history first to learn each employee's "since last"
-        // start, which may predate the 90-day default fetch window.
-        const [
-            empRes, configRes, roleRes, advRes, penRes, bonRes, payrollRes,
-        ] = await Promise.all([
-            supabase
-                .from("user_profiles")
-                .select("id, email, display_name, role, avatar_url, is_active")
-                .eq("is_active", true),
-
-            supabase.from("employee_salary_configs")
-                .select("employee_id, base_monthly_salary, per_order_bonus, use_role_defaults"),
-
-            supabase.from("role_salary_defaults")
-                .select("role, base_monthly_salary, per_order_bonus"),
-
-            supabase.from("salary_advances").select("*").eq("is_deducted", false),
-            supabase.from("salary_penalties").select("*").eq("is_applied", false),
-            supabase.from("performance_bonuses").select("*").eq("is_applied", false),
-
-            supabase
-                .from("payroll_records")
-                .select("employee_id, period_end")
-                .eq("status", "paid")
-                .order("period_end", { ascending: false }),
-        ]);
-
-        const map = new Map<string, string>();
-        if (payrollRes.data) {
-            for (const row of payrollRes.data) {
-                if (!map.has(row.employee_id)) map.set(row.employee_id, row.period_end);
-            }
-        }
-
-        // In "since last" mode, extend the window back to cover the earliest
-        // per-employee period so order/activity counts aren't silently truncated.
-        // This is what makes "Since Last Payroll" and an equivalent Custom range agree.
-        let windowStart = fetchStart;
-        if (periodMode === "since_last") {
-            for (const periodEnd of map.values()) {
-                if (periodEnd < windowStart) windowStart = periodEnd;
-            }
-        }
-
-        // ── Phase 2: time-windowed data (activity, orders, returns, overlap guard) ──
-        // Orders and activity logs are paginated past Supabase's 1000-row cap —
-        // without this, a wide window (e.g. "Since Last Payroll") silently truncates
-        // the order set and undercounts every employee.
-        const wStart = new Date(periodBounds(windowStart, fetchEnd).from).toISOString();
-        const wEnd = new Date(periodBounds(windowStart, fetchEnd).to).toISOString();
-        const [logsData, paidInWindowRes, completedOrdersData, returnsData, inTransitData, allOrdersData] = await Promise.all([
-            // Wide window — we'll slice per-employee client-side
-            fetchAllRows<ActivityLogRow>((from, to) =>
-                supabase
-                    .from("activity_logs")
-                    .select("user_id, action, entity_id, details, created_at")
-                    .gte("created_at", wStart)
-                    .lte("created_at", wEnd)
-                    .order("created_at", { ascending: true })
-                    .range(from, to)
-            ),
-
-            // For duplicate guard: all paid records that overlap the fetch window
-            supabase
-                .from("payroll_records")
-                .select("id, employee_id, period_start, period_end, net_salary, paid_at")
-                .eq("status", "paid")
-                .lte("period_start", fetchEnd)
-                .gte("period_end", windowStart),
-
-            // Completed orders — filter by completed_at (when the order was MARKED completed),
-            // NOT created_at. An order placed before the window but completed inside it (late-arriving
-            // money) belongs to the period it completed in; created_at bucketing would lose it.
-            // Pull the flags + sequence so we can split genuine deliveries from replacements/refunds.
-            fetchAllRows<CompletedOrderRow>((from, to) =>
-                supabase
-                    .from("orders")
-                    .select("id, created_at, completed_at, order_id, customer_name, status, is_replacement, is_return, price, sequence_number, refund_status, refunded_amount")
-                    .eq("tenant_id", tenantId)
-                    .eq("status", "completed")
-                    .gte("completed_at", wStart)
-                    .lte("completed_at", wEnd)
-                    .order("completed_at", { ascending: true })
-                    .range(from, to)
-            ),
-
-            // ALL return/refund orders (any status, any date) — used to detect which
-            // completed originals were refunded, and for the returned-after-payment flag.
-            // A refund can be created long after the original delivery, so we don't
-            // window this; the set is small.
-            fetchAllRows<ReturnOrderRow>((from, to) =>
-                supabase
-                    .from("orders")
-                    .select("id, created_at, order_id, customer_name, status, original_order_id")
-                    .eq("tenant_id", tenantId)
-                    .eq("is_return", true)
-                    .order("created_at", { ascending: true })
-                    .range(from, to)
-            ),
-
-            // Genuine orders out with the courier right now (any date): the "if they all
-            // arrive" projection only. Pay itself counts completed orders.
-            fetchAllRows<{ id: string }>((from, to) =>
-                supabase
-                    .from("orders")
-                    .select("id")
-                    .eq("tenant_id", tenantId)
-                    .in("status", [...IN_TRANSIT_STATUSES])
-                    .eq("is_return", false)
-                    .eq("is_replacement", false)
-                    .order("id", { ascending: true })
-                    .range(from, to)
-            ),
-
-            // ALL orders (any status) created in the window — lightweight (id/date/status only).
-            // Drives the whole-pipeline status breakdown shown on the payslip (came in,
-            // cancelled, no-response, rejected, in-transit, …), not just completed deliveries.
-            fetchAllRows<StatusOrderRow>((from, to) =>
-                supabase
-                    .from("orders")
-                    .select("id, created_at, status")
-                    .eq("tenant_id", tenantId)
-                    .gte("created_at", wStart)
-                    .lte("created_at", wEnd)
-                    .order("created_at", { ascending: true })
-                    .range(from, to)
-            ),
-        ]);
-
-        if (empRes.data) setEmployees(empRes.data);
-        if (configRes.data) setSalaryConfigs(configRes.data);
-        if (roleRes.data) setRoleDefaults(roleRes.data);
-        setActivityLogs(logsData);
-        if (advRes.data) setAdvances(advRes.data);
-        if (penRes.data) setPenalties(penRes.data);
-        if (bonRes.data) setBonuses(bonRes.data);
-        setCompletedOrders(completedOrdersData);
-        setInTransitOrderIds(inTransitData.map((o) => o.id));
-        setAllOrders(allOrdersData);
-        setReturnOrders(returnsData);
-
-        setLastPayrollDates(map);
-        if (paidInWindowRes.data) setPaidRecordsInWindow(paidInWindowRes.data as typeof paidRecordsInWindow);
-        setIsLoading(false);
-    }, [fetchStart, fetchEnd, periodMode, tenantId]);
-
-    // fetchData() awaits Promise.resolve() before any setState.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    useEffect(() => { void fetchData(); }, [fetchData]);
+    const {
+        employees, activityLogs, completedOrders, inTransitOrderIds, allOrders, returnOrders,
+        advances, penalties, bonuses, salaryConfigs, roleDefaults, lastPayrollDates, paidRecordsInWindow,
+    } = query.data ?? EMPTY_SOURCE;
 
     const getEffectiveRate = useCallback(
         (employeeId: string, role: string): EffectiveSalaryRate => {
@@ -715,7 +763,7 @@ export function useSalaries(
 
     return {
         employeePayrollData,
-        isLoading,
+        isLoading: query.isPending,
         totalDue,
         totalProjected,
         inTransitOrderCount: inTransitOrderIds.length,
@@ -723,6 +771,7 @@ export function useSalaries(
         totalPendingPenalties,
         periodBreakdown,
         lastPayrollDates,
-        refresh: fetchData,
+        failed: query.isError,
+        refresh: query.refetch,
     };
 }

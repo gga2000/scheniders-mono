@@ -3,11 +3,14 @@
 import { useState } from "react";
 import { useSalaryConfig } from "@/hooks/use-salary-config";
 import { useSalaryDeductions } from "@/hooks/use-salary-deductions";
+import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 import { SalaryConfigForm } from "@/components/salary/salary-config-form";
 import { EmployeeSalarySummary, type PendingPayItem } from "./employee-salary-summary";
 
 /** The drawer's Salary tab: reads pay config and pending items (RLS-scoped) and opens the editor. */
 export function EmployeeSalaryPanel({ employeeId, employeeName, role }: { employeeId: string; employeeName: string; role: string }) {
+    const { t } = useLanguage();
     const [editing, setEditing] = useState(false);
     const { getEffectiveRate, upsertEmployeeConfig, fetchConfigHistory } = useSalaryConfig();
     const { advances, penalties, bonuses } = useSalaryDeductions();
@@ -27,7 +30,8 @@ export function EmployeeSalaryPanel({ employeeId, employeeName, role }: { employ
                 employeeId={employeeId}
                 currentRate={rate}
                 onSubmit={async (config) => {
-                    await upsertEmployeeConfig(employeeId, config);
+                    const { error } = await upsertEmployeeConfig(employeeId, config);
+                    if (error) toast({ title: t("payroll.toast.saveFailed"), description: error, variant: "error" });
                 }}
                 loadHistory={fetchConfigHistory}
             />
