@@ -461,7 +461,7 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                         </span>
                     </span>
                     <span className="font-semibold text-foreground tabular-nums">
-                        {lineCost == null ? "—" : formatIQD(lineCost)} {t(UNIT_COPY[rule.unit].short)}
+                        {lineCost == null ? t("recipe.costHidden") : `${formatIQD(lineCost)} ${t(UNIT_COPY[rule.unit].short)}`}
                     </span>
                 </div>
             )}
