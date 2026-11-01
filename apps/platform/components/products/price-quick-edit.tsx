@@ -22,6 +22,9 @@ interface PriceQuickEditProps {
  * Change one product's selling price without opening the editor. Saves only
  * if nobody else saved the product since it was loaded, and records the
  * change in the price history like the editor does.
+ *
+ * Hosts must pass `onOpenAutoFocus={(e) => e.preventDefault()}` to their
+ * PopoverContent; otherwise Radix moves focus to the Close button.
  */
 export function PriceQuickEdit({ product, cost, onClose }: PriceQuickEditProps) {
     const { t } = useLanguage();
@@ -35,7 +38,10 @@ export function PriceQuickEdit({ product, cost, onClose }: PriceQuickEditProps) 
     const invalid = price === null;
     const belowCost = price !== null && cost !== undefined && cost > 0 && price < cost;
 
+    // The popover leaves focus to us (onOpenAutoFocus is prevented), so the
+    // field gets it whether opened from the price or from the ⋮ menu.
     useEffect(() => {
+        inputRef.current?.focus();
         inputRef.current?.select();
     }, []);
 

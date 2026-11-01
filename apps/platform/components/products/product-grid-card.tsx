@@ -125,7 +125,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     e.stopPropagation();
                     onToggleSelection(product.id, e);
                 }}
-                className="absolute top-3 left-3 z-10 p-1.5 bg-white/80 backdrop-blur-sm rounded-lg hover:bg-white transition-colors before:absolute before:-inset-2 before:content-['']"
+                className="absolute top-3 left-3 z-10 p-1.5 bg-[var(--card-bg)]/90 backdrop-blur-sm border border-[var(--card-border)] rounded-lg hover:bg-[var(--card-bg)] transition-colors before:absolute before:-inset-2 before:content-['']"
                 aria-label={t(isSelected ? "products.selection.deselectOne" : "products.selection.selectOne", { name: product.name })}
             >
                 {isSelected ? (
@@ -234,6 +234,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                                     </button>
                                 </PopoverTrigger>
                                 <PopoverContent
+                                    onOpenAutoFocus={(e) => e.preventDefault()}
                                     align="start"
                                     sideOffset={8}
                                     collisionPadding={16}
@@ -378,6 +379,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                             productId={product.id}
                             productName={product.name}
                             currentStock={product.stock_quantity}
+                            reserved={product.reserved_quantity || 0}
                             onClose={() => setStockAdjustOpen(false)}
                         />
                     </PopoverContent>

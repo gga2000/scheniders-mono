@@ -60,9 +60,10 @@ export function QuickActionsMenu({
     // Editing is for products.edit; everyone else sees the product, not the buttons.
     const canEdit = usePermission().can(PERMISSIONS.EDIT_PRODUCTS);
     const [confirmingArchive, setConfirmingArchive] = useState(false);
-    // A popover opened from the menu keeps focus; handing it back to the ⋮
-    // trigger would close that popover straight away.
-    const openedPopover = useRef(false);
+    // Price and stock popovers open only once the menu has closed: opened
+    // while the menu is up, the menu's focus trap takes focus back and the
+    // field never gets it.
+    const afterClose = useRef<(() => void) | null>(null);
 
     const handleOpenChange = (next: boolean) => {
         if (!next) {
@@ -97,8 +98,13 @@ export function QuickActionsMenu({
                     className="z-50 w-52 bg-[var(--card-bg)] rounded-xl shadow-lg border border-[var(--card-border)] overflow-hidden p-1 animate-in fade-in-0 zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2"
                     onClick={(e) => e.stopPropagation()}
                     onCloseAutoFocus={(e) => {
-                        if (openedPopover.current) e.preventDefault();
-                        openedPopover.current = false;
+                        const open = afterClose.current;
+                        afterClose.current = null;
+                        if (open) {
+                            // Focus goes to the popover's field, not back to ⋮.
+                            e.preventDefault();
+                            open();
+                        }
                     }}
                 >
                     {/* View Details */}
@@ -125,8 +131,7 @@ export function QuickActionsMenu({
                         <DropdownMenu.Item
                             className={cn(itemClasses, "text-foreground")}
                             onSelect={() => {
-                                openedPopover.current = true;
-                                onChangePrice();
+                                afterClose.current = onChangePrice;
                             }}
                         >
                             <Tag className="w-4 h-4" />
@@ -137,8 +142,7 @@ export function QuickActionsMenu({
                         <DropdownMenu.Item
                             className={cn(itemClasses, "text-foreground")}
                             onSelect={() => {
-                                openedPopover.current = true;
-                                onAdjustStock();
+                                afterClose.current = onAdjustStock;
                             }}
                         >
                             <PackagePlus className="w-4 h-4" />

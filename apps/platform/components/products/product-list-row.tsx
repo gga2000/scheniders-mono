@@ -266,6 +266,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                                 productId={product.id}
                                 productName={product.name}
                                 currentStock={product.stock_quantity}
+                                reserved={product.reserved_quantity || 0}
                                 onClose={() => setStockAdjustOpen(false)}
                             />
                         </PopoverContent>
@@ -318,6 +319,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                             </button>
                         </PopoverTrigger>
                         <PopoverContent
+                            onOpenAutoFocus={(e) => e.preventDefault()}
                             align="end"
                             sideOffset={8}
                             collisionPadding={16}
