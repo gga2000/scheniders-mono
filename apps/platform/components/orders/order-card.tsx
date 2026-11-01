@@ -26,6 +26,7 @@ import { motion } from "framer-motion";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { PriorityBadge } from "./card/priority-badge";
 import { SourceBadge } from "./card/source-badge";
+import { EnteredByMark } from "./card/entered-by-mark";
 import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
 
@@ -470,6 +471,7 @@ function FullOrderCard(props: OrderCardProps) {
 
                             {/* Source Badge - hidden in semi-compact */}
                             {compact === 0 && <SourceBadge source={order.source} />}
+                            {compact === 0 && <EnteredByMark enteredBy={order.entered_by} source={order.source} />}
 
                             {/* 7-Day Guarantee Countdown - hidden in semi-compact */}
                             {compact === 0 && order.status === 'delivered' && order.delivered_at && (() => {
