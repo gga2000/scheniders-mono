@@ -3,12 +3,12 @@
 import { useState, useMemo } from "react";
 import {
     format, startOfMonth, endOfMonth, eachDayOfInterval,
-    getDay, isSameDay,
+    getDay, isSameDay, addMonths, subMonths,
 } from "date-fns";
 import {
     CheckCircle, Clock, FileText, Download, FileSpreadsheet,
     Undo2, ChevronDown, ChevronUp, List, CalendarDays, BarChart3,
-    ArrowUpDown, Search, SlidersHorizontal, MessageSquare,
+    ArrowUpDown, Search, SlidersHorizontal, MessageSquare, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { ar } from "date-fns/locale";
 import type { Locale } from "date-fns";
@@ -42,18 +42,6 @@ const PAYMENT_METHOD_LABELS: Record<string, { labelKey: string }> = {
     zain_cash: { labelKey: "payroll.method.zainCash" },
     qi_card:   { labelKey: "payroll.method.qiCard" },
 };
-
-// Avatar gradient per employee name (same hash as employee card)
-const AVATAR_GRADIENTS = [
-    ["#6366f1", "#9333ea"], ["#10b981", "#0d9488"], ["#f43f5e", "#ec4899"],
-    ["#f59e0b", "#f97316"], ["#3b82f6", "#06b6d4"], ["#8b5cf6", "#d946ef"],
-    ["#14b8a6", "#22c55e"], ["#f97316", "#ef4444"],
-];
-
-function avatarColor(name: string): string {
-    const [c1] = AVATAR_GRADIENTS[name.charCodeAt(0) % AVATAR_GRADIENTS.length];
-    return c1;
-}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -135,11 +123,12 @@ export function PayrollHistoryTable({ records: payrollHistory, loading: isLoadin
     const ytdData = useMemo(() => {
         const year = new Date().getFullYear().toString();
         const paidThisYear = payrollHistory.filter(r => r.status === "paid" && r.period_end.startsWith(year));
-        const map = new Map<string, { name: string; count: number; totalNet: number; totalOrders: number }>();
+        const map = new Map<string, { id: string; name: string; count: number; totalNet: number; totalOrders: number }>();
         for (const r of paidThisYear) {
             const name = employeeNames.get(r.employee_id) ?? t("payroll.history.unknown");
-            const existing = map.get(r.employee_id) ?? { name, count: 0, totalNet: 0, totalOrders: 0 };
+            const existing = map.get(r.employee_id) ?? { id: r.employee_id, name, count: 0, totalNet: 0, totalOrders: 0 };
             map.set(r.employee_id, {
+                id: r.employee_id,
                 name,
                 count: existing.count + 1,
                 totalNet: existing.totalNet + r.net_salary,
@@ -404,7 +393,7 @@ export function PayrollHistoryTable({ records: payrollHistory, loading: isLoadin
 
             {/* ══ VIEW: CALENDAR (#34) ══ */}
             {viewMode === "calendar" && (
-                <CalendarView history={payrollHistory} employeeNames={employeeNames} locale={locale} />
+                <CalendarView history={filteredHistory} employeeNames={employeeNames} locale={locale} />
             )}
 
             {/* ══ VIEW: YTD SUMMARY (#33) ══ */}
@@ -566,35 +555,74 @@ function RecordRow({
 
 // ─── Calendar view (#34) ──────────────────────────────────────────────────────
 
+interface CalendarPayment {
+    id: string;
+    name: string;
+    amount: number;
+}
+
+/** "yyyy-MM" of a Date, for comparing months. */
+function monthKey(d: Date) {
+    return format(d, "yyyy-MM");
+}
+
+/**
+ * Two months side by side, opening on the month of the latest payment (not today), so a
+ * store that paid on the 30th still sees those payments on the 1st. Each month lists its
+ * payments under the grid.
+ */
 function CalendarView({ history, employeeNames, locale }: { history: PayrollRecord[]; employeeNames: Map<string, string>; locale?: Locale }) {
     const { t } = useLanguage();
-    const now = new Date();
-    const months = [
-        new Date(now.getFullYear(), now.getMonth() - 1, 1),
-        new Date(now.getFullYear(), now.getMonth(), 1),
-    ];
 
-    // Build a map: date-string → list of {name, amount, color}
     const paymentsByDate = useMemo(() => {
-        const map = new Map<string, { name: string; amount: number; color: string }[]>();
+        const map = new Map<string, CalendarPayment[]>();
         for (const r of history) {
             if (!r.paid_at || r.status !== "paid") continue;
             const dateStr = toBaghdadDayKey(r.paid_at);
             if (!dateStr) continue;
-            const name = employeeNames.get(r.employee_id) ?? t("payroll.history.unknown");
-            const color = avatarColor(name);
             const list = map.get(dateStr) ?? [];
-            list.push({ name, amount: r.net_salary, color });
+            list.push({ id: r.id, name: employeeNames.get(r.employee_id) ?? t("payroll.history.unknown"), amount: r.net_salary });
             map.set(dateStr, list);
         }
         return map;
     }, [history, employeeNames, t]);
 
+    const latestPaidMonth = useMemo(() => {
+        const keys = [...paymentsByDate.keys()].sort();
+        const last = keys[keys.length - 1];
+        return last ? new Date(`${last.slice(0, 7)}-01T00:00:00`) : startOfMonth(new Date());
+    }, [paymentsByDate]);
+
+    // Months moved away from the latest payment month; 0 shows that month and the one before.
+    const [offset, setOffset] = useState(0);
+    const right = addMonths(latestPaidMonth, offset);
+    const months = [subMonths(right, 1), right];
+    const atLatest = monthKey(right) >= monthKey(latestPaidMonth) && monthKey(right) >= monthKey(new Date());
+
+    if (paymentsByDate.size === 0) {
+        return (
+            <div className="text-center py-16 text-muted">
+                <CalendarDays className="w-10 h-10 mx-auto mb-3 opacity-30" aria-hidden="true" />
+                <p className="text-sm">{t("payroll.history.calendarEmpty")}</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {months.map(monthStart => (
-                <MonthCalendar key={monthStart.toISOString()} monthStart={monthStart} paymentsByDate={paymentsByDate} locale={locale} />
-            ))}
+        <div className="space-y-3">
+            <div className="flex items-center justify-end gap-1">
+                <button type="button" onClick={() => setOffset((o) => o - 1)} aria-label={t("payroll.history.calendarPrev")} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-[var(--card-bg)] hover:text-foreground transition-colors">
+                    <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+                </button>
+                <button type="button" onClick={() => setOffset((o) => o + 1)} disabled={atLatest} aria-label={t("payroll.history.calendarNext")} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-[var(--card-bg)] hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                    <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                {months.map(monthStart => (
+                    <MonthCalendar key={monthKey(monthStart)} monthStart={monthStart} paymentsByDate={paymentsByDate} locale={locale} />
+                ))}
+            </div>
         </div>
     );
 }
@@ -605,70 +633,81 @@ function MonthCalendar({
     locale,
 }: {
     monthStart: Date;
-    paymentsByDate: Map<string, { name: string; amount: number; color: string }[]>;
+    paymentsByDate: Map<string, CalendarPayment[]>;
     locale?: Locale;
 }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    const iqd = t("common.iqd");
     const days = eachDayOfInterval({ start: startOfMonth(monthStart), end: endOfMonth(monthStart) });
     // Monday = 0, ..., Sunday = 6
-    const firstDayOfWeek = (getDay(days[0]) + 6) % 7; // shift so Mon=0
+    const firstDayOfWeek = (getDay(days[0]) + 6) % 7;
 
-    // Monday-first headers, localized from the first week of the month's grid.
+    // Monday-first headers, localized.
     const WEEK_DAYS = Array.from({ length: 7 }, (_, i) =>
         format(new Date(2024, 0, 1 + i), "EEEEEE", { locale }), // 2024-01-01 is a Monday
     );
 
+    const monthPayments = days.flatMap((day) => {
+        const dateStr = format(day, "yyyy-MM-dd");
+        return (paymentsByDate.get(dateStr) ?? []).map((p) => ({ ...p, day }));
+    });
+    const monthTotal = monthPayments.reduce((sum, p) => sum + p.amount, 0);
+
     return (
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-4">
-            <p className="text-sm font-semibold text-foreground mb-3">
-                {format(monthStart, "MMMM yyyy", { locale })}
-            </p>
+            <div className="flex items-baseline justify-between gap-3 mb-3">
+                <p className="text-sm font-semibold text-foreground">{format(monthStart, "MMMM yyyy", { locale })}</p>
+                {monthTotal > 0 && (
+                    <p className="text-xs text-muted tabular-nums"><bdi>{fmtIQD(monthTotal)} {iqd}</bdi></p>
+                )}
+            </div>
             <div className="grid grid-cols-7 gap-1">
-                {/* Day headers */}
                 {WEEK_DAYS.map(d => (
                     <div key={d} className="text-center text-xs text-muted font-medium py-1">{d}</div>
                 ))}
-                {/* Blank cells before first day */}
                 {Array.from({ length: firstDayOfWeek }).map((_, i) => (
                     <div key={`blank-${i}`} />
                 ))}
-                {/* Day cells */}
                 {days.map(day => {
                     const dateStr = format(day, "yyyy-MM-dd");
-                    const payments = paymentsByDate.get(dateStr) ?? [];
+                    const count = paymentsByDate.get(dateStr)?.length ?? 0;
                     const isToday = isSameDay(day, new Date());
                     return (
                         <div
                             key={dateStr}
                             className={cn(
-                                "relative flex flex-col items-center justify-start pt-1 pb-1 rounded-lg min-h-[40px]",
-                                isToday && "bg-[var(--ink)]/10 ring-1 ring-[var(--ink)]/30",
-                                payments.length > 0 && "bg-emerald-50 dark:bg-emerald-900/10"
+                                "flex flex-col items-center justify-start gap-1 py-1.5 rounded-lg min-h-[40px]",
+                                count > 0 && "bg-emerald-50 dark:bg-emerald-900/15",
+                                isToday && "ring-1 ring-[var(--ink)]/30",
                             )}
-                            title={payments.map(p => `${p.name}: ${fmtIQD(p.amount)} ${t("common.iqd")}`).join("\n")}
                         >
-                            <span className={cn("text-xs", isToday ? "font-bold text-foreground" : "text-muted")}>
+                            <span className={cn("text-xs tabular-nums", count > 0 || isToday ? "font-semibold text-foreground" : "text-muted")}>
                                 {format(day, "d")}
                             </span>
-                            {/* Dots */}
-                            {payments.length > 0 && (
-                                <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center">
-                                    {payments.slice(0, 3).map((p, i) => (
-                                        <span
-                                            key={i}
-                                            className="w-1.5 h-1.5 rounded-full"
-                                            style={{ backgroundColor: p.color }}
-                                        />
-                                    ))}
-                                    {payments.length > 3 && (
-                                        <span className="text-[9px] text-muted">+{payments.length - 3}</span>
-                                    )}
-                                </div>
+                            {count > 0 && (
+                                <span className="text-[10px] font-semibold leading-none text-emerald-700 dark:text-emerald-400 tabular-nums">
+                                    {t("payroll.history.calendarPaidCount", { count })}
+                                </span>
                             )}
                         </div>
                     );
                 })}
             </div>
+            {monthPayments.length === 0 ? (
+                <p className="mt-3 pt-3 border-t border-[var(--card-border)] text-xs text-muted">{t("payroll.history.calendarNone")}</p>
+            ) : (
+                <ul className="mt-3 pt-3 border-t border-[var(--card-border)] space-y-1.5">
+                    {monthPayments.map((p) => (
+                        <li key={p.id} className="flex items-center gap-3 text-xs">
+                            <span className="w-20 shrink-0 whitespace-nowrap text-muted tabular-nums">
+                                <bdi>{format(p.day, language === "ar" ? "d MMM" : "MMM d", { locale })}</bdi>
+                            </span>
+                            <bdi className="flex-1 truncate font-medium text-foreground">{p.name}</bdi>
+                            <span className="tabular-nums text-foreground"><bdi>{fmtIQD(p.amount)} {iqd}</bdi></span>
+                        </li>
+                    ))}
+                </ul>
+            )}
         </div>
     );
 }
@@ -679,7 +718,7 @@ function YTDView({
     ytdData,
     year,
 }: {
-    ytdData: { name: string; count: number; totalNet: number; totalOrders: number }[];
+    ytdData: { id: string; name: string; count: number; totalNet: number; totalOrders: number }[];
     year: number;
 }) {
     const { t } = useLanguage();
@@ -715,22 +754,19 @@ function YTDView({
                     </thead>
                     <tbody className="divide-y divide-[var(--card-border)]">
                         {ytdData.map(emp => (
-                            <tr key={emp.name} className="hover:bg-[var(--background)] transition-colors">
+                            <tr key={emp.id} className="hover:bg-[var(--background)] transition-colors">
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <div
-                                            className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0"
-                                            style={{ backgroundColor: avatarColor(emp.name) }}
-                                        >
-                                            {emp.name[0]?.toUpperCase()}
+                                        <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-[var(--background)] border border-[var(--card-border)] text-foreground text-xs font-semibold shrink-0" aria-hidden="true">
+                                            {emp.name.match(/\p{L}/u)?.[0]?.toUpperCase()}
                                         </div>
-                                        <span className="text-sm font-medium text-foreground">{emp.name}</span>
+                                        <bdi className="text-sm font-medium text-foreground">{emp.name}</bdi>
                                     </div>
                                 </td>
                                 <td className="px-4 py-3 text-right text-sm text-foreground tabular-nums">{emp.count}</td>
-                                <td className="px-4 py-3 text-right text-sm font-semibold text-foreground tabular-nums">{fmtIQD(emp.totalNet)} {t("common.iqd")}</td>
-                                <td className="px-4 py-3 text-right text-sm text-muted tabular-nums">{fmtIQD(emp.count > 0 ? emp.totalNet / emp.count : 0)} {t("common.iqd")}</td>
-                                <td className="px-4 py-3 text-right text-sm text-foreground tabular-nums">{emp.totalOrders.toLocaleString()}</td>
+                                <td className="px-4 py-3 text-right text-sm font-semibold text-foreground tabular-nums"><bdi>{fmtIQD(emp.totalNet)} {t("common.iqd")}</bdi></td>
+                                <td className="px-4 py-3 text-right text-sm text-muted tabular-nums"><bdi>{fmtIQD(emp.count > 0 ? emp.totalNet / emp.count : 0)} {t("common.iqd")}</bdi></td>
+                                <td className="px-4 py-3 text-right text-sm text-foreground tabular-nums">{emp.totalOrders.toLocaleString("en-US")}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -738,9 +774,9 @@ function YTDView({
                         <tr>
                             <td className="px-4 py-3 text-sm font-bold text-foreground">{t("payroll.history.total")}</td>
                             <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{grandCount}</td>
-                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{fmtIQD(grandTotal)} {t("common.iqd")}</td>
-                            <td className="px-4 py-3 text-right text-sm text-muted">—</td>
-                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{grandOrders.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums"><bdi>{fmtIQD(grandTotal)} {t("common.iqd")}</bdi></td>
+                            <td className="px-4 py-3 text-right text-sm text-muted tabular-nums"><bdi>{fmtIQD(grandCount > 0 ? grandTotal / grandCount : 0)} {t("common.iqd")}</bdi></td>
+                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground tabular-nums">{grandOrders.toLocaleString("en-US")}</td>
                         </tr>
                     </tfoot>
                 </table>
