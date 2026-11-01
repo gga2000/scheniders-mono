@@ -734,6 +734,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                 open={reorderOpen}
                 onClose={() => setReorderOpen(false)}
                 supplies={supplies}
+                openPoBySupply={openPoBySupply}
                 snoozedIds={snoozedIds}
                 onSnooze={handleSnooze}
                 onUnsnooze={handleUnsnooze}

@@ -5,7 +5,7 @@ import type { PoStatus, PoStatusInfo } from "@/components/products/supplies/po-s
 
 /**
  * Fetches purchase orders that are still in-flight (draft/sent/confirmed) and maps
- * the soonest-arriving one per supply product_id. Used for the PO-status chip on
+ * the soonest-arriving one per supply product_id, with the quantity summed across all open POs. Used for the PO-status chip on
  * supply cards/rows so ops can see "PO #1234 arriving in 3d" at a glance.
  */
 export function useOpenPosBySupply() {
@@ -59,10 +59,15 @@ export function useOpenPosBySupply() {
                     continue;
                 }
 
-                // Prefer the soonest arrival; null expected_date sorts last.
+                // Quantity is the total still on order across every open PO; the
+                // chip itself shows the soonest arrival (null date sorts last).
                 const a = existing.expectedDate ? new Date(existing.expectedDate).getTime() : Infinity;
                 const b = info.expectedDate ? new Date(info.expectedDate).getTime() : Infinity;
-                if (b < a) map.set(item.product_id, info);
+                const soonest = b < a ? info : existing;
+                map.set(item.product_id, {
+                    ...soonest,
+                    quantity: existing.quantity + info.quantity,
+                });
             }
 
             return map;

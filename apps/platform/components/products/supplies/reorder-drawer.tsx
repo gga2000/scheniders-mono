@@ -21,6 +21,7 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
+import type { PoStatusInfo } from "./po-status-chip";
 
 interface SupplySupplierRaw {
     supplier_name?: string;
@@ -85,6 +86,8 @@ interface ReorderDrawerProps {
     open: boolean;
     onClose: () => void;
     supplies: Product[];
+    /** Outstanding quantity already on draft/sent/confirmed POs, per supply. */
+    openPoBySupply?: Map<string, PoStatusInfo>;
     snoozedIds: Set<string>;
     onSnooze: (supplyId: string) => void;
     onUnsnooze: (supplyId: string) => void;
@@ -94,6 +97,7 @@ export function ReorderDrawer({
     open,
     onClose,
     supplies,
+    openPoBySupply,
     snoozedIds,
     onSnooze,
     onUnsnooze,
@@ -135,9 +139,10 @@ export function ReorderDrawer({
     });
 
     // Derive reorder items grouped by supplier.
-    const { supplierGroups, totalItems, snoozedCount } = useMemo(() => {
+    const { supplierGroups, totalItems, snoozedCount, coveredCount } = useMemo(() => {
         const items: ReorderItem[] = [];
         let snoozed = 0;
+        let covered = 0;
 
         for (const s of supplies) {
             const stock = s.stock_quantity ?? 0;
@@ -172,18 +177,26 @@ export function ReorderDrawer({
                 if (!showSnoozed) continue;
             }
 
+            // Stock already ordered counts: a second PO for it would double-buy.
+            const onOrder = openPoBySupply?.get(s.id)?.quantity ?? 0;
+            const suggested = calcSuggestedQty({
+                leadTimeDays,
+                dailyRate,
+                reorderPoint,
+                stock: stock + onOrder,
+                moq,
+            });
+            if (onOrder > 0 && stock + onOrder > reorderPoint && !atRisk) {
+                covered += 1;
+                continue;
+            }
+
             items.push({
                 supply: s,
                 primarySupplier: primary,
                 dailyRate,
                 daysUntilStockout,
-                suggestedQty: calcSuggestedQty({
-                    leadTimeDays,
-                    dailyRate,
-                    reorderPoint,
-                    stock,
-                    moq,
-                }),
+                suggestedQty: suggested,
                 unitCost,
                 leadTimeDays,
                 urgency: urgencyFor(daysUntilStockout, leadTimeDays),
@@ -226,8 +239,9 @@ export function ReorderDrawer({
             supplierGroups: groups,
             totalItems: items.length,
             snoozedCount: snoozed,
+            coveredCount: covered,
         };
-    }, [supplies, salesMap, snoozedIds, editedQty, showSnoozed]);
+    }, [supplies, salesMap, openPoBySupply, snoozedIds, editedQty, showSnoozed]);
 
     const toggleGroup = useCallback((name: string) => {
         setExpandedGroups((prev) => {
@@ -318,7 +332,7 @@ export function ReorderDrawer({
         onSuccess: (result) => {
             toast.success(t("supplies.ro.poCreated", { number: result.poNumber, count: result.itemCount }));
             queryClient.invalidateQueries({ queryKey: ["supplies-reorder-sales"] });
-            queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] });
+            queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] });
         },
         onError: (err: Error) => {
             toast.error(t("supplies.ro.poFailed", { message: err.message }));
@@ -388,6 +402,12 @@ export function ReorderDrawer({
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
+
+                        {coveredCount > 0 && (
+                            <p className="px-5 py-2 border-b border-[var(--card-border)] text-xs text-muted">
+                                {t("supplies.ro.coveredByPo", { count: coveredCount })}
+                            </p>
+                        )}
 
                         {/* Snooze toggle */}
                         {snoozedCount > 0 && (
