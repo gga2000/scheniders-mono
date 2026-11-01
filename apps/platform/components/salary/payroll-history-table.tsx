@@ -18,9 +18,10 @@ import { toBaghdadDayKey } from "@/lib/order-window";
 import type { PayrollRecord } from "@/types/salary";
 import { exportHistoryCSV } from "@/lib/payroll-csv-export";
 import { toast } from "@/hooks/use-toast";
-import { downloadPayslipBlob } from "@/lib/payslip-download";
+import { downloadPayslipBlob, fetchPayslipBlob } from "@/lib/payslip-download";
 import { PayslipPreviewModal } from "./payslip-preview-modal";
 import { ComparePayrollModal } from "./compare-payroll-modal";
+import { formatPayrollDate } from "@/lib/payroll-date";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -29,12 +30,11 @@ function fmtIQD(n: number) {
 }
 
 function fmtDate(d: string | null | undefined, fmt = "MMM d, yyyy", locale?: Locale) {
-    if (!d) return "";
-    try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), fmt, { locale }); } catch { return d; }
+    return formatPayrollDate(d, fmt, locale);
 }
 
 function fmtMonth(ym: string, locale?: Locale) {
-    try { return format(new Date(ym + "-01T00:00:00"), "MMMM yyyy", { locale }); } catch { return ym; }
+    return formatPayrollDate(`${ym}-01`, "MMMM yyyy", locale);
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, { labelKey: string }> = {
@@ -113,8 +113,9 @@ export function PayrollHistoryTable({ records: payrollHistory, loading: isLoadin
         const map = new Map<string, PayrollRecord[]>();
         for (const r of filteredHistory) {
             const key = r.period_end.slice(0, 7);
-            if (!map.has(key)) map.set(key, []);
-            map.get(key)!.push(r);
+            const list = map.get(key) ?? [];
+            list.push(r);
+            map.set(key, list);
         }
         return map;
     }, [filteredHistory]);
@@ -180,14 +181,9 @@ export function PayrollHistoryTable({ records: payrollHistory, loading: isLoadin
     // ── Download ────────────────────────────────────────────────────────────
     async function handleRedownload(record: PayrollRecord) {
         if (!record.pdf_url) return;
-        try {
-            const response = await fetch(record.pdf_url);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const blob = await response.blob();
-            downloadPayslipBlob(blob, employeeNames.get(record.employee_id) ?? t("payroll.history.employeeFallback"), record.period_end);
-        } catch {
-            toast({ title: t("payroll.history.downloadFailed"), description: t("payroll.history.downloadFailedDesc"), variant: "error" });
-        }
+        const blob = await fetchPayslipBlob(record.pdf_url);
+        if (blob) downloadPayslipBlob(blob, employeeNames.get(record.employee_id) ?? t("payroll.history.employeeFallback"), record.period_end);
+        else toast({ title: t("payroll.history.downloadFailed"), description: t("payroll.history.downloadFailedDesc"), variant: "error" });
     }
 
     // ── Toggle month collapse ────────────────────────────────────────────────
@@ -639,12 +635,12 @@ function MonthCalendar({
     const { t, language } = useLanguage();
     const iqd = t("common.iqd");
     const days = eachDayOfInterval({ start: startOfMonth(monthStart), end: endOfMonth(monthStart) });
-    // Monday = 0, ..., Sunday = 6
-    const firstDayOfWeek = (getDay(days[0]) + 6) % 7;
+    // The Iraqi week starts on Saturday: Saturday = 0, ..., Friday = 6.
+    const firstDayOfWeek = (getDay(days[0]) + 1) % 7;
 
-    // Monday-first headers, localized.
+    // Saturday-first headers, localized.
     const WEEK_DAYS = Array.from({ length: 7 }, (_, i) =>
-        format(new Date(2024, 0, 1 + i), "EEEEEE", { locale }), // 2024-01-01 is a Monday
+        format(new Date(2024, 0, 6 + i), "EEEEEE", { locale }), // 2024-01-06 is a Saturday
     );
 
     const monthPayments = days.flatMap((day) => {

@@ -15,9 +15,11 @@ import {
 } from "lucide-react";
 import type { AggregatedSupplier } from "@/lib/utils/suppliers-aggregate";
 import { cn, formatIQD } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import { SupplierInitialsBadge } from "./supplier-initials-badge";
 import { PoStatusChip, type PoStatusInfo, type PoStatus } from "./po-status-chip";
 import { StockFillBar } from "./stock-fill-bar";
+import { PoActions } from "./po-actions";
 import type { Product } from "@/lib/supabase";
 
 type TabKey = "overview" | "supplies" | "pos";
@@ -29,10 +31,10 @@ interface SupplierDetailDrawerProps {
     onSelectSupply?: (supply: Product) => void;
 }
 
-const TABS: { key: TabKey; label: string }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "supplies", label: "Supplies" },
-    { key: "pos", label: "Purchase orders" },
+const TABS: { key: TabKey; labelKey: string }[] = [
+    { key: "overview", labelKey: "supplies.sd.tabOverview" },
+    { key: "supplies", labelKey: "supplies.sd.tabSupplies" },
+    { key: "pos", labelKey: "supplies.sd.tabPos" },
 ];
 
 export function SupplierDetailDrawer({
@@ -41,6 +43,7 @@ export function SupplierDetailDrawer({
     onClose,
     onSelectSupply,
 }: SupplierDetailDrawerProps) {
+    const { t } = useLanguage();
     const [tab, setTab] = useState<TabKey>("overview");
 
     return (
@@ -59,7 +62,7 @@ export function SupplierDetailDrawer({
                         key="panel"
                         role="dialog"
                         aria-modal="true"
-                        aria-label={`${supplier.name} detail`}
+                        aria-label={t("supplies.sd.detail", { name: supplier.name })}
                         className="fixed right-0 top-0 bottom-0 w-full md:w-[560px] bg-[var(--background)] shadow-2xl z-50 flex flex-col"
                         initial={{ x: "100%" }}
                         animate={{ x: 0 }}
@@ -89,6 +92,7 @@ function SupplierHeader({
     supplier: AggregatedSupplier;
     onClose: () => void;
 }) {
+    const { t } = useLanguage();
     return (
         <div className="px-5 py-4 border-b border-[var(--card-border)] flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0">
@@ -123,7 +127,7 @@ function SupplierHeader({
                 type="button"
                 onClick={onClose}
                 className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-[var(--card-border)]/40 transition-colors"
-                aria-label="Close"
+                aria-label={t("supplies.sd.close")}
             >
                 <X className="w-4 h-4" />
             </button>
@@ -132,22 +136,23 @@ function SupplierHeader({
 }
 
 function SupplierTabs({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void }) {
+    const { t } = useLanguage();
     return (
         <div className="border-b border-[var(--card-border)] px-5 flex gap-1">
-            {TABS.map((t) => (
+            {TABS.map((item) => (
                 <button
-                    key={t.key}
+                    key={item.key}
                     type="button"
-                    onClick={() => onChange(t.key)}
+                    onClick={() => onChange(item.key)}
                     className={cn(
                         "relative px-3 py-2.5 text-sm font-medium transition-colors",
-                        tab === t.key
+                        tab === item.key
                             ? "text-foreground"
                             : "text-muted hover:text-foreground"
                     )}
                 >
-                    {t.label}
-                    {tab === t.key && (
+                    {t(item.labelKey)}
+                    {tab === item.key && (
                         <span className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-teal-500" />
                     )}
                 </button>
@@ -157,32 +162,33 @@ function SupplierTabs({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) =>
 }
 
 function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
+    const { t } = useLanguage();
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
                 <KpiTile
                     icon={Package}
-                    label="Supplies"
+                    label={t("supplies.sd.kpiSupplies")}
                     value={supplier.supplies.length.toString()}
                 />
                 <KpiTile
                     icon={Clock}
-                    label="Avg lead time"
+                    label={t("supplies.sd.kpiLead")}
                     value={
                         supplier.avgLeadTimeDays != null
-                            ? `${supplier.avgLeadTimeDays} days`
+                            ? t("supplies.sd.days", { n: supplier.avgLeadTimeDays })
                             : "—"
                     }
                 />
                 <KpiTile
                     icon={Truck}
-                    label="Open POs"
+                    label={t("supplies.sd.kpiOpenPos")}
                     value={supplier.openPoCount.toString()}
                     tone={supplier.openPoCount > 0 ? "sky" : "slate"}
                 />
                 <KpiTile
                     icon={TrendingUp}
-                    label="YTD spend"
+                    label={t("supplies.sd.kpiYtd")}
                     value={formatIQD(supplier.ytdSpend)}
                     tone="teal"
                 />
@@ -190,11 +196,11 @@ function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
 
             <div className="pastel-card p-4">
                 <p className="text-[11px] uppercase tracking-wide text-muted font-medium">
-                    Recent activity
+                    {t("supplies.sd.recent")}
                 </p>
                 <div className="mt-2 space-y-1.5 text-sm">
                     {supplier.pos.slice(0, 3).length === 0 ? (
-                        <p className="text-muted text-sm">No purchase orders yet.</p>
+                        <p className="text-muted text-sm">{t("supplies.sd.noPos")}</p>
                     ) : (
                         supplier.pos.slice(0, 3).map((p) => (
                             <div
@@ -267,6 +273,7 @@ function SuppliesTab({
     supplier: AggregatedSupplier;
     onSelectSupply?: (supply: Product) => void;
 }) {
+    const { t } = useLanguage();
     const sorted = useMemo(
         () =>
             [...supplier.supplies].sort((a, b) => {
@@ -279,7 +286,7 @@ function SuppliesTab({
     if (sorted.length === 0) {
         return (
             <div className="text-center py-12 text-muted text-sm">
-                No supplies linked to this supplier.
+                {t("supplies.sd.noSupplies")}
             </div>
         );
     }
@@ -318,12 +325,12 @@ function SuppliesTab({
                                     <p className="font-medium text-sm truncate">{product.name}</p>
                                     {isPrimary && (
                                         <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide">
-                                            Primary
+                                            {t("supplies.sd.primary")}
                                         </span>
                                     )}
                                 </div>
                                 <p className="text-[11px] text-muted font-mono truncate">
-                                    {product.sku || "No SKU"}
+                                    {product.sku || t("supplies.sd.noSku")}
                                 </p>
                                 <div className="mt-1.5 flex items-center gap-2 text-[11px]">
                                     <span className="tabular-nums font-medium">{stock}</span>
@@ -336,11 +343,11 @@ function SuppliesTab({
                                 </div>
                                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted">
                                     {leadTimeDays != null && (
-                                        <span>{leadTimeDays}d lead</span>
+                                        <span>{t("supplies.sd.leadD", { n: leadTimeDays })}</span>
                                     )}
-                                    {moq != null && moq > 1 && <span>MOQ {moq}</span>}
+                                    {moq != null && moq > 1 && <span>{t("supplies.sd.moq", { n: moq })}</span>}
                                     {unitCost != null && (
-                                        <span>{formatIQD(unitCost)}/unit</span>
+                                        <span>{t("supplies.sd.perUnit", { price: formatIQD(unitCost) })}</span>
                                     )}
                                 </div>
                             </div>
@@ -353,10 +360,11 @@ function SuppliesTab({
 }
 
 function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
+    const { t } = useLanguage();
     if (supplier.pos.length === 0) {
         return (
             <div className="text-center py-12 text-muted text-sm">
-                No purchase orders yet.
+                {t("supplies.sd.noPos")}
             </div>
         );
     }
@@ -372,7 +380,7 @@ function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
                 return (
                     <div
                         key={p.id}
-                        className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 flex items-center justify-between gap-3"
+                        className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 flex items-start justify-between gap-3"
                     >
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
@@ -385,11 +393,12 @@ function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
                                     : "—"}
                                 {p.receivedAt && (
                                     <>
-                                        {" · received "}
+                                        {` · ${t("supplies.sd.received")} `}
                                         {new Date(p.receivedAt).toLocaleDateString()}
                                     </>
                                 )}
                             </p>
+                            <PoActions poId={p.id} poNumber={p.poNumber} status={p.status} />
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                             {p.totalCost != null && p.totalCost > 0 && (
@@ -399,7 +408,11 @@ function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
                             )}
                             {p.status === "received" ? (
                                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
-                                    Received
+                                    {t("supplies.sd.receivedChip")}
+                                </span>
+                            ) : p.status === "partial" || p.status === "cancelled" ? (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+                                    {t(p.status === "partial" ? "supplies.po.statusPartial" : "supplies.po.statusCancelled")}
                                 </span>
                             ) : (
                                 <PoStatusChip info={info} size="sm" />

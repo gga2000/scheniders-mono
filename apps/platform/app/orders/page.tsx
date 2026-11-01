@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { usePersistedToggle } from "@/hooks/use-persisted-toggle";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -124,67 +125,19 @@ import { useRecordContact } from "@/hooks/use-record-contact";
 
 export default function OrdersPage() {
     const { sidebarExpanded } = useSidebar();
-    // 🔍 DIAGNOSTIC: Track loading → content transition (one-shot, not per-render)
-    const pageMountTime = useRef<number | null>(null);
-    const hasLoggedMount = useRef(false);
-    const hasLoggedContent = useRef(false);
-
-    useEffect(() => {
-        if (!hasLoggedMount.current) {
-            pageMountTime.current = performance.now();
-            hasLoggedMount.current = true;
-            if (pageMountTime.current !== null) {
-                console.log(`[OrdersPage] first render at ${Math.round(pageMountTime.current)}ms`);
-            }
-        }
-    }, []);
-
     const [isMounted, setIsMounted] = useState(false);
     const [isReturnsOpen, setIsReturnsOpen] = useState(false);
     const [isStockTodayOpen, setIsStockTodayOpen] = useState(false);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     // Sub-filters (Type + Products rows) are hidden by default — show only when
     // the merchant clicks the toggle next to the barcode button. Per-device pref.
-    const [showSubFilters, setShowSubFilters] = useState(false);
-    useEffect(() => {
-        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowSubFilters") : null;
-        if (stored !== null) setShowSubFilters(stored === "true");
-    }, []);
-    const toggleSubFilters = useCallback(() => {
-        setShowSubFilters((v) => {
-            const next = !v;
-            localStorage.setItem("ordersShowSubFilters", String(next));
-            return next;
-        });
-    }, []);
+    const [showSubFilters, toggleSubFilters] = usePersistedToggle("ordersShowSubFilters");
     // Ad-channel chips — hidden by default, toggled from the search bar like the
     // sub-filters above. Per-device pref.
-    const [showAdChannels, setShowAdChannels] = useState(false);
-    useEffect(() => {
-        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowAdChannels") : null;
-        if (stored !== null) setShowAdChannels(stored === "true");
-    }, []);
-    const toggleAdChannels = useCallback(() => {
-        setShowAdChannels((v) => {
-            const next = !v;
-            localStorage.setItem("ordersShowAdChannels", String(next));
-            return next;
-        });
-    }, []);
+    const [showAdChannels, toggleAdChannels] = usePersistedToggle("ordersShowAdChannels");
     // Order pipeline funnel — hidden by default, surfaced via toolbar toggle.
     // Per-device pref, mirrors the sub-filters pattern above.
-    const [showPipeline, setShowPipeline] = useState(false);
-    useEffect(() => {
-        const stored = typeof window !== "undefined" ? localStorage.getItem("ordersShowPipeline") : null;
-        if (stored !== null) setShowPipeline(stored === "true");
-    }, []);
-    const togglePipeline = useCallback(() => {
-        setShowPipeline((v) => {
-            const next = !v;
-            localStorage.setItem("ordersShowPipeline", String(next));
-            return next;
-        });
-    }, []);
+    const [showPipeline, togglePipeline] = usePersistedToggle("ordersShowPipeline");
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -446,12 +399,12 @@ export default function OrdersPage() {
             await refreshOrders();
 
             toast.success(
-                "Order split successfully",
-                "Return order has been created"
+                t("orders.toast.splitDone"),
+                t("orders.toast.splitDoneDesc")
             );
         } else {
             toast.error(
-                "Split failed",
+                t("orders.toast.splitFailed"),
                 result.error || t("orderDetail.splitError")
             );
         }
@@ -478,8 +431,8 @@ export default function OrdersPage() {
             // record with no idea the refresh had failed.
             reportOrderError(err, { operation: "orders-view-details-fetch", orderId: order.id });
             toast.warning(
-                "Showing the last known details",
-                "This order could not be refreshed, so it may be out of date.",
+                t("orders.toast.staleDetails"),
+                t("orders.toast.staleDetailsDesc"),
             );
             setSelectedOrder(order);
             setIsModalOpen(true);
@@ -502,12 +455,12 @@ export default function OrdersPage() {
             // Same silent-stale path as handleViewDetails, reached from the table.
             reportOrderError(err, { operation: "orders-select-order-fetch", orderId: order.id });
             toast.warning(
-                "Showing the last known details",
-                "This order could not be refreshed, so it may be out of date.",
+                t("orders.toast.staleDetails"),
+                t("orders.toast.staleDetailsDesc"),
             );
             setSelectedOrder(order);
         }
-    }, [setSelectedOrder]);
+    }, [setSelectedOrder, t]);
 
 
 
@@ -745,12 +698,24 @@ export default function OrdersPage() {
             if (!stockGuard.holdStatusChange(orderId, status, proceed)) proceed();
         }) || stockGuard.holdStatusChange(orderId, status, proceed);
 
-    const handleStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
+    const statusUpdateNow = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         if (holdStatusChange(orderId, status, () => { void runStatusUpdate(orderId, status, reason, reasonId); })) {
             return;
         }
         await runStatusUpdate(orderId, status, reason, reasonId);
     };
+    // Every card gets this handler. It reads the latest orders through a ref so
+    // its identity never changes: a new function each render made every visible
+    // (memoised) card re-render on any page update, such as one checkbox.
+    const statusUpdateRef = useRef(statusUpdateNow);
+    useLayoutEffect(() => {
+        statusUpdateRef.current = statusUpdateNow;
+    });
+    const handleStatusUpdate = useCallback(
+        (orderId: string, status: Order["status"], reason?: string, reasonId?: string) =>
+            statusUpdateRef.current(orderId, status, reason, reasonId),
+        [],
+    );
 
     const runStatusUpdate = async (orderId: string, status: Order["status"], reason?: string, reasonId?: string) => {
         setLoadingId(orderId);
@@ -773,6 +738,30 @@ export default function OrdersPage() {
             setLoadingId(null);
         }
     };
+
+    // Card callbacks, stable so a page re-render does not re-render every card.
+    const openCancelDialog = useCallback((o: Order) => {
+        setOrderToCancel(o);
+        setCancelDialogOpen(true);
+    }, [setOrderToCancel, setCancelDialogOpen]);
+    const openRejectDialog = useCallback((o: Order) => {
+        setOrderToReject(o);
+        setRejectDialogOpen(true);
+    }, [setOrderToReject, setRejectDialogOpen]);
+    const openTemplatePanel = useCallback((o: Order) => {
+        setOrderForTemplate(o);
+        setTemplatePanelOpen(true);
+    }, [setOrderForTemplate, setTemplatePanelOpen]);
+    const showDuplicates = useCallback((o: Order) => {
+        setDuplicateOrder(o);
+        setShowDuplicateModal(true);
+    }, [setDuplicateOrder, setShowDuplicateModal]);
+    const mergeWithPrevious = useCallback(async (keepId: string, archiveId: string) => {
+        await mergeOrders(keepId, archiveId);
+    }, [mergeOrders]);
+    const openSplitDialog = useCallback((order: Order) => {
+        setSplitOrderDialog({ open: true, order });
+    }, [setSplitOrderDialog]);
 
     const toggleOrderSelection = useCallback((orderId: string) => {
         useOrderStore.getState().toggleOrderSelection(orderId);
@@ -951,13 +940,6 @@ export default function OrdersPage() {
         if (!originalOrderId) return null;
         return originalOrderInfoMap.get(originalOrderId) || null;
     }, [originalOrderInfoMap]);
-
-    // Handle logging transition once
-    if (!loading && !hasLoggedContent.current && pageMountTime.current !== null) {
-        hasLoggedContent.current = true;
-    } else if (loading && !hasLoggedContent.current && pageMountTime.current !== null) {
-        // Still loading skeleton
-    }
 
     // `loading` misses a pending-but-disabled query — which this one is until the
     // Supabase client finishes initialising — so without ordersPending the page
@@ -1231,7 +1213,7 @@ export default function OrdersPage() {
 
                                                     {/* View Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0 min-w-min">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.view")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             {/* Saved Views Dropdown */}
                                                             <SavedViewsTabs
@@ -1367,7 +1349,7 @@ export default function OrdersPage() {
 
                                                     {/* Filter Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.filter")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             {/* Date Picker */}
                                                             <div>
@@ -1543,7 +1525,7 @@ export default function OrdersPage() {
 
                                                     {/* Tools Group - NEW */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.tools")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.tools")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             {/* Notifications */}
                                                             <button
@@ -1638,7 +1620,7 @@ export default function OrdersPage() {
 
                                                     {/* Export Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.export")}</span>
                                                         <div className="flex items-center gap-1.5">
 
                                                             <button
@@ -1664,7 +1646,7 @@ export default function OrdersPage() {
 
                                                     {/* Action Group */}
                                                     <div className="flex flex-col gap-2 p-2 rounded-2xl bg-white/40 backdrop-blur-md border border-white/20 shadow-sm orders-toolbar-group flex-shrink-0">
-                                                        <span className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
+                                                        <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest px-2">{t("orders.toolbar.actions")}</span>
                                                         <div className="flex items-center gap-1.5">
                                                             <button
                                                                 onClick={() => setIsReturnsOpen(true)}
@@ -1931,26 +1913,12 @@ export default function OrdersPage() {
                                                             onTogglePin={togglePin}
                                                             onCloneOrder={cloneOrder}
                                                             onScreenshot={setScreenshotOrder}
-                                                            onCancelWithReason={(o) => {
-                                                                setOrderToCancel(o);
-                                                                setCancelDialogOpen(true);
-                                                            }}
-                                                            onRejectWithReason={(o) => {
-                                                                setOrderToReject(o);
-                                                                setRejectDialogOpen(true);
-                                                            }}
+                                                            onCancelWithReason={openCancelDialog}
+                                                            onRejectWithReason={openRejectDialog}
                                                             onToggleReviewed={toggleReviewed}
-                                                            onOpenTemplatePanel={(o) => {
-                                                                setOrderForTemplate(o);
-                                                                setTemplatePanelOpen(true);
-                                                            }}
-                                                            onShowDuplicates={(o) => {
-                                                                setDuplicateOrder(o);
-                                                                setShowDuplicateModal(true);
-                                                            }}
-                                                            onMergeWithPrevious={async (keepId, archiveId) => {
-                                                                await mergeOrders(keepId, archiveId);
-                                                            }}
+                                                            onOpenTemplatePanel={openTemplatePanel}
+                                                            onShowDuplicates={showDuplicates}
+                                                            onMergeWithPrevious={mergeWithPrevious}
                                                             isBlacklisted={isBlacklisted}
                                                             getBlacklistEntry={getBlacklistEntry}
                                                             onAddToBlacklist={canBlock ? addToBlacklist : undefined}
@@ -1967,7 +1935,7 @@ export default function OrdersPage() {
                                                             hasDuplicates={hasDuplicates}
                                                             getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                             onContactRecorded={recordContact}
-                                                            onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
+                                                            onSplitOrder={openSplitDialog}
                                                         />
                                                     ) : listOrders.length >= 10 ? (
                                                         /* Use virtualized list for 50+ orders */
@@ -1982,26 +1950,12 @@ export default function OrdersPage() {
                                                             onTogglePin={togglePin}
                                                             onCloneOrder={cloneOrder}
                                                             onScreenshot={setScreenshotOrder}
-                                                            onCancelWithReason={(o) => {
-                                                                setOrderToCancel(o);
-                                                                setCancelDialogOpen(true);
-                                                            }}
-                                                            onRejectWithReason={(o) => {
-                                                                setOrderToReject(o);
-                                                                setRejectDialogOpen(true);
-                                                            }}
+                                                            onCancelWithReason={openCancelDialog}
+                                                            onRejectWithReason={openRejectDialog}
                                                             onToggleReviewed={toggleReviewed}
-                                                            onOpenTemplatePanel={(o) => {
-                                                                setOrderForTemplate(o);
-                                                                setTemplatePanelOpen(true);
-                                                            }}
-                                                            onShowDuplicates={(o) => {
-                                                                setDuplicateOrder(o);
-                                                                setShowDuplicateModal(true);
-                                                            }}
-                                                            onMergeWithPrevious={async (keepId, archiveId) => {
-                                                                await mergeOrders(keepId, archiveId);
-                                                            }}
+                                                            onOpenTemplatePanel={openTemplatePanel}
+                                                            onShowDuplicates={showDuplicates}
+                                                            onMergeWithPrevious={mergeWithPrevious}
                                                             isBlacklisted={isBlacklisted}
                                                             getBlacklistEntry={getBlacklistEntry}
                                                             onAddToBlacklist={canBlock ? addToBlacklist : undefined}
@@ -2018,7 +1972,7 @@ export default function OrdersPage() {
                                                             hasDuplicates={hasDuplicates}
                                                             getDuplicateWindowAlert={getDuplicateWindowAlert}
                                                             onContactRecorded={recordContact}
-                                                            onSplitOrder={(order) => setSplitOrderDialog({ open: true, order })}
+                                                            onSplitOrder={openSplitDialog}
                                                         />
                                                     ) : (
                                                         /* Use animated list for <50 orders */
@@ -2035,7 +1989,7 @@ export default function OrdersPage() {
                                                                             loadingId={loadingId}
                                                                             onStatusUpdate={handleStatusUpdate}
                                                                             onViewDetails={handleViewDetails}
-                                                                            onSplit={() => setSplitOrderDialog({ open: true, order })}
+                                                                            onSplit={openSplitDialog}
                                                                             isBlacklisted={isBlacklisted(order.phone)}
                                                                             blacklistEntry={getBlacklistEntry(order.phone)}
                                                                             onAddToBlacklist={canBlock ? addToBlacklist : undefined}
@@ -2045,36 +1999,22 @@ export default function OrdersPage() {
                                                                             customerOrderCount={orderCount}
                                                                             archivedOrderCount={getCustomerArchivedCount(order.phone)}
                                                                             previousOrder={previousOrder}
-                                                                            onMergeWithPrevious={async (keepId: string, archiveId: string) => {
-                                                                                await mergeOrders(keepId, archiveId);
-                                                                            }}
-                                                                            onShowDuplicates={(o: Order) => {
-                                                                                setDuplicateOrder(o);
-                                                                                setShowDuplicateModal(true);
-                                                                            }}
+                                                                            onMergeWithPrevious={mergeWithPrevious}
+                                                                            onShowDuplicates={showDuplicates}
                                                                             duplicateAlert={getDuplicateWindowAlert(order.id)}
                                                                             onContactRecorded={recordContact}
                                                                             onTogglePin={togglePin}
                                                                             onCloneOrder={cloneOrder}
                                                                             onScreenshot={setScreenshotOrder}
-                                                                            onCancelWithReason={(o: Order) => {
-                                                                                setOrderToCancel(o);
-                                                                                setCancelDialogOpen(true);
-                                                                            }}
-                                                                            onRejectWithReason={(o: Order) => {
-                                                                                setOrderToReject(o);
-                                                                                setRejectDialogOpen(true);
-                                                                            }}
+                                                                            onCancelWithReason={openCancelDialog}
+                                                                            onRejectWithReason={openRejectDialog}
                                                                             onToggleReviewed={toggleReviewed}
                                                                             returnOrderInfo={getReturnOrderInfo(order.id)}
                                                                             originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
                                                                             compact={compactView}
                                                                             actionDock={actionDock}
                                                                             isVirtualized={false}
-                                                                            onOpenTemplatePanel={(o: Order) => {
-                                                                                setOrderForTemplate(o);
-                                                                                setTemplatePanelOpen(true);
-                                                                            }}
+                                                                            onOpenTemplatePanel={openTemplatePanel}
                                                                             messageTemplates={workflowTemplates}
                                                                             isSelected={selectedOrders.has(order.id)}
                                                                             onToggleSelection={toggleOrderSelection}

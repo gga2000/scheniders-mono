@@ -1,11 +1,11 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
+import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
 import { formatPhoneGrouped, validatePhoneDetailed } from "@/lib/order-utils";
 import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { GovernorateOptions } from "./governorate-options";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
-import { generateWhatsAppLink } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X, ArrowUpDown, BadgeCheck } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
@@ -20,7 +20,7 @@ import { formatOrderDateTime, formatOrderDayMonthTime, formatScheduledDate, isSc
  */
 function WhatsAppBadge({ label }: { label: string }) {
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold normal-case tracking-normal text-emerald-700">
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold normal-case tracking-normal text-emerald-700">
             <BadgeCheck className="h-3 w-3" />
             {label}
         </span>
@@ -158,47 +158,12 @@ export function OrderCustomerCard({
     };
 
     const handleWhatsApp = () => {
-        try {
-            const link = generateWhatsAppLink(
-                order.phone,
-                `مرحباً، بخصوص طلب ${order.order_id}`
-            );
-            const newWindow = window.open(link, "_blank");
-            onContactRecorded?.(order.id);
-
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                navigator.clipboard.writeText(link).then(() => {
-                    alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
-                }).catch(() => {
-                    alert(`Popup blocked. Please allow popups or copy this link manually:\n${link}`);
-                });
-            }
-        } catch (error) {
-            alert('حدث خطأ عند فتح واتساب. يرجى التحقق من رقم الهاتف.');
-        }
+        openWhatsAppChat(order.phone, `مرحباً، بخصوص طلب ${order.order_id}`, t, () => onContactRecorded?.(order.id));
     };
 
     const handleSecondaryWhatsApp = () => {
         if (!order.secondary_phone) return;
-
-        try {
-            const link = generateWhatsAppLink(
-                order.secondary_phone,
-                `مرحباً، بخصوص طلب ${order.order_id}`
-            );
-            const newWindow = window.open(link, "_blank");
-            onContactRecorded?.(order.id);
-
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                navigator.clipboard.writeText(link).then(() => {
-                    alert('متصفحك منع فتح النافذة المنبثقة. تم نسخ رابط واتساب إلى الحافظة!');
-                }).catch(() => {
-                    alert(`Popup blocked. Link: ${link}`);
-                });
-            }
-        } catch (error) {
-            alert('حدث خطأ عند فتح واتساب.');
-        }
+        openWhatsAppChat(order.secondary_phone, `مرحباً، بخصوص طلب ${order.order_id}`, t, () => onContactRecorded?.(order.id));
     };
 
     return (
@@ -361,7 +326,7 @@ export function OrderCustomerCard({
                                     onClick={handleSwapPhones}
                                     disabled={!currentPhones.secondary_phone.trim()}
                                     className={cn(
-                                        "ms-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold normal-case tracking-normal transition-colors",
+                                        "ms-auto inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold normal-case tracking-normal transition-colors",
                                         currentPhones.secondary_phone.trim()
                                             ? "text-foreground/70 hover:bg-[var(--background)] hover:text-foreground"
                                             : "text-muted/50 cursor-not-allowed",
@@ -543,7 +508,7 @@ export function OrderCustomerCard({
                             <Calendar className="w-3 h-3" />
                             {t("orderDetail.orderDate")}
                             {order.original_created_at && new Date(order.original_created_at).getTime() !== new Date(order.created_at).getTime() && (
-                                <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full uppercase tracking-wider">
+                                <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-bold rounded-full uppercase tracking-wider">
                                     {t("orderDetail.dateCorrected")}
                                 </span>
                             )}
@@ -563,7 +528,7 @@ export function OrderCustomerCard({
                                         {orderDateError}
                                     </p>
                                 ) : (
-                                    <p className="mt-1 text-[10px] leading-tight text-muted">
+                                    <p className="mt-1 text-[11px] leading-tight text-muted">
                                         {t("orderDetail.orderDateHint")}
                                     </p>
                                 )}
@@ -756,7 +721,7 @@ export function OrderCustomerCard({
                                         key={slot.id}
                                         onClick={() => updateFormData("delivery_slot", slot.id)}
                                         className={cn(
-                                            "flex-1 text-[10px] py-1.5 rounded-md transition-all font-medium mx-0.5 whitespace-nowrap",
+                                            "flex-1 text-[11px] py-1.5 rounded-md transition-all font-medium mx-0.5 whitespace-nowrap",
                                             (formData.delivery_slot || order.delivery_slot) === slot.id
                                                 ? "bg-white shadow-sm text-foreground ring-1 ring-black/5"
                                                 : "text-muted hover:text-foreground hover:bg-white/50"

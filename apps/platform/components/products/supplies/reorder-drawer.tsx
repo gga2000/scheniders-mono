@@ -20,6 +20,10 @@ import type { Product } from "@/lib/supabase";
 import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
+import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
+import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
+import type { PoStatusInfo } from "./po-status-chip";
 
 interface SupplySupplierRaw {
     supplier_name?: string;
@@ -53,37 +57,12 @@ interface SupplierGroup {
 
 const NO_SUPPLIER_KEY = "__no_supplier__";
 
-function urgencyFor(days: number | null, leadTime: number): ReorderItem["urgency"] {
-    if (days === null) return "ok";
-    if (days <= leadTime) return "critical";
-    if (days <= leadTime * 2) return "warning";
-    return "ok";
-}
-
-function calcSuggestedQty({
-    leadTimeDays,
-    dailyRate,
-    reorderPoint,
-    stock,
-    moq,
-}: {
-    leadTimeDays: number;
-    dailyRate: number;
-    reorderPoint: number;
-    stock: number;
-    moq: number;
-}): number {
-    // Cover lead time × 1.3 safety factor, land at reorder point after receipt.
-    const raw = leadTimeDays * dailyRate * 1.3 + (reorderPoint - stock);
-    const needed = Math.max(moq, Math.ceil(raw));
-    if (moq <= 1) return needed;
-    return Math.ceil(needed / moq) * moq;
-}
-
 interface ReorderDrawerProps {
     open: boolean;
     onClose: () => void;
     supplies: Product[];
+    /** Outstanding quantity already on draft/sent/confirmed POs, per supply. */
+    openPoBySupply?: Map<string, PoStatusInfo>;
     snoozedIds: Set<string>;
     onSnooze: (supplyId: string) => void;
     onUnsnooze: (supplyId: string) => void;
@@ -93,10 +72,12 @@ export function ReorderDrawer({
     open,
     onClose,
     supplies,
+    openPoBySupply,
     snoozedIds,
     onSnooze,
     onUnsnooze,
 }: ReorderDrawerProps) {
+    const { t } = useLanguage();
     const { tenantId } = useAuth();
     const queryClient = useQueryClient();
     const [editedQty, setEditedQty] = useState<Record<string, number>>({});
@@ -133,9 +114,10 @@ export function ReorderDrawer({
     });
 
     // Derive reorder items grouped by supplier.
-    const { supplierGroups, totalItems, snoozedCount } = useMemo(() => {
+    const { supplierGroups, totalItems, snoozedCount, coveredCount } = useMemo(() => {
         const items: ReorderItem[] = [];
         let snoozed = 0;
+        let covered = 0;
 
         for (const s of supplies) {
             const stock = s.stock_quantity ?? 0;
@@ -170,18 +152,26 @@ export function ReorderDrawer({
                 if (!showSnoozed) continue;
             }
 
+            // Stock already ordered counts: a second PO for it would double-buy.
+            const onOrder = openPoBySupply?.get(s.id)?.quantity ?? 0;
+            const suggested = calcSuggestedQty({
+                leadTimeDays,
+                dailyRate,
+                reorderPoint,
+                stock: stock + onOrder,
+                moq,
+            });
+            if (onOrder > 0 && stock + onOrder > reorderPoint && !atRisk) {
+                covered += 1;
+                continue;
+            }
+
             items.push({
                 supply: s,
                 primarySupplier: primary,
                 dailyRate,
                 daysUntilStockout,
-                suggestedQty: calcSuggestedQty({
-                    leadTimeDays,
-                    dailyRate,
-                    reorderPoint,
-                    stock,
-                    moq,
-                }),
+                suggestedQty: suggested,
                 unitCost,
                 leadTimeDays,
                 urgency: urgencyFor(daysUntilStockout, leadTimeDays),
@@ -194,10 +184,7 @@ export function ReorderDrawer({
             const key = item.primarySupplier?.supplier_name || NO_SUPPLIER_KEY;
             if (!map.has(key)) {
                 map.set(key, {
-                    supplierName:
-                        key === NO_SUPPLIER_KEY
-                            ? "No supplier assigned"
-                            : key,
+                    supplierName: key,
                     supplierEmail: item.primarySupplier?.supplier_email ?? "",
                     supplierContact: item.primarySupplier?.supplier_contact ?? "",
                     items: [],
@@ -227,8 +214,9 @@ export function ReorderDrawer({
             supplierGroups: groups,
             totalItems: items.length,
             snoozedCount: snoozed,
+            coveredCount: covered,
         };
-    }, [supplies, salesMap, snoozedIds, editedQty, showSnoozed]);
+    }, [supplies, salesMap, openPoBySupply, snoozedIds, editedQty, showSnoozed]);
 
     const toggleGroup = useCallback((name: string) => {
         setExpandedGroups((prev) => {
@@ -239,94 +227,40 @@ export function ReorderDrawer({
         });
     }, []);
 
-    const generatePONumber = useCallback(async (): Promise<string> => {
-        if (!tenantId) throw new Error("No tenant");
-        const year = new Date().getFullYear();
-        const { data } = await supabase
-            .from("purchase_orders")
-            .select("po_number")
-            .eq("tenant_id", tenantId)
-            .like("po_number", `PO-${year}-%`)
-            .order("po_number", { ascending: false })
-            .limit(1);
-        let seq = 1;
-        if (data && data.length > 0) {
-            const last = data[0].po_number as string;
-            const parts = last.split("-");
-            seq = (parseInt(parts[2] ?? "0", 10) || 0) + 1;
-        }
-        return `PO-${year}-${String(seq).padStart(3, "0")}`;
-    }, [tenantId]);
-
     const generatePO = useMutation({
         mutationFn: async (group: SupplierGroup) => {
             if (!tenantId) throw new Error("No tenant");
-            const items = group.items.map((item) => ({
-                product_id: item.supply.id,
-                product_name: item.supply.name,
-                sku: item.supply.sku ?? null,
-                quantity_ordered: editedQty[item.supply.id] ?? item.suggestedQty,
-                unit_cost: item.unitCost,
+            const lines = group.items.map((item) => ({
+                productId: item.supply.id,
+                quantityOrdered: editedQty[item.supply.id] ?? item.suggestedQty,
+                unitCost: item.unitCost,
             }));
-            const totalCost = items.reduce(
-                (sum, i) => sum + i.quantity_ordered * i.unit_cost,
-                0
-            );
             const maxLeadTime = Math.max(...group.items.map((i) => i.leadTimeDays));
 
-            // The store has one number per PO (unique index): a second buyer who
-            // read the same highest number gets a conflict and takes the next one.
-            let poNumber = await generatePONumber();
-            let po: { id: string } | null = null;
-            for (let attempt = 0; attempt < 3 && !po; attempt++) {
-                const { data, error: poError } = await supabase
-                    .from("purchase_orders")
-                    .insert({
-                        tenant_id: tenantId,
-                        po_number: poNumber,
-                        supplier_name: group.supplierName,
-                        status: "draft",
-                        total_cost: totalCost,
-                        notes: `Auto-generated supplies reorder (${items.length} item${items.length === 1 ? "" : "s"})`,
-                        expected_date: new Date(
-                            Date.now() + maxLeadTime * 86_400_000
-                        )
-                            .toISOString()
-                            .split("T")[0],
-                    })
-                    .select("id")
-                    .single();
-                if (!poError) {
-                    po = data;
-                } else if (poError.code === "23505") {
-                    poNumber = await generatePONumber();
-                } else {
-                    throw poError;
-                }
-            }
-            if (!po) throw new Error("Could not get a free PO number, try again");
-
-            const { error: itemsError } = await supabase
-                .from("purchase_order_items")
-                .insert(items.map((i) => ({ po_id: po.id, ...i })));
-            if (itemsError) {
-                // No header without lines: drop the empty draft so it is not left priced and empty.
-                await supabase.from("purchase_orders").delete().eq("id", po.id);
-                throw itemsError;
-            }
-            return { poNumber, itemCount: items.length };
+            // One database call: number, header, lines and total in a single
+            // transaction, so a failure never leaves an empty or half-priced draft.
+            const created = await createPurchaseOrder({
+                tenantId,
+                supplierName: group.supplierName,
+                supplierContact: group.supplierContact || null,
+                supplierEmail: group.supplierEmail || null,
+                notes: t("supplies.ro.poNote", { count: lines.length }),
+                expectedDate: new Date(Date.now() + maxLeadTime * 86_400_000)
+                    .toISOString()
+                    .split("T")[0],
+                lines,
+            });
+            return { poNumber: created.poNumber, itemCount: lines.length };
         },
         onSuccess: (result) => {
-            toast.success(
-                `PO ${result.poNumber} created (${result.itemCount} supply item${
-                    result.itemCount === 1 ? "" : "s"
-                })`
-            );
+            toast.success(t("supplies.ro.poCreated", { number: result.poNumber, count: result.itemCount }));
             queryClient.invalidateQueries({ queryKey: ["supplies-reorder-sales"] });
+            queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] });
             queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] });
+            queryClient.invalidateQueries({ queryKey: ["supplier-pos"] });
         },
         onError: (err: Error) => {
-            toast.error(`Could not create PO: ${err.message}`);
+            toast.error(t("supplies.ro.poFailed", { message: err.message }));
         },
     });
 
@@ -370,47 +304,47 @@ export function ReorderDrawer({
                         transition={{ type: "spring", stiffness: 320, damping: 36 }}
                         className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-[var(--card-bg)] border-l border-[var(--card-border)] shadow-2xl flex flex-col"
                         role="dialog"
-                        aria-label="Reorder recommendations"
+                        aria-label={t("supplies.ro.title")}
                     >
                         {/* Header */}
                         <div className="px-5 py-4 border-b border-[var(--card-border)] flex items-start justify-between gap-3">
                             <div>
                                 <h3 className="text-lg font-semibold flex items-center gap-2">
                                     <ShoppingCart className="w-5 h-5 text-teal-600" />
-                                    Reorder recommendations
+                                    {t("supplies.ro.title")}
                                 </h3>
                                 <p className="text-xs text-muted mt-0.5">
                                     {totalItems > 0
-                                        ? `${totalItems} suppl${
-                                              totalItems === 1 ? "y" : "ies"
-                                          } below reorder point or at risk · ${
-                                              supplierGroups.length
-                                          } supplier group${
-                                              supplierGroups.length === 1 ? "" : "s"
-                                          }`
-                                        : "Every supply is stocked above its reorder point."}
+                                        ? t("supplies.ro.summary", { items: totalItems, groups: supplierGroups.length })
+                                        : t("supplies.ro.allGood")}
                                 </p>
                             </div>
                             <button
                                 onClick={onClose}
                                 className="p-1.5 rounded-lg hover:bg-[var(--background)] text-muted"
-                                aria-label="Close"
+                                aria-label={t("supplies.ro.close")}
                             >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
 
+                        {coveredCount > 0 && (
+                            <p className="px-5 py-2 border-b border-[var(--card-border)] text-xs text-muted">
+                                {t("supplies.ro.coveredByPo", { count: coveredCount })}
+                            </p>
+                        )}
+
                         {/* Snooze toggle */}
                         {snoozedCount > 0 && (
                             <div className="px-5 py-2 border-b border-[var(--card-border)] flex items-center justify-between text-xs">
                                 <span className="text-muted">
-                                    {snoozedCount} snoozed
+                                    {t("supplies.ro.snoozedCount", { count: snoozedCount })}
                                 </span>
                                 <button
                                     onClick={() => setShowSnoozed((v) => !v)}
                                     className="font-medium text-teal-600 hover:text-teal-700"
                                 >
-                                    {showSnoozed ? "Hide snoozed" : "Show snoozed"}
+                                    {showSnoozed ? t("supplies.ro.hideSnoozed") : t("supplies.ro.showSnoozed")}
                                 </button>
                             </div>
                         )}
@@ -432,7 +366,7 @@ export function ReorderDrawer({
                                             (i) => i.urgency === "critical"
                                         );
                                         const noSupplier =
-                                            group.supplierName === "No supplier assigned";
+                                            group.supplierName === NO_SUPPLIER_KEY;
 
                                         return (
                                             <div key={group.supplierName}>
@@ -460,14 +394,13 @@ export function ReorderDrawer({
                                                         </div>
                                                         <div className="min-w-0">
                                                             <div className="font-semibold text-sm truncate">
-                                                                {group.supplierName}
+                                                                {group.supplierName === NO_SUPPLIER_KEY ? t("supplies.ro.noSupplier") : group.supplierName}
                                                             </div>
                                                             <div className="text-[11px] text-muted flex items-center gap-2 mt-0.5">
                                                                 <span>
-                                                                    {group.items.length} item
                                                                     {group.items.length === 1
-                                                                        ? ""
-                                                                        : "s"}
+                                                                        ? t("supplies.ro.itemOne")
+                                                                        : t("supplies.ro.items", { count: group.items.length })}
                                                                 </span>
                                                                 <span>·</span>
                                                                 <span className="font-medium tabular-nums">
@@ -480,7 +413,7 @@ export function ReorderDrawer({
                                                                         <span>·</span>
                                                                         <span className="inline-flex items-center gap-1 text-rose-600 font-medium">
                                                                             <AlertTriangle className="w-3 h-3" />
-                                                                            critical
+                                                                            {t("supplies.ro.critical")}
                                                                         </span>
                                                                     </>
                                                                 )}
@@ -508,8 +441,8 @@ export function ReorderDrawer({
                                                                     <ShoppingCart className="w-3.5 h-3.5" />
                                                                 )}
                                                                 {isGenerating
-                                                                    ? "Creating…"
-                                                                    : "Create PO"}
+                                                                    ? t("supplies.ro.creating")
+                                                                    : t("supplies.ro.createPo")}
                                                             </button>
                                                         )}
                                                         {isExpanded ? (
@@ -564,15 +497,16 @@ export function ReorderDrawer({
 }
 
 function EmptyState({ snoozedCount }: { snoozedCount: number }) {
+    const { t } = useLanguage();
     return (
         <div className="flex flex-col items-center justify-center text-center px-6 py-16">
             <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
                 <Package className="w-6 h-6" />
             </div>
-            <p className="font-semibold">All supplies healthy</p>
+            <p className="font-semibold">{t("supplies.ro.healthy")}</p>
             <p className="text-sm text-muted mt-1 max-w-xs">
-                Nothing is below its reorder point right now.
-                {snoozedCount > 0 && ` ${snoozedCount} snoozed item${snoozedCount === 1 ? "" : "s"} hidden.`}
+                {t("supplies.ro.nothingBelow")}
+                {snoozedCount > 0 && ` ${t("supplies.ro.hiddenSnoozed", { count: snoozedCount })}`}
             </p>
         </div>
     );
@@ -595,6 +529,7 @@ function ReorderItemRow({
     onSnooze,
     onUnsnooze,
 }: ReorderItemRowProps) {
+    const { t } = useLanguage();
     const qty = editedQty[item.supply.id] ?? item.suggestedQty;
     const lineCost = qty * item.unitCost;
 
@@ -628,7 +563,7 @@ function ReorderItemRow({
                                 {item.supply.name}
                             </div>
                             <div className="text-[11px] text-muted font-mono mt-0.5">
-                                {item.supply.sku || "No SKU"}
+                                {item.supply.sku || t("supplies.ro.noSku")}
                             </div>
                         </div>
                         <UrgencyChip urgency={item.urgency} days={item.daysUntilStockout} />
@@ -637,22 +572,22 @@ function ReorderItemRow({
                     {/* Stats row */}
                     <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
                         <Stat
-                            label="On hand"
+                            label={t("supplies.ro.onHand")}
                             value={`${item.supply.stock_quantity ?? 0}`}
                             tone="muted"
                         />
                         <Stat
-                            label="Velocity"
+                            label={t("supplies.ro.velocity")}
                             value={
                                 item.dailyRate > 0
-                                    ? `${item.dailyRate.toFixed(1)}/d`
+                                    ? t("supplies.ro.perDay", { n: item.dailyRate.toFixed(1) })
                                     : "—"
                             }
                             tone="muted"
                         />
                         <Stat
-                            label="Lead time"
-                            value={`${item.leadTimeDays}d`}
+                            label={t("supplies.ro.leadTime")}
+                            value={t("supplies.ro.leadDaysShort", { n: item.leadTimeDays })}
                             tone="muted"
                         />
                     </div>
@@ -661,7 +596,7 @@ function ReorderItemRow({
                     <div className="mt-2.5 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                             <label className="text-[11px] text-muted uppercase tracking-wide">
-                                Qty
+                                {t("supplies.ro.qty")}
                             </label>
                             <input
                                 type="number"
@@ -687,17 +622,17 @@ function ReorderItemRow({
                                 <button
                                     onClick={onUnsnooze}
                                     className="text-[11px] px-2 py-1 rounded-lg hover:bg-[var(--background)] text-muted"
-                                    title="Unsnooze"
+                                    title={t("supplies.ro.unsnooze")}
                                 >
-                                    Unsnooze
+                                    {t("supplies.ro.unsnooze")}
                                 </button>
                             ) : (
                                 <button
                                     onClick={onSnooze}
                                     className="text-[11px] px-2 py-1 rounded-lg hover:bg-[var(--background)] text-muted"
-                                    title="Snooze for this session"
+                                    title={t("supplies.ro.snoozeTitle")}
                                 >
-                                    Snooze
+                                    {t("supplies.ro.snooze")}
                                 </button>
                             )}
                         </div>
@@ -739,15 +674,16 @@ function UrgencyChip({
     urgency: ReorderItem["urgency"];
     days: number | null;
 }) {
+    const { t } = useLanguage();
     if (urgency === "critical") {
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-100 px-2 py-0.5 text-[10px] font-medium">
                 <AlertTriangle className="w-3 h-3" />
                 {days !== null
                     ? days <= 0
-                        ? "Out now"
-                        : `${days}d left`
-                    : "Critical"}
+                        ? t("supplies.ro.outNow")
+                        : t("supplies.ro.daysLeft", { days })
+                    : t("supplies.ro.critical")}
             </span>
         );
     }
@@ -755,13 +691,13 @@ function UrgencyChip({
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-100 px-2 py-0.5 text-[10px] font-medium">
                 <Clock className="w-3 h-3" />
-                {days !== null ? `${days}d left` : "At risk"}
+                {days !== null ? t("supplies.ro.daysLeft", { days }) : t("supplies.ro.atRisk")}
             </span>
         );
     }
     return (
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 px-2 py-0.5 text-[10px] font-medium">
-            Below reorder
+            {t("supplies.ro.belowReorder")}
         </span>
     );
 }

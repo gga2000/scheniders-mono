@@ -417,7 +417,7 @@ export function WhatsAppTemplatePanel({
                                     )}
                                 >
                                     {config.recommended && (
-                                        <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-sm">
+                                        <span className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500 text-white shadow-sm">
                                             NEW
                                         </span>
                                     )}
@@ -581,7 +581,7 @@ export function WhatsAppTemplatePanel({
                                                 {processedContent}
                                             </p>
                                             <div className="flex items-center justify-end gap-1 mt-2">
-                                                <span className="text-[10px] text-gray-500">
+                                                <span className="text-[11px] text-gray-500">
                                                     {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                                 <Check className="w-3 h-3 text-blue-500" />

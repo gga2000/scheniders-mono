@@ -54,17 +54,30 @@ export function formatLabelDate(iso: string): string {
 
 const amountFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
-const PAY_CUSTOMER = "ادفع للزبون";
+/** What the courier does with cash at the door. */
+export type CashDirection = "collect" | "pay" | "prepaid";
 
-/** What the courier does with cash at the door, and how much. */
-export function labelCash(order: Order): { label: string; amount: number } {
-    if (order.is_return) return { label: PAY_CUSTOMER, amount: computeRefundPayout(order) };
+/** What the courier does with cash at the door, and how much (always positive). */
+export function doorCash(order: Order): { direction: CashDirection; amount: number } {
+    if (order.is_return) return { direction: "pay", amount: computeRefundPayout(order) };
     if (order.is_replacement) {
         const signed = courierAmount(order);
-        return { label: signed >= 0 ? "استلم نقداً" : PAY_CUSTOMER, amount: Math.abs(signed) };
+        return { direction: signed >= 0 ? "collect" : "pay", amount: Math.abs(signed) };
     }
     const amount = computeCodAmount(order);
-    return { label: amount === 0 ? "مدفوع مسبقاً" : "استلم نقداً", amount };
+    return { direction: amount === 0 ? "prepaid" : "collect", amount };
+}
+
+const CASH_LABEL: Record<CashDirection, string> = {
+    collect: "استلم نقداً",
+    pay: "ادفع للزبون",
+    prepaid: "مدفوع مسبقاً",
+};
+
+/** The label's cash box: the instruction in Arabic and the amount. */
+export function labelCash(order: Order): { label: string; amount: number } {
+    const { direction, amount } = doorCash(order);
+    return { label: CASH_LABEL[direction], amount };
 }
 
 const DENSE_NAME_CHARS = 24;
@@ -112,8 +125,9 @@ function afterSaleLines(order: Order, items: { name: string; qty: number }[], pi
 export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOptions): string {
     const afterSale = Boolean(order.is_return || order.is_replacement);
     const id = labelReceiptNumber(order.order_id);
-    const cash = labelCash(order);
-    const payOut = cash.label === PAY_CUSTOMER;
+    const door = doorCash(order);
+    const cash = { label: CASH_LABEL[door.direction], amount: door.amount };
+    const payOut = door.direction === "pay";
     const items = mergeOrderItems(order.items).map((i) => ({ name: i.name, qty: i.quantity }));
     const pieces = items.reduce((sum, i) => sum + i.qty, 0);
     const e = (value: string | null | undefined) => escapeHtml(value ?? "");

@@ -5,8 +5,8 @@ import type { ActivityLogEntry } from "@/lib/activity-logger";
 vi.mock("@/hooks/use-language", () => ({
     useLanguage: () => ({
         language: "en",
-        t: (key: string, vars?: Record<string, string | number>) =>
-            vars ? `${key}:${Object.values(vars).join(",")}` : key,
+        t: (key: string, vars?: string | Record<string, string | number>) =>
+            vars && typeof vars === "object" ? `${key}:${Object.values(vars).join(",")}` : key,
     }),
 }));
 
@@ -48,7 +48,8 @@ describe("ActivityTimeline", () => {
     it("falls back to the email name and labels Claude tool calls", () => {
         render(<ActivityTimeline activities={[entry({ id: "b", action: "mcp.tool_call", details: { tool: "sales_summary" } })]} />);
         expect(screen.getByText("moh")).toBeTruthy();
-        expect(screen.getByText("team.timeline.mcpToolCall:sales_summary")).toBeTruthy();
+        // The tool id goes through its own translation key ("sales summary" / "ملخص المبيعات").
+        expect(screen.getByText("team.timeline.mcpToolCall:team.timeline.tool.sales_summary")).toBeTruthy();
     });
 
     it("keeps an unknown status as written", () => {

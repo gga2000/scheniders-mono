@@ -9,6 +9,7 @@ import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
 import { PoStatusChip, type PoStatusInfo } from "./po-status-chip";
 import { SupplierInitialsStack } from "./supplier-initials-badge";
 import { ProductThumb } from "@/components/products/product-thumb";
+import { useLanguage } from "@/hooks/use-language";
 
 interface SupplyListRowProps {
     supply: Product;
@@ -37,6 +38,7 @@ export function SupplyListRow({
     selected = false,
     onSelectToggle,
 }: SupplyListRowProps) {
+    const { t } = useLanguage();
     const stock = supply.stock_quantity ?? 0;
     const reserved = supply.reserved_quantity ?? 0;
     const timesSold = supply.times_sold_30d ?? 0;
@@ -66,7 +68,7 @@ export function SupplyListRow({
                                 : "bg-[var(--card-bg)] border-[var(--card-border)] text-transparent hover:border-teal-400 hover:text-teal-500",
                         )}
                         aria-pressed={selected}
-                        aria-label={selected ? "Deselect supply" : "Select supply"}
+                        aria-label={selected ? t("supplies.deselectSupply") : t("supplies.selectSupply")}
                     >
                         <Check className="w-3.5 h-3.5" />
                     </button>
@@ -147,7 +149,7 @@ export function SupplyListRow({
                                 type="button"
                                 onClick={() => onAdjustStock(supply, -1)}
                                 className="p-1.5 rounded-lg hover:bg-rose-50 hover:text-rose-600 text-muted transition-colors"
-                                title="Adjust −1"
+                                title={t("supplies.adjustMinus")}
                             >
                                 <Minus className="w-3.5 h-3.5" />
                             </button>
@@ -155,7 +157,7 @@ export function SupplyListRow({
                                 type="button"
                                 onClick={() => onAdjustStock(supply, 1)}
                                 className="p-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 text-muted transition-colors"
-                                title="Adjust +1"
+                                title={t("supplies.adjustPlus")}
                             >
                                 <Plus className="w-3.5 h-3.5" />
                             </button>
@@ -166,7 +168,7 @@ export function SupplyListRow({
                             type="button"
                             onClick={() => onReorder(supply)}
                             className="p-1.5 rounded-lg hover:bg-teal-50 hover:text-teal-600 text-muted transition-colors"
-                            title="Reorder"
+                            title={t("supplies.reorder")}
                         >
                             <ShoppingCart className="w-3.5 h-3.5" />
                         </button>
@@ -176,7 +178,7 @@ export function SupplyListRow({
                             type="button"
                             onClick={() => onEdit(supply)}
                             className="p-1.5 rounded-lg hover:bg-sky-50 hover:text-sky-600 text-muted transition-colors"
-                            title="Edit"
+                            title={t("supplies.editShort")}
                         >
                             <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -186,7 +188,7 @@ export function SupplyListRow({
                             type="button"
                             onClick={() => onMore(supply)}
                             className="p-1.5 rounded-lg hover:bg-slate-100 hover:text-foreground text-muted transition-colors"
-                            title="Details"
+                            title={t("supplies.details")}
                         >
                             <Info className="w-3.5 h-3.5" />
                         </button>

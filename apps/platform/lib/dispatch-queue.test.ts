@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildPickList, getQueueFlags, hasBlockingFlag, sortQueue } from "./dispatch-queue";
+import { getQueueFlags, groupForPacking, hasBlockingFlag, packKey } from "./dispatch-queue";
+import type { OrderItem } from "@/lib/supabase";
 
 const NOW = new Date("2026-10-31T09:00:00Z").getTime();
 const base = { print_count: 0, scheduled_date: null, phone: "07701234567", address_details: "Street 4", city: "Baghdad" };
@@ -28,62 +29,38 @@ describe("getQueueFlags", () => {
     });
 });
 
-describe("buildPickList", () => {
-    const item = (name: string, quantity: number, extra: Record<string, unknown> = {}) => ({ name, quantity, price: 1000, ...extra });
+const line = (name: string, quantity = 1) => ({ name, quantity, price: 1000 }) as OrderItem;
+const pack = (id: string, items: OrderItem[], extra: { is_return?: boolean; is_replacement?: boolean } = {}) => ({
+    id,
+    items,
+    is_return: extra.is_return ?? false,
+    is_replacement: extra.is_replacement ?? false,
+});
 
-    it("sums units across orders and counts orders per line", () => {
-        const list = buildPickList([
-            { items: [item("Fusion", 2, { product_id: "p1" }), item("Oud", 1, { product_id: "p2" })] },
-            { items: [item("Fusion", 1, { product_id: "p1" })] },
-        ]);
-        expect(list).toEqual([
-            { key: "p1||new", name: "Fusion", quantity: 3, orderCount: 2 },
-            { key: "p2||new", name: "Oud", quantity: 1, orderCount: 1 },
-        ]);
+describe("packKey", () => {
+    it("puts one product in any quantity in that product's group", () => {
+        expect(packKey(pack("a", [line("فيوجن", 2)]))).toEqual({ kind: "item", item: "فيوجن" });
+        expect(packKey(pack("b", [line("فيوجن"), line("فيوجن")]))).toEqual({ kind: "item", item: "فيوجن" });
     });
-
-    it("keeps open-box and new stock on separate lines", () => {
-        const list = buildPickList([{ items: [item("Fusion", 1, { product_id: "p1" }), item("Fusion", 1, { product_id: "p1", is_open_box: true })] }]);
-        expect(list).toHaveLength(2);
-    });
-
-    it("merges per-unit lines of the same product", () => {
-        const list = buildPickList([{ items: [item("Fusion", 1, { product_id: "p1" }), item("Fusion", 1, { product_id: "p1" })] }]);
-        expect(list).toEqual([{ key: "p1||new", name: "Fusion", quantity: 2, orderCount: 1 }]);
+    it("separates several products, replacements and refunds", () => {
+        expect(packKey(pack("a", [line("فيوجن"), line("انفوي")])).kind).toBe("multi");
+        expect(packKey(pack("b", [line("فيوجن")], { is_replacement: true })).kind).toBe("replacement");
+        expect(packKey(pack("c", [line("فيوجن")], { is_return: true })).kind).toBe("refund");
     });
 });
 
-describe("sortQueue", () => {
-    const row = (id: string, o: Partial<{ priority: "urgent" | "high" | "normal"; created_at: string; city: string; price: number }>) => ({
-        id,
-        priority: "normal" as const,
-        created_at: "2026-10-31T08:00:00Z",
-        city: "Basra",
-        price: 10000,
-        ...o,
-    });
-
-    it("puts urgent before high before normal and keeps ties in input order", () => {
-        const sorted = sortQueue(
-            [row("a", {}), row("b", { priority: "urgent" }), row("c", { priority: "high" }), row("d", {})],
-            "priority"
-        );
-        expect(sorted.map((o) => o.id)).toEqual(["b", "c", "a", "d"]);
-    });
-
-    it("sorts oldest first by date, by city name, and cheapest first by price", () => {
-        const rows = [
-            row("a", { created_at: "2026-10-31T09:00:00Z", city: "Mosul", price: 30000 }),
-            row("b", { created_at: "2026-10-31T07:00:00Z", city: "Erbil", price: 10000 }),
-        ];
-        expect(sortQueue(rows, "date").map((o) => o.id)).toEqual(["b", "a"]);
-        expect(sortQueue(rows, "city").map((o) => o.id)).toEqual(["b", "a"]);
-        expect(sortQueue(rows, "price").map((o) => o.id)).toEqual(["b", "a"]);
-    });
-
-    it("does not mutate its input", () => {
-        const rows = [row("a", { priority: "normal" }), row("b", { priority: "urgent" })];
-        sortQueue(rows, "priority");
-        expect(rows.map((o) => o.id)).toEqual(["a", "b"]);
+describe("groupForPacking", () => {
+    it("orders groups: shared products first, then lone products, multi, replacements, refunds", () => {
+        const groups = groupForPacking([
+            pack("r", [line("فيوجن")], { is_return: true }),
+            pack("m", [line("فيوجن"), line("انفوي")]),
+            pack("a1", [line("انفوي")]),
+            pack("f1", [line("فيوجن")]),
+            pack("p", [line("انفوي")], { is_replacement: true }),
+            pack("f2", [line("فيوجن", 3)]),
+        ]);
+        expect(groups.map((g) => g.key)).toEqual(["item:فيوجن", "single", "multi", "replacement", "refund"]);
+        expect(groups[0].orders.map((o) => o.id)).toEqual(["f1", "f2"]);
+        expect(groups[1].orders.map((o) => o.id)).toEqual(["a1"]);
     });
 });

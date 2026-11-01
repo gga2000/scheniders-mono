@@ -7,13 +7,14 @@ import { useLanguage } from "@/hooks/use-language";
 import { Trash2, TrendingDown, AlertCircle, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SalaryAdvance, SalaryPenalty, PerformanceBonus } from "@/types/salary";
+import { formatPayrollDate } from "@/lib/payroll-date";
 
 function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
 }
 
 function fmtDate(d: string, isArabic: boolean) {
-    try { return format(new Date(d), isArabic ? "d MMMM yyyy" : "MMM d, yyyy", { locale: isArabic ? ar : undefined }); } catch { return d; }
+    return formatPayrollDate(d, isArabic ? "d MMMM yyyy" : "MMM d, yyyy", isArabic ? ar : undefined);
 }
 
 interface SalaryDeductionsTabProps {

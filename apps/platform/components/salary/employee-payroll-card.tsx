@@ -17,6 +17,7 @@ import type { SalaryConfigHistoryRow } from "@/hooks/use-salary-config";
 import { PayrollAdjustmentModal } from "./payroll-adjustment-modal";
 import { SalaryConfigForm } from "./salary-config-form";
 import { OrderBreakdownModal } from "./order-breakdown-modal";
+import { formatPayrollDate } from "@/lib/payroll-date";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -26,13 +27,13 @@ function fmtIQD(n: number) {
 
 function fmtDate(d: string | null | undefined, fmt: string, locale: Locale | undefined) {
     if (!d) return "";
-    try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), fmt, { locale }); } catch { return d; }
+    return formatPayrollDate(d, fmt, locale);
 }
 
 /** Inclusive day count of a yyyy-mm-dd period (so a 1-day period = 1). */
 function daysInclusive(start: string, end: string): number {
-    try { return differenceInCalendarDays(new Date(end + "T00:00:00"), new Date(start + "T00:00:00")) + 1; }
-    catch { return 0; }
+    const days = differenceInCalendarDays(new Date(`${end}T00:00:00`), new Date(`${start}T00:00:00`)) + 1;
+    return Number.isNaN(days) ? 0 : days;
 }
 
 /**
@@ -692,9 +693,12 @@ export function EmployeePayrollCard({
                                 </div>
                                 {calculation.inTransit.orders > 0 && (
                                     <p className="text-xs text-muted mt-2 tabular-nums" title={t("payroll.projection.hint")}>
-                                        {t("payroll.projection.card", { count: calculation.inTransit.orders.toLocaleString("en-US") })}:{" "}
-                                        <bdi className="font-semibold text-foreground">{fmtIQD(calculation.inTransit.projectedNet)} {iqd}</bdi>{" "}
-                                        <bdi className="text-emerald-700 dark:text-emerald-400">+{fmtIQD(calculation.inTransit.extraOrderBonus)}</bdi>
+                                        {/* One isolate per sentence: in Arabic the label, amount and gain read right to left in order. */}
+                                        <bdi>
+                                            {t("payroll.projection.card", { count: calculation.inTransit.orders.toLocaleString("en-US") })}:{" "}
+                                            <bdi className="font-semibold text-foreground">{fmtIQD(calculation.inTransit.projectedNet)} {iqd}</bdi>{" "}
+                                            <bdi className="text-emerald-700 dark:text-emerald-400">+{fmtIQD(calculation.inTransit.extraOrderBonus)}</bdi>
+                                        </bdi>
                                     </p>
                                 )}
                                 {calculation.netSalary === 0 && !overDeducted && (
@@ -702,7 +706,7 @@ export function EmployeePayrollCard({
                                 )}
                                 {lastPayment && (
                                     <p className="text-xs text-muted mt-2 tabular-nums">
-                                        {t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{fmtIQD(lastPayment.net_salary)} {iqd}</bdi>
+                                        <bdi>{t("payroll.card.lastPaid")} <bdi>{fd(lastPayment.paid_at)}</bdi> · <bdi>{fmtIQD(lastPayment.net_salary)} {iqd}</bdi></bdi>
                                     </p>
                                 )}
                             </>

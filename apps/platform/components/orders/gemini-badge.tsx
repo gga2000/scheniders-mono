@@ -11,7 +11,7 @@ export function GeminiBadge({ size = "sm" }: { size?: "sm" | "xs" }) {
     return (
         <span
             title="Auto-extracted by Gemini from chat screenshot"
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 text-purple-700 border border-purple-200 dark:text-purple-300 dark:border-purple-500/30 shrink-0"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 text-purple-700 border border-purple-200 dark:text-purple-300 dark:border-purple-500/30 shrink-0"
         >
             {/* Gemini 4-point star glyph */}
             <svg

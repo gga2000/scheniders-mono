@@ -171,7 +171,7 @@ export function CancellationReasonDialog({
                                     <h3 className="font-bold text-foreground">{headerTitle}</h3>
                                     <span
                                         className={cn(
-                                            "inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                                            "inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-full",
                                             isReject
                                                 ? "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300"
                                                 : "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",

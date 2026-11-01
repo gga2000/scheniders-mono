@@ -25,6 +25,7 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, RouteRule>> = {
     "/reports": { roles: ADMINS },
     "/team": { roles: ADMINS },
     "/finances": FINANCIALS,
+    "/ads": FINANCIALS,
     "/salaries": FINANCIALS,
     "/vault": FINANCIALS,
     "/printing": { roles: STAFF },

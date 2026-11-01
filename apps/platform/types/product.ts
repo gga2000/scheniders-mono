@@ -71,6 +71,8 @@ export interface Product {
     feature_cards?: ProductFeatureCard[] | null;
     // Computed fields (not in DB)
     variants?: ProductVariant[];
+    /** Primary supplier first. Loaded by the list query; the Supplies tab and reorder drawer read it. */
+    suppliers?: ProductSupplier[];
     times_sold?: number;
     total_revenue?: number;
     times_sold_30d?: number;

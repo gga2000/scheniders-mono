@@ -46,7 +46,7 @@ export function AbandonedCartBadge({
             title={detail}
             aria-label={detail}
             className={cn(
-                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-bold whitespace-nowrap",
+                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[11px] font-bold whitespace-nowrap",
                 "border-[#F4B4A6] text-[#B4533F] bg-transparent dark:border-[#F4B4A6]/50 dark:text-[#F4B4A6]",
                 className,
             )}

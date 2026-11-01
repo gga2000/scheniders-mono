@@ -93,7 +93,7 @@ export function OrderItemsEditor({
                                         <button
                                             onClick={() => toggleOpenBox(index)}
                                             className={cn(
-                                                "shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                                "shrink-0 px-1.5 py-0.5 rounded-full text-[11px] font-semibold transition-all",
                                                 item.is_open_box
                                                     ? "bg-amber-100 text-amber-700"
                                                     : "bg-gray-100 text-gray-400 hover:bg-gray-200"
@@ -102,7 +102,7 @@ export function OrderItemsEditor({
                                             {item.is_open_box ? "علبة مفتوحة" : "جديد"}
                                         </button>
                                     ) : item.is_open_box ? (
-                                        <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
+                                        <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">
                                             علبة مفتوحة
                                         </span>
                                     ) : null}

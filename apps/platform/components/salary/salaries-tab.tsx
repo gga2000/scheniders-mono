@@ -9,11 +9,13 @@ import { format, subDays } from "date-fns";
 import { useSalaries, type OrderAttributionMode, type EmployeePeriodOverrides, type PeriodMode } from "@/hooks/use-salaries";
 import { useSalaryConfig } from "@/hooks/use-salary-config";
 import { useSalaryDeductions } from "@/hooks/use-salary-deductions";
+import type { PayrollWriteResult } from "@/hooks/payroll-query-keys";
 import { usePayroll } from "@/hooks/use-payroll";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { generatePayslipPDF } from "@/lib/payroll-pdf-generator";
-import { downloadPayslipBlob } from "@/lib/payslip-download";
+import { downloadPayslipBlob, fetchPayslipBlob } from "@/lib/payslip-download";
+import { readHiddenMembers, writeHiddenMembers } from "@/lib/hidden-payroll-members";
 import { exportCurrentPeriodCSV } from "@/lib/payroll-csv-export";
 import { generatePayrollSummaryPDF, downloadSummaryBlob } from "@/lib/payroll-summary-pdf";
 
@@ -235,13 +237,9 @@ export function SalariesTab() {
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
     const [previewMeta, setPreviewMeta] = useState({ name: "", periodEnd: "" });
-    const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(() => {
-        if (typeof window === "undefined") return new Set();
-        try {
-            const stored = localStorage.getItem("salary_hidden_employees");
-            return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
-        } catch { return new Set(); }
-    });
+    const [hiddenEmployeeIds, setHiddenEmployeeIds] = useState<Set<string>>(() =>
+        typeof window === "undefined" ? new Set() : readHiddenMembers(window.localStorage),
+    );
     const [showHidden, setShowHidden] = useState(false);
 
     const { roleSalaryDefaults, upsertRoleDefault, upsertEmployeeConfig, fetchConfigHistory, refresh: refreshConfigs } = useSalaryConfig();
@@ -260,11 +258,10 @@ export function SalariesTab() {
 
     const { runPayroll, voidPayroll, getLastPayrollDates, payrollHistory, fetchAllHistory, isLoading: historyLoading, historyFailed } = usePayroll();
 
-    // Clear per-employee overrides when the global period changes so the new period takes effect
-    useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setPeriodOverrides(new Map());
-    }, [periodMode, customStart, customEnd]);
+    // Changing the page period drops per-member overrides so the new period applies to everyone.
+    const changePeriodMode = useCallback((mode: PeriodMode) => { setPeriodMode(mode); setPeriodOverrides(new Map()); }, []);
+    const changeCustomStart = useCallback((value: string) => { setCustomStart(value); setPeriodOverrides(new Map()); }, []);
+    const changeCustomEnd = useCallback((value: string) => { setCustomEnd(value); setPeriodOverrides(new Map()); }, []);
 
     // Compute effective period
     const { periodStart, periodEnd } = useMemo(() => {
@@ -280,7 +277,7 @@ export function SalariesTab() {
         };
     }, [periodMode, customStart, customEnd]);
 
-    const { employeePayrollData, isLoading, totalDue, totalProjected, inTransitOrderCount, totalPendingAdvances, totalPendingPenalties, periodBreakdown, lastPayrollDates, refresh: refreshSalaries } = useSalaries(periodStart, periodEnd, attributionMode, periodOverrides, periodMode);
+    const { employeePayrollData, isLoading, totalDue, totalProjected, inTransitOrderCount, totalPendingAdvances, totalPendingPenalties, periodBreakdown, lastPayrollDates, failed: salariesFailed, refresh: refreshSalaries } = useSalaries(periodStart, periodEnd, attributionMode, periodOverrides, periodMode);
 
     const effectiveEmployeeData = useMemo(() => {
         let list = [...employeePayrollData];
@@ -319,6 +316,11 @@ export function SalariesTab() {
         return map;
     }, [employeePayrollData]);
 
+    // Writes refetch the period on success (shared "payroll" query key); a failure is shown, never dropped.
+    const reportWrite = useCallback((result: PayrollWriteResult) => {
+        if (result.error) toast({ title: t("payroll.toast.saveFailed"), description: result.error, variant: "error" });
+    }, [t]);
+
     const handleRefreshAll = useCallback(() => {
         refreshSalaries();
         refreshDeductions();
@@ -340,7 +342,7 @@ export function SalariesTab() {
         setHiddenEmployeeIds(prev => {
             const next = new Set(prev);
             next.add(employeeId);
-            try { localStorage.setItem("salary_hidden_employees", JSON.stringify([...next])); } catch {}
+            writeHiddenMembers(window.localStorage, next);
             return next;
         });
     }, []);
@@ -349,7 +351,7 @@ export function SalariesTab() {
         setHiddenEmployeeIds(prev => {
             const next = new Set(prev);
             next.delete(employeeId);
-            try { localStorage.setItem("salary_hidden_employees", JSON.stringify([...next])); } catch {}
+            writeHiddenMembers(window.localStorage, next);
             return next;
         });
     }, []);
@@ -442,6 +444,7 @@ export function SalariesTab() {
             };
 
             const { error, errorCode, record } = await runPayroll(calc, notes || undefined, payslipMeta, paymentMethod);
+            const pdfUrl = record?.pdf_url;
             setConfirmData(null);
             setPayingEmployeeId(null);
             handleRefreshAll();
@@ -461,11 +464,12 @@ export function SalariesTab() {
                     }),
                     variant: "success",
                     duration: 10000,
-                    action: record?.pdf_url ? {
+                    action: pdfUrl ? {
                         label: t("payroll.toast.downloadPdf"),
                         onClick: async () => {
-                            const blob = await fetch(record!.pdf_url!).then(r => r.blob());
-                            downloadPayslipBlob(blob, payslipMeta.employeeName, calc.periodEnd);
+                            const blob = await fetchPayslipBlob(pdfUrl);
+                            if (blob) downloadPayslipBlob(blob, payslipMeta.employeeName, calc.periodEnd);
+                            else toast({ title: t("payroll.history.downloadFailed"), description: t("payroll.history.downloadFailedDesc"), variant: "error" });
                         },
                     } : undefined,
                 });
@@ -542,11 +546,11 @@ export function SalariesTab() {
         <div className="space-y-3">
             <SalariesCommandBar
                 periodMode={periodMode}
-                onPeriodModeChange={setPeriodMode}
+                onPeriodModeChange={changePeriodMode}
                 customStart={customStart}
                 customEnd={customEnd}
-                onCustomStartChange={setCustomStart}
-                onCustomEndChange={setCustomEnd}
+                onCustomStartChange={changeCustomStart}
+                onCustomEndChange={changeCustomEnd}
                 attributionMode={attributionMode}
                 onAttributionModeChange={setAttributionMode}
                 onRefresh={handleRefreshAll}
@@ -603,7 +607,9 @@ export function SalariesTab() {
             {/* Tab content */}
             {activeSubTab === "current" && (
                 <div className="space-y-4">
-                    {isLoading ? (
+                    {salariesFailed ? (
+                        <p role="alert" className="py-12 text-center text-sm text-rose-600">{t("payroll.loadFailed")}</p>
+                    ) : isLoading ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {[1, 2, 3].map(i => (
                                 <div key={i} className="h-64 skeleton rounded-2xl" />
@@ -623,15 +629,12 @@ export function SalariesTab() {
                                     data={data}
                                     globalPeriodStart={periodStart}
                                     globalPeriodEnd={periodEnd}
-                                    onAddAdvance={async (id, amount, reason) => { await addAdvance(id, amount, reason); }}
-                                    onAddPenalty={async (id, amount, reason) => { await addPenalty(id, amount, reason); }}
-                                    onAddBonus={async (id, amount, reason) => { await addBonus(id, amount, reason); }}
+                                    onAddAdvance={async (id, amount, reason) => reportWrite(await addAdvance(id, amount, reason))}
+                                    onAddPenalty={async (id, amount, reason) => reportWrite(await addPenalty(id, amount, reason))}
+                                    onAddBonus={async (id, amount, reason) => reportWrite(await addBonus(id, amount, reason))}
                                     onMarkAsPaid={handleMarkAsPaid}
                                     onVoidPayment={handleVoidPayment}
-                                    onUpdateConfig={async (empId, config) => {
-                                        await upsertEmployeeConfig(empId, config);
-                                        refreshSalaries();
-                                    }}
+                                    onUpdateConfig={async (empId, config) => reportWrite(await upsertEmployeeConfig(empId, config))}
                                     onPeriodOverride={(empId, start, end) => {
                                         setPeriodOverrides(prev => {
                                             const next = new Map(prev);
@@ -696,9 +699,9 @@ export function SalariesTab() {
                     penalties={penalties}
                     bonuses={bonuses}
                     employeeNames={employeeNames}
-                    onDeleteAdvance={async (id) => { await deleteAdvance(id); refreshSalaries(); }}
-                    onDeletePenalty={async (id) => { await deletePenalty(id); refreshSalaries(); }}
-                    onDeleteBonus={async (id) => { await deleteBonus(id); refreshSalaries(); }}
+                    onDeleteAdvance={async (id) => reportWrite(await deleteAdvance(id))}
+                    onDeletePenalty={async (id) => reportWrite(await deletePenalty(id))}
+                    onDeleteBonus={async (id) => reportWrite(await deleteBonus(id))}
                 />
             )}
 
@@ -709,9 +712,9 @@ export function SalariesTab() {
                     penalties={penalties}
                     bonuses={bonuses}
                     employeeNames={employeeNames}
-                    onDeleteAdvance={async (id) => { await deleteAdvance(id); refreshSalaries(); }}
-                    onDeletePenalty={async (id) => { await deletePenalty(id); refreshSalaries(); }}
-                    onDeleteBonus={async (id) => { await deleteBonus(id); refreshSalaries(); }}
+                    onDeleteAdvance={async (id) => reportWrite(await deleteAdvance(id))}
+                    onDeletePenalty={async (id) => reportWrite(await deletePenalty(id))}
+                    onDeleteBonus={async (id) => reportWrite(await deleteBonus(id))}
                 />
             )}
 
@@ -720,10 +723,7 @@ export function SalariesTab() {
                 isOpen={roleDefaultsOpen}
                 onClose={() => setRoleDefaultsOpen(false)}
                 roleDefaults={roleSalaryDefaults}
-                onSave={async (role, config) => {
-                    await upsertRoleDefault(role, config);
-                    refreshSalaries();
-                }}
+                onSave={async (role, config) => reportWrite(await upsertRoleDefault(role, config))}
             />
 
             {/* Confirm payroll dialog */}

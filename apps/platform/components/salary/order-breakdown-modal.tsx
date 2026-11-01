@@ -8,13 +8,14 @@ import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { useLanguage } from "@/hooks/use-language";
 import type { OrderBreakdown, CountedOrderDetail, ReturnedAfterPayment, OrderBucket } from "@/types/salary";
+import { formatPayrollDate } from "@/lib/payroll-date";
 
 function fmtIQD(n: number) {
     return new Intl.NumberFormat("en-IQ").format(Math.round(n));
 }
 
 function fmtDate(d: string, isArabic: boolean) {
-    try { return format(new Date(d.includes("T") ? d : d + "T00:00:00"), "MMM d, yyyy", { locale: isArabic ? ar : undefined }); } catch { return d; }
+    return formatPayrollDate(d, isArabic ? "d MMM yyyy" : "MMM d, yyyy", isArabic ? ar : undefined);
 }
 
 const BUCKET_META: Record<OrderBucket, { labelKey: string; cls: string }> = {
@@ -163,7 +164,7 @@ export function OrderBreakdownModal({
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-xs text-muted tabular-nums">{fmtIQD(o.amount)} IQD</span>
+                                        <span className="text-xs text-muted tabular-nums"><bdi>{fmtIQD(o.amount)} {t("common.iqd")}</bdi></span>
                                         <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", BUCKET_META[o.bucket].cls)}>
                                             {t(BUCKET_META[o.bucket].labelKey)}
                                         </span>

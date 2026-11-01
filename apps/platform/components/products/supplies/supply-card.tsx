@@ -9,6 +9,7 @@ import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
 import { PoStatusChip, type PoStatusInfo } from "./po-status-chip";
 import { SupplierInitialsStack } from "./supplier-initials-badge";
 import { ProductThumb } from "@/components/products/product-thumb";
+import { useLanguage } from "@/hooks/use-language";
 
 interface SupplyCardProps {
     supply: Product;
@@ -38,6 +39,7 @@ export function SupplyCard({
     selected = false,
     onSelectToggle,
 }: SupplyCardProps) {
+    const { t } = useLanguage();
     const stock = supply.stock_quantity ?? 0;
     const reserved = supply.reserved_quantity ?? 0;
     const timesSold = supply.times_sold_30d ?? 0;
@@ -75,8 +77,8 @@ export function SupplyCard({
                             : "bg-white/90 backdrop-blur-sm border-[var(--card-border)] text-transparent opacity-0 group-hover:opacity-100 hover:border-teal-400 focus:opacity-100",
                     )}
                     aria-pressed={selected}
-                    aria-label={selected ? "Deselect supply" : "Select supply"}
-                    title={selected ? "Deselect" : "Select"}
+                    aria-label={selected ? t("supplies.deselectSupply") : t("supplies.selectSupply")}
+                    title={selected ? t("supplies.deselect") : t("supplies.select")}
                 >
                     <Check className="w-3.5 h-3.5" />
                 </button>
@@ -128,16 +130,16 @@ export function SupplyCard({
                 <div className="mt-2 flex items-end justify-between text-[11px] text-muted">
                     <div>
                         <span className="font-medium text-foreground tabular-nums">{stock}</span>
-                        <span> on hand</span>
+                        <span> {t("supplies.onHand")}</span>
                         {reserved > 0 && (
                             <span className="ml-1 text-muted">
-                                · <span className="tabular-nums">{reserved}</span> reserved · <span className="tabular-nums">{available}</span> free
+                                · {t("supplies.reservedCount", { count: reserved })} · {t("supplies.freeCount", { count: available })}
                             </span>
                         )}
                     </div>
                     {supply.reorder_point != null && (
-                        <span title="Reorder point">
-                            RP: <span className="tabular-nums">{supply.reorder_point}</span>
+                        <span title={t("supplies.reorderPoint")}>
+                            {t("supplies.reorderPointShort")}: <span className="tabular-nums">{supply.reorder_point}</span>
                         </span>
                     )}
                 </div>
@@ -146,7 +148,7 @@ export function SupplyCard({
             {/* Footer */}
             <div className="mt-3 pt-3 border-t border-[var(--card-border)] flex items-end justify-between gap-2">
                 <div className="min-w-0">
-                    <p className="text-[10px] text-muted uppercase tracking-wide">Unit cost</p>
+                    <p className="text-[10px] text-muted uppercase tracking-wide">{t("supplies.sc.unitCost")}</p>
                     <p className="font-semibold text-sm leading-tight">{formatIQD(supply.cost || 0)}</p>
                     {supplierNames && supplierNames.length > 0 && (
                         <div className="mt-1.5">
@@ -176,7 +178,7 @@ export function SupplyCard({
                             type="button"
                             onClick={() => onAdjustStock(supply, -1)}
                             className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-rose-50 hover:ring-rose-200 hover:text-rose-600 text-muted transition-colors"
-                            title="Adjust −1"
+                            title={t("supplies.adjustMinus")}
                         >
                             <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -184,7 +186,7 @@ export function SupplyCard({
                             type="button"
                             onClick={() => onAdjustStock(supply, 1)}
                             className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-emerald-50 hover:ring-emerald-200 hover:text-emerald-600 text-muted transition-colors"
-                            title="Adjust +1"
+                            title={t("supplies.adjustPlus")}
                         >
                             <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -195,7 +197,7 @@ export function SupplyCard({
                         type="button"
                         onClick={() => onReorder(supply)}
                         className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-teal-50 hover:ring-teal-200 hover:text-teal-600 text-muted transition-colors"
-                        title="Reorder"
+                        title={t("supplies.reorder")}
                     >
                         <ShoppingCart className="w-3.5 h-3.5" />
                     </button>
@@ -205,7 +207,7 @@ export function SupplyCard({
                         type="button"
                         onClick={() => onEdit(supply)}
                         className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-sky-50 hover:ring-sky-200 hover:text-sky-600 text-muted transition-colors"
-                        title="Edit supply"
+                        title={t("supplies.edit")}
                     >
                         <Edit2 className="w-3.5 h-3.5" />
                     </button>
@@ -215,7 +217,7 @@ export function SupplyCard({
                         type="button"
                         onClick={() => onMore(supply)}
                         className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-slate-50 text-muted transition-colors"
-                        title="More actions"
+                        title={t("supplies.moreActions")}
                     >
                         <MoreHorizontal className="w-3.5 h-3.5" />
                     </button>

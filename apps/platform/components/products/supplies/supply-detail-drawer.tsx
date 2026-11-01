@@ -23,6 +23,7 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useSupplyHistory, type InventoryHistoryEntry } from "@/hooks/use-supply-history";
 import { useSupplyRecipeUsage, type RecipeUsageRow } from "@/hooks/use-supply-recipe-usage";
 import type { HistoryEntry } from "@/lib/utils/supply-forecasting";
+import { useLanguage } from "@/hooks/use-language";
 import { StockFillBar } from "./stock-fill-bar";
 import { DaysOfSupplyPill, daysOfSupplyFrom } from "./days-of-supply-pill";
 import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
@@ -32,11 +33,11 @@ import { ConsumptionSparkline } from "./consumption-sparkline";
 
 type TabKey = "overview" | "suppliers" | "history" | "recipe";
 
-const TABS: { key: TabKey; label: string }[] = [
-    { key: "overview", label: "Overview" },
-    { key: "suppliers", label: "Suppliers" },
-    { key: "history", label: "History" },
-    { key: "recipe", label: "Recipe usage" },
+const TABS: { key: TabKey; labelKey: string }[] = [
+    { key: "overview", labelKey: "supplies.sp.tabOverview" },
+    { key: "suppliers", labelKey: "supplies.sp.tabSuppliers" },
+    { key: "history", labelKey: "supplies.sp.tabHistory" },
+    { key: "recipe", labelKey: "supplies.sp.tabRecipe" },
 ];
 
 interface SupplyDetailDrawerProps {
@@ -77,6 +78,7 @@ export function SupplyDetailDrawer({
     onAdjustStock,
     onReorder,
 }: SupplyDetailDrawerProps) {
+    const { t } = useLanguage();
     const [tab, setTab] = useState<TabKey>("overview");
 
     useEffect(() => {
@@ -84,7 +86,7 @@ export function SupplyDetailDrawer({
         setTab("overview");
     }, [open, supply?.id]);
 
-    // Keyboard: j/k for prev/next supply, Esc closes.
+    // Esc closes the drawer (standard dialog behaviour).
     useEffect(() => {
         if (!open) return;
         const handler = (e: KeyboardEvent) => {
@@ -94,25 +96,13 @@ export function SupplyDetailDrawer({
                 target?.tagName === "TEXTAREA" ||
                 target?.tagName === "SELECT" ||
                 target?.isContentEditable;
-            if (editing) return;
-            if (e.key === "Escape") {
-                e.preventDefault();
-                onClose();
-            } else if (e.key === "j" || e.key === "ArrowDown") {
-                if (onNavigate) {
-                    e.preventDefault();
-                    onNavigate("next");
-                }
-            } else if (e.key === "k" || e.key === "ArrowUp") {
-                if (onNavigate) {
-                    e.preventDefault();
-                    onNavigate("prev");
-                }
-            }
+            if (editing || e.key !== "Escape") return;
+            e.preventDefault();
+            onClose();
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [open, onClose, onNavigate]);
+    }, [open, onClose]);
 
     return (
         <AnimatePresence>
@@ -130,7 +120,7 @@ export function SupplyDetailDrawer({
                         key="panel"
                         role="dialog"
                         aria-modal="true"
-                        aria-label={`${supply.name} detail`}
+                        aria-label={t("supplies.sp.detail", { name: supply.name })}
                         className="fixed right-0 top-0 bottom-0 w-full md:w-[600px] bg-[var(--background)] shadow-2xl z-50 flex flex-col"
                         initial={{ x: "100%" }}
                         animate={{ x: 0 }}
@@ -184,6 +174,7 @@ function Header({
     onAdjustStock?: (p: Product, delta: number) => void;
     onNavigate?: (d: "prev" | "next") => void;
 }) {
+    const { t } = useLanguage();
     return (
         <div className="px-5 py-4 border-b border-[var(--card-border)] flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 min-w-0">
@@ -204,7 +195,7 @@ function Header({
                     </h2>
                     <div className="mt-1 flex items-center gap-2 text-[11px] text-muted flex-wrap">
                         <span className="font-mono truncate max-w-[180px]">
-                            {supply.sku || "No SKU"}
+                            {supply.sku || t("supplies.sp.noSku")}
                         </span>
                         {openPo && <PoStatusChip info={openPo} size="sm" />}
                     </div>
@@ -216,7 +207,7 @@ function Header({
                         <button
                             type="button"
                             onClick={() => onNavigate("prev")}
-                            title="Previous (k)"
+                            title={t("supplies.sp.prev")}
                             className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-[var(--card-border)]/40"
                         >
                             <ChevronLeft className="w-4 h-4" />
@@ -224,7 +215,7 @@ function Header({
                         <button
                             type="button"
                             onClick={() => onNavigate("next")}
-                            title="Next (j)"
+                            title={t("supplies.sp.next")}
                             className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-[var(--card-border)]/40"
                         >
                             <ChevronRight className="w-4 h-4" />
@@ -235,7 +226,7 @@ function Header({
                     <button
                         type="button"
                         onClick={() => onReorder(supply)}
-                        title="Create PO"
+                        title={t("supplies.sp.createPo")}
                         className="p-1.5 rounded-lg text-muted hover:text-teal-700 hover:bg-teal-50"
                     >
                         <ShoppingCart className="w-4 h-4" />
@@ -245,7 +236,7 @@ function Header({
                     <button
                         type="button"
                         onClick={() => onEdit(supply)}
-                        title="Edit supply"
+                        title={t("supplies.sp.edit")}
                         className="p-1.5 rounded-lg text-muted hover:text-sky-700 hover:bg-sky-50"
                     >
                         <Edit2 className="w-4 h-4" />
@@ -255,7 +246,7 @@ function Header({
                     type="button"
                     onClick={onClose}
                     className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-[var(--card-border)]/40"
-                    aria-label="Close"
+                    aria-label={t("supplies.sp.close")}
                 >
                     <X className="w-4 h-4" />
                 </button>
@@ -265,22 +256,23 @@ function Header({
 }
 
 function Tabs({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void }) {
+    const { t } = useLanguage();
     return (
         <div className="border-b border-[var(--card-border)] px-5 flex gap-1 overflow-x-auto">
-            {TABS.map((t) => (
+            {TABS.map((item) => (
                 <button
-                    key={t.key}
+                    key={item.key}
                     type="button"
-                    onClick={() => onChange(t.key)}
+                    onClick={() => onChange(item.key)}
                     className={cn(
                         "relative px-3 py-2.5 text-sm font-medium transition-colors whitespace-nowrap",
-                        tab === t.key
+                        tab === item.key
                             ? "text-foreground"
                             : "text-muted hover:text-foreground"
                     )}
                 >
-                    {t.label}
-                    {tab === t.key && (
+                    {t(item.labelKey)}
+                    {tab === item.key && (
                         <span className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-teal-500" />
                     )}
                 </button>
@@ -290,6 +282,7 @@ function Tabs({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void })
 }
 
 function OverviewTab({ supply }: { supply: Product }) {
+    const { t } = useLanguage();
     const stock = supply.stock_quantity ?? 0;
     const reserved = supply.reserved_quantity ?? 0;
     const available = Math.max(0, stock - reserved);
@@ -304,7 +297,7 @@ function OverviewTab({ supply }: { supply: Product }) {
             <div className="pastel-card p-4">
                 <div className="flex items-center justify-between mb-2">
                     <p className="text-[11px] uppercase tracking-wide text-muted font-medium">
-                        Stock on hand
+                        {t("supplies.sp.stockOnHand")}
                     </p>
                     <div className="flex items-center gap-1.5">
                         <DaysOfSupplyPill days={days} size="md" />
@@ -320,10 +313,10 @@ function OverviewTab({ supply }: { supply: Product }) {
                     />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-                    <StatCell label="Reserved" value={reserved.toString()} />
-                    <StatCell label="Available" value={available.toString()} />
+                    <StatCell label={t("supplies.sp.reserved")} value={reserved.toString()} />
+                    <StatCell label={t("supplies.sp.available")} value={available.toString()} />
                     <StatCell
-                        label="Reorder point"
+                        label={t("supplies.sp.reorderPoint")}
                         value={supply.reorder_point?.toString() ?? "—"}
                     />
                 </div>
@@ -333,7 +326,7 @@ function OverviewTab({ supply }: { supply: Product }) {
             <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-teal-50/20 p-3">
                     <p className="text-[10px] uppercase tracking-wide text-muted font-medium">
-                        Unit cost
+                        {t("supplies.sp.unitCost")}
                     </p>
                     <p className="text-lg font-bold tabular-nums mt-0.5">
                         {formatIQD(supply.cost ?? 0)}
@@ -341,7 +334,7 @@ function OverviewTab({ supply }: { supply: Product }) {
                 </div>
                 <div className="rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-teal-50/20 p-3">
                     <p className="text-[10px] uppercase tracking-wide text-muted font-medium">
-                        On-hand value
+                        {t("supplies.sp.onHandValue")}
                     </p>
                     <p className="text-lg font-bold tabular-nums mt-0.5">
                         {formatIQD(onHandValue)}
@@ -352,7 +345,7 @@ function OverviewTab({ supply }: { supply: Product }) {
             {supply.description && (
                 <div className="pastel-card p-4">
                     <p className="text-[11px] uppercase tracking-wide text-muted font-medium mb-1">
-                        Description
+                        {t("supplies.sp.description")}
                     </p>
                     <p className="text-sm whitespace-pre-wrap">{supply.description}</p>
                 </div>
@@ -371,13 +364,14 @@ function StatCell({ label, value }: { label: string; value: string }) {
 }
 
 function SuppliersTab({ supply }: { supply: Product }) {
+    const { t } = useLanguage();
     const raw = (supply as unknown as { suppliers?: SupplySupplierRaw[] }).suppliers;
     const suppliers = Array.isArray(raw) ? raw : [];
     if (suppliers.length === 0) {
         return (
             <div className="text-center py-12 text-muted text-sm">
                 <Users className="w-8 h-8 mx-auto mb-2 opacity-60" />
-                No suppliers linked. Add one from the supply editor.
+                {t("supplies.sp.noSuppliers")}
             </div>
         );
     }
@@ -400,7 +394,7 @@ function SuppliersTab({ supply }: { supply: Product }) {
                                 <p className="font-medium text-sm truncate">{name}</p>
                                 {s.is_primary && (
                                     <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide">
-                                        Primary
+                                        {t("supplies.sp.primary")}
                                     </span>
                                 )}
                             </div>
@@ -410,13 +404,13 @@ function SuppliersTab({ supply }: { supply: Product }) {
                             </div>
                             <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
                                 {s.lead_time_days != null && (
-                                    <SupplierStat label="Lead time" value={`${s.lead_time_days}d`} />
+                                    <SupplierStat label={t("supplies.sp.leadTime")} value={t("supplies.sp.leadDays", { n: s.lead_time_days })} />
                                 )}
                                 {s.minimum_order_quantity != null && s.minimum_order_quantity > 1 && (
-                                    <SupplierStat label="MOQ" value={s.minimum_order_quantity.toString()} />
+                                    <SupplierStat label={t("supplies.sp.moq")} value={s.minimum_order_quantity.toString()} />
                                 )}
                                 {s.unit_cost != null && (
-                                    <SupplierStat label="Unit" value={formatIQD(s.unit_cost)} />
+                                    <SupplierStat label={t("supplies.sp.unit")} value={formatIQD(s.unit_cost)} />
                                 )}
                             </div>
                         </div>
@@ -436,29 +430,30 @@ function SupplierStat({ label, value }: { label: string; value: string }) {
     );
 }
 
-const CHANGE_TYPE_LABEL: Record<string, { label: string; tone: string }> = {
-    received: { label: "Received", tone: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-    sold: { label: "Sold", tone: "bg-sky-50 text-sky-700 ring-sky-200" },
-    sale: { label: "Sold", tone: "bg-sky-50 text-sky-700 ring-sky-200" },
-    adjusted: { label: "Adjusted", tone: "bg-slate-100 text-slate-700 ring-slate-200" },
-    adjustment: { label: "Adjusted", tone: "bg-slate-100 text-slate-700 ring-slate-200" },
-    returned: { label: "Returned", tone: "bg-amber-50 text-amber-700 ring-amber-200" },
-    reserved: { label: "Reserved", tone: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
-    quarantined: { label: "Quarantined", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
-    stock_take: { label: "Stock take", tone: "bg-teal-50 text-teal-700 ring-teal-200" },
-    transfer: { label: "Transfer", tone: "bg-violet-50 text-violet-700 ring-violet-200" },
-    shrinkage: { label: "Shrinkage", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
-    damaged: { label: "Damaged", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
+const CHANGE_TYPE_LABEL: Record<string, { labelKey: string; tone: string }> = {
+    received: { labelKey: "supplies.sp.ct.received", tone: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+    sold: { labelKey: "supplies.sp.ct.sold", tone: "bg-sky-50 text-sky-700 ring-sky-200" },
+    sale: { labelKey: "supplies.sp.ct.sold", tone: "bg-sky-50 text-sky-700 ring-sky-200" },
+    adjusted: { labelKey: "supplies.sp.ct.adjusted", tone: "bg-slate-100 text-slate-700 ring-slate-200" },
+    adjustment: { labelKey: "supplies.sp.ct.adjusted", tone: "bg-slate-100 text-slate-700 ring-slate-200" },
+    returned: { labelKey: "supplies.sp.ct.returned", tone: "bg-amber-50 text-amber-700 ring-amber-200" },
+    reserved: { labelKey: "supplies.sp.ct.reserved", tone: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
+    quarantined: { labelKey: "supplies.sp.ct.quarantined", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
+    stock_take: { labelKey: "supplies.sp.ct.stock_take", tone: "bg-teal-50 text-teal-700 ring-teal-200" },
+    transfer: { labelKey: "supplies.sp.ct.transfer", tone: "bg-violet-50 text-violet-700 ring-violet-200" },
+    shrinkage: { labelKey: "supplies.sp.ct.shrinkage", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
+    damaged: { labelKey: "supplies.sp.ct.damaged", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
 };
 
-function labelFor(type: string | null): { label: string; tone: string } {
-    if (!type) return { label: "Event", tone: "bg-slate-100 text-slate-600 ring-slate-200" };
-    return (
-        CHANGE_TYPE_LABEL[type] ?? {
-            label: type.replace(/_/g, " "),
-            tone: "bg-slate-100 text-slate-600 ring-slate-200",
-        }
-    );
+function labelFor(
+    type: string | null,
+    t: (key: string) => string
+): { label: string; tone: string } {
+    const neutral = "bg-slate-100 text-slate-600 ring-slate-200";
+    if (!type) return { label: t("supplies.sp.ct.event"), tone: neutral };
+    const known = CHANGE_TYPE_LABEL[type];
+    if (known) return { label: t(known.labelKey), tone: known.tone };
+    return { label: type.replace(/_/g, " "), tone: neutral };
 }
 
 function HistoryTab({
@@ -468,6 +463,7 @@ function HistoryTab({
     supplyId: string;
     preloaded?: HistoryEntry[];
 }) {
+    const { t } = useLanguage();
     const hasPreloaded = preloaded !== undefined;
     const { data: fetched, isLoading } = useSupplyHistory(supplyId, !hasPreloaded);
     const data = hasPreloaded ? null : fetched;
@@ -484,7 +480,7 @@ function HistoryTab({
         return (
             <div className="flex items-center justify-center py-12 text-muted text-sm">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Loading history…
+                {t("supplies.sp.loadingHistory")}
             </div>
         );
     }
@@ -495,7 +491,7 @@ function HistoryTab({
         return (
             <div className="text-center py-12 text-muted text-sm">
                 <Clock className="w-8 h-8 mx-auto mb-2 opacity-60" />
-                No movements recorded yet.
+                {t("supplies.sp.noMovements")}
             </div>
         );
     }
@@ -504,25 +500,25 @@ function HistoryTab({
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] uppercase tracking-wide text-muted font-medium">
-                    30-day consumption
+                    {t("supplies.sp.consumption30")}
                 </p>
                 <ConsumptionSparkline entries={sparkEntries} width={120} height={28} />
             </div>
             <div className="grid grid-cols-3 gap-2">
                 <SummaryTile
-                    label="In (30d)"
+                    label={t("supplies.sp.in30")}
                     value={`+${thirty.inQty}`}
                     tone="emerald"
                     icon={ArrowDownRight}
                 />
                 <SummaryTile
-                    label="Out (30d)"
+                    label={t("supplies.sp.out30")}
                     value={`-${thirty.outQty}`}
                     tone="rose"
                     icon={ArrowUpRight}
                 />
                 <SummaryTile
-                    label="Net"
+                    label={t("supplies.sp.net")}
                     value={thirty.net >= 0 ? `+${thirty.net}` : `${thirty.net}`}
                     tone={thirty.net >= 0 ? "emerald" : "rose"}
                     icon={Package}
@@ -581,8 +577,9 @@ function SummaryTile({
 }
 
 function HistoryRow({ entry }: { entry: InventoryHistoryEntry }) {
+    const { t } = useLanguage();
     const q = entry.quantity_change ?? 0;
-    const tag = labelFor(entry.change_type);
+    const tag = labelFor(entry.change_type, t);
     const when = entry.created_at ? new Date(entry.created_at) : null;
     const dateLabel = when ? when.toLocaleDateString() : "—";
     const timeLabel = when
@@ -635,13 +632,14 @@ function RecipeTab({
     supplyId: string;
     onSelectProduct?: (p: Product) => void;
 }) {
+    const { t } = useLanguage();
     const { data, isLoading } = useSupplyRecipeUsage(supplyId);
 
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-12 text-muted text-sm">
                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                Loading recipes…
+                {t("supplies.sp.loadingRecipes")}
             </div>
         );
     }
@@ -650,9 +648,9 @@ function RecipeTab({
         return (
             <div className="text-center py-12 text-muted text-sm">
                 <FileText className="w-8 h-8 mx-auto mb-2 opacity-60" />
-                No products consume this supply yet.
+                {t("supplies.sp.noConsumers")}
                 <p className="mt-1 text-[11px]">
-                    Add a recipe rule from a product's Recipe tab.
+                    {t("supplies.sp.addRecipeHint")}
                 </p>
             </div>
         );
@@ -661,7 +659,9 @@ function RecipeTab({
     return (
         <div className="space-y-2">
             <p className="text-[11px] text-muted">
-                Used by {data.length} {data.length === 1 ? "product" : "products"}.
+                {data.length === 1
+                    ? t("supplies.sp.usedByOne")
+                    : t("supplies.sp.usedByMany", { n: data.length })}
             </p>
             {data.map((row) => (
                 <RecipeRow key={row.productId} row={row} onClick={onSelectProduct} />
@@ -677,12 +677,13 @@ function RecipeRow({
     row: RecipeUsageRow;
     onClick?: (p: Product) => void;
 }) {
+    const { t } = useLanguage();
     const unitCopy =
         row.unit === "per_unit"
-            ? "per unit sold"
+            ? t("supplies.sp.perUnit")
             : row.unit === "per_order"
-            ? "per order"
-            : "per line item";
+            ? t("supplies.sp.perOrder")
+            : t("supplies.sp.perLine");
 
     return (
         <button
@@ -710,7 +711,7 @@ function RecipeRow({
             <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm truncate">{row.productName}</p>
                 <p className="text-[11px] text-muted font-mono truncate">
-                    {row.sku || "No SKU"}
+                    {row.sku || t("supplies.sp.noSku")}
                 </p>
             </div>
             <div className="text-right shrink-0">

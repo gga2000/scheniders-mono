@@ -161,7 +161,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 type="button"
                                 onClick={() => setOpenBox(product.id, false)}
                                 className={cn(
-                                    "px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                    "px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all",
                                     !selectedData.isOpenBox
                                         ? "bg-green-600 text-white"
                                         : "bg-gray-100 text-gray-500 hover:bg-gray-200"
@@ -173,7 +173,7 @@ export function ProductPicker({ open, onClose, onSelect }: ProductPickerProps) {
                                 type="button"
                                 onClick={() => setOpenBox(product.id, true)}
                                 className={cn(
-                                    "px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
+                                    "px-2 py-0.5 rounded-full text-[11px] font-semibold transition-all",
                                     selectedData.isOpenBox
                                         ? "bg-amber-500 text-white"
                                         : "bg-gray-100 text-gray-500 hover:bg-gray-200"

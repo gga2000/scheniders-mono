@@ -49,7 +49,7 @@ export function AdChannelFilter({ summary, selected, onSelect, className, counts
         >
             <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/70 pr-1">
                 <Megaphone className="w-3.5 h-3.5" aria-hidden="true" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">{t("orders.toolbar.channels")}</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest">{t("orders.toolbar.channels")}</span>
             </div>
 
             <button
@@ -94,7 +94,7 @@ export function AdChannelFilter({ summary, selected, onSelect, className, counts
                         {!countsHidden && stat.revenue > 0 && (
                             <span
                                 className={cn(
-                                    "border-l ps-1.5 text-[10px] font-semibold tabular-nums",
+                                    "border-l ps-1.5 text-[11px] font-semibold tabular-nums",
                                     isSelected ? "border-white/30 text-current opacity-90" : "border-border/60 text-muted-foreground",
                                 )}
                                 dir="ltr"
@@ -113,6 +113,6 @@ export function AdChannelFilter({ summary, selected, onSelect, className, counts
 const CHIP = "rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 border px-3 py-1.5 text-xs font-medium";
 const CHIP_ACTIVE = "bg-blue-600 text-white border-blue-600 shadow-sm dark:bg-primary dark:text-black dark:border-primary";
 const CHIP_IDLE = "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]";
-const COUNT = "px-1.5 py-0.5 rounded-full text-[10px] font-black min-w-[18px] text-center tabular-nums";
+const COUNT = "px-1.5 py-0.5 rounded-full text-[11px] font-black min-w-[18px] text-center tabular-nums";
 const COUNT_ACTIVE = "bg-white/25 text-current";
 const COUNT_IDLE = "bg-muted-foreground/15 text-muted-foreground";

@@ -151,7 +151,7 @@ function SenderAvatar({ sender, tone }: { sender: FollowUpSender; tone: "emerald
         <span
             aria-label={sender.name}
             className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-full border bg-white text-[10px] font-bold shadow-sm",
+                "flex h-5 w-5 items-center justify-center rounded-full border bg-white text-[11px] font-bold shadow-sm",
                 tone === "emerald"
                     ? "border-emerald-300 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-900/30 dark:text-emerald-300"
                     : "border-[var(--card-border)] text-foreground/70 dark:bg-white/10",

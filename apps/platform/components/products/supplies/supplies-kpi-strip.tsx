@@ -14,6 +14,8 @@ import { cn, formatIQD } from "@/lib/utils";
 import { supabase, Product } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { fetchPurchaseOrderCosts } from "@/lib/repositories/purchase-costs";
+import { useLanguage } from "@/hooks/use-language";
+import { OPEN_PO_STATUSES } from "./po-status-chip";
 
 interface SuppliesKpiStripProps {
     supplies: Product[];
@@ -165,6 +167,7 @@ function daysOfSupplyFor(p: Product): number | null {
 }
 
 export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
+    const { t } = useLanguage();
     const { tenantId } = useAuth();
 
     const stats = useMemo(() => {
@@ -222,7 +225,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 .from("purchase_orders")
                 .select("id,status")
                 .eq("tenant_id", tenantId)
-                .in("status", ["draft", "sent", "partial"]);
+                .in("status", OPEN_PO_STATUSES);
             if (error) throw error;
             const list = data ?? [];
             // total_cost is not a readable column. A member who may not see
@@ -275,9 +278,9 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
     return (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             <Tile
-                label="On-hand value"
+                label={t("supplies.kpi.onHandValue")}
                 value={formatIQD(stats.inventoryValue)}
-                sub={`${supplies.length} ${supplies.length === 1 ? "supply" : "supplies"}`}
+                sub={supplies.length === 1 ? t("supplies.kpi.supplyCountOne") : t("supplies.kpi.supplyCount", { count: supplies.length })}
                 icon={Package}
                 iconBg="bg-teal-500/15"
                 iconColor="text-teal-600"
@@ -286,9 +289,9 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
             />
 
             <Tile
-                label="At risk"
+                label={t("supplies.kpi.atRisk")}
                 value={stats.atRisk.toString()}
-                sub="At or below reorder point"
+                sub={t("supplies.kpi.atRiskSub")}
                 icon={AlertTriangle}
                 iconBg="bg-amber-500/15"
                 iconColor="text-amber-600"
@@ -297,9 +300,9 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
             />
 
             <Tile
-                label="Out of stock"
+                label={t("supplies.kpi.outOfStock")}
                 value={stats.outOfStock.toString()}
-                sub={stats.outOfStock > 0 ? "Needs immediate attention" : "All stocked"}
+                sub={stats.outOfStock > 0 ? t("supplies.kpi.attention") : t("supplies.kpi.allStocked")}
                 icon={XCircle}
                 iconBg="bg-rose-500/15"
                 iconColor="text-rose-600"
@@ -308,9 +311,9 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
             />
 
             <Tile
-                label="Days of coverage"
+                label={t("supplies.kpi.coverage")}
                 value={stats.avgDays !== null ? `${stats.avgDays}d` : "—"}
-                sub={stats.avgDays !== null ? "Weighted by consumption" : "No sales data yet"}
+                sub={stats.avgDays !== null ? t("supplies.kpi.weighted") : t("supplies.kpi.noData")}
                 icon={Clock}
                 iconBg="bg-sky-500/15"
                 iconColor="text-sky-600"
@@ -319,9 +322,9 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
             />
 
             <Tile
-                label="Open POs"
+                label={t("supplies.kpi.openPos")}
                 value={(poData?.count ?? 0).toString()}
-                sub={poData && poData.totalCost !== null && poData.totalCost > 0 ? formatIQD(poData.totalCost) : poData && poData.count > 0 ? undefined : "No open orders"}
+                sub={poData && poData.totalCost !== null && poData.totalCost > 0 ? formatIQD(poData.totalCost) : poData && poData.count > 0 ? undefined : t("supplies.kpi.noOpenOrders")}
                 icon={Truck}
                 iconBg="bg-indigo-500/15"
                 iconColor="text-indigo-600"
@@ -329,9 +332,9 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
             />
 
             <Tile
-                label="Consumed / 7d"
+                label={t("supplies.kpi.consumed")}
                 value={(consumption?.total ?? 0).toLocaleString()}
-                sub="Units deducted last 7 days"
+                sub={t("supplies.kpi.consumedSub")}
                 icon={Activity}
                 iconBg="bg-violet-500/15"
                 iconColor="text-violet-600"

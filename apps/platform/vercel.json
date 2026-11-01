@@ -33,6 +33,10 @@
             "schedule": "0 7 * * *"
         },
         {
+            "path": "/api/cron/meta-ads-sync",
+            "schedule": "30 3 * * *"
+        },
+        {
             "path": "/api/cron/waseet-locations",
             "schedule": "0 3 * * 1"
         }

@@ -226,7 +226,7 @@ export function OrderTimeline({ statusHistory, notes = [] }: OrderTimelineProps)
 
                                     {/* Exact time tooltip on hover */}
                                     <span
-                                        className="text-[10px] text-muted/60 whitespace-nowrap hidden group-hover:block"
+                                        className="text-[11px] text-muted/60 whitespace-nowrap hidden group-hover:block"
                                         title={new Date(entry.timestamp).toLocaleString()}
                                     >
                                         {new Date(entry.timestamp).toLocaleTimeString("en-US", {

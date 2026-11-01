@@ -7,6 +7,7 @@
  */
 export const ORDER_MARGIN_COLUMNS = [
     "product_cost",
+    "item_unit_costs",
     "net_profit",
     "waseet_merchant_price",
     "waseet_company_price",
