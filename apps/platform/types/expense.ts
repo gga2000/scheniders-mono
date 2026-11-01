@@ -28,6 +28,13 @@ export interface Expense {
     notes?: string;
     is_recurring: boolean;
     recurring_period?: string;
+    /** Who wrote the row: null/absent = typed by hand, otherwise an integration (e.g. 'meta_ads'). */
+    source?: string | null;
+}
+
+/** A row an integration posts and keeps in sync; the merchant cannot edit or delete it. */
+export function isAutoExpense(expense: Pick<Expense, "source">): boolean {
+    return expense.source != null && expense.source !== "";
 }
 
 // Category labels for display
@@ -55,18 +62,6 @@ export const expenseCategoryColors: Record<ExpenseCategory, string> = {
     shipping: '#84cc16',
     other: '#6b7280',
 };
-
-// =============================================
-// ORDER COST CONSTANTS (IQD)
-// =============================================
-
-export const ORDER_FIXED_COSTS = {
-    DELIVERY: 5000,
-    SWEETS: 125,
-    PACKAGING_PER_BAG: 355,
-    VIAL_COST: 40,
-    VIAL_ML: 1,
-} as const;
 
 export interface OrderCostBreakdown {
     orderId: string;

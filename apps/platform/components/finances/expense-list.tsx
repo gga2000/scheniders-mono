@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Edit2, Trash2, MoreVertical, Calendar } from "lucide-react";
-import { Expense, EXPENSE_CATEGORIES, ExpenseCategory, expenseCategoryColors } from "@/types/expense";
+import { Expense, EXPENSE_CATEGORIES, ExpenseCategory, expenseCategoryColors, isAutoExpense } from "@/types/expense";
 import { useLanguage } from "@/hooks/use-language";
 import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
 import { cn, formatIQD } from "@/lib/utils";
@@ -113,8 +113,16 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                                 />
                                             </div>
                                             <div>
-                                                <p className="font-medium text-foreground">
+                                                <p className="font-medium text-foreground flex items-center gap-2">
                                                     {expense.description || categoryLabel(expense.category)}
+                                                    {isAutoExpense(expense) && (
+                                                        <span
+                                                            className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[11px] font-semibold"
+                                                            title={t("finances.expense.list.autoTip")}
+                                                        >
+                                                            {t("finances.expense.list.auto")}
+                                                        </span>
+                                                    )}
                                                 </p>
                                                 {/* The category is the title when there is no description; do not say it twice. */}
                                                 {(expense.description || expense.is_recurring) && (
@@ -135,7 +143,8 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                                 {formatIQD(expense.amount)}
                                             </span>
 
-                                            {/* Actions Menu */}
+                                            {/* Actions Menu: integration rows are kept in sync by the integration, so they are read-only. */}
+                                            {!isAutoExpense(expense) && (
                                             <div className="relative">
                                                 <button
                                                     onClick={() => setMenuOpen(menuOpen === expense.id ? null : expense.id)}
@@ -176,6 +185,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                                     )}
                                                 </AnimatePresence>
                                             </div>
+                                            )}
                                         </div>
                                     </motion.div>
                                 ))}

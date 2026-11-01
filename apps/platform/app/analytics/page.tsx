@@ -1,6 +1,7 @@
 "use client";
 
 import { useOrderCostSnapshots } from "@/hooks/use-order-cost-snapshots";
+import { useOrderCostDefaults } from "@/hooks/use-order-cost-defaults";
 import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -278,6 +279,7 @@ function AnalyticsContent() {
     }, [dateRange, isEpochSet, eraMode, getEraDateRange]);
 
     const costSnapshots = useOrderCostSnapshots();
+    const costDefaults = useOrderCostDefaults();
 
     // useFinances now receives orders and products as props (no duplicate fetching)
     const {
@@ -327,7 +329,7 @@ function AnalyticsContent() {
         productProfitAnalysis,
         pipelineSummary,
         funnelSummary,
-    } = useOrderProfits(ordersInRange, products, marketingCost, costSnapshots);
+    } = useOrderProfits(ordersInRange, products, marketingCost, costSnapshots, costDefaults);
 
     // Period comparison
     const periodComparison = useMemo(() => {

@@ -12,7 +12,7 @@ import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
 import { supabase } from "@/lib/supabase";
 import {
     Expense, ExpenseCategory,
-    expenseCategoryColors,
+    expenseCategoryColors, isAutoExpense,
 } from "@/types/expense";
 import { ExpenseFormModal, type ExpenseFormData } from "@/components/finances/expense-form-modal";
 import { ExpenseList } from "@/components/finances/expense-list";
@@ -163,11 +163,13 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
     };
 
     const handleEdit = (expense: Expense) => {
+        if (isAutoExpense(expense)) return;
         setEditing(expense);
         setModalOpen(true);
     };
 
     const handleDelete = async (id: string) => {
+        if (expenses.some((e) => e.id === id && isAutoExpense(e))) return;
         if (!confirm(t("finances.expense.confirmDelete"))) return;
         await deleteExpense(id);
     };
