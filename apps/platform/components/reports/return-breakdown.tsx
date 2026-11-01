@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ReturnAnalyticsMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { foldTail, seriesColor } from "@/lib/analytics/chart-categories";
-import { RotateCcw, MapPin, TrendingDown, CheckCircle2, DollarSign } from "lucide-react";
+import { RotateCcw, MapPin, TrendingDown, CheckCircle2, Banknote } from "lucide-react";
 
 interface ReturnBreakdownProps {
     data: ReturnAnalyticsMetrics;
@@ -117,7 +117,7 @@ export function ReturnBreakdown({ data }: ReturnBreakdownProps) {
                                                     <p className="font-bold mb-1">{d.name}</p>
                                                     <p>العدد: {d.value} ({d.percentage.toFixed(1)}%)</p>
                                                     <p className="flex items-center gap-1">
-                                                        <DollarSign className="w-3 h-3" />
+                                                        <Banknote className="w-3 h-3" />
                                                         {formatIQD(d.totalAmount)}
                                                     </p>
                                                     {d.topCity && <p className="flex items-center gap-1 mt-1">
