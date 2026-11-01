@@ -168,7 +168,6 @@ export const WorkflowTabs = memo(function WorkflowTabs({
                     {activeTab === "delivery" && (
                         <DeliveryTab
                             orders={deliveryOrders}
-                            onUpdate={onUpdate}
                             onStatusUpdate={onStatusUpdate}
                             onViewDetails={onViewDetails}
                         />
