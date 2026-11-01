@@ -1,3 +1,4 @@
+import type { InTransitProjection } from "@/lib/payroll-projection";
 // =============================================
 // SALARY MANAGEMENT TYPES
 // =============================================
@@ -171,6 +172,8 @@ export interface PayrollCalculation {
     absenceDeduction: number;
     grossSalary: number;
     netSalary: number;
+    /** What-if: pay if every genuine order now in transit is completed. Not paid out. */
+    inTransit: InTransitProjection;
 }
 
 /** Effective rate for an employee (resolved from config or role defaults) */

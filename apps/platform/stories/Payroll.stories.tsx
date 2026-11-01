@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { SalaryOverviewCards } from "@/components/salary/salary-overview-cards";
-import { OrderQualityStrip } from "@/components/salary/order-quality-strip";
 import { EmployeePayrollCard } from "@/components/salary/employee-payroll-card";
 import { SalaryDeductionsTab } from "@/components/salary/salary-deductions-tab";
 import { PayrollHistoryTable } from "@/components/salary/payroll-history-table";
@@ -46,8 +45,10 @@ function CurrentPeriod() {
                 employeeCount={payrollEmployees.length}
                 totalPendingAdvances={payrollAdvances.reduce((s, a) => s + a.amount, 0)}
                 totalPendingPenalties={payrollPenalties.reduce((s, a) => s + a.amount, 0)}
+                breakdown={payrollBreakdown}
+                projectedTotal={payrollEmployees.reduce((s, e) => s + e.calculation.inTransit.projectedNet, 0)}
+                inTransitOrders={55}
             />
-            <OrderQualityStrip breakdown={payrollBreakdown} />
             <SalariesTabBar
                 activeTab={tab}
                 onTabChange={setTab}

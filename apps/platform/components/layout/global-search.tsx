@@ -251,7 +251,7 @@ export function GlobalSearch({ onOpenChange }: { onOpenChange?: (open: boolean) 
                     // w-0 + flex-1: the input takes the space left over. Its intrinsic width
                     // would otherwise set the bar's minimum and, at 1280px, push the bar
                     // under the header actions.
-                    className="flex-1 w-0 min-w-0 bg-transparent text-foreground placeholder:text-muted focus:outline-none text-sm"
+                    className="flex-1 w-0 min-w-0 bg-transparent text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none text-sm"
                 />
 
                 {/* Clear Button */}

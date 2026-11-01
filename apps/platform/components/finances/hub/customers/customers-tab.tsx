@@ -81,7 +81,7 @@ function TopSpendersTable({ rows }: { rows: CustomerSummary[] }) {
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder={t("finances.cust.search")}
-                        className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-muted focus:outline-none focus:border-amber-500/50 w-44"
+                        className="pl-8 pr-3 py-1.5 text-[12px] rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-amber-500/50 w-44"
                     />
                 </div>
             }

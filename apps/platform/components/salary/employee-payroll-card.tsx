@@ -676,7 +676,7 @@ export function EmployeePayrollCard({
                                         title={calculation.netSalary === 0 ? t("payroll.card.nothingToPayShort") : undefined}
                                         className={cn(
                                             "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all shrink-0",
-                                            "bg-emerald-600 text-white hover:bg-emerald-700",
+                                            "bg-[var(--ink)] text-white hover:opacity-90",
                                             "disabled:opacity-50 disabled:cursor-not-allowed"
                                         )}
                                     >
@@ -690,6 +690,13 @@ export function EmployeePayrollCard({
                                         )}
                                     </motion.button>
                                 </div>
+                                {calculation.inTransit.orders > 0 && (
+                                    <p className="text-xs text-muted mt-2 tabular-nums" title={t("payroll.projection.hint")}>
+                                        {t("payroll.projection.card", { count: calculation.inTransit.orders.toLocaleString("en-US") })}:{" "}
+                                        <bdi className="font-semibold text-foreground">{fmtIQD(calculation.inTransit.projectedNet)} {iqd}</bdi>{" "}
+                                        <bdi className="text-emerald-700 dark:text-emerald-400">+{fmtIQD(calculation.inTransit.extraOrderBonus)}</bdi>
+                                    </p>
+                                )}
                                 {calculation.netSalary === 0 && !overDeducted && (
                                     <p className="text-xs text-muted mt-2">{t("payroll.card.nothingToPay")}</p>
                                 )}
