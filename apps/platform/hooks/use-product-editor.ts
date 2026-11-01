@@ -958,6 +958,16 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             return false;
         }
 
+        // IQD has no fractions: a decimal here would be refused by the price and
+        // purchase-order functions later.
+        if (
+            ![formData.price, formData.cost, formData.compare_at_price].every((n) => Number.isInteger(n)) ||
+            (formData.website_price != null && !Number.isInteger(formData.website_price))
+        ) {
+            toast.error(t("products.ed.err.wholeNumbers"));
+            return false;
+        }
+
         // An enabled variant sold at 0 or a fraction of a dinar cannot be bought.
         if (formData.variants.some((v) => (v.is_enabled ?? true) && (!Number.isInteger(v.price) || v.price <= 0))) {
             toast.error(t("products.ed.err.variantPrice"));
@@ -1123,7 +1133,15 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     sku: formData.sku.trim() || null,
                     price: formData.price,
                     compare_at_price: formData.compare_at_price || null,
-                    ...(showCost && { cost: formData.cost, cost_breakdown_json: formData.cost_breakdown_json }),
+                    // Cost is sent only when the merchant changed it: receiving a purchase
+                    // order moves cost, and a stale editor must not write the old one back.
+                    ...(showCost &&
+                        (initialDataRef.current.cost !== formData.cost ||
+                            JSON.stringify(initialDataRef.current.cost_breakdown_json) !==
+                                JSON.stringify(formData.cost_breakdown_json)) && {
+                            cost: formData.cost,
+                            cost_breakdown_json: formData.cost_breakdown_json,
+                        }),
                     low_stock_threshold: formData.low_stock_threshold,
                     reorder_point: formData.reorder_point,
                     image_url: formData.image_url,
@@ -1179,7 +1197,10 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         await updateVariant(variant.id, {
                             name: variant.name,
                             price: variant.price,
-                            ...(showCost && { cost: variant.cost }),
+                            ...(showCost &&
+                                loaded.variants.find((v) => v.id === variant.id)?.cost !== variant.cost && {
+                                    cost: variant.cost,
+                                }),
                             sku: variant.sku,
                             option_values: variant.option_values,
                             image_url: variant.image_url,

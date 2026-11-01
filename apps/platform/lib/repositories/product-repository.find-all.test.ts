@@ -23,6 +23,7 @@ function chain(rows: unknown[]) {
         select: () => c,
         eq: () => c,
         order: () => c,
+        range: () => c,
         then: (resolve: (v: { data: unknown[]; error: null }) => unknown) =>
             resolve({ data: rows, error: null }),
     };
@@ -32,17 +33,28 @@ function chain(rows: unknown[]) {
 vi.mock("@/lib/supabase", () => ({
     supabase: {
         from: (table: string) => chain(tables[table] ?? []),
-        rpc: async () => ({ data: [], error: null }),
+        rpc: (fn: string) => chain(fn === "supplier_unit_costs" ? [{ id: "s1", unit_cost: 700 }] : []),
     },
 }));
 
 import { productRepository } from "./product-repository";
 
-describe("productRepository.findAll suppliers", () => {
-    it("attaches each product's suppliers in query order and [] for none", async () => {
+describe("productRepository.findSupplierLinks", () => {
+    it("groups each product's suppliers in query order; a product without suppliers has no entry", async () => {
+        const links = await productRepository.findSupplierLinks("t1");
+        expect(links.get("p1")?.map((s) => s.supplier_name)).toEqual(["Acme", "Beta"]);
+        expect(links.has("p2")).toBe(false);
+    });
+
+    it("merges each supplier's unit cost from the cost function, null when hidden", async () => {
+        const links = await productRepository.findSupplierLinks("t1");
+        expect((links.get("p1") ?? []).map((s) => s.unit_cost)).toEqual([700, null]);
+    });
+});
+
+describe("productRepository.findAll", () => {
+    it("does not carry suppliers: the product list stays light", async () => {
         const products = await productRepository.findAll("t1");
-        const byId = new Map(products.map((p) => [p.id, p]));
-        expect(byId.get("p1")?.suppliers?.map((s) => s.supplier_name)).toEqual(["Acme", "Beta"]);
-        expect(byId.get("p2")?.suppliers).toEqual([]);
+        expect(products.every((p) => p.suppliers === undefined)).toBe(true);
     });
 });

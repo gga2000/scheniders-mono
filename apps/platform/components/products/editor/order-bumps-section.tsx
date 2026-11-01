@@ -1,5 +1,7 @@
 "use client";
 
+import { formatIQD } from "@/lib/utils";
+
 import { useState, useMemo } from "react";
 import { Zap, Plus, Trash2, Search, Package, Check } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -121,7 +123,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                         </div>
                         <div className="max-h-48 overflow-y-auto border-t border-[var(--card-border)]">
                             {availableProducts.length === 0 ? (
-                                <p className="p-4 text-sm text-muted text-center">No products found</p>
+                                <p className="p-4 text-sm text-muted text-center">{t("products.noProducts")}</p>
                             ) : (
                                 availableProducts.slice(0, 10).map((product) => (
                                     <button
@@ -145,7 +147,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                             <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
                                             {product.sku && <p className="text-xs text-muted">{product.sku}</p>}
                                         </div>
-                                        <span className="text-sm text-muted">{product.price?.toLocaleString()} IQD</span>
+                                        <span className="text-sm text-muted">{formatIQD(product.price ?? 0)}</span>
                                     </button>
                                 ))
                             )}
@@ -224,15 +226,15 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                     {bump.discount_percentage > 0 ? (
                                         <>
                                             <span className="text-sm text-muted line-through">
-                                                {originalPrice.toLocaleString()} IQD
+                                                {formatIQD(originalPrice)}
                                             </span>
                                             <span className="text-sm font-medium text-emerald-600">
-                                                {Math.round(discountedPrice).toLocaleString()} IQD
+                                                {formatIQD(Math.round(discountedPrice))}
                                             </span>
                                         </>
                                     ) : (
                                         <span className="text-sm font-medium text-foreground">
-                                            {originalPrice.toLocaleString()} IQD
+                                            {formatIQD(originalPrice)}
                                         </span>
                                     )}
                                 </div>
@@ -284,7 +286,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                 </div>
                                 {bump.discount_percentage > 0 && (
                                     <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium">
-                                        {Math.round(discountedPrice).toLocaleString()} IQD
+                                        {formatIQD(Math.round(discountedPrice))}
                                     </span>
                                 )}
                             </div>
@@ -308,15 +310,15 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                                 {bump.discount_percentage > 0 ? (
                                                     <>
                                                         <span className="text-xs text-yellow-700 line-through">
-                                                            {originalPrice.toLocaleString()} IQD
+                                                            {formatIQD(originalPrice)}
                                                         </span>
                                                         <span className="text-sm font-bold text-yellow-900">
-                                                            {Math.round(discountedPrice).toLocaleString()} IQD
+                                                            {formatIQD(Math.round(discountedPrice))}
                                                         </span>
                                                     </>
                                                 ) : (
                                                     <span className="text-sm font-bold text-yellow-900">
-                                                        {originalPrice.toLocaleString()} IQD
+                                                        {formatIQD(originalPrice)}
                                                     </span>
                                                 )}
                                             </div>

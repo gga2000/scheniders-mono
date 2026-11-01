@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -32,6 +33,7 @@ interface CustomDatePickerProps {
 }
 
 export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePickerProps) {
+    const { t } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(dateRange.from);
     const [selecting, setSelecting] = useState<'from' | 'to' | null>(null);
@@ -139,7 +141,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                         <div className="flex">
                             {/* Presets Sidebar */}
                             <div className="w-40 border-r border-border p-2 bg-gray-50/50">
-                                <p className="text-xs font-medium text-muted px-2 py-1.5 mb-1">Quick Select</p>
+                                <p className="text-xs font-medium text-muted px-2 py-1.5 mb-1">{t("reports.picker.quick")}</p>
                                 {presets.map((preset) => (
                                     <button
                                         key={preset.key}
@@ -220,13 +222,13 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                 <div className="mt-4 pt-4 border-t border-border">
                                     <div className="flex items-center justify-between text-sm mb-3">
                                         <div>
-                                            <span className="text-muted">From: </span>
+                                            <span className="text-muted">{t("reports.picker.from")} </span>
                                             <span className="font-medium">
                                                 {tempFrom ? format(tempFrom, "MMM d, yyyy") : "Select..."}
                                             </span>
                                         </div>
                                         <div>
-                                            <span className="text-muted">To: </span>
+                                            <span className="text-muted">{t("reports.picker.to")} </span>
                                             <span className="font-medium">
                                                 {tempTo ? format(tempTo, "MMM d, yyyy") : "Select..."}
                                             </span>
@@ -239,7 +241,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                             onClick={() => setIsOpen(false)}
                                             className="flex-1 py-2 px-3 text-sm font-medium text-muted hover:text-foreground rounded-lg hover:bg-gray-100 transition-colors"
                                         >
-                                            Cancel
+                                            {t("reports.common.cancel")}
                                         </button>
                                         <button
                                             onClick={handleApply}
@@ -251,7 +253,7 @@ export function CustomDatePicker({ dateRange, onChange, presets }: CustomDatePic
                                                     : "bg-gray-100 text-gray-400 cursor-not-allowed"
                                             )}
                                         >
-                                            Apply
+                                            {t("reports.common.apply")}
                                         </button>
                                     </div>
                                 </div>

@@ -26,6 +26,7 @@ import { motion } from "framer-motion";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { PriorityBadge } from "./card/priority-badge";
 import { SourceBadge } from "./card/source-badge";
+import { EnteredByMark } from "./card/entered-by-mark";
 import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
 
@@ -340,7 +341,7 @@ function FullOrderCard(props: OrderCardProps) {
                                             {t("orderDetail.dateCorrected")}
                                         </span>
                                         <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 bg-gray-900 text-white text-[11px] rounded-md whitespace-nowrap opacity-0 group-hover/date-tag:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
-                                            Original: {formatShortDate(order.original_created_at)} {formatTime(order.original_created_at)}
+                                            {t("orders.ui.originalDate", { date: `${formatShortDate(order.original_created_at)} ${formatTime(order.original_created_at)}` })}
                                         </span>
                                     </span>
                                 )}
@@ -470,6 +471,7 @@ function FullOrderCard(props: OrderCardProps) {
 
                             {/* Source Badge - hidden in semi-compact */}
                             {compact === 0 && <SourceBadge source={order.source} />}
+                            {compact === 0 && <EnteredByMark enteredBy={order.entered_by} source={order.source} />}
 
                             {/* 7-Day Guarantee Countdown - hidden in semi-compact */}
                             {compact === 0 && order.status === 'delivered' && order.delivered_at && (() => {
@@ -632,14 +634,14 @@ function FullOrderCard(props: OrderCardProps) {
                                         {(riskLevel === 'high' || riskLevel === 'blocked') &&
                                             ['new', 'contacted', 'confirmed'].includes(order.status) && (
                                                 <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-red-100 text-red-700 animate-pulse border border-red-200 dark:bg-red-500/10 dark:text-rose-400 dark:border-red-500/20">
-                                                    Review Required
+                                                    {t("orders.ui.reviewRequired")}
                                                 </span>
                                             )}
                                         {/* Review Duplicate Order Tag - Next to items */}
                                         {hasDuplicates && !isVerifiedCustomer &&
                                             ['new', 'contacted', 'confirmed'].includes(order.status) && (
                                                 <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-orange-100 text-orange-700 animate-pulse border border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20">
-                                                    Review Required
+                                                    {t("orders.ui.reviewRequired")}
                                                 </span>
                                             )}
                                         {/* Delivery Attention Flag - prominent, next to items like Review Required */}
@@ -676,7 +678,7 @@ function FullOrderCard(props: OrderCardProps) {
                                         )}
                                     </div>
                                 ) : (
-                                    <span className="text-sm text-muted">No products</span>
+                                    <span className="text-sm text-muted">{t("orders.card.noProducts")}</span>
                                 )}
                             </div>
                         </div>
@@ -1174,7 +1176,7 @@ function FullOrderCard(props: OrderCardProps) {
                                         <div className="w-7 h-7 rounded-lg bg-[var(--pastel-green)] flex items-center justify-center">
                                             <Copy className="w-3.5 h-3.5 text-green-700" />
                                         </div>
-                                        <span className="font-medium">Copy</span>
+                                        <span className="font-medium">{t("orders.ui.copy")}</span>
                                     </button>
 
                                     <div className="my-1 mx-3 border-t border-[var(--card-border)]" />
@@ -1214,7 +1216,7 @@ function FullOrderCard(props: OrderCardProps) {
                                             <div className="w-7 h-7 rounded-lg bg-purple-100 flex items-center justify-center">
                                                 <CopyPlus className="w-3.5 h-3.5 text-purple-600" />
                                             </div>
-                                            <span className="font-medium">Clone</span>
+                                            <span className="font-medium">{t("orders.ui.clone")}</span>
                                         </button>
                                     )}
 
@@ -1233,7 +1235,7 @@ function FullOrderCard(props: OrderCardProps) {
                                             <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
                                                 <Camera className="w-3.5 h-3.5 text-violet-600" />
                                             </div>
-                                            <span className="font-medium">Share</span>
+                                            <span className="font-medium">{t("orders.ui.share")}</span>
                                         </button>
                                     )}
 

@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase, PrintBatch } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
+import { CACHE_PRESETS } from "@/lib/query-config";
+import { fetchAllPages } from "@/lib/analytics/dashboard-order-facts";
 import { DateRange } from "@/hooks/use-reports-metrics";
 
 /**
@@ -41,55 +45,59 @@ export interface UseBatchAnalyticsResult {
     refresh: () => Promise<void>;
 }
 
+/** Order ids per `.in()` request: keeps the URL well under the gateway limit. */
+const ID_CHUNK = 200;
+
 export function useBatchAnalytics(dateRange: DateRange): UseBatchAnalyticsResult {
-    const [rawBatches, setRawBatches] = useState<PrintBatch[]>([]);
-    const [orderStatuses, setOrderStatuses] = useState<Map<string, string>>(new Map());
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { session, clientReady, tenantId } = useAuth();
+    const from = dateRange.from.toISOString();
+    const to = dateRange.to.toISOString();
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
+    const query = useQuery({
+        queryKey: ["reports", "batch-analytics", tenantId, from, to],
+        queryFn: async () => {
+            if (!tenantId) throw new Error("batch analytics requested without a tenant");
+            const batches = await fetchAllPages<PrintBatch>(async (start, end) => {
+                const { data, error } = await supabase
+                    .from("print_batches")
+                    .select("*")
+                    .eq("tenant_id", tenantId)
+                    .gte("created_at", from)
+                    .lte("created_at", to)
+                    .order("created_at", { ascending: false })
+                    .order("id", { ascending: false })
+                    .range(start, end);
+                if (error) throw new Error(error.message);
+                return data ?? [];
+            });
 
-        try {
-            // Fetch batches within date range
-            const { data: batchData, error: batchError } = await supabase
-                .from("print_batches")
-                .select("*")
-                .gte("created_at", dateRange.from.toISOString())
-                .lte("created_at", dateRange.to.toISOString())
-                .order("created_at", { ascending: false });
-
-            if (batchError) throw new Error(batchError.message);
-
-            setRawBatches(batchData || []);
-
-            // Get all order IDs from batches
-            const allOrderIds = [...new Set((batchData || [])
-                .flatMap(b => b.order_ids || []))];
-
-            if (allOrderIds.length > 0) {
-                // Fetch order statuses for delivery rate calculation
-                const { data: orderData } = await supabase
+            // A batch holds hundreds of order ids; one `.in()` with all of them overflows the URL
+            // and the status lookup used to fail silently, reading every batch as 0% delivered.
+            const allOrderIds = [...new Set(batches.flatMap(b => b.order_ids || []))];
+            const statuses: [string, string][] = [];
+            for (let i = 0; i < allOrderIds.length; i += ID_CHUNK) {
+                const { data, error } = await supabase
                     .from("orders")
-                    .select("id, status, delivered_at, created_at")
-                    .in("id", allOrderIds);
-
-                const statusMap = new Map<string, string>();
-                (orderData || []).forEach(o => statusMap.set(o.id, o.status));
-                setOrderStatuses(statusMap);
+                    .select("id, status")
+                    .eq("tenant_id", tenantId)
+                    .in("id", allOrderIds.slice(i, i + ID_CHUNK));
+                if (error) throw new Error(error.message);
+                (data ?? []).forEach(o => statuses.push([o.id, o.status]));
             }
+            return { batches, statuses };
+        },
+        enabled: !!session && clientReady && !!tenantId,
+        staleTime: CACHE_PRESETS.FREQUENT.staleTime,
+        gcTime: CACHE_PRESETS.FREQUENT.gcTime,
+        retry: 2,
+    });
 
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to fetch batch analytics");
-        } finally {
-            setLoading(false);
-        }
-    }, [dateRange.from, dateRange.to]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    const rawBatches = useMemo(() => query.data?.batches ?? [], [query.data]);
+    const orderStatuses = useMemo(() => new Map(query.data?.statuses ?? []), [query.data]);
+    const loading = query.isPending;
+    const error = query.error ? query.error.message : null;
+    const { refetch } = query;
+    const refresh = useCallback(async () => { await refetch(); }, [refetch]);
 
     // Calculate batch metrics
     const batches = useMemo((): BatchMetrics[] => {
@@ -183,6 +191,6 @@ export function useBatchAnalytics(dateRange: DateRange): UseBatchAnalyticsResult
         summary,
         loading,
         error,
-        refresh: fetchData,
+        refresh,
     };
 }

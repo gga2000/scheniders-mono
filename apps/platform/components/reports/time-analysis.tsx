@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { TimeAnalysisMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from "recharts";
@@ -14,12 +15,13 @@ interface TimeAnalysisProps {
 type TabType = 'hourly' | 'daily' | 'processing';
 
 const tabs = [
-    { id: 'hourly' as TabType, label: 'By Hour', icon: Clock, color: 'indigo' },
-    { id: 'daily' as TabType, label: 'By Day', icon: Calendar, color: 'emerald' },
-    { id: 'processing' as TabType, label: 'Processing', icon: Timer, color: 'cyan' },
+    { id: 'hourly' as TabType, labelKey: 'reports.time.byHour', icon: Clock, color: 'indigo' },
+    { id: 'daily' as TabType, labelKey: 'reports.time.byDay', icon: Calendar, color: 'emerald' },
+    { id: 'processing' as TabType, labelKey: 'reports.time.processing', icon: Timer, color: 'cyan' },
 ];
 
 export function TimeAnalysis({ data }: TimeAnalysisProps) {
+    const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState<TabType>('hourly');
 
     // Format hourly data for chart
@@ -37,7 +39,6 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
     const bestDay = data.dailyDistribution.reduce((max, curr) =>
         curr.count > max.count ? curr : max, { day: '', count: 0, dayIndex: 0 });
 
-    const dayColors = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6'];
 
     return (
         <motion.div
@@ -54,8 +55,8 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                         <Clock className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-foreground">Time Patterns</h3>
-                        <p className="text-xs text-muted">When orders come in</p>
+                        <h3 className="text-lg font-bold text-foreground">{t("reports.time.title")}</h3>
+                        <p className="text-xs text-muted">{t("reports.time.subtitle")}</p>
                     </div>
                 </div>
 
@@ -73,7 +74,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                             )}
                         >
                             <tab.icon className="w-4 h-4" />
-                            <span className="hidden sm:inline">{tab.label}</span>
+                            <span className="hidden sm:inline">{t(tab.labelKey)}</span>
                         </button>
                     ))}
                 </div>
@@ -109,7 +110,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                         {hourlyChartData.map((entry, index) => (
                                             <Cell
                                                 key={`cell-${index}`}
-                                                fill={entry.hour === peakHour.hour ? '#6366F1' : '#C7D2FE'}
+                                                fill={entry.hour === peakHour.hour ? '#1b4f93' : '#7fb0ec'}
                                             />
                                         ))}
                                     </Bar>
@@ -123,8 +124,8 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                 <Zap className="w-4 h-4 text-indigo-600" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-indigo-900">Peak Hour: {peakHour.hour}:00</p>
-                                <p className="text-xs text-indigo-700">{peakHour.count} orders received</p>
+                                <p className="text-sm font-semibold text-indigo-900">{t("reports.time.peak", { hour: peakHour.hour })}</p>
+                                <p className="text-xs text-indigo-700">{t("reports.time.received", { n: peakHour.count })}</p>
                             </div>
                         </div>
                     </div>
@@ -156,8 +157,8 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                             "font-bold",
                                             isBest ? "text-emerald-700" : "text-foreground"
                                         )}>
-                                            {d.day}
-                                            {isBest && <span className="ml-2 text-xs">🏆 Best</span>}
+                                            {t(`reports.time.day.${d.day}`, d.day)}
+                                            {isBest && <span className="ml-2 text-xs">{t("reports.time.best")}</span>}
                                         </span>
                                         <span className="font-bold text-foreground">{d.count}</span>
                                     </div>
@@ -167,7 +168,7 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                             animate={{ width: `${width}%` }}
                                             transition={{ duration: 0.5, delay: index * 0.05 }}
                                             className="h-full rounded-full"
-                                            style={{ backgroundColor: dayColors[d.dayIndex] }}
+                                            style={{ backgroundColor: "#2a78d6" }}
                                         />
                                     </div>
                                 </motion.div>
@@ -199,8 +200,8 @@ export function TimeAnalysis({ data }: TimeAnalysisProps) {
                                 >
                                     <div className="flex items-center justify-between mb-2">
                                         <span className={cn("font-medium", isFast ? "text-cyan-700" : "text-foreground")}>
-                                            {d.bucket}
-                                            {isFast && <span className="ml-2 text-xs">⚡ Fastest</span>}
+                                            {t(`reports.time.bucket.${d.bucket}`, d.bucket)}
+                                            {isFast && <span className="ml-2 text-xs">{t("reports.time.fastest")}</span>}
                                         </span>
                                         <span className="font-bold text-foreground">{d.count}</span>
                                     </div>

@@ -23,9 +23,12 @@ const STATE_LABEL_KEY: Record<CartState, string> = {
     recovered: "recovery.state.recovered",
 };
 
+/** Stats cover every cart; the list shows the latest. */
+const LIST_LIMIT = 200;
+
 export default function RecoveryPage() {
     const { t, language } = useLanguage();
-    const { data: carts = [], isLoading } = useAbandonedCarts();
+    const { data: carts = [], isLoading, isError } = useAbandonedCarts();
     const stats = summarizeRecovery(carts);
 
     const itemsSummary = (items: { name: string; quantity: number }[]): string => {
@@ -81,13 +84,17 @@ export default function RecoveryPage() {
 
             {isLoading ? (
                 <p className="text-sm text-muted-foreground">{t("recovery.loading")}</p>
+            ) : isError ? (
+                <p role="alert" className="rounded-xl border border-destructive/30 p-6 text-center text-sm text-destructive">
+                    {t("recovery.error")}
+                </p>
             ) : carts.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
                     {t("recovery.empty")}
                 </p>
             ) : (
                 <ul className="space-y-3">
-                    {carts.map((c) => {
+                    {carts.slice(0, LIST_LIMIT).map((c) => {
                         const state = cartState(c);
                         return (
                             <li

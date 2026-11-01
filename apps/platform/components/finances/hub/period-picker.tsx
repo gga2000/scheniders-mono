@@ -126,9 +126,9 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                                         setCustomError(t("finances.period.errOrder"));
                                         return;
                                     }
-                                    const now = new Date();
-                                    now.setHours(23, 59, 59, 999);
-                                    if (s > now || e > now) {
+                                    // "Future" is judged on the Baghdad calendar, not the viewer's clock.
+                                    const today = baghdadDayKey();
+                                    if (start > today || end > today) {
                                         setCustomError(t("finances.period.errFuture"));
                                         return;
                                     }

@@ -57,44 +57,47 @@ export function usePrinting() {
         return { success: true, batchId: data };
     }
 
-    /**
-     * Download the Prime file for these orders and, with `record`, save the
-     * hand-off as a run. Every recorded attempt is logged, including which half
-     * of it failed.
-     */
-    async function exportPrime(
-        orders: Order[],
-        { record, filename }: { record: boolean; filename: string }
-    ): Promise<{ success: true; recorded: boolean } | { success: false; error: string }> {
-        const log = async (succeeded: boolean, failureStage?: "file" | "batch_record", message?: string) => {
-            const { error } = await supabase.rpc("log_shipping_export", {
-                p_tenant_id: tenantId,
-                p_company: "prime",
-                p_order_count: orders.length,
-                p_succeeded: succeeded,
-                p_failure_stage: failureStage ?? null,
-                p_error_message: message ?? null,
-            });
-            if (error) console.error("Could not log shipping export:", error.message);
-        };
+    const logExport = async (orderCount: number, succeeded: boolean, failureStage?: "file" | "batch_record", message?: string) => {
+        const { error } = await supabase.rpc("log_shipping_export", {
+            p_tenant_id: tenantId,
+            p_company: "prime",
+            p_order_count: orderCount,
+            p_succeeded: succeeded,
+            p_failure_stage: failureStage ?? null,
+            p_error_message: message ?? null,
+        });
+        if (error) console.error("Could not log shipping export:", error.message);
+    };
 
+    /** Download the Prime file for these orders. A failure is logged; nothing is recorded. */
+    async function downloadPrimeFile(
+        orders: Order[],
+        filename: string
+    ): Promise<{ success: true } | { success: false; error: string }> {
         try {
             await exportOrdersToPrimeCSV(orders.map((o) => o.id), orders, filename);
+            return { success: true };
         } catch (err) {
             const message = err instanceof Error ? err.message : "Could not complete the export";
-            await log(false, "file", message);
+            await logExport(orders.length, false, "file", message);
             return { success: false, error: message };
         }
-        if (!record) return { success: true, recorded: false };
+    }
 
+    /**
+     * Save a Prime hand-off as a run and log it. Call it after any status move:
+     * recording bumps each order's version, which would make a later status
+     * move of the same orders a false "changed by someone else" conflict.
+     */
+    async function recordPrimeRun(orders: Order[]): Promise<boolean> {
         const run = await recordPrint(
             orders.map((o) => o.id),
             `Prime Export ${new Date().toLocaleDateString("en-GB")}`,
             "prime"
         );
-        await log(run.success, run.success ? undefined : "batch_record", run.success ? undefined : run.error);
-        return { success: true, recorded: run.success };
+        await logExport(orders.length, run.success, run.success ? undefined : "batch_record", run.success ? undefined : run.error);
+        return run.success;
     }
 
-    return { batches, recordPrint, exportPrime };
+    return { batches, recordPrint, downloadPrimeFile, recordPrimeRun };
 }

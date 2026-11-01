@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { ReviewStatus } from "@scheniders/shared";
 
@@ -26,14 +27,21 @@ export function useProductReviews() {
         queryKey: ["product-reviews", tenantId],
         enabled: !!tenantId,
         queryFn: async () => {
-            const { data, error } = await supabase
-                .from("product_reviews")
-                .select(
-                    "id, product_id, rating, title, body, author_name, photo_urls, status, created_at, products(name)",
-                )
-                .eq("tenant_id", tenantId!)
-                .order("created_at", { ascending: false });
-            if (error) throw error;
+            // Counts on the tabs are totals, so read every review, not the API's first page.
+            const data = await fetchAllPages<Record<string, unknown>>(async (offset) => {
+                const { data: page, error, count } = await supabase
+                    .from("product_reviews")
+                    .select(
+                        "id, product_id, rating, title, body, author_name, photo_urls, status, created_at, products(name)",
+                        { count: "exact" },
+                    )
+                    .eq("tenant_id", tenantId!)
+                    .order("created_at", { ascending: false })
+                    .order("id", { ascending: false })
+                    .range(offset, offset + 999);
+                if (error) throw error;
+                return { rows: (page ?? []) as Record<string, unknown>[], total: count ?? 0 };
+            });
             const rows = (data ?? []) as unknown as Array<
                 Omit<AdminReview, "product_name"> & { products: { name: string } | null }
             >;
@@ -63,7 +71,8 @@ export function useReviewModeration() {
             const { error } = await supabase
                 .from("product_reviews")
                 .update({ status })
-                .eq("id", id);
+                .eq("id", id)
+                .eq("tenant_id", tenantId!);
             if (error) throw error;
         },
         onSuccess: invalidate,
@@ -74,7 +83,8 @@ export function useReviewModeration() {
             const { error } = await supabase
                 .from("product_reviews")
                 .delete()
-                .eq("id", id);
+                .eq("id", id)
+                .eq("tenant_id", tenantId!);
             if (error) throw error;
         },
         onSuccess: invalidate,

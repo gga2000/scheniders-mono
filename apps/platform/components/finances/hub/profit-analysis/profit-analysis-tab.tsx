@@ -10,6 +10,7 @@ import { OrderFunnelCard } from "@/components/analytics/order-funnel-card";
 import { CostCompositionChart } from "@/components/analytics/cost-composition-chart";
 import { ProfitBreakdownTable } from "@/components/analytics/profit-breakdown-table";
 import { useOrderProfits } from "@/hooks/use-order-profits";
+import type { CostSnapshots } from "@/lib/finance/item-cost";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { Order, Product } from "@/lib/supabase";
@@ -32,6 +33,8 @@ interface ProfitAnalysisTabProps {
     period: { start: Date; end: Date };
     dateRange: { startDate: string; endDate: string };
     addExpense: ReturnType<typeof useExpenses>["addExpense"];
+    /** Frozen per-line costs of delivered orders, so edited product costs do not re-price history. */
+    costSnapshots?: CostSnapshots;
 }
 
 /**
@@ -39,7 +42,7 @@ interface ProfitAnalysisTabProps {
  * Mirrors the legacy /analytics "profit" view but driven by the Finances page period
  * so it stays consistent with the other tabs and keeps the tab bar in place.
  */
-export function ProfitAnalysisTab({ orders, products, expenses, period, dateRange, addExpense }: ProfitAnalysisTabProps) {
+export function ProfitAnalysisTab({ orders, products, expenses, period, dateRange, addExpense, costSnapshots }: ProfitAnalysisTabProps) {
     const { t } = useLanguage();
 
     const [isDeliveryImportOpen, setIsDeliveryImportOpen] = useState(false);
@@ -74,7 +77,7 @@ export function ProfitAnalysisTab({ orders, products, expenses, period, dateRang
         productProfitAnalysis,
         pipelineSummary,
         funnelSummary,
-    } = useOrderProfits(ordersInRange, products, marketingCost);
+    } = useOrderProfits(ordersInRange, products, marketingCost, costSnapshots);
 
     return (
         <div className="space-y-6">

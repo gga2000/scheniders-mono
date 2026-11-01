@@ -46,7 +46,7 @@ const DateRangePicker = dynamic(
     () => import("@scheniders/ui/date-range-picker").then(mod => ({ default: mod.DateRangePicker })),
     { ssr: false, loading: () => <div className="w-full h-10 animate-pulse bg-muted/20 rounded-xl" /> }
 );
-import { GlobalSearchField } from "@/components/orders/global-search-field";
+import { CollapsedToolbar } from "@/components/orders/toolbar/collapsed-toolbar";
 import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { OrdersAnalyticsPanel } from "@/components/orders/orders-analytics-panel";
 import { OrdersFilterBar } from "@/components/orders/orders-filter-bar";
@@ -109,7 +109,6 @@ import {
     Archive,
     RotateCcw,
     Minimize2,
-    Maximize2,
     Truck,
     PackageX,
     Boxes,
@@ -741,6 +740,11 @@ export default function OrdersPage() {
         }
     };
 
+    // Toolbar callbacks.
+    const openScanner = useCallback(() => setIsScannerOpen(true), []);
+    const openReturns = useCallback(() => setIsReturnsOpen(true), []);
+    const openCreateModal = useCallback(() => setIsCreateModalOpen(true), [setIsCreateModalOpen]);
+
     // Card callbacks, stable so a page re-render does not re-render every card.
     const openCancelDialog = useCallback((o: Order) => {
         setOrderToCancel(o);
@@ -1049,91 +1053,20 @@ export default function OrdersPage() {
                             >
 
                                 {/* Collapsed Toolbar Bar - Minimal floating header when collapsed */}
-                                <AnimatePresence initial={false}>
-                                    {toolbarCollapsed && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -8 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -8 }}
-                                            transition={{ duration: 0.25, ease: EASE_CHROME }}
-                                            className="sticky top-2 z-50"
-                                        >
-                                            <div className="flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl orders-collapsed-toolbar bg-[var(--card-bg)] border border-[var(--card-border)] shadow-lg">
-                                                {/* Left: Select All + Order count and status */}
-                                                <div className="flex items-center gap-3">
-                                                    {/* Select All Checkbox */}
-                                                    <button
-                                                        onClick={selectAll}
-                                                        disabled={previewing}
-                                                        className={cn(
-                                                            "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                                                            selectedOrders.size === filteredOrders.length && filteredOrders.length > 0
-                                                                ? "bg-[var(--ink)] border-[var(--ink)] text-white"
-                                                                : "border-[var(--card-border)] hover:border-[var(--foreground-muted)]"
-                                                        )}
-                                                        title={t("orders.tip.selectAll")}
-                                                    >
-                                                        {selectedOrders.size === filteredOrders.length && filteredOrders.length > 0 && (
-                                                            <CheckSquare className="w-3 h-3" />
-                                                        )}
-                                                    </button>
-                                                    <div className="flex items-center gap-2">
-                                                        <Package className="w-5 h-5 text-foreground" />
-                                                        <span className="font-bold text-lg text-foreground" data-orders-header-count>{listCountShown ? filteredOrders.length : "—"}</span>
-                                                        <span className="text-muted text-sm">orders</span>
-                                                    </div>
-                                                    {selectedOrders.size > 0 && (
-                                                        <span className="px-2.5 py-1 text-xs font-semibold bg-[var(--pastel-purple-light)] text-purple-700 rounded-full">
-                                                            {selectedOrders.size} selected
-                                                        </span>
-                                                    )}
-                                                    {filters.status && filters.status !== 'all' && (
-                                                        <span className="px-2.5 py-1 text-xs font-semibold bg-[var(--pastel-yellow)] text-amber-800 rounded-full capitalize">
-                                                            {filters.status.replace('_', ' ')}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Center: Quick search */}
-                                                <div className="hidden md:flex items-center gap-2 flex-1 max-w-md">
-                                                    <GlobalSearchField setFilters={setFilters} onScannerOpen={() => setIsScannerOpen(true)} />
-                                                </div>
-
-                                                {/* Right: Quick actions + Expand */}
-                                                <div className="flex items-center gap-2">
-                                                    {/* Returns Cockpit Button */}
-                                                    <button
-                                                        onClick={() => setIsReturnsOpen(true)}
-                                                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-500 text-white shadow-sm hover:bg-orange-600 transition-all text-sm font-semibold"
-                                                        title={t("orders.tip.returnsCockpit")}
-                                                    >
-                                                        <PackageX className="w-4 h-4" />
-                                                        <span className="hidden sm:inline">Returns</span>
-                                                    </button>
-
-                                                    {/* New Order Button */}
-                                                    <button
-                                                        onClick={() => setIsCreateModalOpen(true)}
-                                                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--button-success)] text-white shadow-sm hover:bg-[var(--button-success-hover)] transition-all text-sm font-semibold"
-                                                    >
-                                                        <Plus className="w-4 h-4" />
-                                                        <span className="hidden sm:inline">{t("orders.status.new")}</span>
-                                                    </button>
-
-                                                    {/* Expand Button */}
-                                                    <button
-                                                        onClick={toggleToolbarCollapse}
-                                                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--background)] border border-[var(--card-border)] text-muted hover:text-foreground hover:bg-[var(--card-bg)] transition-all text-sm font-medium"
-                                                        title={t("orders.tip.expandToolbar")}
-                                                    >
-                                                        <Maximize2 className="w-4 h-4" />
-                                                        <span className="hidden lg:inline">{t("orders.filter.expand")}</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                <CollapsedToolbar
+                                    open={toolbarCollapsed}
+                                    allSelected={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
+                                    selectedCount={selectedOrders.size}
+                                    count={listCountShown ? filteredOrders.length : null}
+                                    status={filters.status}
+                                    previewing={previewing}
+                                    onSelectAll={selectAll}
+                                    setFilters={setFilters}
+                                    onScannerOpen={openScanner}
+                                    onReturnsOpen={openReturns}
+                                    onCreateOpen={openCreateModal}
+                                    onExpand={toggleToolbarCollapse}
+                                />
 
                                 {/* Full Header - Hidden when collapsed */}
                                 <AnimatePresence initial={false}>
@@ -1603,7 +1536,7 @@ export default function OrdersPage() {
                                                             <button
                                                                 onClick={() => setIsExportModalOpen(true)}
                                                                 className="p-2.5 rounded-xl text-muted-foreground hover:bg-amber-200/60 hover:text-foreground transition-all duration-300"
-                                                                title="Export"
+                                                                title={t("orders.ui.export")}
                                                             >
                                                                 <Download className="w-4 h-4" />
                                                             </button>
@@ -1614,7 +1547,7 @@ export default function OrdersPage() {
                                                                     setShipConfirmOpen(true);
                                                                 }}
                                                                 className="p-2.5 rounded-xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 shadow-lg shadow-slate-900/20 transition-all duration-300 flex items-center gap-2"
-                                                                title="Ship via Prime"
+                                                                title={t("orders.ui.shipViaPrime")}
                                                             >
                                                                 <Truck className="w-4 h-4" />
                                                             </button>
@@ -1631,7 +1564,7 @@ export default function OrdersPage() {
                                                                 title={t("orders.tip.returnsCockpit")}
                                                             >
                                                                 <PackageX className="w-4 h-4" />
-                                                                <span className="whitespace-nowrap hidden lg:inline">Returns</span>
+                                                                <span className="whitespace-nowrap hidden lg:inline">{t("orders.ui.returns")}</span>
                                                             </button>
                                                             <button
                                                                 onClick={() => setIsCreateModalOpen(true)}
@@ -1809,7 +1742,7 @@ export default function OrdersPage() {
                                                                 : "bg-blue-50 text-blue-700 border border-blue-100"
                                                         )}
                                                     >
-                                                        <span className="font-semibold">{selectedOrders.size} orders selected</span>
+                                                        <span className="font-semibold">{t("orders.ui.nSelected", { count: selectedOrders.size })}</span>
                                                         {canOfferSelectAll({
                                                             selectedCount: selectedOrders.size,
                                                             loadedCount: filteredOrders.length,
@@ -1822,14 +1755,14 @@ export default function OrdersPage() {
                                                                 }}
                                                                 className="underline font-bold hover:opacity-80 transition-opacity"
                                                             >
-                                                                Select all {filteredOrders.length} orders
+                                                                {t("orders.ui.selectAllN", { count: filteredOrders.length })}
                                                             </button>
                                                         )}
                                                         <button
                                                             onClick={() => setSelectedOrders(new Set())}
                                                             className="text-xs underline opacity-70 hover:opacity-100 transition-opacity"
                                                         >
-                                                            Clear selection
+                                                            {t("orders.ui.clearSelection")}
                                                         </button>
                                                     </motion.div>
                                                 )}

@@ -1,18 +1,23 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { RejectionReasonMetrics } from "@/lib/analytics/reports-calculations";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { XOctagon, MapPin, AlertCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { foldTail, seriesColor } from "@/lib/analytics/chart-categories";
 
 interface RejectionBreakdownProps {
     data: RejectionReasonMetrics[];
 }
 
-const COLORS = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899'];
 
 export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
+    const { t } = useLanguage();
+    // The calculator keys a reason-less rejection as "Unknown".
+    const reasonLabel = (reason: string | undefined) =>
+        reason === "Unknown" ? t("reports.reason.unknown") : (reason ?? "");
     const total = data.reduce((sum, d) => sum + d.count, 0);
 
     if (data.length === 0) {
@@ -26,19 +31,27 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                     <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
                         <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                     </div>
-                    <h3 className="text-xl font-bold text-emerald-900">No Rejections!</h3>
-                    <p className="text-sm text-emerald-700 mt-2">All orders delivered successfully</p>
+                    <h3 className="text-xl font-bold text-emerald-900">{t("reports.rejection.none")}</h3>
+                    <p className="text-sm text-emerald-700 mt-2">{t("reports.rejection.noneDesc")}</p>
                 </div>
             </motion.div>
         );
     }
 
-    const pieData = data.map((d, i) => ({
-        name: d.reason,
+    // Top five reasons plus one neutral "Other": the donut and the list show the same rows.
+    const rows = foldTail(data, 5, tail => ({
+        reason: t("reports.common.other"),
+        count: tail.reduce((sum, r) => sum + r.count, 0),
+        percentage: tail.reduce((sum, r) => sum + r.percentage, 0),
+        topCity: undefined,
+    }));
+    const hasOther = rows.length !== data.length;
+    const pieData = rows.map((d, i) => ({
+        name: d.reason === "Unknown" ? t("reports.reason.unknown") : d.reason,
         value: d.count,
         percentage: d.percentage,
         topCity: d.topCity,
-        color: COLORS[i % COLORS.length],
+        color: seriesColor(i, rows.length, hasOther),
     }));
 
     return (
@@ -57,8 +70,8 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                             <XOctagon className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-foreground">Rejection Analysis</h3>
-                            <p className="text-xs text-muted">{total} total rejections</p>
+                            <h3 className="text-lg font-bold text-foreground">{t("reports.rejection.title")}</h3>
+                            <p className="text-xs text-muted">{t("reports.rejection.total", { n: total })}</p>
                         </div>
                     </div>
 
@@ -70,7 +83,7 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Donut Chart */}
-                    <div className="relative h-[220px]">
+                    <div className="relative h-[220px]" role="img" aria-label={`${t("reports.rejection.title")}: ${pieData.map(d => `${d.name} ${d.value}`).join(", ")}`}>
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -94,8 +107,8 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                                             return (
                                                 <div className="bg-white/95 backdrop-blur shadow-lg border border-border p-3 rounded-xl text-xs">
                                                     <p className="font-bold mb-1">{d.name}</p>
-                                                    <p>Count: {d.value} ({d.percentage.toFixed(1)}%)</p>
-                                                    {d.topCity && <p>Top City: {d.topCity}</p>}
+                                                    <p>{t("reports.common.count")}: {d.value} ({d.percentage.toFixed(1)}%)</p>
+                                                    {d.topCity && <p>{t("reports.common.topCity")}: {d.topCity}</p>}
                                                 </div>
                                             );
                                         }
@@ -108,13 +121,13 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                         {/* Center info */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className="text-3xl font-bold text-rose-600">{total}</span>
-                            <span className="text-xs text-muted">Rejections</span>
+                            <span className="text-xs text-muted">{t("reports.rejection.rejections")}</span>
                         </div>
                     </div>
 
                     {/* Legend & Details */}
                     <div className="space-y-2 max-h-[220px] overflow-y-auto scrollbar-hide">
-                        {data.slice(0, 6).map((item, index) => (
+                        {rows.map((item, index) => (
                             <motion.div
                                 key={item.reason}
                                 initial={{ opacity: 0, x: 10 }}
@@ -125,10 +138,10 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                                 <div className="flex items-center gap-3">
                                     <div
                                         className="w-3 h-3 rounded-full flex-shrink-0"
-                                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                        style={{ backgroundColor: seriesColor(index, rows.length, hasOther) }}
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">{item.reason}</p>
+                                        <p className="text-sm font-medium text-foreground truncate" title={item.reason}>{item.reason === "Unknown" ? t("reports.reason.unknown") : item.reason}</p>
                                         {item.topCity && (
                                             <p className="text-xs text-muted flex items-center gap-1 mt-0.5">
                                                 <MapPin className="w-3 h-3" />
@@ -159,10 +172,11 @@ export function RejectionBreakdown({ data }: RejectionBreakdownProps) {
                                 <AlertCircle className="w-4 h-4" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-rose-900">Top Issue: {data[0]?.reason}</p>
+                                <p className="text-sm font-semibold text-rose-900">{t("reports.rejection.topIssue", { reason: reasonLabel(data[0]?.reason) })}</p>
                                 <p className="text-xs text-rose-700 mt-0.5">
-                                    Accounts for {data[0]?.percentage.toFixed(0)}% of all rejections
-                                    {data[0]?.topCity && `, primarily in ${data[0].topCity}`}.
+                                    {data[0]?.topCity
+                                        ? t("reports.rejection.topIssueCity", { pct: data[0].percentage.toFixed(0), city: data[0].topCity })
+                                        : t("reports.rejection.topIssueDesc", { pct: data[0]?.percentage.toFixed(0) ?? "0" })}
                                 </p>
                             </div>
                         </div>

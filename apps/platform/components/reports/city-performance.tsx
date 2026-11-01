@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { CityPerformanceMetrics } from "@/lib/analytics/reports-calculations";
 import { MapPin, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, Medal } from "lucide-react";
@@ -24,6 +25,7 @@ const item = {
 };
 
 export function CityPerformance({ data }: CityPerformanceProps) {
+    const { t } = useLanguage();
     const [sortKey, setSortKey] = useState<keyof CityPerformanceMetrics>('totalOrders');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
     const [showAll, setShowAll] = useState(false);
@@ -49,7 +51,8 @@ export function CityPerformance({ data }: CityPerformanceProps) {
     const displayData = showAll ? sortedData : sortedData.slice(0, 8);
 
     // Top 3 cities for medals
-    const topCities = sortedData.slice(0, 3);
+    // The podium is always the busiest cities, whatever column the table is sorted by.
+    const topCities = [...data].sort((a, b) => b.totalOrders - a.totalOrders).slice(0, 3);
 
     const getMedalColor = (index: number) => {
         if (index === 0) return "from-yellow-400 to-amber-500";
@@ -96,8 +99,8 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                             <MapPin className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-foreground">City Performance</h3>
-                            <p className="text-sm text-muted">Delivery metrics by governorate</p>
+                            <h3 className="text-xl font-bold text-foreground">{t("reports.city.title")}</h3>
+                            <p className="text-sm text-muted">{t("reports.city.subtitle")}</p>
                         </div>
                     </div>
                 </div>
@@ -124,10 +127,10 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                                 <h4 className="text-lg font-bold mt-1">{city.city}</h4>
                                 <div className="flex items-baseline gap-2 mt-2">
                                     <span className="text-2xl font-bold">{city.totalOrders}</span>
-                                    <span className="text-xs opacity-80">orders</span>
+                                    <span className="text-xs opacity-80">{t("reports.common.orders")}</span>
                                 </div>
                                 <div className="text-xs mt-1 opacity-80">
-                                    {city.deliveryRate.toFixed(0)}% delivered
+                                    {t("reports.city.deliveredPct", { pct: city.deliveryRate.toFixed(0) })}
                                 </div>
                             </div>
                         </motion.div>
@@ -139,12 +142,12 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                     <table className="w-full">
                         <thead className="bg-gray-50/50">
                             <tr className="text-xs text-muted">
-                                <th className="py-3 px-4 text-left font-semibold">City</th>
-                                <SortHeader label="Orders" sortKey="totalOrders" />
-                                <SortHeader label="Delivered" sortKey="delivered" />
-                                <SortHeader label="Rejected" sortKey="rejected" />
-                                <SortHeader label="Rate" sortKey="deliveryRate" />
-                                <SortHeader label="Avg Days" sortKey="avgDeliveryDays" />
+                                <th className="py-3 px-4 text-left font-semibold">{t("reports.city.col.city")}</th>
+                                <SortHeader label={t("reports.common.ordersCap")} sortKey="totalOrders" />
+                                <SortHeader label={t("reports.common.delivered")} sortKey="delivered" />
+                                <SortHeader label={t("reports.common.rejected")} sortKey="rejected" />
+                                <SortHeader label={t("reports.city.col.rate")} sortKey="deliveryRate" />
+                                <SortHeader label={t("reports.city.col.days")} sortKey="avgDeliveryDays" />
                             </tr>
                         </thead>
                         <motion.tbody
@@ -205,9 +208,9 @@ export function CityPerformance({ data }: CityPerformanceProps) {
                         className="mt-4 w-full py-2 text-sm font-medium text-muted hover:text-foreground transition-colors flex items-center justify-center gap-1 rounded-xl hover:bg-gray-50"
                     >
                         {showAll ? (
-                            <>Show Less <ChevronUp className="w-4 h-4" /></>
+                            <>{t("reports.city.showLess")} <ChevronUp className="w-4 h-4" /></>
                         ) : (
-                            <>View All {data.length} Cities <ChevronDown className="w-4 h-4" /></>
+                            <>{t("reports.city.showMore", { n: data.length })} <ChevronDown className="w-4 h-4" /></>
                         )}
                     </button>
                 )}

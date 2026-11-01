@@ -6,10 +6,25 @@ import { clientIp, consumeRateLimit, phoneBucket, type RateLimitResult } from "@
 export const dynamic = "force-dynamic";
 
 // Bounded so a limiter key, and the RPC input, stay small.
+// `order_number` is optional: with it the lookup answers one order (and,
+// because phone AND number match, may name the customer); without it the
+// phone alone lists its latest orders, masked (see lookup_orders_by_phone).
 const querySchema = z.object({
   tenant_id: z.string().uuid(),
-  order_number: z.string().trim().min(1).max(40),
+  order_number: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .transform((v) => (v ? v : null)),
   phone: z.string().min(1).max(40),
+});
+
+const phoneRowSchema = z.object({
+  order_number: z.string(),
+  stage: z.string(),
+  placed_at: z.string(),
+  item_count: z.number().int(),
 });
 
 const lookupRowSchema = z.object({
@@ -55,7 +70,7 @@ const LOOKUP_LIMIT_PER_PHONE = 10;
 async function lookupRateLimited(
   request: Request,
   tenantId: string,
-  orderNumber: string,
+  orderNumber: string | null,
   phone: string,
 ): Promise<number | null> {
   const phoneKey = phoneBucket(tenantId, phone);
@@ -68,7 +83,11 @@ async function lookupRateLimited(
   const mode = "fail-open";
   const checks = await Promise.all([
     ip !== "unknown" ? consumeRateLimit(`track:ip:${ip}`, LOOKUP_LIMIT_PER_IP, LOOKUP_WINDOW_SECONDS, mode) : null,
-    consumeRateLimit(`track:order:${tenantId}:${orderNumber}`, LOOKUP_LIMIT_PER_ORDER, LOOKUP_WINDOW_SECONDS, mode),
+    // A phone-only lookup names no order, so it has no per-order bucket; the
+    // per-phone bucket below is what bounds it.
+    orderNumber !== null
+      ? consumeRateLimit(`track:order:${tenantId}:${orderNumber}`, LOOKUP_LIMIT_PER_ORDER, LOOKUP_WINDOW_SECONDS, mode)
+      : null,
     consumeRateLimit(`track:phone:${phoneKey}`, LOOKUP_LIMIT_PER_PHONE, LOOKUP_WINDOW_SECONDS, mode),
   ]);
   const blocked = checks.filter((c): c is RateLimitResult => c !== null && !c.allowed);
@@ -103,6 +122,27 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const supabase = createSupabaseServiceClient();
+
+    if (order_number === null) {
+      const { data, error } = await supabase.rpc("lookup_orders_by_phone", {
+        p_tenant_id: tenant_id,
+        p_phone: phone,
+      });
+      if (error) {
+        console.error("[api/orders/lookup] by phone", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
+      const rows = z.array(phoneRowSchema).safeParse(data);
+      if (!rows.success) {
+        console.error("[api/orders/lookup] by phone: unexpected rows", rows.error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+      }
+      if (rows.data.length === 0) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      return NextResponse.json({ orders: rows.data });
+    }
+
     const { data, error } = await supabase.rpc("lookup_order", {
       p_tenant_id: tenant_id,
       p_phone: phone,

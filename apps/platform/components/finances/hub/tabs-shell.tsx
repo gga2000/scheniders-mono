@@ -50,6 +50,26 @@ const TABS: Tab[] = [
     { id: "salaries", labelKey: "nav.financesSalaries", icon: Banknote },
 ];
 
+/**
+ * The 14 tabs, grouped so the bar fits one row and each question has one home.
+ * URLs stay `?tab=<id>`, so bookmarks and links keep working.
+ */
+interface TabGroup {
+    id: string;
+    labelKey: string;
+    icon: LucideIcon;
+    tabs: FinanceTabId[];
+}
+
+const GROUPS: TabGroup[] = [
+    { id: "overview", labelKey: "nav.financesOverview", icon: LayoutDashboard, tabs: ["overview", "revenue", "profit_analysis", "forecasts", "reports"] },
+    { id: "cash", labelKey: "finances.group.cash", icon: Landmark, tabs: ["cash", "payouts", "invoices"] },
+    { id: "sales", labelKey: "finances.group.sales", icon: Package, tabs: ["products", "customers"] },
+    { id: "costs", labelKey: "finances.group.costs", icon: Receipt, tabs: ["expenses", "salaries"] },
+    { id: "returns", labelKey: "nav.financesRefunds", icon: Undo2, tabs: ["refunds"] },
+    { id: "print", labelKey: "nav.financesPrint", icon: Printer, tabs: ["print"] },
+];
+
 interface TabsShellProps {
     activeTab: FinanceTabId;
     onChange: (tab: FinanceTabId) => void;
@@ -57,31 +77,31 @@ interface TabsShellProps {
 
 export function TabsShell({ activeTab, onChange }: TabsShellProps) {
     const { t: translate } = useLanguage();
+    const group = GROUPS.find((g) => g.tabs.includes(activeTab)) ?? GROUPS[0];
+    const subTabs = group.tabs.map((id) => TABS.find((t) => t.id === id)).filter((t): t is Tab => !!t);
+
     return (
-        <div className="relative border-b border-[var(--card-border)]">
-            <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-hide -mb-px [mask-image:linear-gradient(to_right,black_calc(100%-32px),transparent)]">
-                {TABS.map((t) => {
-                    const active = t.id === activeTab;
-                    const Icon = t.icon;
+        <div>
+            <div role="tablist" className="relative flex items-center gap-0.5 border-b border-[var(--card-border)] overflow-x-auto scrollbar-hide">
+                {GROUPS.map((g) => {
+                    const active = g.id === group.id;
+                    const Icon = g.icon;
                     return (
                         <button
-                            key={t.id}
-                            onClick={() => onChange(t.id)}
+                            key={g.id}
+                            role="tab"
+                            aria-selected={active}
+                            onClick={() => onChange(g.tabs[0])}
                             className={cn(
-                                "relative flex items-center gap-1.5 px-3.5 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors",
+                                "relative -mb-px flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors",
                                 active ? "text-foreground" : "text-muted hover:text-foreground"
                             )}
                         >
-                            <Icon className="w-3.5 h-3.5" />
-                            {translate(t.labelKey)}
-                            {t.badge && (
-                                <span className="ml-0.5 text-[9px] uppercase tracking-wider font-semibold px-1 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                                    {t.badge}
-                                </span>
-                            )}
+                            <Icon className="w-4 h-4" />
+                            {translate(g.labelKey)}
                             {active && (
                                 <motion.div
-                                    layoutId="finance-tab-underline"
+                                    layoutId="finance-group-underline"
                                     className="absolute bottom-0 left-0 right-0 h-[2px] bg-foreground"
                                     transition={{ duration: 0.18 }}
                                 />
@@ -90,6 +110,31 @@ export function TabsShell({ activeTab, onChange }: TabsShellProps) {
                     );
                 })}
             </div>
+            {subTabs.length > 1 && (
+                <div role="tablist" className="flex items-center gap-1.5 pt-3 flex-wrap">
+                    {subTabs.map((tab) => {
+                        const active = tab.id === activeTab;
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                role="tab"
+                                aria-selected={active}
+                                onClick={() => onChange(tab.id)}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium whitespace-nowrap border transition-colors",
+                                    active
+                                        ? "bg-[var(--ink)] text-white border-[var(--ink)]"
+                                        : "text-muted border-[var(--card-border)] hover:text-foreground hover:border-[var(--ink)]"
+                                )}
+                            >
+                                <Icon className="w-3.5 h-3.5" />
+                                {translate(tab.labelKey)}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }

@@ -8,6 +8,8 @@ import {
     useReviewModeration,
 } from "@/hooks/use-product-reviews";
 import { countReviewsByStatus } from "@/lib/review-queue";
+import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
 import type { ReviewStatus } from "@scheniders/shared";
 
 type Filter = ReviewStatus | "all";
@@ -20,7 +22,7 @@ const STATUS_BADGE: Record<ReviewStatus, "new" | "confirmed" | "rejected"> = {
 
 function Stars({ value }: { value: number }) {
     return (
-        <span className="inline-flex items-center gap-0.5" aria-label={`${value} / 5`}>
+        <span className="inline-flex items-center gap-0.5" role="img" aria-label={`${value} / 5`}>
             {[1, 2, 3, 4, 5].map((n) => (
                 <Star
                     key={n}
@@ -36,8 +38,14 @@ function Stars({ value }: { value: number }) {
 }
 
 export default function ReviewsPage() {
-    const { data: reviews = [], isLoading } = useProductReviews();
+    const { t, language } = useLanguage();
+    const { data: reviews = [], isLoading, isError } = useProductReviews();
     const { setStatus, remove } = useReviewModeration();
+    const date = new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-GB", {
+        timeZone: "Asia/Baghdad",
+        dateStyle: "medium",
+    });
+    const failed = () => toast.error(t("reviews.actionFailed"));
     const [filter, setFilter] = useState<Filter>("pending");
 
     const counts = countReviewsByStatus(reviews);
@@ -45,18 +53,18 @@ export default function ReviewsPage() {
         filter === "all" ? reviews : reviews.filter((r) => r.status === filter);
 
     const tabs: { key: Filter; label: string; count: number }[] = [
-        { key: "pending", label: "Pending", count: counts.pending },
-        { key: "approved", label: "Approved", count: counts.approved },
-        { key: "rejected", label: "Rejected", count: counts.rejected },
-        { key: "all", label: "All", count: counts.total },
+        { key: "pending", label: t("reviews.tab.pending"), count: counts.pending },
+        { key: "approved", label: t("reviews.tab.approved"), count: counts.approved },
+        { key: "rejected", label: t("reviews.tab.rejected"), count: counts.rejected },
+        { key: "all", label: t("reviews.tab.all"), count: counts.total },
     ];
 
     return (
         <div className="mx-auto w-full max-w-4xl p-4 md:p-8">
             <header className="mb-6">
-                <h1 className="text-2xl font-bold text-foreground">Product reviews</h1>
+                <h1 className="text-2xl font-bold text-foreground">{t("reviews.title")}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Approve customer reviews before they appear on your storefront.
+                    {t("reviews.subtitle")}
                 </p>
             </header>
 
@@ -74,16 +82,20 @@ export default function ReviewsPage() {
                         }
                     >
                         {tab.label}
-                        <span className="ml-1.5 tabular-nums opacity-70">{tab.count}</span>
+                        <span className="ms-1.5 tabular-nums opacity-70">{tab.count}</span>
                     </button>
                 ))}
             </div>
 
             {isLoading ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                <p className="text-sm text-muted-foreground">{t("reviews.loading")}</p>
+            ) : isError ? (
+                <p role="alert" className="rounded-xl border border-destructive/30 p-6 text-center text-sm text-destructive">
+                    {t("reviews.error")}
+                </p>
             ) : shown.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-                    No {filter === "all" ? "" : filter} reviews.
+                    {t(`reviews.empty.${filter}`)}
                 </p>
             ) : (
                 <ul className="space-y-4">
@@ -96,19 +108,19 @@ export default function ReviewsPage() {
                                 <div className="flex items-center gap-2">
                                     <Stars value={r.rating} />
                                     <span className="text-sm font-medium text-foreground">
-                                        {r.author_name?.trim() || "Anonymous"}
+                                        {r.author_name?.trim() || t("reviews.anonymous")}
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Badge variant={STATUS_BADGE[r.status]}>{r.status}</Badge>
+                                    <Badge variant={STATUS_BADGE[r.status]}>{t(`reviews.status.${r.status}`)}</Badge>
                                     <span className="text-xs text-muted-foreground">
-                                        {new Date(r.created_at).toLocaleDateString()}
+                                        {date.format(new Date(r.created_at))}
                                     </span>
                                 </div>
                             </div>
 
                             <p className="mt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                {r.product_name ?? "Unknown product"}
+                                {r.product_name ?? t("reviews.unknownProduct")}
                             </p>
                             {r.title && (
                                 <p className="mt-1 font-semibold text-foreground">{r.title}</p>
@@ -124,7 +136,7 @@ export default function ReviewsPage() {
                                         <img
                                             key={i}
                                             src={url}
-                                            alt=""
+                                            alt={r.title ?? ""}
                                             loading="lazy"
                                             className="h-20 w-20 rounded-lg object-cover"
                                         />
@@ -139,11 +151,11 @@ export default function ReviewsPage() {
                                         size="sm"
                                         disabled={setStatus.isPending}
                                         onClick={() =>
-                                            setStatus.mutate({ id: r.id, status: "approved" })
+                                            setStatus.mutate({ id: r.id, status: "approved" }, { onError: failed })
                                         }
                                     >
-                                        <Check className="mr-1 h-4 w-4" />
-                                        Approve
+                                        <Check className="me-1 h-4 w-4" />
+                                        {t("reviews.approve")}
                                     </Button>
                                 )}
                                 {r.status !== "rejected" && (
@@ -152,21 +164,25 @@ export default function ReviewsPage() {
                                         size="sm"
                                         disabled={setStatus.isPending}
                                         onClick={() =>
-                                            setStatus.mutate({ id: r.id, status: "rejected" })
+                                            setStatus.mutate({ id: r.id, status: "rejected" }, { onError: failed })
                                         }
                                     >
-                                        <X className="mr-1 h-4 w-4" />
-                                        Reject
+                                        <X className="me-1 h-4 w-4" />
+                                        {t("reviews.reject")}
                                     </Button>
                                 )}
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     disabled={remove.isPending}
-                                    onClick={() => remove.mutate(r.id)}
+                                    onClick={() => {
+                                        if (window.confirm(t("reviews.deleteConfirm"))) {
+                                            remove.mutate(r.id, { onError: failed });
+                                        }
+                                    }}
                                 >
-                                    <Trash2 className="mr-1 h-4 w-4" />
-                                    Delete
+                                    <Trash2 className="me-1 h-4 w-4" />
+                                    {t("reviews.delete")}
                                 </Button>
                             </div>
                         </li>

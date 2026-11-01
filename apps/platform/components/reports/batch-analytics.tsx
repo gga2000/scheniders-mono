@@ -1,15 +1,17 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import { BatchMetrics, BatchAnalyticsSummary } from "@/hooks/use-batch-analytics";
 import {
     Package, Truck, Receipt, TrendingUp, MapPin, Calendar,
     CheckCircle2, XCircle, Clock, Loader2, RefreshCw, ChevronRight,
-    Boxes, DollarSign
+    Boxes, Banknote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIQD } from "@/lib/utils";
 import { format, formatDistanceToNow } from "date-fns";
+import { ar as arLocale } from "date-fns/locale";
 
 interface BatchAnalyticsProps {
     batches: BatchMetrics[];
@@ -42,15 +44,6 @@ const getStatusColor = (status: BatchMetrics['status']) => {
     }
 };
 
-const getStatusLabel = (status: BatchMetrics['status']) => {
-    switch (status) {
-        case 'completed': return 'Completed';
-        case 'in_progress': return 'In Progress';
-        case 'pending': return 'Pending';
-        case 'mixed': return 'Mixed';
-        default: return 'Unknown';
-    }
-};
 
 export function BatchAnalytics({
     batches,
@@ -59,13 +52,14 @@ export function BatchAnalytics({
     error,
     onRefresh
 }: BatchAnalyticsProps) {
+    const { t, language } = useLanguage();
     // Loading state
     if (loading) {
         return (
             <div className="pastel-card p-8 flex items-center justify-center">
                 <div className="text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
-                    <p className="text-sm text-muted">Loading batch analytics...</p>
+                    <p className="text-sm text-muted">{t("reports.batch.loading")}</p>
                 </div>
             </div>
         );
@@ -81,7 +75,7 @@ export function BatchAnalytics({
                         onClick={onRefresh}
                         className="text-sm text-rose-600 hover:text-rose-800 underline"
                     >
-                        Try again
+                        {t("reports.common.retry")}
                     </button>
                 )}
             </div>
@@ -99,8 +93,8 @@ export function BatchAnalytics({
                 <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
                     <Boxes className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">No Batches Found</h3>
-                <p className="text-sm text-muted mt-1">No shipping batches created in this period</p>
+                <h3 className="text-lg font-bold text-foreground">{t("reports.batch.empty")}</h3>
+                <p className="text-sm text-muted mt-1">{t("reports.batch.emptyDesc")}</p>
             </motion.div>
         );
     }
@@ -125,8 +119,8 @@ export function BatchAnalytics({
                             <Boxes className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-bold text-foreground">Batch Analytics</h3>
-                            <p className="text-sm text-muted">{summary.totalBatches} batches shipped</p>
+                            <h3 className="text-xl font-bold text-foreground">{t("reports.batch.title")}</h3>
+                            <p className="text-sm text-muted">{t("reports.batch.shipped", { n: summary.totalBatches })}</p>
                         </div>
                     </div>
 
@@ -134,7 +128,7 @@ export function BatchAnalytics({
                         <button
                             onClick={onRefresh}
                             className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
-                            title="Refresh"
+                            title={t("reports.common.refresh")}
                         >
                             <RefreshCw className="w-4 h-4 text-muted" />
                         </button>
@@ -151,28 +145,28 @@ export function BatchAnalytics({
                     {[
                         {
                             icon: Boxes,
-                            label: "Total Batches",
+                            label: t("reports.batch.total"),
                             value: summary.totalBatches.toString(),
                             color: "text-violet-600",
                             bg: "bg-violet-100"
                         },
                         {
                             icon: Package,
-                            label: "Total Orders",
+                            label: t("reports.batch.orders"),
                             value: summary.totalOrders.toString(),
                             color: "text-blue-600",
                             bg: "bg-blue-100"
                         },
                         {
-                            icon: DollarSign,
-                            label: "Total Value",
-                            value: `${(summary.totalValue / 1000).toFixed(0)}K`,
+                            icon: Banknote,
+                            label: t("reports.batch.value"),
+                            value: formatIQD(summary.totalValue),
                             color: "text-emerald-600",
                             bg: "bg-emerald-100"
                         },
                         {
                             icon: TrendingUp,
-                            label: "Avg Delivery",
+                            label: t("reports.batch.avgDelivery"),
                             value: `${summary.avgDeliveryRate.toFixed(0)}%`,
                             color: "text-amber-600",
                             bg: "bg-amber-100"
@@ -197,7 +191,7 @@ export function BatchAnalytics({
                     <div className="mb-6">
                         <h4 className="text-sm font-medium text-muted mb-3 flex items-center gap-2">
                             <MapPin className="w-4 h-4" />
-                            Top Cities
+                            {t("reports.batch.topCities")}
                         </h4>
                         <div className="flex flex-wrap gap-2">
                             {summary.topCities.map((city, i) => (
@@ -222,7 +216,7 @@ export function BatchAnalytics({
                 <div>
                     <h4 className="text-sm font-medium text-muted mb-3 flex items-center gap-2">
                         <Clock className="w-4 h-4" />
-                        Recent Batches
+                        {t("reports.batch.recent")}
                     </h4>
                     <div className="space-y-2">
                         {recentBatches.map((batch, index) => (
@@ -243,15 +237,15 @@ export function BatchAnalytics({
                                             "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
                                             getStatusColor(batch.status)
                                         )}>
-                                            {getStatusLabel(batch.status)}
+                                            {t(`reports.batch.status.${batch.status}`, batch.status)}
                                         </span>
                                     </div>
                                     <div className="text-xs text-muted mt-0.5 flex items-center gap-3">
-                                        <span>{batch.orderCount} orders</span>
+                                        <span>{t("reports.batch.ordersCount", { n: batch.orderCount })}</span>
                                         <span>•</span>
                                         <span>{formatIQD(batch.totalValue)}</span>
                                         <span>•</span>
-                                        <span>{formatDistanceToNow(batch.createdAt, { addSuffix: true })}</span>
+                                        <span>{formatDistanceToNow(batch.createdAt, { addSuffix: true, locale: language === "ar" ? arLocale : undefined })}</span>
                                     </div>
                                 </div>
 
@@ -266,7 +260,7 @@ export function BatchAnalytics({
                                     )}>
                                         {batch.deliveryRate > 0 ? `${batch.deliveryRate.toFixed(0)}%` : '-'}
                                     </div>
-                                    <div className="text-[10px] text-muted">Delivered</div>
+                                    <div className="text-[10px] text-muted">{t("reports.common.delivered")}</div>
                                 </div>
 
                                 <ChevronRight className="w-4 h-4 text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -286,10 +280,9 @@ export function BatchAnalytics({
                         <div className="flex items-center gap-3">
                             <Receipt className="w-5 h-5 text-violet-600" />
                             <div>
-                                <p className="font-semibold text-violet-900">Batch Insights</p>
+                                <p className="font-semibold text-violet-900">{t("reports.batch.insights")}</p>
                                 <p className="text-sm text-violet-700">
-                                    Average of {summary.avgOrdersPerBatch.toFixed(1)} orders per batch,
-                                    worth {formatIQD(summary.avgBatchValue)} each
+                                    {t("reports.batch.avgLine", { orders: summary.avgOrdersPerBatch.toFixed(1), value: formatIQD(summary.avgBatchValue) })}
                                 </p>
                             </div>
                         </div>

@@ -1111,6 +1111,7 @@ export const STRINGS = {
         kpi_revenue: { en: "Revenue", ar: "الإيرادات", ku: "داهات" },
         kpi_aov: { en: "Avg. order value", ar: "متوسط قيمة الطلب", ku: "ناوەندی بەهای داواکاری" },
         kpi_last_7_days: { en: "Last 7 days", ar: "آخر 7 أيام", ku: "٧ ڕۆژی ڕابردوو" },
+        kpi_error: { en: "Couldn't load. Refresh to retry.", ar: "ما كدرنا نحمّل. حدّث وجرّب.", ku: "نەتوانرا باربکرێت. نوێ بکەرەوە." },
         kpi_no_orders_yet: { en: "No orders yet", ar: "لا توجد طلبات بعد", ku: "هێشتا داواکاری نییە" },
         funnel_title: { en: "Storefront funnel", ar: "مسار الزبون بالمتجر", ku: "ڕێڕەوی کڕیار" },
         funnel_visitors: { en: "Visitors", ar: "زوّار", ku: "سەردانکەران" },
@@ -1206,6 +1207,11 @@ export const STRINGS = {
         domain_toast_add_failed: { en: "Failed to add domain", ar: "تعذّرت إضافة النطاق", ku: "زیادکردنی دۆمەین سەرکەوتوو نەبوو" },
         domain_toast_verified: { en: "Domain verified!", ar: "تم التحقق من النطاق!", ku: "دۆمەین پشتڕاست کرایەوە!" },
         domain_toast_verify_failed: { en: "Verification failed", ar: "فشل التحقق", ku: "پشتڕاستکردنەوە سەرکەوتوو نەبوو" },
+        domain_toast_not_pointing: { en: "Not verified yet. Make sure the CNAME record is saved; DNS can take up to 48 hours.", ar: "لم يتم التحقق بعد. تأكد من حفظ سجل CNAME؛ قد يستغرق DNS حتى 48 ساعة.", ku: "هێشتا پشتڕاست نەکراوەتەوە. دڵنیابە CNAME پاشەکەوت کراوە؛ DNS دەکرێت تا ٤٨ کاتژمێر بخایەنێت." },
+        domain_invalid: { en: "Enter a valid domain like shop.example.com", ar: "أدخل نطاقاً صحيحاً مثل shop.example.com", ku: "دۆمەینێکی دروست بنووسە وەک shop.example.com" },
+        domain_taken: { en: "This domain is already connected to a store.", ar: "هذا النطاق مربوط بمتجر آخر.", ku: "ئەم دۆمەینە پێشتر بە فرۆشگایەک بەستراوەتەوە." },
+        domain_list_error: { en: "Couldn't load your domains. Close and try again.", ar: "ما كدرنا نجيب نطاقاتك. سكّر وجرّب مرة ثانية.", ku: "نەتوانرا دۆمەینەکانت باربکرێن. دایبخە و دووبارە هەوڵبدەرەوە." },
+        share_copy_failed: { en: "Couldn't copy. Select the link and copy it by hand.", ar: "تعذّر النسخ. حدّد الرابط وانسخه يدوياً.", ku: "کۆپی نەکرا. بەستەرەکە دیاری بکە و بە دەست کۆپی بکە." },
     },
 
     /* ── Advanced-screens chrome (agent B region — UX2-15) ───────── */

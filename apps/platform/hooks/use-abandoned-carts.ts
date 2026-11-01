@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { fetchAllPages } from "@/lib/fetch-all-pages";
 import { useAuth } from "@/components/auth/auth-provider";
 import type { AbandonedCartItem } from "@scheniders/shared";
 import type { RecoveryKind } from "@/lib/recovery-stats";
@@ -31,15 +32,21 @@ export function useAbandonedCarts() {
         enabled: !!tenantId,
         queryFn: async () => {
             if (!tenantId) return [];
-            const { data, error } = await supabase
-                .from("abandoned_carts")
-                .select(
-                    "id, phone, items, subtotal_iqd, governorate, updated_at, reminded_at, recovered_at, consent_at, recovery_kind",
-                )
-                .eq("tenant_id", tenantId)
-                .order("updated_at", { ascending: false })
-                .limit(200);
-            if (error) throw error;
+            // Recovery stats are totals over every captured cart, so read them all.
+            const data = await fetchAllPages<Record<string, unknown>>(async (offset) => {
+                const { data: page, error, count } = await supabase
+                    .from("abandoned_carts")
+                    .select(
+                        "id, phone, items, subtotal_iqd, governorate, updated_at, reminded_at, recovered_at, consent_at, recovery_kind",
+                        { count: "exact" },
+                    )
+                    .eq("tenant_id", tenantId)
+                    .order("updated_at", { ascending: false })
+                    .order("id", { ascending: false })
+                    .range(offset, offset + 999);
+                if (error) throw error;
+                return { rows: (page ?? []) as Record<string, unknown>[], total: count ?? 0 };
+            });
             const rows = (data ?? []) as unknown as Array<
                 Omit<AbandonedCartRow, "items" | "recovery_kind"> & {
                     items: unknown;

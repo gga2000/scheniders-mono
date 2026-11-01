@@ -6,7 +6,7 @@ import { Edit2, Trash2, MoreVertical, Calendar } from "lucide-react";
 import { Expense, EXPENSE_CATEGORIES, ExpenseCategory, expenseCategoryColors } from "@/types/expense";
 import { useLanguage } from "@/hooks/use-language";
 import { useExpenseCategoryLabel } from "@/hooks/use-expense-category-label";
-import { formatIQD } from "@/lib/utils";
+import { cn, formatIQD } from "@/lib/utils";
 
 interface ExpenseListProps {
     expenses: Expense[];
@@ -116,14 +116,17 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                                 <p className="font-medium text-foreground">
                                                     {expense.description || categoryLabel(expense.category)}
                                                 </p>
-                                                <p className="text-xs text-muted">
-                                                    {categoryLabel(expense.category)}
-                                                    {expense.is_recurring && (
-                                                        <span className="ml-2 px-1.5 py-0.5 bg-[var(--pastel-blue)] text-blue-700 rounded text-[10px]">
-                                                            {t("finances.expense.list.recurring")}
-                                                        </span>
-                                                    )}
-                                                </p>
+                                                {/* The category is the title when there is no description; do not say it twice. */}
+                                                {(expense.description || expense.is_recurring) && (
+                                                    <p className="text-xs text-muted">
+                                                        {expense.description && categoryLabel(expense.category)}
+                                                        {expense.is_recurring && (
+                                                            <span className={cn("px-1.5 py-0.5 bg-[var(--pastel-blue)] text-blue-700 rounded text-[11px]", expense.description && "ml-2")}>
+                                                                {t("finances.expense.list.recurring")}
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
 

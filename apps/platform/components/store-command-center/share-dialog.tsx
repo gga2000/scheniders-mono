@@ -5,6 +5,7 @@ import { X, Copy, Check, QrCode } from "lucide-react";
 import QRCode from "qrcode";
 import type { LocaleCode } from "@scheniders/shared";
 import { STRINGS, t } from "@/lib/editor-i18n";
+import { toast } from "@/hooks/use-toast";
 
 interface ShareDialogProps {
     url: string;
@@ -18,6 +19,14 @@ export function ShareDialog({ url, businessName, onClose, locale }: ShareDialogP
     const [copied, setCopied] = useState(false);
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
     const dialogRef = useRef<HTMLDivElement>(null);
+    const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(
+        () => () => {
+            if (copiedTimer.current) clearTimeout(copiedTimer.current);
+        },
+        [],
+    );
 
     useEffect(() => {
         QRCode.toDataURL(url, {
@@ -38,9 +47,16 @@ export function ShareDialog({ url, businessName, onClose, locale }: ShareDialogP
     }, [onClose]);
 
     const copy = async () => {
-        await navigator.clipboard.writeText(url);
+        try {
+            await navigator.clipboard.writeText(url);
+        } catch {
+            // Clipboard is blocked (permissions, insecure context): say so instead of faking "Copied".
+            toast.error(t(STRINGS.command_center.share_copy_failed, locale));
+            return;
+        }
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        if (copiedTimer.current) clearTimeout(copiedTimer.current);
+        copiedTimer.current = setTimeout(() => setCopied(false), 2000);
     };
 
     return (
@@ -51,13 +67,17 @@ export function ShareDialog({ url, businessName, onClose, locale }: ShareDialogP
             />
             <div
                 ref={dialogRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="share-dialog-title"
                 className="relative rounded-2xl border border-border bg-(--card-bg) p-6 w-full max-w-sm shadow-2xl"
             >
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-semibold text-foreground">
+                    <h3 id="share-dialog-title" className="text-base font-semibold text-foreground">
                         {t(STRINGS.command_center.share_heading, locale)}
                     </h3>
                     <button
+                        type="button"
                         onClick={onClose}
                         aria-label={t(STRINGS.command_center.dialog_close, locale)}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
@@ -90,6 +110,7 @@ export function ShareDialog({ url, businessName, onClose, locale }: ShareDialogP
                 <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5">
                     <span className="flex-1 text-xs text-foreground font-mono truncate">{url}</span>
                     <button
+                        type="button"
                         onClick={copy}
                         className="shrink-0 flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
                     >

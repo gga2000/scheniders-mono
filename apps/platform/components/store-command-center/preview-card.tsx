@@ -55,6 +55,8 @@ export function PreviewCard({
                 {published && (
                     <div className="flex items-center gap-1 bg-background rounded-lg border border-border p-0.5">
                         <button
+                            type="button"
+                            aria-pressed={mode === "desktop"}
                             onClick={() => setMode("desktop")}
                             className={cn(
                                 "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
@@ -67,6 +69,8 @@ export function PreviewCard({
                             {t(STRINGS.command_center.preview_desktop, locale)}
                         </button>
                         <button
+                            type="button"
+                            aria-pressed={mode === "mobile"}
                             onClick={() => setMode("mobile")}
                             className={cn(
                                 "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors",

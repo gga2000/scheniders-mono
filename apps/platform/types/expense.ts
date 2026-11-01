@@ -52,7 +52,7 @@ export const expenseCategoryColors: Record<ExpenseCategory, string> = {
     thank_you_cards: '#10b981',
     sweets: '#f97316',
     marketing: '#3b82f6',
-    shipping: '#6366f1',
+    shipping: '#84cc16',
     other: '#6b7280',
 };
 

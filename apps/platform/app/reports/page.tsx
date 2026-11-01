@@ -3,14 +3,15 @@
 import { useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
-import { FileBarChart, Download, FileSpreadsheet, Printer, RefreshCw, Filter, CalendarDays, TrendingUp, TrendingDown, DollarSign, Package } from "lucide-react";
-import { useOrdersContext } from "@/components/providers/orders-provider";
+import { FileBarChart, Download, FileSpreadsheet, Printer } from "lucide-react";
+import { useReportOrders } from "@/hooks/use-report-orders";
+import { splitReportOrders } from "@/lib/analytics/report-order-facts";
 import { useReportsMetrics, useDateRangePresets, DateRange } from "@/hooks/use-reports-metrics";
 import { useEmployeeMetrics } from "@/hooks/use-employee-metrics";
 import { useBatchAnalytics } from "@/hooks/use-batch-analytics";
 import { useChannelPerformance } from "@/hooks/use-channel-performance";
-import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { cn } from "@/lib/utils";
+import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 import { exportReportsToCSV, exportReportsToExcel, printOperationalReport } from "@/lib/reports-export";
 import { calculateSourcePerformance, calculatePeriodComparison } from "@/lib/analytics/source-metrics";
@@ -83,39 +84,31 @@ const BatchAnalytics = dynamic(
     { loading: () => <div className="h-64 animate-pulse bg-white/5 rounded-3xl" /> }
 );
 
-type PresetKey = 'today' | 'thisWeek' | 'thisMonth' | 'last7Days' | 'last30Days';
-
-const presetLabels: Record<PresetKey, string> = {
-    today: 'Today',
-    thisWeek: 'This Week',
-    thisMonth: 'This Month',
-    last7Days: 'Last 7 Days',
-    last30Days: 'Last 30 Days',
-};
-
 export default function ReportsPage() {
-    const { orders, loading, error } = useOrdersContext();
     const presets = useDateRangePresets();
     const [dateRange, setDateRange] = useState<DateRange>(presets.last30Days);
 
-    const metrics = useReportsMetrics(orders, dateRange);
-
-    // Calculate employee performance and period comparison
-    const sourceMetrics = useMemo(() =>
-        calculateSourcePerformance(orders, dateRange),
-        [orders, dateRange]
+    // The range's orders (and the period before it) straight from the server —
+    // the shared orders list is a window of the book and would undercount.
+    const reportOrders = useReportOrders(dateRange);
+    const { current, previous, returns } = useMemo(
+        () => splitReportOrders(reportOrders.data ?? [], dateRange),
+        [reportOrders.data, dateRange]
     );
 
-    const periodComparison = useMemo(() =>
-        calculatePeriodComparison(orders, dateRange),
-        [orders, dateRange]
+    const metrics = useReportsMetrics(current, previous);
+    const sourceMetrics = useMemo(() => calculateSourcePerformance(current), [current]);
+    const periodComparison = useMemo(
+        () => calculatePeriodComparison(current, previous),
+        [current, previous]
     );
-
-    // Calculate return analytics
-    const returnAnalytics = useMemo(() =>
-        calculateReturnAnalytics(orders),
-        [orders]
+    const returnAnalytics = useMemo(
+        () => calculateReturnAnalytics(returns, current),
+        [returns, current]
     );
+    const loading = reportOrders.isPending;
+    const refreshing = reportOrders.isPlaceholderData;
+    const error = reportOrders.error ? reportOrders.error.message : null;
 
     // Use real employee metrics from activity_logs
     const {
@@ -148,15 +141,8 @@ export default function ReportsPage() {
         { key: 'last30Days', label: 'Last 30 Days', range: presets.last30Days },
     ], [presets]);
 
-    const formatDateRange = (range: DateRange) => {
-        const from = range.from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const to = range.to.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        return `${from} - ${to}`;
-    };
-
     // Export handlers
     const getExportData = useCallback(() => {
-        if (!metrics) return null;
         return {
             dateRange,
             kpis: metrics.kpis,
@@ -205,15 +191,18 @@ export default function ReportsPage() {
         );
     }
 
-    if (!metrics) {
+    if (current.length === 0 && returns.length === 0) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
-                <div className="text-center pastel-card p-12">
+                <div className="text-center pastel-card p-12 space-y-6">
                     <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center mx-auto mb-6">
                         <FileBarChart className="w-10 h-10 text-indigo-600" />
                     </div>
                     <h2 className="text-2xl font-bold text-foreground mb-2">{t("reports.noData")}</h2>
                     <p className="text-muted">{t("reports.noDataDesc")}</p>
+                    <div className="flex justify-center">
+                        <CustomDatePicker dateRange={dateRange} onChange={setDateRange} presets={datePresets} />
+                    </div>
                 </div>
             </div>
         );
@@ -221,7 +210,10 @@ export default function ReportsPage() {
 
     return (
         <div className="min-h-screen p-6 md:p-8 bg-[var(--background)]">
-            <div className="max-w-[1920px] mx-auto space-y-8">
+            <div
+                className={cn("max-w-[1920px] mx-auto space-y-8 transition-opacity", refreshing && "opacity-60")}
+                aria-busy={refreshing}
+            >
 
                 {/* Header */}
                 <motion.div

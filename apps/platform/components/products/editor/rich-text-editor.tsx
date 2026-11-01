@@ -7,6 +7,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { useEffect, useCallback } from "react";
+import { useLanguage } from "@/hooks/use-language";
 import {
     Bold,
     Italic,
@@ -88,9 +89,10 @@ export function RichTextEditor({ value, onChange, placeholder = "Write your prod
 }
 
 function EditorToolbar({ editor }: { editor: Editor }) {
+    const { t } = useLanguage();
     const setLink = useCallback(() => {
         const previousUrl = editor.getAttributes("link").href;
-        const url = window.prompt("URL", previousUrl);
+        const url = window.prompt(t("rte.urlPrompt"), previousUrl);
 
         if (url === null) return; // cancelled
         if (url === "") {
@@ -99,7 +101,7 @@ function EditorToolbar({ editor }: { editor: Editor }) {
         }
 
         editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-    }, [editor]);
+    }, [editor, t]);
 
     return (
         <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-[var(--card-border)] bg-[var(--card-bg)]">
@@ -107,28 +109,28 @@ function EditorToolbar({ editor }: { editor: Editor }) {
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleBold().run()}
                 active={editor.isActive("bold")}
-                title="Bold"
+                title={t("rte.bold")}
             >
                 <Bold className="w-4 h-4" />
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleItalic().run()}
                 active={editor.isActive("italic")}
-                title="Italic"
+                title={t("rte.italic")}
             >
                 <Italic className="w-4 h-4" />
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleUnderline().run()}
                 active={editor.isActive("underline")}
-                title="Underline"
+                title={t("rte.underline")}
             >
                 <UnderlineIcon className="w-4 h-4" />
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleStrike().run()}
                 active={editor.isActive("strike")}
-                title="Strikethrough"
+                title={t("rte.strike")}
             >
                 <Strikethrough className="w-4 h-4" />
             </ToolbarButton>
@@ -139,14 +141,14 @@ function EditorToolbar({ editor }: { editor: Editor }) {
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
                 active={editor.isActive("heading", { level: 2 })}
-                title="Heading 2"
+                title={t("rte.h2")}
             >
                 <Heading2 className="w-4 h-4" />
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
                 active={editor.isActive("heading", { level: 3 })}
-                title="Heading 3"
+                title={t("rte.h3")}
             >
                 <Heading3 className="w-4 h-4" />
             </ToolbarButton>
@@ -157,14 +159,14 @@ function EditorToolbar({ editor }: { editor: Editor }) {
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleBulletList().run()}
                 active={editor.isActive("bulletList")}
-                title="Bullet List"
+                title={t("rte.bullets")}
             >
                 <List className="w-4 h-4" />
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => editor.chain().focus().toggleOrderedList().run()}
                 active={editor.isActive("orderedList")}
-                title="Ordered List"
+                title={t("rte.numbered")}
             >
                 <ListOrdered className="w-4 h-4" />
             </ToolbarButton>
@@ -175,14 +177,14 @@ function EditorToolbar({ editor }: { editor: Editor }) {
             <ToolbarButton
                 onClick={setLink}
                 active={editor.isActive("link")}
-                title="Add Link"
+                title={t("rte.addLink")}
             >
                 <LinkIcon className="w-4 h-4" />
             </ToolbarButton>
             {editor.isActive("link") && (
                 <ToolbarButton
                     onClick={() => editor.chain().focus().unsetLink().run()}
-                    title="Remove Link"
+                    title={t("rte.removeLink")}
                 >
                     <Unlink className="w-4 h-4" />
                 </ToolbarButton>
@@ -194,21 +196,21 @@ function EditorToolbar({ editor }: { editor: Editor }) {
             <ToolbarButton
                 onClick={() => editor.chain().focus().setTextAlign("left").run()}
                 active={editor.isActive({ textAlign: "left" })}
-                title="Align Left"
+                title={t("rte.alignLeft")}
             >
                 <AlignLeft className="w-4 h-4" />
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => editor.chain().focus().setTextAlign("center").run()}
                 active={editor.isActive({ textAlign: "center" })}
-                title="Align Center"
+                title={t("rte.alignCenter")}
             >
                 <AlignCenter className="w-4 h-4" />
             </ToolbarButton>
             <ToolbarButton
                 onClick={() => editor.chain().focus().setTextAlign("right").run()}
                 active={editor.isActive({ textAlign: "right" })}
-                title="Align Right"
+                title={t("rte.alignRight")}
             >
                 <AlignRight className="w-4 h-4" />
             </ToolbarButton>
@@ -218,7 +220,7 @@ function EditorToolbar({ editor }: { editor: Editor }) {
             {/* Clear */}
             <ToolbarButton
                 onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
-                title="Clear Formatting"
+                title={t("rte.clear")}
             >
                 <RemoveFormatting className="w-4 h-4" />
             </ToolbarButton>

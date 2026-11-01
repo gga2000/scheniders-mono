@@ -1,8 +1,11 @@
 "use client";
 
+import { formatIQD } from "@/lib/utils";
+
 import { useState, useMemo } from "react";
 import { Layers, Plus, Trash2, Search, GripVertical, Package } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useLanguage } from "@/hooks/use-language";
 
 interface BundleItem {
     child_product_id: string;
@@ -23,6 +26,7 @@ interface BundleBuilderSectionProps {
 }
 
 export function BundleBuilderSection({ formData, updateField, currentProductId }: BundleBuilderSectionProps) {
+    const { t } = useLanguage();
     const { products } = useProductsCrud();
     const [searchQuery, setSearchQuery] = useState("");
     const [showSearch, setShowSearch] = useState(false);
@@ -109,14 +113,14 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search products to add..."
+                            placeholder={t("products.bundle.searchPh")}
                             autoFocus
                             className="w-full pl-10 pr-4 py-3 bg-[var(--background)] text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none"
                         />
                     </div>
                     <div className="max-h-48 overflow-y-auto border-t border-[var(--card-border)]">
                         {availableProducts.length === 0 ? (
-                            <p className="p-4 text-sm text-muted text-center">No products found</p>
+                            <p className="p-4 text-sm text-muted text-center">{t("products.noProducts")}</p>
                         ) : (
                             availableProducts.slice(0, 10).map((product) => (
                                 <button
@@ -140,7 +144,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                                         <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
                                         {product.sku && <p className="text-xs text-muted">{product.sku}</p>}
                                     </div>
-                                    <span className="text-sm text-muted">{product.price?.toLocaleString()} IQD</span>
+                                    <span className="text-sm text-muted">{formatIQD(product.price ?? 0)}</span>
                                 </button>
                             ))
                         )}
@@ -182,7 +186,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                                     {item.name || "Unknown Product"}
                                 </p>
                                 <p className="text-xs text-muted">
-                                    {(item.price || 0).toLocaleString()} IQD each
+                                    {formatIQD(item.price || 0)} {t("products.bundle.each")}
                                 </p>
                             </div>
 
@@ -198,7 +202,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                             </div>
 
                             <p className="text-sm font-medium text-foreground w-24 text-right shrink-0">
-                                {((item.price || 0) * item.quantity).toLocaleString()} IQD
+                                {formatIQD(((item.price || 0) * item.quantity))}
                             </p>
 
                             <button
@@ -217,8 +221,8 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                             {totalItems} item{totalItems !== 1 ? "s" : ""} in bundle
                         </p>
                         <div className="text-right">
-                            <p className="text-xs text-muted">Sum of parts</p>
-                            <p className="text-lg font-bold text-foreground">{totalPrice.toLocaleString()} IQD</p>
+                            <p className="text-xs text-muted">{t("products.bundle.sumOfParts")}</p>
+                            <p className="text-lg font-bold text-foreground">{formatIQD(totalPrice)}</p>
                         </div>
                     </div>
                 </div>

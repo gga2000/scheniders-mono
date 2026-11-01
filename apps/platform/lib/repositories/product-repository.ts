@@ -3,6 +3,7 @@ import { withRetry, NonRetryableError } from "./with-retry";
 import type { Product, ProductSupplier, ProductVariant, ProductPriceHistory } from "@/types/product";
 import { diag } from "@/lib/diag";
 import type { Json } from "@scheniders/supabase";
+import { fetchAllPages } from "./fetch-all-pages";
 import { PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
 
 /**
@@ -90,6 +91,26 @@ function costMaps(rows: ProductCostRow[]) {
 }
 
 /**
+ * A bulk write names its rows in the URL (`id=in.(...)`), and a thousand uuids
+ * is a ~37 KB URL the API refuses. Run in chunks; each chunk is one statement.
+ */
+const BULK_ID_CHUNK = 100;
+
+async function inChunks(
+    op: string,
+    ids: string[],
+    run: (chunk: string[]) => PromiseLike<{ data: { id: string }[] | null; error: { message: string } | null }>,
+): Promise<void> {
+    let changed = 0;
+    for (let i = 0; i < ids.length; i += BULK_ID_CHUNK) {
+        const { data, error } = await run(ids.slice(i, i + BULK_ID_CHUNK));
+        if (error) throw error;
+        changed += data?.length ?? 0;
+    }
+    if (changed < ids.length) throw new ProductWriteDeniedError(op);
+}
+
+/**
  * ProductRepository — Centralized data access for products.
  */
 export const productRepository = {
@@ -102,42 +123,27 @@ export const productRepository = {
             // Cost is not a readable column: product_costs returns it, and only
             // what this member may see (everything for admins, supplies only
             // for other editors, nothing otherwise).
-            const [
-                { data, error },
-                { data: costs, error: costError },
-                { data: supplierRows, error: supplierError },
-            ] = await Promise.all([
-                supabase
-                    .from("products")
-                    .select(PRODUCT_WITH_VARIANTS_COLUMNS)
-                    .eq("tenant_id", tenantId)
-                    .order("created_at", { ascending: false }),
-                supabase.rpc("product_costs", { p_tenant_id: tenantId }),
-                // The Supplies tab and reorder drawer group by supplier; without
-                // these rows every supply lands in "no supplier" and cannot get a PO.
-                supabase
-                    .from("product_suppliers")
-                    .select(SUPPLIER_READ_COLUMNS)
-                    .eq("tenant_id", tenantId)
-                    .order("is_primary", { ascending: false })
-                    .order("created_at", { ascending: true }),
+            // Every read is paged: the API silently stops at 1000 rows.
+            const [data, costs] = await Promise.all([
+                fetchAllPages<Product>((from, to) =>
+                    supabase
+                        .from("products")
+                        .select(PRODUCT_WITH_VARIANTS_COLUMNS)
+                        .eq("tenant_id", tenantId)
+                        .order("created_at", { ascending: false })
+                        .order("id")
+                        .range(from, to),
+                ),
+                fetchAllPages<ProductCostRow>((from, to) =>
+                    // The functions have no ORDER BY: a stable order keeps pages from skipping or repeating rows.
+                    supabase.rpc("product_costs", { p_tenant_id: tenantId }).order("product_id").order("variant_id").range(from, to),
+                ),
             ]);
 
-            diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data?.length ?? 0} error=${error?.message ?? 'none'}`);
-            if (error) throw error;
-            if (costError) throw costError;
-            if (supplierError) throw supplierError;
-            const { productCost, variantCost } = costMaps(costs ?? []);
-            const suppliersByProduct = new Map<string, ProductSupplier[]>();
-            for (const row of (supplierRows ?? []) as ProductSupplier[]) {
-                if (!row.product_id) continue;
-                const list = suppliersByProduct.get(row.product_id);
-                if (list) list.push(row);
-                else suppliersByProduct.set(row.product_id, [row]);
-            }
-            return (data ?? []).map((product) => ({
+            diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data.length}`);
+            const { productCost, variantCost } = costMaps(costs);
+            return data.map((product) => ({
                 ...product,
-                suppliers: suppliersByProduct.get(product.id) ?? [],
                 cost: productCost.get(product.id)?.cost ?? null,
                 cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
                 variants: (product.variants ?? []).map((variant) => ({
@@ -145,6 +151,42 @@ export const productRepository = {
                     cost: variantCost.get(variant.id) ?? null,
                 })),
             })) as Product[];
+        });
+    },
+
+    /**
+     * Supplier links by product id, primary first. Kept out of findAll so the
+     * product list (re-read after every edit) stays light: only the Supplies tab
+     * and the reorder drawer need them. unit_cost comes from supplier_unit_costs
+     * and is null for a member who may not see cost.
+     */
+    async findSupplierLinks(tenantId: string): Promise<Map<string, ProductSupplier[]>> {
+        return withRetry('productRepository.findSupplierLinks', async () => {
+            const [supplierRows, supplierCosts] = await Promise.all([
+                fetchAllPages<ProductSupplier>((from, to) =>
+                    supabase
+                        .from("product_suppliers")
+                        .select(SUPPLIER_READ_COLUMNS)
+                        .eq("tenant_id", tenantId)
+                        .order("is_primary", { ascending: false })
+                        .order("created_at", { ascending: true })
+                        .order("id")
+                        .range(from, to),
+                ),
+                fetchAllPages<{ id: string; unit_cost: number | null }>((from, to) =>
+                    supabase.rpc("supplier_unit_costs", { p_tenant_id: tenantId }).order("id").range(from, to),
+                ),
+            ]);
+            const unitCostBySupplier = new Map(supplierCosts.map((row) => [row.id, row.unit_cost]));
+            const suppliersByProduct = new Map<string, ProductSupplier[]>();
+            for (const row of supplierRows) {
+                if (!row.product_id) continue;
+                const withCost = { ...row, unit_cost: row.id ? unitCostBySupplier.get(row.id) ?? null : null };
+                const list = suppliersByProduct.get(row.product_id);
+                if (list) list.push(withCost);
+                else suppliersByProduct.set(row.product_id, [withCost]);
+            }
+            return suppliersByProduct;
         });
     },
 
@@ -375,6 +417,8 @@ export const productRepository = {
                 p_changes: previous.map((p) => ({
                     id: p.id,
                     price: p.price,
+                    // Refuse (40001) if someone edited the price since the bulk change.
+                    expected_price: p.currentPrice,
                     set_compare_at: true,
                     compare_at_price: p.compare_at_price,
                 })),
@@ -388,90 +432,76 @@ export const productRepository = {
     /** Bulk-archive multiple products. */
     async bulkArchive(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkArchive', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ is_archived: true })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkArchive", changed, ids.length);
+            await inChunks("productRepository.bulkArchive", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .update({ is_archived: true })
+                    .in("id", chunk)
+                    .select("id"),
+            );
         });
     },
 
     /** Bulk-restore multiple archived products. */
     async bulkRestore(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkRestore', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ is_archived: false })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkRestore", changed, ids.length);
+            await inChunks("productRepository.bulkRestore", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .update({ is_archived: false })
+                    .in("id", chunk)
+                    .select("id"),
+            );
         });
     },
 
     /** Bulk-delete multiple products permanently. */
     async bulkDelete(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkDelete', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .delete()
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkDelete", changed, ids.length);
+            await inChunks("productRepository.bulkDelete", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .delete()
+                    .in("id", chunk)
+                    .select("id"),
+            );
         }, WRITE_ONCE);
     },
 
     /** Bulk-update storefront visibility for multiple products. */
     async bulkUpdateVisibility(ids: string[], isVisible: boolean): Promise<void> {
         return withRetry('productRepository.bulkUpdateVisibility', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ is_visible: isVisible })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkUpdateVisibility", changed, ids.length);
+            await inChunks("productRepository.bulkUpdateVisibility", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .update({ is_visible: isVisible })
+                    .in("id", chunk)
+                    .select("id"),
+            );
         });
     },
 
     /** Bulk-update category for multiple products. Pass null to clear category. */
     async bulkUpdateCategory(ids: string[], categoryId: string | null): Promise<void> {
         return withRetry('productRepository.bulkUpdateCategory', async () => {
-            const { data: changed, error } = await supabase
-                .from("products")
-                .update({ category_id: categoryId })
-                .in("id", ids)
-                .select("id");
-
-            if (error) throw error;
-            assertChanged("productRepository.bulkUpdateCategory", changed, ids.length);
+            await inChunks("productRepository.bulkUpdateCategory", ids, (chunk) =>
+                supabase
+                    .from("products")
+                    .update({ category_id: categoryId })
+                    .in("id", chunk)
+                    .select("id"),
+            );
         });
     },
 
     /** Bulk-update display_order for multiple products. */
     async bulkUpdateDisplayOrder(updates: { id: string; display_order: number }[]): Promise<void> {
         return withRetry('productRepository.bulkUpdateDisplayOrder', async () => {
-            // Supabase doesn't support batch updates with different values per row,
-            // so we run them in parallel with Promise.all
-            const promises = updates.map(({ id, display_order }) =>
-                supabase
-                    .from("products")
-                    .update({ display_order })
-                    .eq("id", id)
-                    .select("id")
-            );
-            const results = await Promise.all(promises);
-            const firstError = results.find((r) => r.error);
-            if (firstError?.error) throw firstError.error;
-            for (const r of results) assertChanged("productRepository.bulkUpdateDisplayOrder", r.data, 1);
-        });
+            // One statement: a failure leaves the list as it was, never half-reordered.
+            const { error } = await supabase.rpc("set_product_display_order", { p_orders: updates });
+            if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError("productRepository.bulkUpdateDisplayOrder");
+            if (error) throw error;
+        }, WRITE_ONCE);
     },
 
     /** Fetch price history for a product. */

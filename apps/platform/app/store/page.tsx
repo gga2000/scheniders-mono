@@ -5,22 +5,24 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CommandCenter } from "@/components/store-command-center";
 import type { StoreConfigV2 } from "@scheniders/shared";
 
 export default function StoreBuilderPage() {
     const { tenantId } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
 
-    const { data: tenant, isLoading } = useQuery({
+    const { data: tenant, isLoading, isError } = useQuery({
         queryKey: ["tenant-store", tenantId],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("tenants")
                 .select("id, slug, business_name, store_config, status, store_config_v2, store_config_v2_draft")
                 .eq("id", tenantId!)
-                .single();
+                .maybeSingle();
             if (error) throw error;
             return data as {
                 id: string;
@@ -49,7 +51,15 @@ export default function StoreBuilderPage() {
         return (
             <div className="flex items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Loading store...
+                {t("store.loading")}
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div role="alert" className="text-center py-20 text-destructive">
+                {t("store.loadError")}
             </div>
         );
     }
@@ -57,7 +67,7 @@ export default function StoreBuilderPage() {
     if (!tenant) {
         return (
             <div className="text-center py-20 text-muted-foreground">
-                No store found. Please contact support.
+                {t("store.notFound")}
             </div>
         );
     }

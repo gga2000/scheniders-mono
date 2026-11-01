@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Truck, CheckCircle, XCircle, AlertTriangle, RefreshCw, MapPin, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { formatIQD, getBaseOrderId } from "@/lib/utils";
 import { DualPhoneDisplay } from "@/components/ui/phone-display";
 import type { Order } from "@/lib/supabase";
@@ -210,7 +209,7 @@ export function DeliveryTab({
                                     </div>
                                     <div className="text-right">
                                         <p className="font-bold text-foreground">{formatIQD(Number(order.price))}</p>
-                                        <p className="text-xs text-muted">{itemLines.length} items</p>
+                                        <p className="text-xs text-muted">{t("orders.wf.nItems", { count: itemLines.length })}</p>
                                     </div>
                                 </div>
 
@@ -223,7 +222,7 @@ export function DeliveryTab({
                                         </div>
                                     ))}
                                     {itemLines.length > 3 && (
-                                        <p className="text-xs text-muted mt-2">+{itemLines.length - 3} more</p>
+                                        <p className="text-xs text-muted mt-2">{t("orders.wf.nMore", { count: itemLines.length - 3 })}</p>
                                     )}
                                 </div>
 

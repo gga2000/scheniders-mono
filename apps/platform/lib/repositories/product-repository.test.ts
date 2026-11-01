@@ -172,8 +172,8 @@ describe("productRepository price changes", () => {
         expect(rpcSpy).toHaveBeenCalledTimes(1);
         expect(rpcSpy).toHaveBeenCalledWith("set_product_prices", {
             p_changes: [
-                { id: "p1", price: 20000, set_compare_at: true, compare_at_price: 25000 },
-                { id: "p2", price: 15000, set_compare_at: true, compare_at_price: null },
+                { id: "p1", price: 20000, expected_price: 30000, set_compare_at: true, compare_at_price: 25000 },
+                { id: "p2", price: 15000, expected_price: 30000, set_compare_at: true, compare_at_price: null },
             ],
             p_reason: "Bulk price change undone",
         });

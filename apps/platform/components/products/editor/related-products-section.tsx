@@ -1,5 +1,7 @@
 "use client";
 
+import { formatIQD } from "@/lib/utils";
+
 import { useState, useMemo } from "react";
 import { Link2, Plus, Trash2, Search, Package } from "lucide-react";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -138,7 +140,7 @@ export function RelatedProductsSection({
                     </div>
                     <div className="max-h-48 overflow-y-auto border-t border-[var(--card-border)]">
                         {availableProducts.length === 0 ? (
-                            <p className="p-4 text-sm text-muted text-center">No products found</p>
+                            <p className="p-4 text-sm text-muted text-center">{t("products.noProducts")}</p>
                         ) : (
                             availableProducts.slice(0, 10).map((product) => (
                                 <button
@@ -162,7 +164,7 @@ export function RelatedProductsSection({
                                         <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
                                         {product.sku && <p className="text-xs text-muted">{product.sku}</p>}
                                     </div>
-                                    <span className="text-sm text-muted">{product.price?.toLocaleString()} IQD</span>
+                                    <span className="text-sm text-muted">{formatIQD(product.price ?? 0)}</span>
                                 </button>
                             ))
                         )}
@@ -231,7 +233,7 @@ export function RelatedProductsSection({
                                             {item.name || t("products.ed.related.unknown")}
                                         </p>
                                         <p className="text-xs text-muted">
-                                            {(item.price || 0).toLocaleString()} IQD
+                                            {formatIQD(item.price || 0)}
                                         </p>
                                     </div>
 

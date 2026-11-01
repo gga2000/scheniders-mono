@@ -14,7 +14,7 @@
 // is a hairline outline.
 // =====================================================================
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
@@ -53,6 +53,11 @@ const T = {
   shown_of: { ar: "معروض {shown} من {total}", en: "Showing {shown} of {total}" },
   more_tile_kicker: { ar: "بعدهم أكثر", en: "More to see" },
   more_tile_note: { ar: "عطر ثاني بانتظارك", en: "more perfumes waiting" },
+  filter: { ar: "فلتر", en: "Filter" },
+  filter_title: { ar: "فلتر العطور", en: "Filter perfumes" },
+  close: { ar: "سكّر", en: "Close" },
+  /** The sheet's primary action carries the live yield: «اعرض 12 عطر». */
+  show_results: { ar: "اعرض {label}", en: "Show {label}" },
 } as const;
 
 function t(key: keyof typeof T, locale: LocaleCode): string {
@@ -342,6 +347,16 @@ export function CatalogGrid({
     setShown(pageSize);
   }
 
+  // Facets and the price split live in one sheet behind «فلتر» instead of a
+  // stack of chip rails over the grid: on a phone those rails pushed every
+  // perfume below the first screen. The badge counts what is narrowing the
+  // list from inside the sheet, so a closed sheet never hides a live filter.
+  const sheetRef = useRef<HTMLDialogElement | null>(null);
+  const sheetFilterCount = selectedFacets.size + (price !== null ? 1 : 0);
+  const hasSheet = facets.length > 0 || showPriceSplit;
+  const openSheet = () => sheetRef.current?.showModal();
+  const closeSheet = () => sheetRef.current?.close();
+
   const filtered =
     categoryId !== null ||
     price !== null ||
@@ -411,9 +426,36 @@ export function CatalogGrid({
           </span>
 
           <div className="flex items-center gap-2">
+            {hasSheet && (
+              <button
+                type="button"
+                data-catalog-filter-open
+                onClick={openSheet}
+                aria-haspopup="dialog"
+                className={cn(
+                  "inline-flex min-h-11 items-center gap-1.5 border px-4 font-body text-sm font-semibold",
+                  PRESSABLE,
+                )}
+                style={chipStyle(sheetFilterCount > 0)}
+              >
+                <MaterialIcon name="tune" className="text-lg" />
+                <span>{t("filter", locale)}</span>
+                {sheetFilterCount > 0 && (
+                  <span
+                    data-catalog-filter-count
+                    className="inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs font-bold tabular-nums"
+                    style={{
+                      backgroundColor: "var(--bk-surface, #ffffff)",
+                      color: "var(--bk-ink, #1a1a1a)",
+                    }}
+                  >
+                    <bdi>{sheetFilterCount}</bdi>
+                  </span>
+                )}
+              </button>
+            )}
             <label
-              className="font-body text-xs"
-              style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}
+              className="sr-only"
               htmlFor="catalog-sort"
             >
               {t("sort", locale)}
@@ -423,7 +465,7 @@ export function CatalogGrid({
               data-catalog-sort
               value={sort}
               onChange={(e) => setSort(e.target.value as CatalogSort)}
-              className="border px-3 py-2 font-body text-sm font-semibold"
+              className="min-h-11 border px-3 font-body text-sm font-semibold"
               style={{
                 backgroundColor: "var(--bk-surface, #ffffff)",
                 color: "var(--bk-ink, #1a1a1a)",
@@ -463,81 +505,160 @@ export function CatalogGrid({
           ))}
         </div>
 
-        {/* One row per filterable attribute, in the merchant's own order.
-            Options within a row widen the list; rows narrow it. */}
-        {facets.map((facet) => (
-          <div
-            key={facet.key}
-            data-attribute-facet={facet.key}
-            className="flex flex-col gap-1.5"
-          >
-            <span
-              id={`catalog-facet-${facet.key}`}
-              className="font-body text-xs"
-              style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}
-            >
-              {facet.name}
-            </span>
-            <div
-              role="group"
-              aria-labelledby={`catalog-facet-${facet.key}`}
-              className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
-            >
-              {facet.options.map((option) => (
-                <Chip
-                  key={option.id}
-                  label={option.label}
-                  count={option.count}
-                  active={selectedFacets.has(option.id)}
-                  onClick={() => toggleFacet(option.id)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-
-        {(showPriceSplit || filtered) && (
+        {filtered && (
           <div className="flex flex-wrap items-center gap-2">
-            {showPriceSplit && (
-              <>
-                {/* Named, because a price chip and a category chip look the
-                    same but mean different things. Without the label the row
-                    reads as two more categories. */}
-                <span
-                  data-price-label
-                  className="font-body text-xs"
-                  style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}
-                >
-                  {t("price", locale)}
-                </span>
-                <Chip
-                  label={`${t("under", locale)} ${formatPrice(threshold, locale)}`}
-                  active={price === "under"}
-                  onClick={() => setPrice(price === "under" ? null : "under")}
-                />
-                <Chip
-                  label={`${formatPrice(threshold, locale)} ${t("over", locale)}`}
-                  active={price === "over"}
-                  onClick={() => setPrice(price === "over" ? null : "over")}
-                />
-              </>
-            )}
-            {filtered && (
-              <button
-                type="button"
-                data-clear-filters
-                onClick={() => {
-                  setCategoryHandle(null);
-                  setPrice(null);
-                  setSelectedFacets(new Set());
-                }}
-                className={cn("font-body text-sm underline underline-offset-4", PRESSABLE)}
-                style={{ color: "var(--bk-ink-faint, rgb(26 26 26 / 0.45))" }}
-              >
-                {t("clear", locale)}
-              </button>
-            )}
+            <button
+              type="button"
+              data-clear-filters
+              onClick={() => {
+                setCategoryHandle(null);
+                setPrice(null);
+                setSelectedFacets(new Set());
+              }}
+              className={cn("min-h-11 font-body text-sm underline underline-offset-4", PRESSABLE)}
+              style={{ color: "var(--bk-ink-soft, rgb(26 26 26 / 0.7))" }}
+            >
+              {t("clear", locale)}
+            </button>
           </div>
+        )}
+
+        {hasSheet && (
+          // Native <dialog> + showModal(): focus is trapped and returned,
+          // Escape closes, and the page behind is inert — no hand-rolled
+          // focus code. Clicking the backdrop (the dialog element itself,
+          // outside the panel) closes it too.
+          <dialog
+            ref={sheetRef}
+            data-catalog-filter-sheet
+            aria-labelledby="catalog-filter-title"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeSheet();
+            }}
+            className="m-0 mt-auto max-h-[85dvh] w-full max-w-none overflow-hidden p-0 backdrop:bg-black/30 sm:m-auto sm:max-w-lg"
+            style={{
+              backgroundColor: "var(--bk-surface, #ffffff)",
+              color: "var(--bk-ink, #1a1a1a)",
+              borderTopLeftRadius: "var(--bk-radius-card, 1.5rem)",
+              borderTopRightRadius: "var(--bk-radius-card, 1.5rem)",
+            }}
+          >
+            <div className="flex max-h-[85dvh] flex-col">
+              <div
+                className="flex items-center justify-between border-b px-5 py-3"
+                style={{ borderColor: "var(--bk-divider, rgb(26 26 26 / 0.1))" }}
+              >
+                <h2
+                  id="catalog-filter-title"
+                  className="font-display text-lg font-bold"
+                  style={{ fontFamily: "var(--bk-font-display, inherit)" }}
+                >
+                  {t("filter_title", locale)}
+                </h2>
+                <button
+                  type="button"
+                  data-catalog-filter-close
+                  onClick={closeSheet}
+                  aria-label={t("close", locale)}
+                  className={cn("flex h-11 w-11 items-center justify-center rounded-full", PRESSABLE)}
+                >
+                  <MaterialIcon name="close" className="text-2xl" />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-5 overflow-y-auto px-5 py-4">
+                {/* One group per filterable attribute, in the merchant's own
+                    order. Options within a group widen the list; groups
+                    narrow it. */}
+                {facets.map((facet) => (
+                  <div
+                    key={facet.key}
+                    data-attribute-facet={facet.key}
+                    className="flex flex-col gap-2"
+                  >
+                    <span
+                      id={`catalog-facet-${facet.key}`}
+                      className="font-body text-sm font-bold"
+                    >
+                      {facet.name}
+                    </span>
+                    <div
+                      role="group"
+                      aria-labelledby={`catalog-facet-${facet.key}`}
+                      className="flex flex-wrap gap-2"
+                    >
+                      {facet.options.map((option) => (
+                        <Chip
+                          key={option.id}
+                          label={option.label}
+                          count={option.count}
+                          active={selectedFacets.has(option.id)}
+                          onClick={() => toggleFacet(option.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {showPriceSplit && (
+                  <div className="flex flex-col gap-2">
+                    {/* Named, because a price chip and a category chip look
+                        the same but mean different things. */}
+                    <span data-price-label className="font-body text-sm font-bold">
+                      {t("price", locale)}
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <Chip
+                        label={`${t("under", locale)} ${formatPrice(threshold, locale)}`}
+                        active={price === "under"}
+                        onClick={() => setPrice(price === "under" ? null : "under")}
+                      />
+                      <Chip
+                        label={`${formatPrice(threshold, locale)} ${t("over", locale)}`}
+                        active={price === "over"}
+                        onClick={() => setPrice(price === "over" ? null : "over")}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div
+                className="flex items-center gap-3 border-t px-5 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-3"
+                style={{ borderColor: "var(--bk-divider, rgb(26 26 26 / 0.1))" }}
+              >
+                {sheetFilterCount > 0 && (
+                  <button
+                    type="button"
+                    data-catalog-filter-reset
+                    onClick={() => {
+                      setPrice(null);
+                      setSelectedFacets(new Set());
+                    }}
+                    className={cn("min-h-11 px-2 font-body text-sm font-semibold underline underline-offset-4", PRESSABLE)}
+                  >
+                    {t("clear", locale)}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  data-catalog-filter-apply
+                  onClick={closeSheet}
+                  className={cn("min-h-12 flex-1 font-display text-base font-bold", PRESSABLE)}
+                  style={{
+                    backgroundColor: "var(--bk-ink, #1a1a1a)",
+                    color: "var(--bk-surface, #ffffff)",
+                    borderRadius: "var(--bk-radius-pill, 9999px)",
+                    fontFamily: "var(--bk-font-display, inherit)",
+                  }}
+                >
+                  {t("show_results", locale)
+                    .split("{label}")
+                    .join(resultLabel(visible.length, locale))}
+                </button>
+              </div>
+            </div>
+          </dialog>
         )}
       </div>
 

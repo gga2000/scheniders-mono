@@ -3,9 +3,10 @@
 // =====================================================================
 // Simple phone + order-number lookup form. Posts the lookup to the
 // runtime `onTrack` handler when provided; otherwise navigates to the
-// /track page with the values as query params. Unlike `order_tracker`,
-// this section never renders a status timeline — it is just the form.
-// Both fields are required because the lookup API needs both.
+// /track page (the phone in sessionStorage, the order number, if any, as
+// `?order=`). Unlike `order_tracker`, this section never renders a status
+// timeline — it is just the form. The phone is required; the order number
+// is optional, because the lookup API lists a phone's latest orders.
 // =====================================================================
 // Client half of `track_order_lookup` — the component (hooks / browser APIs). The
 // schema, defaults and registry entry live in `./track_order_lookup.tsx` so the
@@ -24,9 +25,10 @@ import type { Props } from "./track_order_lookup";
 const STRINGS = {
   phone: { en: "Phone number", ar: "رقم الهاتف" },
   orderNumber: { en: "Order number", ar: "رقم الطلب" },
+  optional: { en: "optional", ar: "اختياري" },
   errInvalid: {
-    en: "Enter a valid Iraqi mobile number and your order number.",
-    ar: "أدخل رقم هاتف عراقي صحيح ورقم الطلب.",
+    en: "Enter a valid Iraqi mobile number.",
+    ar: "اكتب رقم موبايل عراقي صحيح.",
   },
 } as const;
 
@@ -61,7 +63,8 @@ export function TrackOrderLookupRender({
       ctx.runtime as unknown as {
         onTrack?: (v: {
           phone: string;
-          order_number: string;
+          /** Null when the shopper left the order number empty. */
+          order_number: string | null;
         }) => Promise<void> | void;
       }
     ).onTrack ?? null;
@@ -70,7 +73,7 @@ export function TrackOrderLookupRender({
     e.preventDefault();
     if (busy) return;
     const trimmedOrder = orderNumber.trim();
-    if (!isValidIraqiMobile(phone) || trimmedOrder === "") {
+    if (!isValidIraqiMobile(phone)) {
       setInvalid(true);
       return;
     }
@@ -78,7 +81,7 @@ export function TrackOrderLookupRender({
     setBusy(true);
     try {
       if (onTrack) {
-        await onTrack({ phone, order_number: trimmedOrder });
+        await onTrack({ phone, order_number: trimmedOrder || null });
       } else if (typeof window !== "undefined") {
         const params = new URLSearchParams();
         // SEC: the phone never goes in the URL. The tracking page mounts the
@@ -94,13 +97,14 @@ export function TrackOrderLookupRender({
           // simply asks for the phone again, which is correct — it must never
           // fall back to putting it in the URL.
         }
-        params.set("order", trimmedOrder);
+        if (trimmedOrder) params.set("order", trimmedOrder);
         // Store-relative paths must carry the store base — in path mode
         // ("/s/acme") a bare "/track" leaves the store entirely (P1-25).
         const target = props.redirect_path.startsWith("/")
           ? `${base}${props.redirect_path}`
           : props.redirect_path;
-        window.location.href = `${target}?${params.toString()}`;
+        const qs = params.toString();
+        window.location.href = qs ? `${target}?${qs}` : target;
       }
     } finally {
       setBusy(false);
@@ -160,7 +164,10 @@ export function TrackOrderLookupRender({
           </label>
           <label className="block">
             <span className={labelCls}>
-              {resolveI18n(STRINGS.orderNumber, locale)}
+              {resolveI18n(STRINGS.orderNumber, locale)}{" "}
+              <span className="font-normal normal-case tracking-normal">
+                ({resolveI18n(STRINGS.optional, locale)})
+              </span>
             </span>
             <input
               type="text"
@@ -171,9 +178,6 @@ export function TrackOrderLookupRender({
               onChange={(e) => setOrderNumber(e.target.value)}
               className={inputCls}
               style={inputStyle}
-              required
-              aria-invalid={invalid || undefined}
-              aria-describedby={invalid ? errorId : undefined}
             />
           </label>
           {invalid && (

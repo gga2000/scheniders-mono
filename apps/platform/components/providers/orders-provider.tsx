@@ -13,7 +13,7 @@ import { useOrders } from "@/hooks/use-orders";
  * channel, including the dashboard and settings pages that never show an order.
  * A route opts in by rendering <OrdersProvider> in its own layout (or page):
  *
- *   /orders, /finances, /printing, /analytics, /reports
+ *   /orders, /finances, /printing, /analytics
  *
  * The root layout's own chrome (top bar search, chat) sits ABOVE those layouts,
  * so it can never see a book and reads orders from the server instead.
