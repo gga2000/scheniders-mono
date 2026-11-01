@@ -79,9 +79,12 @@ export function CardStatusMenu({
         <div onClick={(e) => e.stopPropagation()}>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <div className="cursor-pointer hover:opacity-80 hover:scale-105 active:scale-95 transition-all outline-none">
+                    <button
+                        type="button"
+                        className="block w-full text-start cursor-pointer hover:opacity-80 hover:scale-105 active:scale-95 transition-all outline-none"
+                    >
                         {children}
-                    </div>
+                    </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-[180px] p-2 space-y-1 rounded-xl bg-[var(--card-bg)] border-[var(--card-border)] shadow-xl dark:shadow-[0_10px_40px_rgba(0,0,0,0.8)] dark:border-[#333]">
                     <div className="text-xs font-semibold text-muted px-2 py-1 mb-1">{t("orders.card.changeStatus")}</div>

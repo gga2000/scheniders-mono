@@ -22,22 +22,23 @@ interface PartialDeliveryState {
     items: { name: string; quantity: number; accepted: number }[];
 }
 
-// Predefined rejection reasons (professional Arabic choices)
+// Predefined rejection reasons. `label` is the Arabic text saved on the order
+// (kept stable so reports group the same way); `labelKey` is what the picker shows.
 const REJECTION_REASONS = [
-    { value: "no_answer", label: "لم يرد على الاتصال" },
-    { value: "no_response_after_agreement", label: "لا يرد بعد الاتفاق" },
-    { value: "customer_unavailable", label: "العميل غير متواجد في العنوان" },
-    { value: "customer_refused", label: "العميل رفض استلام الطلب" },
-    { value: "changed_mind", label: "العميل غيّر رأيه" },
-    { value: "price_issue", label: "اعتراض على السعر" },
-    { value: "wrong_product", label: "المنتج غير مطابق للطلب" },
-    { value: "product_quality", label: "جودة المنتج غير مرضية" },
-    { value: "damaged_product", label: "المنتج تالف أو مكسور" },
-    { value: "wrong_address", label: "عنوان غير صحيح أو غير مكتمل" },
-    { value: "remote_area", label: "منطقة خارج نطاق التوصيل" },
-    { value: "payment_issue", label: "مشكلة في الدفع" },
-    { value: "duplicate_order", label: "طلب مكرر" },
-    { value: "other", label: "سبب آخر..." },
+    { value: "no_answer", label: "لم يرد على الاتصال", labelKey: "orders.rej.noAnswer" },
+    { value: "no_response_after_agreement", label: "لا يرد بعد الاتفاق", labelKey: "orders.rej.noResponseAfterAgreement" },
+    { value: "customer_unavailable", label: "العميل غير متواجد في العنوان", labelKey: "orders.rej.customerUnavailable" },
+    { value: "customer_refused", label: "العميل رفض استلام الطلب", labelKey: "orders.rej.customerRefused" },
+    { value: "changed_mind", label: "العميل غيّر رأيه", labelKey: "orders.rej.changedMind" },
+    { value: "price_issue", label: "اعتراض على السعر", labelKey: "orders.rej.priceIssue" },
+    { value: "wrong_product", label: "المنتج غير مطابق للطلب", labelKey: "orders.rej.wrongProduct" },
+    { value: "product_quality", label: "جودة المنتج غير مرضية", labelKey: "orders.rej.productQuality" },
+    { value: "damaged_product", label: "المنتج تالف أو مكسور", labelKey: "orders.rej.damagedProduct" },
+    { value: "wrong_address", label: "عنوان غير صحيح أو غير مكتمل", labelKey: "orders.rej.wrongAddress" },
+    { value: "remote_area", label: "منطقة خارج نطاق التوصيل", labelKey: "orders.rej.remoteArea" },
+    { value: "payment_issue", label: "مشكلة في الدفع", labelKey: "orders.rej.paymentIssue" },
+    { value: "duplicate_order", label: "طلب مكرر", labelKey: "orders.rej.duplicateOrder" },
+    { value: "other", label: "سبب آخر...", labelKey: "orders.rej.other" },
 ];
 
 export function DeliveryTab({
@@ -140,8 +141,8 @@ export function DeliveryTab({
                 <div className="w-16 h-16 rounded-2xl bg-[var(--pastel-yellow)] flex items-center justify-center mb-4">
                     <Truck className="w-8 h-8 text-amber-700" />
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-2">لا توجد طلبات قيد التوصيل</h3>
-                <p className="text-muted text-center">قم بشحن بعض الطلبات أولاً 🚚</p>
+                <h3 className="text-xl font-bold text-foreground mb-2">{t("orders.dlv.emptyTitle")}</h3>
+                <p className="text-muted text-center">{t("orders.dlv.emptyHint")}</p>
             </div>
         );
     }
@@ -153,7 +154,7 @@ export function DeliveryTab({
                 <div className="flex items-center justify-center">
                     <span className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--pastel-yellow)] text-amber-800 text-sm font-medium">
                         <Truck className="w-4 h-4" />
-                        {orders.length} قيد التوصيل
+                        {t("orders.dlv.count", { count: orders.length })}
                     </span>
                 </div>
 
@@ -234,7 +235,7 @@ export function DeliveryTab({
                                         className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-[var(--button-success)] text-white text-xs font-bold hover:bg-[var(--button-success-hover)] transition-all disabled:opacity-50"
                                     >
                                         <CheckCircle className="w-4 h-4" />
-                                        تم التسليم
+                                        {t("orders.dlv.delivered")}
                                     </button>
                                     <button
                                         onClick={() => openRejectionModal(order)}
@@ -242,7 +243,7 @@ export function DeliveryTab({
                                         className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 transition-all disabled:opacity-50"
                                     >
                                         <XCircle className="w-4 h-4" />
-                                        مرفوض
+                                        {t("orders.dlv.rejected")}
                                     </button>
                                     <button
                                         onClick={() => openPartialModal(order)}
@@ -250,14 +251,14 @@ export function DeliveryTab({
                                         className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-all disabled:opacity-50"
                                     >
                                         <AlertTriangle className="w-4 h-4" />
-                                        جزئي
+                                        {t("orders.dlv.partial")}
                                     </button>
                                     <button
                                         onClick={() => handleReorder(order)}
                                         className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition-all"
                                     >
                                         <RefreshCw className="w-4 h-4" />
-                                        إعادة طلب
+                                        {t("orders.dlv.reorder")}
                                     </button>
                                 </div>
                             </motion.div>
@@ -288,8 +289,8 @@ export function DeliveryTab({
                                     <AlertTriangle className="w-5 h-5 text-amber-600" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-foreground">تسليم جزئي</h3>
-                                    <p className="text-sm text-muted">عدّل الكميات لكل منتج</p>
+                                    <h3 className="text-lg font-bold text-foreground">{t("orders.dlv.partialTitle")}</h3>
+                                    <p className="text-sm text-muted">{t("orders.dlv.partialHint")}</p>
                                 </div>
                             </div>
 
@@ -331,13 +332,13 @@ export function DeliveryTab({
                                     onClick={() => setPartialModal(null)}
                                     className="flex-1 px-4 py-2.5 rounded-xl border-2 border-[var(--card-border)] text-muted font-semibold hover:bg-[var(--background)] transition-all"
                                 >
-                                    إلغاء
+                                    {t("common.cancel")}
                                 </button>
                                 <button
                                     onClick={handlePartialSubmit}
                                     className="flex-1 px-4 py-2.5 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600 transition-all"
                                 >
-                                    تأكيد
+                                    {t("common.confirm")}
                                 </button>
                             </div>
                         </motion.div>
@@ -367,13 +368,13 @@ export function DeliveryTab({
                                     <XCircle className="w-5 h-5 text-rose-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-lg">سبب الرفض</h3>
-                                    <p className="text-sm text-muted">طلب #{getBaseOrderId(rejectionModal.order.order_id)}</p>
+                                    <h3 className="font-bold text-lg">{t("orders.dlv.rejectTitle")}</h3>
+                                    <p className="text-sm text-muted">{t("orders.dlv.orderNo", { id: getBaseOrderId(rejectionModal.order.order_id) })}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-3 mb-4">
-                                <label className="text-sm font-medium text-muted">اختر السبب:</label>
+                                <label className="text-sm font-medium text-muted">{t("orders.dlv.pickReason")}</label>
                                 <div className="relative">
                                     <select
                                         value={selectedReason}
@@ -382,7 +383,7 @@ export function DeliveryTab({
                                     >
                                         {REJECTION_REASONS.map((reason) => (
                                             <option key={reason.value} value={reason.value}>
-                                                {reason.label}
+                                                {t(reason.labelKey)}
                                             </option>
                                         ))}
                                     </select>
@@ -394,7 +395,7 @@ export function DeliveryTab({
                                         type="text"
                                         value={customReason}
                                         onChange={(e) => setCustomReason(e.target.value)}
-                                        placeholder="أدخل سبب الرفض..."
+                                        placeholder={t("orders.dlv.reasonPlaceholder")}
                                         className="w-full px-4 py-3 rounded-xl border-2 border-[var(--card-border)] bg-[var(--background)] text-foreground placeholder:text-[var(--foreground-muted)] focus:border-rose-300 focus:outline-none transition-all"
                                     />
                                 )}
@@ -405,14 +406,14 @@ export function DeliveryTab({
                                     onClick={() => setRejectionModal(null)}
                                     className="flex-1 px-4 py-2.5 rounded-xl border-2 border-[var(--card-border)] text-muted font-semibold hover:bg-[var(--background)] transition-all"
                                 >
-                                    إلغاء
+                                    {t("common.cancel")}
                                 </button>
                                 <button
                                     onClick={handleRejectSubmit}
                                     disabled={loadingId === rejectionModal.order.id}
                                     className="flex-1 px-4 py-2.5 rounded-xl bg-rose-500 text-white font-semibold hover:bg-rose-600 transition-all disabled:opacity-50"
                                 >
-                                    {loadingId === rejectionModal.order.id ? "جاري الحفظ..." : "تأكيد الرفض"}
+                                    {loadingId === rejectionModal.order.id ? t("common.saving") : t("orders.dlv.confirmReject")}
                                 </button>
                             </div>
                         </motion.div>

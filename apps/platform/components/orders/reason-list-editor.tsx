@@ -29,6 +29,7 @@ import {
     Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import {
     type OrderReason,
     type ReasonKind,
@@ -69,6 +70,7 @@ interface ReasonListEditorProps {
 }
 
 export function ReasonListEditor({ kind, reasons, accent, usage, isFallback }: ReasonListEditorProps) {
+    const { t } = useLanguage();
     const a = ACCENT[accent];
     const { create, update, remove, reorder } = useOrderReasonMutations(kind);
     const [items, setItems] = useState<OrderReason[]>(reasons);
@@ -111,10 +113,10 @@ export function ReasonListEditor({ kind, reasons, accent, usage, isFallback }: R
             <div className="rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10 p-4 text-sm">
                 <div className="flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300">
                     <AlertTriangle className="w-4 h-4" />
-                    التعديل غير مفعّل
+                    {t("orders.reasons.editOff")}
                 </div>
                 <p className="mt-1 text-amber-700/90 dark:text-amber-200/80 leading-relaxed">
-                    لم تُحمَّل أسباب من القاعدة لهذا المستأجر. اتصل بالدعم لإعداد الأسباب الافتراضية.
+                    {t("orders.reasons.notLoaded")}
                 </p>
             </div>
         );
@@ -124,7 +126,7 @@ export function ReasonListEditor({ kind, reasons, accent, usage, isFallback }: R
         <div className="space-y-2">
             <p className="text-[11px] text-muted/80 flex items-center gap-1">
                 <Check className="w-3 h-3" />
-                التغييرات تُحفظ تلقائياً
+                {t("orders.reasons.autoSaved")}
             </p>
             <DndContext
                 sensors={sensors}
@@ -157,7 +159,7 @@ export function ReasonListEditor({ kind, reasons, accent, usage, isFallback }: R
                     value={addingAr}
                     onChange={(e) => setAddingAr(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-                    placeholder="السبب بالعربية"
+                    placeholder={t("orders.reasons.arPlaceholder")}
                     className={cn(
                         "flex-1 min-w-0 h-9 px-3 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-sm focus:outline-none focus:ring-2 focus:border-transparent",
                         a.ring,
@@ -182,7 +184,7 @@ export function ReasonListEditor({ kind, reasons, accent, usage, isFallback }: R
                     )}
                 >
                     <Plus className="w-4 h-4" />
-                    إضافة
+                    {t("orders.reasons.add")}
                 </button>
             </div>
         </div>
@@ -199,6 +201,7 @@ interface RowProps {
 }
 
 function SortableReasonRow({ reason, accent, count, onUpdate, onToggleActive, onDelete }: RowProps) {
+    const { t } = useLanguage();
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: reason.id });
     const [ar, setAr] = useState(reason.label_ar);
     const [en, setEn] = useState(reason.label_en ?? "");
@@ -241,7 +244,7 @@ function SortableReasonRow({ reason, accent, count, onUpdate, onToggleActive, on
                 {...attributes}
                 {...listeners}
                 className="cursor-grab active:cursor-grabbing text-muted/60 hover:text-muted touch-none p-1"
-                aria-label="إعادة الترتيب"
+                aria-label={t("orders.reasons.reorder")}
             >
                 <GripVertical className="w-4 h-4" />
             </button>
@@ -272,7 +275,7 @@ function SortableReasonRow({ reason, accent, count, onUpdate, onToggleActive, on
 
             <button
                 onClick={onToggleActive}
-                title={reason.is_active ? "تعطيل" : "تفعيل"}
+                title={reason.is_active ? t("orders.reasons.disable") : t("orders.reasons.enable")}
                 className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-muted hover:bg-[var(--background)] transition-colors"
             >
                 {reason.is_active ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -280,7 +283,7 @@ function SortableReasonRow({ reason, accent, count, onUpdate, onToggleActive, on
 
             {reason.is_system ? (
                 <span
-                    title="سبب أساسي — لا يمكن حذفه"
+                    title={t("orders.reasons.coreLocked")}
                     className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-muted/40"
                 >
                     <Lock className="w-3.5 h-3.5" />
@@ -288,7 +291,7 @@ function SortableReasonRow({ reason, accent, count, onUpdate, onToggleActive, on
             ) : (
                 <button
                     onClick={onDelete}
-                    title="حذف"
+                    title={t("orders.reasons.delete")}
                     className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-rose-500 opacity-0 group-hover:opacity-100 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
                 >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -305,6 +308,7 @@ function AppearanceControl({
     reason: OrderReason;
     onUpdate: (patch: Partial<Pick<OrderReason, "color" | "emoji">>) => void;
 }) {
+    const { t } = useLanguage();
     const [open, setOpen] = useState(false);
     const [emoji, setEmoji] = useState(reason.emoji ?? "");
     useEffect(() => setEmoji(reason.emoji ?? ""), [reason.emoji]);
@@ -321,7 +325,7 @@ function AppearanceControl({
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                title="المظهر (رمز ولون)"
+                title={t("orders.reasons.appearance")}
                 className="w-8 h-8 rounded-md flex items-center justify-center text-muted hover:bg-[var(--background)] transition-colors"
             >
                 {reason.emoji ? (
@@ -341,7 +345,7 @@ function AppearanceControl({
                             value={emoji}
                             onChange={(e) => setEmoji(e.target.value)}
                             onBlur={commitEmoji}
-                            placeholder="رمز تعبيري (emoji)"
+                            placeholder={t("orders.reasons.emojiPlaceholder")}
                             className="w-full h-8 px-2 rounded-md bg-[var(--background)] border border-[var(--card-border)] text-sm focus:outline-none text-center"
                         />
                         <div className="grid grid-cols-4 gap-1.5">
@@ -373,7 +377,7 @@ function AppearanceControl({
                                 }}
                                 className="w-full text-xs text-muted hover:text-foreground py-1 rounded-md hover:bg-[var(--background)] transition-colors"
                             >
-                                مسح
+                                {t("orders.reasons.clear")}
                             </button>
                         )}
                     </div>
