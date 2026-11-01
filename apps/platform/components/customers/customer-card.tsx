@@ -114,8 +114,9 @@ export function CustomerCard({ customer, onClick, isSelected, onToggleSelect }: 
 
             {/* One status row: value tier (or the risk when COD is unsafe), caution, then the
                 outcome flags. Two chips fit a card in every language, so the rest is a
-                counted "+N" (named in its tooltip) instead of being clipped off the row. */}
-            <div className="mt-3 flex items-center gap-1.5 h-6 overflow-hidden">
+                counted "+N" (named in its tooltip) instead of being clipped off the row.
+                Clipped sideways only, so the "+N" tooltip can rise above the row. */}
+            <div className="mt-3 flex items-center gap-1.5 h-6 overflow-x-clip">
                 {unsafe ? <RiskChip risk={risk} /> : <ValuePill tier={value} variant="compact" />}
                 {risk === "caution" && <RiskChip risk={risk} />}
                 <CustomerStatusFlags customer={customer} max={risk === "caution" ? 0 : 1} className="contents" />

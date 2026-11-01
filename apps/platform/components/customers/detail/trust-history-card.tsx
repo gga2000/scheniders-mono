@@ -9,6 +9,7 @@ import {
     buildScoreBreakdown, daysAgoLabel, daysSince, monthlyScoreSeries, type MonthlyScore, type ScoreFactor,
 } from "@/lib/customer-reliability";
 import { ScoreFactorBars } from "@/components/customers/detail/score-factor-bars";
+import { ScoreTotalRow } from "@/components/customers/detail/score-total-row";
 import { formatMonthShort } from "@/lib/customer-format";
 import { TrustEventIcon } from "@/components/customers/detail/trust-event-icon";
 import { cn } from "@/lib/utils";
@@ -36,7 +37,7 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
 
     const { data: breakdownData } = useTrustScoreBreakdown(phone);
     // The same factors as the score-breakdown modal: zeros dropped, the gap to the stored score closed.
-    const { factors: breakdown } = buildScoreBreakdown(breakdownData?.items ?? [], {
+    const { factors: breakdown, raw, score: shownScore } = buildScoreBreakdown(breakdownData?.items ?? [], {
         storedScore: score, blocked, tier: breakdownData?.tier ?? null,
     });
     const { data: auditData } = useTrustAuditLog(phone, 5);
@@ -124,7 +125,7 @@ export function TrustHistoryCard({ data, phone, score, blocked, scored }: TrustH
                     {view === "history" ? (
                         <HistoryChart series={series} language={language} t={t} />
                     ) : (
-                        <FactorsView breakdown={breakdown} rated={scored} recentEvents={recentEvents} blocked={blocked} t={t} />
+                        <FactorsView breakdown={breakdown} rated={scored && score !== null} raw={raw} score={shownScore} recentEvents={recentEvents} blocked={blocked} t={t} />
                     )}
                 </motion.div>
             </AnimatePresence>
@@ -208,6 +209,8 @@ function HistoryChart({ series, language, t }: { series: MonthlyScore[]; languag
                         <span key={m.month} className="flex-1 min-w-0 text-center">{formatMonthShort(m.month, language)}</span>
                     ))}
                 </div>
+                {/* Each bar is that month's average, so the latest bar can sit below today's score. */}
+                <figcaption className="mt-3 text-xs text-muted-foreground">{t("customers.trust.monthlyAverage")}</figcaption>
             </div>
         </figure>
     );
@@ -217,6 +220,9 @@ interface FactorsViewProps {
     breakdown: ScoreFactor[];
     /** False for a customer without a rated score yet: the bars are shown greyed, without points. */
     rated: boolean;
+    /** What the factors add up to before the 0–100 cap, and the shown score (buildScoreBreakdown). */
+    raw: number;
+    score: number;
     recentEvents: Array<{
         id: string;
         event_date: string;
@@ -228,7 +234,7 @@ interface FactorsViewProps {
     t: Translate;
 }
 
-function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsViewProps) {
+function FactorsView({ breakdown, rated, raw, score, recentEvents, blocked, t }: FactorsViewProps) {
     if (!blocked && breakdown.length === 0 && recentEvents.length === 0) {
         return (
             <div className="py-8 text-center">
@@ -258,7 +264,11 @@ function FactorsView({ breakdown, rated, recentEvents, blocked, t }: FactorsView
                         {t("customers.trust.noFactors")}
                     </p>
                 ) : (
-                    <ScoreFactorBars factors={breakdown} rated={rated} />
+                    <div className="space-y-2">
+                        <ScoreFactorBars factors={breakdown} rated={rated} />
+                        {/* The modal's total, so the card and "See breakdown" agree on what the bars add up to. */}
+                        <ScoreTotalRow score={score} raw={raw} rated={rated} size="sm" />
+                    </div>
                 )}
             </div>
 

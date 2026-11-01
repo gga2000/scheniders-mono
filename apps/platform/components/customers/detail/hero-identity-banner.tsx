@@ -15,11 +15,14 @@ import { codRiskKey, customerAccent, displayScore, isBlockedCustomer, showsTrust
 import { RiskChip, ValuePill, WHATSAPP_TONE } from "@/components/customers/reliability-pill";
 import { CustomerBlockAction } from "@/components/customers/customer-block-action";
 import { CustomerRatingHelp } from "@/components/customers/customer-rating-help";
+import { CustomerPlace } from "@/components/customers/customer-place";
 
 interface HeroIdentityBannerProps {
     name: string;
     phone: string;
     city?: string | null;
+    /** Governorate code: the place leads with it, as in the drawer and the list. */
+    governorate?: string | null;
     tier: TrustTier;
     /** Value and COD-risk axes, the same labels the list and drawer show. Null until the reliability read is in. */
     valueTier: ValueTier | null;
@@ -40,6 +43,7 @@ export function HeroIdentityBanner({
     name,
     phone,
     city,
+    governorate,
     tier,
     valueTier,
     riskLevel,
@@ -132,7 +136,7 @@ export function HeroIdentityBanner({
                             <Phone className="w-3.5 h-3.5 text-muted-foreground" />
                             {formatPhoneDisplay(phone)}
                         </span>
-                        {city && <><span aria-hidden>•</span><bdi>{city}</bdi></>}
+                        {(governorate || city) && <><span aria-hidden>•</span><CustomerPlace governorate={governorate} city={city} locale={language} /></>}
                         {memberSince && <><span aria-hidden>•</span><span>{t("customers.profile.memberSince")} {memberSince}</span></>}
                     </p>
 
@@ -201,6 +205,13 @@ export function HeroIdentityBanner({
                         {t(codRiskKey("blocked"))}
                     </p>
                 )
+            ) : shownScore === null ? (
+                // Not scored yet: said in words, as the drawer says it, with no breakdown to open.
+                // The trust card below says when the score appears.
+                <div className="flex flex-col items-end shrink-0 gap-1">
+                    <span className="text-muted-foreground font-semibold text-xs">{t("customers.profile.trustScore")}</span>
+                    <span className="text-sm font-semibold text-muted-foreground">{t("customers.trust.notScored")}</span>
+                </div>
             ) : (
                 <button
                     onClick={() => {
@@ -214,19 +225,10 @@ export function HeroIdentityBanner({
                     </span>
 
                     <div className="flex items-end gap-1.5">
-                        {shownScore === null ? (
-                            <>
-                                <span className="text-3xl font-semibold text-muted-foreground leading-none" aria-hidden>—</span>
-                                <span className="sr-only">{t("customers.trust.notScored")}</span>
-                            </>
-                        ) : (
-                            <>
-                                <span className="text-4xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
-                                    {shownScore.toLocaleString("en-US")}
-                                </span>
-                                <span className="text-lg text-muted-foreground mb-0.5">/100</span>
-                            </>
-                        )}
+                        <span className="text-4xl font-headline font-black tabular-nums text-foreground leading-none group-hover:opacity-80 transition-opacity">
+                            {shownScore.toLocaleString("en-US")}
+                        </span>
+                        <span className="text-lg text-muted-foreground mb-0.5">/100</span>
                     </div>
 
                     {/* The way in to how the number is built, visible rather than a hidden click on the number. */}

@@ -114,6 +114,13 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
 
             {/* Tag List */}
             <div className="max-h-60 overflow-y-auto pr-1 space-y-1.5">
+                {/* The warning comes before the action it warns about. */}
+                {clashesWithRating && (
+                    <p role="status" className="flex items-start gap-2 px-3 py-2 rounded-xl bg-muted/40 text-xs text-muted-foreground">
+                        <Info className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
+                        <span dir="auto">{t("customers.tag.ratingClash", { name: newTagName })}</span>
+                    </p>
+                )}
                 {canCreate && (
                     <button
                         onClick={handleCreate}
@@ -121,14 +128,9 @@ export function BulkTagModal({ isOpen, onClose, onConfirm, selectedCount, isLoad
                         className="w-full flex items-center gap-3 p-3 rounded-xl border border-dashed border-(--card-border) hover:border-foreground/40 bg-background text-left text-sm font-medium transition-colors disabled:opacity-60"
                     >
                         {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        {t("customers.bulkTag.create", { name: newTagName })}
+                        {/* dir="auto": an Arabic label keeps its «quotes» around the name. */}
+                        <span dir="auto">{t("customers.bulkTag.create", { name: newTagName })}</span>
                     </button>
-                )}
-                {clashesWithRating && (
-                    <p role="status" className="flex items-start gap-2 px-3 py-2 rounded-xl bg-muted/40 text-xs text-muted-foreground">
-                        <Info className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
-                        <span dir="auto">{t("customers.tag.ratingClash", { name: newTagName })}</span>
-                    </p>
                 )}
                 {filteredTags.length === 0 ? (
                     !canCreate && (

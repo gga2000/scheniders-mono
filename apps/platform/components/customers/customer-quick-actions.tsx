@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tag, Plus, Check, StickyNote, Loader2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { useAddCustomerNote } from "@/hooks/use-customer-notes";
 import { toast } from "@/hooks/use-toast";
 import { tagNameMatchesRating } from "@/lib/customer-reliability";
 import { tagTone } from "@/components/customers/customer-tag-chip";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface Assignment { tag_id: string }
 
@@ -90,9 +91,11 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                     {tags.map((tag) => {
                         const on = assignedIds.has(tag.id);
                         const theme = tagTone(tag.color);
-                        return (
+                        // Adding a tag named like a rating ("+ VIP" on a New customer) says what the bulk modal says:
+                        // the tag changes neither the rating nor its saved view.
+                        const clash = !on && tagNameMatchesRating(tag.name);
+                        const button = (
                             <button
-                                key={tag.id}
                                 onClick={() => toggle(tag.id)}
                                 disabled={pendingTag === tag.id}
                                 className={cn(
@@ -103,8 +106,19 @@ export function CustomerQuickActions({ phone }: { phone: string }) {
                             >
                                 {pendingTag === tag.id ? <Loader2 className="w-3 h-3 animate-spin" /> : on ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
                                 {on && <span aria-hidden className="opacity-60">#</span>}<bdi>{tag.name}</bdi>
+                                {clash && <Info className="w-3 h-3 opacity-60" aria-hidden />}
                             </button>
                         );
+                        return clash ? (
+                            <Tooltip
+                                key={tag.id}
+                                side="top"
+                                content={<span dir="auto" className="block text-start">{t("customers.tag.ratingClash", { name: tag.name })}</span>}
+                                contentClassName="w-max max-w-64 rounded-lg bg-foreground text-background text-xs font-medium leading-snug px-2.5 py-1.5 shadow-lg"
+                            >
+                                {button}
+                            </Tooltip>
+                        ) : <Fragment key={tag.id}>{button}</Fragment>;
                     })}
                     <span className="inline-flex items-center min-h-11 rounded-full border border-dashed border-(--card-border) overflow-hidden">
                         <input

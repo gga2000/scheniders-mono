@@ -159,10 +159,12 @@ export function CustomerListTable({
                                     <RiskChip risk={c.risk_level} showClean />
                                     {/* Wraps onto a second line rather than clipping a flag. Each flag after the
                                         first carries its "·" in a 0.75rem lead; the row is pulled back by that lead
-                                        and clipped, so a flag that starts a line never shows a dangling separator. */}
+                                        and clipped, so a flag that starts a line never shows a dangling separator.
+                                        dir="auto": Arabic flags read count-first and run right to left; the clip box
+                                        hugs the list (w-fit), so it stays under the risk chip on the left. */}
                                     {flags.length > 0 && (
-                                        <div className="mt-0.5 overflow-hidden">
-                                            <ul className="-ms-3 flex flex-wrap text-xs text-muted-foreground leading-snug">
+                                        <div className="mt-0.5 w-fit max-w-full overflow-hidden">
+                                            <ul dir="auto" className="-ms-3 flex flex-wrap text-xs text-muted-foreground leading-snug">
                                                 {flags.map((f) => (
                                                     <li key={f} className="whitespace-nowrap before:content-['·'] before:inline-block before:w-3 before:text-center">{f}</li>
                                                 ))}

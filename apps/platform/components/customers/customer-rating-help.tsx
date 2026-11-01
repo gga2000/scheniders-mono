@@ -1,7 +1,7 @@
 "use client";
 
 import { Info } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { useLanguage } from "@/hooks/use-language";
 import { cn } from "@/lib/utils";
 import type { RiskLevel, ValueTier } from "@/lib/customer-reliability";
@@ -25,38 +25,54 @@ const ACTIVITY_ROWS = [
  * explain. The rules mirror value_tier_calc, risk_level_calc and
  * calculate_customer_trust (lib/customer-reliability.ts).
  */
-export function CustomerRatingHelp({ className, align = "start", showLabel = false }: {
+export function CustomerRatingHelp({ className, side = "bottom", align = "start", showLabel = false, anchor }: {
     className?: string;
+    /** "left" beside a band (the drawer, the profile banner), so the popover never sits over the figures it explains. */
+    side?: "top" | "right" | "bottom" | "left";
     align?: "start" | "center" | "end";
     /** Print "How customers are rated" beside the icon (the list header); otherwise the icon alone, named for screen readers. */
     showLabel?: boolean;
+    /**
+     * Places the popover against a wider block than the icon: called with the
+     * trigger, it returns that block (one element) with the trigger inside it.
+     * With side="left", the popover then opens left of the whole block, e.g.
+     * left of the trust score rather than over it.
+     */
+    anchor?: (trigger: React.ReactNode) => React.ReactElement;
 }) {
     const { t } = useLanguage();
     const label = t("customers.help.trigger");
 
+    const trigger = (
+        <PopoverTrigger
+            aria-label={showLabel ? undefined : label}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+                "inline-flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-foreground transition-colors data-[state=open]:text-foreground",
+                showLabel ? "h-7 px-2 -mx-2 text-[13px] font-medium" : "w-7 h-7 justify-center",
+                className,
+            )}
+        >
+            <Info className="w-4 h-4 shrink-0" aria-hidden />
+            {showLabel && <span>{label}</span>}
+        </PopoverTrigger>
+    );
+
     return (
         <Popover>
-            <PopoverTrigger
-                aria-label={showLabel ? undefined : label}
-                onClick={(e) => e.stopPropagation()}
-                className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full text-muted-foreground hover:text-foreground transition-colors data-[state=open]:text-foreground",
-                    showLabel ? "h-7 px-2 -mx-2 text-[13px] font-medium" : "w-7 h-7 justify-center",
-                    className,
-                )}
-            >
-                <Info className="w-4 h-4 shrink-0" aria-hidden />
-                {showLabel && <span>{label}</span>}
-            </PopoverTrigger>
+            {anchor ? <PopoverAnchor asChild>{anchor(trigger)}</PopoverAnchor> : trigger}
             <PopoverContent
+                side={side}
                 align={align}
                 sideOffset={8}
                 collisionPadding={16}
                 onClick={(e) => e.stopPropagation()}
-                className="w-[380px] max-w-[calc(100vw-2rem)] p-0 rounded-2xl border-(--card-border) bg-(--card-bg) text-foreground shadow-xl z-[60]"
+                // Never taller than the room the viewport leaves: on a 13" laptop the rest scrolls
+                // inside the popover instead of its title running off the screen.
+                className="w-[380px] max-w-[calc(100vw-2rem)] max-h-[min(40rem,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain p-0 rounded-2xl border-(--card-border) bg-(--card-bg) text-foreground shadow-xl z-[60]"
             >
-                <p className="px-4 pt-3.5 pb-2.5 text-sm font-bold border-b border-(--card-border)">{label}</p>
-                <div className="px-4 py-3 space-y-3.5 text-[13px] leading-snug">
+                <p className="sticky top-0 z-10 px-4 pt-3.5 pb-2.5 text-sm font-bold border-b border-(--card-border) bg-(--card-bg)">{label}</p>
+                <div className="px-4 py-3 space-y-3 text-[13px] leading-snug">
                     <Section title={t("customers.help.value.title")}>
                         {VALUE_ROWS.map((tier) => (
                             <Row key={tier} marker={<ValuePill tier={tier} variant="compact" className="py-0.5" />}>
@@ -97,7 +113,7 @@ export function CustomerRatingHelp({ className, align = "start", showLabel = fal
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <section className="space-y-1.5">
+        <section className="space-y-1">
             <h4 dir="auto" className="text-xs font-semibold text-muted-foreground">{title}</h4>
             {children}
         </section>
