@@ -100,6 +100,7 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
             props.identity_rating === "summary_link" || !!resolveI18n(props.rating_chip_i18n, locale)
           }
           ratingLink={props.identity_rating === "summary_link"}
+          tagline={resolveI18n(props.tagline_i18n, locale)}
         />
 
         {props.show_price_row && (

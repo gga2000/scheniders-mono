@@ -83,6 +83,27 @@ function Row({
   );
 }
 
+/** cta_proof: a customer's own words and where they said them, quoted
+ *  between the receipt and the buttons. */
+function CtaProof({ quote, source, rtl }: { quote: string; source: string; rtl: boolean }) {
+  return (
+    <figure
+      data-cta-proof=""
+      className={cn(
+        "rounded-bk-card bg-bk-surface-alt px-4 py-3",
+        rtl ? "text-right" : "text-left",
+      )}
+    >
+      <blockquote className="font-bk-body text-[15px] font-bold leading-relaxed text-bk-ink">
+        «{quote}»
+      </blockquote>
+      {source && (
+        <figcaption className="mt-1 font-bk-body text-xs text-bk-ink-soft">{source}</figcaption>
+      )}
+    </figure>
+  );
+}
+
 export function CheckoutRow({
   m,
   locale,
@@ -126,6 +147,11 @@ export function CheckoutRow({
     m.props.show_savings && m.compareAt !== null && m.compareAt > m.price
       ? (m.compareAt - m.price) * m.qty
       : 0;
+  // cta_proof: one real customer quote right above the order buttons.
+  const proofQuote = resolveI18n(m.props.cta_proof?.quote_i18n, locale);
+  const proof = proofQuote
+    ? { quote: proofQuote, source: resolveI18n(m.props.cta_proof?.source_i18n, locale) }
+    : null;
   const submitLabel = m.oos
     ? m.s("outOfStock")
     : m.status === "checking"
@@ -194,6 +220,7 @@ export function CheckoutRow({
         />
       </div>
 
+      {proof && <CtaProof quote={proof.quote} source={proof.source} rtl={rtl} />}
       {dock ? (
         <ExpressDock
           m={m}
