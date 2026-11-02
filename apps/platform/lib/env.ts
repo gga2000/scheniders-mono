@@ -69,6 +69,11 @@ const serverSchema = z.object({
     WEBHOOK_LOGGING_ENABLED: z.enum(["true", "false"]).optional(),
     CRON_SECRET: z.string().min(1).optional(),
     QSTASH_TOKEN: z.string().min(1).optional(),
+    // Custom domains: the platform adds a merchant's verified domain to the
+    // storefront's Vercel project so it is routed and gets an SSL certificate.
+    VERCEL_API_TOKEN: z.string().min(1).optional(),
+    VERCEL_STOREFRONT_PROJECT_ID: z.string().min(1).optional(),
+    VERCEL_TEAM_ID: z.string().min(1).optional(),
     QSTASH_CURRENT_SIGNING_KEY: z.string().min(1).optional(),
     QSTASH_NEXT_SIGNING_KEY: z.string().min(1).optional(),
     INTERAKT_API_KEY: z.string().min(1).optional(),
@@ -122,6 +127,9 @@ function validateEnv() {
             WEBHOOK_LOGGING_ENABLED: orUndef(process.env.WEBHOOK_LOGGING_ENABLED),
             CRON_SECRET: orUndef(process.env.CRON_SECRET),
             QSTASH_TOKEN: orUndef(process.env.QSTASH_TOKEN),
+            VERCEL_API_TOKEN: orUndef(process.env.VERCEL_API_TOKEN),
+            VERCEL_STOREFRONT_PROJECT_ID: orUndef(process.env.VERCEL_STOREFRONT_PROJECT_ID),
+            VERCEL_TEAM_ID: orUndef(process.env.VERCEL_TEAM_ID),
             QSTASH_CURRENT_SIGNING_KEY: orUndef(process.env.QSTASH_CURRENT_SIGNING_KEY),
             QSTASH_NEXT_SIGNING_KEY: orUndef(process.env.QSTASH_NEXT_SIGNING_KEY),
             INTERAKT_API_KEY: orUndef(process.env.INTERAKT_API_KEY),

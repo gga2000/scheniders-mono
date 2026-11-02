@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { isAcceptedCnameTarget } from "@/lib/custom-domain";
+import { DomainConflictError, provisionCustomDomain, type DomainSsl } from "@/lib/vercel-domains";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +73,20 @@ export async function POST(request: Request): Promise<NextResponse> {
         });
     }
 
+    // Route the domain to the storefront before telling the shopper it works.
+    const ssl = await provision(domain.domain);
+    if (!ssl.ok && ssl.conflict) {
+        return NextResponse.json({
+            verified: false,
+            error: "This domain is already connected to another store.",
+        });
+    }
+    // Not marked verified while routing failed: the merchant retries, instead of
+    // holding a "verified" domain that was never added to the storefront.
+    if (!ssl.ok) {
+        return NextResponse.json({ error: "Could not connect the domain. Try again in a minute." }, { status: 502 });
+    }
+
     const { error: updateError } = await supabase
         .from("tenant_domains")
         .update({ verified: true, verified_at: new Date().toISOString() })
@@ -81,5 +96,18 @@ export async function POST(request: Request): Promise<NextResponse> {
         console.error("[domains/verify] update failed:", updateError);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
-    return NextResponse.json({ verified: true });
+    return NextResponse.json({ verified: true, ssl: ssl.state });
+}
+
+type Provisioned = { ok: true; state: DomainSsl } | { ok: false; conflict: boolean };
+
+/** Provisioning outcome as data: a conflict and an outage are told apart, neither throws past here. */
+async function provision(domain: string): Promise<Provisioned> {
+    try {
+        return { ok: true, state: await provisionCustomDomain(domain) };
+    } catch (err) {
+        if (err instanceof DomainConflictError) return { ok: false, conflict: true };
+        console.error("[domains/verify] Vercel provisioning failed:", err);
+        return { ok: false, conflict: false };
+    }
 }
