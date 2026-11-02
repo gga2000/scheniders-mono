@@ -18,6 +18,8 @@ import {
  */
 
 vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => recordingSupabase }));
+// requireCronAuth reads the secret from the validated env object, parsed once at import.
+vi.mock("@/lib/env", () => ({ env: { CRON_SECRET: "test-cron-secret" } }));
 
 const { GET } = await import("./route");
 
