@@ -71,10 +71,20 @@ export interface ReceivedLine {
 }
 
 /** Adds the received quantities to stock; returns the PO's new status (partial or received). */
-export async function receivePurchaseOrder(poId: string, lines: ReceivedLine[]): Promise<"partial" | "received"> {
+/**
+ * `requestId` makes the call safe to repeat: the database ignores a second call
+ * with the same id, so a double click or a retry after a lost response cannot
+ * book the stock twice.
+ */
+export async function receivePurchaseOrder(
+    poId: string,
+    lines: ReceivedLine[],
+    requestId: string
+): Promise<"partial" | "received"> {
     const { data, error } = await supabase.rpc("receive_purchase_order", {
         p_po_id: poId,
         p_lines: lines.map((line) => ({ item_id: line.itemId, quantity: line.quantity, unit_cost: line.unitCost ?? null })),
+        p_request_id: requestId,
     });
     if (error) throw error;
     return z.enum(["partial", "received"]).parse(data);

@@ -45,16 +45,17 @@ describe("setPurchaseOrderStatus / receivePurchaseOrder", () => {
 
     it("receives quantities per line and returns the new status", async () => {
         rpc.mockResolvedValue({ data: "partial", error: null });
-        const status = await receivePurchaseOrder("po1", [{ itemId: "i1", quantity: 6 }]);
+        const status = await receivePurchaseOrder("po1", [{ itemId: "i1", quantity: 6 }], "req1");
         expect(rpc).toHaveBeenCalledWith("receive_purchase_order", {
             p_po_id: "po1",
             p_lines: [{ item_id: "i1", quantity: 6, unit_cost: null }],
+            p_request_id: "req1",
         });
         expect(status).toBe("partial");
     });
 
     it("rejects a status the database should never return", async () => {
         rpc.mockResolvedValue({ data: "draft", error: null });
-        await expect(receivePurchaseOrder("po1", [{ itemId: "i1", quantity: 1 }])).rejects.toThrow();
+        await expect(receivePurchaseOrder("po1", [{ itemId: "i1", quantity: 1 }], "req1")).rejects.toThrow();
     });
 });
