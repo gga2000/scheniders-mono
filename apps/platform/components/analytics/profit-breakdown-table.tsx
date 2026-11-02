@@ -17,6 +17,7 @@ import {
 import { OrderCostBreakdown } from "@/types/expense";
 import { formatIQD } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ProfitBreakdownTableProps {
     breakdowns: OrderCostBreakdown[];
@@ -24,6 +25,8 @@ interface ProfitBreakdownTableProps {
 }
 
 export function ProfitBreakdownTable({ breakdowns, maxRows = 10 }: ProfitBreakdownTableProps) {
+    const { language } = useLanguage();
+    const dateLocale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB";
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [showAll, setShowAll] = useState(false);
 
@@ -90,7 +93,7 @@ export function ProfitBreakdownTable({ breakdowns, maxRows = 10 }: ProfitBreakdo
                                     {order.customerName}
                                 </p>
                                 <p className="text-xs text-muted">
-                                    {new Date(order.orderDate).toLocaleDateString("ar-IQ")}
+                                    {new Date(order.orderDate).toLocaleDateString(dateLocale)}
                                 </p>
                             </div>
                             <div className="col-span-2 text-right font-semibold text-foreground">

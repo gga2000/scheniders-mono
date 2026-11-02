@@ -229,6 +229,7 @@ export function OrderFunnelCard({ funnel }: OrderFunnelCardProps) {
             <PrimaryResultCard
                 title="Delivery Rate"
                 amount={deliveryRate}
+                valueText={`${deliveryRate.toFixed(1)}%`}
                 isPositive={isGoodDeliveryRate}
                 description={`${deliveredCount} of ${totalOrders} orders delivered`}
             />

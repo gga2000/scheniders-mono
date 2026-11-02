@@ -124,8 +124,8 @@ export function CostCompositionChart({ summary }: CostCompositionChartProps) {
                 </svg>
                 {/* Center text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <p className="text-xs text-muted">Total Cost</p>
-                    <p className="text-lg font-bold text-foreground">{formatIQD(summary.totalCost)}</p>
+                    <p className="text-[10px] text-muted">Total Cost · IQD</p>
+                    <p className="text-[13px] leading-tight font-bold text-foreground tabular-nums">{summary.totalCost.toLocaleString("en-US")}</p>
                 </div>
             </div>
 
