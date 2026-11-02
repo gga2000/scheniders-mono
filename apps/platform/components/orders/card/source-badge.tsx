@@ -97,8 +97,11 @@ export function SourceBadge({ source }: { source: Order["source"] }) {
             );
         case "storefront":
             return (
-                <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-semibold rounded-full bg-[var(--pastel-blue)] text-[#16264F]">
-                    <ShoppingBag className="w-3 h-3" />
+                // Pastel yellow from the shared palette, with a white icon disc: apart from the green status chip and the other sources.
+                <span className="inline-flex h-6 items-center gap-1.5 ps-0.5 pe-2.5 text-[11px] font-bold rounded-full bg-[var(--pastel-yellow)] text-[#4A3500] shadow-[inset_0_0_0_1px_rgba(74,53,0,0.1),inset_0_1px_0_rgba(255,255,255,0.55),0_1px_2px_rgba(74,53,0,0.12)]">
+                    <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-[#4A3500]">
+                        <ShoppingBag className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" />
+                    </span>
                     {t("orders.source.storefront")}
                 </span>
             );
