@@ -1,9 +1,11 @@
 name: CI
 
-# Pull requests run the fast gates (lint, type-check, test) as parallel jobs.
-# The slow gate (three `next build`s + the storefront bundle budget) runs after
-# the merge, on main. A broken build never reaches production anyway: Vercel
-# builds every deploy and keeps serving the last good one if a build fails.
+# Pull requests run a fast gate only: lint, type-check, and just the tests
+# related to the changed files (`vitest --changed`), as parallel jobs.
+# Everything slow runs after the merge, on main: the full sharded test suite,
+# the three `next build`s and the storefront bundle budget. A broken build
+# never reaches production anyway: Vercel builds every deploy and keeps serving
+# the last good one if a build fails.
 
 on:
   push:
@@ -21,8 +23,45 @@ env:
   TURBO_CACHE_DIR: .turbo
 
 jobs:
+  pr:
+    name: ${{ matrix.name }}
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: lint platform, task: lint, args: "--filter=@scheniders/platform" }
+          - { name: lint rest, task: lint, args: "--filter=!@scheniders/platform" }
+          - { name: type-check platform, task: type-check, args: "--filter=@scheniders/platform" }
+          - { name: type-check rest, task: type-check, args: "--filter=!@scheniders/platform" }
+          - { name: tests for changed files (platform), task: test, args: "--filter=@scheniders/platform -- --changed=${{ github.event.pull_request.base.sha }} --passWithNoTests" }
+          - { name: tests for changed files (rest), task: test, args: "--filter=!@scheniders/platform -- --changed=${{ github.event.pull_request.base.sha }} --passWithNoTests" }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ matrix.task }}-${{ github.sha }}
+          restore-keys: turbo-${{ matrix.task }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec turbo ${{ matrix.task }} --affected ${{ matrix.args }}
+
   check:
     name: ${{ matrix.name }}
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
