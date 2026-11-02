@@ -49,6 +49,31 @@ describe("useFinanceOverview profit", () => {
         expect(result.current.series.reduce((sum, b) => sum + b.profit, 0)).toBe(3000);
     });
 
+    it("takes the previous period's expenses off its profit too, so the delta compares like with like", () => {
+        const prevInterval = { start: new Date("2026-09-01T00:00:00.000Z"), end: new Date("2026-09-30T23:59:59.000Z") };
+        const orders = [
+            order({ id: "now", price: 10000, items: [{ name: "Shirt", product_id: "p1", quantity: 1, price: 10000 }] }),
+            order({
+                id: "before",
+                price: 10000,
+                created_at: "2026-09-10T09:00:00.000Z",
+                updated_at: "2026-09-10T09:00:00.000Z",
+                items: [{ name: "Shirt", product_id: "p1", quantity: 1, price: 10000 }],
+            }),
+        ];
+        const products = [{ id: "p1", name: "Shirt", cost: 4000 }] as Product[];
+        const expenses = [
+            { id: "e-now", category: "shipping", amount: 1000, expense_date: "2026-10-11" },
+            { id: "e-before", category: "shipping", amount: 2500, expense_date: "2026-09-12" },
+        ] as Expense[];
+
+        const { result } = renderHook(() => useFinanceOverview(orders, products, expenses, interval, prevInterval, "day"));
+
+        expect(result.current.net_profit).toBe(5000);
+        // 10000 sales - 4000 cost - 2500 that month's expenses; this month's 1000 must not leak in.
+        expect(result.current.prev_net_profit).toBe(3500);
+    });
+
     it("keeps a delivered order's cost frozen when the product cost is edited later", () => {
         const orders = [
             order({ id: "sale", price: 10000, items: [{ name: "Shirt", product_id: "p1", quantity: 1, price: 10000 }] }),
