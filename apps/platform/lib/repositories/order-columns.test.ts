@@ -31,7 +31,7 @@ const ORDERS_TABLE_COLUMNS = new Set([
     "notes", "rejection_reason", "scheduled_date", "priority", "payment_status",
     "delivery_fee", "discount_amount", "is_return", "original_order_id", "is_archived",
     "secondary_phone", "delivery_slot", "source", "sequence_number", "delivered_at",
-    "cancelled_at", "printed_at", "print_count", "last_batch_id", "is_gift", "tag_color",
+    "cancelled_at", "printed_at", "print_count", "last_batch_id", "is_gift", "tag_color", "tag_ids",
     "is_pinned", "delivery_order_id", "is_reviewed", "is_verified_customer",
     "contact_count", "address_status", "address_issues", "validated_governorate_code",
     "internal_notes", "assigned_to", "assigned_at", "product_cost", "item_unit_costs", "net_profit",

@@ -159,6 +159,8 @@ export interface Order {
     attention_reasons?: string[];
     delivery_cost?: number;
     tag_color?: OrderTagColor;
+    /** Named tags (public.order_tags ids); the database keeps them valid for the store. */
+    tag_ids?: string[];
     delivery_order_id?: string;
     delivery_note?: string;
     is_reviewed?: boolean;

@@ -26,6 +26,7 @@ import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 import { AdCampaignFilter } from "@/components/orders/ad-campaign-filter";
 import { StuckTransitChip } from "@/components/orders/stuck-transit-chip";
 import { PaymentUncheckedChip } from "@/components/orders/payment-unchecked-chip";
+import { TagFilterChip } from "@/components/orders/tags/tag-filter-chip";
 import type { PaymentStatus } from "@/lib/supabase";
 
 /**
@@ -192,7 +193,7 @@ export function OrdersFilterBar({
                                 filterDuplicatesOnly={filterDuplicatesOnly}
                                 setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                 filterDueToday={filterDueToday}
-                                queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /></>}
+                                queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /><TagFilterChip /></>}
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}
                                 countsHidden={countsHidden}
