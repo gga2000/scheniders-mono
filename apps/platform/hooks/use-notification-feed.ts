@@ -57,6 +57,9 @@ export interface FeedNotification {
 
 const PAGE_SIZE = 30;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+
 export const notificationKeys = {
     all: ["notifications"] as const,
     feed: (userId: string | undefined, filter: NotificationFilter) =>
@@ -305,6 +308,9 @@ export function useNotificationFeed(
                             category: typeof row.category === "string" ? row.category : "system",
                             priority: typeof row.priority === "string" ? row.priority : "normal",
                             isOwnAction,
+                            type: typeof row.type === "string" ? row.type : "",
+                            payload: isRecord(row.payload) ? row.payload : {},
+                            actorName: typeof row.actor_name === "string" ? row.actor_name : null,
                         });
                     }
 

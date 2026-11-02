@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-    chimeUrlFor,
+    soundUrlFor,
+    soundOnByDefault,
     isWithinQuietHours,
     minutesOfDay,
     shouldChime,
@@ -80,8 +81,16 @@ describe("shouldChime", () => {
         })).toBe(false);
     });
 
-    it("falls back to audible for a category with no stored preference", () => {
-        expect(input({ category: "system", prefs: {} })).toBe(true);
+    it("falls back to audible for orders and chat when no preference is stored", () => {
+        expect(input({ category: "orders", prefs: {} })).toBe(true);
+        expect(input({ category: "chat", prefs: {} })).toBe(true);
+    });
+
+    it("falls back to silent for every other category", () => {
+        for (const category of ["inventory", "delivery", "finance", "customer", "team", "system"]) {
+            expect(soundOnByDefault(category)).toBe(false);
+            expect(input({ category, prefs: {} })).toBe(false);
+        }
     });
 
     it("respects a stored preference for a category the dialog does not list", () => {
@@ -89,9 +98,35 @@ describe("shouldChime", () => {
     });
 });
 
-describe("chimeUrlFor", () => {
-    it("gives urgent its own file", () => {
-        expect(chimeUrlFor("urgent")).toBe("/sounds/urgent.mp3");
-        expect(chimeUrlFor("normal")).toBe("/sounds/notification.mp3");
+describe("soundUrlFor", () => {
+    const pick = (type: string, payload: Record<string, unknown> = {}, actorName: string | null = "Noor") =>
+        soundUrlFor({ type, payload, actorName });
+
+    it("plays the new-order sound for a created order", () => {
+        expect(pick("order.created")).toBe("/sounds/order.mp3");
+    });
+
+    it("plays the cancelled sound for any change to cancelled", () => {
+        expect(pick("order.status_changed", { new_status: "cancelled" })).toBe("/sounds/order-cancelled.mp3");
+        expect(pick("order.bulk_status_changed", { new_status: "cancelled" })).toBe("/sounds/order-cancelled.mp3");
+    });
+
+    it("plays the confirmation sound only when automation confirmed the order", () => {
+        expect(pick("order.status_changed", { new_status: "confirmed" }, "Automation")).toBe("/sounds/order-confirm.mp3");
+        expect(pick("order.status_changed", { new_status: "confirmed" }, "Noor")).toBe("/sounds/change.mp3");
+    });
+
+    it("plays the change sound for other status moves and edits", () => {
+        expect(pick("order.status_changed", { new_status: "shipped" })).toBe("/sounds/change.mp3");
+        expect(pick("order.updated")).toBe("/sounds/change.mp3");
+    });
+
+    it("plays the message sound for chat events", () => {
+        expect(pick("chat.message")).toBe("/sounds/message.mp3");
+        expect(pick("chat.mention")).toBe("/sounds/message.mp3");
+    });
+
+    it("plays the fallback sound for anything else", () => {
+        expect(pick("inventory.low_stock")).toBe("/sounds/others.mp3");
     });
 });

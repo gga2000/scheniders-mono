@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import { diag } from "@/lib/diag";
 import { toast } from "@/hooks/use-toast";
+import { soundOnByDefault } from "@/lib/notification-chime";
 import { useLanguage } from "@/components/providers/language-provider";
 
 /** Categories a person can tune. `*` is the fallback for anything unlisted. */
@@ -43,7 +44,11 @@ export interface QuietHours {
     end: number;
 }
 
-const DEFAULT_PREF: CategoryPref = { in_app: true, push: true, sound: true };
+const defaultPref = (category: string): CategoryPref => ({
+    in_app: true,
+    push: true,
+    sound: soundOnByDefault(category),
+});
 
 export const settingsKeys = {
     prefs: (u?: string, t?: string | null) => ["notification-prefs", u, t] as const,
@@ -98,7 +103,7 @@ export function useNotificationSettings() {
             const row = byCategory.get(category) ?? fallback;
             return row
                 ? { in_app: row.in_app, push: row.push, sound: row.sound }
-                : DEFAULT_PREF;
+                : defaultPref(category);
         };
         return Object.fromEntries(
             NOTIFICATION_CATEGORIES.map((c) => [c, resolve(c)]),
