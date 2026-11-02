@@ -159,8 +159,6 @@ export const EXPRESS_STRINGS = {
     ar: "الثبات، بكلام زبون",
     ku: "مانەوەی بۆن، بە قسەی کڕیارێک",
   },
-  notesMore: { en: "Show every note", ar: "شوف باقي الروائح", ku: "هەموو بۆنەکان ببینە" },
-  notesLess: { en: "Show fewer notes", ar: "خلّي أول الروائح بس", ku: "کەمتر نیشان بدە" },
   scentStory: { en: "The scent’s story", ar: "قصة العطر", ku: "چیرۆکی بۆنەکە" },
   meterValue: { en: "{value} of {max}", ar: "{value} من {max}", ku: "{value} لە {max}" },
   closeSheet: { en: "Close", ar: "إغلاق", ku: "داخستن" },

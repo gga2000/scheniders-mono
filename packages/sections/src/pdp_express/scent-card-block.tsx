@@ -7,13 +7,13 @@
 // العطر» and the note cards:
 //   1. eyebrow + who it is for;
 //   2. the lead line;
-//   3. the always-open pyramid: per tier, the stage and its hint at the
-//      reading edge, then the notes as 60px round photos with names (a
-//      note without a photo is a text chip);
-//   4. facts, only with data: meters (a fractional value fills its last
-//      segment partly) with their source tag, the chip rows, the
-//      staying-power line. The season is a tag beside the gender tag;
-//   past the first tier the pyramid folds behind one button;
+//   3. the always-open pyramid as a timeline: a rail of stage dots that
+//      deepen from top to base, each stage's name and hint, then its notes
+//      as chips (a note with a photo carries it as a small round avatar);
+//   4. facts, only with data: one tile per meter (a fractional value
+//      fills its last segment partly) with the source tag under them, the
+//      chip rows, the staying-power line on an espresso band. The season
+//      is a tag beside the gender tag;
 //   5. «الثبات، بكلام زبون»: one verbatim clause, the reviewer in <bdi>;
 //   6. the rating and «قصة العطر», which opens the story in a BottomSheet.
 // The data comes from `buildScentCard`; this file only draws it. Rows flip
@@ -21,7 +21,7 @@
 // amber accent, meters and the monogram are ink/espresso.
 // =====================================================================
 
-import { useId, useState } from "react";
+import { useId } from "react";
 import Image from "next/image";
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
@@ -33,6 +33,10 @@ import type { Product } from "../types";
 import { GENDER_ICON, Tag, reviewCountLabel } from "./identity-label";
 import { monogramOf, type ScentCardData } from "./scent-card";
 import { readsRtl, xs } from "./text";
+
+/** Stage dots, top → base: the ink deepens as the scent settles. Full
+ *  literals so Tailwind's content scan sees them. */
+const STAGE_DOT = ["bg-bk-ink/30", "bg-bk-ink/60", "bg-bk-ink"] as const;
 
 export function ScentCardBlock({
   card,
@@ -52,14 +56,9 @@ export function ScentCardBlock({
   ratingLink: boolean;
 }) {
   const headingId = useId();
-  const restId = useId();
-  const [allNotes, setAllNotes] = useState(false);
   const rtl = readsRtl(locale);
   const align = rtl ? "text-right" : "text-left";
   const gender = product.gender;
-  // Past the first tier, the pyramid folds behind one button on the
-  // phone-length card; every note stays in the HTML.
-  const folds = card.tiers.length > 1;
   const hasFacts = card.meters.length > 0 || card.chipRows.length > 0 || card.note !== null;
   const hasStory = card.story.length > 0 || card.storyCards.length > 0;
   const shown = displayRating(avgRating).toFixed(1);
@@ -110,129 +109,124 @@ export function ScentCardBlock({
       {card.lead && (
         <p
           data-scent-lead=""
-          className={cn("font-bk-display text-[17px] font-extrabold leading-snug text-bk-ink text-balance", align)}
+          className={cn("font-bk-display text-[19px] font-black leading-snug text-bk-ink text-balance", align)}
         >
           {card.lead}
         </p>
       )}
 
       {card.tiers.length > 0 && (
-        <div>
-          <ol aria-label={xs("notesListLabel", locale)} className="divide-y divide-bk-divider">
-            {card.tiers.map((t, ti) => (
+        <ol
+          aria-label={xs("notesListLabel", locale)}
+          data-scent-timeline=""
+          className="rounded-bk-card bg-bk-surface px-3.5 py-1"
+        >
+          {card.tiers.map((t, ti) => {
+            const last = ti === card.tiers.length - 1;
+            return (
               <li
                 key={t.key}
-                id={ti > 0 ? `${restId}-${ti}` : undefined}
                 data-stage={t.key}
-                hidden={folds && !allNotes && ti > 0}
-                className={cn(
-                  "flex items-center gap-3 py-3",
-                  rtl && "flex-row-reverse",
-                  // `flex` would beat the [hidden] rule; `hidden` sorts after it.
-                  folds && !allNotes && ti > 0 && "hidden",
-                )}
+                className={cn("relative flex gap-3 py-3", rtl && "flex-row-reverse")}
               >
-                <p className={cn("w-20 shrink-0", align)}>
-                  <span className="block font-bk-display text-sm font-black text-bk-ink">{t.label}</span>
-                  {t.hint && (
-                    <span className="block font-bk-body text-xs font-semibold text-bk-ink-soft">{t.hint}</span>
-                  )}
-                </p>
-                <ul className={cn("flex min-w-0 flex-1 flex-wrap items-start gap-3", rtl && "flex-row-reverse")}>
-                  {t.notes.map((n, i) =>
-                    n.image ? (
+                {/* The rail: one dot per stage, deeper ink as the scent
+                    settles from the first spray to what stays. */}
+                <span aria-hidden="true" className="relative flex w-3 shrink-0 justify-center pt-1">
+                  <span className={cn("relative z-10 size-3 rounded-bk-pill ring-4 ring-bk-surface", STAGE_DOT[ti % STAGE_DOT.length])} />
+                  {!last && <span className="absolute inset-y-0 top-5 -bottom-4 w-px bg-bk-divider" />}
+                </span>
+                <div className={cn("min-w-0 flex-1 space-y-2", align)}>
+                  <p className={cn("flex flex-wrap items-baseline gap-x-2", rtl && "flex-row-reverse")}>
+                    <span className="font-bk-display text-[15px] font-black text-bk-ink">{t.label}</span>
+                    {t.hint && (
+                      <span className="font-bk-body text-xs font-semibold text-bk-ink-soft">{t.hint}</span>
+                    )}
+                  </p>
+                  <ul className={cn("flex flex-wrap gap-1.5", rtl && "flex-row-reverse")}>
+                    {t.notes.map((n, i) => (
                       <li
                         key={`${n.name}-${i}`}
-                        data-note-photo=""
-                        className="flex w-[4.5rem] flex-col items-center gap-1 text-center"
+                        data-note-photo={n.image ? "" : undefined}
+                        data-note-chip={n.image ? undefined : ""}
+                        className={cn(
+                          "inline-flex h-8 items-center gap-1.5 rounded-bk-pill border-bk border-bk-divider bg-bk-surface-alt font-bk-body text-[13px] font-bold text-bk-ink",
+                          n.image ? (rtl ? "flex-row-reverse pl-3 pr-1" : "pl-1 pr-3") : "px-3",
+                        )}
                       >
-                        <Image
-                          src={n.image}
-                          alt=""
-                          width={60}
-                          height={60}
-                          unoptimized={!isOptimizableImageHost(n.image)}
-                          className="h-[60px] w-[60px] rounded-bk-pill object-cover"
-                        />
-                        <span className="font-bk-body text-xs font-bold leading-tight text-bk-ink">{n.name}</span>
-                      </li>
-                    ) : (
-                      <li
-                        key={`${n.name}-${i}`}
-                        data-note-chip=""
-                        className="inline-flex h-7 items-center rounded-bk-pill bg-bk-surface px-2.5 font-bk-body text-xs font-bold text-bk-ink"
-                      >
+                        {n.image && (
+                          <Image
+                            src={n.image}
+                            alt=""
+                            width={24}
+                            height={24}
+                            unoptimized={!isOptimizableImageHost(n.image)}
+                            className="size-6 rounded-bk-pill object-cover"
+                          />
+                        )}
                         <bdi>{n.name}</bdi>
                       </li>
-                    ),
-                  )}
-                </ul>
+                    ))}
+                  </ul>
+                </div>
               </li>
-            ))}
-          </ol>
-          {folds && (
-            <button
-              type="button"
-              data-notes-fold=""
-              aria-expanded={allNotes}
-              aria-controls={card.tiers.slice(1).map((_, i) => `${restId}-${i + 1}`).join(" ")}
-              onClick={() => setAllNotes((o) => !o)}
-              className={cn(
-                "flex min-h-11 w-full items-center justify-center gap-1 border-t border-bk-divider font-bk-body text-sm font-black text-bk-ink",
-                rtl && "flex-row-reverse",
-              )}
-            >
-              <span>{xs(allNotes ? "notesLess" : "notesMore", locale)}</span>
-              <MaterialIcon name={allNotes ? "expand_less" : "expand_more"} className="text-lg" />
-            </button>
-          )}
-        </div>
+            );
+          })}
+        </ol>
       )}
 
       {hasFacts && (
-        <div data-scent-facts="" className="space-y-bk-xs rounded-bk-card bg-bk-surface p-3">
-          {card.meters.map((m) => (
-            <div key={m.key} data-meter={m.key} className={cn("flex items-center gap-2", rtl && "flex-row-reverse")}>
-              <span className={cn("w-20 shrink-0 font-bk-body text-xs font-bold text-bk-ink-soft", align)}>
-                {m.label}
-              </span>
-              {m.segments > 0 && (
-                <span aria-hidden="true" className={cn("flex flex-1 gap-1", rtl && "flex-row-reverse")}>
-                  {m.fills.map((f, i) => (
-                    <span key={i} className="relative h-2 flex-1 overflow-hidden rounded-bk-pill bg-bk-divider">
-                      {f > 0 && (
-                        <span
-                          data-fill={f}
-                          className={cn("absolute inset-y-0 bg-bk-ink", rtl ? "right-0" : "left-0")}
-                          style={{ width: `${f * 100}%` }}
-                        />
-                      )}
-                    </span>
-                  ))}
-                </span>
+        <div data-scent-facts="" className="space-y-bk-sm">
+          {card.meters.length > 0 && (
+            <div>
+              <div className={cn("flex gap-2", rtl && "flex-row-reverse")}>
+                {card.meters.map((m) => (
+                  <div
+                    key={m.key}
+                    data-meter={m.key}
+                    className={cn("flex min-w-0 flex-1 flex-col gap-2 rounded-bk-card bg-bk-surface p-3", align)}
+                  >
+                    <p className={cn("flex items-baseline justify-between gap-2", rtl && "flex-row-reverse")}>
+                      <span className="font-bk-body text-xs font-bold text-bk-ink-soft">{m.label}</span>
+                      <span className="font-bk-body text-sm font-black tabular-nums text-bk-ink">
+                        <bdi>{xs("meterValue", locale, { value: m.value, max: m.max })}</bdi>
+                      </span>
+                    </p>
+                    {m.segments > 0 && (
+                      <span aria-hidden="true" className={cn("flex gap-1", rtl && "flex-row-reverse")}>
+                        {m.fills.map((f, i) => (
+                          <span key={i} className="relative h-1.5 flex-1 overflow-hidden rounded-bk-pill bg-bk-ink/10">
+                            {f > 0 && (
+                              <span
+                                data-fill={f}
+                                className={cn("absolute inset-y-0 bg-bk-ink", rtl ? "right-0" : "left-0")}
+                                style={{ width: `${f * 100}%` }}
+                              />
+                            )}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {card.factsSource && (
+                <p
+                  data-facts-source=""
+                  className={cn("mt-1.5 font-bk-body text-sm font-semibold text-bk-ink-soft", align)}
+                >
+                  {card.factsSource}
+                </p>
               )}
-              <span className="shrink-0 font-bk-body text-xs font-bold tabular-nums text-bk-ink">
-                <bdi>{xs("meterValue", locale, { value: m.value, max: m.max })}</bdi>
-              </span>
             </div>
-          ))}
-          {card.factsSource && (
-            <p data-facts-source="" className={cn("font-bk-body text-sm font-semibold text-bk-ink-soft", align)}>
-              {card.factsSource}
-            </p>
           )}
           {card.chipRows.map((r) => (
-            <div
-              key={r.key}
-              data-chip-row={r.key}
-              className={cn("flex flex-wrap items-center gap-1.5", rtl && "flex-row-reverse")}
-            >
-              <span className="font-bk-body text-xs font-bold text-bk-ink-soft">{r.label}</span>
+            <div key={r.key} data-chip-row={r.key} className={cn("space-y-1.5", align)}>
+              <p className="font-bk-body text-xs font-bold text-bk-ink-soft">{r.label}</p>
               <ul aria-label={r.label} className={cn("flex flex-wrap gap-1.5", rtl && "flex-row-reverse")}>
                 {r.chips.map((c, j) => (
                   <li
                     key={`${c}-${j}`}
-                    className="inline-flex h-7 items-center rounded-bk-pill bg-bk-surface-alt px-2.5 font-bk-body text-xs font-bold text-bk-ink"
+                    className="inline-flex h-8 items-center rounded-bk-pill bg-bk-surface px-3 font-bk-body text-[13px] font-bold text-bk-ink"
                   >
                     <bdi>{c}</bdi>
                   </li>
@@ -241,7 +235,14 @@ export function ScentCardBlock({
             </div>
           ))}
           {card.note && (
-            <p data-staying-power="" className={cn("font-bk-body text-sm font-bold text-bk-ink", align)}>
+            <p
+              data-staying-power=""
+              className={cn(
+                "flex items-center gap-2 rounded-bk-card bg-bk-secondary px-3.5 py-3 font-bk-body text-sm font-bold text-bk-on-secondary",
+                rtl ? "flex-row-reverse text-right" : "text-left",
+              )}
+            >
+              <MaterialIcon name="schedule" className="shrink-0 text-lg" />
               <span className="sr-only">{card.note.label}: </span>
               <bdi>{card.note.text}</bdi>
             </p>

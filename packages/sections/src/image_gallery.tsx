@@ -26,13 +26,13 @@
 // no tags, the list renders as entered, byte-identically.
 //
 // Opt-in `layout: "stack"` (the PDP proof stack, spec §1.5): a source
-// pill and an optional scope line under the heading, then the first
-// `initial_count` comments as live text — a numbered doubt, the quote in
-// «», the author — each over its full-width screenshot, cropped to the
-// comment column by `crop` (image-gallery-crop.ts) at the file's natural
-// height. A legend explains the "liked by us" mark once, after the first
-// comment. The rest stay in the HTML, hidden behind one expand button
-// (image_gallery.stack.tsx). Every screenshot opens the viewer. `display`,
+// pill, an optional scope line and the "liked by us" legend under the
+// heading, then every comment as one card in a swipe carousel: the first
+// `initial_count` lead with live text — a numbered doubt, the quote in «»
+// — then the author and the screenshot, cropped to the comment column by
+// `crop` (image-gallery-crop.ts) at the file's natural height. Position
+// dots follow the track (image_gallery.stack.tsx). Every screenshot opens
+// the viewer. `display`,
 // `frame` and `order` are ignored by the stack. Its server markup lives in
 // image_gallery.proofstack.tsx.
 //
@@ -129,16 +129,16 @@ const schema = z.object({
    *  products; order inside each group is kept. Absent, or with nothing
    *  tagged, the merchant's order renders byte-identically. */
   order: z.enum(["product_first"]).optional().catch(undefined),
-  /** Stack: how many comments lead (with doubt and quote); the rest
-   *  open behind «شوف N تعليقات ثانية». Absent = 3. */
+  /** Stack: how many comments lead (with doubt and quote); the rest show
+   *  the author and the screenshot only. Absent = 3. */
   initial_count: z.number().int().min(1).max(12).optional().catch(undefined),
   /** Stack: the source pill under the heading («تعليقات على إعلاناتنا بتيك توك»). */
   source_label_i18n: i18nStringOptional.catch(undefined),
-  /** Stack: "store" adds the scope line «3 من أصل 9، على عطورنا بشكل
+  /** Stack: "store" adds the scope line «9 تعليقات، على عطورنا بشكل
    *  عام» (the comments are about the shop, not this product). */
   scope: z.enum(["store", "product"]).optional().catch(undefined),
-  /** Stack: one line after the first comment explaining the
-   *  "liked by us" mark on the screenshots. */
+  /** Stack: one line under the heading explaining the "liked by us"
+   *  mark on the screenshots. */
   legend_i18n: i18nStringOptional.catch(undefined),
   /** Stack: the mark's picture beside the legend (the store logo as it
    *  appears on TikTok). Absent → `branding.logo_url`; neither → text only. */

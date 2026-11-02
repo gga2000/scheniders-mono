@@ -1,53 +1,70 @@
 // @vitest-environment jsdom
 // =====================================================================
-// image_gallery stack — the expand/collapse island
+// image_gallery stack — the carousel's position dots
 // =====================================================================
-// The rest of the comments start hidden; one tap shows them in place and
-// relabels the same button «سدّ التعليقات»; a second tap hides them again.
-// The button names the list it controls.
+// One dot per card, the first current; a tap scrolls the track to that
+// card (mirrored in a reversed Arabic track) and the dot that follows the
+// scroll position becomes current. One card draws no dots.
 // =====================================================================
 
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/react";
-import { ProofStackMore } from "./image_gallery.stack";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { ProofCarouselDots } from "./image_gallery.stack";
 
 afterEach(cleanup);
 
-function setup() {
-  return render(
-    <ProofStackMore listId="proof-rest" moreLabel="شوف 6 تعليقات ثانية" lessLabel="سدّ التعليقات" rtl>
-      <li>عباس</li>
-      <li>Alpha decorations company</li>
-    </ProofStackMore>,
-  );
+function setup(rtl: boolean, count = 3) {
+  const track = document.createElement("ol");
+  track.id = "proof-track";
+  for (let i = 0; i < count; i++) {
+    const li = document.createElement("li");
+    Object.defineProperty(li, "offsetWidth", { value: 300 });
+    track.appendChild(li);
+  }
+  track.scrollTo = vi.fn() as unknown as typeof track.scrollTo;
+  document.body.appendChild(track);
+  window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
+  const labels = Array.from({ length: count }, (_, i) => `التعليق ${i + 1}`);
+  const view = render(<ProofCarouselDots trackId="proof-track" rtl={rtl} labels={labels} />);
+  return { track, view };
 }
 
-describe("ProofStackMore", () => {
-  it("starts closed: the list hidden, the button says how many are behind it", () => {
-    const { getByRole, container } = setup();
-    const list = container.querySelector("#proof-rest");
-    expect(list?.hasAttribute("hidden")).toBe(true);
-    const button = getByRole("button");
-    expect(button.getAttribute("aria-expanded")).toBe("false");
-    expect(button.getAttribute("aria-controls")).toBe("proof-rest");
-    expect(button.textContent).toContain("شوف 6 تعليقات ثانية");
+afterEach(() => {
+  document.getElementById("proof-track")?.remove();
+});
+
+describe("ProofCarouselDots", () => {
+  it("one dot per card, the first current", () => {
+    const { view } = setup(false);
+    const dots = view.getAllByRole("button");
+    expect(dots).toHaveLength(3);
+    expect(dots[0]?.getAttribute("aria-current")).toBe("true");
+    expect(dots[1]?.hasAttribute("aria-current")).toBe(false);
+    expect(dots[2]?.getAttribute("aria-label")).toBe("التعليق 3");
   });
 
-  it("a tap opens the rest in place; a second tap closes it", () => {
-    const { getByRole, container } = setup();
-    const button = getByRole("button");
-    fireEvent.click(button);
-    expect(container.querySelector("#proof-rest")?.hasAttribute("hidden")).toBe(false);
-    expect(button.getAttribute("aria-expanded")).toBe("true");
-    expect(button.textContent).toContain("سدّ التعليقات");
-    fireEvent.click(button);
-    expect(container.querySelector("#proof-rest")?.hasAttribute("hidden")).toBe(true);
-    expect(button.textContent).toContain("شوف 6 تعليقات ثانية");
+  it("a tap scrolls to the card, mirrored in a reversed track", () => {
+    const ltr = setup(false);
+    fireEvent.click(ltr.view.getByRole("button", { name: "التعليق 3" }));
+    expect(ltr.track.scrollTo).toHaveBeenCalledWith({ left: 600, behavior: "smooth" });
+    cleanup();
+    ltr.track.remove();
+    const rtl = setup(true);
+    fireEvent.click(rtl.view.getByRole("button", { name: "التعليق 2" }));
+    expect(rtl.track.scrollTo).toHaveBeenCalledWith({ left: -300, behavior: "smooth" });
   });
 
-  it("flips its row for Arabic with a class, never dir", () => {
-    const { getByRole, container } = setup();
-    expect(getByRole("button").className).toContain("flex-row-reverse");
-    expect(container.querySelector("[dir]")).toBeNull();
+  it("follows the scroll position", () => {
+    const { track, view } = setup(true);
+    Object.defineProperty(track, "scrollLeft", { value: -310, configurable: true });
+    act(() => {
+      track.dispatchEvent(new Event("scroll"));
+    });
+    expect(view.getByRole("button", { name: "التعليق 2" }).getAttribute("aria-current")).toBe("true");
+  });
+
+  it("one card draws no dots", () => {
+    const { view } = setup(false, 1);
+    expect(view.queryAllByRole("button")).toHaveLength(0);
   });
 });
