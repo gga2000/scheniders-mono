@@ -187,6 +187,8 @@ describe("orderRepository.search", () => {
         const [rpc] = queriesOn("search_orders_v2");
         expect(rpc.kind).toBe("rpc");
         expect(rpc.rpcArgs).toMatchObject({ p_tenant_id: TENANT, p_term: "07701234567" });
+        // Trashed orders are not search results.
+        expect(rpc.ops.some((o) => o.op === "is" && o.args[0] === "deleted_at" && o.args[1] === null)).toBe(true);
         expectAllTenantScoped();
     });
 
@@ -200,6 +202,7 @@ describe("orderRepository.search", () => {
         expect(rows.map((r) => r.id)).toContain("o1");
         // exact + partial direct selects, both scoped
         expect(queriesOn("orders").length).toBe(2);
+        expect(queriesOn("orders").every((q) => q.ops.some((o) => o.op === "is" && o.args[0] === "deleted_at" && o.args[1] === null))).toBe(true);
         expectAllTenantScoped();
 
         // The missing RPC is remembered: the next search goes straight to the
