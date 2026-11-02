@@ -1,5 +1,6 @@
 "use client";
 
+import { computeRefundPayout } from "@/lib/order-money";
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { AbandonedCartBadge } from "@/components/orders/abandoned-cart-badge";
 import { AbandonedCartAccent } from "@/components/orders/abandoned-cart-accent";
@@ -94,7 +95,7 @@ export function UltraCompactGridCard(props: OrderCardProps) {
                                 isReturn ? "text-red-600" : "text-foreground"
                             )}>
                                 {isReturn && "-"}
-                                {formatIQD(Math.abs(Number(order.price)))}
+                                {formatIQD(order.is_return ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
                             </span>
                         )}
                     </div>

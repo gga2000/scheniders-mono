@@ -1,6 +1,7 @@
 "use client";
 
 
+import { computeRefundPayout } from "@/lib/order-money";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
 
 import { formatIQD, cn } from "@/lib/utils";
@@ -161,7 +162,7 @@ export function UltraCompactCard(props: OrderCardProps) {
                                 isReturn ? "text-red-600" : "text-foreground"
                             )}>
                                 {isReturn && "-"}
-                                {formatIQD(Math.abs(Number(order.price)))}
+                                {formatIQD(order.is_return ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
                             </span>
                         )}
                     </div>

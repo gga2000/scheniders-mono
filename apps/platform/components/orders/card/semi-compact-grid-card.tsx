@@ -1,5 +1,6 @@
 "use client";
 
+import { computeRefundPayout } from "@/lib/order-money";
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { DeliverySlotChip } from "./delivery-slot-chip";
 import { GiftChip } from "./gift-chip";
@@ -143,7 +144,7 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                                 isReturn ? "text-red-600" : "text-foreground"
                             )}>
                                 {isReturn && "-"}
-                                {formatIQD(Math.abs(Number(order.price)))}
+                                {formatIQD(order.is_return ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
                             </span>
                         )}
                     </div>
