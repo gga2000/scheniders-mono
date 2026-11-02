@@ -16,6 +16,7 @@ import {
   qualifiesForFreeGift,
   type PriceTier,
   type OrderBumpOffer,
+  toOmsGovernorateCode,
 } from "@scheniders/shared";
 import type { StoreConfigV2, AnalyticsConfig } from "@scheniders/shared";
 import { AD_ATTRIBUTION_COOKIE, deserializeAdAttribution } from "@scheniders/shared/ad-attribution";
@@ -660,7 +661,8 @@ export async function submitCheckout(
     phone,
     // create_order_atomic reads `_order_data->>'secondary_phone'`.
     secondary_phone: altPhone,
-    governorate_code: payload.customer.governorate_code,
+    // Stored as the OMS/Prime code (BGD), never the storefront two-letter code.
+    governorate_code: toOmsGovernorateCode(payload.customer.governorate_code),
     city: payload.customer.city.trim(),
     address_details: payload.customer.address_details.trim(),
     items: verifiedItems.map((i) => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   IRAQ_GOVERNORATES,
   governorateLabel,
+  toOmsGovernorateCode,
   resolveGovernorate,
 } from "./governorates";
 
@@ -64,5 +65,20 @@ describe("governorateLabel — stored order codes", () => {
   it("gives every governorate a distinct OMS code", () => {
     const codes = IRAQ_GOVERNORATES.map((g) => g.oms_code);
     expect(new Set(codes).size).toBe(IRAQ_GOVERNORATES.length);
+  });
+});
+
+describe("toOmsGovernorateCode — what an order stores", () => {
+  it("turns every storefront two-letter code into its Prime three-letter code", () => {
+    for (const g of IRAQ_GOVERNORATES) {
+      expect(toOmsGovernorateCode(g.code)).toBe(g.oms_code);
+    }
+    expect(toOmsGovernorateCode("NI")).toBe("MOS");
+    expect(toOmsGovernorateCode("KE")).toBe("KRB");
+  });
+
+  it("keeps an already-Prime code and refuses unknown input", () => {
+    expect(toOmsGovernorateCode("BGD")).toBe("BGD");
+    expect(toOmsGovernorateCode("XX")).toBeUndefined();
   });
 });

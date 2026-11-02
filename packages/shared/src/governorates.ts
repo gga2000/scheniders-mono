@@ -49,6 +49,16 @@ export function resolveGovernorate(input: string): Governorate | undefined {
 }
 
 /**
+ * The code to STORE on an order (`orders.governorate_code`, `abandoned_carts.governorate`):
+ * the three-letter OMS/Prime code. The two-letter `code` is a storefront-side
+ * vocabulary only (cookies, delivery segments, shipping engine) and must never
+ * reach the orders table. Returns undefined for an unknown input.
+ */
+export function toOmsGovernorateCode(input: string): string | undefined {
+  return resolveGovernorate(input)?.oms_code;
+}
+
+/**
  * Localized display label for a governorate given any of its forms (code /
  * Latin / Arabic). Returns the Arabic name for "ar", the Kurdish name
  * (`name_ku`) for "ku", and the Latin name otherwise. Falls back to the raw
