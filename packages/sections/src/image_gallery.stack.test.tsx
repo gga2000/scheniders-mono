@@ -4,16 +4,28 @@
 // =====================================================================
 // One dot per card, the first current; a tap scrolls the track to that
 // card (mirrored in a reversed Arabic track) and the dot that follows the
-// scroll position becomes current. One card draws no dots.
+// scroll position becomes current. On screen it autoplays, wrapping, until
+// a touch; never under reduced motion. One card draws no dots.
 // =====================================================================
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
-import { ProofCarouselDots } from "./image_gallery.stack";
+import { AUTOPLAY_MS, ProofCarouselDots } from "./image_gallery.stack";
 
 afterEach(cleanup);
 
-function setup(rtl: boolean, count = 3) {
+let showTrack: (visible: boolean) => void = () => {};
+
+class FakeObserver {
+  constructor(cb: (entries: { isIntersecting: boolean }[]) => void) {
+    showTrack = (visible) => cb([{ isIntersecting: visible }]);
+  }
+  observe() {}
+  disconnect() {}
+}
+
+function setup(rtl: boolean, count = 3, reduce = false) {
+  globalThis.IntersectionObserver = FakeObserver as unknown as typeof IntersectionObserver;
   const track = document.createElement("ol");
   track.id = "proof-track";
   for (let i = 0; i < count; i++) {
@@ -23,7 +35,7 @@ function setup(rtl: boolean, count = 3) {
   }
   track.scrollTo = vi.fn() as unknown as typeof track.scrollTo;
   document.body.appendChild(track);
-  window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
+  window.matchMedia = vi.fn().mockReturnValue({ matches: reduce }) as unknown as typeof window.matchMedia;
   const labels = Array.from({ length: count }, (_, i) => `التعليق ${i + 1}`);
   const view = render(<ProofCarouselDots trackId="proof-track" rtl={rtl} labels={labels} />);
   return { track, view };
@@ -61,6 +73,59 @@ describe("ProofCarouselDots", () => {
       track.dispatchEvent(new Event("scroll"));
     });
     expect(view.getByRole("button", { name: "التعليق 2" }).getAttribute("aria-current")).toBe("true");
+  });
+
+  it("autoplays one card per tick while on screen, wrapping to the first", () => {
+    vi.useFakeTimers();
+    try {
+      const { track } = setup(true);
+      act(() => showTrack(true));
+      act(() => {
+        vi.advanceTimersByTime(AUTOPLAY_MS);
+      });
+      expect(track.scrollTo).toHaveBeenLastCalledWith({ left: -300, behavior: "smooth" });
+      Object.defineProperty(track, "scrollLeft", { value: -600, configurable: true });
+      act(() => {
+        track.dispatchEvent(new Event("scroll"));
+        vi.advanceTimersByTime(AUTOPLAY_MS);
+      });
+      expect(track.scrollTo).toHaveBeenLastCalledWith({ left: -0, behavior: "smooth" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops for good once the shopper touches the track, and waits while off screen", () => {
+    vi.useFakeTimers();
+    try {
+      const { track } = setup(false);
+      act(() => {
+        vi.advanceTimersByTime(AUTOPLAY_MS * 2);
+      });
+      expect(track.scrollTo).not.toHaveBeenCalled();
+      act(() => showTrack(true));
+      track.dispatchEvent(new Event("pointerdown"));
+      act(() => {
+        vi.advanceTimersByTime(AUTOPLAY_MS * 2);
+      });
+      expect(track.scrollTo).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never autoplays under reduced motion", () => {
+    vi.useFakeTimers();
+    try {
+      const { track } = setup(false, 3, true);
+      act(() => showTrack(true));
+      act(() => {
+        vi.advanceTimersByTime(AUTOPLAY_MS * 2);
+      });
+      expect(track.scrollTo).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("one card draws no dots", () => {
