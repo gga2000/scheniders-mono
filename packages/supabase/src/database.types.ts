@@ -9225,6 +9225,32 @@ export type Database = {
         Args: { p_tenant_id?: string }
         Returns: undefined
       }
+      record_storefront_beacon: {
+        Args: {
+          _events: Json
+          _ip_key?: string
+          _ip_limit: number
+          _tenant_id: string
+          _visitor_key: string
+          _visitor_key_limit_key: string
+          _visitor_limit: number
+          _window_seconds: number
+        }
+        Returns: string
+      }
+      record_storefront_events: {
+        Args: {
+          _events: Json
+          _ip_key: string
+          _ip_limit: number
+          _tenant_id: string
+          _visitor_key: string
+          _visitor_key_limit_key: string
+          _visitor_limit: number
+          _window_seconds: number
+        }
+        Returns: string
+      }
       referral_check: {
         Args: { _code: string; _phone: string; _tenant_id: string }
         Returns: {
