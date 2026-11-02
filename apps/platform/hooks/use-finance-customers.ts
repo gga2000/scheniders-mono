@@ -3,6 +3,7 @@
 import { bucketsBetween, periodBucket } from "@/lib/finance/buckets";
 import { useMemo } from "react";
 import type { Order } from "@/lib/supabase";
+import { normalizePhoneForSearch } from "@/lib/order-utils";
 import type { DateInterval } from "./use-finance-overview";
 import type { Granularity } from "./use-finance-period";
 
@@ -76,25 +77,76 @@ export interface FinanceCustomersResult {
 
 const REVENUE_STATUSES = new Set(["delivered", "completed"]);
 
+/**
+ * One row of `customer_aggregates`: a customer's lifetime totals, keyed by the
+ * normalized phone. The finances page only loads the orders of the picked period,
+ * so lifetime figures (first order, total spent, order count) cannot be rebuilt
+ * from them: a regular whose earlier orders fall outside the window would read as new.
+ */
+export interface CustomerAggregate {
+    customer_phone: string;
+    latest_name: string | null;
+    latest_city: string | null;
+    total_orders: number;
+    total_spent: number;
+    first_order_date: string | null;
+    last_order_date: string | null;
+    cancelled_count: number;
+    rejected_count: number;
+}
+
+function daysSince(iso: string | null, now: number): number {
+    const t = iso ? new Date(iso).getTime() : 0;
+    return t ? Math.max(0, Math.floor((now - t) / 86400000)) : 9999;
+}
+
 export function useFinanceCustomers(
     orders: Order[],
+    aggregates: CustomerAggregate[],
     range: DateInterval,
     granularity: Granularity,
 ): FinanceCustomersResult {
     return useMemo(() => {
         const start = range.start.getTime();
         const end = range.end.getTime();
+        const now = Date.now();
 
-        // Build full per-customer profile from ALL orders (lifetime view)
+        // Lifetime profile per customer, from the aggregates.
         const customerMap = new Map<string, CustomerSummary>();
+        for (const a of aggregates) {
+            const ordersCount = Number(a.total_orders) || 0;
+            const revenue = Number(a.total_spent) || 0;
+            const first = a.first_order_date ? new Date(a.first_order_date).getTime() : 0;
+            const rejections = (Number(a.rejected_count) || 0) + (Number(a.cancelled_count) || 0);
+            customerMap.set(a.customer_phone, {
+                phone: a.customer_phone,
+                name: a.latest_name || "—",
+                city: a.latest_city ?? undefined,
+                orders_count: ordersCount,
+                revenue,
+                aov: ordersCount > 0 ? revenue / ordersCount : 0,
+                first_order_at: a.first_order_date ?? "",
+                last_order_at: a.last_order_date ?? "",
+                days_since_last_order: daysSince(a.last_order_date, now),
+                is_repeat: ordersCount > 1,
+                is_new_in_period: first >= start && first <= end,
+                rejection_count: rejections,
+                rejection_rate: ordersCount > 0 ? (rejections / ordersCount) * 100 : 0,
+            });
+        }
+
+        // The aggregate view refreshes on a schedule, so a customer whose first order is newer
+        // than the last refresh has no row yet. They are new, and their profile is what the
+        // window shows of them.
+        const windowOrders: Array<{ order: Order; phone: string }> = [];
+        const derived = new Set<string>();
         for (const o of orders) {
-            const phone = o.phone;
+            const phone = normalizePhoneForSearch(o.phone);
             // Refund and return rows are money going back, not orders the customer placed.
             if (!phone || o.is_return) continue;
-            const isRevenue = REVENUE_STATUSES.has(o.status);
             const created = o.created_at ? new Date(o.created_at).getTime() : 0;
-            const price = Number(o.price) || 0;
-            const isRejected = o.status === "rejected" || o.status === "cancelled" || o.status === "refund_delivered";
+            if (created < start || created > end) continue;
+            windowOrders.push({ order: o, phone });
 
             let c = customerMap.get(phone);
             if (!c) {
@@ -109,48 +161,44 @@ export function useFinanceCustomers(
                     last_order_at: o.created_at,
                     days_since_last_order: 0,
                     is_repeat: false,
-                    is_new_in_period: false,
+                    is_new_in_period: true,
                     rejection_count: 0,
                     rejection_rate: 0,
                 };
                 customerMap.set(phone, c);
+                derived.add(phone);
             }
+            if (!derived.has(phone)) continue;
             c.orders_count += 1;
-            if (isRevenue) c.revenue += price;
-            if (isRejected) c.rejection_count += 1;
-            if (created && new Date(c.first_order_at).getTime() > created) c.first_order_at = o.created_at;
-            if (created && new Date(c.last_order_at).getTime() < created) c.last_order_at = o.created_at;
+            if (REVENUE_STATUSES.has(o.status)) c.revenue += Number(o.price) || 0;
+            if (o.status === "rejected" || o.status === "cancelled") c.rejection_count += 1;
+            if (new Date(c.first_order_at).getTime() > created) c.first_order_at = o.created_at;
+            if (new Date(c.last_order_at).getTime() < created) c.last_order_at = o.created_at;
         }
-
-        const now = Date.now();
-        for (const c of customerMap.values()) {
+        for (const phone of derived) {
+            const c = customerMap.get(phone);
+            if (!c) continue;
             c.aov = c.orders_count > 0 ? c.revenue / c.orders_count : 0;
             c.is_repeat = c.orders_count > 1;
             c.rejection_rate = c.orders_count > 0 ? (c.rejection_count / c.orders_count) * 100 : 0;
-            const last = c.last_order_at ? new Date(c.last_order_at).getTime() : 0;
-            c.days_since_last_order = last ? Math.max(0, Math.floor((now - last) / 86400000)) : 9999;
-            const first = c.first_order_at ? new Date(c.first_order_at).getTime() : 0;
-            c.is_new_in_period = first >= start && first <= end;
+            c.days_since_last_order = daysSince(c.last_order_at, now);
         }
 
         const allCustomers = Array.from(customerMap.values());
 
-        // Customers active in current period
-        const activeInPeriod = allCustomers.filter((c) => {
-            const last = c.last_order_at ? new Date(c.last_order_at).getTime() : 0;
-            return last >= start && last <= end;
-        });
+        // Customers who placed an order in the period.
+        const activeInPeriod = Array.from(new Set(windowOrders.map((w) => w.phone)))
+            .map((phone) => customerMap.get(phone))
+            .filter((c): c is CustomerSummary => c !== undefined);
 
         // Period-window revenue split: new vs returning
         let newRevenue = 0;
         let returningRevenue = 0;
         let newOrders = 0;
         let returningOrders = 0;
-        for (const o of orders) {
-            const created = o.created_at ? new Date(o.created_at).getTime() : 0;
-            if (created < start || created > end) continue;
+        for (const { order: o, phone } of windowOrders) {
             if (!REVENUE_STATUSES.has(o.status)) continue;
-            const c = customerMap.get(o.phone);
+            const c = customerMap.get(phone);
             if (!c) continue;
             const price = Number(o.price) || 0;
             if (c.is_new_in_period) {
@@ -215,7 +263,7 @@ export function useFinanceCustomers(
             }));
 
         // Acquisition mix time series within period
-        const acquisitionMix = buildAcquisitionMix(orders, customerMap, range, granularity);
+        const acquisitionMix = buildAcquisitionMix(windowOrders, customerMap, range, granularity);
 
         return {
             summary,
@@ -224,7 +272,7 @@ export function useFinanceCustomers(
             dormantHighValue,
             acquisitionMix,
         };
-    }, [orders, range.start, range.end, granularity]);
+    }, [orders, aggregates, range.start, range.end, granularity]);
 }
 
 function buildLtvBuckets(customers: CustomerSummary[]): LTVBucket[] {
@@ -272,13 +320,11 @@ function buildLtvBuckets(customers: CustomerSummary[]): LTVBucket[] {
 }
 
 function buildAcquisitionMix(
-    orders: Order[],
+    windowOrders: Array<{ order: Order; phone: string }>,
     customerMap: Map<string, CustomerSummary>,
     range: DateInterval,
     granularity: Granularity,
 ): AcquisitionMixPoint[] {
-    const start = range.start.getTime();
-    const end = range.end.getTime();
     const bucketsMap = new Map<string, AcquisitionMixPoint>();
 
     const ensureBucket = (key: string, ts: number): AcquisitionMixPoint => {
@@ -300,12 +346,10 @@ function buildAcquisitionMix(
     // Pre-fill buckets for the period
     for (const { key, ts } of bucketsBetween(range.start, range.end, granularity)) ensureBucket(key, ts);
 
-    for (const o of orders) {
+    for (const { order: o, phone } of windowOrders) {
         if (!o.created_at) continue;
-        const t = new Date(o.created_at).getTime();
-        if (t < start || t > end) continue;
         if (!REVENUE_STATUSES.has(o.status)) continue;
-        const c = customerMap.get(o.phone);
+        const c = customerMap.get(phone);
         if (!c) continue;
         const price = Number(o.price) || 0;
         const { key, ts } = periodBucket(new Date(o.created_at), granularity);
