@@ -24,6 +24,7 @@ import { GlobalSearchField } from "@/components/orders/global-search-field";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
 import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 import { AdCampaignFilter } from "@/components/orders/ad-campaign-filter";
+import { LeadQualityStrip } from "@/components/orders/lead-quality-strip";
 import { StuckTransitChip } from "@/components/orders/stuck-transit-chip";
 import { PaymentUncheckedChip } from "@/components/orders/payment-unchecked-chip";
 import { TagFilterChip } from "@/components/orders/tags/tag-filter-chip";
@@ -109,6 +110,7 @@ export function OrdersFilterBar({
         availableProductsInView,
         adChannelSummary,
         adCampaignSummary,
+        adCampaignQuality,
         filterPresets,
         saveFilterPreset,
         loadFilterPreset,
@@ -222,6 +224,13 @@ export function OrdersFilterBar({
                                 selected={filters.adCampaign}
                                 onSelect={(campaign) => setFilters({ ...filters, adCampaign: campaign ?? undefined })}
                                 countsHidden={countsHidden}
+                                className="pl-8 pr-6"
+                            />
+                        )}
+                        {filters.adCampaign && adCampaignQuality && !countsHidden && (
+                            <LeadQualityStrip
+                                quality={adCampaignQuality}
+                                campaign={adCampaignSummary.stats.find((s) => s.key === filters.adCampaign)?.label ?? filters.adCampaign}
                                 className="pl-8 pr-6"
                             />
                         )}
