@@ -57,7 +57,7 @@ import {
 } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateCode, LocaleCode } from "@scheniders/shared";
 import { useCart } from "./helpers/cart-store";
-import { trackPixel, newPixelEventId, handOffPurchase } from "./helpers/pixels";
+import { trackPixel, trackProductView, newPixelEventId, handOffPurchase } from "./helpers/pixels";
 import { captureReferral, clearCapturedReferral } from "./helpers/referral-capture";
 import { focusVariantPicker, stockLeftFor, useSelectedVariant } from "./helpers/variant-store";
 import {
@@ -504,6 +504,14 @@ export function PdpDirectOrderRender({
   // Pixel InitiateCheckout fires once, on the FIRST focus of any form field —
   // never on mount, or every PDP view would count as a checkout start.
   const initiateFired = useRef(false);
+  // Pixel ViewContent: the ad landing pages carry this form and no buy box,
+  // so the form reports the product view (once, shared with the buy box).
+  const viewedId = product?.id;
+  const viewedPrice = product?.price;
+  useEffect(() => {
+    if (!viewedId || typeof viewedPrice !== "number") return;
+    trackProductView({ id: viewedId, price: viewedPrice });
+  }, [viewedId, viewedPrice]);
   // Loyalty: the previous order number that proves the phone is the shopper's
   // (the balance route answers nothing without it), and how many points they
   // choose to spend. The server re-resolves the spend against the published

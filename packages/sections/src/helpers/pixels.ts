@@ -11,6 +11,7 @@
 
 import {
   PENDING_PURCHASE_KEY,
+  pixelContentFromProduct,
   parsePendingPurchase,
   pixelExternalIdSource,
   pixelPhoneDigits,
@@ -155,6 +156,20 @@ export function trackPixel(
 }
 
 /** A stable id shared by the browser event and its CAPI twin (dedup, R2). */
+/**
+ * ViewContent for the product the shopper is looking at, once per product
+ * view. Both the buy box and the direct-order form report the view, so a
+ * page with either (or both) sends exactly one; the ad landing pages carry
+ * only the direct-order form. Opening a different product, then coming back,
+ * counts again.
+ */
+let lastViewedProductId: string | null = null;
+export function trackProductView(product: { id: string; price: number }): void {
+  if (typeof window === "undefined" || lastViewedProductId === product.id) return;
+  lastViewedProductId = product.id;
+  trackPixel("ViewContent", pixelContentFromProduct(product));
+}
+
 export function newPixelEventId(): string {
   const c = globalThis.crypto;
   if (c && typeof c.randomUUID === "function") return c.randomUUID();
