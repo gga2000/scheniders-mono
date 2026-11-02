@@ -197,7 +197,7 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
     </div>
     <div class="dl-addr${order.notes ? " dl-addr-short" : ""}"><div class="dl-k">العنوان</div><div class="dl-addr-t">${e(order.address_details) || "—"}</div></div>
     ${order.notes ? `<div class="dl-notes" style="-webkit-line-clamp: ${noteLines}"><b>${afterSale ? "تعليمات" : "ملاحظة"}:</b> ${e(order.notes)}</div>` : ""}
-    ${afterSale ? "" : `<div class="dl-row"><span class="dl-items"><span class="dl-k">المنتج</span> ${itemList(items) || "—"}</span><span class="dl-pcs">${pieces} قطعة</span></div>`}
+    ${afterSale ? "" : `<div class="dl-row"><span class="dl-items"><span class="dl-k">المنتج</span> ${itemList(items) || "—"}</span>${order.is_gift ? `<span class="dl-gift">هدية</span>` : ""}<span class="dl-pcs">${pieces} قطعة</span></div>`}
     ${options.showBarcode ? `<div class="dl-foot"><div class="dl-bc">${code128Svg(id, { heightMm: dense ? 7 : 8, maxWidthMm: 74 })}</div></div>` : ""}
     <div class="dl-meta"><span class="dl-brand">${SCHNEIDERS_LOGO_SVG}SCHNEIDERS</span><span class="dl-date">${formatLabelDate(order.created_at)}</span></div>
 </div>`;
@@ -302,6 +302,7 @@ export const DISPATCH_LABEL_CSS = `
     .dl-row > span:not(.dl-items) { white-space: nowrap; }
     .dl-items .dl-k { margin-inline-end: 1mm; }
     .dl-pcs { font-size: 8.5pt; }
+    .dl-gift { margin-inline-start: auto; background: #000; color: #fff; padding: 0 1.6mm; font-size: 9pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .dl-meta { display: flex; justify-content: space-between; align-items: center; font-size: 6.5pt; margin-top: -.6mm; }
     .dl-brand { display: flex; align-items: center; gap: .8mm; font-weight: 700; letter-spacing: .3pt; }
     .dl-brand svg { width: 3mm; height: 3mm; }

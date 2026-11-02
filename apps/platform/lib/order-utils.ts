@@ -279,6 +279,7 @@ export interface OrderFormData {
     notes?: string;
     internal_notes?: string;
     delivery_slot?: DeliverySlot;
+    is_gift?: boolean;
     payment_status?: 'cod' | 'prepaid' | 'partial';
 }
 
@@ -295,6 +296,7 @@ export function createEmptyOrderForm(): OrderFormData {
         items: [{ name: "", quantity: 1, price: 0 }],
         notes: "",
         delivery_slot: undefined,
+        is_gift: false,
         payment_status: "cod",
     };
 }

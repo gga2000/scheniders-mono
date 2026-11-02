@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { DeliverySlotPicker } from "@/components/orders/delivery-slot-picker";
+import { GiftToggle } from "@/components/orders/gift-toggle";
 import {
     Dialog,
     DialogContent,
@@ -49,9 +50,6 @@ import {
     RefreshCw,
     Banknote,
     CreditCard,
-    Sun,
-    CloudSun,
-    Moon,
     Clock,
     Ban,
     CalendarClock,
@@ -126,6 +124,7 @@ export function CreateOrderModal({
         notes: initialData?.notes || "",
         internal_notes: initialData?.internal_notes || "",
         delivery_slot: initialData?.delivery_slot,
+        is_gift: initialData?.is_gift ?? false,
         payment_status: initialData?.payment_status || "cod",
         source: initialData?.source || "whatsapp",
         order_id: "",
@@ -183,6 +182,7 @@ export function CreateOrderModal({
                 notes: initialData.notes || "",
                 internal_notes: initialData.internal_notes || "",
                 delivery_slot: initialData.delivery_slot,
+                is_gift: initialData.is_gift ?? false,
                 payment_status: initialData.payment_status || "cod",
                 source: initialData.source || "whatsapp",
                 order_id: "",
@@ -222,6 +222,7 @@ export function CreateOrderModal({
             notes: "",
             internal_notes: "",
             delivery_slot: undefined,
+            is_gift: false,
             payment_status: "cod",
             source: "whatsapp",
             order_id: "",
@@ -315,6 +316,7 @@ export function CreateOrderModal({
             notes: "",
             internal_notes: "",
             delivery_slot: undefined,
+            is_gift: false,
             payment_status: "cod",
             source: orderType === "shop" ? "shop" : "whatsapp",
             order_id: "",
@@ -488,6 +490,7 @@ export function CreateOrderModal({
                 discount_amount: discount,
                 delivery_fee: actualDeliveryFee,
                 is_shop_order: orderType === "shop",
+                is_gift: orderType === "delivery" && Boolean(formData.is_gift),
                 status: orderType === "shop" ? "completed" : "confirmed",
                 notes: orderType === "shop" ? `[طلب محل] ${formData.notes || ''}`.trim() : formData.notes,
                 internal_notes: formData.internal_notes || "",
@@ -981,6 +984,15 @@ export function CreateOrderModal({
                                                 onChange={(slot) => updateField("delivery_slot", slot)}
                                             />
                                         </div>
+                                    )}
+
+                                    {/* Gift - Only for delivery orders */}
+                                    {orderType === "delivery" && (
+                                        <GiftToggle
+                                            value={formData.is_gift ?? false}
+                                            onChange={(isGift) => updateField("is_gift", isGift)}
+                                            collectsCash={formData.payment_status === "cod"}
+                                        />
                                     )}
                                 </div>
                             </div>
