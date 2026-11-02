@@ -1,4 +1,4 @@
-import type { McpServer } from "@modelcontextprotocol/server";
+import type { McpServer, ServerCapabilities } from "@modelcontextprotocol/server";
 import { registerStoreReadTools } from "@/lib/mcp/tools/store-read";
 import { registerOrderReadTools } from "@/lib/mcp/tools/orders-read";
 import { registerOrderWriteTools } from "@/lib/mcp/tools/orders-write";
@@ -8,6 +8,15 @@ import { registerCustomerTools } from "@/lib/mcp/tools/customers";
 import { registerFinanceTools } from "@/lib/mcp/tools/finance";
 
 export const MCP_SERVER_INFO = { name: "schenider-platform", version: "1.0.0" };
+
+/**
+ * The tool list is fixed at deploy time and every request runs on a fresh,
+ * stateless function, so the server never sends a "list changed" notice.
+ * Saying so makes the SDK end a client's `subscriptions/listen` stream right
+ * after its acknowledgement; otherwise each stream sits open with nothing to
+ * say until Vercel kills the function at `maxDuration`, logging a timeout.
+ */
+export const MCP_SERVER_CAPABILITIES: ServerCapabilities = { tools: { listChanged: false } };
 
 export const MCP_INSTRUCTIONS = [
     "You are working inside one Schenider store (an Iraqi COD e-commerce business). Call get_store first.",
