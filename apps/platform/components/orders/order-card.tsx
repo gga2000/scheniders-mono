@@ -25,6 +25,7 @@ import { FollowUpCueBadge } from "./follow-up-cue-badge";
 import { MessageCircle, Edit, XCircle, Ban, ShieldCheck, MapPin, Phone, Package, PhoneCall, CheckCircle, Truck, Sparkles, AlertTriangle, Calendar, RotateCcw, FileText, Pin, Clock, Copy, CopyPlus, MoreVertical, Camera, PhoneOff, History as HistoryIcon, Archive as ArchiveIcon, Scissors, ClipboardCopy, Bot, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
+import { AdCampaignChip } from "@/components/orders/ad-campaign-chip";
 import { PriorityBadge } from "./card/priority-badge";
 import { SourceBadge } from "./card/source-badge";
 import { StuckTransitBadge } from "./card/stuck-transit-badge";
@@ -809,6 +810,11 @@ function FullOrderCard(props: OrderCardProps) {
                         {(order.attribution || order.ad_channel) && (
                             <div className="mb-1 flex justify-end">
                                 <AdChannelBadge attribution={order.attribution} channel={order.ad_channel} />
+                            </div>
+                        )}
+                        {order.attribution?.campaign && (
+                            <div className="mb-1 flex justify-end">
+                                <AdCampaignChip attribution={order.attribution} />
                             </div>
                         )}
                         {(order.payment_status === "paid" || order.payment_status === "prepaid") ? (
