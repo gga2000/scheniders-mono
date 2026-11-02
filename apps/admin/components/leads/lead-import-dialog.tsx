@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { EASE_CHROME } from "@/lib/animation-constants";
+import { adminFetch } from "@/lib/admin-fetch";
 import {
   X,
   Upload,
@@ -397,7 +398,7 @@ export function LeadImportDialog({ isOpen, onClose }: LeadImportDialogProps) {
     }, 200);
 
     try {
-      const res = await fetch("/api/leads/import", {
+      const res = await adminFetch("/api/leads/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ leads: mappedLeads }),

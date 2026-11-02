@@ -29,7 +29,7 @@ export function useCreateFollowUp() {
       scheduled_at: string;
       title: string;
       description?: string;
-      assigned_to: string;
+      assigned_to?: string;
     }) => {
       const res = await adminFetch(`/api/leads/${leadId}/follow-ups`, {
         method: "POST",

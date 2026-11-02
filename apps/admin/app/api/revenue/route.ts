@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Parallel queries
-    const [wallTxRes, tenantsRes, subsRes] = await Promise.all([
+    const [wallTxRes, tenantsRes] = await Promise.all([
       // Wallet transactions (charges = revenue) last 12 months
       supabase
         .from("wallet_transactions")
@@ -24,21 +24,21 @@ export async function GET(request: NextRequest) {
         .gte("created_at", new Date(Date.now() - 365 * 86400000).toISOString())
         .order("created_at", { ascending: true }),
 
-      // Tenants with wallet & subscription
+      // Tenants (name, plan, signup month)
       supabase
         .from("tenants")
-        .select("id, business_name, plan, status, created_at, wallet:wallets(balance_iqd, total_charged_iqd)"),
-
-      // Subscription changes
-      supabase
-        .from("subscriptions")
-        .select("id, tenant_id, plan, status, created_at, current_period_start, current_period_end")
-        .order("created_at", { ascending: true }),
+        .select("id, business_name, plan, status, created_at"),
     ]);
 
-    const transactions = wallTxRes.data || [];
+    // A failed query used to read as "no data": every tenant showed as Unknown.
+    const failed = [wallTxRes, tenantsRes].find((r) => r.error);
+    if (failed?.error) throw failed.error;
+
+    // The wallet ledger stores charges as negative amounts; revenue is their magnitude.
+    const transactions = (wallTxRes.data || []).map((tx) =>
+      tx.type === "charge" ? { ...tx, amount_iqd: 0 - tx.amount_iqd } : tx,
+    );
     const tenants = tenantsRes.data || [];
-    const subscriptions = subsRes.data || [];
 
     // --- MRR Waterfall (last 6 months) ---
     const now = new Date();
