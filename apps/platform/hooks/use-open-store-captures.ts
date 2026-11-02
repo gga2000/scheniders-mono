@@ -56,3 +56,27 @@ export function useOpenStoreCaptures() {
         },
     });
 }
+
+/**
+ * How many store captures are open for the active tenant: the same rows
+ * useOpenStoreCaptures lists, counted in the database so the number is not
+ * capped by the worklist limit. Its key sits under the list's key, so
+ * invalidating ["store-captures-open"] refreshes both.
+ */
+export function useOpenStoreCapturesCount() {
+    const { tenantId } = useAuth();
+    return useQuery<number>({
+        queryKey: ["store-captures-open", tenantId, "count"],
+        enabled: !!tenantId,
+        queryFn: async () => {
+            if (!tenantId) return 0;
+            const { count, error } = await supabase
+                .from("abandoned_carts")
+                .select("id", { count: "exact", head: true })
+                .eq("tenant_id", tenantId)
+                .is("recovered_at", null);
+            if (error) throw error;
+            return count ?? 0;
+        },
+    });
+}
