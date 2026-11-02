@@ -44,7 +44,8 @@ export async function POST(
       .from("lead_follow_ups")
       .insert({
         lead_id: id,
-        assigned_to: body.assigned_to,
+        // assigned_to is a NOT NULL FK: an unassigned follow-up belongs to its creator.
+        assigned_to: body.assigned_to || admin.user.id,
         scheduled_at: body.scheduled_at,
         title: body.title,
         description: body.description || null,

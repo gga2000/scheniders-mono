@@ -81,7 +81,6 @@ export function LeadFollowUpList({ followUps, leadId }: LeadFollowUpListProps) {
         title: title.trim(),
         description: description.trim() || undefined,
         scheduled_at: new Date(scheduledAt).toISOString(),
-        assigned_to: "",
       },
       {
         onSuccess: () => {

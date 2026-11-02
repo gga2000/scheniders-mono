@@ -19,7 +19,7 @@ export async function GET(
     const { data, error } = await supabase
       .from("orders")
       .select(
-        "id, customer_name, customer_phone, total_iqd, status, created_at, updated_at, items_count"
+        "id, customer_name, customer_phone:phone, total_iqd:price, status, created_at, updated_at, items"
       )
       .eq("tenant_id", id)
       .order("created_at", { ascending: false })
@@ -27,7 +27,13 @@ export async function GET(
 
     if (error) throw error;
 
-    return NextResponse.json({ orders: data ?? [] });
+    // The orders table stores line items as jsonb and has no items_count column.
+    const orders = (data ?? []).map(({ items, ...order }) => ({
+      ...order,
+      items_count: Array.isArray(items) ? items.length : 0,
+    }));
+
+    return NextResponse.json({ orders });
   } catch (error) {
     console.error("Recent orders API error:", error);
     return NextResponse.json(
