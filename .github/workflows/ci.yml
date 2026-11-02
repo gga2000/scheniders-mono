@@ -31,8 +31,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: lint platform, task: lint, args: "--filter=@scheniders/platform" }
-          - { name: lint rest, task: lint, args: "--filter=!@scheniders/platform" }
           - { name: type-check platform, task: type-check, args: "--filter=@scheniders/platform" }
           - { name: type-check rest, task: type-check, args: "--filter=!@scheniders/platform" }
           - { name: tests for changed files (platform 1/3), task: test, args: "--filter=@scheniders/platform -- --changed=${{ github.event.pull_request.base.sha }} --shard=1/3 --passWithNoTests" }
@@ -60,6 +58,46 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm exec turbo ${{ matrix.task }} --affected ${{ matrix.args }}
+
+  lint:
+    name: lint changed files
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The ESLint configs are not type-aware, so each file lints the same on
+      # its own as in a full run. Only files this PR changed are linted; a
+      # change to an app's ESLint config lints the whole app. The full lint
+      # still runs on main after the merge.
+      - name: ESLint changed files
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          for app in platform storefront admin; do
+            changed=$(git diff --name-only --diff-filter=d "$BASE"...HEAD -- "apps/$app")
+            [ -z "$changed" ] && continue
+            cd "apps/$app"
+            if echo "$changed" | grep -q "^apps/$app/eslint.config"; then
+              pnpm exec eslint
+            else
+              files=$(echo "$changed" | grep -E '\.(ts|tsx|js|jsx|mjs)$' | sed "s#^apps/$app/##" || true)
+              [ -n "$files" ] && echo "$files" | xargs pnpm exec eslint
+            fi
+            cd ../..
+          done
 
   check:
     name: ${{ matrix.name }}
