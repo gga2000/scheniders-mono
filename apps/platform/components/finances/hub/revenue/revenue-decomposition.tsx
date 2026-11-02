@@ -67,7 +67,7 @@ export function RevenueDecomposition({ data }: Props) {
                         <EffectCard
                             icon={Tag}
                             label={t("finances.decomp.priceEffect")}
-                            sublabel={t("finances.decomp.priceSub", { aov: formatSignedIqd(data.deltaAov), orders: formatSignedNumber(data.ordersCurr) })}
+                            sublabel={t("finances.decomp.priceSub", { aov: formatSignedIqd(data.deltaAov), orders: data.ordersCurr.toLocaleString("en-US") })}
                             value={data.priceEffect}
                             tone={data.priceEffect >= 0 ? "emerald" : "rose"}
                         />
@@ -166,7 +166,7 @@ function WaterfallBridge({ data }: { data: Decomp }) {
     );
 
     return (
-        <div className="flex items-end gap-2 h-36 px-1">
+        <div className="flex items-end gap-2 px-1">
             {steps.map((s, i) => {
                 const magnitude = s.isAnchor ? Math.abs(s.value) : Math.abs(s.delta);
                 const rawPct = (magnitude / scale) * 88;
@@ -192,10 +192,13 @@ function WaterfallBridge({ data }: { data: Decomp }) {
                         <div className="text-[10px] font-semibold text-foreground/80 tabular-nums whitespace-nowrap">
                             {s.isAnchor ? formatShortIqd(s.value) : formatSignedShortIqd(s.delta)}
                         </div>
-                        <div
-                            className={cn("w-full rounded-md transition-all min-h-[2px]", barColor)}
-                            style={{ height: `${pct}%` }}
-                        />
+                        {/* A fixed-height track: a percentage height needs a parent with a definite height. */}
+                        <div className="h-24 w-full flex items-end">
+                            <div
+                                className={cn("w-full rounded-md transition-all min-h-[2px]", barColor)}
+                                style={{ height: `${pct}%` }}
+                            />
+                        </div>
                         <div className="text-[10px] text-muted font-medium truncate w-full text-center">{s.label}</div>
                     </motion.div>
                 );
