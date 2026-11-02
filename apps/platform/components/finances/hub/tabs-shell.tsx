@@ -4,7 +4,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { motion } from "framer-motion";
 import {
     LayoutDashboard, TrendingUp, Landmark, Receipt, Truck,
-    FileText, Users, Package, Target, FileSpreadsheet, Printer,
+    FileText, Users, Package, Printer,
     Undo2, Banknote, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,8 +22,6 @@ export type FinanceTabId =
     | "customers"
     | "products"
     | "print"
-    | "forecasts"
-    | "reports"
     | "salaries";
 
 interface Tab {
@@ -45,13 +43,11 @@ const TABS: Tab[] = [
     { id: "customers", labelKey: "nav.financesCustomers", icon: Users },
     { id: "products", labelKey: "nav.financesProducts", icon: Package },
     { id: "print", labelKey: "nav.financesPrint", icon: Printer },
-    { id: "forecasts", labelKey: "nav.financesForecasts", icon: Target },
-    { id: "reports", labelKey: "nav.financesReports", icon: FileSpreadsheet },
     { id: "salaries", labelKey: "nav.financesSalaries", icon: Banknote },
 ];
 
 /**
- * The 14 tabs, grouped so the bar fits one row and each question has one home.
+ * The 12 tabs, grouped so the bar fits one row and each question has one home.
  * URLs stay `?tab=<id>`, so bookmarks and links keep working.
  */
 interface TabGroup {
@@ -62,7 +58,7 @@ interface TabGroup {
 }
 
 const GROUPS: TabGroup[] = [
-    { id: "overview", labelKey: "nav.financesOverview", icon: LayoutDashboard, tabs: ["overview", "revenue", "profit_analysis", "forecasts", "reports"] },
+    { id: "overview", labelKey: "nav.financesOverview", icon: LayoutDashboard, tabs: ["overview", "revenue", "profit_analysis"] },
     { id: "cash", labelKey: "finances.group.cash", icon: Landmark, tabs: ["cash", "payouts", "invoices"] },
     { id: "sales", labelKey: "finances.group.sales", icon: Package, tabs: ["products", "customers"] },
     { id: "costs", labelKey: "finances.group.costs", icon: Receipt, tabs: ["expenses", "salaries"] },

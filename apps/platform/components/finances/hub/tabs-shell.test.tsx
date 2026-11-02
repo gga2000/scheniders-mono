@@ -5,7 +5,7 @@ import { TabsShell, type FinanceTabId } from "./tabs-shell";
 
 const ALL: FinanceTabId[] = [
     "overview", "revenue", "profit_analysis", "cash", "expenses", "payouts", "invoices",
-    "refunds", "customers", "products", "print", "forecasts", "reports", "salaries",
+    "refunds", "customers", "products", "print", "salaries",
 ];
 
 function shell(active: FinanceTabId, onChange = vi.fn()) {
