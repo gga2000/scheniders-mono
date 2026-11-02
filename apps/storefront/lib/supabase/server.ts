@@ -2,6 +2,21 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { Database } from "@scheniders/supabase";
 import { cookies } from "next/headers";
 
+/**
+ * Every storefront Supabase request gives up after this long. Without it a
+ * stalled connection to the API (a 522/504 under load) held each page and
+ * beacon open until Vercel killed the function at 300 s, so a short database
+ * slowdown piled up into an outage. A timed-out read fails like any other
+ * query error: the caller's existing error path runs and the page answers.
+ */
+const SUPABASE_REQUEST_TIMEOUT_MS = 8_000;
+
+function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const timeout = AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS);
+  const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+  return fetch(input, { ...init, signal });
+}
+
 interface CookieToSet {
   name: string;
   value: string;
@@ -21,6 +36,7 @@ export async function createSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      global: { fetch: fetchWithTimeout },
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -54,6 +70,7 @@ export function createSupabaseServiceClient() {
         autoRefreshToken: false,
         persistSession: false,
       },
+      global: { fetch: fetchWithTimeout },
     },
   );
 }
@@ -76,6 +93,7 @@ export function createSupabasePublicClient() {
         autoRefreshToken: false,
         persistSession: false,
       },
+      global: { fetch: fetchWithTimeout },
     },
   );
 }
