@@ -19,7 +19,6 @@ import type { DuplicateWindowAlert } from '@/lib/duplicate-window';
 import { mergeOrderItems } from '@/lib/merge-order-items';
 import { getAvatarColor, getInitials, formatDateShort, DENSITY_CONFIG } from './table-layout';
 import { StatusDropdown } from './status-dropdown';
-import { OrderTagPicker } from '@/components/orders/tags/order-tag-picker';
 import { copyToClipboard } from './copy-to-clipboard';
 import { EnteredByMark } from '../card/entered-by-mark';
 
@@ -365,10 +364,6 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                 </div>
             </div>
 
-            {/* Named tags */}
-            <div role="cell" className={`px-2 ${cellPy} h-full flex items-center overflow-hidden`}>
-                <OrderTagPicker order={order} compact />
-            </div>
         </div>
     );
 }, (prevProps, nextProps) => {
