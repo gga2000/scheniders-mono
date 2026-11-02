@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { Order, OrderFilters } from "@/types/order";
 import { FILTER_FIELDS_READ, filterOrders } from "@/lib/orders/filter-orders";
+import { NO_CAMPAIGN } from "@/lib/ad-campaign-filter";
 import { ORDER_CHIP_IDS } from "@/lib/orders/order-chips";
 
 /**
@@ -50,6 +51,7 @@ for (let i = 0; i < 96; i++) {
         payment_status: i % 3 === 0 ? "prepaid" : "cod",
         city: i % 4 === 0 ? "Basra" : "Baghdad",
         ad_channel: i % 3 === 0 ? "instagram" : i % 3 === 1 ? "facebook" : null,
+        attribution: i % 5 === 0 ? null : { channel: "facebook", campaign: i % 2 === 0 ? "Fusion" : "prime " },
         is_return: i % 7 === 0,
         is_replacement: i % 11 === 0,
         refund_status: i % 6 === 0 ? "refunded" : i % 6 === 1 ? "pending" : "none",
@@ -68,6 +70,7 @@ const VARIANTS: [string, OrderFilters][] = [
     ["priority", { priority: "urgent" }],
     ["payment", { paymentStatus: "prepaid" }],
     ["channel", { adChannel: "instagram" }],
+    ["campaign", { adCampaign: "fusion" }],
     ["isReturn", { isReturn: true }],
     ["status tab", { status: "delivered" }],
 ];
@@ -81,7 +84,7 @@ function view(filters: OrderFilters) {
 describe("filterOrders reads only FILTER_FIELDS_READ", () => {
     it("never touches another filter field", () => {
         const read = new Set<string>();
-        const f = new Proxy({ status: "completed", product: "x", adChannel: "instagram", searchQuery: "q", riskLevel: "flagged" } as OrderFilters, {
+        const f = new Proxy({ status: "completed", product: "x", adChannel: "instagram", adCampaign: "fusion", searchQuery: "q", riskLevel: "flagged" } as OrderFilters, {
             get(target, key) {
                 if (typeof key === "string") read.add(key);
                 return Reflect.get(target, key);
@@ -118,6 +121,14 @@ describe.each(VARIANTS)("count invariant with %s", (_label, base) => {
         for (const s of v.adChannelSummary.stats) {
             expect(s.orders).toBe(filterOrders(BOOK, { ...base, adChannel: s.channel }).length);
         }
+    });
+
+    it("the all-campaigns option equals the list with no campaign pinned, and each campaign its own list", () => {
+        expect(v.adCampaignSummary.total).toBe(filterOrders(BOOK, { ...base, adCampaign: undefined }).length);
+        for (const s of v.adCampaignSummary.stats) {
+            expect(s.orders).toBe(filterOrders(BOOK, { ...base, adCampaign: s.key }).length);
+        }
+        expect(v.adCampaignSummary.withoutCampaign).toBe(filterOrders(BOOK, { ...base, adCampaign: NO_CAMPAIGN }).length);
     });
 
     it("the list is the filter", () => {

@@ -27,6 +27,7 @@ import { useTrustScoreHistory } from "@/hooks/use-customer-trust";
 import { useCustomerStore } from "@/store/use-customer-store";
 import { HeroIdentityBanner } from "@/components/customers/detail/hero-identity-banner";
 import { CustomerValueRiskBanner, type CustomerReliability } from "@/components/customers/detail/value-risk-banner";
+import { AcquiredViaCard } from "@/components/customers/detail/acquired-via-card";
 import { TrustHistoryCard } from "@/components/customers/detail/trust-history-card";
 import { BehavioralPatternsCard, PATTERNS_FROM_ORDERS } from "@/components/customers/detail/behavioral-patterns-card";
 import { DossierNotesCard } from "@/components/customers/detail/dossier-notes-card";
@@ -281,6 +282,8 @@ function CustomerProfileContent({ phone }: { phone: string }) {
                     orders={profile.orders}
                 />
             )}
+
+            <AcquiredViaCard phone={profile.phone} lifetimeValue={profile.totalSpent} />
 
             {/* Order history: what staff open a profile for, in the first screen */}
             <section className="bg-(--card-bg) rounded-2xl px-6 pt-5 pb-3 border border-(--card-border) shadow-[0_1px_3px_rgba(0,0,0,0.04)]">

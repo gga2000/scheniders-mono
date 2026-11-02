@@ -893,7 +893,7 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 entityId: orderId,
                 details: {
                     order_id: order.order_id,
-                    note: newReviewedState ? 'Marked order reviewed' : 'Marked order not reviewed',
+                    note: newReviewedState ? 'Marked payment checked' : 'Cleared payment checked',
                 },
             }, tenantId);
             return { success: true };

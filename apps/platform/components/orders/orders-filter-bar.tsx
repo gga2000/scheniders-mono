@@ -23,7 +23,11 @@ import { EASE_PANEL } from "@/components/layout/page-transition";
 import { GlobalSearchField } from "@/components/orders/global-search-field";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
 import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
+import { AdCampaignFilter } from "@/components/orders/ad-campaign-filter";
+import { LeadQualityStrip } from "@/components/orders/lead-quality-strip";
 import { StuckTransitChip } from "@/components/orders/stuck-transit-chip";
+import { PaymentUncheckedChip } from "@/components/orders/payment-unchecked-chip";
+import { TagFilterChip } from "@/components/orders/tags/tag-filter-chip";
 import type { PaymentStatus } from "@/lib/supabase";
 
 /**
@@ -105,6 +109,8 @@ export function OrdersFilterBar({
         availableProducts,
         availableProductsInView,
         adChannelSummary,
+        adCampaignSummary,
+        adCampaignQuality,
         filterPresets,
         saveFilterPreset,
         loadFilterPreset,
@@ -189,7 +195,7 @@ export function OrdersFilterBar({
                                 filterDuplicatesOnly={filterDuplicatesOnly}
                                 setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                 filterDueToday={filterDueToday}
-                                queueChips={<StuckTransitChip filters={filters} setFilters={setFilters} />}
+                                queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /><TagFilterChip /></>}
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}
                                 countsHidden={countsHidden}
@@ -209,6 +215,22 @@ export function OrdersFilterBar({
                                 selected={filters.adChannel}
                                 onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
                                 countsHidden={countsHidden}
+                                className="pl-8 pr-6"
+                            />
+                        )}
+                        {(showAdChannels || filters.adCampaign) && (
+                            <AdCampaignFilter
+                                summary={adCampaignSummary}
+                                selected={filters.adCampaign}
+                                onSelect={(campaign) => setFilters({ ...filters, adCampaign: campaign ?? undefined })}
+                                countsHidden={countsHidden}
+                                className="pl-8 pr-6"
+                            />
+                        )}
+                        {filters.adCampaign && adCampaignQuality && !countsHidden && (
+                            <LeadQualityStrip
+                                quality={adCampaignQuality}
+                                campaign={adCampaignSummary.stats.find((s) => s.key === filters.adCampaign)?.label ?? filters.adCampaign}
                                 className="pl-8 pr-6"
                             />
                         )}

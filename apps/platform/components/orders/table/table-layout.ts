@@ -1,11 +1,11 @@
 // Column definitions for resizable columns
 export const DEFAULT_COLUMN_WIDTHS: Record<string, number> = {
     rowNum: 48, checkbox: 40, orderId: 100, customer: 180, phone: 120, phone2: 120,
-    city: 100, address: 200, products: 220, amount: 100, status: 120, source: 72, date: 100, colorTag: 40,
+    city: 100, address: 200, products: 220, amount: 100, status: 120, source: 72, date: 100, tags: 150,
 };
 
-export const COLUMN_KEYS = ['rowNum', 'checkbox', 'orderId', 'customer', 'phone', 'phone2', 'city', 'address', 'products', 'amount', 'status', 'source', 'date', 'colorTag'] as const;
-export const RESIZABLE_COLUMNS = new Set(['customer', 'phone', 'phone2', 'city', 'address', 'products', 'amount', 'status', 'date']);
+export const COLUMN_KEYS = ['rowNum', 'checkbox', 'orderId', 'customer', 'phone', 'phone2', 'city', 'address', 'products', 'amount', 'status', 'source', 'date', 'tags'] as const;
+export const RESIZABLE_COLUMNS = new Set(['customer', 'phone', 'phone2', 'city', 'address', 'products', 'amount', 'status', 'date', 'tags']);
 
 export const loadColumnWidths = (): Record<string, number> => {
     if (typeof window === 'undefined') return { ...DEFAULT_COLUMN_WIDTHS };

@@ -31,7 +31,7 @@ const ORDERS_TABLE_COLUMNS = new Set([
     "notes", "rejection_reason", "scheduled_date", "priority", "payment_status",
     "delivery_fee", "discount_amount", "is_return", "original_order_id", "is_archived",
     "secondary_phone", "delivery_slot", "source", "sequence_number", "delivered_at",
-    "cancelled_at", "printed_at", "print_count", "last_batch_id", "is_gift", "tag_color",
+    "cancelled_at", "printed_at", "print_count", "last_batch_id", "is_gift", "tag_color", "tag_ids",
     "is_pinned", "delivery_order_id", "is_reviewed", "is_verified_customer",
     "contact_count", "address_status", "address_issues", "validated_governorate_code",
     "internal_notes", "assigned_to", "assigned_at", "product_cost", "item_unit_costs", "net_profit",
@@ -47,6 +47,7 @@ const ORDERS_TABLE_COLUMNS = new Set([
     "last_followup_type", "attribution", "ad_channel", "confirmation_dispatched_at",
     "abandoned_cart_at", "abandoned_cart_outcome", "abandoned_cart_resolved_at",
     "abandoned_cart_resolved_by_name", "abandoned_cart_order_id", "entered_by",
+    "reviewed_at", "reviewed_by",
 ]);
 
 /** Masked by `v_orders_with_risk` for non-admins; the table does not mask them. */

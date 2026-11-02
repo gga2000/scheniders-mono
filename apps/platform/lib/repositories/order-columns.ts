@@ -65,9 +65,12 @@ export const ORDER_READ_COLUMNS = `
   last_batch_id,
   is_gift,
   tag_color,
+  tag_ids,
   is_pinned,
   delivery_order_id,
   is_reviewed,
+  reviewed_at,
+  reviewed_by,
   is_verified_customer,
   contact_count,
   address_status,
@@ -204,6 +207,7 @@ export const LIST_COLUMNS = `
   source,
   sequence_number,
   tag_color,
+  tag_ids,
   notes,
   internal_notes,
   contact_count,
@@ -227,7 +231,12 @@ export const LIST_COLUMNS = `
   abandoned_cart_resolved_at,
   abandoned_cart_resolved_by_name,
   abandoned_cart_order_id,
-  entered_by
+  entered_by,
+  delivery_slot,
+  is_gift,
+  is_reviewed,
+  reviewed_at,
+  reviewed_by
 `.trim();
 
 /** LIST_COLUMNS as names, for projecting a row that arrived with every column. */

@@ -159,9 +159,14 @@ export interface Order {
     attention_reasons?: string[];
     delivery_cost?: number;
     tag_color?: OrderTagColor;
+    /** Named tags (public.order_tags ids); the database keeps them valid for the store. */
+    tag_ids?: string[];
     delivery_order_id?: string;
     delivery_note?: string;
     is_reviewed?: boolean;
+    /** Server-stamped when the payment-checked tick was set (trg_orders_stamp_payment_checked). */
+    reviewed_at?: string | null;
+    reviewed_by?: string | null;
     is_verified_customer?: boolean;
     contact_count?: number;
     last_contacted_at?: string;
@@ -268,6 +273,8 @@ export interface OrderFilters {
     orderType?: 'refund' | 'replacement' | 'abandoned_cart';
     /** Ad channel (`orders.ad_channel`) the list is pinned to; undefined = every channel. */
     adChannel?: string;
+    /** Normalized campaign name (lib/ad-campaign-filter) the list is pinned to, or NO_CAMPAIGN; undefined = every campaign. */
+    adCampaign?: string;
 }
 
 /**
