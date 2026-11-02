@@ -61,6 +61,8 @@ interface FilterUISlice {
   filterStuckTransit: boolean;
   /** Show only delivered/completed orders of the last 30 days whose payment is not checked (lib/orders/payment-check.ts). */
   filterPaymentUnchecked: boolean;
+  /** Show only orders carrying this named tag (lib/orders/order-tags.ts), within the current view. */
+  filterTagId: string | null;
   sortConfig: { key: string; direction: "asc" | "desc" } | null;
   sortConfigs: Array<{ key: string; direction: "asc" | "desc" }>;
   columnFilters: Record<string, string>;
@@ -78,6 +80,7 @@ interface FilterUISlice {
   setFilterDueToday: (val: boolean) => void;
   setFilterStuckTransit: (val: boolean) => void;
   setFilterPaymentUnchecked: (val: boolean) => void;
+  setFilterTagId: (id: string | null) => void;
   toggleSort: (key: string, shiftKey?: boolean) => void;
   setColumnFilters: (filters: Record<string, string>) => void;
   setOpenFilterColumn: (val: string | null) => void;
@@ -230,6 +233,7 @@ export const useOrderStore = create<OrderStore>()(
       filterDueToday: false,
       filterStuckTransit: false,
       filterPaymentUnchecked: false,
+      filterTagId: null,
       sortConfig: null,
       sortConfigs: [],
       columnFilters: {},
@@ -247,6 +251,7 @@ export const useOrderStore = create<OrderStore>()(
       setFilterDueToday: (val) => set({ filterDueToday: val }),
       setFilterStuckTransit: (val) => set({ filterStuckTransit: val }),
       setFilterPaymentUnchecked: (val) => set({ filterPaymentUnchecked: val }),
+      setFilterTagId: (id) => set({ filterTagId: id }),
       toggleSort: (key, shiftKey) =>
         set((s) => {
           if (shiftKey) {

@@ -13,18 +13,16 @@ import { RiskBadge } from '@/components/orders/risk-badge';
 import { AdChannelBadge } from '@/components/orders/ad-channel-badge';
 import { getOrderAge, getScheduledState, isScheduledToday, formatScheduledDate } from '@/lib/order-format-utils';
 import { OrderInlineEdit } from './order-inline-edit';
-import { useOrdersContext } from '@/components/providers/orders-provider';
 import type { TableDensity } from './density-toggle';
 import { useLanguage } from '@/components/providers/language-provider';
 import type { DuplicateWindowAlert } from '@/lib/duplicate-window';
 import { mergeOrderItems } from '@/lib/merge-order-items';
 import { getAvatarColor, getInitials, formatDateShort, DENSITY_CONFIG } from './table-layout';
 import { StatusDropdown } from './status-dropdown';
-import { ColorTagPicker } from './color-tag-picker';
+import { OrderTagPicker } from '@/components/orders/tags/order-tag-picker';
 import { copyToClipboard } from './copy-to-clipboard';
 import { EnteredByMark } from '../card/entered-by-mark';
 
-export type UpdateOrderFn = ReturnType<typeof useOrdersContext>["updateOrder"];
 
 export interface VirtualTableRowProps {
     order: Order;
@@ -50,7 +48,6 @@ export interface VirtualTableRowProps {
     density: TableDensity;
     editingCell: { orderId: string; field: string } | null;
     onStartEdit: (orderId: string | null, field: string | null) => void;
-    updateOrder: UpdateOrderFn;
     onContextMenu: (e: React.MouseEvent, order: Order) => void;
     gridTemplate: string;
     onMouseEnter: (e: React.MouseEvent, order: Order) => void;
@@ -82,7 +79,6 @@ export const VirtualTableRow = memo(function VirtualTableRow({
     density,
     editingCell,
     onStartEdit,
-    updateOrder,
     onContextMenu,
     gridTemplate,
     onMouseEnter,
@@ -93,7 +89,6 @@ export const VirtualTableRow = memo(function VirtualTableRow({
     const isReturn = order.is_return;
     const itemLines = mergeOrderItems<Order["items"][number]>(order.items);
     const isPriority = order.priority === "urgent" || order.priority === "high";
-    const rowColor = order.tag_color;
     const isCancelled = order.status === "cancelled";
     const isOddRow = virtualRow.index % 2 === 1;
     const avatarColor = getAvatarColor(order.customer_name || "");
@@ -129,11 +124,6 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                 isSelected && "bg-blue-50/70 hover:bg-blue-50/80",
                 isReturn && !isSelected && "bg-red-50/40",
                 isPriority && !isSelected && !isReturn && "bg-amber-50/60",
-                rowColor === "yellow" && !isSelected && "bg-yellow-50/60",
-                rowColor === "green" && !isSelected && "bg-green-50/60",
-                rowColor === "blue" && !isSelected && "bg-blue-50/60",
-                rowColor === "pink" && !isSelected && "bg-pink-50/60",
-                rowColor === "purple" && !isSelected && "bg-purple-50/60",
                 isCancelled && "opacity-60 bg-gray-50",
                 isFlashing && "animate-[statusFlash_0.8s_ease-out]",
                 isFocused && "ring-2 ring-inset ring-primary/30"
@@ -375,13 +365,9 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                 </div>
             </div>
 
-            {/* Color Tag */}
-            <div role="cell" className={`px-3 ${cellPy} h-full flex items-center justify-center`}>
-                <ColorTagPicker
-                    currentColor={order.tag_color}
-                    orderId={order.id}
-                    updateOrder={updateOrder}
-                />
+            {/* Named tags */}
+            <div role="cell" className={`px-2 ${cellPy} h-full flex items-center overflow-hidden`}>
+                <OrderTagPicker order={order} compact />
             </div>
         </div>
     );

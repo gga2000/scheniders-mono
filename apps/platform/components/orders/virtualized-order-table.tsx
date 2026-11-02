@@ -506,7 +506,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                             <div role="columnheader" className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider relative">{t("orders.header.status")}<ResizeHandle columnKey="status" onResizeStart={handleResizeStart} onDoubleClick={handleResizeDoubleClick} /></div>
                             <div role="columnheader" className="px-3 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">{t("orders.header.source")}</div>
                             <div role="columnheader" className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider relative">{t("orders.header.date")}<ResizeHandle columnKey="date" onResizeStart={handleResizeStart} onDoubleClick={handleResizeDoubleClick} /></div>
-                            <div role="columnheader" className="px-3 py-3 text-center text-xs font-semibold text-muted">●</div>
+                            <div role="columnheader" className="px-3 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider relative">{t("orders.header.tags")}<ResizeHandle columnKey="tags" onResizeStart={handleResizeStart} onDoubleClick={handleResizeDoubleClick} /></div>
                     </div>
                     <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }} role="rowgroup">
                         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -578,7 +578,6 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                                     density={density}
                                     editingCell={editingCell}
                                     onStartEdit={handleStartEdit}
-                                    updateOrder={updateOrder}
                                     onContextMenu={handleContextMenu}
                                     gridTemplate={gridTemplate}
                                     onMouseEnter={handleRowMouseEnter}

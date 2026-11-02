@@ -3,6 +3,7 @@
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { DeliverySlotChip } from "./delivery-slot-chip";
 import { GiftChip } from "./gift-chip";
+import { OrderTagPicker } from "../tags/order-tag-picker";
 import { AbandonedCartBadge } from "@/components/orders/abandoned-cart-badge";
 import { AbandonedCartAccent } from "@/components/orders/abandoned-cart-accent";
 
@@ -112,6 +113,7 @@ export function SemiCompactGridCard(props: OrderCardProps) {
                         )}
                         <DeliverySlotChip slot={order.delivery_slot} className="px-1.5" />
                         <GiftChip isGift={order.is_gift} className="px-1.5" />
+                        <OrderTagPicker order={order} compact />
                         {isUrgent && <Flame className="w-3 h-3 text-red-500 animate-pulse ml-auto" />}
                         {isHighPriority && !isUrgent && <Flag className="w-3 h-3 text-amber-600 ml-auto" />}
                     </div>

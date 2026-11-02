@@ -555,6 +555,8 @@ export default function OrdersPage() {
     const defFilterPaymentUnchecked = React.useDeferredValue(filterPaymentUnchecked);
     const paymentUncheckedIds = usePaymentUnchecked();
     const paymentUncheckedSet = useMemo(() => new Set(paymentUncheckedIds), [paymentUncheckedIds]);
+    const filterTagId = useOrderStore(s => s.filterTagId);
+    const defFilterTagId = React.useDeferredValue(filterTagId);
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
@@ -610,12 +612,17 @@ export default function OrdersPage() {
             result = result.filter(o => paymentUncheckedSet.has(o.id));
         }
 
+        // 1.9. Named-tag filter (lib/orders/order-tags.ts), within the current view.
+        if (defFilterTagId) {
+            result = result.filter(o => o.tag_ids?.includes(defFilterTagId) ?? false);
+        }
+
         // 2. Sort: pinned first, parked last, then the column sorts, else
         // newest first (lib/orders/list-sort.ts — shared with the preview's
         // prefix proof).
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
         return sortDesktopList(result, activeSorts);
-    }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, getCustomerOrderCount, defRiskLevel]);
+    }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterTagId, getCustomerOrderCount, defRiskLevel]);
 
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
     // Counted with the same predicate the filter uses, so the number on the card
@@ -654,7 +661,8 @@ export default function OrdersPage() {
         dueToday: defFilterDueToday,
         stuckTransit: defFilterStuckTransit,
         paymentUnchecked: defFilterPaymentUnchecked,
-    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked]);
+        tagFilter: defFilterTagId !== null,
+    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterTagId]);
 
     // The head of a wide list fetch, while the window loads — rows in under a
     // second instead of a skeleton for the whole book. Only for the plain list:
@@ -665,10 +673,10 @@ export default function OrdersPage() {
     // book lands are dropped.
     const previewOrders = useMemo(() => {
         if (!listPreview || defShowArchived || groupBy !== "none") return null;
-        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday || defFilterStuckTransit || defFilterPaymentUnchecked) return null;
+        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday || defFilterStuckTransit || defFilterPaymentUnchecked || defFilterTagId) return null;
         if (defSortConfigs.length > 0 || defSortConfig) return null;
         return desktopPreviewRows(listPreview.rows);
-    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defSortConfigs, defSortConfig]);
+    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterTagId, defSortConfigs, defSortConfig]);
     const previewing = previewOrders !== null;
     // A count of the list is its length only once the list is the whole
     // window (or the server's search hits): never over a preview or the
