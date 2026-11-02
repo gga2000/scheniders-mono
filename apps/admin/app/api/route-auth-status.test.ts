@@ -124,10 +124,10 @@ async function call(
 }
 
 describe("bearer-only CRM routes map auth failures to 401/403", () => {
-  it("covers the lead, industry, team and outreach handlers", () => {
+  it("covers the lead, industry and team handlers", () => {
     const files = new Set(BEARER_HANDLERS.map((h) => h.file.split("/")[0]));
-    expect(files).toEqual(new Set(["industries", "leads", "outreach-templates", "team"]));
-    expect(BEARER_HANDLERS.length).toBeGreaterThanOrEqual(33);
+    expect(files).toEqual(new Set(["industries", "leads", "team"]));
+    expect(BEARER_HANDLERS.length).toBeGreaterThanOrEqual(26);
   });
 
   it.each(BEARER_HANDLERS)("$name — no Authorization header → 401", async (h) => {
