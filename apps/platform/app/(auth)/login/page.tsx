@@ -1,5 +1,6 @@
 "use client";
 
+import { safeRedirectPath } from "@/lib/safe-redirect-path";
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -57,7 +58,7 @@ function LoginForm() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    const returnTo = searchParams.get("returnTo") || "/orders";
+    const returnTo = safeRedirectPath(searchParams.get("returnTo"));
 
     // Redirect if already logged in
     useEffect(() => {
