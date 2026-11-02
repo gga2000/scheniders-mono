@@ -297,6 +297,7 @@ export function useOrders() {
         availableProductsInView: filterHook.availableProductsInView,
         adChannelSummary: filterHook.adChannelSummary,
         adCampaignSummary: filterHook.adCampaignSummary,
+        adCampaignQuality: filterHook.adCampaignQuality,
 
         // Filters
         filters: filterHook.filters,

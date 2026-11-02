@@ -12,7 +12,8 @@ import {
     createFilterPreset,
 } from "@/lib/order-filter-utils";
 import { summarizeAdChannels } from "@/lib/ad-channel-filter";
-import { summarizeAdCampaigns } from "@/lib/ad-campaign-filter";
+import { NO_CAMPAIGN, summarizeAdCampaigns } from "@/lib/ad-campaign-filter";
+import { leadQuality } from "@/lib/lead-quality";
 import { filterOrders } from "@/lib/orders/filter-orders";
 import { countOrderChips, type OrderChipCounts } from "@/lib/orders/order-chips";
 import { countProductsInView } from "@/lib/orders/product-match";
@@ -294,6 +295,12 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         );
     }, [deferredOrders, deferredSearchResults, nonStatusFilters, dStatus]);
 
+    // How the pinned campaign's leads ended, over the campaign's whole view (every status tab).
+    const adCampaignQuality = useMemo(
+        () => (dAdCampaign && dAdCampaign !== NO_CAMPAIGN ? leadQuality(countView) : null),
+        [dAdCampaign, countView],
+    );
+
     // =============================================
     // PRESET OPERATIONS
     // =============================================
@@ -394,6 +401,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         availableProductsInView,
         adChannelSummary,
         adCampaignSummary,
+        adCampaignQuality,
         ...stableAPI,
     };
 }
