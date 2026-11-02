@@ -1,5 +1,5 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
-import { MCP_INSTRUCTIONS, MCP_SERVER_INFO, registerPlatformTools } from "@/lib/mcp/server";
+import { MCP_INSTRUCTIONS, MCP_SERVER_CAPABILITIES, MCP_SERVER_INFO, registerPlatformTools } from "@/lib/mcp/server";
 import { verifyMcpToken } from "@/lib/mcp/caller";
 
 /**
@@ -11,6 +11,7 @@ import { verifyMcpToken } from "@/lib/mcp/caller";
 const handler = createMcpHandler(registerPlatformTools, {
     serverInfo: MCP_SERVER_INFO,
     instructions: MCP_INSTRUCTIONS,
+    capabilities: MCP_SERVER_CAPABILITIES,
 });
 
 const authed = withMcpAuth(handler, verifyMcpToken, {
