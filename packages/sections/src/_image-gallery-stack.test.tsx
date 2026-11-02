@@ -1,12 +1,13 @@
 // =====================================================================
 // image_gallery `layout: "stack"` — the proof stack (spec §1.5), markup
 // =====================================================================
-// Server markup only (the expand/collapse island has its own jsdom test):
+// Server markup only (the position-dots island has its own jsdom test):
 // heading, source pill and scope line; the lead comments in order with a
 // numbered doubt, the quote as live text in «», the author in <bdi> and a
 // full-width screenshot whose box follows the crop maths; the legend once,
-// in the header before the first comment; the rest hidden behind one plural-correct
-// button; a business tag; no dir attribute and no yellow fill.
+// in the header before the first comment; every comment a card in one
+// swipe track with position dots; a business tag; no dir attribute and
+// no yellow fill.
 // =====================================================================
 
 import { describe, expect, it } from "vitest";
@@ -79,17 +80,17 @@ describe("image_gallery stack", () => {
   it("heads with the chapter heading, the source pill and the scope line", () => {
     expect(ar).toContain("text-bk-chapter");
     expect(ar).toMatch(/data-proof-source="true"[^>]*>.*forum.*تعليقات على إعلاناتنا بتيك توك/);
-    expect(ar).toContain("3 من أصل 5، على عطورنا بشكل عام");
-    expect(en).toContain("3 of 5, about our perfumes in general");
+    expect(ar).toContain("5 تعليقات، على عطورنا بشكل عام");
+    expect(en).toContain("5 comments, about our perfumes in general");
   });
 
   it("the scope line only for scope store", () => {
-    expect(render({ ...STACK, scope: "product" })).not.toContain("من أصل");
-    expect(render({ ...STACK, scope: undefined })).not.toContain("من أصل");
+    expect(render({ ...STACK, scope: "product" })).not.toContain("على عطورنا بشكل عام");
+    expect(render({ ...STACK, scope: undefined })).not.toContain("على عطورنا بشكل عام");
   });
 
   it("leads with the first initial_count comments, in order, numbered", () => {
-    const lead = ar.slice(0, ar.indexOf("data-proof-rest"));
+    const lead = ar.slice(0, ar.indexOf('data-proof-item="3"'));
     expect(count(lead, "data-proof-item=")).toBe(3);
     expect([...lead.matchAll(/data-proof-doubt="(\d)"/g)].map((m) => m[1])).toEqual(["1", "2"]);
     expect(lead.indexOf("خايف يطلع مثل كل إعلان؟")).toBeLessThan(lead.indexOf("أول رشة ما فاحت؟"));
@@ -98,7 +99,7 @@ describe("image_gallery stack", () => {
   });
 
   it("a comment without a quote is a screenshot-only row", () => {
-    const nano = ar.slice(ar.indexOf('data-proof-item="2"'), ar.indexOf("data-proof-rest"));
+    const nano = ar.slice(ar.indexOf('data-proof-item="2"'), ar.indexOf('data-proof-item="3"'));
     expect(nano).not.toContain("data-proof-doubt");
     expect(nano).not.toContain("data-proof-quote");
     expect(nano).toContain("<bdi>Nano</bdi>");
@@ -146,10 +147,16 @@ describe("image_gallery stack", () => {
     expect(legend).toContain("هاي العلامة يعني سوّينا لايك للتعليق من حسابنا");
   });
 
-  it("hides the rest behind one plural-correct button", () => {
-    expect(ar).toMatch(/<ol[^>]*data-proof-rest="true"[^>]*hidden=""/);
-    expect(ar).toMatch(/aria-expanded="false"[^>]*>.*شوف تعليقين ثانيين/);
-    expect(en).toContain("See 2 more comments");
+  it("every comment is a card in one swipe track, with position dots", () => {
+    expect(ar).toMatch(/role="region" aria-roledescription="carousel"/);
+    expect(count(ar, "data-proof-item=")).toBe(5);
+    expect(ar).toMatch(/<ol id="[^"]+" class="[^"]*snap-x[^"]*flex-row-reverse/);
+    expect(en).not.toMatch(/<ol id="[^"]+" class="[^"]*flex-row-reverse/);
+    expect(ar).toContain('data-proof-dots="true"');
+    expect(count(ar, 'aria-label="التعليق ')).toBe(5);
+    // The rest show no doubt or quote.
+    const rest = ar.slice(ar.indexOf('data-proof-item="3"'));
+    expect(rest).not.toContain("data-proof-quote");
   });
 
   it("tags the business account", () => {
@@ -157,10 +164,9 @@ describe("image_gallery stack", () => {
     expect(count(ar, "data-proof-business")).toBe(1);
   });
 
-  it("no expand button with initial_count or fewer comments", () => {
-    const three = render({ ...STACK, images: LEAD });
-    expect(three).not.toContain("data-proof-rest");
-    expect(three).not.toContain("aria-expanded");
+  it("every comment stays in the HTML, none hidden", () => {
+    expect(ar).not.toContain('hidden=""');
+    expect(ar).not.toContain("aria-expanded");
   });
 
   it("every screenshot opens the viewer, in stack order", () => {

@@ -1,68 +1,85 @@
 "use client";
 
 // =====================================================================
-// image_gallery — the proof stack's expand/collapse island
+// image_gallery — the proof carousel's position dots
 // =====================================================================
-// The comments are server-rendered, lead and rest alike, so every one is
-// in the HTML for crawlers. This island only owns the open state: the
-// rest list stays `hidden` until «شوف N تعليقات ثانية» is tapped, and the
-// same button then reads «سدّ التعليقات». While collapsed the rest are
-// not rendered (`hidden` is display: none), so find-in-page cannot reach
-// them until the list is opened. A hidden list's lazy screenshots are not
-// fetched until it opens. Labels arrive resolved from the server module.
+// The comment cards are server-rendered in a scroll-snap track, so every
+// one is in the HTML for crawlers. This island only follows the track:
+// one dot per card, the current one drawn as a wider pill. A tap on a dot
+// scrolls its card into place (instantly under prefers-reduced-motion).
+// The track is found by id, like CarouselArrows. In Arabic the track is
+// flex-row-reverse, so its scroll origin is the right edge and scrollLeft
+// runs negative; positions are read and written mirrored.
 // =====================================================================
 
-import { useState } from "react";
-import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "./helpers/utils";
-import { MaterialIcon } from "./helpers/primitives";
 
-export function ProofStackMore({
-  listId,
-  moreLabel,
-  lessLabel,
+function stepOf(track: HTMLElement): number {
+  const first = track.firstElementChild;
+  const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+  return first instanceof HTMLElement ? first.offsetWidth + gap : track.clientWidth;
+}
+
+export function ProofCarouselDots({
+  trackId,
   rtl,
-  children,
+  labels,
 }: {
-  listId: string;
-  moreLabel: string;
-  lessLabel: string;
+  trackId: string;
+  /** The track is reversed (Arabic): scrollLeft runs from 0 to negative. */
   rtl: boolean;
-  /** The rest of the comments, as <li> rows. */
-  children: ReactNode;
+  /** One accessible name per card («التعليق 3»), in track order. */
+  labels: string[];
 }) {
-  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const count = labels.length;
+
+  useEffect(() => {
+    const track = document.getElementById(trackId);
+    if (!track) return;
+    const onScroll = () => {
+      const step = stepOf(track);
+      if (step <= 0) return;
+      setActive(Math.min(count - 1, Math.max(0, Math.round(Math.abs(track.scrollLeft) / step))));
+    };
+    track.addEventListener("scroll", onScroll, { passive: true });
+    return () => track.removeEventListener("scroll", onScroll);
+  }, [trackId, count]);
+
+  if (count < 2) return null;
+
+  const go = (i: number) => {
+    const track = document.getElementById(trackId);
+    if (!track) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    track.scrollTo({ left: (rtl ? -i : i) * stepOf(track), behavior: reduce ? "auto" : "smooth" });
+  };
+
   return (
-    <>
-      <ol
-        id={listId}
-        data-proof-rest="true"
-        hidden={!open}
-        // `flex` would beat the [hidden] rule; `hidden` sorts after it.
-        className={cn("mt-bk-md flex flex-col gap-bk-md", !open && "hidden")}
-      >
-        {children}
-      </ol>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((o) => !o)}
-        className={cn(
-          "mt-bk-md flex min-h-[52px] w-full items-center gap-3 rounded-bk-pill border-bk border-bk-divider bg-bk-surface-alt p-1.5 font-bk-body text-[15px] font-extrabold text-bk-ink transition-transform duration-bk-fast active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 ring-bk-focus",
-          rtl ? "flex-row-reverse pl-4" : "pr-4",
-        )}
-      >
-        <span
-          aria-hidden="true"
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-bk-pill bg-bk-secondary text-bk-primary"
+    <div
+      data-proof-dots="true"
+      className={cn("mt-bk-sm flex items-center justify-center gap-0.5", rtl && "flex-row-reverse")}
+    >
+      {labels.map((label, i) => (
+        <button
+          key={i}
+          type="button"
+          aria-label={label}
+          aria-controls={trackId}
+          aria-current={i === active ? "true" : undefined}
+          onClick={() => go(i)}
+          className="inline-flex size-6 items-center justify-center focus-visible:outline-none focus-visible:ring-2 ring-bk-focus rounded-bk-pill"
         >
-          <MaterialIcon name={open ? "remove" : "add"} className="text-xl" />
-        </span>
-        <span className={cn("flex-1", rtl ? "text-right" : "text-left")}>
-          {open ? lessLabel : moreLabel}
-        </span>
-      </button>
-    </>
+          <span
+            aria-hidden="true"
+            className={cn(
+              "block h-1.5 rounded-bk-pill transition-[width,background-color] duration-bk-fast motion-reduce:transition-none",
+              i === active ? "w-5 bg-bk-ink" : "w-1.5 bg-bk-divider",
+            )}
+          />
+        </button>
+      ))}
+    </div>
   );
 }

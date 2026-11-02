@@ -4,9 +4,9 @@
 // Server components only, no hooks: the stack (ProofStack), each comment's
 // screenshot (StackShot) and author line (StackAuthor). The source pill
 // and scope line head the list, with the legend under them; every comment
-// is one card (numbered doubt, the quote in «», the author, then the
-// screenshot flush at the bottom); the first `initial_count` lead and the
-// rest render inside the expand island
+// is one card in a swipe carousel (numbered doubt and the quote in «» on
+// the first `initial_count`, the author, then the screenshot flush at the
+// bottom), followed by the position dots island
 // (image_gallery.stack.tsx). Every unlinked screenshot opens the viewer
 // (image_gallery.client.tsx) at its own slide.
 // =====================================================================
@@ -22,8 +22,9 @@ import { cn, PRESSABLE } from "./helpers/utils";
 import { chromeString } from "./helpers/chrome-strings";
 import { GalleryViewer } from "./image_gallery.client";
 import type { GalleryViewerImage } from "./image_gallery.client";
-import { ProofStackMore } from "./image_gallery.stack";
-import { gs, proofMoreLabel } from "./image_gallery.strings";
+import { ProofCarouselDots } from "./image_gallery.stack";
+import { CarouselArrows } from "./helpers/carousel-arrows";
+import { gs, proofCountLabel } from "./image_gallery.strings";
 import { STACK_SIZES, stackFrame } from "./image-gallery-crop";
 import { VIEWER_STRINGS, fillAlt, fillCount } from "./image-gallery-viewer-strings";
 import type { GalleryImage, Props } from "./image_gallery";
@@ -175,17 +176,21 @@ export function ProofStack({
   };
   const side = rtl ? "text-right" : "text-left";
 
-  // Every comment is one card: what it answers and its strongest line on
-  // top, the original screenshot flush along the bottom as the evidence.
-  const card =
-    "flex flex-col overflow-hidden rounded-bk-card border-bk border-bk-divider bg-bk-surface";
-
-  const lead = images.slice(0, leadCount).map((img, i) => {
-    const quote = resolveI18n(img.quote_i18n, locale);
+  // Every comment is one card in a swipe carousel: what it answers and
+  // its strongest line on top (lead cards only), the author, then the
+  // original screenshot flush along the bottom as the evidence. The next
+  // card peeks past the edge, so the row reads as swipeable.
+  const items = images.map((img, i) => {
+    const lead = i < leadCount;
+    const quote = lead ? resolveI18n(img.quote_i18n, locale) : "";
     const doubt = quote ? resolveI18n(img.doubt_i18n, locale) : "";
     const hasAuthor = !!img.author || !!img.is_business;
     return (
-      <li key={i} data-proof-item={i} className={card}>
+      <li
+        key={i}
+        data-proof-item={i}
+        className="flex w-[85%] max-w-[340px] shrink-0 snap-start flex-col overflow-hidden rounded-bk-card border-bk border-bk-divider bg-bk-surface"
+      >
         {(doubt || quote || hasAuthor) && (
           <div className={cn("flex flex-col gap-2 px-4 pb-3.5 pt-4", side)}>
             {doubt && (
@@ -216,21 +221,12 @@ export function ProofStack({
             <StackAuthor img={img} locale={locale} rtl={rtl} />
           </div>
         )}
-        <StackShot img={img} alt={altOf(img)} viewer={viewerOf(img)} />
+        <div className="mt-auto">
+          <StackShot img={img} alt={altOf(img)} viewer={viewerOf(img)} />
+        </div>
       </li>
     );
   });
-
-  const rest = images.slice(leadCount).map((img, i) => (
-    <li key={i} data-proof-item={leadCount + i} className={card}>
-      {(img.author || img.is_business) && (
-        <div className="px-4 py-2.5">
-          <StackAuthor img={img} locale={locale} rtl={rtl} />
-        </div>
-      )}
-      <StackShot img={img} alt={altOf(img)} viewer={viewerOf(img)} />
-    </li>
-  ));
 
   const hasHeader = !!source || props.scope === "store" || !!legend;
   const body = (
@@ -257,7 +253,7 @@ export function ProofStack({
               )}
               {props.scope === "store" && (
                 <p className={cn("font-bk-body text-[13px] font-semibold text-bk-ink-soft", side)}>
-                  {gs("proofScope", locale, { shown: leadCount, total: images.length })}
+                  {proofCountLabel(images.length, locale)}
                 </p>
               )}
             </div>
@@ -288,17 +284,33 @@ export function ProofStack({
           )}
         </div>
       )}
-      <ol className="flex flex-col gap-bk-md">{lead}</ol>
-      {rest.length > 0 && (
-        <ProofStackMore
-          listId={listId}
-          moreLabel={proofMoreLabel(rest.length, locale)}
-          lessLabel={gs("proofLess", locale)}
-          rtl={rtl}
+      <div role="region" aria-roledescription="carousel" aria-label={heading || source}>
+        <ol
+          id={listId}
+          // Reversed in Arabic: the scroll origin follows flex-start, so the
+          // first card sits at the right edge and the next peeks on the left.
+          className={cn(
+            "-mx-4 flex snap-x snap-mandatory items-stretch gap-bk-sm overflow-x-auto scroll-px-4 scroll-smooth px-4 pb-1 motion-reduce:scroll-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            rtl && "flex-row-reverse",
+          )}
         >
-          {rest}
-        </ProofStackMore>
-      )}
+          {items}
+        </ol>
+        <ProofCarouselDots
+          trackId={listId}
+          rtl={rtl}
+          labels={images.map((_, i) => gs("proofDot", locale, { n: i + 1 }))}
+        />
+        {images.length > 1 && (
+          <CarouselArrows
+            trackId={listId}
+            // The left arrow scrolls left: the next card in a reversed track.
+            prevLabel={rtl ? strings.next : strings.prev}
+            nextLabel={rtl ? strings.prev : strings.next}
+            className="mt-bk-sm justify-end"
+          />
+        )}
+      </div>
     </div>
   );
 

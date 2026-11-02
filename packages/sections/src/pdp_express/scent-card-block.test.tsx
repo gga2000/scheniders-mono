@@ -135,7 +135,7 @@ describe("scent_layout card — facts when the product has them", () => {
     expect(card).not.toContain('data-meter="sillage"');
     expect(card).toContain("4 من 5");
     expect(count(card, 'data-fill="1"')).toBe(4);
-    expect(count(card, "relative h-2 flex-1 overflow-hidden rounded-bk-pill bg-bk-divider")).toBe(5);
+    expect(count(card, "relative h-1.5 flex-1 overflow-hidden rounded-bk-pill bg-bk-ink/10")).toBe(5);
     expect(card).toContain("حسب تجربتنا");
     // The season is a tag in the header, not a chip row.
     expect(card).not.toContain('data-chip-row="season"');
@@ -147,12 +147,11 @@ describe("scent_layout card — facts when the product has them", () => {
     expect(count(card, "data-note-chip")).toBe(6);
   });
 
-  it("folds the pyramid past the first tier, every note still in the HTML", () => {
+  it("draws the pyramid as an always-open timeline, every note visible", () => {
     const card = cardOf(render(CARD_PROPS, scentProduct));
-    expect(card).toMatch(/data-stage="top"(?![^>]*hidden)/);
-    expect(card).toMatch(/data-stage="heart"[^>]*hidden=""/);
-    expect(card).toMatch(/data-notes-fold=""[^>]*aria-expanded="false"/);
-    expect(card).toContain("شوف باقي الروائح");
+    expect(card).toContain("data-scent-timeline");
+    expect(card).not.toContain('hidden=""');
+    for (const dot of ["bg-bk-ink/30", "bg-bk-ink/60"]) expect(card).toContain(dot);
   });
 
   it("english", () => {
