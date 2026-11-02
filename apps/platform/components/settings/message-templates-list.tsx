@@ -16,6 +16,8 @@ import {
 import { cn } from "@/lib/utils";
 import { getEmojiList, processEmojis } from "@/lib/emoji-shortcodes";
 import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/components/auth/auth-provider";
+import { toast } from "@/hooks/use-toast";
 
 interface Template {
     id: string;
@@ -39,6 +41,7 @@ export function MessageTemplatesList() {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const textareaArRef = useRef<HTMLTextAreaElement>(null);
     const { t } = useLanguage();
+    const { tenantId } = useAuth();
 
     useEffect(() => {
         fetchTemplates();
@@ -57,9 +60,14 @@ export function MessageTemplatesList() {
         if (!editingTemplate) return;
 
         if (editingTemplate.id === "new") {
-            const { data } = await supabase
+            if (!tenantId) {
+                toast.error("Couldn't save template", "No workspace selected");
+                return;
+            }
+            const { data, error } = await supabase
                 .from("message_templates")
                 .insert([{
+                    tenant_id: tenantId,
                     name: editingTemplate.name,
                     content: editingTemplate.content,
                     content_ar: editingTemplate.content_ar,
@@ -69,9 +77,13 @@ export function MessageTemplatesList() {
                 .select()
                 .single();
 
-            if (data) setTemplates([...templates, data]);
+            if (error || !data) {
+                toast.error("Couldn't save template", error?.message);
+                return;
+            }
+            setTemplates([...templates, data]);
         } else {
-            await supabase
+            const { error } = await supabase
                 .from("message_templates")
                 .update({
                     name: editingTemplate.name,
@@ -81,6 +93,10 @@ export function MessageTemplatesList() {
                 })
                 .eq("id", editingTemplate.id);
 
+            if (error) {
+                toast.error("Couldn't save template", error.message);
+                return;
+            }
             setTemplates(templates.map(t => t.id === editingTemplate.id ? editingTemplate : t));
         }
         setIsDialogOpen(false);
