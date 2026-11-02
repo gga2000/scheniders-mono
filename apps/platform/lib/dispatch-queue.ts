@@ -30,9 +30,9 @@ export function hasBlockingFlag(flags: QueueFlags): boolean {
 
 /**
  * Packing groups of the desk, in the order the team packs them: one group per
- * product shared by two or more single-product orders (biggest first), the
- * remaining single-product orders, orders with several products, replacements,
- * then refunds. Labels print in this order so each group comes off the printer
+ * product shared by two or more one-piece orders (biggest first), the remaining
+ * one-piece orders, orders with more than one piece (two of a product, or
+ * several products), replacements, then refunds. Labels print in this order so each group comes off the printer
  * together.
  */
 export type PackKind = "item" | "single" | "multi" | "replacement" | "refund";
@@ -48,12 +48,13 @@ export interface PackGroup<T> {
 
 type PackInput = Pick<Order, "items" | "is_return" | "is_replacement">;
 
-/** One product name (any quantity) puts an order in that product's group. */
+/** Exactly one piece puts an order in that product's group; any more is a multi-piece order. */
 export function packKey(order: PackInput): { kind: Exclude<PackKind, "single">; item?: string } {
     if (order.is_return) return { kind: "refund" };
     if (order.is_replacement) return { kind: "replacement" };
-    const names = new Set(mergeOrderItems(order.items).map((item) => item.name));
-    if (names.size === 1) return { kind: "item", item: [...names][0] };
+    const lines = mergeOrderItems(order.items);
+    const pieces = lines.reduce((sum, line) => sum + (line.quantity ?? 1), 0);
+    if (lines.length === 1 && pieces === 1) return { kind: "item", item: lines[0].name };
     return { kind: "multi" };
 }
 

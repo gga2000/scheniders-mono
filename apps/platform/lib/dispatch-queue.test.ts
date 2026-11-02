@@ -38,12 +38,15 @@ const pack = (id: string, items: OrderItem[], extra: { is_return?: boolean; is_r
 });
 
 describe("packKey", () => {
-    it("puts one product in any quantity in that product's group", () => {
-        expect(packKey(pack("a", [line("فيوجن", 2)]))).toEqual({ kind: "item", item: "فيوجن" });
-        expect(packKey(pack("b", [line("فيوجن"), line("فيوجن")]))).toEqual({ kind: "item", item: "فيوجن" });
+    it("puts a one-piece order in its product's group", () => {
+        expect(packKey(pack("a", [line("فيوجن")]))).toEqual({ kind: "item", item: "فيوجن" });
     });
-    it("separates several products, replacements and refunds", () => {
+    it("puts every order of more than one piece in the multi group", () => {
         expect(packKey(pack("a", [line("فيوجن"), line("انفوي")])).kind).toBe("multi");
+        expect(packKey(pack("b", [line("فيوجن", 2)])).kind).toBe("multi");
+        expect(packKey(pack("c", [line("فيوجن"), line("فيوجن")])).kind).toBe("multi");
+    });
+    it("separates replacements and refunds", () => {
         expect(packKey(pack("b", [line("فيوجن")], { is_replacement: true })).kind).toBe("replacement");
         expect(packKey(pack("c", [line("فيوجن")], { is_return: true })).kind).toBe("refund");
     });
@@ -57,10 +60,12 @@ describe("groupForPacking", () => {
             pack("a1", [line("انفوي")]),
             pack("f1", [line("فيوجن")]),
             pack("p", [line("انفوي")], { is_replacement: true }),
-            pack("f2", [line("فيوجن", 3)]),
+            pack("f2", [line("فيوجن")]),
+            pack("f3", [line("فيوجن", 3)]),
         ]);
         expect(groups.map((g) => g.key)).toEqual(["item:فيوجن", "single", "multi", "replacement", "refund"]);
         expect(groups[0].orders.map((o) => o.id)).toEqual(["f1", "f2"]);
         expect(groups[1].orders.map((o) => o.id)).toEqual(["a1"]);
+        expect(groups[2].orders.map((o) => o.id)).toEqual(["m", "f3"]);
     });
 });
