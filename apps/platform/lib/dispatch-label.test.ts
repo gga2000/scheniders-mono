@@ -170,13 +170,21 @@ describe("delivery time", () => {
 });
 
 describe("gift", () => {
-    it("marks a gift parcel and still prints no product price", () => {
-        const html = generateDispatchLabelHTML(order({ is_gift: true, payment_status: "prepaid" }), { showBarcode: true });
-        expect(html).toContain('<span class="dl-gift">هدية</span>');
+    it("hides the amount on a cash-on-delivery gift", () => {
+        const html = generateDispatchLabelHTML(order({ is_gift: true }), { showBarcode: true });
+        expect(html).toContain('class="dl-cod dl-cod-gift"');
+        expect(html).toContain("المبلغ في تطبيق المندوب");
         expect(html).not.toContain("34,750");
     });
 
-    it("is left off ordinary orders", () => {
-        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain('class="dl-gift"');
+    it("says prepaid on a paid gift, still with no amount", () => {
+        const html = generateDispatchLabelHTML(order({ is_gift: true, payment_status: "prepaid" }), { showBarcode: true });
+        expect(html).toContain("مدفوع مسبقاً");
+        expect(html).not.toContain("34,750");
+    });
+
+    it("keeps the amount on ordinary orders and after-sale gifts", () => {
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).toContain("34,750");
+        expect(generateDispatchLabelHTML(order({ is_gift: true, is_replacement: true }), { showBarcode: true })).not.toContain("dl-cod-gift");
     });
 });

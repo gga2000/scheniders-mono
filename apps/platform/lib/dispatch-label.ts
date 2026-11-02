@@ -140,6 +140,9 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
     const door = doorCash(order);
     const cash = { label: CASH_LABEL[door.direction], amount: door.amount };
     const payOut = door.direction === "pay";
+    // A gift parcel never prints its price: the recipient sees the label, and the
+    // courier reads the amount to collect from the delivery company's app.
+    const giftBox = Boolean(order.is_gift) && !afterSale;
     const items = mergeOrderItems(order.items).map((i) => ({ name: i.name, qty: i.quantity }));
     const pieces = items.reduce((sum, i) => sum + i.qty, 0);
     const e = (value: string | null | undefined) => escapeHtml(value ?? "");
@@ -193,11 +196,13 @@ export function generateDispatchLabelHTML(order: Order, options: DispatchLabelOp
             <div class="dl-tel dl-main"><span class="dl-lb">${PHONE_SIGN}<span class="dl-k">الهاتف</span></span><span class="dl-num">${e(formatLabelPhone(order.phone))}</span></div>
             ${order.secondary_phone ? `<div class="dl-tel dl-alt"><span class="dl-lb"><span class="dl-k">احتياط</span></span><span class="dl-num">${e(formatLabelPhone(order.secondary_phone))}</span></div>` : ""}
         </div>
-        <div class="dl-cod${payOut ? " dl-cod-out" : ""}"><div class="dl-k">${cash.label}</div><div class="dl-v">${amountFormat.format(cash.amount)}</div><div class="dl-c">${payOut ? "لا تستلم مبلغاً" : "دينار عراقي"}</div></div>
+        ${giftBox
+            ? `<div class="dl-cod dl-cod-gift"><div class="dl-k">${door.direction === "prepaid" ? CASH_LABEL.prepaid : "المبلغ في تطبيق المندوب"}</div><div class="dl-v">هدية</div><div class="dl-c">لا يُكتب السعر</div></div>`
+            : `<div class="dl-cod${payOut ? " dl-cod-out" : ""}"><div class="dl-k">${cash.label}</div><div class="dl-v">${amountFormat.format(cash.amount)}</div><div class="dl-c">${payOut ? "لا تستلم مبلغاً" : "دينار عراقي"}</div></div>`}
     </div>
     <div class="dl-addr${order.notes ? " dl-addr-short" : ""}"><div class="dl-k">العنوان</div><div class="dl-addr-t">${e(order.address_details) || "—"}</div></div>
     ${order.notes ? `<div class="dl-notes" style="-webkit-line-clamp: ${noteLines}"><b>${afterSale ? "تعليمات" : "ملاحظة"}:</b> ${e(order.notes)}</div>` : ""}
-    ${afterSale ? "" : `<div class="dl-row"><span class="dl-items"><span class="dl-k">المنتج</span> ${itemList(items) || "—"}</span>${order.is_gift ? `<span class="dl-gift">هدية</span>` : ""}<span class="dl-pcs">${pieces} قطعة</span></div>`}
+    ${afterSale ? "" : `<div class="dl-row"><span class="dl-items"><span class="dl-k">المنتج</span> ${itemList(items) || "—"}</span><span class="dl-pcs">${pieces} قطعة</span></div>`}
     ${options.showBarcode ? `<div class="dl-foot"><div class="dl-bc">${code128Svg(id, { heightMm: dense ? 7 : 8, maxWidthMm: 74 })}</div></div>` : ""}
     <div class="dl-meta"><span class="dl-brand">${SCHNEIDERS_LOGO_SVG}SCHNEIDERS</span><span class="dl-date">${formatLabelDate(order.created_at)}</span></div>
 </div>`;
@@ -278,6 +283,7 @@ export const DISPATCH_LABEL_CSS = `
     .dl-cod-out { background: #fff; color: #000; border: .9mm solid #000; }
     .dl-cod-out .dl-k { background: #000; color: #fff; margin: 0 .4mm; padding: .3mm 0; }
     .dl-cod-out .dl-c { font-weight: 700; }
+    .dispatch-label .dl-cod-gift .dl-v { font-family: inherit; }
     .dl-addr-t { font-size: 10.5pt; font-weight: 600; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
     .dl-addr-short .dl-addr-t { -webkit-line-clamp: 2; }
     .dl-dense { gap: 1mm; }
@@ -302,7 +308,6 @@ export const DISPATCH_LABEL_CSS = `
     .dl-row > span:not(.dl-items) { white-space: nowrap; }
     .dl-items .dl-k { margin-inline-end: 1mm; }
     .dl-pcs { font-size: 8.5pt; }
-    .dl-gift { margin-inline-start: auto; background: #000; color: #fff; padding: 0 1.6mm; font-size: 9pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .dl-meta { display: flex; justify-content: space-between; align-items: center; font-size: 6.5pt; margin-top: -.6mm; }
     .dl-brand { display: flex; align-items: center; gap: .8mm; font-weight: 700; letter-spacing: .3pt; }
     .dl-brand svg { width: 3mm; height: 3mm; }
