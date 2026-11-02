@@ -97,7 +97,7 @@ export function SourceBadge({ source }: { source: Order["source"] }) {
             );
         case "storefront":
             return (
-                <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-semibold rounded-full bg-emerald-100 text-emerald-700">
+                <span className="inline-flex h-6 items-center gap-1 px-2 text-[11px] font-semibold rounded-full bg-[var(--pastel-blue)] text-[#16264F]">
                     <ShoppingBag className="w-3 h-3" />
                     {t("orders.source.storefront")}
                 </span>
