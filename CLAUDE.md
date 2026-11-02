@@ -46,7 +46,7 @@ See also [Use these skills](#use-these-skills-dont-reinvent) for the coding/DB/U
 ## Done means verified
 
 - `pnpm type-check` and `pnpm lint` pass — both are the CI gate.
-- Run the relevant tests (`npx vitest run <path>` / Playwright). **CI does not run tests** — you must.
+- Run the relevant tests (`npx vitest run <path>` / Playwright). CI runs `test` only for affected packages (`turbo ... --affected`), so run the relevant ones locally before pushing.
 - DB changes: confirm RLS + tenant scoping before declaring done.
 - No "should work." Verify the actual behavior.
 
@@ -115,4 +115,4 @@ A pre-built knowledge graph of this codebase lives at [graphify-out/](graphify-o
 ## Docs & CI
 
 - Standing audits live in [docs/audits/](docs/audits/) (production-readiness, QC matrices, builder audit).
-- CI (`.github/workflows/ci.yml`) runs `turbo lint type-check build` on PRs to `main` — **tests are not in CI**, so run them locally.
+- CI (`.github/workflows/ci.yml`) runs `turbo lint type-check build` on PRs to `main` plus `test` for affected packages (`--affected`). CI needs no secrets for tests; still run the relevant ones locally before pushing.
