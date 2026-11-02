@@ -1,6 +1,7 @@
 import type { Order, OrderFilters } from "@/types/order";
 import { windowFromDateFilter, orderInDateWindow } from "@/lib/order-window";
 import { orderMatchesAdChannel } from "@/lib/ad-channel-filter";
+import { orderMatchesAdCampaign } from "@/lib/ad-campaign-filter";
 import { ORDER_CHIP_PREDICATES, isOrderChipId, isReplacementOrder } from "./order-chips";
 import { orderMatchesProduct } from "./product-match";
 import { abandonedCartChip } from "./abandoned-cart";
@@ -12,7 +13,7 @@ import { abandonedCartChip } from "./abandoned-cart";
  * a count view built from these fields is exactly the list's filter.
  */
 export const FILTER_FIELDS_READ = [
-    "status", "orderType", "dateFrom", "dateTo", "city", "product", "priority", "paymentStatus", "adChannel", "isReturn",
+    "status", "orderType", "dateFrom", "dateTo", "city", "product", "priority", "paymentStatus", "adChannel", "adCampaign", "isReturn",
 ] as const satisfies readonly (keyof OrderFilters)[];
 
 function needsReview(order: Order): boolean {
@@ -32,7 +33,7 @@ export function filterOrders(rows: readonly Order[], f: OrderFilters): Order[] {
     const status = f.status as string | undefined;
     const orderType = f.orderType;
     const dateWindow = windowFromDateFilter(f.dateFrom, f.dateTo);
-    const { city, product, priority, paymentStatus, adChannel, isReturn } = f;
+    const { city, product, priority, paymentStatus, adChannel, adCampaign, isReturn } = f;
 
     return rows.filter((order) => {
         if (status && status !== "all") {
@@ -70,6 +71,7 @@ export function filterOrders(rows: readonly Order[], f: OrderFilters): Order[] {
         if (paymentStatus && order.payment_status !== paymentStatus) return false;
         // Ad channel — "only what Instagram brought in".
         if (!orderMatchesAdChannel(order, adChannel)) return false;
+        if (!orderMatchesAdCampaign(order, adCampaign)) return false;
         if (isReturn !== undefined && order.is_return !== isReturn) return false;
 
         // Free-text search is not a filter on the window: it replaces the

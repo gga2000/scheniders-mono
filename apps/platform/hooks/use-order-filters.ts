@@ -12,6 +12,7 @@ import {
     createFilterPreset,
 } from "@/lib/order-filter-utils";
 import { summarizeAdChannels } from "@/lib/ad-channel-filter";
+import { summarizeAdCampaigns } from "@/lib/ad-campaign-filter";
 import { filterOrders } from "@/lib/orders/filter-orders";
 import { countOrderChips, type OrderChipCounts } from "@/lib/orders/order-chips";
 import { countProductsInView } from "@/lib/orders/product-match";
@@ -173,6 +174,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         priority: dPriority,
         paymentStatus: dPaymentStatus,
         adChannel: dAdChannel,
+        adCampaign: dAdCampaign,
         isReturn: dIsReturn,
     } = deferredFilters;
 
@@ -188,8 +190,9 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         priority: dPriority,
         paymentStatus: dPaymentStatus,
         adChannel: dAdChannel,
+        adCampaign: dAdCampaign,
         isReturn: dIsReturn,
-    }), [dOrderType, dDateFrom, dDateTo, dCity, dProduct, dPriority, dPaymentStatus, dAdChannel, dIsReturn]);
+    }), [dOrderType, dDateFrom, dDateTo, dCity, dProduct, dPriority, dPaymentStatus, dAdChannel, dAdCampaign, dIsReturn]);
 
     /** The rows every status chip counts over: the list's filter with status = all. */
     const countView = useMemo(
@@ -279,6 +282,15 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         return summarizeAdChannels(
             deferredSearchResults
                 ?? filterOrders(deferredOrders, { ...nonStatusFilters, status: dStatus, adChannel: undefined }),
+        );
+    }, [deferredOrders, deferredSearchResults, nonStatusFilters, dStatus]);
+
+    // Orders per ad campaign over the CURRENT view minus the campaign filter itself,
+    // so picking one campaign keeps the others in the dropdown.
+    const adCampaignSummary = useMemo(() => {
+        return summarizeAdCampaigns(
+            deferredSearchResults
+                ?? filterOrders(deferredOrders, { ...nonStatusFilters, status: dStatus, adCampaign: undefined }),
         );
     }, [deferredOrders, deferredSearchResults, nonStatusFilters, dStatus]);
 
@@ -381,6 +393,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         availableProducts,
         availableProductsInView,
         adChannelSummary,
+        adCampaignSummary,
         ...stableAPI,
     };
 }

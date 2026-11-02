@@ -296,6 +296,7 @@ export function useOrders() {
         availableProducts: serverAggregates?.products ?? filterHook.availableProducts,
         availableProductsInView: filterHook.availableProductsInView,
         adChannelSummary: filterHook.adChannelSummary,
+        adCampaignSummary: filterHook.adCampaignSummary,
 
         // Filters
         filters: filterHook.filters,

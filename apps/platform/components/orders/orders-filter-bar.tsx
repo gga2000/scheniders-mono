@@ -23,6 +23,7 @@ import { EASE_PANEL } from "@/components/layout/page-transition";
 import { GlobalSearchField } from "@/components/orders/global-search-field";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
 import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
+import { AdCampaignFilter } from "@/components/orders/ad-campaign-filter";
 import { StuckTransitChip } from "@/components/orders/stuck-transit-chip";
 import type { PaymentStatus } from "@/lib/supabase";
 
@@ -105,6 +106,7 @@ export function OrdersFilterBar({
         availableProducts,
         availableProductsInView,
         adChannelSummary,
+        adCampaignSummary,
         filterPresets,
         saveFilterPreset,
         loadFilterPreset,
@@ -208,6 +210,15 @@ export function OrdersFilterBar({
                                 summary={adChannelSummary}
                                 selected={filters.adChannel}
                                 onSelect={(channel) => setFilters({ ...filters, adChannel: channel ?? undefined })}
+                                countsHidden={countsHidden}
+                                className="pl-8 pr-6"
+                            />
+                        )}
+                        {(showAdChannels || filters.adCampaign) && (
+                            <AdCampaignFilter
+                                summary={adCampaignSummary}
+                                selected={filters.adCampaign}
+                                onSelect={(campaign) => setFilters({ ...filters, adCampaign: campaign ?? undefined })}
                                 countsHidden={countsHidden}
                                 className="pl-8 pr-6"
                             />
