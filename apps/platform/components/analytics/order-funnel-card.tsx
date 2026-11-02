@@ -119,10 +119,10 @@ export function OrderFunnelCard({ funnel }: OrderFunnelCardProps) {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.3, duration: 0.3, ease: "easeOut" }}
                     className={cn(
-                        "flex items-center justify-between p-3 rounded-xl backdrop-blur-sm border",
+                        "flex items-center justify-between p-3 rounded-xl border bg-[var(--card-bg)]",
                         isGoodConfirmationRate
-                            ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/30"
-                            : "bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-800/30"
+                            ? "border-[var(--card-border)]"
+                            : "border-rose-500/40"
                     )}
                 >
                     <div className="flex items-center gap-2">
@@ -151,10 +151,10 @@ export function OrderFunnelCard({ funnel }: OrderFunnelCardProps) {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.35, duration: 0.3, ease: "easeOut" }}
                     className={cn(
-                        "flex items-center justify-between p-3 rounded-xl backdrop-blur-sm border",
+                        "flex items-center justify-between p-3 rounded-xl border bg-[var(--card-bg)]",
                         isGoodDeliveryRate
-                            ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/30"
-                            : "bg-rose-50 dark:bg-rose-900/10 border-rose-100 dark:border-rose-800/30"
+                            ? "border-[var(--card-border)]"
+                            : "border-rose-500/40"
                     )}
                 >
                     <div className="flex items-center gap-2">
