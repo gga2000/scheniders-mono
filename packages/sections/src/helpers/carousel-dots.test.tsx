@@ -5,12 +5,12 @@
 // One dot per card, the first current; a tap scrolls the track to that
 // card (mirrored in a reversed Arabic track) and the dot that follows the
 // scroll position becomes current. On screen it autoplays, wrapping, until
-// a touch; never under reduced motion. One card draws no dots.
+// a touch pauses it; never under reduced motion. One card draws no dots.
 // =====================================================================
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
-import { AUTOPLAY_MS, CarouselDots, stopCarousel } from "./carousel-dots";
+import { AUTOPLAY_MS, CarouselDots, RESUME_MS, stopCarousel } from "./carousel-dots";
 
 afterEach(cleanup);
 
@@ -95,7 +95,7 @@ describe("CarouselDots", () => {
     }
   });
 
-  it("stops for good once the shopper touches the track, and waits while off screen", () => {
+  it("pauses after a touch and resumes RESUME_MS later; waits while off screen", () => {
     vi.useFakeTimers();
     try {
       const { track } = setup(false);
@@ -106,9 +106,13 @@ describe("CarouselDots", () => {
       act(() => showTrack(true));
       track.dispatchEvent(new Event("pointerdown"));
       act(() => {
-        vi.advanceTimersByTime(AUTOPLAY_MS * 2);
+        vi.advanceTimersByTime(RESUME_MS - 1);
       });
       expect(track.scrollTo).not.toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(AUTOPLAY_MS);
+      });
+      expect(track.scrollTo).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
