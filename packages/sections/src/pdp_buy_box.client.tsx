@@ -22,8 +22,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { stockLeftFor, useSelectedVariant, useVariantStore, variantPickerAnchor } from "./helpers/variant-store";
-import { resolveI18n, pixelContentFromProduct, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
-import { trackPixel } from "./helpers/pixels";
+import { resolveI18n, pixelContentsFromItems, resolveTierPrice } from "@scheniders/shared";
+import { trackPixel, trackProductView } from "./helpers/pixels";
 import {
   BentoCard,
   ChunkyButton,
@@ -67,10 +67,7 @@ export function PdpBuyBoxRender({
   const viewedPrice = product?.price;
   useEffect(() => {
     if (!viewedId || typeof viewedPrice !== "number") return;
-    trackPixel(
-      "ViewContent",
-      pixelContentFromProduct({ id: viewedId, price: viewedPrice }),
-    );
+    trackProductView({ id: viewedId, price: viewedPrice });
   }, [viewedId, viewedPrice]);
 
   const variants = useMemo(
