@@ -68,6 +68,8 @@ export const ORDER_READ_COLUMNS = `
   is_pinned,
   delivery_order_id,
   is_reviewed,
+  reviewed_at,
+  reviewed_by,
   is_verified_customer,
   contact_count,
   address_status,

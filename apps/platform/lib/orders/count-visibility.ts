@@ -38,6 +38,8 @@ export interface CountContext {
     dueToday: boolean;
     /** The stuck-in-transit toggle (deferred). Optional: mobile has no such list filter. */
     stuckTransit?: boolean;
+    /** The payment-not-checked toggle (deferred). Optional: mobile has no such list filter. */
+    paymentUnchecked?: boolean;
 }
 
 export interface CountVisibility {
@@ -52,7 +54,7 @@ export interface CountVisibility {
 export function countVisibility(c: CountContext): CountVisibility {
     const base = c.facts.ready && !c.archived;
     const refined = ({ exceptDue = false, exceptRisk = false } = {}) =>
-        c.columnFilter || c.duplicatesOnly || !!c.stuckTransit || (!exceptDue && c.dueToday) || (!exceptRisk && c.riskLevel !== undefined);
+        c.columnFilter || c.duplicatesOnly || !!c.stuckTransit || !!c.paymentUnchecked || (!exceptDue && c.dueToday) || (!exceptRisk && c.riskLevel !== undefined);
     return {
         chips: base && !refined(),
         dueTodayBadge: base && !refined({ exceptDue: true }),
