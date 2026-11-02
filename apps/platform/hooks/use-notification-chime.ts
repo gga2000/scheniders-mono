@@ -6,7 +6,7 @@
 
 import { useCallback, useRef } from "react";
 import { useNotificationSettings } from "@/hooks/use-notification-settings";
-import { chimeUrlFor, minutesOfDay, shouldChime } from "@/lib/notification-chime";
+import { minutesOfDay, shouldChime, soundUrlFor } from "@/lib/notification-chime";
 
 /**
  * A bulk status change writes dozens of rows a second. One sound per burst is
@@ -18,6 +18,9 @@ export interface ChimeRequest {
     category: string;
     priority: string;
     isOwnAction: boolean;
+    type: string;
+    payload: Record<string, unknown>;
+    actorName: string | null;
 }
 
 export function useNotificationChime(): (request: ChimeRequest) => void {
@@ -42,7 +45,11 @@ export function useNotificationChime(): (request: ChimeRequest) => void {
             if (now - lastPlayedAt.current < MIN_GAP_MS) return;
             lastPlayedAt.current = now;
 
-            const url = chimeUrlFor(request.priority);
+            const url = soundUrlFor({
+                type: request.type,
+                payload: request.payload,
+                actorName: request.actorName,
+            });
             try {
                 let element = elements.current.get(url);
                 if (!element) {

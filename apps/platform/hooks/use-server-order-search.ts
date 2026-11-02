@@ -21,7 +21,7 @@ export { orderSearchKeys };
 export interface ServerOrderSearch {
     /** True when the term is long enough to search; the list should show `orders`. */
     active: boolean;
-    /** Ranked matches across every date and status, archived and trashed included. */
+    /** Ranked matches across every date and status, archived included, trashed excluded. */
     orders: Order[];
     /** A request for the current term has not answered yet. */
     pending: boolean;

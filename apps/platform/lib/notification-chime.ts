@@ -32,6 +32,16 @@ export function isWithinQuietHours(nowMinutes: number, quiet: QuietHours): boole
         : nowMinutes >= start || nowMinutes < end;
 }
 
+/**
+ * Only these groups are audible until someone turns another one on: new
+ * orders and order changes ("orders") and customer messages ("chat"). Stock,
+ * delivery, finance, customer and team events stay silent by default.
+ */
+const AUDIBLE_BY_DEFAULT: ReadonlySet<string> = new Set(["orders", "chat"]);
+
+export const soundOnByDefault = (category: string): boolean =>
+    AUDIBLE_BY_DEFAULT.has(category);
+
 export interface ChimeInput {
     category: string;
     priority: string;
@@ -43,16 +53,51 @@ export interface ChimeInput {
 }
 
 /**
- * A category with no stored preference falls back to audible, matching the
- * `DEFAULT_PREF` the settings hook resolves to — silence is something a person
- * chooses, never something they inherit from a missing row.
+ * A category with no stored preference follows `soundOnByDefault`, matching
+ * what the settings hook resolves to, so the dialog and the feed never
+ * disagree about a missing row.
  */
 export function shouldChime(input: ChimeInput): boolean {
     if (input.isOwnAction) return false;
     if (isWithinQuietHours(input.nowMinutes, input.quietHours)) return false;
-    return input.prefs[input.category]?.sound ?? true;
+    return input.prefs[input.category]?.sound ?? soundOnByDefault(input.category);
 }
 
-/** Urgent gets its own, more insistent file; everything else shares one. */
-export const chimeUrlFor = (priority: string): string =>
-    priority === "urgent" ? "/sounds/urgent.mp3" : "/sounds/notification.mp3";
+export const SOUND_URLS = {
+    newOrder: "/sounds/order.mp3",
+    orderChange: "/sounds/change.mp3",
+    orderCancelled: "/sounds/order-cancelled.mp3",
+    orderConfirmed: "/sounds/order-confirm.mp3",
+    message: "/sounds/message.mp3",
+    other: "/sounds/others.mp3",
+} as const;
+
+/** The actor the order triggers record for a change nobody on the team made. */
+const AUTOMATION_ACTOR = "Automation";
+
+export interface SoundSubject {
+    /** Dotted event name, e.g. "order.created". */
+    type: string;
+    payload: Record<string, unknown>;
+    actorName: string | null;
+}
+
+/**
+ * Which file a notification plays. A customer answering the WhatsApp message
+ * moves the order to confirmed with no staff member attached, so that pairing
+ * is what marks a WhatsApp confirmation; a teammate confirming by hand is an
+ * ordinary order change.
+ */
+export function soundUrlFor(subject: SoundSubject): string {
+    const { type, payload, actorName } = subject;
+    if (type === "order.created") return SOUND_URLS.newOrder;
+    if (type === "order.status_changed" || type === "order.bulk_status_changed") {
+        const next = payload.new_status;
+        if (next === "cancelled") return SOUND_URLS.orderCancelled;
+        if (next === "confirmed" && actorName === AUTOMATION_ACTOR) return SOUND_URLS.orderConfirmed;
+        return SOUND_URLS.orderChange;
+    }
+    if (type === "order.updated") return SOUND_URLS.orderChange;
+    if (type.startsWith("chat.")) return SOUND_URLS.message;
+    return SOUND_URLS.other;
+}

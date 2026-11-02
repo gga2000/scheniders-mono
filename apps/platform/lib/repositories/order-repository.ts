@@ -141,7 +141,6 @@ async function readPage<T extends { error: unknown; status?: number }>(read: () 
     return result;
 }
 
-/** Search rows carry `deleted_at` so a trashed match can be labelled. */
 const SEARCH_COLUMNS = `${LIST_COLUMNS}, deleted_at, delivery_order_id, waseet_qr_id`;
 /** Delta rows carry `deleted_at` so a soft delete realtime missed still removes the row. */
 const DELTA_COLUMNS = `${LIST_COLUMNS}, deleted_at`;
@@ -707,7 +706,8 @@ export const orderRepository = {
 
     /**
      * Search the caller's whole order book — every date, every status, archived
-     * and trashed included — for a typed term. See lib/order-server-search.ts
+     * included, trashed excluded (the trash screen is where deleted orders
+     * live) — for a typed term. See lib/order-server-search.ts
      * for what a term matches and how results are ranked.
      *
      * Prefers `search_orders_v2` (migration 20261012120000: indexed, and folds
@@ -725,7 +725,8 @@ export const orderRepository = {
         if (!searchRpcMissing) {
             const { data, error } = await supabase
                 .rpc("search_orders_v2", { p_tenant_id: tenantId, p_term: parsed.text, p_limit: cappedLimit })
-                .select(SEARCH_COLUMNS);
+                .select(SEARCH_COLUMNS)
+                .is("deleted_at", null);
             if (error) {
                 if (error.code !== RPC_NOT_FOUND) throw error;
                 searchRpcMissing = true;
@@ -743,6 +744,7 @@ export const orderRepository = {
                         .from("orders")
                         .select(SEARCH_COLUMNS)
                         .eq("tenant_id", tenantId)
+                        .is("deleted_at", null)
                         .or(or)
                         .order("created_at", { ascending: false })
                         .order("id", { ascending: false })

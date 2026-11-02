@@ -3,7 +3,7 @@
  * Handles browser notifications for new orders
  */
 
-const NOTIFICATION_SOUND_URL = "/sounds/notification.mp3";
+const NOTIFICATION_SOUND_URL = "/sounds/order.mp3";
 const URGENT_SOUND_URL = "/sounds/urgent.mp3";
 
 export interface NotificationOptions {
@@ -163,7 +163,9 @@ class NotificationService {
                 requireInteraction: isUrgent,
                 onClick,
             },
-            true,
+            // The bell feed already plays the new-order sound; a second one
+            // from the desktop popup would double it.
+            false,
             isUrgent
         );
     }
