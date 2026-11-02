@@ -6,6 +6,10 @@ import { parseRecovery } from "@/lib/orders/abandoned-cart-recovery";
 
 const H = vi.hoisted(() => ({
   state: { data: undefined as unknown, isError: false },
+  openCaptures: 0,
+}));
+vi.mock("@/hooks/use-open-store-captures", () => ({
+  useOpenStoreCapturesCount: () => ({ data: H.openCaptures }),
 }));
 
 vi.mock("@/hooks/use-abandoned-cart-recovery", async (orig) => ({
@@ -35,6 +39,7 @@ import { AbandonedCartRecoveryStrip } from "./abandoned-cart-recovery-strip";
 afterEach(() => {
   cleanup();
   H.state = { data: undefined, isError: false };
+  H.openCaptures = 0;
 });
 
 const live = parseRecovery({
@@ -55,6 +60,21 @@ describe("AbandonedCartRecoveryStrip", () => {
     H.state = { data: parseRecovery({}), isError: false };
     const { container } = render(<AbandonedCartRecoveryStrip />);
     expect(container.innerHTML).toBe("");
+  });
+
+  it("counts open store captures as still open", () => {
+    H.state = { data: { ...live, open: 2 }, isError: false };
+    H.openCaptures = 7;
+    render(<AbandonedCartRecoveryStrip />);
+    const open = screen.getByText("Still open").closest("div");
+    expect(open?.querySelector("dd")?.textContent).toBe("9");
+  });
+
+  it("shows when only store captures are open", () => {
+    H.state = { data: parseRecovery({}), isError: false };
+    H.openCaptures = 7;
+    render(<AbandonedCartRecoveryStrip />);
+    expect(screen.getByTestId("abandoned-cart-recovery").textContent).toContain("7");
   });
 
   it("shows open, recovered, returned, rate, removed reasons and staff", () => {

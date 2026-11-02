@@ -5,7 +5,15 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { LanguageProvider } from "@/components/providers/language-provider";
 import { StickyFilterBar } from "./sticky-filter-bar";
 
-afterEach(cleanup);
+const H = vi.hoisted(() => ({ openCaptures: 0 }));
+vi.mock("@/hooks/use-open-store-captures", () => ({
+    useOpenStoreCapturesCount: () => ({ data: H.openCaptures }),
+}));
+
+afterEach(() => {
+    cleanup();
+    H.openCaptures = 0;
+});
 
 const renderBar = (props: Partial<Parameters<typeof StickyFilterBar>[0]> = {}) => {
     const setFilterDueToday = vi.fn();
@@ -120,5 +128,21 @@ describe("due-today filter chip", () => {
     it("stays reachable while on, even after the queue empties, so it can be switched off", () => {
         renderBar({ dueTodayCount: 0, filterDueToday: true });
         expect(screen.getByRole("button", { name: "مجدولة اليوم" })).toBeTruthy();
+    });
+});
+
+describe("abandoned chip", () => {
+    it("counts open store captures on top of pending_checkout orders", () => {
+        H.openCaptures = 7;
+        renderBar({ statusCounts: { all: 20, pending_checkout: 2 } });
+        const chip = document.querySelector<HTMLElement>('[data-chip="pending_checkout"]');
+        expect(chip?.getAttribute("data-chip-count")).toBe("9");
+    });
+
+    it("still counts captures when no checkout order is parked", () => {
+        H.openCaptures = 3;
+        renderBar({ statusCounts: { all: 20 } });
+        const chip = document.querySelector<HTMLElement>('[data-chip="pending_checkout"]');
+        expect(chip?.getAttribute("data-chip-count")).toBe("3");
     });
 });

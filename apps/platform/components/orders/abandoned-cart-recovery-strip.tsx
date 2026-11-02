@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FinancialValue } from "@/components/ui/financial-value";
 import { useLanguage } from "@/hooks/use-language";
 import { useAbandonedCartRecovery } from "@/hooks/use-abandoned-cart-recovery";
+import { useOpenStoreCapturesCount } from "@/hooks/use-open-store-captures";
 import type { AbandonedCartRecovery } from "@/lib/orders/abandoned-cart-recovery";
 import { cn } from "@/lib/utils";
 
@@ -15,12 +16,15 @@ const BOT_NAME = "whatsapp_bot";
  * still open (and how many went stale), taken by staff, came back on their
  * own, the recovery rate, what the system removed and why, and who on the
  * team took them. Numbers come from get_abandoned_cart_recovery; the IQD
- * figure is masked for roles without VIEW_FINANCIALS. Renders nothing until
- * there is at least one cart in the window.
+ * figure is masked for roles without VIEW_FINANCIALS. "Still open" also
+ * counts open store captures (phones typed on the store's order form, listed
+ * by StoreCapturesPanel below), as both are carts staff still have to work.
+ * Renders nothing until there is at least one cart.
  */
 export function AbandonedCartRecoveryStrip() {
     const { t } = useLanguage();
     const { data, isError } = useAbandonedCartRecovery();
+    const { data: openCaptures = 0 } = useOpenStoreCapturesCount();
 
     if (isError) {
         return (
@@ -29,7 +33,7 @@ export function AbandonedCartRecoveryStrip() {
             </p>
         );
     }
-    if (!data || isEmpty(data)) return null;
+    if (!data || (isEmpty(data) && openCaptures === 0)) return null;
 
     const removed = [
         { key: "junkLocation", n: data.removed.junk_location },
@@ -48,7 +52,7 @@ export function AbandonedCartRecoveryStrip() {
                 {t("orders.recovery.title", { days: data.days })}
             </h2>
             <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Stat label={t("orders.recovery.open")} value={data.open}>
+                <Stat label={t("orders.recovery.open")} value={data.open + openCaptures}>
                     {data.open_stale > 0 && (
                         <span className="text-[#B4533F] dark:text-[#F4B4A6]">
                             {t("orders.recovery.openStale", { n: data.open_stale })}
