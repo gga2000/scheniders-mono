@@ -100,7 +100,7 @@ export function CashPositionHero({ data }: Props) {
                             value={tile.value}
                             currency="IQD"
                             abbreviate
-                            className={cn("text-[22px] leading-none", accentText(tile.accent))}
+                            className={cn("text-[22px] leading-none", valueTone(tile.id, tile.warning))}
                         />
                     </div>
                     <div className="text-[11px] text-muted mt-1 truncate">{tile.sublabel}</div>
@@ -119,6 +119,13 @@ export function CashPositionHero({ data }: Props) {
             ))}
         </motion.div>
     );
+}
+
+/** Colour in a value means good money (collected) or danger (at risk); the rest read in ink. */
+function valueTone(id: string, warning?: boolean): string {
+    if (id === "collected") return accentText("emerald");
+    if (id === "risk" && warning) return accentText("rose");
+    return "text-foreground";
 }
 
 function accentBg(a: string): string {
