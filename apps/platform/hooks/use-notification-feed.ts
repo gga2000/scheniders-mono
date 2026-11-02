@@ -310,7 +310,6 @@ export function useNotificationFeed(
                             isOwnAction,
                             type: typeof row.type === "string" ? row.type : "",
                             payload: isRecord(row.payload) ? row.payload : {},
-                            actorName: typeof row.actor_name === "string" ? row.actor_name : null,
                         });
                     }
 

@@ -6,6 +6,23 @@ import { Save, Store, Bell, Boxes, Volume2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { AccountLinkingCard } from "@/components/settings/account-linking-card";
+import { SOUND_URLS } from "@/lib/notification-chime";
+
+const NOTIFICATION_SOUND_TESTS = [
+    { key: "newOrder", url: SOUND_URLS.newOrder, fallback: "New order" },
+    { key: "orderChange", url: SOUND_URLS.orderChange, fallback: "Order changed" },
+    { key: "orderConfirmed", url: SOUND_URLS.orderConfirmed, fallback: "Order confirmed" },
+    { key: "orderCancelled", url: SOUND_URLS.orderCancelled, fallback: "Order cancelled" },
+    { key: "message", url: SOUND_URLS.message, fallback: "Chat message" },
+    { key: "other", url: SOUND_URLS.other, fallback: "Other notifications" },
+] as const;
+
+function previewSound(url: string): void {
+    const audio = new Audio(url);
+    // A click is a user gesture, so play() is allowed; a failure here is the file
+    // missing, which the network tab already shows.
+    void audio.play().catch(() => {});
+}
 
 
 export function GeneralSettings() {
@@ -149,49 +166,25 @@ export function GeneralSettings() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Sound Settings */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-foreground">{t("settings.general.soundEffects")}</p>
-                                <p className="text-xs text-muted-foreground">{t("settings.general.soundEffectsDesc")}</p>
-                            </div>
-                            <button
-                                onClick={() => setNotifications({ ...notifications, sound_enabled: !notifications.sound_enabled })}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 ${notifications.sound_enabled ? 'bg-(--button-success)' : 'bg-gray-200'}`}
-                            >
-                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${notifications.sound_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
-                            </button>
+                    {/* Sound test */}
+                    <div className="space-y-3">
+                        <div>
+                            <p className="text-sm font-medium text-foreground">{t("settings.general.testSounds", "Notification sounds")}</p>
+                            <p className="text-xs text-muted-foreground">{t("settings.general.testSoundsDesc", "Press a button to hear it. Which groups make sound is set in notification preferences.")}</p>
                         </div>
-
-                        {notifications.sound_enabled && (
-                            <div className="space-y-1.5 pl-0">
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                    {t("settings.general.notificationSound")}
-                                </label>
-                                <div className="flex gap-2">
-                                    <select
-                                        className="flex h-9 flex-1 rounded-xl border border-(--card-border) bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-(--pastel-pink) focus:border-transparent"
-                                        value={notifications.sound_url || "/sounds/notification.mp3"}
-                                        onChange={(e) => setNotifications({ ...notifications, sound_url: e.target.value })}
-                                    >
-                                        <option value="/sounds/notification.mp3">{t("settings.general.defaultSound")}</option>
-                                        <option value="/sounds/urgent.mp3">{t("settings.general.urgentSound")}</option>
-                                    </select>
-                                    <button
-                                        onClick={async () => {
-                                            const audio = new Audio(notifications.sound_url || "/sounds/notification.mp3");
-                                            audio.volume = 0.5;
-                                            audio.play().catch(e => console.error(e));
-                                        }}
-                                        className="inline-flex items-center justify-center rounded-xl border border-(--card-border) bg-background px-3 h-9 text-sm font-medium text-foreground hover:bg-(--pastel-pink) hover:text-rose-700 transition-colors"
-                                        title={t("settings.general.testSound")}
-                                    >
-                                        <Volume2 className="h-4 w-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {NOTIFICATION_SOUND_TESTS.map(({ key, url, fallback }) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => previewSound(url)}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-(--card-border) bg-background px-3 h-9 text-sm font-medium text-foreground hover:bg-(--pastel-pink) hover:text-rose-700 transition-colors"
+                                >
+                                    <Volume2 className="h-4 w-4 shrink-0" />
+                                    <span className="truncate">{t(`settings.general.sound.${key}`, fallback)}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Toast Settings */}

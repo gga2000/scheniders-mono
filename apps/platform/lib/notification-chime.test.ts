@@ -99,8 +99,8 @@ describe("shouldChime", () => {
 });
 
 describe("soundUrlFor", () => {
-    const pick = (type: string, payload: Record<string, unknown> = {}, actorName: string | null = "Noor") =>
-        soundUrlFor({ type, payload, actorName });
+    const pick = (type: string, payload: Record<string, unknown> = {}) =>
+        soundUrlFor({ type, payload });
 
     it("plays the new-order sound for a created order", () => {
         expect(pick("order.created")).toBe("/sounds/order.mp3");
@@ -111,9 +111,9 @@ describe("soundUrlFor", () => {
         expect(pick("order.bulk_status_changed", { new_status: "cancelled" })).toBe("/sounds/order-cancelled.mp3");
     });
 
-    it("plays the confirmation sound only when automation confirmed the order", () => {
-        expect(pick("order.status_changed", { new_status: "confirmed" }, "Automation")).toBe("/sounds/order-confirm.mp3");
-        expect(pick("order.status_changed", { new_status: "confirmed" }, "Noor")).toBe("/sounds/change.mp3");
+    it("plays the confirmation sound for any change to confirmed", () => {
+        expect(pick("order.status_changed", { new_status: "confirmed" })).toBe("/sounds/order-confirm.mp3");
+        expect(pick("order.bulk_status_changed", { new_status: "confirmed" })).toBe("/sounds/order-confirm.mp3");
     });
 
     it("plays the change sound for other status moves and edits", () => {

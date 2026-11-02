@@ -1426,11 +1426,9 @@ export default function OrdersPage() {
                                                                             });
                                                                         }
                                                                         setSoundEnabled(true);
-                                                                        notificationService.soundEnabled = true;
                                                                     } else {
                                                                         setNotificationsEnabled(false);
                                                                         setSoundEnabled(false);
-                                                                        notificationService.soundEnabled = false;
                                                                     }
                                                                 }}
                                                                 className={cn(
