@@ -1,5 +1,10 @@
 name: CI
 
+# Pull requests run the fast gates (lint, type-check, test) as parallel jobs.
+# The slow gate (three `next build`s + the storefront bundle budget) runs after
+# the merge, on main. A broken build never reaches production anyway: Vercel
+# builds every deploy and keeps serving the last good one if a build fails.
+
 on:
   push:
     branches: [main]
@@ -8,18 +13,26 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded PR runs are stale; main runs are never cancelled so a failed
+  # build can't be hidden by the next merge.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TURBO_CACHE_DIR: .turbo
 
 jobs:
-  ci:
+  check:
+    name: ${{ matrix.task }}
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [lint, type-check, test]
     steps:
       - uses: actions/checkout@v4
         with:
-          # `--affected` diffs against the PR base (or, on a push, the commit
-          # before it) and needs the history to find it. Without it turbo
-          # cannot tell what changed and falls back to running everything.
+          # `--affected` diffs against the PR base (or the commit before a
+          # push) and needs history; without it turbo runs everything.
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
@@ -29,18 +42,45 @@ jobs:
           node-version: 20
           cache: pnpm
 
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ matrix.task }}-${{ github.sha }}
+          restore-keys: turbo-${{ matrix.task }}-
+
       - run: pnpm install --frozen-lockfile
 
-      # One job and one turbo run: a single install, one task graph, and the
-      # gates run in parallel where they can. The Actions budget on this
-      # account is small, so nothing here runs twice and only the packages a
-      # change can affect (and the packages that depend on them) run at all.
-      #
-      # `test` is every package's `vitest run` — the suite needs no secrets.
+      - run: pnpm exec turbo ${{ matrix.task }} --affected
+
+  build:
+    name: build + bundle budget
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .turbo
+            apps/*/.next/cache
+          key: build-${{ github.sha }}
+          restore-keys: build-
+
+      - run: pnpm install --frozen-lockfile
+
       # `bundle-budget` is the storefront's shared-runtime JS budget; turbo
-      # runs it after the storefront build, and only when that build ran.
-      - name: Lint, type-check, test, build, bundle budget
-        run: pnpm exec turbo lint type-check test build bundle-budget --affected
+      # runs it after the storefront build, only when that build ran.
+      - run: pnpm exec turbo build bundle-budget --affected
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
