@@ -16,6 +16,7 @@ import { HighlightedPhone } from "./highlighted-phone";
 import { formatIQD, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { validatePhoneDetailed } from "@/lib/order-utils";
+import { computeRefundPayout } from "@/lib/order-money";
 import { formatShortDate, formatTime, getStatusColor, getStatusBadgeStyle, getDisplayOrderId, isSystemActor } from "@/lib/order-format-utils";
 
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
@@ -826,13 +827,13 @@ function FullOrderCard(props: OrderCardProps) {
                                     {t("orders.card.paid")}
                                 </p>
                                 <p className="text-xs text-muted font-mono dark:text-[#A1A1A1]">
-                                    {formatIQD(Math.abs(Number(order.price)))}
+                                    {formatIQD(isReturn ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
                                 </p>
                             </>
                         ) : (
                             <div className="flex flex-col items-end">
                                 <p className="text-[11px] text-muted uppercase tracking-wider mb-0.5 dark:text-[#A1A1A1]">{t("orders.card.total")}</p>
-                                {order.discount_amount ? (
+                                {order.discount_amount && !isReturn ? (
                                     <>
                                         <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono mb-0.5">
                                             {formatIQD(Math.abs(Number(order.price)) + order.discount_amount)}
@@ -842,7 +843,7 @@ function FullOrderCard(props: OrderCardProps) {
                                             isReturn ? "text-red-600 dark:text-rose-400" : "text-foreground dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]"
                                         )}>
                                             {isReturn && "-"}
-                                            {formatIQD(Math.abs(Number(order.price)))}
+                                            {formatIQD(isReturn ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
                                         </p>
                                         <div className="mt-1">
                                             <DiscountBadge
@@ -858,7 +859,7 @@ function FullOrderCard(props: OrderCardProps) {
                                         isReturn ? "text-red-600 dark:text-rose-400" : "text-foreground dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]"
                                     )}>
                                         {isReturn && "-"}
-                                        {formatIQD(Math.abs(Number(order.price)))}
+                                        {formatIQD(isReturn ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
                                     </p>
                                 )}
                                 {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
@@ -939,7 +940,7 @@ function FullOrderCard(props: OrderCardProps) {
                                     <div className="flex flex-col items-end">
                                         <span className="text-[11px] text-muted uppercase tracking-wider dark:text-[#A1A1A1]">{t("orders.card.total")}</span>
 
-                                        {order.discount_amount ? (
+                                        {order.discount_amount && !isReturn ? (
                                             <>
                                                 <span className="text-xs text-muted line-through decoration-red-400 decoration-2 font-mono mb-0.5">
                                                     {formatIQD(Math.abs(Number(order.price)) + order.discount_amount)}
@@ -949,7 +950,7 @@ function FullOrderCard(props: OrderCardProps) {
                                                     isReturn ? "text-red-600 dark:text-rose-400" : "text-foreground dark:text-[#00FFAA] dark:drop-shadow-[0_0_8px_rgba(0,255,170,0.3)]"
                                                 )}>
                                                     {isReturn && "-"}
-                                                    {formatIQD(Math.abs(Number(order.price)))}
+                                                    {formatIQD(isReturn ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
                                                 </span>
                                                 <div className="mt-1">
                                                     <DiscountBadge
@@ -965,7 +966,7 @@ function FullOrderCard(props: OrderCardProps) {
                                                 isReturn ? "text-red-600" : "text-foreground"
                                             )}>
                                                 {isReturn && "-"}
-                                                {formatIQD(Math.abs(Number(order.price)))}
+                                                {formatIQD(isReturn ? computeRefundPayout(order) : Math.abs(Number(order.price)))}
                                             </span>
                                         )}
                                         {isReturn && orderReasonInfo && orderReasonInfo.deliveryDeduction > 0 && (
