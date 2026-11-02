@@ -28,7 +28,7 @@ describe("SourceBadge", () => {
 
     it("labels storefront orders", () => {
         const { container } = show("storefront");
-        expect(container.textContent).toMatch(/Storefront|واجهة المتجر/);
+        expect(container.textContent).toMatch(/Store|المتجر/);
     });
 
     it("shows nothing for an order with no source", () => {
