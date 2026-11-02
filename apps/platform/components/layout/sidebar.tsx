@@ -92,8 +92,6 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
                     { key: "nav.financesPrint", label: "Print & Ship", href: "/finances?tab=print", tab: "print" },
                     { key: "nav.financesCustomers", label: "Customers", href: "/finances?tab=customers", tab: "customers" },
                     { key: "nav.financesProducts", label: "Products", href: "/finances?tab=products", tab: "products" },
-                    { key: "nav.financesForecasts", label: "Forecasts", href: "/finances?tab=forecasts", tab: "forecasts" },
-                    { key: "nav.financesReports", label: "Exports", href: "/finances?tab=reports", tab: "reports" },
                 ],
             },
             { key: "nav.ads", icon: Megaphone, href: "/ads" },

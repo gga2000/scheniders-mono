@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     LayoutDashboard, TrendingUp, Landmark, Receipt, Truck,
-    FileText, Users, Package, Target, FileSpreadsheet, Printer,
+    FileText, Users, Package, Printer,
     Undo2, Search, CalendarRange, ArrowRight, Command,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -70,8 +70,6 @@ export function CommandPalette({ onChangeTab, onApplyPreset, onExport, onPrint }
         { id: "tab-customers", label: t("finances.palette.goTo", { tab: t("nav.financesCustomers") }), icon: Users, group: "tabs", onSelect: () => onChangeTab("customers") },
         { id: "tab-products", label: t("finances.palette.goTo", { tab: t("nav.financesProducts") }), icon: Package, group: "tabs", onSelect: () => onChangeTab("products") },
         { id: "tab-print", label: t("finances.palette.goTo", { tab: t("nav.financesPrint") }), icon: Printer, group: "tabs", onSelect: () => onChangeTab("print") },
-        { id: "tab-forecasts", label: t("finances.palette.goTo", { tab: t("nav.financesForecasts") }), icon: Target, group: "tabs", onSelect: () => onChangeTab("forecasts") },
-        { id: "tab-reports", label: t("finances.palette.goTo", { tab: t("nav.financesReports") }), icon: FileSpreadsheet, group: "tabs", onSelect: () => onChangeTab("reports") },
         { id: "p-today", label: t("finances.palette.period", { period: t("finances.period.today") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("today") },
         { id: "p-yesterday", label: t("finances.palette.period", { period: t("finances.period.yesterday") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("yesterday") },
         { id: "p-7", label: t("finances.palette.period", { period: t("finances.period.last7") }), icon: CalendarRange, group: "period", onSelect: () => onApplyPreset("last7") },

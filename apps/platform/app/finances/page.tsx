@@ -117,12 +117,6 @@ const InvoicesTab = dynamic(
     { loading: () => <div className="h-[400px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
 );
 
-// Reports tab (lazy-loaded)
-const ReportsTab = dynamic(
-    () => import("@/components/finances/hub/reports/reports-tab").then((m) => ({ default: m.ReportsTab })),
-    { loading: () => <div className="h-[400px] rounded-2xl bg-[var(--card-bg)] animate-pulse" /> }
-);
-
 // Cash tab widgets (lazy-loaded)
 const CashPositionHero = dynamic(
     () => import("@/components/finances/hub/cash/cash-position-hero").then((m) => ({ default: m.CashPositionHero })),
@@ -160,7 +154,7 @@ const ORDER_FREE_TABS: FinanceTabId[] = ["expenses", "payouts", "print", "salari
 const VALID_TABS: FinanceTabId[] = [
     "overview", "revenue", "profit_analysis", "cash", "expenses", "payouts",
     "invoices", "refunds", "customers", "products", "print",
-    "forecasts", "reports", "salaries",
+    "salaries",
 ];
 
 export default function FinancesPage() {
@@ -176,6 +170,8 @@ function FinancesContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const rawTab = searchParams?.get("tab");
+    // Forecasts now sit at the bottom of the Overview and exports are the header buttons,
+    // so their old links land on the Overview.
     const activeTab: FinanceTabId =
         rawTab && VALID_TABS.includes(rawTab as FinanceTabId) ? (rawTab as FinanceTabId) : "overview";
 
@@ -311,6 +307,7 @@ function FinancesContent() {
                                 </div>
                             </div>
                             <RevenueByDimension data={overview} />
+                            <ForecastsTab orders={orders} expenses={expenses} period={period} />
                         </div>
                     )}
 
@@ -375,13 +372,7 @@ function FinancesContent() {
                         <ProductsFinanceTab orders={orders} products={products} period={period} granularity={granularity} snapshots={costSnapshots} />
                     )}
 
-                    {activeTab === "forecasts" && (
-                        <ForecastsTab orders={orders} expenses={expenses} period={period} />
-                    )}
 
-                    {activeTab === "reports" && (
-                        <ReportsTab period={period} onExport={ordersLoading ? undefined : handleExport} onPrint={ordersLoading ? undefined : handlePrint} />
-                    )}
 
                     {activeTab === "profit_analysis" && (
                         <ProfitAnalysisTab
