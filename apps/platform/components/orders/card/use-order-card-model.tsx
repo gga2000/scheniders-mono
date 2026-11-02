@@ -248,6 +248,14 @@ export function useOrderCardModel(props: OrderCardProps) {
         value: string,
         display: React.ReactNode,
         className?: string,
+        /**
+         * The element wrapping this field opens the details itself (the full
+         * card's customer name does, selectable list or not). Its click must
+         * then open them too: this wrapper stops propagation to keep a
+         * double click from also opening them, so without it a click on the
+         * name text reached nothing and only the padding around it worked.
+         */
+        opensDetails: boolean = cardBodyOpensDetails,
     ): React.ReactNode => {
         if (inlineEdit.isEditing(order.id, field)) {
             return <OrderInlineEdit orderId={order.id} field={field} value={value} className={className} />;
@@ -260,7 +268,7 @@ export function useOrderCardModel(props: OrderCardProps) {
                 onClick={(e) => {
                     e.stopPropagation();
                     if (editClickTimerRef.current) clearTimeout(editClickTimerRef.current);
-                    if (cardBodyOpensDetails) {
+                    if (opensDetails) {
                         editClickTimerRef.current = setTimeout(() => onViewDetails(order), 250);
                     }
                 }}
