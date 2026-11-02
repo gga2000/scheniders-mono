@@ -8,7 +8,9 @@
 //     title (leading emoji dropped); each photo is used once, so none
 //     repeats, and a note without one stays a text chip;
 //   - segment meters, only from range values the merchant entered (so the
-//     journey block still never draws a range);
+//     journey block still never draws a range); a fractional value fills
+//     its last segment partly;
+//   - the season as one icon tag, out of the chip rows;
 //   - the lead line and the story: the draft-only `product_copy` entry
 //     first (D9), then the `lead_key` attribute / products.description;
 //   - one customer clause about staying power, verbatim: the merchant's
@@ -49,8 +51,30 @@ export interface ScentMeter {
   max: number;
   /** Segments to draw (the integer max, 2–10); 0 = the value line only. */
   segments: number;
-  filled: number;
+  /** Per segment, how much of it is filled (0–1), so 4.7 of 5 draws four
+   *  full segments and one 70% segment. Empty when `segments` is 0. */
+  fills: number[];
 }
+
+/** The season, drawn as one icon tag beside the gender tag instead of a
+ *  chip row in the facts box. */
+export interface ScentSeason {
+  label: string;
+  /** The option's label («شتوي»). */
+  value: string;
+  /** Material Symbols name for the option. */
+  icon: string;
+}
+
+/** The attribute key read as the season tag. */
+export const SEASON_KEY = "season";
+
+const SEASON_ICON: Readonly<Record<string, string>> = {
+  summer: "sunny",
+  winter: "ac_unit",
+  all_year: "calendar_month",
+};
+const SEASON_FALLBACK_ICON = "calendar_month";
 
 export interface ScentQuote {
   reviewId: string;
@@ -71,7 +95,9 @@ export interface ScentCardData {
   meters: ScentMeter[];
   /** The meters' source tag («حسب تجربتنا»); "" without meters. */
   factsSource: string;
+  /** The chip rows, without the season (it is `season`). */
   chipRows: JourneyChipRow[];
+  season: ScentSeason | null;
   note: { label: string; text: string } | null;
   quote: ScentQuote | null;
   /** The story split into paragraphs on blank lines. */
@@ -140,6 +166,21 @@ function pairPhotos(
   });
 }
 
+/** How much of segment `i` (0-based) a value fills, 0–1, to 2 decimals. */
+function segmentFill(value: number, i: number): number {
+  return Math.round(Math.min(1, Math.max(0, value - i)) * 100) / 100;
+}
+
+function seasonOf(
+  byKey: Map<string, ResolvedProductAttribute>,
+  journeyRows: readonly JourneyChipRow[],
+): ScentSeason | null {
+  const row = journeyRows.find((r) => r.key === SEASON_KEY);
+  const attr = byKey.get(SEASON_KEY);
+  if (!row || !row.chips[0] || !attr || attr.kind !== "enum") return null;
+  return { label: row.label, value: row.chips[0], icon: SEASON_ICON[attr.value] ?? SEASON_FALLBACK_ICON };
+}
+
 function metersOf(
   byKey: Map<string, ResolvedProductAttribute>,
   keys: readonly string[],
@@ -157,7 +198,7 @@ function metersOf(
         value: attr.value,
         max,
         segments,
-        filled: Math.min(segments, Math.max(0, Math.round(attr.value))),
+        fills: Array.from({ length: segments }, (_, i) => segmentFill(attr.value, i)),
       },
     ];
   });
@@ -236,7 +277,9 @@ export function buildScentCard(input: {
 
   const tiers = pairPhotos(journey?.stages ?? [], cards, locale);
   const meters = metersOf(byKey, config.meter_keys ?? [], locale);
-  const chipRows = journey?.chipRows ?? [];
+  const journeyRows = journey?.chipRows ?? [];
+  const season = seasonOf(byKey, journeyRows);
+  const chipRows = season ? journeyRows.filter((r) => r.key !== SEASON_KEY) : journeyRows;
   const note = journey?.note ?? null;
   const storyCards = cards.map((c) => ({
     image: c.image_url ?? null,
@@ -245,7 +288,7 @@ export function buildScentCard(input: {
   }));
 
   const hasFacts = meters.length > 0 || chipRows.length > 0 || note !== null;
-  if (tiers.length === 0 && !hasFacts && !lead && story.length === 0 && storyCards.length === 0) {
+  if (tiers.length === 0 && !hasFacts && !season && !lead && story.length === 0 && storyCards.length === 0) {
     return null;
   }
   return {
@@ -254,6 +297,7 @@ export function buildScentCard(input: {
     meters,
     factsSource: meters.length > 0 ? resolveI18n(config.facts_source_i18n, locale).trim() : "",
     chipRows,
+    season,
     note,
     quote: quoteOf(product, config),
     story,

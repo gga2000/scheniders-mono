@@ -134,15 +134,25 @@ describe("scent_layout card — facts when the product has them", () => {
     expect(card).toContain('data-meter="longevity"');
     expect(card).not.toContain('data-meter="sillage"');
     expect(card).toContain("4 من 5");
-    expect(count(card, "h-2 flex-1 rounded-bk-pill bg-bk-ink")).toBe(4);
-    expect(count(card, "h-2 flex-1 rounded-bk-pill bg-bk-divider")).toBe(1);
+    expect(count(card, 'data-fill="1"')).toBe(4);
+    expect(count(card, "relative h-2 flex-1 overflow-hidden rounded-bk-pill bg-bk-divider")).toBe(5);
     expect(card).toContain("حسب تجربتنا");
-    expect(card).toContain('data-chip-row="season"');
+    // The season is a tag in the header, not a chip row.
+    expect(card).not.toContain('data-chip-row="season"');
+    expect(count(card, 'data-tag="season"')).toBe(1);
     expect(card).toContain('data-chip-row="occasions"');
     expect(card).toContain("ثبات ممتاز وفوحان قوي.");
     // Two notes have photo cards; the rest are text chips.
     expect(count(card, "data-note-photo")).toBe(2);
     expect(count(card, "data-note-chip")).toBe(6);
+  });
+
+  it("folds the pyramid past the first tier, every note still in the HTML", () => {
+    const card = cardOf(render(CARD_PROPS, scentProduct));
+    expect(card).toMatch(/data-stage="top"(?![^>]*hidden)/);
+    expect(card).toMatch(/data-stage="heart"[^>]*hidden=""/);
+    expect(card).toMatch(/data-notes-fold=""[^>]*aria-expanded="false"/);
+    expect(card).toContain("شوف باقي الروائح");
   });
 
   it("english", () => {

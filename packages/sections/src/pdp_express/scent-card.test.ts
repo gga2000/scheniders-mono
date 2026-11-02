@@ -172,11 +172,22 @@ describe("facts", () => {
   it("meters only from entered range values, with the source tag", () => {
     const c = card(scentProduct);
     expect(c?.meters).toEqual([
-      { key: "longevity", label: "الثبات", value: 4, max: 5, segments: 5, filled: 4 },
+      { key: "longevity", label: "الثبات", value: 4, max: 5, segments: 5, fills: [1, 1, 1, 1, 0] },
     ]);
     expect(c?.factsSource).toBe("حسب تجربتنا");
-    expect(c?.chipRows.map((r) => r.key)).toEqual(["season", "occasions"]);
+    // The season leaves the chip rows for its own tag.
+    expect(c?.chipRows.map((r) => r.key)).toEqual(["occasions"]);
+    expect(c?.season).toEqual({ label: "الموسم", value: expect.any(String), icon: expect.any(String) });
     expect(c?.note?.text).toBe("ثبات ممتاز وفوحان قوي.");
+  });
+
+  it("a fractional value fills its last segment partly", () => {
+    const attrs = (scentProduct.attributes ?? []).map((a) =>
+      a.def.key === "longevity" && a.kind === "range" ? { ...a, value: 4.7 } : a,
+    );
+    const c = card({ ...scentProduct, attributes: attrs });
+    expect(c?.meters[0]?.fills).toEqual([1, 1, 1, 1, 0.7]);
+    expect(c?.meters[0]?.value).toBe(4.7);
   });
 
   it("Wayfarer today: no meters, no chips, no note, no source tag", () => {
@@ -184,6 +195,7 @@ describe("facts", () => {
     expect(c?.meters).toEqual([]);
     expect(c?.factsSource).toBe("");
     expect(c?.chipRows).toEqual([]);
+    expect(c?.season).toBeNull();
     expect(c?.note).toBeNull();
   });
 });

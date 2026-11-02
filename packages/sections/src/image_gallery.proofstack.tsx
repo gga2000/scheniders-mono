@@ -3,9 +3,10 @@
 // =====================================================================
 // Server components only, no hooks: the stack (ProofStack), each comment's
 // screenshot (StackShot) and author line (StackAuthor). The source pill
-// and scope line head the list; the first `initial_count` comments lead
-// with a numbered doubt and the quote in «»; the legend follows the first
-// comment; the rest render inside the expand island
+// and scope line head the list, with the legend under them; every comment
+// is one card (numbered doubt, the quote in «», the author, then the
+// screenshot flush at the bottom); the first `initial_count` lead and the
+// rest render inside the expand island
 // (image_gallery.stack.tsx). Every unlinked screenshot opens the viewer
 // (image_gallery.client.tsx) at its own slide.
 // =====================================================================
@@ -40,6 +41,8 @@ function StackShot({
   alt: string;
   viewer: { index: number; label: string } | null;
 }) {
+  // The screenshot sits flush along the bottom of its comment card: the
+  // card's own radius and overflow clip its corners.
   const frame = stackFrame(img);
   const picture =
     frame.kind === "sized" && img.width && img.height ? (
@@ -64,7 +67,7 @@ function StackShot({
       />
     );
   const boxCls = cn(
-    "relative block w-full overflow-hidden rounded-bk-card bg-bk-surface-alt",
+    "relative block w-full overflow-hidden bg-bk-surface-alt",
     frame.kind === "fill" && "aspect-[4/1]",
   );
   const boxStyle = frame.kind === "sized" ? { aspectRatio: frame.aspectRatio } : undefined;
@@ -110,7 +113,7 @@ function StackAuthor({
   return (
     <p
       className={cn(
-        "mb-bk-xs flex items-center gap-2 font-bk-body text-[13px] font-bold text-bk-ink [overflow-wrap:anywhere]",
+        "flex items-center gap-2 font-bk-body text-[13px] font-bold text-bk-ink-soft [overflow-wrap:anywhere]",
         rtl ? "flex-row-reverse text-right" : "text-left",
       )}
     >
@@ -172,98 +175,120 @@ export function ProofStack({
   };
   const side = rtl ? "text-right" : "text-left";
 
+  // Every comment is one card: what it answers and its strongest line on
+  // top, the original screenshot flush along the bottom as the evidence.
+  const card =
+    "flex flex-col overflow-hidden rounded-bk-card border-bk border-bk-divider bg-bk-surface";
+
   const lead = images.slice(0, leadCount).map((img, i) => {
     const quote = resolveI18n(img.quote_i18n, locale);
     const doubt = quote ? resolveI18n(img.doubt_i18n, locale) : "";
+    const hasAuthor = !!img.author || !!img.is_business;
     return (
-      <li key={i} data-proof-item={i} className="flex flex-col">
-        {doubt && (
-          <p
-            data-proof-doubt={i + 1}
-            className={cn(
-              "mb-1.5 flex items-center gap-2.5 font-bk-body text-sm font-extrabold text-bk-ink-soft",
-              rtl ? "flex-row-reverse text-right" : "text-left",
+      <li key={i} data-proof-item={i} className={card}>
+        {(doubt || quote || hasAuthor) && (
+          <div className={cn("flex flex-col gap-2 px-4 pb-3.5 pt-4", side)}>
+            {doubt && (
+              <p
+                data-proof-doubt={i + 1}
+                className={cn(
+                  "flex items-center gap-2 font-bk-body text-[13px] font-extrabold text-bk-ink-soft",
+                  rtl && "flex-row-reverse",
+                )}
+              >
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-bk-pill bg-bk-secondary text-xs font-black tabular-nums text-bk-primary"
+                >
+                  {i + 1}
+                </span>
+                <span>{doubt}</span>
+              </p>
             )}
-          >
-            <span
-              aria-hidden="true"
-              className="inline-flex size-[26px] shrink-0 items-center justify-center rounded-bk-pill bg-bk-secondary text-[13px] font-black tabular-nums text-bk-primary"
-            >
-              {i + 1}
-            </span>
-            <span>{doubt}</span>
-          </p>
-        )}
-        {quote && (
-          <p
-            data-proof-quote="true"
-            className={cn("mb-1 font-bk-display text-[20px] font-black leading-snug text-bk-ink text-pretty", side)}
-          >
-            «{quote}»
-          </p>
-        )}
-        <StackAuthor img={img} locale={locale} rtl={rtl} />
-        <StackShot img={img} alt={altOf(img)} viewer={viewerOf(img)} />
-        {i === 0 && legend && (
-          <div
-            data-proof-legend="true"
-            className={cn(
-              "mt-bk-sm flex items-center gap-2.5 rounded-bk-card bg-bk-surface-alt px-3 py-2.5",
-              rtl && "flex-row-reverse",
+            {quote && (
+              <p
+                data-proof-quote="true"
+                className="font-bk-display text-[19px] font-black leading-snug text-bk-ink text-pretty"
+              >
+                «{quote}»
+              </p>
             )}
-          >
-            {legendImage && (
-              <span aria-hidden="true" className="relative size-[26px] shrink-0">
-                <Image
-                  src={legendImage}
-                  alt=""
-                  width={26}
-                  height={26}
-                  unoptimized={!isOptimizableImageHost(legendImage)}
-                  className="size-[26px] rounded-bk-pill object-cover"
-                />
-                <MaterialIcon name="favorite" className="absolute -bottom-1 -right-1 text-[13px] text-bk-ink" />
-              </span>
-            )}
-            <p className={cn("min-w-0 flex-1 font-bk-body text-sm font-bold text-bk-ink", side)}>{legend}</p>
+            <StackAuthor img={img} locale={locale} rtl={rtl} />
           </div>
         )}
+        <StackShot img={img} alt={altOf(img)} viewer={viewerOf(img)} />
       </li>
     );
   });
 
   const rest = images.slice(leadCount).map((img, i) => (
-    <li key={i} data-proof-item={leadCount + i} className="py-bk-md first:pt-0">
-      <StackAuthor img={img} locale={locale} rtl={rtl} />
+    <li key={i} data-proof-item={leadCount + i} className={card}>
+      {(img.author || img.is_business) && (
+        <div className="px-4 py-2.5">
+          <StackAuthor img={img} locale={locale} rtl={rtl} />
+        </div>
+      )}
       <StackShot img={img} alt={altOf(img)} viewer={viewerOf(img)} />
     </li>
   ));
 
+  const hasHeader = !!source || props.scope === "store" || !!legend;
   const body = (
     <div>
-      {(source || props.scope === "store") && (
-        <div className={cn("mb-bk-lg flex flex-col gap-bk-xs", rtl ? "items-end" : "items-start")}>
-          {source && (
-            <span
-              data-proof-source="true"
-              data-i18n-field="source_label_i18n"
+      {hasHeader && (
+        <div
+          data-proof-header="true"
+          className={cn("mb-bk-md flex flex-col gap-2", rtl ? "items-end" : "items-start")}
+        >
+          {(source || props.scope === "store") && (
+            <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-1", rtl && "flex-row-reverse")}>
+              {source && (
+                <span
+                  data-proof-source="true"
+                  data-i18n-field="source_label_i18n"
+                  className={cn(
+                    "inline-flex min-h-7 items-center gap-1.5 rounded-bk-pill bg-bk-surface-alt px-2.5 py-0.5 font-bk-body text-[13px] font-bold text-bk-ink",
+                    rtl && "flex-row-reverse",
+                  )}
+                >
+                  <MaterialIcon name="forum" className="text-base" />
+                  {source}
+                </span>
+              )}
+              {props.scope === "store" && (
+                <p className={cn("font-bk-body text-[13px] font-semibold text-bk-ink-soft", side)}>
+                  {gs("proofScope", locale, { shown: leadCount, total: images.length })}
+                </p>
+              )}
+            </div>
+          )}
+          {legend && (
+            <p
+              data-proof-legend="true"
               className={cn(
-                "inline-flex min-h-7 items-center gap-1.5 rounded-bk-pill border-bk border-bk-divider bg-bk-surface-alt px-2.5 py-0.5 font-bk-body text-[13px] font-bold text-bk-ink",
-                rtl && "flex-row-reverse",
+                "flex items-center gap-2 font-bk-body text-xs font-semibold text-bk-ink-soft",
+                rtl ? "flex-row-reverse text-right" : "text-left",
               )}
             >
-              <MaterialIcon name="forum" className="text-base" />
-              {source}
-            </span>
-          )}
-          {props.scope === "store" && (
-            <p className={cn("font-bk-body text-[13px] font-semibold text-bk-ink-soft", side)}>
-              {gs("proofScope", locale, { shown: leadCount, total: images.length })}
+              {legendImage && (
+                <span aria-hidden="true" className="relative size-5 shrink-0">
+                  <Image
+                    src={legendImage}
+                    alt=""
+                    width={20}
+                    height={20}
+                    unoptimized={!isOptimizableImageHost(legendImage)}
+                    className="size-5 rounded-bk-pill object-cover"
+                  />
+                  <MaterialIcon name="favorite" className="absolute -bottom-1 -right-1 text-[11px] text-bk-ink" />
+                </span>
+              )}
+              <span className="min-w-0">{legend}</span>
             </p>
           )}
         </div>
       )}
-      <ol className="flex flex-col gap-bk-xl">{lead}</ol>
+      <ol className="flex flex-col gap-bk-md">{lead}</ol>
       {rest.length > 0 && (
         <ProofStackMore
           listId={listId}

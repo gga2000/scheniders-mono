@@ -38,7 +38,8 @@ export function ProofStackMore({
         id={listId}
         data-proof-rest="true"
         hidden={!open}
-        className="mt-bk-lg divide-y divide-bk-divider"
+        // `flex` would beat the [hidden] rule; `hidden` sorts after it.
+        className={cn("mt-bk-md flex flex-col gap-bk-md", !open && "hidden")}
       >
         {children}
       </ol>
@@ -48,7 +49,7 @@ export function ProofStackMore({
         aria-controls={listId}
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "mt-bk-lg flex min-h-[52px] w-full items-center gap-3 rounded-bk-pill border-bk border-bk-divider bg-bk-surface-alt p-1.5 font-bk-body text-[15px] font-extrabold text-bk-ink transition-transform duration-bk-fast active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 ring-bk-focus",
+          "mt-bk-md flex min-h-[52px] w-full items-center gap-3 rounded-bk-pill border-bk border-bk-divider bg-bk-surface-alt p-1.5 font-bk-body text-[15px] font-extrabold text-bk-ink transition-transform duration-bk-fast active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 ring-bk-focus",
           rtl ? "flex-row-reverse pl-4" : "pr-4",
         )}
       >
