@@ -22,12 +22,25 @@ env:
 
 jobs:
   check:
-    name: ${{ matrix.task }}
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        task: [lint, type-check, test]
+        # The platform app is most of the code, so each task is split into
+        # "platform" and "everything else", and its tests into 4 shards.
+        # Each entry is a full turbo command; `--affected` still decides
+        # whether anything runs at all.
+        include:
+          - { name: lint platform, task: lint, args: "--filter=@scheniders/platform" }
+          - { name: lint rest, task: lint, args: "--filter=!@scheniders/platform" }
+          - { name: type-check platform, task: type-check, args: "--filter=@scheniders/platform" }
+          - { name: type-check rest, task: type-check, args: "--filter=!@scheniders/platform" }
+          - { name: test platform 1/4, task: test, args: "--filter=@scheniders/platform -- --shard=1/4" }
+          - { name: test platform 2/4, task: test, args: "--filter=@scheniders/platform -- --shard=2/4" }
+          - { name: test platform 3/4, task: test, args: "--filter=@scheniders/platform -- --shard=3/4" }
+          - { name: test platform 4/4, task: test, args: "--filter=@scheniders/platform -- --shard=4/4" }
+          - { name: test rest, task: test, args: "--filter=!@scheniders/platform" }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,7 +63,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm exec turbo ${{ matrix.task }} --affected
+      - run: pnpm exec turbo ${{ matrix.task }} --affected ${{ matrix.args }}
 
   build:
     name: build + bundle budget
