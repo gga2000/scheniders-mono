@@ -17,12 +17,12 @@ describe("normalizeCustomDomain", () => {
 
 describe("isAcceptedCnameTarget", () => {
     it("accepts the Scheniders target and Vercel DNS, any case, trailing dot", () => {
-        expect(isAcceptedCnameTarget("cname.scheniders.com")).toBe(true);
-        expect(isAcceptedCnameTarget("CNAME.Scheniders.com.")).toBe(true);
+        expect(isAcceptedCnameTarget("cname.vercel-dns.com")).toBe(true);
+        expect(isAcceptedCnameTarget("CNAME.Vercel-DNS.com.")).toBe(true);
         expect(isAcceptedCnameTarget("abc.vercel-dns.com")).toBe(true);
     });
     it("rejects lookalikes a substring check would pass", () => {
-        expect(isAcceptedCnameTarget("cname.scheniders.com.attacker.net")).toBe(false);
+        expect(isAcceptedCnameTarget("cname.vercel-dns.com.attacker.net")).toBe(false);
         expect(isAcceptedCnameTarget("evil-scheniders.com")).toBe(false);
         expect(isAcceptedCnameTarget("notvercel.example.com")).toBe(false);
     });

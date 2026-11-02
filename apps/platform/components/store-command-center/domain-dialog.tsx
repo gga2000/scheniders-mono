@@ -37,7 +37,10 @@ interface TenantDomain {
     created_at: string;
 }
 
-const verifyResponse = z.object({ verified: z.boolean() });
+const verifyResponse = z.object({
+    verified: z.boolean(),
+    ssl: z.enum(["active", "pending", "misconfigured", "not_configured"]).optional(),
+});
 
 class DomainInputError extends Error {
     constructor(readonly reason: "invalid" | "taken" | "failed") {
@@ -132,7 +135,13 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
         onSuccess: (result) => {
             queryClient.invalidateQueries({ queryKey: ["tenant-domains", tenantId] });
             if (result.verified) {
-                toast.success(t(STRINGS.command_center.domain_toast_verified, locale));
+                if (result.ssl === "pending") {
+                    toast.success(t(STRINGS.command_center.domain_toast_ssl_pending, locale));
+                } else if (result.ssl === "misconfigured") {
+                    toast.error(t(STRINGS.command_center.domain_toast_ssl_misconfigured, locale));
+                } else {
+                    toast.success(t(STRINGS.command_center.domain_toast_verified, locale));
+                }
             } else {
                 // The endpoint answers 200 + verified:false while DNS has not caught up.
                 toast.error(t(STRINGS.command_center.domain_toast_not_pointing, locale));

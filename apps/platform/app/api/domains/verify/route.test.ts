@@ -34,6 +34,13 @@ vi.mock("@/lib/supabase-server", () => ({
     }),
 }));
 
+const vercel = vi.hoisted(() => ({ provision: vi.fn() }));
+vi.mock("@/lib/vercel-domains", () => {
+    class DomainConflictError extends Error {}
+    return { DomainConflictError, provisionCustomDomain: vercel.provision };
+});
+
+import { DomainConflictError } from "@/lib/vercel-domains";
 import { POST } from "./route";
 
 const ID = "6f1c3d2e-8b7a-4c55-9d21-3a4b5c6d7e8f";
@@ -46,6 +53,8 @@ beforeEach(() => {
     state.eqs = [];
     state.updated = false;
     state.resolve.mockReset();
+    vercel.provision.mockReset();
+    vercel.provision.mockResolvedValue("active");
 });
 
 describe("POST /api/domains/verify", () => {
@@ -66,14 +75,43 @@ describe("POST /api/domains/verify", () => {
     });
 
     it("verifies when the CNAME points at Scheniders", async () => {
-        state.resolve.mockResolvedValue(["cname.scheniders.com"]);
+        state.resolve.mockResolvedValue(["cname.vercel-dns.com"]);
         const res = await POST(req({ domain_id: ID }));
-        expect(await res.json()).toEqual({ verified: true });
+        expect(await res.json()).toEqual({ verified: true, ssl: "active" });
+        expect(state.updated).toBe(true);
+        expect(vercel.provision).toHaveBeenCalledWith("shop.example.com");
+    });
+
+    it("does not touch Vercel until the CNAME is right", async () => {
+        state.resolve.mockResolvedValue(["cname.vercel-dns.com.attacker.net"]);
+        await POST(req({ domain_id: ID }));
+        expect(vercel.provision).not.toHaveBeenCalled();
+    });
+
+    it("verifies without SSL when Vercel is not configured", async () => {
+        state.resolve.mockResolvedValue(["cname.vercel-dns.com"]);
+        vercel.provision.mockResolvedValue("not_configured");
+        expect(await (await POST(req({ domain_id: ID }))).json()).toEqual({ verified: true, ssl: "not_configured" });
         expect(state.updated).toBe(true);
     });
 
+    it("refuses a domain another Vercel project already owns", async () => {
+        state.resolve.mockResolvedValue(["cname.vercel-dns.com"]);
+        vercel.provision.mockRejectedValue(new DomainConflictError("x"));
+        const body = await (await POST(req({ domain_id: ID }))).json();
+        expect(body.verified).toBe(false);
+        expect(state.updated).toBe(false);
+    });
+
+    it("stays unverified and answers 502 when Vercel is down, so the merchant can retry", async () => {
+        state.resolve.mockResolvedValue(["cname.vercel-dns.com"]);
+        vercel.provision.mockRejectedValue(new Error("boom"));
+        expect((await POST(req({ domain_id: ID }))).status).toBe(502);
+        expect(state.updated).toBe(false);
+    });
+
     it("does not verify a lookalike target", async () => {
-        state.resolve.mockResolvedValue(["cname.scheniders.com.attacker.net"]);
+        state.resolve.mockResolvedValue(["cname.vercel-dns.com.attacker.net"]);
         const res = await POST(req({ domain_id: ID }));
         expect((await res.json()).verified).toBe(false);
         expect(state.updated).toBe(false);

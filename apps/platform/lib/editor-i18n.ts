@@ -1206,6 +1206,16 @@ export const STRINGS = {
         domain_toast_added: { en: "Domain added. Configure your DNS to complete setup.", ar: "تمت إضافة النطاق. اضبط إعدادات DNS لإكمال الإعداد.", ku: "دۆمەین زیادکرا. DNS ڕێکبخە بۆ تەواوکردنی ڕێکخستن." },
         domain_toast_add_failed: { en: "Failed to add domain", ar: "تعذّرت إضافة النطاق", ku: "زیادکردنی دۆمەین سەرکەوتوو نەبوو" },
         domain_toast_verified: { en: "Domain verified!", ar: "تم التحقق من النطاق!", ku: "دۆمەین پشتڕاست کرایەوە!" },
+        domain_toast_ssl_pending: {
+            en: "Domain connected. Its SSL certificate is being issued, this takes a few minutes.",
+            ar: "تم ربط النطاق. شهادة SSL قيد الإصدار، وتستغرق بضع دقائق.",
+            ku: "دۆمەین بەستراوەتەوە. بڕوانامەی SSL ئامادە دەکرێت، چەند خولەکێک دەخایەنێت.",
+        },
+        domain_toast_ssl_misconfigured: {
+            en: "Domain verified, but its DNS does not point to Scheniders yet.",
+            ar: "تم التحقق من النطاق، لكن إعدادات DNS لا تشير إلى Scheniders بعد.",
+            ku: "دۆمەین پشتڕاست کرایەوە، بەڵام DNS هێشتا ئاماژە بە Scheniders ناکات.",
+        },
         domain_toast_verify_failed: { en: "Verification failed", ar: "فشل التحقق", ku: "پشتڕاستکردنەوە سەرکەوتوو نەبوو" },
         domain_toast_not_pointing: { en: "Not verified yet. Make sure the CNAME record is saved; DNS can take up to 48 hours.", ar: "لم يتم التحقق بعد. تأكد من حفظ سجل CNAME؛ قد يستغرق DNS حتى 48 ساعة.", ku: "هێشتا پشتڕاست نەکراوەتەوە. دڵنیابە CNAME پاشەکەوت کراوە؛ DNS دەکرێت تا ٤٨ کاتژمێر بخایەنێت." },
         domain_invalid: { en: "Enter a valid domain like shop.example.com", ar: "أدخل نطاقاً صحيحاً مثل shop.example.com", ku: "دۆمەینێکی دروست بنووسە وەک shop.example.com" },

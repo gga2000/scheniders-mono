@@ -1,5 +1,5 @@
 /** Where a merchant's custom domain must point. One source for the dialog's DNS hint and the verifier. */
-export const CUSTOM_DOMAIN_CNAME_TARGET = "cname.scheniders.com";
+export const CUSTOM_DOMAIN_CNAME_TARGET = "cname.vercel-dns.com";
 
 const VERCEL_DNS_SUFFIX = ".vercel-dns.com";
 
