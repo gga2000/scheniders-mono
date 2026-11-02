@@ -32,7 +32,6 @@ import { StuckTransitBadge } from "./card/stuck-transit-badge";
 import { DeliverySlotChip } from "./card/delivery-slot-chip";
 import { GiftChip } from "./card/gift-chip";
 import { PaymentCheckButton } from "./card/payment-check-button";
-import { OrderTagPicker } from "./tags/order-tag-picker";
 import { EnteredByMark } from "./card/entered-by-mark";
 import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
@@ -403,7 +402,6 @@ function FullOrderCard(props: OrderCardProps) {
 
                             <StuckTransitBadge order={order} />
                             {onToggleReviewed && <PaymentCheckButton order={order} onToggle={onToggleReviewed} />}
-                            <OrderTagPicker order={order} />
 
                             {/* Delivery Company Badge */}
                             {order.delivery_company === 'waseet' && (
@@ -871,15 +869,6 @@ function FullOrderCard(props: OrderCardProps) {
                                 )}
                             </div>
                         )}
-                        {/* Follow-up cue sits under the price, not in the button row, so the row keeps one width. */}
-                        {followUp && (
-                            <div className="mt-1.5 flex justify-end">
-                                <FollowUpCueBadge
-                                    state={followUp}
-                                    hoursSinceCreated={Math.floor(hoursSinceCreated)}
-                                />
-                            </div>
-                        )}
                     </motion.div>
 
                     {/* MOBILE SECTION: Phone, Address & Price - shows below main content on mobile */}
@@ -1014,6 +1003,14 @@ function FullOrderCard(props: OrderCardProps) {
                             ? "bg-black/5 dark:bg-[#1A1A1A] p-1 gap-1 flex-row rounded-2xl border border-black/5 dark:border-white/5 shadow-inner"
                             : "gap-2"
                     )}>
+                        {/* Follow-up cue badge */}
+                        {followUp && (
+                            <FollowUpCueBadge
+                                state={followUp}
+                                hoursSinceCreated={Math.floor(hoursSinceCreated)}
+                            />
+                        )}
+
                         {/* Chat Button - Primary with Contact Stage Indicator */}
                         {(() => {
                             const contactCount = order.contact_count || 0;
