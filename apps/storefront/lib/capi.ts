@@ -240,7 +240,11 @@ async function post(label: string, url: string, headers: Record<string, string>,
     if (label.startsWith("tiktok")) {
       const json = (await res.json()) as { code?: number; message?: string };
       if (json.code !== 0) console.error(`[capi] ${label} refused: ${json.code} ${json.message ?? ""}`);
+      return;
     }
+    // Meta answers {events_received, messages, fbtrace_id}: no secrets, and the
+    // only proof an accepted event reached the dataset.
+    console.info(`[capi] ${label} accepted: ${(await res.text()).slice(0, 300)}`);
   } catch (e) {
     console.error(`[capi] ${label} unreachable:`, e);
   }

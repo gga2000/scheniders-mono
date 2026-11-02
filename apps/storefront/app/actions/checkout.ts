@@ -881,6 +881,11 @@ export async function submitCheckout(
       context: await capiRequestContext(),
     };
     after(() => sendPurchaseCapi(capiInput));
+  } else if (!draftView && (analytics?.meta_capi_token || analytics?.tiktok_capi_token)) {
+    // A CAPI token is set but this order sends nothing server-side: say why.
+    console.warn(
+      `[capi] order ${orderId ?? "(no id)"} skipped: no purchase event_id from the client`,
+    );
   }
 
   // Post-purchase offer: hand THIS browser — and only this one — the proof
