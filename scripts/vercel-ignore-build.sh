@@ -3,7 +3,9 @@
 # Usage: bash ../../scripts/vercel-ignore-build.sh <repo-relative paths the app builds from>
 # Skips only when none of those paths (or the root build files) changed since
 # this project's last successful deploy. No usable base SHA (first deploy, or
-# the base is outside Vercel's shallow clone) means build.
+# the base is outside Vercel's shallow clone) means build. Redeploying the
+# commit that is already live means build too: that is how an environment
+# variable change reaches production.
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
 base="${VERCEL_GIT_PREVIOUS_SHA:-}"
@@ -12,8 +14,14 @@ if [ -z "$base" ] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
   exit 1
 fi
 
+if [ "$base" = "$(git rev-parse HEAD)" ]; then
+  echo "Redeploy of the live commit $base (settings change); building."
+  exit 1
+fi
+
 if git diff --quiet "$base" HEAD -- "$@" \
-  package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .npmrc; then
+  package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json .npmrc \
+  scripts/vercel-ignore-build.sh; then
   echo "Nothing this app builds from changed since $base; skipping build."
   exit 0
 fi
