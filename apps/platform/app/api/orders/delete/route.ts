@@ -94,7 +94,32 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const deletedIds = (deletedRows || []).map(r => r.id);
+        const newlyDeletedIds = (deletedRows || []).map(r => r.id);
+
+        // Delete is idempotent: an id already in this tenant's trash is in the
+        // state the caller asked for. Without this a stale list (a second tab,
+        // a double click, a realtime event that has not landed yet) re-sends an
+        // already-trashed id, nothing matches, and the client reports "No
+        // orders were deleted" with the row stuck on screen.
+        const remainingIds = ids.filter(id => !newlyDeletedIds.includes(id));
+        let alreadyDeletedIds: string[] = [];
+        if (remainingIds.length > 0) {
+            const { data: trashedRows, error: trashedError } = await supabaseAdmin
+                .from('orders')
+                .select('id')
+                .in('id', remainingIds)
+                .eq('tenant_id', tenantId)
+                .not('deleted_at', 'is', null);
+            if (trashedError) {
+                console.error('[Deletion] Error reading trashed orders:', trashedError.message);
+                return NextResponse.json(
+                    { success: false, error: trashedError.message },
+                    { status: 500 }
+                );
+            }
+            alreadyDeletedIds = (trashedRows || []).map(r => r.id);
+        }
+        const deletedIds = [...newlyDeletedIds, ...alreadyDeletedIds];
 
         // Record who deleted what, for the orders that actually got deleted.
         // Deliberately no customer data: orders are soft-deleted, so the order
@@ -131,7 +156,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            count: deletedIds.length,
+            count: newlyDeletedIds.length,
             deletedIds,
         });
     } catch (error) {
