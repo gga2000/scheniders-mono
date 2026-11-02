@@ -31,6 +31,7 @@ import { SourceBadge } from "./card/source-badge";
 import { StuckTransitBadge } from "./card/stuck-transit-badge";
 import { DeliverySlotChip } from "./card/delivery-slot-chip";
 import { GiftChip } from "./card/gift-chip";
+import { PaymentCheckButton } from "./card/payment-check-button";
 import { EnteredByMark } from "./card/entered-by-mark";
 import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
@@ -50,7 +51,7 @@ export const OrderCard = memo(function OrderCard(props: OrderCardProps) {
 
 /** The full card (compact level 0, and level 1 as a list). */
 function FullOrderCard(props: OrderCardProps) {
-    const { actionDock, actionsOpen, actionsRef, actualInternalNotes, actualNotes, ageUrgency, archivedOrderCount, blacklistDialogMode, blacklistDialogOpen, blacklistEntry, compact, customerOrderCount, duplicateAlert, editable, followUp, fullAddress, getLayoutId, governorateCode, hasDuplicates, hasRefund, hoursSinceCreated, isBlacklisted, isDelivered, isLoading, isNew, isPinned, isReturn, isReviewed, isSelected, isShopOrder, isUrgent, isVerifiedCustomer, items, language, linkedOriginalOrder, linkedRefundOrder, localSearchQuery, markImageFailed, menuPosition, menuRef, messageTemplates, onAddToBlacklist, onCancelWithReason, onCloneOrder, onOpenTemplatePanel, onRejectWithReason, onRemoveFromBlacklist, onScreenshot, onShowDuplicates, onSplit, onStatusUpdate, onTogglePin, onToggleReviewed, onToggleSelection, onViewDetails, openWhatsApp, order, orderAge, orderReasonInfo, orderStatusLabel, originalOrderInfo, previousOrder, primaryIsWhatsApp, riskAssessment, riskLevel, scheduledBadgeClass, scheduledLabel, scheduledState, secondaryIsWhatsApp, setActionsOpen, setBlacklistDialogMode, setBlacklistDialogOpen, setMenuPosition, statusAvatarUrl, t, thumbnailUrl } = useOrderCardModel(props);
+    const { actionDock, actionsOpen, actionsRef, actualInternalNotes, actualNotes, ageUrgency, archivedOrderCount, blacklistDialogMode, blacklistDialogOpen, blacklistEntry, compact, customerOrderCount, duplicateAlert, editable, followUp, fullAddress, getLayoutId, governorateCode, hasDuplicates, hasRefund, hoursSinceCreated, isBlacklisted, isLoading, isNew, isPinned, isReturn, isSelected, isShopOrder, isUrgent, isVerifiedCustomer, items, language, linkedOriginalOrder, linkedRefundOrder, localSearchQuery, markImageFailed, menuPosition, menuRef, messageTemplates, onAddToBlacklist, onCancelWithReason, onCloneOrder, onOpenTemplatePanel, onRejectWithReason, onRemoveFromBlacklist, onScreenshot, onShowDuplicates, onSplit, onStatusUpdate, onTogglePin, onToggleReviewed, onToggleSelection, onViewDetails, openWhatsApp, order, orderAge, orderReasonInfo, orderStatusLabel, originalOrderInfo, previousOrder, primaryIsWhatsApp, riskAssessment, riskLevel, scheduledBadgeClass, scheduledLabel, scheduledState, secondaryIsWhatsApp, setActionsOpen, setBlacklistDialogMode, setBlacklistDialogOpen, setMenuPosition, statusAvatarUrl, t, thumbnailUrl } = useOrderCardModel(props);
     return (
         <>
         <motion.div
@@ -400,6 +401,7 @@ function FullOrderCard(props: OrderCardProps) {
                             </CardStatusMenu>
 
                             <StuckTransitBadge order={order} />
+                            {onToggleReviewed && <PaymentCheckButton order={order} onToggle={onToggleReviewed} />}
 
                             {/* Delivery Company Badge */}
                             {order.delivery_company === 'waseet' && (
@@ -998,31 +1000,6 @@ function FullOrderCard(props: OrderCardProps) {
                             </div>
                         )}
                     </div>
-
-                    {/* REVIEW INDICATOR - Only for delivered orders */}
-                    {isDelivered && onToggleReviewed && (
-                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onToggleReviewed(order.id);
-                                }}
-                                className={cn(
-                                    "w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center",
-                                    isReviewed
-                                        ? "bg-cyan-500 border-cyan-600 shadow-lg shadow-cyan-500/50"
-                                        : "bg-white border-gray-300 hover:border-cyan-400 hover:shadow-sm"
-                                )}
-                                title={isReviewed ? t("orders.card.reviewedUndo") : t("orders.card.markReviewed")}
-                            >
-                                {isReviewed && (
-                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                )}
-                            </button>
-                        </div>
-                    )}
 
                     {/* DIVIDER - Desktop only */}
                     <div className="w-px h-16 bg-[var(--card-border)] flex-shrink-0 hidden md:block dark:bg-white/5" />

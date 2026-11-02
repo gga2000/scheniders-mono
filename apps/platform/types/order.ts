@@ -162,6 +162,9 @@ export interface Order {
     delivery_order_id?: string;
     delivery_note?: string;
     is_reviewed?: boolean;
+    /** Server-stamped when the payment-checked tick was set (trg_orders_stamp_payment_checked). */
+    reviewed_at?: string | null;
+    reviewed_by?: string | null;
     is_verified_customer?: boolean;
     contact_count?: number;
     last_contacted_at?: string;
