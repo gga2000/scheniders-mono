@@ -157,7 +157,7 @@ export function SupplyCard({
                     )}
                 </div>
                 <div className="text-right shrink-0">
-                    <p className="text-[10px] text-muted uppercase tracking-wide">On-hand value</p>
+                    <p className="text-[10px] text-muted uppercase tracking-wide">{t("supplies.sc.onHandValue")}</p>
                     <p className="font-semibold text-sm leading-tight tabular-nums">
                         {formatIQD(onHandValue)}
                     </p>

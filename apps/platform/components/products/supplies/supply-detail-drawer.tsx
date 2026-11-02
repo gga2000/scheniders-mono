@@ -57,16 +57,6 @@ interface SupplyDetailDrawerProps {
     onReorder?: (product: Product) => void;
 }
 
-interface SupplySupplierRaw {
-    supplier_name?: string;
-    supplier_contact?: string;
-    supplier_email?: string;
-    lead_time_days?: number | null;
-    minimum_order_quantity?: number | null;
-    unit_cost?: number | null;
-    is_primary?: boolean;
-}
-
 export function SupplyDetailDrawer({
     open,
     supply,
@@ -365,7 +355,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
 
 function SuppliersTab({ supply }: { supply: Product }) {
     const { t } = useLanguage();
-    const raw = (supply as unknown as { suppliers?: SupplySupplierRaw[] }).suppliers;
+    const raw = supply.suppliers;
     const suppliers = Array.isArray(raw) ? raw : [];
     if (suppliers.length === 0) {
         return (

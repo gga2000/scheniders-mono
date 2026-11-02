@@ -13,6 +13,7 @@ import {
     Zap,
 } from "lucide-react";
 import type { Product } from "@/lib/supabase";
+import type { ProductSupplier } from "@/types/product";
 import { cn } from "@/lib/utils";
 import {
     dailyRateFromHistory,
@@ -43,12 +44,6 @@ interface Action {
     tone: "rose" | "amber" | "slate" | "sky";
     icon: typeof ShoppingCart;
     ctaLabel: string;
-}
-
-interface SupplySupplierRaw {
-    supplier_name?: string;
-    is_primary?: boolean;
-    lead_time_days?: number | null;
 }
 
 interface ActionsFeedProps {
@@ -84,8 +79,8 @@ const TONE_CLASSES: Record<
     },
 };
 
-function primarySupplierOf(supply: Product): SupplySupplierRaw | null {
-    const raw = (supply as unknown as { suppliers?: SupplySupplierRaw[] }).suppliers;
+function primarySupplierOf(supply: Product): ProductSupplier | null {
+    const raw = supply.suppliers;
     const list = Array.isArray(raw) ? raw : [];
     if (list.length === 0) return null;
     return list.find((s) => s?.is_primary) ?? list[0];
@@ -131,7 +126,7 @@ export function ActionsFeed({
         // Quoted lead-time lookup per supplier_name (lower-case key).
         const quotedBySupplier = new Map<string, number>();
         for (const s of supplies) {
-            const raw = (s as unknown as { suppliers?: SupplySupplierRaw[] }).suppliers;
+            const raw = s.suppliers;
             const list = Array.isArray(raw) ? raw : [];
             for (const link of list) {
                 const name = (link?.supplier_name ?? "").trim().toLowerCase();

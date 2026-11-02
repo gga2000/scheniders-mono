@@ -22,7 +22,11 @@ const PALETTE = [
 function initialsOf(name: string): string {
     const cleaned = name.trim();
     if (!cleaned) return "?";
-    const parts = cleaned.split(/\s+/).filter(Boolean);
+    // The Arabic article "ال" is on most names; "ال" as initials says nothing.
+    const parts = cleaned
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((w) => (w.length > 2 ? w.replace(/^ال/, "") : w));
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
