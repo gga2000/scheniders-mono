@@ -82,6 +82,7 @@ export function HighlightsCard({
   tagHit,
   reply,
   onOpenPhoto,
+  className,
 }: {
   review: ReviewSummaryItem;
   featured: boolean;
@@ -93,6 +94,8 @@ export function HighlightsCard({
   tagHit: boolean;
   reply: StoreReply | null;
   onOpenPhoto: (image: { url: string; alt: string }) => void;
+  /** Width and snap classes from the carousel. */
+  className?: string;
 }) {
   const rtl = readsRtl(locale);
   const name = review.author_name?.trim() || rs("anonymous", locale);
@@ -133,6 +136,7 @@ export function HighlightsCard({
         "relative rounded-bk-card bg-bk-surface-alt p-bk-md",
         tagHit && "ring-2 ring-inset ring-bk-primary",
         textSide,
+        className,
       )}
     >
       {featured ? (

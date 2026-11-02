@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // =====================================================================
-// image_gallery stack — the carousel's position dots
+// CarouselDots — a carousel's position dots and autoplay
 // =====================================================================
 // One dot per card, the first current; a tap scrolls the track to that
 // card (mirrored in a reversed Arabic track) and the dot that follows the
@@ -10,7 +10,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
-import { AUTOPLAY_MS, ProofCarouselDots } from "./image_gallery.stack";
+import { AUTOPLAY_MS, CarouselDots, stopCarousel } from "./carousel-dots";
 
 afterEach(cleanup);
 
@@ -37,7 +37,7 @@ function setup(rtl: boolean, count = 3, reduce = false) {
   document.body.appendChild(track);
   window.matchMedia = vi.fn().mockReturnValue({ matches: reduce }) as unknown as typeof window.matchMedia;
   const labels = Array.from({ length: count }, (_, i) => `التعليق ${i + 1}`);
-  const view = render(<ProofCarouselDots trackId="proof-track" rtl={rtl} labels={labels} />);
+  const view = render(<CarouselDots trackId="proof-track" rtl={rtl} labels={labels} />);
   return { track, view };
 }
 
@@ -45,7 +45,7 @@ afterEach(() => {
   document.getElementById("proof-track")?.remove();
 });
 
-describe("ProofCarouselDots", () => {
+describe("CarouselDots", () => {
   it("one dot per card, the first current", () => {
     const { view } = setup(false);
     const dots = view.getAllByRole("button");
@@ -105,6 +105,21 @@ describe("ProofCarouselDots", () => {
       expect(track.scrollTo).not.toHaveBeenCalled();
       act(() => showTrack(true));
       track.dispatchEvent(new Event("pointerdown"));
+      act(() => {
+        vi.advanceTimersByTime(AUTOPLAY_MS * 2);
+      });
+      expect(track.scrollTo).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stopCarousel ends the autoplay for good", () => {
+    vi.useFakeTimers();
+    try {
+      const { track } = setup(false);
+      act(() => showTrack(true));
+      stopCarousel("proof-track");
       act(() => {
         vi.advanceTimersByTime(AUTOPLAY_MS * 2);
       });

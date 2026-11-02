@@ -31,7 +31,7 @@
 // `initial_count` lead with live text — a numbered doubt, the quote in «»
 // — then the author and the screenshot, cropped to the comment column by
 // `crop` (image-gallery-crop.ts) at the file's natural height. Position
-// dots follow the track (image_gallery.stack.tsx). Every screenshot opens
+// dots follow the track (helpers/carousel-dots.tsx). Every screenshot opens
 // the viewer. `display`,
 // `frame` and `order` are ignored by the stack. Its server markup lives in
 // image_gallery.proofstack.tsx.

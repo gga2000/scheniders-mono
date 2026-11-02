@@ -1,25 +1,36 @@
 "use client";
 
 // =====================================================================
-// image_gallery — the proof carousel's position dots
+// CarouselDots — position dots + autoplay for a scroll-snap track
 // =====================================================================
-// The comment cards are server-rendered in a scroll-snap track, so every
-// one is in the HTML for crawlers. This island only follows the track:
+// Used by the proof carousel (image_gallery) and the review carousel
+// (product_reviews highlights). The cards stay in the track's HTML; this
+// island only follows the track:
 // one dot per card, the current one drawn as a wider pill. A tap on a dot
 // scrolls its card into place (instantly under prefers-reduced-motion).
-// While the track is on screen it advances one card every AUTOPLAY_MS
-// (wrapping to the first), until the shopper touches it, a dot or the
-// track; it never moves under prefers-reduced-motion or in a hidden tab.
+// While the track is on screen it advances one card every `intervalMs`
+// (wrapping to the first), until the shopper touches the track or a dot,
+// or a caller moves it (`stopCarousel`); it never moves under
+// prefers-reduced-motion or in a hidden tab.
 // The track is found by id, like CarouselArrows. In Arabic the track is
 // flex-row-reverse, so its scroll origin is the right edge and scrollLeft
 // runs negative; positions are read and written mirrored.
 // =====================================================================
 
 import { useEffect, useRef, useState } from "react";
-import { cn } from "./helpers/utils";
+import { cn } from "./utils";
 
-/** How long each card stays before the carousel moves on. */
+/** How long each card stays before the carousel moves on, by default. */
 export const AUTOPLAY_MS = 4500;
+
+/** Dispatched on the track to end its autoplay for good. */
+const STOP_EVENT = "bk-carousel-stop";
+
+/** Ends the autoplay of the track with this id, e.g. before the caller
+ *  scrolls it to a card of its own choosing. */
+export function stopCarousel(trackId: string): void {
+  document.getElementById(trackId)?.dispatchEvent(new Event(STOP_EVENT));
+}
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -35,16 +46,19 @@ function stepOf(track: HTMLElement): number {
   return first instanceof HTMLElement ? first.offsetWidth + gap : track.clientWidth;
 }
 
-export function ProofCarouselDots({
+export function CarouselDots({
   trackId,
   rtl,
   labels,
+  intervalMs = AUTOPLAY_MS,
 }: {
   trackId: string;
   /** The track is reversed (Arabic): scrollLeft runs from 0 to negative. */
   rtl: boolean;
   /** One accessible name per card («التعليق 3»), in track order. */
   labels: string[];
+  /** How long each card stays during autoplay. */
+  intervalMs?: number;
 }) {
   const [active, setActive] = useState(0);
   const activeRef = useRef(0);
@@ -72,7 +86,7 @@ export function ProofCarouselDots({
     const stop = () => {
       stopped.current = true;
     };
-    const events = ["pointerdown", "touchstart", "wheel", "keydown"] as const;
+    const events = ["pointerdown", "touchstart", "wheel", "keydown", STOP_EVENT] as const;
     for (const e of events) track.addEventListener(e, stop, { passive: true });
     let visible = false;
     const io = new IntersectionObserver(
@@ -85,13 +99,13 @@ export function ProofCarouselDots({
     const timer = window.setInterval(() => {
       if (stopped.current || !visible || document.hidden) return;
       scrollToCard(track, (activeRef.current + 1) % count, rtl);
-    }, AUTOPLAY_MS);
+    }, intervalMs);
     return () => {
       window.clearInterval(timer);
       io.disconnect();
       for (const e of events) track.removeEventListener(e, stop);
     };
-  }, [trackId, count, rtl]);
+  }, [trackId, count, rtl, intervalMs]);
 
   if (count < 2) return null;
 
@@ -104,7 +118,7 @@ export function ProofCarouselDots({
 
   return (
     <div
-      data-proof-dots="true"
+      data-carousel-dots="true"
       className={cn("mt-bk-sm flex items-center justify-center gap-0.5", rtl && "flex-row-reverse")}
     >
       {labels.map((label, i) => (
