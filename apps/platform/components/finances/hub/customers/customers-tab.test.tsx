@@ -10,6 +10,15 @@ import { CustomersFinanceTab } from "./customers-tab";
 vi.mock("next/link", () => ({
     default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
 }));
+vi.mock("@/hooks/use-finance-customer-aggregates", () => ({
+    useFinanceCustomerAggregates: () => ({
+        aggregates: [
+            { customer_phone: "750", latest_name: "Ahmed", latest_city: null, total_orders: 4, total_spent: 400000, first_order_date: "2026-01-10T10:00:00.000Z", last_order_date: "2026-10-10T10:00:00.000Z", cancelled_count: 0, rejected_count: 0 },
+        ],
+        loading: false,
+        error: null,
+    }),
+}));
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
 const render = (ui: ReactElement) => rtlRender(ui, { wrapper: LanguageProvider });

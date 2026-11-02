@@ -9,6 +9,7 @@ import {
 import type { Order } from "@/lib/supabase";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useFinanceCustomers } from "@/hooks/use-finance-customers";
+import { useFinanceCustomerAggregates } from "@/hooks/use-finance-customer-aggregates";
 import type { FinancePeriod, Granularity } from "@/hooks/use-finance-period";
 import { SectionCard } from "../primitives/section-card";
 import { FinanceValue } from "../primitives/finance-value";
@@ -27,11 +28,25 @@ interface Props {
 }
 
 export function CustomersFinanceTab({ orders, period, granularity }: Props) {
+    const { t } = useLanguage();
+    // Lifetime figures come from the customer aggregates; the period's orders only split its revenue.
+    const { aggregates, loading, error } = useFinanceCustomerAggregates();
     const data = useFinanceCustomers(
         orders,
+        aggregates,
         { start: period.start, end: period.end },
         granularity,
     );
+
+    if (error) {
+        return (
+            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6 max-w-md mx-auto text-center">
+                <h2 className="text-lg font-bold text-rose-700 dark:text-rose-300 mb-1">{t("finances.loadError")}</h2>
+                <p className="text-sm text-muted">{error}</p>
+            </div>
+        );
+    }
+    if (loading) return <div className="h-[400px] rounded-2xl bg-[var(--card-bg)] animate-pulse" />;
 
     return (
         <div className="space-y-5">
