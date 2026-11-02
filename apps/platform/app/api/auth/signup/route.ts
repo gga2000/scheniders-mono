@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { generateSlug, ensureUniqueSlug } from '@/lib/tenant';
+import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
+import { reportOrderError } from '@/lib/order-telemetry';
+
+/** Every self-serve signup starts a 14-day trial on this plan. The plan is never taken from the request. */
+const TRIAL_PLAN = 'growth';
+
+// Each signup creates an auth user, a tenant and four supporting rows with the
+// service role. Vercel sets the client IP; mobile carriers share NATs, so the
+// cap is generous for people and still stops scripted tenant creation.
+const SIGNUP_LIMIT = 10;
+const SIGNUP_WINDOW_SECONDS = 60 * 60;
+
+function clientIp(request: NextRequest): string {
+    const real = request.headers.get('x-real-ip');
+    if (real) return real.trim();
+    return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+}
 
 // =============================================
 // POST /api/auth/signup
@@ -9,8 +26,21 @@ import { generateSlug, ensureUniqueSlug } from '@/lib/tenant';
 
 export async function POST(request: NextRequest) {
     try {
+        const limit = await consumeRateLimit(`signup:${clientIp(request)}`, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS);
+        if (limit.error) {
+            // Fails open so signup keeps working, but never silently.
+            reportOrderError(new Error(`Rate limiter unavailable: ${limit.error}`), { operation: 'signup-rate-limit' });
+        }
+        if (!limit.allowed) {
+            return NextResponse.json(
+                { error: `Too many sign-up attempts. Try again in ${limit.retryAfterSeconds}s.` },
+                { status: 429, headers: rateLimitHeaders(limit, SIGNUP_LIMIT) },
+            );
+        }
+
         const body = await request.json();
-        const { email, password, business_name, contact_phone, plan = 'starter', city } = body;
+        const { email, password, business_name, contact_phone, city } = body;
+        const plan = TRIAL_PLAN;
 
         // Validate required fields
         if (!email || !password || !business_name) {
@@ -23,14 +53,6 @@ export async function POST(request: NextRequest) {
         if (password.length < 8) {
             return NextResponse.json(
                 { error: 'Password must be at least 8 characters' },
-                { status: 400 }
-            );
-        }
-
-        const validPlans = ['starter', 'growth', 'professional', 'enterprise'];
-        if (!validPlans.includes(plan)) {
-            return NextResponse.json(
-                { error: 'Invalid plan. Choose: starter, growth, professional, enterprise' },
                 { status: 400 }
             );
         }

@@ -20,9 +20,6 @@ import Link from "next/link";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
 
-/** Every signup starts on the trial with this plan — chosen later in-app (S3-02a). */
-const DEFAULT_PLAN = "growth";
-
 function SignupForm() {
     const { t } = useLanguage();
     const router = useRouter();
@@ -58,7 +55,6 @@ function SignupForm() {
                     business_name: businessName.trim(),
                     contact_phone: contactPhone.trim() || undefined,
                     city: city.trim() || undefined,
-                    plan: DEFAULT_PLAN,
                 }),
             });
 
