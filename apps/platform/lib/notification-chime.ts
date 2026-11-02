@@ -72,29 +72,23 @@ export const SOUND_URLS = {
     other: "/sounds/others.mp3",
 } as const;
 
-/** The actor the order triggers record for a change nobody on the team made. */
-const AUTOMATION_ACTOR = "Automation";
-
 export interface SoundSubject {
     /** Dotted event name, e.g. "order.created". */
     type: string;
     payload: Record<string, unknown>;
-    actorName: string | null;
 }
 
 /**
- * Which file a notification plays. A customer answering the WhatsApp message
- * moves the order to confirmed with no staff member attached, so that pairing
- * is what marks a WhatsApp confirmation; a teammate confirming by hand is an
- * ordinary order change.
+ * Which file a notification plays. Moving an order to confirmed sounds the same
+ * whether the customer answered on WhatsApp or a teammate did it by hand.
  */
 export function soundUrlFor(subject: SoundSubject): string {
-    const { type, payload, actorName } = subject;
+    const { type, payload } = subject;
     if (type === "order.created") return SOUND_URLS.newOrder;
     if (type === "order.status_changed" || type === "order.bulk_status_changed") {
         const next = payload.new_status;
         if (next === "cancelled") return SOUND_URLS.orderCancelled;
-        if (next === "confirmed" && actorName === AUTOMATION_ACTOR) return SOUND_URLS.orderConfirmed;
+        if (next === "confirmed") return SOUND_URLS.orderConfirmed;
         return SOUND_URLS.orderChange;
     }
     if (type === "order.updated") return SOUND_URLS.orderChange;

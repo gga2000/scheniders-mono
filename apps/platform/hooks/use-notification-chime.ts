@@ -20,7 +20,6 @@ export interface ChimeRequest {
     isOwnAction: boolean;
     type: string;
     payload: Record<string, unknown>;
-    actorName: string | null;
 }
 
 export function useNotificationChime(): (request: ChimeRequest) => void {
@@ -48,7 +47,6 @@ export function useNotificationChime(): (request: ChimeRequest) => void {
             const url = soundUrlFor({
                 type: request.type,
                 payload: request.payload,
-                actorName: request.actorName,
             });
             try {
                 let element = elements.current.get(url);

@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
     print_settings: { label_size: "4x6", show_price: true, show_phone: true, batch_grouping: "city" },
     auto_archive: { enabled: false, days: 60, archive_canceled: true, archive_delivered: true },
     quick_actions: { show_cancel: true, show_reject: true, show_whatsapp: true, show_print: true },
-    notification_settings: { sound_enabled: true, sound_url: "/sounds/notification.mp3", toast_enabled: true },
+    notification_settings: { toast_enabled: true },
 };
 
 export function useSettings() {
