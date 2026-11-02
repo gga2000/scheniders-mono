@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Check, ShieldCheck, X } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { hasMcpAccess } from "@/lib/mcp/caller";
+import { describeConsentRequest } from "@/lib/mcp/consent-details";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { decideAuthorization } from "./actions";
 
@@ -91,6 +92,8 @@ export default async function OAuthConsentPage({
         storeName = (tenant?.business_name as string | undefined) ?? storeName;
     }
 
+    const request = describeConsentRequest(details);
+
     return (
         <Shell>
             <div className="flex items-center gap-3">
@@ -111,6 +114,25 @@ export default async function OAuthConsentPage({
                     That didn&apos;t go through. Try again. · لم تكتمل العملية، حاول مرة أخرى.
                 </p>
             )}
+
+            <section className="mt-5 rounded-xl bg-black/[0.04] px-3 py-2.5 text-sm text-[#1E1E1E]">
+                <p>
+                    <span className="text-[#1E1E1E]/60">After you decide, you go to: </span>
+                    <span className="font-medium break-all">{request.redirectHost}</span>
+                    <span className="block text-[#1E1E1E]/60" lang="ar">بعد قرارك ستنتقل إلى هذا العنوان</span>
+                </p>
+                {request.insecureRedirect && (
+                    <p className="mt-2 rounded-lg bg-red-50 px-2 py-1.5 text-red-700">
+                        This address is not secure. Only continue if you started this yourself. · هذا العنوان غير آمن، تابع فقط إن كنت أنت من بدأ الطلب.
+                    </p>
+                )}
+                {request.scopes.length > 0 && (
+                    <p className="mt-2">
+                        <span className="text-[#1E1E1E]/60">Requested access: </span>
+                        <span className="font-medium">{request.scopes.join(", ")}</span>
+                    </p>
+                )}
+            </section>
 
             <section className="mt-6">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-[#1E1E1E]/50">Claude will be able to</h2>
