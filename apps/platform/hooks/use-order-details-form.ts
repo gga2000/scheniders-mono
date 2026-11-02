@@ -45,6 +45,7 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
             discount_amount: order.discount_amount || 0,
             payment_status: order.payment_status || "cod",
             delivery_slot: order.delivery_slot || undefined,
+            is_gift: order.is_gift ?? false,
             delivery_order_id: order.delivery_order_id || "",
             items: order.items ? [...order.items] : [],
             created_at: order.created_at,

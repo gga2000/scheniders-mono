@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X, ArrowUpDown, BadgeCheck } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import { DeliverySlotPicker } from "./delivery-slot-picker";
+import { GiftToggle } from "./gift-toggle";
+import { GiftChip } from "./card/gift-chip";
 import { formatDeliverySlot, parseDeliverySlot } from "@/lib/orders/delivery-slot";
 import type { OrderStatus } from "@/lib/supabase";
 import type { Order } from "@/types/order";
@@ -726,6 +728,16 @@ export function OrderCustomerCard({
                                     })()}
                                 </span>
                             </div>
+                        )}
+                        {isEditing ? (
+                            <GiftToggle
+                                className="mt-2"
+                                value={formData.is_gift ?? order.is_gift ?? false}
+                                onChange={(isGift) => updateFormData("is_gift", isGift)}
+                                collectsCash={(formData.payment_status || order.payment_status) === "cod"}
+                            />
+                        ) : (
+                            <GiftChip isGift={order.is_gift} className="mt-2" />
                         )}
                     </div>
                 </div>

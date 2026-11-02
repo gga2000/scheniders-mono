@@ -168,3 +168,15 @@ describe("delivery time", () => {
         expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain("dl-slot\"");
     });
 });
+
+describe("gift", () => {
+    it("marks a gift parcel and still prints no product price", () => {
+        const html = generateDispatchLabelHTML(order({ is_gift: true, payment_status: "prepaid" }), { showBarcode: true });
+        expect(html).toContain('<span class="dl-gift">هدية</span>');
+        expect(html).not.toContain("34,750");
+    });
+
+    it("is left off ordinary orders", () => {
+        expect(generateDispatchLabelHTML(order(), { showBarcode: true })).not.toContain('class="dl-gift"');
+    });
+});

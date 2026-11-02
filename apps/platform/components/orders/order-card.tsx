@@ -29,6 +29,7 @@ import { PriorityBadge } from "./card/priority-badge";
 import { SourceBadge } from "./card/source-badge";
 import { StuckTransitBadge } from "./card/stuck-transit-badge";
 import { DeliverySlotChip } from "./card/delivery-slot-chip";
+import { GiftChip } from "./card/gift-chip";
 import { EnteredByMark } from "./card/entered-by-mark";
 import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
@@ -375,6 +376,7 @@ function FullOrderCard(props: OrderCardProps) {
                                 )}
 
                                 <DeliverySlotChip slot={order.delivery_slot} />
+                                <GiftChip isGift={order.is_gift} />
                             </div>
                         )}
 
