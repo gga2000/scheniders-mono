@@ -113,7 +113,7 @@ export async function requireProduct(
   const tenant = await requireStoreTenant(tenantParam);
   const product = await getProductBySlug(tenant.id, slug);
   if (!product) {
-    enforceRedirect(tenant.store_config_v2, tenantParam, `/products/${slug}`);
+    await enforceRedirect(tenant.store_config_v2, tenantParam, `/products/${slug}`);
     notFound();
   }
   return { tenant, product };
@@ -128,7 +128,7 @@ export async function requireCategory(
   const tenant = await requireStoreTenant(tenantParam);
   const category = await getCategoryBySlug(tenant.id, slug);
   if (!category) {
-    enforceRedirect(tenant.store_config_v2, tenantParam, `/categories/${slug}`);
+    await enforceRedirect(tenant.store_config_v2, tenantParam, `/categories/${slug}`);
     notFound();
   }
   return { tenant, category };

@@ -26,7 +26,7 @@ export default async function LegacyPathCatchAll({ params }: Props) {
 
   if (!tenant) notFound();
 
-  enforceRedirect(
+  await enforceRedirect(
     tenant.store_config_v2,
     tenantParam,
     `/${rest.map((s) => decodeURIComponent(s)).join("/")}`,

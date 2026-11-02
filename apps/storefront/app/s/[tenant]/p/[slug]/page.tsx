@@ -61,7 +61,7 @@ export default async function CustomPage({ params }: Props) {
   const customPage = findCustomPage(v2?.custom_pages, slug);
   if (!v2 || !customPage) {
     // N3: a configured redirect for this path takes precedence over the 404.
-    enforceRedirect(v2, tenantParam, `/p/${slug}`);
+    await enforceRedirect(v2, tenantParam, `/p/${slug}`);
     notFound();
   }
 
