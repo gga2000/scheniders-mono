@@ -109,6 +109,7 @@ export function IdentityLabel({
   avgRating,
   showRating,
   ratingLink = false,
+  tagline,
 }: {
   product: Product;
   locale: LocaleCode;
@@ -118,6 +119,8 @@ export function IdentityLabel({
   /** Render the rating as the summary link (identity_rating
    *  "summary_link") instead of the plain tag. */
   ratingLink?: boolean;
+  /** tagline_i18n, resolved: one promise line under the name. Empty = none. */
+  tagline?: string;
 }) {
   const rtl = readsRtl(locale);
   const brand = product.brand?.trim();
@@ -131,6 +134,14 @@ export function IdentityLabel({
       <h1 className="font-bk-display text-[30px] font-black leading-[1.1] text-bk-ink text-balance">
         {displayNameOf(product)}
       </h1>
+      {tagline ? (
+        <p
+          className="font-bk-body text-[15px] font-bold leading-snug text-bk-ink-soft text-balance"
+          data-i18n-field="tagline_i18n"
+        >
+          {tagline}
+        </p>
+      ) : null}
       {(brand || gender || size || rating) && (
         // w-full pins the row to the column (a column flex item otherwise
         // sizes to its nowrap content); min-w-0 on the brand pill then lets

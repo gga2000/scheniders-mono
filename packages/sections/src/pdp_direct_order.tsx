@@ -314,6 +314,22 @@ const schema = z.object({
    *  same WhatsApp link. Absent/"row" = today's row, byte-identical.
    *  Classic ignores it. */
   cta_layout: z.enum(["row", "dock"]).optional().catch(undefined),
+
+  // ── Promise and proof (opt-in, express only) ────────────────────────
+  /** Express: one promise line under the product name (what the scent
+   *  does for the buyer). A merchant claim, so empty = no line. Absent
+   *  renders today's identity block byte-identically. */
+  tagline_i18n: i18nStringOptional.catch(undefined),
+  /** Express: one real customer quote between the receipt and the order
+   *  buttons, with where it was said. Merchant-picked words from a real
+   *  customer, never written by the store. Absent = today's markup. */
+  cta_proof: z
+    .object({
+      quote_i18n: i18nStringSchema,
+      source_i18n: i18nStringOptional,
+    })
+    .optional()
+    .catch(undefined),
 });
 
 export type Props = z.infer<typeof schema>;
