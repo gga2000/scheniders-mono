@@ -131,6 +131,9 @@ const LOW_STOCK_LINE: CartItem = {
 
 const fetchMock = vi.fn(() => Promise.resolve(new Response("{}")));
 const fbq = vi.fn();
+// The form also reports the product view (ViewContent); these tests are about
+// the cart tile, so they look at AddToCart only.
+const addToCartCalls = () => fbq.mock.calls.filter((c) => c[0] === "track" && c[1] === "AddToCart");
 
 function mount(product: Product = plainProduct) {
   const Pdp = pdp_direct_order.render;
@@ -219,7 +222,7 @@ describe("tapping «أضف للسلة»", () => {
     expect(useCart.getState().items.map((i) => i.quantity)).toEqual([3]);
     expect(status().textContent).toBe("infoبسلتك أقصى كمية تكدر تطلبهاشوف السلة");
     expect(status().querySelector("a")?.getAttribute("href")).toBe("/s/fixture-store/cart");
-    expect(fbq).not.toHaveBeenCalled();
+    expect(addToCartCalls()).toEqual([]);
     const first = status().firstElementChild;
     fireEvent.click(tile());
     expect(status().firstElementChild).not.toBe(first);
@@ -262,9 +265,8 @@ describe("tapping «أضف للسلة»", () => {
     setFunnelSink((e) => seen.push(e));
     const { tile } = mount();
     fireEvent.click(tile());
-    expect(fbq).toHaveBeenCalledTimes(1);
-    expect(fbq.mock.calls[0]?.slice(0, 2)).toEqual(["track", "AddToCart"]);
-    expect(fbq.mock.calls[0]?.[2]).toMatchObject({ content_ids: [plainProduct.id], value: 18000, currency: "IQD", num_items: 1 });
+    expect(addToCartCalls()).toHaveLength(1);
+    expect(addToCartCalls()[0]?.[2]).toMatchObject({ content_ids: [plainProduct.id], value: 18000, currency: "IQD", num_items: 1 });
     expect(seen).toEqual([{ type: "add_to_cart", product_id: plainProduct.id }]);
   });
 
