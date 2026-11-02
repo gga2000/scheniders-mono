@@ -34,6 +34,15 @@ describe("useFinancePeriod", () => {
         expect(days(result.current.period)).toEqual(["2026-01-01", "2026-11-01"]);
     });
 
+    it("fetches expenses back to the start of the comparison period, so its profit can be netted too", () => {
+        const { result } = renderHook(() => useFinancePeriod("last7"));
+        // last7 = 26 Oct..1 Nov; the previous 7 days start 19 Oct.
+        expect(result.current.dateRangeStrings).toEqual({ startDate: "2026-10-26", endDate: "2026-11-01" });
+        expect(result.current.expenseFetchRange).toEqual({ startDate: "2026-10-19", endDate: "2026-11-01" });
+        act(() => result.current.setCompareMode("none"));
+        expect(result.current.expenseFetchRange).toEqual({ startDate: "2026-10-26", endDate: "2026-11-01" });
+    });
+
     it("keeps a typed custom range on exactly those days", () => {
         const { result } = renderHook(() => useFinancePeriod("today"));
         // A date input hands over midnight UTC of the typed day.

@@ -104,11 +104,22 @@ export function useFinancePeriod(initial: PresetKey = "last30") {
         endDate: baghdadDayKey(period.end),
     }), [period]);
 
+    // Expenses are loaded back to the start of the comparison period too, because the
+    // comparison profit is netted of that period's expenses just like the current one.
+    const expenseFetchRange = useMemo(() => {
+        const compareStart = compareRange ? baghdadDayKey(compareRange.start) : null;
+        return {
+            startDate: compareStart && compareStart < dateRangeStrings.startDate ? compareStart : dateRangeStrings.startDate,
+            endDate: dateRangeStrings.endDate,
+        };
+    }, [compareRange, dateRangeStrings]);
+
     return {
         period,
         compareRange,
         granularity,
         dateRangeStrings,
+        expenseFetchRange,
         applyPreset,
         setCustom,
         setCompareMode,
