@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { calculateTotal } from "@/lib/order-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@scheniders/ui/dialog";
 import { Button } from "@scheniders/ui/button";
@@ -26,7 +26,7 @@ export function SplitOrderDialog({ order, open, onClose, onConfirm }: SplitOrder
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Initialize items on open
-    useMemo(() => {
+    useEffect(() => {
         if (open && order.items) {
             // Deep copy items to avoid reference issues
             setKeptItems(JSON.parse(JSON.stringify(order.items)));
