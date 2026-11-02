@@ -26,11 +26,12 @@ import {
 import type { Tenant } from "@/lib/types";
 
 // The route decides WHAT a capture is (store, phone, catalogue lines,
-// consent) and hands it to capture_abandoned_cart. What that does to an
+// consent) and hands it to capture_storefront_cart. What that does to an
 // existing row (keep an open row's reminder and consent, leave a fresh
-// recovery alone, reopen an old one) is SQL, pinned by the regression
-// script packages/supabase/tests/capture_abandoned_cart.sql (run it against
-// the database); here the double records the call.
+// recovery alone, reopen an old one) is SQL. Those rules are
+// capture_abandoned_cart's, pinned by the regression script
+// packages/supabase/tests/capture_abandoned_cart.sql (run it against the
+// database); here the double records the call.
 
 const TENANT_ID = "f1e2d3c4-b5a6-4789-8f12-cd34ef567890";
 const OTHER_TENANT_ID = "9e8d7c6b-5a49-4382-9716-05f4e3d2c1b0";
@@ -107,7 +108,7 @@ function install(options: FakeSupabaseOptions = {}): FakeSupabase {
     },
     {
       ...options,
-      rpc: { capture_abandoned_cart: () => ({ data: true, error: null }), ...options.rpc },
+      rpc: { capture_storefront_cart: () => ({ data: true, error: null }), ...options.rpc },
     },
   );
   vi.mocked(createSupabaseServiceClient).mockReturnValue(fake.client);
@@ -120,7 +121,7 @@ const phoneKey = (tenantId: string, phone: string): string =>
 const consentVersion = (text: string): string =>
   `sha256:${createHash("sha256").update(text.normalize("NFC")).digest("hex").slice(0, 16)}`;
 const captures = (fake: FakeSupabase): Row[] =>
-  fake.rpcCalls.filter((c) => c.fn === "capture_abandoned_cart").map((c) => c.args);
+  fake.rpcCalls.filter((c) => c.fn === "capture_storefront_cart").map((c) => c.args);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -247,6 +248,37 @@ describe("POST /api/cart/abandoned", () => {
     });
   });
 
+  it("passes the typed name and address, and the governorate's label as the city", async () => {
+    const fake = install();
+    await POST(
+      req({
+        phone: "07701234567",
+        items: [line],
+        governorate: "BG",
+        customer_name: "  علي  ",
+        address: " زيونة ",
+      }),
+    );
+    expect(captures(fake)[0]).toMatchObject({
+      _governorate: "BG",
+      _city: "بغداد",
+      _customer_name: "علي",
+      _address: "زيونة",
+    });
+  });
+
+  it("omits a blank or oversized name and address instead of refusing the phone", async () => {
+    const fake = install();
+    const res = await POST(
+      req({ phone: "07701234567", items: [line], customer_name: "   ", address: "x".repeat(301) }),
+    );
+    expect(res.status).toBe(200);
+    const args = captures(fake)[0];
+    expect(args).not.toHaveProperty("_customer_name");
+    expect(args).not.toHaveProperty("_address");
+    expect(args).not.toHaveProperty("_city");
+  });
+
   it("keeps the first of a repeated product + variant line, so the subtotal is not inflated", async () => {
     const fake = install();
     await POST(req({ phone: "07701234567", items: [line, { ...line, quantity: 5 }] }));
@@ -261,7 +293,7 @@ describe("POST /api/cart/abandoned", () => {
     // empty governorate while none is picked. All of those are ignored or
     // degraded, never trusted, and no consent is recorded. The empty
     // governorate is omitted, so it cannot wipe one an earlier capture
-    // recorded (capture_abandoned_cart keeps an open row's governorate).
+    // recorded (capture_storefront_cart keeps an open row's governorate).
     const fake = install();
     const res = await POST(
       req({
@@ -303,7 +335,7 @@ describe("POST /api/cart/abandoned", () => {
   });
 
   it("asks the function to keep a recovery younger than the duplicate-order window, and says so when it did", async () => {
-    const fake = install({ rpc: { capture_abandoned_cart: () => ({ data: false, error: null }) } });
+    const fake = install({ rpc: { capture_storefront_cart: () => ({ data: false, error: null }) } });
     const res = await POST(req({ phone: "07701234567", items: [line] }));
     expect(captures(fake)[0]._reopen_after_seconds).toBe(DUPLICATE_ORDER_WINDOW_MINUTES * 60);
     expect(res.status).toBe(200);
@@ -371,7 +403,7 @@ describe("POST /api/cart/abandoned", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     install({
       rpc: {
-        capture_abandoned_cart: () => ({ data: null, error: { message: "boom", code: "57014" } }),
+        capture_storefront_cart: () => ({ data: null, error: { message: "boom", code: "57014" } }),
       },
     });
     const res = await POST(req({ phone: "07701234567", items: [line] }));

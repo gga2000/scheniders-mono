@@ -47,7 +47,8 @@ export const runtime = "nodejs";
 //     the sweep has to accept only versions of the configured line.
 //   * what a capture does to an existing (store, phone) row, including one
 //     an order already recovered, is decided atomically in SQL
-//     (capture_abandoned_cart, migration 20261022000000).
+//     (capture_storefront_cart, migrations 20261022000000 and
+//     20261102130820).
 
 const GOVERNORATE_CODES = IRAQ_GOVERNORATES.map((g) => g.code) as [
   GovernorateCode,
@@ -85,6 +86,11 @@ const bodySchema = z.object({
   locale: z.enum(LOCALE_CODES).optional().catch(undefined),
   /** The consent line exactly as the shopper saw it under the phone field. */
   consent_text: z.string().trim().min(1).max(300).optional(),
+  // What the shopper has typed so far, for the abandoned-checkout card the
+  // capture becomes. Too long or malformed is dropped, not refused: a lost
+  // name must never cost the phone.
+  customer_name: z.string().trim().min(1).max(120).optional().catch(undefined),
+  address: z.string().trim().min(1).max(300).optional().catch(undefined),
 });
 
 type CaptureItem = z.infer<typeof itemSchema>;
@@ -206,7 +212,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid cart" }, { status: 400 });
   }
-  const { items, governorate, locale, consent_text } = parsed.data;
+  const { items, governorate, locale, consent_text, customer_name, address } = parsed.data;
 
   // A malformed phone means we can never reach them. This is a silent
   // no-op, so the client beacon never surfaces an error.
@@ -244,11 +250,18 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ success: true, skipped: "items" });
   }
 
-  // The function keeps an open row's reminder, earlier consent, governorate
-  // and locale when this capture has none; leaves a row an order recovered
-  // moments ago untouched; and reopens one recovered longer ago as a fresh
-  // capture (see the migration). Absent optionals are omitted, not null.
-  const { data: written, error } = await service.rpc("capture_abandoned_cart", {
+  // The function keeps an open row's reminder, earlier consent, governorate,
+  // locale, name, city and address when this capture has none; leaves a row
+  // an order recovered moments ago untouched; and reopens one recovered
+  // longer ago as a fresh capture (see the migrations). Absent optionals are
+  // omitted, not null. The city is the governorate's label, as the order
+  // form posts it on a real order. After a few idle minutes the database
+  // turns the capture into an abandoned-checkout order
+  // (promote_abandoned_carts, migration 20261102130820).
+  const city = governorate
+    ? IRAQ_GOVERNORATES.find((g) => g.code === governorate)?.name
+    : undefined;
+  const { data: written, error } = await service.rpc("capture_storefront_cart", {
     _tenant_id: tenant.id,
     _phone: phone,
     _items: lines,
@@ -257,6 +270,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     ...(governorate ? { _governorate: governorate } : {}),
     ...(locale ? { _locale: locale } : {}),
     ...(consent_text ? { _consent_text_version: consentVersion(consent_text) } : {}),
+    ...(customer_name ? { _customer_name: customer_name } : {}),
+    ...(city ? { _city: city } : {}),
+    ...(address ? { _address: address } : {}),
   });
 
   if (error) {

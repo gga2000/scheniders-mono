@@ -688,7 +688,8 @@ export function PdpDirectOrderRender({
   // Half-filled phone capture: the direct-order form IS this store's
   // checkout. A phone is kept only where the merchant shows the consent line
   // under the phone field (opt-in). Once the shopper has touched the form
-  // and typed a valid Iraqi number, the line is beaconed: debounced,
+  // and typed a valid Iraqi number, the line (with the name and address
+  // typed so far) is beaconed: debounced,
   // best-effort (keepalive), with the consent line exactly as shown. The
   // server works out the store from the request and the names and prices
   // from the catalogue, so neither is sent. Nothing is beaconed while the
@@ -712,6 +713,10 @@ export function PdpDirectOrderRender({
           phone: recoveryPhone,
           items: [{ product_id: product.id, variant_id: chosenVariantId, quantity: qty }],
           ...(form.governorate_code ? { governorate: form.governorate_code } : {}),
+          // What staff need on the abandoned-checkout card the capture
+          // becomes after a few idle minutes. Blank fields are left out.
+          ...(form.customer_name.trim() ? { customer_name: form.customer_name.trim() } : {}),
+          ...(form.address_details.trim() ? { address: form.address_details.trim() } : {}),
           locale,
           consent_text: captureConsent,
         }),
@@ -728,6 +733,8 @@ export function PdpDirectOrderRender({
     status,
     form.phone,
     form.governorate_code,
+    form.customer_name,
+    form.address_details,
     product.id,
     chosenVariantId,
     qty,
