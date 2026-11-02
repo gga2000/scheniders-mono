@@ -109,6 +109,7 @@ type OrderData = {
   price: number;
   delivery_fee: number;
   discount_amount: number;
+  governorate_code: string;
 };
 
 function recordedOrder(fake: ReturnType<typeof install>): OrderData | undefined {
@@ -117,6 +118,19 @@ function recordedOrder(fake: ReturnType<typeof install>): OrderData | undefined 
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+describe("governorate code on the stored order", () => {
+  it("stores the Prime three-letter code, not the storefront two-letter one", async () => {
+    const fake = install(baseTables());
+    const res = await submitCheckout({
+      tenantId: TENANT,
+      customer: { ...customer, governorate_code: "NI", city: "نينوى" },
+      items: [line(PERFUME, 30000, 3)],
+    });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.governorate_code).toBe("MOS");
+  });
+});
 
 describe("quantity price breaks", () => {
   it("charges the tier the shopper was shown", async () => {

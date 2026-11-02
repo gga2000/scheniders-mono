@@ -5,7 +5,7 @@ import {
   eligiblePostPurchaseOffers,
   postPurchasePrice,
   resolveTierPrice,
-  type GovernorateCode,
+  resolveGovernorate,
   type OrderBumpOffer,
   type PriceTier,
   type StoreConfigV2,
@@ -312,7 +312,8 @@ export async function POST(req: Request, { params }: Ctx): Promise<NextResponse>
     // someone on the merchant's side already changed by hand is theirs and is
     // left alone — recompute only when the stored fee is still the engine's.
     const shipping = tenant.store_config_v2?.commerce?.shipping;
-    const governorate = order.governorate as GovernorateCode | null;
+    // Orders store the OMS code (BGD); the delivery engine speaks the shared two-letter one.
+    const governorate = order.governorate ? (resolveGovernorate(order.governorate)?.code ?? null) : null;
     const paidCount = order.lines.reduce((n, l) => n + l.quantity, 0);
     const subtotalBefore = lineSubtotal(order.lines);
     const engineFee = computeDeliveryFee(subtotalBefore, paidCount, { shipping, governorate });

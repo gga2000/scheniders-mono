@@ -8,6 +8,7 @@ import {
   normalizeIraqiMobile,
   type AbandonedCartItem,
   type GovernorateCode,
+  toOmsGovernorateCode,
   type LocaleCode,
 } from "@scheniders/shared";
 import { consentVersion } from "@scheniders/shared/consent-version";
@@ -267,7 +268,8 @@ export async function POST(req: Request): Promise<NextResponse> {
     _items: lines,
     _subtotal_iqd: cartItemsSubtotal(lines),
     _reopen_after_seconds: CAPTURE_REOPEN_AFTER_SECONDS,
-    ...(governorate ? { _governorate: governorate } : {}),
+    // Stored as the OMS/Prime code; the cart becomes an order with it.
+    ...(governorate ? { _governorate: toOmsGovernorateCode(governorate) } : {}),
     ...(locale ? { _locale: locale } : {}),
     ...(consent_text ? { _consent_text_version: consentVersion(consent_text) } : {}),
     ...(customer_name ? { _customer_name: customer_name } : {}),

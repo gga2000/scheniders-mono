@@ -243,7 +243,7 @@ describe("POST /api/cart/abandoned", () => {
         { product_id: SIZED_PRODUCT_ID, variant_id: VARIANT_ID, name: "قميص", quantity: 1, price: 30000 },
       ],
       _subtotal_iqd: 80000,
-      _governorate: "BG",
+      _governorate: "BGD",
       _locale: "ar",
     });
   });
@@ -260,7 +260,7 @@ describe("POST /api/cart/abandoned", () => {
       }),
     );
     expect(captures(fake)[0]).toMatchObject({
-      _governorate: "BG",
+      _governorate: "BGD",
       _city: "بغداد",
       _customer_name: "علي",
       _address: "زيونة",
