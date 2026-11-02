@@ -60,11 +60,10 @@ export const REVIEW_STRINGS = {
     ar: "ذكروا «{topic}» في {count}",
     ku: "باسی «{topic}» کراوە لە {count}",
   },
-  showAll: {
-    en: "See all reviews ({count})",
-    ar: "شوف كل التقييمات ({count})",
-    ku: "هەموو هەڵسەنگاندنەکان ببینە ({count})",
-  },
+  carouselLabel: { en: "Customer reviews", ar: "تقييمات الزباين", ku: "هەڵسەنگاندنی کڕیاران" },
+  reviewDot: { en: "Review {n}", ar: "التقييم {n}", ku: "هەڵسەنگاندنی {n}" },
+  prevReview: { en: "Previous review", ar: "التقييم السابق", ku: "هەڵسەنگاندنی پێشوو" },
+  nextReview: { en: "Next review", ar: "التقييم التالي", ku: "هەڵسەنگاندنی دواتر" },
   readMoreInline: { en: "More", ar: "كمّل", ku: "زیاتر" },
   storeReply: { en: "Reply from {store}", ar: "رد {store}", ku: "وەڵامی {store}" },
   emptyHighlights: {

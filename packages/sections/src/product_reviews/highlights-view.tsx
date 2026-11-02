@@ -4,20 +4,24 @@
 // product_reviews `layout: "highlights"` — the body under the heading
 // =====================================================================
 // Spec §1.6, concept g3 A + B's key-phrase tint. In order: the summary
-// card (#reviews-summary), the word buttons, the cards in D10 order, and
-// «شوف كل التقييمات (N)». A word button HIGHLIGHTS, never filters: the
-// list keeps every card in its place, the matching words get a mark, a
-// hidden matching review brings the rest into view, the page scrolls to
-// the first mark (only a press scrolls), and one polite status line reads
-// the result to a screen reader. A second tap clears. Topic counts,
+// card (#reviews-summary), the word buttons, then every review in D10
+// order as one swipe carousel (reversed in Arabic so the first card sits
+// at the right edge and the next peeks on the left), with position dots
+// that autoplay until touched (helpers/carousel-dots) and desktop arrows.
+// A word button HIGHLIGHTS, never filters: every card keeps its place,
+// the matching words get a mark, the carousel stops and brings the first
+// marked card into view (only a press scrolls), and one polite status
+// line reads the result to a screen reader. A second tap clears. Topic counts,
 // order, key phrases and replies are all computed here from the rendered
 // reviews and the merchant's props (`review_curation`, until Phase 2's
 // columns).
 // =====================================================================
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode, RatingSummary } from "@scheniders/shared";
+import { CarouselArrows } from "../helpers/carousel-arrows";
+import { CarouselDots, stopCarousel } from "../helpers/carousel-dots";
 import { readsRtl } from "../helpers/reading";
 import { cn } from "../helpers/utils";
 import { reviewCountLabel } from "../pdp_express/identity-label";
@@ -31,6 +35,9 @@ import { rs } from "./strings";
 import { reviewThemes, themeCounts, themeWordRanges } from "./theme-words";
 
 type Curation = NonNullable<Props["review_curation"]>[number];
+
+/** A review takes longer to read than a proof screenshot. */
+const REVIEW_AUTOPLAY_MS = 6500;
 
 export function HighlightsView({
   reviews,
@@ -54,11 +61,11 @@ export function HighlightsView({
 }) {
   const rtl = readsRtl(locale);
   const listRef = useRef<HTMLUListElement>(null);
+  const listId = `reviews-${useId().replace(/:/g, "")}`;
   /** Set by a press, read and cleared by the scroll effect: only a press
-   *  scrolls, never «شوف كل التقييمات» opening the rest under a topic. */
+   *  scrolls. */
   const scrollPending = useRef(false);
   const [active, setActive] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(false);
 
   const themes = useMemo(() => props.theme_words ?? [], [props.theme_words]);
   const curation = useMemo(
@@ -67,14 +74,13 @@ export function HighlightsView({
   );
   const tagsOf = (id: string): readonly string[] => curation.get(id)?.tags ?? [];
   const counts = themeCounts(reviews, themes, tagsOf);
-  const { visible, all } = featuredOrder(reviews, {
+  const { all } = featuredOrder(reviews, {
     visibleCount: props.visible_count,
     rankOf: (id) => curation.get(id)?.rank,
     themeCountOf: (r) => reviewThemes(r.body, tagsOf(r.id), themes).size,
   });
   const allTerms = themes.flatMap((t) => t.match_terms ?? []);
   const activeTheme = themes.find((t) => t.key === active);
-  const shown = expanded ? all : visible;
   const activeCount = counts.find((t) => t.key === active);
   const announcement = activeCount
     ? rs("themeAnnounce", locale, {
@@ -87,11 +93,14 @@ export function HighlightsView({
     if (!scrollPending.current) return;
     scrollPending.current = false;
     if (!active) return;
-    const first = listRef.current?.querySelector("[data-term], [data-term-card]");
-    if (!first) return;
+    const card = listRef.current
+      ?.querySelector("[data-term], [data-term-card]")
+      ?.closest("[data-review-card]");
+    if (!card) return;
+    stopCarousel(listId);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    first.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
-  }, [active, expanded]);
+    card.scrollIntoView({ block: "nearest", inline: "start", behavior: reduce ? "auto" : "smooth" });
+  }, [active, listId]);
 
   function press(key: string): void {
     if (active === key) {
@@ -100,10 +109,6 @@ export function HighlightsView({
     }
     scrollPending.current = true;
     setActive(key);
-    const hiddenMatch = all.some(
-      (r) => !visible.includes(r) && reviewThemes(r.body, tagsOf(r.id), themes).has(key),
-    );
-    if (hiddenMatch) setExpanded(true);
   }
 
   if (reviews.length === 0 || summary.count === 0) {
@@ -160,42 +165,55 @@ export function HighlightsView({
         </div>
       )}
 
-      <ul ref={listRef} data-review-list="" className="mt-bk-md space-y-bk-sm">
-        {shown.map((review, i) => {
-          const c = curation.get(review.id);
-          const body = review.body ?? "";
-          const replyText = resolveI18n(c?.reply_i18n, locale).trim();
-          const reply: StoreReply | null =
-            replyText && storeName ? { store: storeName, text: replyText, logoUrl } : null;
-          const tagOnly = activeTheme !== undefined && (activeTheme.match_terms ?? []).length === 0;
-          return (
-            <HighlightsCard
-              key={review.id}
-              review={review}
-              featured={i === 0}
-              locale={locale}
-              keyPhrase={keyPhraseRange(body, c?.highlight, allTerms)}
-              termRanges={themeWordRanges(body, activeTheme)}
-              tagHit={tagOnly && activeTheme !== undefined && tagsOf(review.id).includes(activeTheme.key)}
-              reply={reply}
-              onOpenPhoto={onOpenPhoto}
-            />
-          );
-        })}
-      </ul>
-
-      {!expanded && all.length > visible.length && (
-        <button
-          type="button"
-          data-reviews-show-all=""
-          onClick={() => setExpanded(true)}
+      <div role="region" aria-roledescription="carousel" aria-label={rs("carouselLabel", locale)} className="mt-bk-md">
+        <ul
+          ref={listRef}
+          id={listId}
+          data-review-list=""
           className={cn(
-            "mt-bk-md flex min-h-[52px] w-full items-center justify-center rounded-bk-pill border-bk border-bk-divider bg-bk-surface font-bk-body text-[15px] font-extrabold text-bk-ink transition-transform duration-bk-fast active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 ring-bk-focus",
+            "-mx-4 flex snap-x snap-mandatory items-stretch gap-bk-sm overflow-x-auto overscroll-x-contain px-4 scroll-px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            rtl && "flex-row-reverse",
           )}
         >
-          {rs("showAll", locale, { count: all.length })}
-        </button>
-      )}
+          {all.map((review, i) => {
+            const c = curation.get(review.id);
+            const body = review.body ?? "";
+            const replyText = resolveI18n(c?.reply_i18n, locale).trim();
+            const reply: StoreReply | null =
+              replyText && storeName ? { store: storeName, text: replyText, logoUrl } : null;
+            const tagOnly = activeTheme !== undefined && (activeTheme.match_terms ?? []).length === 0;
+            return (
+              <HighlightsCard
+                key={review.id}
+                review={review}
+                featured={i === 0}
+                locale={locale}
+                keyPhrase={keyPhraseRange(body, c?.highlight, allTerms)}
+                termRanges={themeWordRanges(body, activeTheme)}
+                tagHit={tagOnly && activeTheme !== undefined && tagsOf(review.id).includes(activeTheme.key)}
+                reply={reply}
+                onOpenPhoto={onOpenPhoto}
+                className={all.length > 1 ? "w-[85%] max-w-[340px] shrink-0 snap-start" : "w-full"}
+              />
+            );
+          })}
+        </ul>
+        <CarouselDots
+          trackId={listId}
+          rtl={rtl}
+          intervalMs={REVIEW_AUTOPLAY_MS}
+          labels={all.map((_, i) => rs("reviewDot", locale, { n: i + 1 }))}
+        />
+        {all.length > 1 && (
+          <CarouselArrows
+            trackId={listId}
+            // The left arrow scrolls left: the next card in a reversed track.
+            prevLabel={rs(rtl ? "nextReview" : "prevReview", locale)}
+            nextLabel={rs(rtl ? "prevReview" : "nextReview", locale)}
+            className="mt-bk-sm justify-end"
+          />
+        )}
+      </div>
     </>
   );
 }

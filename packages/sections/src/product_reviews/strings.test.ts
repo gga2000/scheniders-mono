@@ -22,9 +22,9 @@ describe("REVIEW_STRINGS", () => {
 });
 
 describe("REVIEW_STRINGS — highlights", () => {
-  it("fills the summary, show-all and reply lines", () => {
+  it("fills the summary, carousel dot and reply lines", () => {
     expect(rs("ofReviews", "ar", { count: "6 تقييمات" })).toBe("من 6 تقييمات");
-    expect(rs("showAll", "ar", { count: 6 })).toBe("شوف كل التقييمات (6)");
+    expect(rs("reviewDot", "ar", { n: 6 })).toBe("التقييم 6");
     expect(rs("storeReply", "ar", { store: "شنايدر" })).toBe("رد شنايدر");
     expect(rs("storeReply", "en", { store: "Scheniders" })).toBe("Reply from Scheniders");
   });

@@ -152,7 +152,7 @@ describe("image_gallery stack", () => {
     expect(count(ar, "data-proof-item=")).toBe(5);
     expect(ar).toMatch(/<ol id="[^"]+" class="[^"]*snap-x[^"]*flex-row-reverse/);
     expect(en).not.toMatch(/<ol id="[^"]+" class="[^"]*flex-row-reverse/);
-    expect(ar).toContain('data-proof-dots="true"');
+    expect(ar).toContain('data-carousel-dots="true"');
     expect(count(ar, 'aria-label="التعليق ')).toBe(5);
     // The rest show no doubt or quote.
     const rest = ar.slice(ar.indexOf('data-proof-item="3"'));

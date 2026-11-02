@@ -25,9 +25,9 @@ const schema = z.object({
    *  star bars, «N تقييم»), each review as a quiet card, and the form
    *  folded behind a modest «اكتب تقييمك» button. "highlights" (opt-in,
    *  spec §1.6): a light summary card (`#reviews-summary`), word buttons
-   *  that highlight and never filter, a featured review, compact cards
-   *  with a key phrase marked, «رد {store}» replies, and the rest behind
-   *  «شوف كل التقييمات (N)». Absent means the historical layout,
+   *  that highlight and never filter, then every review as one swipe
+   *  carousel (a featured first card, compact cards with a key phrase
+   *  marked, «رد {store}» replies) with autoplaying dots. Absent means the historical layout,
    *  byte-identical. */
   layout: z.enum(["quiet", "highlights"]).optional().catch(undefined),
   /** Highlights: the topics buyers mention. A review counts once per
@@ -46,7 +46,8 @@ const schema = z.object({
     .max(6)
     .optional()
     .catch(undefined),
-  /** Highlights: cards shown before «شوف كل التقييمات». Default 3. */
+  /** Highlights: a review under 4★ never sits among the first N cards of
+   *  the carousel (it goes last). Default 3. */
   visible_count: z.number().int().min(1).max(6).optional().catch(undefined),
   /** "hash_only": the write-review entry and form render only for a
    *  visitor who arrives on #reviews (the order tracker's link). */

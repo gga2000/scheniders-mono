@@ -7,7 +7,7 @@
 // is one card in a swipe carousel (numbered doubt and the quote in «» on
 // the first `initial_count`, the author, then the screenshot flush at the
 // bottom), followed by the position dots island
-// (image_gallery.stack.tsx). Every unlinked screenshot opens the viewer
+// (helpers/carousel-dots.tsx). Every unlinked screenshot opens the viewer
 // (image_gallery.client.tsx) at its own slide.
 // =====================================================================
 
@@ -22,7 +22,7 @@ import { cn, PRESSABLE } from "./helpers/utils";
 import { chromeString } from "./helpers/chrome-strings";
 import { GalleryViewer } from "./image_gallery.client";
 import type { GalleryViewerImage } from "./image_gallery.client";
-import { ProofCarouselDots } from "./image_gallery.stack";
+import { CarouselDots } from "./helpers/carousel-dots";
 import { CarouselArrows } from "./helpers/carousel-arrows";
 import { gs, proofCountLabel } from "./image_gallery.strings";
 import { STACK_SIZES, stackFrame } from "./image-gallery-crop";
@@ -296,7 +296,7 @@ export function ProofStack({
         >
           {items}
         </ol>
-        <ProofCarouselDots
+        <CarouselDots
           trackId={listId}
           rtl={rtl}
           labels={images.map((_, i) => gs("proofDot", locale, { n: i + 1 }))}

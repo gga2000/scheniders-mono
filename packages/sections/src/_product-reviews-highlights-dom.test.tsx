@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 // =====================================================================
-// product_reviews highlights — the word buttons, «شوف كل» and «كمّل», in a DOM
+// product_reviews highlights — word buttons, the carousel and «كمّل», in a DOM
 // =====================================================================
-// A word button highlights and never filters: no card leaves the list,
-// a hidden matching review brings the rest into view, the page scrolls
-// to the first mark, a second tap clears. «شوف كل» inserts the rest
-// before Ahmed's 3★. «كمّل» shows only on a body that overflows its
-// clamp. With `hash_only`, #reviews still opens the form.
+// Every review sits in one swipe track in D10 order (Ahmed's 3★ last),
+// with one dot per card. A word button highlights and never filters: no
+// card moves, the carousel stops and brings the first marked card into
+// view, a second tap clears. «كمّل» shows only on a body that overflows
+// its clamp. With `hash_only`, #reviews still opens the form.
 // =====================================================================
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,7 +37,7 @@ const HIGHLIGHTS = {
 };
 
 /** D10 with the reorder tags: حازم and ياسين each count one topic more. */
-const EXPANDED = ["احمد الشمري", "حازم السيد", "مصطفى علي", "ياسين", "eng. سيف", "Ahmed"];
+const ORDER = ["احمد الشمري", "حازم السيد", "مصطفى علي", "ياسين", "eng. سيف", "Ahmed"];
 
 const scrollIntoView = vi.fn();
 
@@ -67,7 +67,19 @@ function button(container: HTMLElement, key: string): HTMLElement {
 beforeEach(() => {
   scrollIntoView.mockClear();
   Element.prototype.scrollIntoView = scrollIntoView;
+  // jsdom has neither; the carousel dots need both.
+  window.matchMedia = vi.fn().mockReturnValue({ matches: false }) as unknown as typeof window.matchMedia;
+  globalThis.IntersectionObserver = class {
+    observe(): void {}
+    disconnect(): void {}
+  } as unknown as typeof IntersectionObserver;
 });
+
+function track(container: HTMLElement): HTMLElement {
+  const t = container.querySelector<HTMLElement>("[data-review-list]");
+  if (!t) throw new Error("no track");
+  return t;
+}
 
 afterEach(() => {
   cleanup();
@@ -75,34 +87,28 @@ afterEach(() => {
 });
 
 describe("word buttons", () => {
-  it("a tap marks the topic's words, keeps every card, and scrolls to the first mark", () => {
+  it("a tap marks the topic's words, keeps every card, stops the carousel and shows the first mark", () => {
     const { container } = mount();
-    const before = names(container);
+    const stops = vi.fn();
+    track(container).addEventListener("bk-carousel-stop", stops);
     fireEvent.click(button(container, "longevity"));
     expect(button(container, "longevity").getAttribute("aria-pressed")).toBe("true");
-    // Ahmed («وثباته») is visible; مصطفى علي and eng. سيف were hidden, so the
-    // rest open. (The reorder tags count as a topic: ياسين now outranks سيف.)
-    expect(names(container)).toEqual(EXPANDED);
-    expect(before).toEqual(["احمد الشمري", "حازم السيد", "Ahmed"]);
+    expect(names(container)).toEqual(ORDER);
     const marked = [...container.querySelectorAll("mark[data-term]")].map((m) => m.textContent);
     expect(marked).toEqual(["بثباته", "الثبات", "ثبات", "وثباته"]);
-    expect(scrollIntoView).toHaveBeenCalled();
+    expect(stops).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView.mock.contexts[0]).toBe(container.querySelector("mark[data-term]")?.closest("[data-review-card]"));
   });
 
-  it("a second tap clears; the list stays open", () => {
+  it("a second tap clears and does not scroll again", () => {
     const { container } = mount();
     fireEvent.click(button(container, "longevity"));
     fireEvent.click(button(container, "longevity"));
     expect(button(container, "longevity").getAttribute("aria-pressed")).toBe("false");
     expect(container.querySelectorAll("mark[data-term]")).toHaveLength(0);
-    expect(names(container)).toHaveLength(6);
-  });
-
-  it("a topic whose hits are all visible does not open the rest", () => {
-    const { container } = mount();
-    fireEvent.click(button(container, "luxury"));
-    expect(names(container)).toEqual(["احمد الشمري", "حازم السيد", "Ahmed"]);
-    expect(container.querySelectorAll("mark[data-term]")).toHaveLength(2);
+    expect(names(container)).toEqual(ORDER);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 
   it("a tag-only topic marks the card edge, not words", () => {
@@ -142,22 +148,25 @@ describe("the press announcement", () => {
   });
 });
 
-describe("«شوف كل التقييمات»", () => {
-  it("inserts the rest before Ahmed and goes away", () => {
-    const { container, getByText } = mount();
-    fireEvent.click(getByText("شوف كل التقييمات (6)"));
-    expect(names(container)).toEqual(EXPANDED);
+describe("the carousel", () => {
+  it("holds every review in D10 order, Ahmed's 3★ last, the first featured", () => {
+    const { container } = mount();
+    expect(names(container)).toEqual(ORDER);
+    expect(container.querySelector("[data-featured]")?.getAttribute("data-review-card")).toBe(
+      container.querySelector("[data-review-card]")?.getAttribute("data-review-card"),
+    );
     expect(container.querySelector("[data-reviews-show-all]")).toBeNull();
   });
 
-  it("after a topic whose hits were all visible, opening the rest does not scroll", () => {
-    const { container, getByText } = mount();
-    fireEvent.click(button(container, "luxury"));
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    scrollIntoView.mockClear();
-    fireEvent.click(getByText("شوف كل التقييمات (6)"));
-    expect(names(container)).toEqual(EXPANDED);
-    expect(scrollIntoView).not.toHaveBeenCalled();
+  it("is a reversed snap track in Arabic with one labelled dot per card", () => {
+    const { container } = mount();
+    const t = track(container);
+    expect(t.className).toContain("snap-x");
+    expect(t.className).toContain("flex-row-reverse");
+    expect(t.closest('[aria-roledescription="carousel"]')?.getAttribute("aria-label")).toBe("تقييمات الزباين");
+    const dots = [...container.querySelectorAll("[data-carousel-dots] button")];
+    expect(dots.map((d) => d.getAttribute("aria-label"))).toEqual(ORDER.map((_, i) => `التقييم ${i + 1}`));
+    expect(dots.every((d) => d.getAttribute("aria-controls") === t.id)).toBe(true);
   });
 });
 
@@ -167,11 +176,11 @@ describe("«كمّل»", () => {
     const clamp = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(80);
     const { container } = mount();
     const more = container.querySelectorAll("[data-read-more]");
-    expect(more).toHaveLength(3);
+    expect(more).toHaveLength(6);
     const first = more[0];
     if (!(first instanceof HTMLElement)) throw new Error("no «كمّل»");
     fireEvent.click(first);
-    expect(container.querySelectorAll("[data-read-more]")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-read-more]")).toHaveLength(5);
     expect(container.querySelector("[data-featured] p")?.className).not.toContain("line-clamp");
     tall.mockRestore();
     clamp.mockRestore();
@@ -209,7 +218,7 @@ describe("«كمّل»", () => {
     act(() => {
       for (const cb of callbacks) cb();
     });
-    expect(container.querySelectorAll("[data-read-more]")).toHaveLength(3);
+    expect(container.querySelectorAll("[data-read-more]")).toHaveLength(6);
     unmount();
     expect(disconnect).toHaveBeenCalled();
     tall.mockRestore();

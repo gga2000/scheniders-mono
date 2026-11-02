@@ -130,9 +130,9 @@ describe("word buttons", () => {
 });
 
 describe("cards", () => {
-  it("D10: the two strongest, then Ahmed's 3★; the first is featured", () => {
+  it("D10: every review, the strongest first, Ahmed's 3★ last; the first is featured", () => {
     const html = render(HIGHLIGHTS, wayferProduct);
-    expect(cardOrder(html)).toEqual(["احمد الشمري", "حازم السيد", "Ahmed"]);
+    expect(cardOrder(html)).toEqual(["احمد الشمري", "حازم السيد", "مصطفى علي", "eng. سيف", "ياسين", "Ahmed"]);
     expect(count(html, "data-featured")).toBe(1);
     expect(html.indexOf("data-featured")).toBeLessThan(html.indexOf("حازم السيد"));
   });
@@ -149,6 +149,7 @@ describe("cards", () => {
     expect(marks).toEqual([
       "بس وصلتني العلبة مرتبة والتيستر فكرة تخبل",
       "ريحته حمضيات ع انتعاش ع سوسن بالبداية وبعدين تصير فخمة",
+      "جربت التيستر اول شي وكلش عجبتنئ ريحته",
     ]);
   });
 
@@ -170,9 +171,11 @@ describe("cards", () => {
     expect(html).toContain("حقك علينا يا أحمد.");
   });
 
-  it("«شوف كل التقييمات (6)» when cards are hidden; none when all fit", () => {
-    expect(render(HIGHLIGHTS, wayferProduct)).toContain("شوف كل التقييمات (6)");
-    expect(render({ ...HIGHLIGHTS, visible_count: 6 }, wayferProduct)).not.toContain("data-reviews-show-all");
+  it("one swipe track with a dot per card and no «شوف كل»; ", () => {
+    const html = render(HIGHLIGHTS, wayferProduct);
+    expect(html).toContain('aria-roledescription="carousel"');
+    expect([...html.matchAll(/aria-label="التقييم \d+"/g)]).toHaveLength(6);
+    expect(html).not.toContain("data-reviews-show-all");
   });
 
   it("no dates and no «verified» badge", () => {
@@ -222,7 +225,7 @@ describe("heading, form and missing data", () => {
   it("English chrome", () => {
     const html = render(HIGHLIGHTS, wayferProduct, "en");
     expect(html).toContain("from 6 reviews");
-    expect(html).toContain("See all reviews (6)");
+    expect(html).toContain('aria-label="Review 6"');
     expect(html).toContain("Mentioned most");
   });
 });
