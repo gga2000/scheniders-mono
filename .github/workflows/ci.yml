@@ -35,7 +35,9 @@ jobs:
           - { name: lint rest, task: lint, args: "--filter=!@scheniders/platform" }
           - { name: type-check platform, task: type-check, args: "--filter=@scheniders/platform" }
           - { name: type-check rest, task: type-check, args: "--filter=!@scheniders/platform" }
-          - { name: tests for changed files (platform), task: test, args: "--filter=@scheniders/platform -- --changed=${{ github.event.pull_request.base.sha }} --passWithNoTests" }
+          - { name: tests for changed files (platform 1/3), task: test, args: "--filter=@scheniders/platform -- --changed=${{ github.event.pull_request.base.sha }} --shard=1/3 --passWithNoTests" }
+          - { name: tests for changed files (platform 2/3), task: test, args: "--filter=@scheniders/platform -- --changed=${{ github.event.pull_request.base.sha }} --shard=2/3 --passWithNoTests" }
+          - { name: tests for changed files (platform 3/3), task: test, args: "--filter=@scheniders/platform -- --changed=${{ github.event.pull_request.base.sha }} --shard=3/3 --passWithNoTests" }
           - { name: tests for changed files (rest), task: test, args: "--filter=!@scheniders/platform -- --changed=${{ github.event.pull_request.base.sha }} --passWithNoTests" }
     steps:
       - uses: actions/checkout@v4
