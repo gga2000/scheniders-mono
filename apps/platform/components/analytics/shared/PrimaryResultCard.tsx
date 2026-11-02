@@ -30,20 +30,18 @@ export function PrimaryResultCard({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay, duration: 0.3, ease: "easeOut" }}
             className={cn(
-                "p-5 rounded-2xl backdrop-blur-md border-2 shadow-lg",
-                isPositive
-                    ? "bg-gradient-to-br from-emerald-50/80 to-green-50/80 dark:from-emerald-900/20 dark:to-green-900/20 border-emerald-300 dark:border-emerald-700/50 shadow-emerald-500/20"
-                    : "bg-gradient-to-br from-rose-50/80 to-red-50/80 dark:from-rose-900/20 dark:to-red-900/20 border-rose-300 dark:border-rose-700/50 shadow-rose-500/20"
+                "p-5 rounded-2xl border bg-[var(--card-bg)]",
+                isPositive ? "border-emerald-500/40" : "border-rose-500/40"
             )}
         >
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                     {isPositive ? (
-                        <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 ring-2 ring-emerald-200 dark:ring-emerald-800/40">
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10">
                             <TrendingUp className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                         </div>
                     ) : (
-                        <div className="p-2.5 rounded-xl bg-rose-100 dark:bg-rose-900/30 ring-2 ring-rose-200 dark:ring-rose-800/40">
+                        <div className="p-2.5 rounded-xl bg-rose-500/10">
                             <TrendingDown className="w-6 h-6 text-rose-600 dark:text-rose-400" />
                         </div>
                     )}
@@ -78,17 +76,12 @@ export function PrimaryResultCard({
                             {margin.toFixed(1)}%
                         </span>
                     </div>
-                    <div className="h-3 bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden">
+                    <div className="h-2 bg-[var(--background)] rounded-full overflow-hidden">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${Math.min(Math.abs(margin), 100)}%` }}
                             transition={{ delay: delay + 0.4, duration: 1, ease: "easeOut" }}
-                            className={cn("h-full rounded-full")}
-                            style={{
-                                background: isPositive
-                                    ? "linear-gradient(90deg, #10B981, #059669)"
-                                    : "linear-gradient(90deg, #F43F5E, #E11D48)"
-                            }}
+                            className={cn("h-full rounded-full", isPositive ? "bg-emerald-500" : "bg-rose-500")}
                         />
                     </div>
                 </div>

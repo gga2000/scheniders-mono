@@ -15,43 +15,16 @@ interface FinancialMetricRowProps {
     subtitle?: string;
 }
 
-const colorClasses = {
-    emerald: {
-        bg: "bg-emerald-50 dark:bg-emerald-900/20",
-        border: "border-emerald-200 dark:border-emerald-800/40",
-        icon: "text-emerald-600",
-        text: "text-emerald-700 dark:text-emerald-400",
-    },
-    green: {
-        bg: "bg-green-50 dark:bg-green-900/20",
-        border: "border-green-200 dark:border-green-800/40",
-        icon: "text-green-600",
-        text: "text-green-700 dark:text-green-400",
-    },
-    blue: {
-        bg: "bg-blue-50 dark:bg-blue-900/20",
-        border: "border-blue-200 dark:border-blue-800/40",
-        icon: "text-blue-600",
-        text: "text-blue-700 dark:text-blue-400",
-    },
-    rose: {
-        bg: "bg-rose-50 dark:bg-rose-900/20",
-        border: "border-rose-200 dark:border-rose-800/40",
-        icon: "text-rose-600",
-        text: "text-rose-700 dark:text-rose-400",
-    },
-    amber: {
-        bg: "bg-amber-50 dark:bg-amber-900/20",
-        border: "border-amber-200 dark:border-amber-800/40",
-        icon: "text-amber-600",
-        text: "text-amber-700 dark:text-amber-400",
-    },
-    slate: {
-        bg: "bg-slate-50 dark:bg-slate-800/15",
-        border: "border-slate-200 dark:border-slate-700/35",
-        icon: "text-slate-600",
-        text: "text-slate-700 dark:text-slate-400",
-    },
+type Theme = FinancialMetricRowProps["colorTheme"];
+
+/** Icon chip and bar colour per theme; the amount only takes colour for money in (green) or out (red). */
+const THEME: Record<Theme, { chip: string; bar: string; text: string }> = {
+    emerald: { chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" },
+    green: { chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400" },
+    blue: { chip: "bg-blue-500/10 text-blue-600 dark:text-blue-400", bar: "bg-blue-500", text: "text-foreground" },
+    rose: { chip: "bg-rose-500/10 text-rose-600 dark:text-rose-400", bar: "bg-rose-500", text: "text-rose-600 dark:text-rose-400" },
+    amber: { chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400", bar: "bg-amber-500", text: "text-foreground" },
+    slate: { chip: "bg-slate-500/10 text-slate-600 dark:text-slate-400", bar: "bg-slate-400", text: "text-foreground" },
 };
 
 export function FinancialMetricRow({
@@ -64,7 +37,7 @@ export function FinancialMetricRow({
     delay = 0,
     subtitle,
 }: FinancialMetricRowProps) {
-    const colors = colorClasses[colorTheme];
+    const colors = THEME[colorTheme];
 
     return (
         <motion.div
@@ -72,15 +45,13 @@ export function FinancialMetricRow({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay, duration: 0.3, ease: "easeOut" }}
             className={cn(
-                "flex flex-col p-3 rounded-xl backdrop-blur-sm border",
-                colors.bg,
-                colors.border
+                "flex flex-col p-3 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)]"
             )}
         >
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                    <div className={cn("p-1.5 rounded-lg", colors.bg)}>
-                        <Icon className={cn("w-4 h-4", colors.icon)} />
+                    <div className={cn("w-7 h-7 shrink-0 rounded-lg flex items-center justify-center", colors.chip)}>
+                        <Icon className="w-4 h-4" />
                     </div>
                     <div>
                         <span className="text-sm font-medium text-foreground">{label}</span>
@@ -104,17 +75,12 @@ export function FinancialMetricRow({
             {/* Visual Progress Bar for Percentage */}
             {showPercentage && percentageValue !== undefined && (
                 <div className="mt-2">
-                    <div className="h-1.5 bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-[var(--background)] rounded-full overflow-hidden">
                         <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${Math.min(Math.abs(percentageValue), 100)}%` }}
                             transition={{ delay: delay + 0.3, duration: 0.8, ease: "easeOut" }}
-                            className={cn("h-full rounded-full")}
-                            style={{
-                                background: percentageValue >= 0
-                                    ? `linear-gradient(90deg, ${colors.icon === "text-emerald-600" || colors.icon === "text-green-600" ? "#10B981" : "#3B82F6"}, ${colors.icon === "text-emerald-600" || colors.icon === "text-green-600" ? "#059669" : "#2563EB"})`
-                                    : `linear-gradient(90deg, #F43F5E, #E11D48)`
-                            }}
+                            className={cn("h-full rounded-full", percentageValue >= 0 ? colors.bar : "bg-rose-500")}
                         />
                     </div>
                 </div>

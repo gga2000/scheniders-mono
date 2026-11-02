@@ -30,15 +30,15 @@ export function ExpandableCostsSection({ totalCosts, costs, delay = 0.15 }: Expa
             {/* Total Costs Header - Clickable */}
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center justify-between p-3.5 rounded-xl backdrop-blur-sm border transition-all duration-200 bg-rose-50 dark:bg-rose-900/15 border-rose-200 dark:border-rose-800/30 hover:bg-rose-100 dark:hover:bg-rose-900/20 hover:border-rose-300 dark:hover:border-rose-700/40 group"
+                className="w-full flex items-center justify-between p-3.5 rounded-xl border transition-colors bg-[var(--card-bg)] border-[var(--card-border)] hover:border-rose-500/40 group"
             >
                 <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/30 group-hover:bg-rose-200 dark:group-hover:bg-rose-800/40 transition-colors">
+                    <div className="p-1.5 rounded-lg bg-rose-500/10">
                         <Receipt className="w-3.5 h-3.5 text-rose-700 dark:text-rose-400" />
                     </div>
                     <div className="text-left">
                         <span className="text-sm font-medium text-foreground">Total Costs</span>
-                        <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">
+                        <p className="text-[11px] text-muted mt-0.5">
                             {isExpanded ? `${costs.length} categories` : "Click to view breakdown"}
                         </p>
                     </div>
@@ -66,7 +66,7 @@ export function ExpandableCostsSection({ totalCosts, costs, delay = 0.15 }: Expa
                         transition={{ duration: 0.3, ease: "easeInOut" }}
                         className="overflow-hidden"
                     >
-                        <div className="mt-2.5 p-3.5 rounded-xl bg-gradient-to-br from-rose-50/50 to-red-50/50 dark:from-rose-900/10 dark:to-red-900/10 backdrop-blur-sm border border-rose-200/50 dark:border-rose-800/25">
+                        <div className="mt-2.5 p-3.5 rounded-xl bg-[var(--background)] border border-[var(--card-border)]">
                             <div className="space-y-2.5">
                                 {costs.map((cost, index) => (
                                     <motion.div
