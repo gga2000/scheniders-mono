@@ -16,13 +16,13 @@ import { HighlightedPhone } from "./highlighted-phone";
 import { formatIQD, copyOrderToClipboard, getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { validatePhoneDetailed } from "@/lib/order-utils";
-import { formatShortDate, formatTime, getStatusColor, getStatusBadgeStyle, getDisplayOrderId } from "@/lib/order-format-utils";
+import { formatShortDate, formatTime, getStatusColor, getStatusBadgeStyle, getDisplayOrderId, isSystemActor } from "@/lib/order-format-utils";
 
 import { BlacklistDialog } from "@/components/orders/blacklist-dialog";
 import { DuplicateAlertBanner } from "@/components/orders/duplicate-alert-banner";
 import { FollowUpCueBadge } from "./follow-up-cue-badge";
 
-import { MessageCircle, Edit, XCircle, Ban, ShieldCheck, MapPin, Phone, Package, PhoneCall, CheckCircle, Truck, Sparkles, AlertTriangle, Calendar, RotateCcw, FileText, Pin, Clock, Copy, CopyPlus, MoreVertical, Camera, PhoneOff, History as HistoryIcon, Archive as ArchiveIcon, Scissors, ClipboardCopy, Bot, ExternalLink } from "lucide-react";
+import { MessageCircle, Edit, XCircle, Ban, ShieldCheck, MapPin, Phone, Package, PhoneCall, CheckCircle, Truck, Sparkles, AlertTriangle, Calendar, RotateCcw, FileText, Pin, Clock, Copy, CopyPlus, MoreVertical, Camera, PhoneOff, History as HistoryIcon, Archive as ArchiveIcon, Scissors, ClipboardCopy, Bot, Cog, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { AdChannelBadge } from "@/components/orders/ad-channel-badge";
 import { PriorityBadge } from "./card/priority-badge";
@@ -267,9 +267,15 @@ function FullOrderCard(props: OrderCardProps) {
                                         {order.last_status_changed_by_name && (
                                             <div
                                                 className="flex items-center -ml-0.5 transition-transform hover:scale-110"
-                                                title={`Last updated by: ${order.last_status_changed_by_name}`}
+                                                title={isSystemActor(order.last_status_changed_by_name)
+                                                    ? t("orders.card.systemActorTip")
+                                                    : `Last updated by: ${order.last_status_changed_by_name}`}
                                             >
-                                                {order.last_status_changed_by_avatar === 'bot' ? (
+                                                {isSystemActor(order.last_status_changed_by_name) ? (
+                                                    <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm">
+                                                        <Cog className="w-3 h-3" />
+                                                    </div>
+                                                ) : order.last_status_changed_by_avatar === 'bot' ? (
                                                     <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-sm">
                                                         <Bot className="w-3 h-3" />
                                                     </div>

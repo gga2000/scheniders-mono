@@ -441,3 +441,12 @@ export const getDisplayOrderId = (orderId: string) => {
 
     return orderId;
 };
+
+/**
+ * `orders.last_status_changed_by_name` defaults to "System" and stays on it
+ * until a team member (or the WhatsApp bot, which carries its own avatar)
+ * touches the order. So "System" means no person has acted on the order yet:
+ * it came in from the storefront, an ad lead, an import or the bot and has not
+ * been worked. It is a placeholder, not a user, and must not be drawn as one.
+ */
+export const isSystemActor = (name: string | null | undefined) => name?.trim().toLowerCase() === "system";
