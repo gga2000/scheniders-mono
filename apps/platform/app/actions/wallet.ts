@@ -32,67 +32,23 @@ export async function topUpWalletAction(
 
     const supabase = createSupabaseServiceClient();
 
-    try {
-        // Idempotency check: if a key is provided, see if this top-up was already processed
-        if (idempotencyKey) {
-            const { data: existingTx } = await supabase
-                .from("wallet_transactions")
-                .select("balance_after_iqd")
-                .eq("tenant_id", tenantId)
-                .eq("reference_id", idempotencyKey)
-                .maybeSingle();
+    // One atomic RPC: wallet row lock, idempotency check on the key, balance update
+    // and ledger insert in a single transaction.
+    const { data, error } = await supabase.rpc("admin_topup_wallet", {
+        _tenant_id: tenantId,
+        _amount: amountIqd,
+        _description: `Wallet top-up via ${paymentMethod}`,
+        _payment_method: paymentMethod,
+        ...(idempotencyKey ? { _reference_id: idempotencyKey } : {}),
+    });
 
-            if (existingTx) {
-                // Already processed — return existing balance without double-crediting
-                return { success: true, newBalance: existingTx.balance_after_iqd };
-            }
-        }
-
-        // Get current wallet
-        const { data: wallet, error: walletError } = await supabase
-            .from("wallet")
-            .select("balance_iqd, total_topped_up_iqd")
-            .eq("tenant_id", tenantId)
-            .single();
-
-        if (walletError || !wallet) {
-            return { success: false, error: "Wallet not found" };
-        }
-
-        const newBalance = wallet.balance_iqd + amountIqd;
-
-        // Update wallet
-        const { error: updateError } = await supabase
-            .from("wallet")
-            .update({
-                balance_iqd: newBalance,
-                total_topped_up_iqd: wallet.total_topped_up_iqd + amountIqd,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("tenant_id", tenantId);
-
-        if (updateError) {
-            return { success: false, error: `Failed to update wallet: ${updateError.message}` };
-        }
-
-        // Log transaction (include reference_id for idempotency tracking)
-        const { error: txError } = await supabase.from("wallet_transactions").insert({
-            tenant_id: tenantId,
-            type: "topup",
-            amount_iqd: amountIqd,
-            balance_after_iqd: newBalance,
-            description: `Wallet top-up via ${paymentMethod}`,
-            payment_method: paymentMethod,
-            ...(idempotencyKey ? { reference_id: idempotencyKey } : {}),
-        });
-
-        if (txError) {
-            console.error("[Wallet] Transaction log failed:", txError.message);
-        }
-
-        return { success: true, newBalance };
-    } catch (err) {
-        const msg = err instanceof Error ? err.message : "Unknown error";
-        return { success: false, error: msg };
+    if (error) {
+        return { success: false, error: `Failed to top up wallet: ${error.message}` };
     }
+
+    const result = data as { success: boolean; new_balance?: number; error?: string } | null;
+    if (!result?.success) {
+        return { success: false, error: result?.error ?? "Top-up failed" };
+    }
+    return { success: true, newBalance: result.new_balance };
 }

@@ -89,7 +89,16 @@ export function ShippingScreen({
         builder.config.commerce?.shipping ?? {};
     const rates = shipping.rates ?? {};
     const def = shipping.default_rate;
-    const mode = shippingModeOf(builder.config.commerce?.shipping);
+    const storedMode = shippingModeOf(builder.config.commerce?.shipping);
+    // "By governorate" with no override typed yet is stored exactly like flat
+    // (default_rate only), so the stored config alone can never show its table.
+    // Remember the merchant's pick here, in the UI only: nothing extra is
+    // written to the config, and the pick is dropped when another answer is chosen.
+    const [pickedByGovernorate, setPickedByGovernorate] = useState(false);
+    const mode: ShippingMode =
+        pickedByGovernorate && (storedMode === "flat" || storedMode === "free")
+            ? "by_governorate"
+            : storedMode;
 
     // Remembers the fee while the merchant is on "free", so switching back to
     // a paid mode restores what they had instead of an empty box.
@@ -111,6 +120,7 @@ export function ShippingScreen({
     );
 
     const chooseMode = (next: ShippingMode): void => {
+        setPickedByGovernorate(next === "by_governorate");
         if (next === "free") {
             if (typeof def?.fee_iqd === "number" && def.fee_iqd > 0) {
                 setLastFee(def.fee_iqd);

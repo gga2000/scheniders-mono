@@ -91,6 +91,27 @@ describe("ShippingScreen — choosing an answer", () => {
         expect(screen.queryByTestId("shipping-gov-BA")).toBeNull();
     });
 
+    it("opens the governorate table on choosing per-governorate for a store with no overrides yet", () => {
+        const flat = makeBuilder({ default_rate: { fee_iqd: 5000 } });
+        render(<ShippingScreen builder={flat.builder} onClose={() => {}} />);
+        expect(screen.queryByTestId("shipping-gov-BA")).toBeNull();
+        fireEvent.click(screen.getByTestId("shipping-mode-by_governorate"));
+        // The builder keeps the config it was given here, as it would until a rate is typed.
+        expect(screen.getByTestId("shipping-gov-BA")).toBeTruthy();
+        // Choosing the mode alone writes no per-governorate rows.
+        const written = applyLast(flat.setConfig, flat.config);
+        expect(written.commerce?.shipping?.rates).toBeUndefined();
+        expect(written.commerce?.shipping?.default_rate?.fee_iqd).toBe(5000);
+    });
+
+    it("leaves the table when another answer is chosen", () => {
+        const flat = makeBuilder({ default_rate: { fee_iqd: 5000 } });
+        render(<ShippingScreen builder={flat.builder} onClose={() => {}} />);
+        fireEvent.click(screen.getByTestId("shipping-mode-by_governorate"));
+        fireEvent.click(screen.getByTestId("shipping-mode-flat"));
+        expect(screen.queryByTestId("shipping-gov-BA")).toBeNull();
+    });
+
     it("shows the governorate table only in the per-governorate answer", () => {
         const flat = makeBuilder({ default_rate: { fee_iqd: 5000 } });
         const { unmount } = render(<ShippingScreen builder={flat.builder} onClose={() => {}} />);

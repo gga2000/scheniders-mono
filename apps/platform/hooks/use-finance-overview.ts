@@ -135,6 +135,12 @@ export function useFinanceOverview(
             return withinInterval(d, current);
         });
 
+        // The comparison period is netted of its own expenses, like the current one,
+        // otherwise the hero delta compares profit-after-expenses to profit-before.
+        const prevExpenses = previous
+            ? expenses.filter((e) => withinInterval(expenseInstant(e), previous))
+            : [];
+
         const calc = (oList: Order[], eList: Expense[], interval: DateInterval) => {
             let gross = 0;
             let delivered_revenue = 0;
@@ -273,7 +279,7 @@ export function useFinanceOverview(
 
         const curr = calc(currOrders, currExpenses, current);
         const prev = previous
-            ? calc(prevOrders, [], previous)
+            ? calc(prevOrders, prevExpenses, previous)
             : null;
 
         // Breakdowns on current period

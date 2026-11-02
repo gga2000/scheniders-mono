@@ -1,11 +1,12 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useFinanceOrders } from "@/hooks/use-finance-orders";
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { toBaghdadDayKey } from "@/lib/order-window";
 import { useExpenses } from "@/hooks/use-expenses";
 import { useFinancePeriod } from "@/hooks/use-finance-period";
 import { useFinanceOverview } from "@/hooks/use-finance-overview";
@@ -188,7 +189,7 @@ function FinancesContent() {
 
     // Period state
     const {
-        period, compareRange, granularity, dateRangeStrings,
+        period, compareRange, granularity, dateRangeStrings, expenseFetchRange,
         applyPreset, setCustom, setCompareMode,
     } = useFinancePeriod("last30");
 
@@ -199,16 +200,23 @@ function FinancesContent() {
         compareStart: compareRange?.start,
     });
     const { products } = useProductsCrud();
-    const { expenses, addExpense } = useExpenses({
-        startDate: dateRangeStrings.startDate,
-        endDate: dateRangeStrings.endDate,
-    });
+    // Loaded back to the comparison period's start so the Overview can net that period's
+    // profit of its expenses; every other tab keeps getting the selected period only.
+    const { expenses: fetchedExpenses, addExpense } = useExpenses(expenseFetchRange);
+    const expenses = useMemo(
+        () =>
+            fetchedExpenses.filter((e) => {
+                const day = toBaghdadDayKey(e.expense_date);
+                return day !== null && day >= dateRangeStrings.startDate && day <= dateRangeStrings.endDate;
+            }),
+        [fetchedExpenses, dateRangeStrings],
+    );
 
     const costSnapshots = useOrderCostSnapshots();
     const overview = useFinanceOverview(
         orders,
         products,
-        expenses,
+        fetchedExpenses,
         { start: period.start, end: period.end },
         compareRange,
         granularity,
