@@ -268,6 +268,8 @@ export interface OrderFilters {
     orderType?: 'refund' | 'replacement' | 'abandoned_cart';
     /** Ad channel (`orders.ad_channel`) the list is pinned to; undefined = every channel. */
     adChannel?: string;
+    /** Normalized campaign name (lib/ad-campaign-filter) the list is pinned to, or NO_CAMPAIGN; undefined = every campaign. */
+    adCampaign?: string;
 }
 
 /**

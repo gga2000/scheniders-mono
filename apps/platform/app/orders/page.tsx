@@ -906,7 +906,7 @@ export default function OrdersPage() {
 
 
     // Check if any advanced filters are active
-    const hasActiveFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority || filters.adChannel);
+    const hasActiveFilters = !!(filters.dateFrom || filters.dateTo || filters.city || filters.product || filters.priority || filters.adChannel || filters.adCampaign);
 
     // Pre-compute maps for O(1) lookups and stable object references to prevent re-renders.
     // An original can have several refunds; the card links to the newest.
