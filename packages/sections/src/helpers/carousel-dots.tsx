@@ -9,9 +9,11 @@
 // one dot per card, the current one drawn as a wider pill. A tap on a dot
 // scrolls its card into place (instantly under prefers-reduced-motion).
 // While the track is on screen it advances one card every `intervalMs`
-// (wrapping to the first), until the shopper touches the track or a dot,
-// or a caller moves it (`stopCarousel`); it never moves under
-// prefers-reduced-motion or in a hidden tab.
+// (wrapping to the first). A touch, wheel or key on the track, or a dot
+// tap, pauses it for RESUME_MS after the last one, so a thumb that brushes
+// the track while scrolling the page does not end it. `stopCarousel` ends
+// it for good (a caller that scrolls to a card of its own choosing). It
+// never moves under prefers-reduced-motion or in a hidden tab.
 // The track is found by id, like CarouselArrows. In Arabic the track is
 // flex-row-reverse, so its scroll origin is the right edge and scrollLeft
 // runs negative; positions are read and written mirrored.
@@ -22,6 +24,9 @@ import { cn } from "./utils";
 
 /** How long each card stays before the carousel moves on, by default. */
 export const AUTOPLAY_MS = 4500;
+
+/** How long the autoplay waits after the shopper's last touch. */
+export const RESUME_MS = 8000;
 
 /** Dispatched on the track to end its autoplay for good. */
 const STOP_EVENT = "bk-carousel-stop";
@@ -63,6 +68,7 @@ export function CarouselDots({
   const [active, setActive] = useState(0);
   const activeRef = useRef(0);
   const stopped = useRef(false);
+  const pausedUntil = useRef(0);
   const count = labels.length;
 
   useEffect(() => {
@@ -82,12 +88,16 @@ export function CarouselDots({
   useEffect(() => {
     const track = document.getElementById(trackId);
     if (!track || count < 2 || prefersReducedMotion()) return;
-    // Any hand on the track ends the autoplay for good.
+    // A hand on the track pauses the autoplay; the stop event ends it.
+    const pause = () => {
+      pausedUntil.current = Date.now() + RESUME_MS;
+    };
     const stop = () => {
       stopped.current = true;
     };
-    const events = ["pointerdown", "touchstart", "wheel", "keydown", STOP_EVENT] as const;
-    for (const e of events) track.addEventListener(e, stop, { passive: true });
+    const events = ["pointerdown", "touchstart", "wheel", "keydown"] as const;
+    for (const e of events) track.addEventListener(e, pause, { passive: true });
+    track.addEventListener(STOP_EVENT, stop);
     let visible = false;
     const io = new IntersectionObserver(
       (entries) => {
@@ -97,13 +107,14 @@ export function CarouselDots({
     );
     io.observe(track);
     const timer = window.setInterval(() => {
-      if (stopped.current || !visible || document.hidden) return;
+      if (stopped.current || !visible || document.hidden || Date.now() < pausedUntil.current) return;
       scrollToCard(track, (activeRef.current + 1) % count, rtl);
     }, intervalMs);
     return () => {
       window.clearInterval(timer);
       io.disconnect();
-      for (const e of events) track.removeEventListener(e, stop);
+      for (const e of events) track.removeEventListener(e, pause);
+      track.removeEventListener(STOP_EVENT, stop);
     };
   }, [trackId, count, rtl, intervalMs]);
 
@@ -112,7 +123,7 @@ export function CarouselDots({
   const go = (i: number) => {
     const track = document.getElementById(trackId);
     if (!track) return;
-    stopped.current = true;
+    pausedUntil.current = Date.now() + RESUME_MS;
     scrollToCard(track, i, rtl);
   };
 
