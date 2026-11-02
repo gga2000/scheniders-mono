@@ -28,6 +28,7 @@ import { ProductPicker } from "./product-picker";
 import { OrderCustomerCard } from "./order-customer-card";
 import { OrderItemsEditor } from "./order-items-editor";
 import { OrderNotes } from "./order-notes";
+import { OrderAdProfit } from "./order-ad-profit";
 import { DiscountPresetSelector } from "./discount-preset-selector";
 import { DiscountBadge } from "./discount-badge";
 import { AbandonedCartBadge } from "./abandoned-cart-badge";
@@ -1131,6 +1132,8 @@ export function OrderDetailsModal({
                                 handleUpdateItemQuantity={handleUpdateItemQuantity}
                                 handleRemoveItem={handleRemoveItem}
                             />
+
+                            {!isEditing && <OrderAdProfit order={order} />}
 
                             {/* Notes Cards */}
                             <OrderNotes
