@@ -10,8 +10,10 @@
 //   3. the always-open pyramid: per tier, the stage and its hint at the
 //      reading edge, then the notes as 60px round photos with names (a
 //      note without a photo is a text chip);
-//   4. facts, only with data: meters with their source tag, the chip rows,
-//      the staying-power line;
+//   4. facts, only with data: meters (a fractional value fills its last
+//      segment partly) with their source tag, the chip rows, the
+//      staying-power line. The season is a tag beside the gender tag;
+//   past the first tier the pyramid folds behind one button;
 //   5. «الثبات، بكلام زبون»: one verbatim clause, the reviewer in <bdi>;
 //   6. the rating and «قصة العطر», which opens the story in a BottomSheet.
 // The data comes from `buildScentCard`; this file only draws it. Rows flip
@@ -19,7 +21,7 @@
 // amber accent, meters and the monogram are ink/espresso.
 // =====================================================================
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import Image from "next/image";
 import { cn } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
@@ -50,9 +52,14 @@ export function ScentCardBlock({
   ratingLink: boolean;
 }) {
   const headingId = useId();
+  const restId = useId();
+  const [allNotes, setAllNotes] = useState(false);
   const rtl = readsRtl(locale);
   const align = rtl ? "text-right" : "text-left";
   const gender = product.gender;
+  // Past the first tier, the pyramid folds behind one button on the
+  // phone-length card; every note stays in the HTML.
+  const folds = card.tiers.length > 1;
   const hasFacts = card.meters.length > 0 || card.chipRows.length > 0 || card.note !== null;
   const hasStory = card.story.length > 0 || card.storyCards.length > 0;
   const shown = displayRating(avgRating).toFixed(1);
@@ -81,11 +88,22 @@ export function ScentCardBlock({
         <h2 id={headingId} className="font-bk-body text-xs font-black text-bk-ink-soft">
           {xs("scentEyebrow", locale)}
         </h2>
-        {gender && (
-          <Tag className={cn(rtl && "flex-row-reverse")}>
-            <MaterialIcon name={GENDER_ICON[gender]} className="text-sm" />
-            {xs(gender, locale)}
-          </Tag>
+        {(gender || card.season) && (
+          <div className={cn("flex flex-wrap items-center gap-1.5", rtl && "flex-row-reverse")}>
+            {card.season && (
+              <Tag data-tag="season" className={cn(rtl && "flex-row-reverse")}>
+                <MaterialIcon name={card.season.icon} className="text-sm" />
+                <span className="sr-only">{card.season.label}: </span>
+                {card.season.value}
+              </Tag>
+            )}
+            {gender && (
+              <Tag className={cn(rtl && "flex-row-reverse")}>
+                <MaterialIcon name={GENDER_ICON[gender]} className="text-sm" />
+                {xs(gender, locale)}
+              </Tag>
+            )}
+          </div>
         )}
       </div>
 
@@ -99,51 +117,76 @@ export function ScentCardBlock({
       )}
 
       {card.tiers.length > 0 && (
-        <ol aria-label={xs("notesListLabel", locale)} className="divide-y divide-bk-divider">
-          {card.tiers.map((t) => (
-            <li
-              key={t.key}
-              data-stage={t.key}
-              className={cn("flex items-center gap-3 py-3", rtl && "flex-row-reverse")}
+        <div>
+          <ol aria-label={xs("notesListLabel", locale)} className="divide-y divide-bk-divider">
+            {card.tiers.map((t, ti) => (
+              <li
+                key={t.key}
+                id={ti > 0 ? `${restId}-${ti}` : undefined}
+                data-stage={t.key}
+                hidden={folds && !allNotes && ti > 0}
+                className={cn(
+                  "flex items-center gap-3 py-3",
+                  rtl && "flex-row-reverse",
+                  // `flex` would beat the [hidden] rule; `hidden` sorts after it.
+                  folds && !allNotes && ti > 0 && "hidden",
+                )}
+              >
+                <p className={cn("w-20 shrink-0", align)}>
+                  <span className="block font-bk-display text-sm font-black text-bk-ink">{t.label}</span>
+                  {t.hint && (
+                    <span className="block font-bk-body text-xs font-semibold text-bk-ink-soft">{t.hint}</span>
+                  )}
+                </p>
+                <ul className={cn("flex min-w-0 flex-1 flex-wrap items-start gap-3", rtl && "flex-row-reverse")}>
+                  {t.notes.map((n, i) =>
+                    n.image ? (
+                      <li
+                        key={`${n.name}-${i}`}
+                        data-note-photo=""
+                        className="flex w-[4.5rem] flex-col items-center gap-1 text-center"
+                      >
+                        <Image
+                          src={n.image}
+                          alt=""
+                          width={60}
+                          height={60}
+                          unoptimized={!isOptimizableImageHost(n.image)}
+                          className="h-[60px] w-[60px] rounded-bk-pill object-cover"
+                        />
+                        <span className="font-bk-body text-xs font-bold leading-tight text-bk-ink">{n.name}</span>
+                      </li>
+                    ) : (
+                      <li
+                        key={`${n.name}-${i}`}
+                        data-note-chip=""
+                        className="inline-flex h-7 items-center rounded-bk-pill bg-bk-surface px-2.5 font-bk-body text-xs font-bold text-bk-ink"
+                      >
+                        <bdi>{n.name}</bdi>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </li>
+            ))}
+          </ol>
+          {folds && (
+            <button
+              type="button"
+              data-notes-fold=""
+              aria-expanded={allNotes}
+              aria-controls={card.tiers.slice(1).map((_, i) => `${restId}-${i + 1}`).join(" ")}
+              onClick={() => setAllNotes((o) => !o)}
+              className={cn(
+                "flex min-h-11 w-full items-center justify-center gap-1 border-t border-bk-divider font-bk-body text-sm font-black text-bk-ink",
+                rtl && "flex-row-reverse",
+              )}
             >
-              <p className={cn("w-20 shrink-0", align)}>
-                <span className="block font-bk-display text-sm font-black text-bk-ink">{t.label}</span>
-                {t.hint && (
-                  <span className="block font-bk-body text-xs font-semibold text-bk-ink-soft">{t.hint}</span>
-                )}
-              </p>
-              <ul className={cn("flex min-w-0 flex-1 flex-wrap items-start gap-3", rtl && "flex-row-reverse")}>
-                {t.notes.map((n, i) =>
-                  n.image ? (
-                    <li
-                      key={`${n.name}-${i}`}
-                      data-note-photo=""
-                      className="flex w-[4.5rem] flex-col items-center gap-1 text-center"
-                    >
-                      <Image
-                        src={n.image}
-                        alt=""
-                        width={60}
-                        height={60}
-                        unoptimized={!isOptimizableImageHost(n.image)}
-                        className="h-[60px] w-[60px] rounded-bk-pill object-cover"
-                      />
-                      <span className="font-bk-body text-xs font-bold leading-tight text-bk-ink">{n.name}</span>
-                    </li>
-                  ) : (
-                    <li
-                      key={`${n.name}-${i}`}
-                      data-note-chip=""
-                      className="inline-flex h-7 items-center rounded-bk-pill bg-bk-surface px-2.5 font-bk-body text-xs font-bold text-bk-ink"
-                    >
-                      <bdi>{n.name}</bdi>
-                    </li>
-                  ),
-                )}
-              </ul>
-            </li>
-          ))}
-        </ol>
+              <span>{xs(allNotes ? "notesLess" : "notesMore", locale)}</span>
+              <MaterialIcon name={allNotes ? "expand_less" : "expand_more"} className="text-lg" />
+            </button>
+          )}
+        </div>
       )}
 
       {hasFacts && (
@@ -155,11 +198,16 @@ export function ScentCardBlock({
               </span>
               {m.segments > 0 && (
                 <span aria-hidden="true" className={cn("flex flex-1 gap-1", rtl && "flex-row-reverse")}>
-                  {Array.from({ length: m.segments }, (_, i) => (
-                    <span
-                      key={i}
-                      className={cn("h-2 flex-1 rounded-bk-pill", i < m.filled ? "bg-bk-ink" : "bg-bk-divider")}
-                    />
+                  {m.fills.map((f, i) => (
+                    <span key={i} className="relative h-2 flex-1 overflow-hidden rounded-bk-pill bg-bk-divider">
+                      {f > 0 && (
+                        <span
+                          data-fill={f}
+                          className={cn("absolute inset-y-0 bg-bk-ink", rtl ? "right-0" : "left-0")}
+                          style={{ width: `${f * 100}%` }}
+                        />
+                      )}
+                    </span>
                   ))}
                 </span>
               )}
@@ -169,7 +217,7 @@ export function ScentCardBlock({
             </div>
           ))}
           {card.factsSource && (
-            <p data-facts-source="" className={cn("font-bk-body text-xs font-semibold text-bk-ink-soft", align)}>
+            <p data-facts-source="" className={cn("font-bk-body text-sm font-semibold text-bk-ink-soft", align)}>
               {card.factsSource}
             </p>
           )}

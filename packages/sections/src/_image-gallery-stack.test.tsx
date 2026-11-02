@@ -5,7 +5,7 @@
 // heading, source pill and scope line; the lead comments in order with a
 // numbered doubt, the quote as live text in «», the author in <bdi> and a
 // full-width screenshot whose box follows the crop maths; the legend once,
-// after the first comment; the rest hidden behind one plural-correct
+// in the header before the first comment; the rest hidden behind one plural-correct
 // button; a business tag; no dir attribute and no yellow fill.
 // =====================================================================
 
@@ -127,10 +127,10 @@ describe("image_gallery stack", () => {
     expect(count(ar, "aspect-[4/1]")).toBe(1);
   });
 
-  it("explains the mark once, after the first comment", () => {
+  it("explains the mark once, in the header before the first comment", () => {
     expect(count(ar, "data-proof-legend")).toBe(1);
-    expect(ar.indexOf("data-proof-legend")).toBeGreaterThan(ar.indexOf('data-proof-item="0"'));
-    expect(ar.indexOf("data-proof-legend")).toBeLessThan(ar.indexOf('data-proof-item="1"'));
+    expect(ar.indexOf("data-proof-legend")).toBeGreaterThan(ar.indexOf("data-proof-source"));
+    expect(ar.indexOf("data-proof-legend")).toBeLessThan(ar.indexOf('data-proof-item="0"'));
     expect(ar).toContain(`src="${LOGO}"`);
   });
 
@@ -141,7 +141,7 @@ describe("image_gallery stack", () => {
     );
     expect(branded).toContain('src="https://cdn.example.com/fixture/brand.png"');
     const bare = render({ ...STACK, legend_image_url: undefined });
-    const legend = bare.slice(bare.indexOf("data-proof-legend"), bare.indexOf('data-proof-item="1"'));
+    const legend = bare.slice(bare.indexOf("data-proof-legend"), bare.indexOf('data-proof-item="0"'));
     expect(legend).not.toContain("<img");
     expect(legend).toContain("هاي العلامة يعني سوّينا لايك للتعليق من حسابنا");
   });
