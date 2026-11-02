@@ -18,11 +18,6 @@ const insightRowSchema = z.object({
     actions: z.array(z.object({ action_type: z.string(), value: numericString })).optional(),
 });
 
-const insightsPageSchema = z.object({
-    data: z.array(insightRowSchema),
-    paging: z.object({ next: z.string().url().optional() }).optional(),
-});
-
 const graphErrorSchema = z.object({
     error: z.object({ message: z.string(), code: z.number().optional() }),
 });
@@ -55,27 +50,27 @@ function toCampaignDay(row: z.infer<typeof insightRowSchema>): CampaignDay {
     };
 }
 
-/**
- * Daily per-campaign insights for [since, until] (YYYY-MM-DD, inclusive).
- * Read-only: needs an `ads_read` token. Throws MetaAdsError with Meta's message.
- */
-export async function fetchCampaignInsights(params: {
-    adAccountId: string;
-    accessToken: string;
-    since: string;
-    until: string;
-}): Promise<CampaignDay[]> {
+/** Pages through an insights edge, validating each page with `rowSchema`. Token goes in a header, never a URL. */
+async function fetchInsightRows<T>(
+    params: { adAccountId: string; accessToken: string; since: string; until: string },
+    level: "campaign" | "ad",
+    fields: string,
+    rowSchema: z.ZodType<T>,
+): Promise<T[]> {
     const query = new URLSearchParams({
-        level: "campaign",
+        level,
         time_increment: "1",
-        fields: "campaign_id,campaign_name,spend,impressions,clicks,actions",
+        fields,
         time_range: JSON.stringify({ since: params.since, until: params.until }),
         limit: "500",
     });
+    const pageSchema = z.object({
+        data: z.array(rowSchema),
+        paging: z.object({ next: z.string().url().optional() }).optional(),
+    });
     let url: string | null = `${GRAPH_HOST}/${GRAPH_VERSION}/act_${params.adAccountId}/insights?${query}`;
-    const out: CampaignDay[] = [];
+    const out: T[] = [];
 
-    // The token goes in a header so it never appears in logged URLs or paging links.
     while (url) {
         const res: Response = await fetch(url, {
             headers: { Authorization: `Bearer ${params.accessToken}` },
@@ -86,15 +81,69 @@ export async function fetchCampaignInsights(params: {
             const parsed = graphErrorSchema.safeParse(body);
             throw new MetaAdsError(parsed.success ? parsed.data.error.message : `Meta API HTTP ${res.status}`);
         }
-        const page = insightsPageSchema.safeParse(body);
+        const page = pageSchema.safeParse(body);
         if (!page.success) throw new MetaAdsError("Unexpected response from Meta API");
-        out.push(...page.data.data.map(toCampaignDay));
+        out.push(...page.data.data);
 
         const next = page.data.paging?.next;
         if (next && new URL(next).origin !== GRAPH_HOST) throw new MetaAdsError("Refusing off-host paging URL");
         url = next ?? null;
     }
     return out;
+}
+
+/**
+ * Daily per-campaign insights for [since, until] (YYYY-MM-DD, inclusive).
+ * Read-only: needs an `ads_read` token. Throws MetaAdsError with Meta's message.
+ */
+export async function fetchCampaignInsights(params: {
+    adAccountId: string;
+    accessToken: string;
+    since: string;
+    until: string;
+}): Promise<CampaignDay[]> {
+    const rows = await fetchInsightRows(params, "campaign", "campaign_id,campaign_name,spend,impressions,clicks,actions", insightRowSchema);
+    return rows.map(toCampaignDay);
+}
+
+const adRowSchema = insightRowSchema.extend({
+    ad_id: z.string().min(1),
+    ad_name: z.string(),
+    adset_id: z.string().min(1),
+    adset_name: z.string(),
+    frequency: numericString.optional(),
+});
+
+export interface AdDay extends CampaignDay {
+    adId: string;
+    adName: string;
+    adsetId: string;
+    adsetName: string;
+    /** Meta's average impressions per person that day; not additive. */
+    frequency: number;
+}
+
+/** Daily per-ad insights (with ad set and campaign ids) for [since, until]. Read-only. */
+export async function fetchAdInsights(params: {
+    adAccountId: string;
+    accessToken: string;
+    since: string;
+    until: string;
+}): Promise<AdDay[]> {
+    const rows = await fetchInsightRows(
+        params,
+        "ad",
+        "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions,frequency",
+        adRowSchema,
+    );
+    return rows.map((row) => ({
+        ...toCampaignDay(row),
+        adId: row.ad_id,
+        adName: row.ad_name,
+        adsetId: row.adset_id,
+        adsetName: row.adset_name,
+        frequency: Number(row.frequency ?? 0),
+    }));
 }
 
 const debugTokenSchema = z.object({

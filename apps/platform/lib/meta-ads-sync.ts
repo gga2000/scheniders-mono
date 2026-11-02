@@ -1,5 +1,5 @@
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
-import { fetchCampaignInsights, MetaAdsError } from "@/lib/meta-ads";
+import { fetchAdInsights, fetchCampaignInsights, MetaAdsError } from "@/lib/meta-ads";
 import { META_EXPENSE_CATEGORY, META_EXPENSE_SOURCE, planMetaExpenses } from "@/lib/meta-ads-expenses";
 
 /** Meta revises recent days (late conversions, refunds), so re-pull a rolling window. */
@@ -100,6 +100,35 @@ export async function syncMetaAdsForTenant(
                     synced_at: new Date().toISOString(),
                 })),
                 { onConflict: "tenant_id,spend_date,campaign_id" },
+            );
+            if (error) throw new Error(error.message);
+        }
+
+        const adDays = await fetchAdInsights({
+            adAccountId: conn.ad_account_id,
+            accessToken: conn.access_token,
+            since,
+            until,
+        });
+        if (adDays.length > 0) {
+            const { error } = await db.from("ad_insights_daily").upsert(
+                adDays.map((d) => ({
+                    tenant_id: conn.tenant_id,
+                    spend_date: d.spendDate,
+                    ad_id: d.adId,
+                    ad_name: d.adName,
+                    adset_id: d.adsetId,
+                    adset_name: d.adsetName,
+                    campaign_id: d.campaignId,
+                    spend_usd: d.spendUsd,
+                    spend_iqd: Math.round(d.spendUsd * conn.usd_to_iqd),
+                    impressions: d.impressions,
+                    clicks: d.clicks,
+                    results: d.results,
+                    frequency: d.frequency,
+                    synced_at: new Date().toISOString(),
+                })),
+                { onConflict: "tenant_id,spend_date,ad_id" },
             );
             if (error) throw new Error(error.message);
         }

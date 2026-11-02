@@ -18,6 +18,7 @@ import {
     type DailyAdsPoint,
     type DayRange,
 } from "@/lib/ads-report";
+import { groupAdsByAdset, type AdInsightDay } from "@/lib/ads-creatives";
 
 const tokenHealthSchema = z
     .object({ isValid: z.boolean(), expiresAt: z.string().nullable(), hasAdsRead: z.boolean() })
@@ -244,4 +245,48 @@ export function useMetaAdsAutoRefresh(enabled: boolean) {
         const id = setInterval(() => mutate(undefined), AUTO_REFRESH_MS);
         return () => clearInterval(id);
     }, [enabled, mutate]);
+}
+
+
+async function fetchAdInsightDays(range: DayRange): Promise<AdInsightDay[]> {
+    const rows: AdInsightDay[] = [];
+    for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+            .from("ad_insights_daily")
+            .select("spend_date, ad_id, ad_name, adset_id, adset_name, campaign_id, spend_iqd, impressions, clicks, results, frequency")
+            .gte("spend_date", range.since)
+            .lte("spend_date", range.until)
+            .order("spend_date")
+            .order("ad_id")
+            .range(from, from + PAGE - 1);
+        if (error) throw new Error(error.message);
+        rows.push(
+            ...(data ?? []).map((r) => ({
+                ...r,
+                spend_iqd: Number(r.spend_iqd),
+                impressions: Number(r.impressions),
+                clicks: Number(r.clicks),
+                frequency: Number(r.frequency),
+            })),
+        );
+        if ((data?.length ?? 0) < PAGE) return rows;
+    }
+}
+
+/** Ad sets and ads for the range, grouped by campaign id. Fatigue needs 6+ days of history in the range. */
+export function useMetaAdInsights(range: DayRange) {
+    return useQuery({
+        queryKey: ["meta-ads", "ad-insights", range.since, range.until],
+        queryFn: async () => {
+            const sets = groupAdsByAdset(await fetchAdInsightDays(range));
+            const byCampaign = new Map<string, typeof sets>();
+            for (const set of sets) {
+                const list = byCampaign.get(set.campaignId);
+                if (list) list.push(set);
+                else byCampaign.set(set.campaignId, [set]);
+            }
+            return byCampaign;
+        },
+        staleTime: 60_000,
+    });
 }

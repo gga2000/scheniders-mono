@@ -222,6 +222,65 @@ export type Database = {
           },
         ]
       }
+      ad_insights_daily: {
+        Row: {
+          ad_id: string
+          ad_name: string
+          adset_id: string
+          adset_name: string
+          campaign_id: string
+          clicks: number
+          frequency: number
+          impressions: number
+          results: number
+          spend_date: string
+          spend_iqd: number
+          spend_usd: number
+          synced_at: string
+          tenant_id: string
+        }
+        Insert: {
+          ad_id: string
+          ad_name: string
+          adset_id: string
+          adset_name: string
+          campaign_id: string
+          clicks?: number
+          frequency?: number
+          impressions?: number
+          results?: number
+          spend_date: string
+          spend_iqd: number
+          spend_usd: number
+          synced_at?: string
+          tenant_id: string
+        }
+        Update: {
+          ad_id?: string
+          ad_name?: string
+          adset_id?: string
+          adset_name?: string
+          campaign_id?: string
+          clicks?: number
+          frequency?: number
+          impressions?: number
+          results?: number
+          spend_date?: string
+          spend_iqd?: number
+          spend_usd?: number
+          synced_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_insights_daily_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ad_spend_daily: {
         Row: {
           campaign_id: string

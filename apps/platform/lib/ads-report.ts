@@ -181,3 +181,8 @@ export function campaignVerdict(costPerDelivered: number | null, breakEven: numb
     if (costPerDelivered === null || breakEven === null) return "unknown";
     return costPerDelivered <= breakEven ? "profitable" : "losing";
 }
+
+/** Whole-number average (numerator per denominator); null when there is nothing to divide by. */
+export function ratio(numerator: number, denominator: number): number | null {
+    return denominator > 0 ? Math.round(numerator / denominator) : null;
+}
