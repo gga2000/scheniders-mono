@@ -16,13 +16,17 @@ export type Database = {
     Tables: {
       abandoned_carts: {
         Row: {
+          address: string | null
+          city: string | null
           consent_at: string | null
           consent_text_version: string | null
           created_at: string
+          customer_name: string | null
           governorate: string | null
           id: string
           items: Json
           locale: string | null
+          order_id: string | null
           phone: string
           recovered_at: string | null
           recovery_kind: string | null
@@ -32,13 +36,17 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          city?: string | null
           consent_at?: string | null
           consent_text_version?: string | null
           created_at?: string
+          customer_name?: string | null
           governorate?: string | null
           id?: string
           items?: Json
           locale?: string | null
+          order_id?: string | null
           phone: string
           recovered_at?: string | null
           recovery_kind?: never
@@ -48,13 +56,17 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          city?: string | null
           consent_at?: string | null
           consent_text_version?: string | null
           created_at?: string
+          customer_name?: string | null
           governorate?: string | null
           id?: string
           items?: Json
           locale?: string | null
+          order_id?: string | null
           phone?: string
           recovered_at?: string | null
           recovery_kind?: never
@@ -64,6 +76,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "abandoned_carts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "abandoned_carts_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -8534,6 +8553,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      capture_storefront_cart: {
+        Args: {
+          _address?: string
+          _city?: string
+          _consent_text_version?: string
+          _customer_name?: string
+          _governorate?: string
+          _items: Json
+          _locale?: string
+          _phone: string
+          _reopen_after_seconds: number
+          _subtotal_iqd: number
+          _tenant_id: string
+        }
+        Returns: boolean
+      }
       charge_wallet_atomic: {
         Args: {
           _amount: number
@@ -9120,6 +9155,10 @@ export type Database = {
         Returns: undefined
       }
       progress_seed_orders: { Args: never; Returns: undefined }
+      promote_abandoned_carts: {
+        Args: { _idle_minutes?: number }
+        Returns: number
+      }
       prune_notification_deliveries: {
         Args: { p_keep_days?: number }
         Returns: number

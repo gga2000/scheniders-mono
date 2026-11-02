@@ -379,8 +379,8 @@ export function CheckoutFormRender({
   }, [form.governorate_code, setGovernorate]);
 
   // Abandoned-cart capture: once the shopper has items + a plausible Iraqi
-  // phone, beacon the cart so a WhatsApp recovery nudge can go out if they
-  // don't complete. Debounced; best-effort (keepalive) — failures are ignored,
+  // phone, beacon the cart (with the name and address typed so far) so it
+  // becomes an abandoned-checkout card for staff if they don't complete. Debounced; best-effort (keepalive) — failures are ignored,
   // and placing the order marks the cart recovered server-side.
   useEffect(() => {
     if (items.length === 0) return;
@@ -402,6 +402,8 @@ export function CheckoutFormRender({
             price: i.price,
           })),
           governorate: form.governorate_code,
+          ...(form.customer_name.trim() ? { customer_name: form.customer_name.trim() } : {}),
+          ...(form.address_details.trim() ? { address: form.address_details.trim() } : {}),
           locale,
         }),
       }).catch(() => {
@@ -409,7 +411,7 @@ export function CheckoutFormRender({
       });
     }, 1500);
     return () => clearTimeout(handle);
-  }, [items, form.phone, form.governorate_code, tenantId, locale]);
+  }, [items, form.phone, form.governorate_code, form.customer_name, form.address_details, tenantId, locale]);
 
   // Pixel InitiateCheckout once the cart is on the checkout form (fires once).
   const initiateCheckoutFired = useRef(false);

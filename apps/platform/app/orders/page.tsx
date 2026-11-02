@@ -79,10 +79,6 @@ const AbandonedCartRecoveryStrip = dynamic(
     () => import("@/components/orders/abandoned-cart-recovery-strip").then(mod => ({ default: mod.AbandonedCartRecoveryStrip })),
     { ssr: false, loading: () => null }
 );
-const StoreCapturesPanel = dynamic(
-    () => import("@/components/orders/store-captures-panel").then(mod => ({ default: mod.StoreCapturesPanel })),
-    { ssr: false, loading: () => null }
-);
 import { useIsMobile } from "@/hooks/use-mobile";
 import { OrderPipeline } from "@/components/orders/order-pipeline";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1690,11 +1686,9 @@ export default function OrdersPage() {
                                         </div>
                                     )}
 
-                                    {/* Store-form phones (abandoned_carts) sit beside, never inside,
-                                        the pending_checkout rows: those rows, their statuses and their
-                                        counts stay exactly as they are. Abandoned tab only. */}
+                                    {/* How abandoned carts ended. Store-form captures reach this tab
+                                        as pending_checkout cards too (promote_abandoned_carts). */}
                                     {filters.status === "pending_checkout" && !showArchived && <AbandonedCartRecoveryStrip />}
-                                    {filters.status === "pending_checkout" && !showArchived && <StoreCapturesPanel />}
                                     {/* While searching, the list is a lookup across every date and status. */}
                                     {!showArchived && <OrderSearchBanner count={filteredOrders.length} />}
 

@@ -128,6 +128,22 @@ describe("with the opt-in (classic)", () => {
     });
   });
 
+  it("adds the name and address typed so far, trimmed, for the abandoned-checkout card", () => {
+    render(element({ show_capture_consent: true }));
+    typePhone();
+    fireEvent.change(q<HTMLInputElement>('input[autocomplete="name"]'), { target: { value: " علي " } });
+    fireEvent.change(q<HTMLInputElement>('[autocomplete="street-address"]'), { target: { value: "زيونة" } });
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
+    const [, init] = beacons().at(-1) as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      phone: "07701234567",
+      customer_name: "علي",
+      address: "زيونة",
+    });
+  });
+
   it("beacons nothing once the order is being placed", () => {
     render(element({ show_capture_consent: true }));
     typePhone();

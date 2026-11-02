@@ -11,7 +11,6 @@ import {
     DropdownMenuTrigger,
 } from "@scheniders/ui/dropdown-menu";
 import { useLanguage } from "@/hooks/use-language";
-import { useOpenStoreCapturesCount } from "@/hooks/use-open-store-captures";
 
 interface FilterState {
     status?: OrderStatus | "all" | "refunds" | "refunded" | "refund_pending" | "replacements";
@@ -91,12 +90,6 @@ export const StickyFilterBar = memo(function StickyFilterBar({
 }: StickyFilterBarProps) {
     const { t } = useLanguage();
     const [useStatusColors, setUseStatusColors] = useState(true);
-    // The Abandoned tab holds two kinds of abandoned cart: checkout orders
-    // parked as pending_checkout, and open store captures (phones typed on
-    // the store's order form) listed beside them by StoreCapturesPanel. Its
-    // chip counts both. Captures are a worklist, so every open one counts,
-    // whatever the date window, exactly as the panel lists them.
-    const { data: openCaptureCount = 0 } = useOpenStoreCapturesCount();
 
     // Contextual product sub-filters: show the most common products in the
     // current view as chips, with the long tail tucked into a "more" menu.
@@ -119,7 +112,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
         { id: "contacted", label: t("orders.status.contacted"), count: statusCounts.contacted || 0 },
         { id: "confirmed", label: t("orders.status.confirmed"), count: statusCounts.confirmed || 0 },
         { id: "in_transit", label: t("orders.status.inTransit"), count: statusCounts.in_transit || 0 },
-        { id: "pending_checkout", label: t("orders.status.pendingCheckout"), count: (statusCounts.pending_checkout || 0) + openCaptureCount },
+        { id: "pending_checkout", label: t("orders.status.pendingCheckout"), count: statusCounts.pending_checkout || 0 },
         { id: "delivered", label: t("orders.status.delivered"), count: statusCounts.delivered || 0 },
         { id: "completed", label: t("orders.status.completed"), count: statusCounts.completed || 0 },
         { id: "cancelled", label: t("orders.status.cancelled"), count: statusCounts.cancelled || 0 },
