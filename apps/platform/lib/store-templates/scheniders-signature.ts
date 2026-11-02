@@ -254,11 +254,11 @@ export const SCHENIDERS_FACTS: SignatureFacts = {
         ar: "جميع الحقوق محفوظة لمجموعة شركات شنايدر",
         en: "All rights reserved to the Scheniders group",
     },
-    // Live socials from the original footer (twitter/facebook icons
-    // existed there but pointed nowhere — omitted on purpose).
+    // Store's own accounts (Ali, 2026-11-02). Twitter/Facebook are
+    // omitted on purpose: the store has none.
     social_links: {
-        tiktok: "https://www.tiktok.com/@kawkab.brand",
-        instagram: "https://www.instagram.com/kawkab.brand/",
+        tiktok: "https://www.tiktok.com/@schneiders.iraq",
+        instagram: "https://www.instagram.com/schneider.iraq/",
     },
     newsletter: {
         copy_i18n: {
@@ -276,11 +276,8 @@ export const SCHENIDERS_FACTS: SignatureFacts = {
         },
     },
     contact_page_md_i18n: {
-        // Instagram matches the footer's actual linked account (the original
-        // site's contact page typed a different handle than its own footer
-        // links — self-consistency won).
-        ar: "## معلومات التواصل\n\nرقم الهاتف: [0777 970 3832](tel:+9647779703832)\n\nواتساب: [راسلنا على واتساب](https://wa.me/9647779703832)\n\nانستغرام: [@kawkab.brand](https://www.instagram.com/kawkab.brand/)\n\nالعنوان: العراق - بغداد - زيونة",
-        en: "## Contact information\n\nPhone: [0777 970 3832](tel:+9647779703832)\n\nWhatsApp: [Message us on WhatsApp](https://wa.me/9647779703832)\n\nInstagram: [@kawkab.brand](https://www.instagram.com/kawkab.brand/)\n\nAddress: Iraq - Baghdad - Zayouna",
+        ar: "## معلومات التواصل\n\nرقم الهاتف: [0777 970 3832](tel:+9647779703832)\n\nواتساب: [راسلنا على واتساب](https://wa.me/9647779703832)\n\nانستغرام: [@schneider.iraq](https://www.instagram.com/schneider.iraq/)\n\nالعنوان: العراق - بغداد - زيونة",
+        en: "## Contact information\n\nPhone: [0777 970 3832](tel:+9647779703832)\n\nWhatsApp: [Message us on WhatsApp](https://wa.me/9647779703832)\n\nInstagram: [@schneider.iraq](https://www.instagram.com/schneider.iraq/)\n\nAddress: Iraq - Baghdad - Zayouna",
     },
     policies: SCHENIDERS_POLICIES,
 };

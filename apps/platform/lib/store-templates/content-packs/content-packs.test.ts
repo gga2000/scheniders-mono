@@ -142,7 +142,7 @@ describe("content packs", () => {
         // Scheniders' brand, address, socials, delivery promise, free-tester
         // and return promises, and its real customers' words. None of it may
         // reach another merchant's store, whatever look and niche they pick.
-        const FOREIGN = ["شنايدر", "Scheniders", "Schnieder", "kawkab", "زيونة", "Zayouna", "تيستر", "tester", "Tester", "18 ساعة", "18 hours", "نورين", "Noreen"];
+        const FOREIGN = ["شنايدر", "Scheniders", "Schnieder", "schneider.iraq", "schneiders.iraq", "زيونة", "Zayouna", "تيستر", "tester", "Tester", "18 ساعة", "18 hours", "نورين", "Noreen"];
         const REVIEW_SECTIONS = new Set(["testimonial_cards", "testimonials_carousel"]);
 
         function leaksIn(cfg: object): string[] {
