@@ -19,6 +19,7 @@ import { useViewport } from "@/hooks/use-viewport";
 import { MobileDashboardPage } from "@/components/mobile/dashboard/MobileDashboardPage";
 import { DateRangeFilter } from "@/components/dashboard/widgets/date-range-filter";
 import { WidgetBoundary } from "@/components/dashboard/widget-boundary";
+import { StoreOverviewRow } from "@/components/dashboard/bento/store-overview-row";
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
@@ -246,6 +247,9 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* Store overview: today vs yesterday from the first-party storefront log, above everything else */}
+        <WidgetBoundary label="store-overview"><StoreOverviewRow /></WidgetBoundary>
 
         {/* S3-02c: store-less tenants get one visible route to the builder */}
         <BuildStoreBanner />
