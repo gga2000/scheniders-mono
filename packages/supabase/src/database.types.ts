@@ -9007,6 +9007,10 @@ export type Database = {
           waiting_ob: number
         }[]
       }
+      get_store_overview: {
+        Args: { _days?: number; _tenant_id: string }
+        Returns: Json
+      }
       get_user_tenant_ids: { Args: never; Returns: string[] }
       in_quiet_hours: {
         Args: { p_tenant_id: string; p_user_id: string }
