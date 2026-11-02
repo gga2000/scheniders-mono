@@ -49,7 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     // ── Fetch profile, role, and permissions ──
-    const fetchProfile = useCallback(async (userId: string) => {
+    // Resolves to the user's current tenant id (null when there is none or the
+    // profile could not be loaded).
+    const fetchProfile = useCallback(async (userId: string): Promise<string | null> => {
         try {
             const { data: profileData } = await supabase
                 .from('user_profiles')
@@ -64,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setPermissions([]);
                 setProfileMissing(true);
                 markProfileLoaded(true);
-                return;
+                return null;
             }
 
             const currentTenantId: string | null = profileData.current_tenant_id ?? null;
@@ -132,9 +134,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             markProfileLoaded(true);
             perfTrace.mark('auth:profile-loaded', { role: effectiveRole ?? 'none', perms: perms.length });
             diag.log(`[Auth] PROFILE_OK userId=${userId} role=${effectiveRole ?? 'none'} perms=${perms.length}`);
+            return currentTenantId;
         } catch (err) {
             diag.error(`[Auth] PROFILE_ERR userId=${userId}:`, err);
             markProfileLoaded(true);
+            return null;
         }
     }, []);
 
@@ -254,7 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
 
                     // Fetch profile in background
-                    fetchProfile(currentSession.user.id);
+                    const profileTenant = fetchProfile(currentSession.user.id);
 
                     // Activity logging on sign-in
                     if (event === 'SIGNED_IN') {
@@ -262,11 +266,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             last_login_at: new Date().toISOString()
                         }).eq('id', currentSession.user.id).then();
 
-                        activityLogger.log({
-                            action: "user.login",
-                            entityType: "user",
-                            entityId: currentSession.user.id,
-                        });
+                        // The log row needs the tenant, which is only known once the profile is in.
+                        void profileTenant.then((tenant) =>
+                            activityLogger.log({
+                                action: "user.login",
+                                entityType: "user",
+                                entityId: currentSession.user.id,
+                            }, tenant),
+                        );
                     }
                 } else if (event === 'SIGNED_OUT') {
                     clearSafety();

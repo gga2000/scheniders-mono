@@ -33,6 +33,13 @@ class ActivityLogger {
      */
     async log(params: LogActivityParams, tenantId?: string | null): Promise<{ success: boolean; error?: string }> {
         try {
+            // The activity_logs INSERT policy requires tenant_id to be one of the
+            // caller's tenants, so a write without one is always rejected. Say so
+            // here instead of sending a request that cannot succeed.
+            if (!tenantId) {
+                return { success: false, error: "No tenant context" };
+            }
+
             const { userId, userEmail } = await this.getCachedSession();
 
             // Skip logging if no user (can't satisfy NOT NULL constraint)
@@ -48,7 +55,7 @@ class ActivityLogger {
                 entity_id: params.entityId || null,
                 details: params.details || {},
                 user_agent: this.getUserAgent(),
-                tenant_id: tenantId ?? null,
+                tenant_id: tenantId,
             });
 
             if (error) {
