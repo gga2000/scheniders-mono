@@ -11,6 +11,8 @@ interface PrimaryResultCardProps {
     isPositive: boolean;
     description: string;
     delay?: number;
+    /** Shown instead of the amount formatted as IQD, for results that are not money (a rate). */
+    valueText?: string;
 }
 
 export function PrimaryResultCard({
@@ -20,6 +22,7 @@ export function PrimaryResultCard({
     isPositive,
     description,
     delay = 0.2,
+    valueText,
 }: PrimaryResultCardProps) {
     return (
         <motion.div
@@ -58,7 +61,7 @@ export function PrimaryResultCard({
                                 : "text-rose-600 dark:text-rose-400"
                         )}
                     >
-                        {formatIQD(Math.abs(amount))}
+                        {valueText ?? formatIQD(Math.abs(amount))}
                     </p>
                 </div>
             </div>
