@@ -198,7 +198,7 @@ function FullOrderCard(props: OrderCardProps) {
                                 compact === 1 ? "text-sm" : "text-base",
                                 order.is_return ? "text-rose-700 dark:text-rose-400" : "text-foreground dark:text-white"
                             )}>
-                                {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />)}
+                                {editable("customer_name", order.customer_name, <HighlightedText text={order.customer_name} query={localSearchQuery} />, undefined, true)}
                             </span>
 
                             {!riskLevel && isBlacklisted && (
