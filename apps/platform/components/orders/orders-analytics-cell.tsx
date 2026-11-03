@@ -16,6 +16,8 @@ interface CellProps {
     lowerIsBetter?: boolean;
     /** Quiet text beside the figure when there is no change to show: a second figure or the window it covers. */
     note?: ReactNode;
+    /** A smaller second figure under the headline (the IQD equivalent of a USD figure). */
+    sub?: ReactNode;
     testId: string;
 }
 
@@ -42,7 +44,7 @@ function Change({ value, unit, lowerIsBetter }: { value: number; unit: ChangeUni
 }
 
 /** One figure of the orders analytics bar: a small label, the number, and what changed (or a quiet note). */
-export function OrdersAnalyticsCell({ label, hint, value, change = null, changeUnit = "%", lowerIsBetter = false, note, testId }: CellProps) {
+export function OrdersAnalyticsCell({ label, hint, value, change = null, changeUnit = "%", lowerIsBetter = false, note, sub, testId }: CellProps) {
     const showChange = value !== null && change !== null && Math.abs(change) >= 0.05;
     return (
         <div className="flex-auto border-s border-white/10 px-3.5 py-1 first:border-s-0" title={hint} data-cell={testId}>
@@ -58,6 +60,11 @@ export function OrdersAnalyticsCell({ label, hint, value, change = null, changeU
                 {showChange ? <Change value={change} unit={changeUnit} lowerIsBetter={lowerIsBetter} /> : null}
                 {value !== null && note ? <span className="whitespace-nowrap text-[11px] text-stone-400">{note}</span> : null}
             </div>
+            {value !== null && sub ? (
+                <div className="whitespace-nowrap text-[11px] tabular-nums text-stone-400" data-sub={testId}>
+                    {sub}
+                </div>
+            ) : null}
         </div>
     );
 }

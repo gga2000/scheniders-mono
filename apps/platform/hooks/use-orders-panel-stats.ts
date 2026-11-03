@@ -51,23 +51,26 @@ function usePanelStats(window: PanelWindow | null, scope: BarScope, enabled: boo
     });
 }
 
-/** Meta spend (IQD) over a range, summed. Admin-only table: other roles get no rows. */
-async function fetchAdSpend(from: string | null, to: string | null): Promise<number> {
-    let total = 0;
+/** Meta spend over a range, summed in USD (what Meta bills) and IQD (at the rate saved per day). Admin-only table: other roles get no rows. */
+async function fetchAdSpend(from: string | null, to: string | null): Promise<{ usd: number; iqd: number }> {
+    const total = { usd: 0, iqd: 0 };
     for (let start = 0; ; start += PAGE) {
-        let query = supabase.from("ad_spend_daily").select("spend_iqd");
+        let query = supabase.from("ad_spend_daily").select("spend_usd, spend_iqd");
         if (from) query = query.gte("spend_date", from);
         if (to) query = query.lte("spend_date", to);
         const { data, error } = await query.range(start, start + PAGE - 1);
         if (error) throw new Error(error.message);
-        for (const row of data ?? []) total += Number(row.spend_iqd);
+        for (const row of data ?? []) {
+            total.usd += Number(row.spend_usd);
+            total.iqd += Number(row.spend_iqd);
+        }
         if ((data?.length ?? 0) < PAGE) return total;
     }
 }
 
 const billingSchema = z.object({
     success: z.literal(true),
-    billing: z.object({ owedIqd: z.number(), thresholdIqd: z.number().nullable(), leftIqd: z.number().nullable() }).nullable(),
+    billing: z.object({ owedUsd: z.number(), owedIqd: z.number(), leftUsd: z.number(), leftIqd: z.number() }).nullable(),
 });
 
 /** What the Meta account owes and how far it is from the next charge (IQD). Admin-only route. */
