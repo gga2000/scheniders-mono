@@ -1181,7 +1181,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
                 for (const variant of formData.variants) {
                     if (variant.id && existingVariantIds.has(variant.id)) {
-                        await updateVariant(variant.id, {
+                        await updateVariant(product.id, variant.id, {
                             name: variant.name,
                             price: variant.price,
                             ...(showCost &&
@@ -1234,7 +1234,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
                 // Delete removed variants
                 for (const removedId of existingVariantIds) {
-                    await deleteVariant(removedId);
+                    await deleteVariant(product.id, removedId);
                 }
 
                 // Save all related data

@@ -176,12 +176,16 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     const addVariant = (productId: string, data: VariantFormData): Promise<ProductVariant> =>
         addVariantMutation.mutateAsync({ productId, data });
 
-    const updateVariant = async (variantId: string, data: Omit<Partial<VariantFormData>, "stock_quantity">): Promise<void> => {
-        await updateVariantMutation.mutateAsync({ id: variantId, data });
+    const updateVariant = async (
+        productId: string,
+        variantId: string,
+        data: Omit<Partial<VariantFormData>, "stock_quantity">,
+    ): Promise<void> => {
+        await updateVariantMutation.mutateAsync({ productId, id: variantId, data });
     };
 
-    const deleteVariant = async (variantId: string): Promise<void> => {
-        await deleteVariantMutation.mutateAsync(variantId);
+    const deleteVariant = async (productId: string, variantId: string): Promise<void> => {
+        await deleteVariantMutation.mutateAsync({ productId, id: variantId });
     };
 
     const reorderProducts = async (updates: { id: string; display_order: number }[]): Promise<void> => {

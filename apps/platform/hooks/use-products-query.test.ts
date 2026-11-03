@@ -32,6 +32,12 @@ describe("refreshProductRows", () => {
         expect(invalidate).not.toHaveBeenCalled();
     });
 
+    it("puts a new product at the top of the list", async () => {
+        findOneForList.mockImplementation(async (_t, id) => row(id, 5));
+        await refreshProductRows(client, "t1", ["new"]);
+        expect(client.getQueryData<Product[]>(productKeys.list("t1"))?.map((p) => p.id)).toEqual(["new", "a", "b", "c"]);
+    });
+
     it("falls back to one full refetch when the row read fails or there are many rows", async () => {
         const invalidate = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
         findOneForList.mockRejectedValue(new Error("offline"));
