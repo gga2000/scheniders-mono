@@ -1,106 +1,173 @@
 /// <reference types="vitest/globals" />
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { describe, it, expect, afterEach, vi } from "vitest";
+import { render, cleanup, fireEvent } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { LanguageProvider } from "@/components/providers/language-provider";
-import { countOrderChips } from "@/lib/orders/order-chips";
+import type { PanelStats } from "@/lib/orders/analytics-strip";
 import { OrdersAnalyticsPanel } from "./orders-analytics-panel";
 
-afterEach(cleanup);
+const reveal = vi.hoisted(() => ({ value: { revealed: true, canReveal: true, toggle: () => {} } }));
+vi.mock("@/components/providers/financial-visibility-provider", () => ({ useFinancialVisibility: () => reveal.value }));
+
+const periods = vi.hoisted(() => ({ asked: [] as string[] }));
+const hookResult = vi.hoisted(() => ({ value: null as unknown }));
+vi.mock("@/hooks/use-orders-panel-stats", () => ({
+    useOrdersPanelStats: (period: string) => {
+        periods.asked.push(period);
+        return hookResult.value;
+    },
+}));
+
+afterEach(() => {
+    cleanup();
+    periods.asked.length = 0;
+    reveal.value = { revealed: true, canReveal: true, toggle: () => {} };
+});
+
+const query = <T,>(data: T | undefined, isError = false) => ({ data, isError, refetch: vi.fn() });
+
+const stats = (over: Partial<PanelStats> = {}): PanelStats => ({
+    orders: 40,
+    revenue: 1_250_000,
+    delivered: 10,
+    cohort_realized: 9,
+    cohort_rejected: 1,
+    confirm_n: 30,
+    confirm_median_min: 5,
+    daily: [
+        { day: "2026-11-01", orders: 10, revenue: 100 },
+        { day: "2026-11-02", orders: 12, revenue: 200 },
+    ],
+    ...over,
+});
+
+function setHook(over: Record<string, unknown> = {}) {
+    hookResult.value = {
+        windows: { qualityIsWider: false },
+        current: query(stats()),
+        previous: query(stats({ orders: 20, revenue: 1_000_000 })),
+        qualityCurrent: query(stats()),
+        qualityPrevious: query(stats({ cohort_realized: 8, cohort_rejected: 2, confirm_median_min: 10 })),
+        store: { figures: null, hasTraffic: false },
+        ads: null,
+        ...over,
+    };
+}
 
 type Props = ComponentProps<typeof OrdersAnalyticsPanel>;
-
-const stats = {
-    conversionRate: 12.5,
-    velocityMetrics: { avgNewToConfirmed: "1h", avgConfirmedToDelivered: "2d" },
-    peakTime: "14:00",
-    todayRevenue: 100000,
-    todayOrders: 4,
-    averageOrderValue: 25000,
-    // RPC values that must NOT be what Needs Attention shows.
-    urgentOrders: 91,
-    noResponseOrders: 92,
-    returnPendingOrders: 93,
-} as unknown as Props["stats"];
-
-const statusCounts = { ...countOrderChips([]), new: 4, contacted: 5, confirmed: 6, in_transit: 7 };
 
 function renderPanel(props: Partial<Props> = {}) {
     render(
         <LanguageProvider>
             <OrdersAnalyticsPanel
-                analyticsLevel={2}
-                stats={stats}
-                statusCounts={statusCounts}
+                open
                 filters={{}}
                 setFilters={() => {}}
                 flaggedCount={3}
-                attentionCounts={{ urgent: 11, noResponse: 12, returnPending: 13 }}
+                attentionCounts={{ urgent: 11, noResponse: 12, returnPending: 0 }}
                 {...props}
             />
         </LanguageProvider>,
     );
 }
 
+const stat = (key: string) => document.querySelector(`[data-stat="${key}"]`)?.textContent;
 const attention = (key: string) => document.querySelector(`[data-attention="${key}"]`)?.textContent;
 
-describe("OrdersAnalyticsPanel Needs Attention", () => {
-    it("shows the list-derived attention counts, not the RPC stats", () => {
+describe("OrdersAnalyticsPanel strip", () => {
+    it("renders nothing while closed", () => {
+        setHook();
+        renderPanel({ open: false });
+        expect(document.querySelector("[data-testid=\"orders-analytics-strip\"]")).toBeNull();
+    });
+
+    it("shows the server figures", () => {
+        setHook();
+        renderPanel();
+        expect(stat("orders")).toBe("40");
+        expect(stat("delivery_rate")).toBe("90%");
+        expect(stat("confirm_speed")).toBe("\u200e5 د");
+        expect(stat("revenue")).toContain("1,250,000");
+    });
+
+    it("masks revenue, and its change, while financials are hidden", () => {
+        setHook();
+        reveal.value = { revealed: false, canReveal: true, toggle: () => {} };
+        renderPanel();
+        expect(stat("revenue")).toBe("••••••");
+        expect(document.querySelector("[data-cell=\"revenue\"]")?.textContent).not.toMatch(/%/);
+    });
+
+    it("shows a dash, not a made-up rate, when nothing has finished", () => {
+        setHook({ qualityCurrent: query(stats({ cohort_realized: 0, cohort_rejected: 0, confirm_median_min: null, confirm_n: 0 })) });
+        renderPanel();
+        expect(stat("delivery_rate")).toBe("—");
+        expect(stat("confirm_speed")).toBe("—");
+    });
+
+    it("keeps a skeleton, not a zero, while a figure loads", () => {
+        setHook({ current: query(undefined), qualityCurrent: query(undefined) });
+        renderPanel();
+        expect(stat("orders")).toBeUndefined();
+        expect(stat("delivery_rate")).toBeUndefined();
+    });
+
+    it("offers a retry when the numbers fail to load", () => {
+        const current = query(undefined, true);
+        setHook({ current });
+        renderPanel();
+        expect(document.querySelector("[data-stat=\"orders\"]")).toBeNull();
+        fireEvent.click(document.querySelector("[data-testid=\"orders-analytics-retry\"]") as HTMLElement);
+        expect(current.refetch).toHaveBeenCalled();
+    });
+
+    it("asks for the period the merchant picks", () => {
+        setHook();
+        renderPanel();
+        expect(periods.asked.at(-1)).toBe("today");
+        fireEvent.click(document.querySelector("[data-period=\"30\"]") as HTMLElement);
+        expect(periods.asked.at(-1)).toBe("30");
+    });
+
+    it("only draws the Meta and store cells when they apply", () => {
+        setHook();
+        renderPanel();
+        expect(document.querySelector("[data-cell=\"ad_spend\"]")).toBeNull();
+        expect(document.querySelector("[data-cell=\"visitors\"]")).toBeNull();
+        cleanup();
+        setHook({
+            ads: { spend: query(500_000) },
+            store: { figures: { current: { visitors: 300, conversion: 2.5 }, previous: { visitors: 200, conversion: 2 } }, hasTraffic: true },
+        });
+        renderPanel();
+        expect(stat("ad_spend")).toContain("500,000");
+        expect(stat("visitors")).toBe("300");
+    });
+});
+
+describe("OrdersAnalyticsPanel attention pills", () => {
+    it("lists only the non-zero counts", () => {
+        setHook();
         renderPanel();
         expect(attention("flagged")).toBe("3");
         expect(attention("urgent")).toBe("11");
         expect(attention("no_response")).toBe("12");
-        expect(attention("return_pending")).toBe("13");
+        expect(attention("return_pending")).toBeUndefined();
     });
 
-    it("renders every count as a dash while hidden", () => {
-        renderPanel({ countsHidden: true, flaggedCountHidden: true });
-        for (const key of ["flagged", "urgent", "no_response", "return_pending"]) expect(attention(key)).toBe("—");
-        const headline = [...document.querySelectorAll("h3")].map((h) => h.textContent);
-        expect(headline.filter((t) => t === "—")).toHaveLength(4);
-    });
-
-    it("keeps the flagged count when only the status counts are hidden", () => {
+    it("hides the status-derived pills while their list is not the one on screen", () => {
+        setHook();
         renderPanel({ countsHidden: true });
         expect(attention("flagged")).toBe("3");
-        expect(attention("urgent")).toBe("—");
-    });
-});
-
-const stat = (key: string) => document.querySelector(`[data-stat="${key}"]`)?.textContent;
-
-/**
- * While the All Orders preview is on screen the panel stays at the merchant's
- * level and only its figures wait: collapsing it to 0 and animating it back
- * open when the window landed moved every row of the list below it.
- */
-describe("OrdersAnalyticsPanel while its figures are not ready", () => {
-    it("keeps both rows open and shows every row-derived figure as a dash", () => {
-        renderPanel({ statsHidden: true, countsHidden: true, flaggedCountHidden: true });
-        for (const key of ["conversion", "confirm_speed", "delivery_speed", "peak_hour", "today_revenue", "today_orders", "average_order_value"]) {
-            expect(stat(key)).toBe("—");
-        }
-        // The level-2 row is still laid out: the panel keeps its height.
-        expect(attention("urgent")).toBe("—");
-        expect(document.body.textContent).not.toContain("12.5%");
-        expect(document.body.textContent).not.toContain("14:00");
+        expect(attention("urgent")).toBeUndefined();
     });
 
-    it("draws the conversion bar empty rather than at a guessed rate", () => {
-        renderPanel({ statsHidden: true });
-        const bar = document.querySelector<HTMLElement>("[data-stat-bar=\"conversion\"]");
-        expect(bar?.style.width).toBe("0%");
-    });
-
-    it("shows the figures once they are ready", () => {
-        renderPanel();
-        expect(stat("conversion")).toBe("12.5%");
-        expect(stat("confirm_speed")).toBe("1h");
-        expect(stat("delivery_speed")).toBe("2d");
-        expect(stat("peak_hour")).toBe("14:00");
-        expect(stat("today_orders")).toBe("4");
-        const bar = document.querySelector<HTMLElement>("[data-stat-bar=\"conversion\"]");
-        expect(bar?.style.width).toBe("12.5%");
+    it("applies the matching filter on click", () => {
+        setHook();
+        const setFilters = vi.fn();
+        renderPanel({ setFilters, filters: { city: "x" } as Props["filters"] });
+        fireEvent.click(document.querySelector("[data-attention=\"no_response\"]")?.parentElement as HTMLElement);
+        expect(setFilters).toHaveBeenCalledWith({ city: "x", status: "no_response" });
     });
 });

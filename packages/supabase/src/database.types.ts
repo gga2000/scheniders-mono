@@ -9007,6 +9007,10 @@ export type Database = {
           waiting_ob: number
         }[]
       }
+      get_orders_panel_stats: {
+        Args: { _from: string; _tenant_id: string; _to: string; _until_time?: string }
+        Returns: Json
+      }
       get_store_overview: {
         Args: { _days?: number; _tenant_id: string }
         Returns: Json
