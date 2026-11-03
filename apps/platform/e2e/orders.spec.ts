@@ -20,6 +20,9 @@ const STATUS_CONTACTED = "تم الاتصال";
 
 test.skip(!EMAIL || !PASSWORD, "E2E_EMAIL and E2E_PASSWORD are not set");
 test.use({ viewport: { width: 1440, height: 900 } });
+// Login, a search, a status change, a reload and a revert take ~30s on the live
+// site, the default per-test limit; give the flow room instead of flaking.
+test.setTimeout(120_000);
 
 async function login(page: Page): Promise<void> {
     await page.goto("/login");
@@ -37,11 +40,19 @@ async function findFixtureCard(page: Page) {
     return card;
 }
 
+/**
+ * Change the fixture's status through the card's menu. The list can re-render
+ * while the menu is open (live updates), which closes the menu under the click,
+ * so the whole open-pick-check step is retried until the new status shows.
+ */
 async function setStatus(page: Page, from: string, to: string): Promise<void> {
-    const card = await findFixtureCard(page);
-    await card.getByRole("button", { name: from, exact: true }).click();
-    await page.getByRole("menuitem", { name: to, exact: true }).click();
-    await expect(card.getByRole("button", { name: to, exact: true })).toBeVisible();
+    await expect(async () => {
+        const card = await findFixtureCard(page);
+        if (await card.getByRole("button", { name: to, exact: true }).isVisible()) return;
+        await card.getByRole("button", { name: from, exact: true }).click({ timeout: 5_000 });
+        await page.getByRole("menuitem", { name: to, exact: true }).click({ timeout: 5_000 });
+        await expect(card.getByRole("button", { name: to, exact: true })).toBeVisible({ timeout: 10_000 });
+    }).toPass({ timeout: 45_000 });
 }
 
 test.describe("Orders page", () => {
