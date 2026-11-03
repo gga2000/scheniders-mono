@@ -5,10 +5,12 @@ import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
 import type { UserRole } from "@/lib/permissions";
 
 export function InviteUserModal({ onClose, onUserCreated }: { onClose: () => void; onUserCreated: () => void; }) {
     const { tenantId } = useAuth();
+    const { t } = useLanguage();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [displayName, setDisplayName] = useState("");
@@ -41,13 +43,13 @@ export function InviteUserModal({ onClose, onUserCreated }: { onClose: () => voi
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || "Failed to create user");
+                throw new Error(result.error || t("team.invite.fail"));
             }
 
             onUserCreated();
         } catch (err) {
             console.error("Error creating user:", err);
-            setError(err instanceof Error ? err.message : "Failed to create user");
+            setError(err instanceof Error ? err.message : t("team.invite.fail"));
         } finally {
             setLoading(false);
         }
@@ -61,29 +63,29 @@ export function InviteUserModal({ onClose, onUserCreated }: { onClose: () => voi
                 className="bg-background border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl relative"
             >
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold">Invite User</h2>
+                    <h2 className="text-xl font-bold">{t("team.invite.title")}</h2>
                     <button onClick={onClose}><X className="w-5 h-5" /></button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="text-sm font-medium">Email</label>
+                        <label className="text-sm font-medium">{t("team.invite.email")}</label>
                         <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full h-10 px-3 border rounded-lg" required />
                     </div>
                     <div>
-                        <label className="text-sm font-medium">Password</label>
+                        <label className="text-sm font-medium">{t("team.invite.password")}</label>
                         <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full h-10 px-3 border rounded-lg" required minLength={8} maxLength={72} />
                     </div>
                     <div>
-                        <label className="text-sm font-medium">Name</label>
+                        <label className="text-sm font-medium">{t("team.invite.name")}</label>
                         <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full h-10 px-3 border rounded-lg" />
                     </div>
                     <div>
-                        <label className="text-sm font-medium">Role</label>
+                        <label className="text-sm font-medium">{t("team.invite.role")}</label>
                         <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="w-full h-10 px-3 border rounded-lg">
-                            <option value="employee">Employee</option>
-                            <option value="viewer">Viewer</option>
-                            <option value="admin">Admin</option>
+                            <option value="employee">{t("team.role.employee")}</option>
+                            <option value="viewer">{t("team.role.viewer")}</option>
+                            <option value="admin">{t("team.role.admin")}</option>
                         </select>
                     </div>
                     {error && (
@@ -92,7 +94,7 @@ export function InviteUserModal({ onClose, onUserCreated }: { onClose: () => voi
                         </p>
                     )}
                     <button className="w-full bg-primary text-primary-foreground py-2 rounded-lg" disabled={loading}>
-                        {loading ? "Creating..." : "Create User"}
+                        {loading ? t("team.invite.creating") : t("team.invite.create")}
                     </button>
                 </form>
             </motion.div>

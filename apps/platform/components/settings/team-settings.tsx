@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
 import { UserRole, isAdminRole, PERMISSION_CATEGORIES } from "@/lib/permissions";
 import { activityLogger, ActivityLogEntry } from "@/lib/activity-logger";
 import { toast } from "@/hooks/use-toast";
@@ -31,6 +32,7 @@ import { ROLE_CONFIG, UserProfile, formatActivityDescription, formatRelativeTime
 
 export function TeamSettings() {
     const { role: currentRole, tenantId } = useAuth();
+    const { t } = useLanguage();
     const isAdmin = isAdminRole(currentRole);
 
     const [users, setUsers] = useState<UserProfile[]>([]);
@@ -79,11 +81,11 @@ export function TeamSettings() {
             setActionsToday(today.count);
         } catch (err) {
             console.error("Error fetching global logs:", err);
-            toast.error("Could not load the activity feed.");
+            toast.error(t("team.err.feed"));
         } finally {
             setLoadingGlobalLogs(false);
         }
-    }, [isAdmin, tenantId]);
+    }, [isAdmin, tenantId, t]);
 
     useEffect(() => {
         fetchDbPermissions();
@@ -91,7 +93,7 @@ export function TeamSettings() {
 
     useEffect(() => {
         fetchGlobalLogs();
-    }, [isAdmin, tenantId, fetchGlobalLogs]);
+    }, [fetchGlobalLogs]);
 
     // Toggle Permission (Global Role Matrix)
     const togglePermission = async (role: string, permission: string, checked: boolean) => {
@@ -106,12 +108,12 @@ export function TeamSettings() {
             const { data: { session } } = await supabase.auth.getSession();
             const { success, error } = await toggleRolePermissionAction(role, permission, checked, session?.access_token ?? "");
             if (!success) {
-                toast.error(error || "Failed to update role permission");
+                toast.error(error || t("team.err.rolePermission"));
                 fetchDbPermissions(); // Sync back on error
             }
         } catch (err) {
             console.error("Error toggling permission:", err);
-            toast.error("Failed to communicate with server");
+            toast.error(t("team.err.server"));
             fetchDbPermissions(); // Sync back
         }
     };
@@ -167,7 +169,7 @@ export function TeamSettings() {
             setUsers(prev => prev.map(u => (u.id === userId ? { ...u, is_active: !isActive } : u)));
         } catch (err) {
             console.error("Error toggling status:", err);
-            toast.error("Failed to change the user's status");
+            toast.error(t("team.err.status"));
         }
     };
 
@@ -188,9 +190,9 @@ export function TeamSettings() {
                 <div>
                     <h2 className="text-2xl font-bold flex items-center gap-2">
                         <Users className="w-6 h-6 text-primary" />
-                        Team & Permissions
+                        {t("team.title")}
                     </h2>
-                    <p className="text-muted-foreground">Manage user access and roles</p>
+                    <p className="text-muted-foreground">{t("team.subtitle")}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
@@ -203,14 +205,14 @@ export function TeamSettings() {
                         )}
                     >
                         <ShieldAlert className="w-4 h-4" />
-                        <span>Permissions Matrix</span>
+                        <span>{t("team.permissionsMatrix")}</span>
                     </button>
                     <button
                         onClick={() => setShowInviteModal(true)} // Invite Modal logic not duplicated here for brevity but assumed present
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
                     >
                         <UserPlus className="w-4 h-4" />
-                        <span>Add member</span>
+                        <span>{t("team.addMember")}</span>
                     </button>
                 </div>
             </div>
@@ -225,7 +227,7 @@ export function TeamSettings() {
                             </div>
                             <div>
                                 <p className="text-2xl font-bold">{users.length}</p>
-                                <p className="text-xs text-muted-foreground">Total Users</p>
+                                <p className="text-xs text-muted-foreground">{t("team.stat.total")}</p>
                             </div>
                         </div>
                     </div>
@@ -238,7 +240,7 @@ export function TeamSettings() {
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-emerald-600">{onlineUsers}</p>
-                                <p className="text-xs text-muted-foreground">Online Now</p>
+                                <p className="text-xs text-muted-foreground">{t("team.stat.online")}</p>
                             </div>
                         </div>
                     </div>
@@ -249,7 +251,7 @@ export function TeamSettings() {
                             </div>
                             <div>
                                 <p className="text-2xl font-bold">{activeUsers}</p>
-                                <p className="text-xs text-muted-foreground">Active Accounts</p>
+                                <p className="text-xs text-muted-foreground">{t("team.stat.active")}</p>
                             </div>
                         </div>
                     </div>
@@ -260,7 +262,7 @@ export function TeamSettings() {
                             </div>
                             <div>
                                 <p className="text-2xl font-bold">{actionsToday}</p>
-                                <p className="text-xs text-muted-foreground">Actions Today</p>
+                                <p className="text-xs text-muted-foreground">{t("team.stat.actions")}</p>
                             </div>
                         </div>
                     </div>
@@ -277,7 +279,7 @@ export function TeamSettings() {
                         className="overflow-hidden"
                     >
                         <div className="bg-card/50 border border-border rounded-xl p-6 mb-6">
-                            <h3 className="font-semibold mb-4">Role Permission Access</h3>
+                            <h3 className="font-semibold mb-4">{t("team.matrix.title")}</h3>
                             <div className="grid gap-6">
                                 {PERMISSION_CATEGORIES.map((section) => (
                                     <div key={section.category}>
@@ -288,10 +290,10 @@ export function TeamSettings() {
                                             <table className="w-full text-sm">
                                                 <thead>
                                                     <tr className="bg-muted/50 border-b border-border">
-                                                        <th className="p-3 text-left font-medium">Action</th>
-                                                        <th className="p-3 text-center w-24">Admin</th>
-                                                        <th className="p-3 text-center w-24">Employee</th>
-                                                        <th className="p-3 text-center w-24">Viewer</th>
+                                                        <th className="p-3 text-left font-medium">{t("team.matrix.action")}</th>
+                                                        <th className="p-3 text-center w-24">{t("team.role.admin")}</th>
+                                                        <th className="p-3 text-center w-24">{t("team.role.employee")}</th>
+                                                        <th className="p-3 text-center w-24">{t("team.role.viewer")}</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-border">
@@ -340,7 +342,7 @@ export function TeamSettings() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by name or email"
+                        placeholder={t("team.search")}
                         className="w-full h-10 pl-9 pr-3 rounded-xl bg-background border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-sm"
                     />
                 </div>
@@ -349,10 +351,10 @@ export function TeamSettings() {
                         <table className="w-full">
                             <thead className="bg-muted/50 border-b border-border">
                                 <tr>
-                                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">User</th>
-                                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">Role</th>
-                                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">Status</th>
-                                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase">Actions</th>
+                                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">{t("team.col.user")}</th>
+                                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">{t("team.col.role")}</th>
+                                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground uppercase">{t("team.col.status")}</th>
+                                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground uppercase">{t("team.col.actions")}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -366,7 +368,7 @@ export function TeamSettings() {
                                 {!loading && filteredUsers.length === 0 && (
                                     <tr>
                                         <td colSpan={4} className="p-8 text-center text-sm text-muted-foreground">
-                                            {users.length === 0 ? "No team members yet." : "No member matches your search."}
+                                            {users.length === 0 ? t("team.empty.none") : t("team.empty.search")}
                                         </td>
                                     </tr>
                                 )}
@@ -395,7 +397,7 @@ export function TeamSettings() {
                                                         <p className="text-xs text-muted-foreground">{user.email}</p>
                                                         {user.last_login_at && (
                                                             <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                                                                Active: {new Date(user.last_login_at).toLocaleString()}
+                                                                {t("team.lastActive", { date: new Date(user.last_login_at).toLocaleString() })}
                                                             </p>
                                                         )}
                                                     </div>
@@ -407,13 +409,13 @@ export function TeamSettings() {
                                                 "px-2.5 py-1 rounded-lg text-xs font-medium border",
                                                 ROLE_CONFIG[user.role].color
                                             )}>
-                                                {ROLE_CONFIG[user.role].label}
+                                                {t(`team.role.${user.role}`)}
                                             </span>
                                         </td>
                                         <td className="p-4">
                                             <button
                                                 onClick={() => toggleUserStatus(user.id, user.is_active)}
-                                                title={user.is_active ? "Click to deactivate this account" : "Click to reactivate this account"}
+                                                title={user.is_active ? t("team.status.deactivateHint") : t("team.status.reactivateHint")}
                                                 className={cn(
                                                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
                                                     user.is_active
@@ -421,7 +423,7 @@ export function TeamSettings() {
                                                         : "bg-rose-50 text-rose-700 ring-1 ring-rose-600/20"
                                                 )}
                                             >
-                                                {user.is_active ? <>Active</> : <>Inactive</>}
+                                                {user.is_active ? t("team.status.active") : t("team.status.inactive")}
                                             </button>
                                         </td>
                                         <td className="p-4 text-right">
@@ -429,7 +431,7 @@ export function TeamSettings() {
                                                 onClick={() => setEditingUser(user)}
                                                 className="px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-xs font-medium transition-colors"
                                             >
-                                                Edit / Manage
+                                                {t("team.manage")}
                                             </button>
                                         </td>
                                     </tr>
@@ -446,12 +448,12 @@ export function TeamSettings() {
                     <div className="p-4 border-b border-border flex items-center justify-between">
                         <h3 className="font-semibold flex items-center gap-2">
                             <Activity className="w-4 h-4 text-primary" />
-                            Live Activity Feed
+                            {t("team.feed.title")}
                         </h3>
                         <button
                             onClick={fetchGlobalLogs}
                             className="p-1.5 hover:bg-muted rounded-lg transition-colors"
-                            title="Refresh"
+                            title={t("team.refresh")}
                         >
                             <RefreshCw className={cn("w-4 h-4 text-muted-foreground", loadingGlobalLogs && "animate-spin")} />
                         </button>
@@ -463,12 +465,12 @@ export function TeamSettings() {
                             </div>
                         ) : globalLogs.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground text-sm">
-                                No activity recorded yet
+                                {t("team.feed.empty")}
                             </div>
                         ) : (
                             <div className="divide-y divide-border">
                                 {globalLogs.map((log) => {
-                                    const { icon, title, description } = formatActivityDescription(log);
+                                    const { icon, title, description } = formatActivityDescription(log, t);
                                     return (
                                         <div key={log.id} className="flex items-start gap-3 p-4 hover:bg-muted/50 transition-colors">
                                             <div className="p-2 rounded-lg bg-muted shrink-0">
@@ -478,7 +480,7 @@ export function TeamSettings() {
                                                 <div className="flex items-center justify-between gap-2">
                                                     <p className="font-medium text-sm text-foreground truncate">{title}</p>
                                                     <span className="text-[10px] text-muted-foreground shrink-0">
-                                                        {formatRelativeTime(log.created_at)}
+                                                        {formatRelativeTime(log.created_at, t)}
                                                     </span>
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-1">

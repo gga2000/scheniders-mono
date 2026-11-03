@@ -5,12 +5,14 @@
 // label table in lib/order-status-labels rather than typed out here, where they
 // had drifted into two spellings that said different things.
 import { orderStatusTranslations } from "@/lib/order-status-labels";
+import { teamTranslations } from "@/lib/i18n-team";
 
 export type Locale = "en" | "ar";
 
 export const translations: Record<Locale, Record<string, string>> = {
     en: {
         ...orderStatusTranslations("en"),
+        ...teamTranslations("en"),
         // ── Navigation ──
         "nav.dashboard": "Dashboard",
         "nav.orders": "Orders",
@@ -6249,6 +6251,7 @@ export const translations: Record<Locale, Record<string, string>> = {
 
     ar: {
         ...orderStatusTranslations("ar"),
+        ...teamTranslations("ar"),
         // ── Navigation ──
         "nav.dashboard": "لوحة التحكم",
         "nav.orders": "الطلبات",
