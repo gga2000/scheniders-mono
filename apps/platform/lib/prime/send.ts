@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { COURIER_SHEET_COLUMNS, type CourierSheetOrder } from "@/lib/shipping/courier-sheets";
 import { isPrimeUnreachable, type PrimeClient } from "@/lib/prime/client";
-import { buildPrimeShipment, type PrimeMerchant, type PrimeSkipReason } from "@/lib/prime/shipment-payload";
+import { buildPrimeShipment, primeShipmentHash, primeUpdateFields, type PrimeMerchant, type PrimeSkipReason } from "@/lib/prime/shipment-payload";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -52,21 +52,27 @@ export async function sendOrdersToPrime(
 
     const [ordersRes, existingRes] = await Promise.all([
         db.from("orders").select(`${COURIER_SHEET_COLUMNS}, status`).eq("tenant_id", tenantId).in("id", orderIds),
-        db.from("prime_shipments").select("order_id, case_id, shipment_status").eq("tenant_id", tenantId).in("order_id", orderIds),
+        db.from("prime_shipments").select("order_id, case_id, shipment_status, cancelled_at").eq("tenant_id", tenantId).in("order_id", orderIds),
     ]);
     if (ordersRes.error) throw new Error(ordersRes.error.message);
     if (existingRes.error) throw new Error(existingRes.error.message);
 
     const orders = new Map((ordersRes.data as unknown as SendableOrder[]).map((o) => [o.id, o]));
     const existing = new Map(
-        existingRes.data.map((r) => [r.order_id as string, { caseId: Number(r.case_id), status: (r.shipment_status as string | null) ?? null }]),
+        existingRes.data.map((r) => [
+            r.order_id as string,
+            { caseId: Number(r.case_id), status: (r.shipment_status as string | null) ?? null, cancelled: r.cancelled_at != null },
+        ]),
     );
 
     const toSend: SendableOrder[] = [];
     for (const id of orderIds) {
         const order = orders.get(id);
         const sent = existing.get(id);
-        if (sent && sent.status && CLOSED_STATUSES.has(sent.status)) {
+        if (sent?.cancelled) {
+            // The order was cancelled and Prime deleted the case; re-shipping it is a new hand-off a person makes.
+            outcome.failed.push({ orderId: id, reason: "prime_closed", message: `Prime case ${sent.caseId} was deleted when the order was cancelled` });
+        } else if (sent && sent.status && CLOSED_STATUSES.has(sent.status)) {
             outcome.failed.push({ orderId: id, reason: "prime_closed", message: `Prime case ${sent.caseId} is ${sent.status}` });
         } else if (sent) outcome.sent.push({ orderId: id, caseId: sent.caseId });
         else if (!order) outcome.failed.push({ orderId: id, reason: "not_found" });
@@ -130,6 +136,8 @@ async function sendOne(
         receipt_no: built.payload.custReceiptNoOri,
         case_id: caseId,
         shipment_status: "ONWAY",
+        // What Prime now holds, so a later edit that changes nothing Prime sees is not sent.
+        pushed_hash: primeShipmentHash(primeUpdateFields(built.payload)),
     });
     if (!error) {
         outcome.sent.push({ orderId: order.id, caseId });

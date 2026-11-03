@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { toOmsGovernorateCode } from "@scheniders/shared/governorates";
 import { computeCodAmount } from "@/lib/order-money";
 import { labelReceiptNumber } from "@/lib/dispatch-label";
@@ -9,7 +10,7 @@ import {
     totalQuantity,
     type CourierSheetOrder,
 } from "@/lib/shipping/courier-sheets";
-import { PRIME_LIMITS, type PrimeShipmentPayload } from "@/lib/prime/client";
+import { PRIME_LIMITS, type PrimeShipmentPayload, type PrimeShipmentUpdate } from "@/lib/prime/client";
 
 /** The Prime merchant + shop a tenant ships as (prime_connections). */
 export interface PrimeMerchant {
@@ -108,4 +109,31 @@ export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerc
             haveReturnItems: "N",
         },
     };
+}
+
+/**
+ * The shipment as update-shipment takes it: every field it replaces, in a
+ * fixed order (the hash below depends on it). The receipt number and our ids
+ * are not editable at Prime and stay out.
+ */
+export function primeUpdateFields(payload: PrimeShipmentPayload): PrimeShipmentUpdate {
+    return {
+        senderId: payload.senderId,
+        receiverName: payload.receiverName,
+        receiverHp1: payload.receiverHp1,
+        ...(payload.receiverHp2 ? { receiverHp2: payload.receiverHp2 } : {}),
+        state: payload.state,
+        locationDetails: payload.locationDetails,
+        receiptAmtIqd: payload.receiptAmtIqd,
+        ...(payload.undeclaredShipmentValue !== undefined ? { undeclaredShipmentValue: payload.undeclaredShipmentValue } : {}),
+        qty: payload.qty,
+        productInfo: payload.productInfo,
+        rmk: payload.rmk,
+        haveReturnItems: payload.haveReturnItems,
+    };
+}
+
+/** What Prime holds for a shipment, as a short fingerprint: equal fingerprints need no update call. */
+export function primeShipmentHash(fields: PrimeShipmentUpdate): string {
+    return createHash("sha256").update(JSON.stringify(fields)).digest("hex").slice(0, 32);
 }

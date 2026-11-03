@@ -198,3 +198,74 @@ describe("createPrimeClient", () => {
         }
     });
 });
+
+describe("edits, deletions and resends", () => {
+    const signedIn = (...answers: Response[]) => {
+        const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }));
+        for (const a of answers) fetchImpl.mockResolvedValueOnce(a);
+        return fetchImpl;
+    };
+    const fields = {
+        senderId: 1, receiverName: "A", receiverHp1: "07701234567", state: "BGD", locationDetails: "x",
+        receiptAmtIqd: 1000, qty: 1, productInfo: "p", rmk: "", haveReturnItems: "N" as const,
+    };
+
+    it("updates with PUT and the full set of fields beside the case id", async () => {
+        const fetchImpl = signedIn(json(200, 52176693));
+        await createPrimeClient(config, fetchImpl).updateShipment(52176693, fields);
+        const [url, init] = fetchImpl.mock.calls[1];
+        expect(url).toBe("https://prime.test/myp/webapi/external/update-shipment");
+        expect(init?.method).toBe("PUT");
+        expect(JSON.parse(String(init?.body))).toEqual({ caseid: 52176693, ...fields });
+    });
+
+    it("a refused edit keeps Prime's code (5 = the step no longer allows edits)", async () => {
+        const fetchImpl = signedIn(json(422, { errorCode: 5, errorMessage: "حالة الشحنة أو خطوتها لا تسمح بالتعديل", errorType: "VALIDATION" }));
+        const err = await createPrimeClient(config, fetchImpl).updateShipment(1, fields).catch((e: unknown) => e);
+        expect(err).toMatchObject({ status: 422, code: 5 });
+        expect(isPrimeUnreachable(err)).toBe(false);
+    });
+
+    it("deletes with DELETE {caseid}; Prime's 'not found' and 'already received' keep their codes", async () => {
+        const fetchImpl = signedIn(json(200, true), json(422, { errorCode: 4005, errorMessage: "لم يتم إيجاد الشحنة" }), json(422, { errorCode: "12", errorMessage: "استلمتها الشركة" }));
+        const client = createPrimeClient(config, fetchImpl);
+        await client.deleteShipment(9);
+        const [url, init] = fetchImpl.mock.calls[1];
+        expect(url).toBe("https://prime.test/myp/webapi/external/delete-shipment");
+        expect(init?.method).toBe("DELETE");
+        expect(JSON.parse(String(init?.body))).toEqual({ caseid: 9 });
+        await expect(client.deleteShipment(9)).rejects.toMatchObject({ code: 4005 });
+        // A code sent as a string is still read as the number.
+        await expect(client.deleteShipment(9)).rejects.toMatchObject({ code: 12 });
+    });
+
+    it("a delete Prime answers with false is not taken as done", async () => {
+        const fetchImpl = signedIn(json(200, false));
+        await expect(createPrimeClient(config, fetchImpl).deleteShipment(9)).rejects.toBeInstanceOf(PrimeApiError);
+    });
+
+    it("asks for a resend with the fixes as Prime's column names, leaving out empty values", async () => {
+        const fetchImpl = signedIn(json(200, { success: true, caseid: 7, custReceiptNoOri: "1001", resendRequestStatus: "NEW" }));
+        await createPrimeClient(config, fetchImpl).requestResend(
+            7,
+            [{ column: "c_rcv_hp1", value: "07701234567" }, { column: "c_rmk", value: "" }],
+            "  evening please ",
+        );
+        const [url, init] = fetchImpl.mock.calls[1];
+        expect(url).toBe("https://prime.test/myp/webapi/external/update-case-status");
+        expect(JSON.parse(String(init?.body))).toEqual({
+            caseid: 7,
+            action: "REQUEST_RESEND",
+            resendRmk: "evening please",
+            snagPossibleFixes: [{ fieldsToChange: [{ p_casesFieldName: "c_rcv_hp1", value: "07701234567" }] }],
+        });
+    });
+
+    it("a refused resend ({success:false, errorMessage}, no code) is a refusal with Prime's words", async () => {
+        const fetchImpl = signedIn(json(422, { success: false, errorMessage: "لم يتم إيجاد الشحنة" }));
+        const err = await createPrimeClient(config, fetchImpl).requestResend(1, []).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(PrimeApiError);
+        expect(err).toMatchObject({ message: "لم يتم إيجاد الشحنة", status: 422 });
+        expect(isPrimeUnreachable(err)).toBe(false);
+    });
+});

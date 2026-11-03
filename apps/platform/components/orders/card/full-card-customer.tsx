@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import { PriorityBadge } from "./priority-badge";
 import { SourceBadge } from "./source-badge";
 import { StuckTransitBadge } from "./stuck-transit-badge";
+import { PrimeChip } from "./prime-chip";
 import { DeliverySlotChip } from "./delivery-slot-chip";
 import { GiftChip } from "./gift-chip";
 import { PaymentCheckButton } from "./payment-check-button";
@@ -255,6 +256,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                     </CardStatusMenu>
 
                     <StuckTransitBadge order={order} />
+                    <PrimeChip order={order} />
                     {onToggleReviewed && <PaymentCheckButton order={order} onToggle={onToggleReviewed} />}
 
                     {/* Delivery Company Badge */}
