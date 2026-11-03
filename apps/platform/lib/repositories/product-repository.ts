@@ -90,27 +90,22 @@ function costMaps(rows: ProductCostRow[]) {
     return { productCost, variantCost };
 }
 
-/**
- * A bulk write names its rows in the URL (`id=in.(...)`), and a thousand uuids
- * is a ~37 KB URL the API refuses. Run in chunks; each chunk is one statement.
- */
-const BULK_ID_CHUNK = 100;
-
 /** Rows of per-product history the editor loads (newest first). */
 const HISTORY_LIMIT = 300;
 
-async function inChunks(
+/**
+ * Bulk archive / restore / show / hide / move in one database statement, so a
+ * failure never leaves half the selection changed. The ids travel in the POST
+ * body, not the URL, so a large selection needs no chunking.
+ */
+async function setProductFields(
     op: string,
     ids: string[],
-    run: (chunk: string[]) => PromiseLike<{ data: { id: string }[] | null; error: { message: string } | null }>,
+    fields: { is_archived?: boolean; is_visible?: boolean; category_id?: string | null },
 ): Promise<void> {
-    let changed = 0;
-    for (let i = 0; i < ids.length; i += BULK_ID_CHUNK) {
-        const { data, error } = await run(ids.slice(i, i + BULK_ID_CHUNK));
-        if (error) throw error;
-        changed += data?.length ?? 0;
-    }
-    if (changed < ids.length) throw new ProductWriteDeniedError(op);
+    const { error } = await supabase.rpc("bulk_set_product_fields", { p_ids: ids, p_fields: fields });
+    if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError(op);
+    if (error) throw error;
 }
 
 /**
@@ -436,68 +431,40 @@ export const productRepository = {
         }, WRITE_ONCE);
     },
 
-    /** Bulk-archive multiple products. */
+    /** Bulk-archive multiple products. All or nothing: one statement for the whole selection. */
     async bulkArchive(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkArchive', async () => {
-            await inChunks("productRepository.bulkArchive", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .update({ is_archived: true })
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            await setProductFields("productRepository.bulkArchive", ids, { is_archived: true });
         });
     },
 
-    /** Bulk-restore multiple archived products. */
+    /** Bulk-restore multiple archived products. All or nothing: one statement for the whole selection. */
     async bulkRestore(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkRestore', async () => {
-            await inChunks("productRepository.bulkRestore", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .update({ is_archived: false })
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            await setProductFields("productRepository.bulkRestore", ids, { is_archived: false });
         });
     },
 
-    /** Bulk-delete multiple products permanently. */
+    /** Bulk-delete multiple products permanently. All or nothing. */
     async bulkDelete(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkDelete', async () => {
-            await inChunks("productRepository.bulkDelete", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .delete()
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            const { error } = await supabase.rpc("bulk_delete_products", { p_ids: ids });
+            if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError("productRepository.bulkDelete");
+            if (error) throw error;
         }, WRITE_ONCE);
     },
 
-    /** Bulk-update storefront visibility for multiple products. */
+    /** Bulk-update storefront visibility for multiple products. All or nothing: one statement for the whole selection. */
     async bulkUpdateVisibility(ids: string[], isVisible: boolean): Promise<void> {
         return withRetry('productRepository.bulkUpdateVisibility', async () => {
-            await inChunks("productRepository.bulkUpdateVisibility", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .update({ is_visible: isVisible })
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            await setProductFields("productRepository.bulkUpdateVisibility", ids, { is_visible: isVisible });
         });
     },
 
-    /** Bulk-update category for multiple products. Pass null to clear category. */
+    /** Bulk-update category for multiple products. Pass null to clear category. All or nothing: one statement for the whole selection. */
     async bulkUpdateCategory(ids: string[], categoryId: string | null): Promise<void> {
         return withRetry('productRepository.bulkUpdateCategory', async () => {
-            await inChunks("productRepository.bulkUpdateCategory", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .update({ category_id: categoryId })
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            await setProductFields("productRepository.bulkUpdateCategory", ids, { category_id: categoryId });
         });
     },
 
