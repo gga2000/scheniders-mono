@@ -57,15 +57,43 @@ export function withPrimeAttention(current: readonly string[] | null | undefined
 }
 
 /**
- * The order's attention after Prime delivered it: earlier Prime flags (a
- * return that was re-delivered, say) are dropped, everyone else's stay.
- * Null when the order carried no Prime flag, so nothing needs writing.
+ * Raised by the link itself when Prime would not take a change staff made:
+ *  - edit refused: Prime kept the old details (its step no longer allows
+ *    edits, or the order now holds a value Prime cannot take). Cleared once
+ *    Prime holds the order's details again, or the order closes.
+ *  - cancel by hand: the order was cancelled but Prime already has the
+ *    parcel. Cleared once Prime closes the case (returned, cancelled or
+ *    delivered) or the order is reopened.
  */
-export function clearPrimeAttention(
-    current: readonly string[] | null | undefined,
-): { needs_attention: boolean; attention_reasons: string[] } | null {
+export const PRIME_EDIT_REFUSED = "delivery_prime_edit_refused";
+export const PRIME_CANCEL_BY_HAND = "delivery_prime_cancel_by_hand";
+
+/** Prime flags that have done their job once the order is delivered or closed. */
+export const PRIME_SETTLED_REASONS: readonly string[] = [...PRIME_ATTENTION_REASONS, PRIME_EDIT_REFUSED];
+
+type AttentionPatch = { needs_attention: boolean; attention_reasons: string[] };
+
+/** The order's attention with `reason` added; null when it already carries it. */
+export function withAttention(current: readonly string[] | null | undefined, reason: string): AttentionPatch | null {
     const reasons = current ?? [];
-    const others = reasons.filter((r) => !(PRIME_ATTENTION_REASONS as readonly string[]).includes(r));
+    if (reasons.includes(reason)) return null;
+    return { needs_attention: true, attention_reasons: [...reasons, reason] };
+}
+
+/** The order's attention without `drop`, everyone else's kept; null when it carried none of them. */
+export function withoutAttention(current: readonly string[] | null | undefined, drop: readonly string[]): AttentionPatch | null {
+    const reasons = current ?? [];
+    const others = reasons.filter((r) => !drop.includes(r));
     if (others.length === reasons.length) return null;
     return { needs_attention: others.length > 0, attention_reasons: others };
+}
+
+/**
+ * The order's attention after Prime delivered it, or after a person closed
+ * it: earlier Prime flags (a return that was re-delivered, a refused edit)
+ * are dropped, everyone else's stay. Null when the order carried no such
+ * flag, so nothing needs writing.
+ */
+export function clearPrimeAttention(current: readonly string[] | null | undefined): AttentionPatch | null {
+    return withoutAttention(current, PRIME_SETTLED_REASONS);
 }

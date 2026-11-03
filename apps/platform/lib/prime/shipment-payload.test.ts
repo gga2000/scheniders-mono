@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPrimeShipment, primeAddress, primePhone } from "./shipment-payload";
+import { buildPrimeShipment, primeAddress, primePhone, primeShipmentHash, primeUpdateFields } from "./shipment-payload";
 import { PRIME_LIMITS } from "./client";
 import type { CourierSheetOrder } from "@/lib/shipping/courier-sheets";
 
@@ -128,3 +128,37 @@ describe("buildPrimeShipment", () => {
         expect(buildPrimeShipment(order(extra), merchant)).toEqual({ ok: false, reason });
     });
 });
+
+describe("primeUpdateFields / primeShipmentHash", () => {
+    const built = buildPrimeShipment(order({ secondary_phone: "07801112222" }), merchant);
+    const payload = built.ok ? built.payload : null;
+
+    it("sends update-shipment every field it replaces, and never the receipt or our ids", () => {
+        expect(payload).not.toBeNull();
+        if (!payload) return;
+        expect(primeUpdateFields(payload)).toEqual({
+            senderId: 5510,
+            receiverName: "Zahraa",
+            receiverHp1: "07701234567",
+            receiverHp2: "07801112222",
+            state: "BAS",
+            locationDetails: "Ashar, near the corniche",
+            receiptAmtIqd: 55000,
+            qty: 2,
+            productInfo: "Envoy",
+            rmk: "Call before",
+            haveReturnItems: "N",
+        });
+    });
+
+    it("gives the same fingerprint for the same details and a new one for any change Prime would see", () => {
+        if (!payload) return;
+        const fields = primeUpdateFields(payload);
+        expect(primeShipmentHash(fields)).toBe(primeShipmentHash({ ...fields }));
+        expect(primeShipmentHash({ ...fields, receiverHp1: "07709998888" })).not.toBe(primeShipmentHash(fields));
+        // An internal note is not part of the shipment, so it never makes a call.
+        const internal = buildPrimeShipment({ ...order({ secondary_phone: "07801112222" }), internal_notes: "VIP" } as CourierSheetOrder, merchant);
+        expect(internal.ok && primeShipmentHash(primeUpdateFields(internal.payload))).toBe(primeShipmentHash(fields));
+    });
+});
+

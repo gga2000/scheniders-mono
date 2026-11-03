@@ -6,12 +6,13 @@ type Call = { table: string; op: "select" | "update"; payload?: Record<string, u
 
 /**
  * A stand-in for the service client: records every query and answers selects
- * on prime_shipments with `tracked` (open orders) first and `closed` (orders a
- * person closed while still flagged) second, and order updates with
+ * on prime_shipments with `tracked` (open orders) first, `closed` (orders a
+ * person closed while still flagged) second and `refusedCancels` (cancelled
+ * orders Prime already had) third, and order updates with
  * `orderUpdateRows` (0 = a person changed the order meanwhile, so the version
  * guard matched nothing).
  */
-function fakeDb(tracked: unknown[], orderUpdateRows = 1, closed: unknown[] = []) {
+function fakeDb(tracked: unknown[], orderUpdateRows = 1, closed: unknown[] = [], refusedCancels: unknown[] = []) {
     const calls: Call[] = [];
     let shipmentSelects = 0;
     const from = (table: string) => {
@@ -29,10 +30,12 @@ function fakeDb(tracked: unknown[], orderUpdateRows = 1, closed: unknown[] = [])
             not: (col: string, op: string, v: unknown) => (call.filters.push([`not.${op}`, col, v]), builder),
             overlaps: (col: string, v: unknown) => (call.filters.push(["overlaps", col, v]), builder),
             gte: (col: string, v: unknown) => (call.filters.push(["gte", col, v]), builder),
+            is: (col: string, v: unknown) => (call.filters.push(["is", col, v]), builder),
+            contains: (col: string, v: unknown) => (call.filters.push(["contains", col, v]), builder),
             then: (resolve: (r: { data: unknown; error: null }) => void) => {
                 if (call.op === "select" && table === "prime_shipments") {
                     shipmentSelects += 1;
-                    return resolve({ data: shipmentSelects === 1 ? tracked : closed, error: null });
+                    return resolve({ data: [tracked, closed, refusedCancels][shipmentSelects - 1] ?? [], error: null });
                 }
                 if (call.op === "update" && table === "orders")
                     return resolve({ data: Array.from({ length: orderUpdateRows }, () => ({ id: "o" })), error: null });
@@ -46,6 +49,13 @@ function fakeDb(tracked: unknown[], orderUpdateRows = 1, closed: unknown[] = [])
 
 const client = (infos: PrimeShipmentInfo[]) =>
     ({ shipmentsInfo: vi.fn().mockResolvedValue(infos) }) as unknown as PrimeClient;
+
+const refused = (status: string, reasons: string[] = ["delivery_prime_cancel_by_hand"]) => ({
+    id: "ps9",
+    case_id: 52176699,
+    shipment_status: "ONWAY",
+    orders: { id: "order-9", status, version: 4, attention_reasons: reasons },
+});
 
 const row = (over: Partial<{ shipment_status: string; step_code: string; attention_reasons: string[] | null }> = {}) => ({
     id: "ps1",
@@ -69,7 +79,7 @@ describe("syncPrimeTenant", () => {
             steps,
         );
 
-        expect(outcome).toEqual({ checked: 1, delivered: 1, flagged: 0, conflicts: 0, cleared: 0 });
+        expect(outcome).toEqual({ checked: 1, delivered: 1, flagged: 0, conflicts: 0, cleared: 0, cancelsSettled: 0 });
         const [orderUpdate] = updatesOf(calls, "orders");
         expect(orderUpdate.payload).toMatchObject({
             status: "delivered",
@@ -145,5 +155,57 @@ describe("syncPrimeTenant", () => {
         const [orderUpdate] = updatesOf(calls, "orders");
         expect(orderUpdate.payload).toEqual({ needs_attention: true, attention_reasons: ["cod_risk_new_customer"] });
         expect(orderUpdate.filters).toEqual(expect.arrayContaining([["eq", "id", "order-2"], ["eq", "version", 3]]));
+    });
+
+    it("a closed order also drops a refused-edit flag, which no longer matters", async () => {
+        const closed = { id: "ps2", orders: { id: "order-2", status: "delivered", version: 3, attention_reasons: ["delivery_prime_edit_refused"] } };
+        const { db, calls } = fakeDb([], 1, [closed]);
+        await syncPrimeTenant(db, client([]), "t1", steps);
+        expect(updatesOf(calls, "orders")[0].payload).toEqual({ needs_attention: false, attention_reasons: [] });
+    });
+
+    it("keeps 'cancel with Prime by hand' while Prime still delivers the parcel", async () => {
+        const { db, calls } = fakeDb([], 1, [], [refused("cancelled")]);
+        const outcome = await syncPrimeTenant(db, client([{ caseid: 52176699, shipmentStatus: "ONWAY", stepCode: "ONWAY" }]), "t1", steps);
+        expect(outcome.cancelsSettled).toBe(0);
+        expect(updatesOf(calls, "orders")).toHaveLength(0);
+        const refusedSelect = calls.filter((c) => c.op === "select" && c.table === "prime_shipments")[2];
+        expect(refusedSelect.filters).toEqual(expect.arrayContaining([
+            ["eq", "tenant_id", "t1"],
+            ["not.is", "cancel_refused_at", null],
+            ["contains", "orders.attention_reasons", ["delivery_prime_cancel_by_hand"]],
+        ]));
+    });
+
+    it("drops 'cancel with Prime by hand' once Prime brings the parcel back, and stores Prime's status", async () => {
+        const { db, calls } = fakeDb([], 1, [], [refused("cancelled", ["delivery_prime_cancel_by_hand", "cod_risk_new_customer"])]);
+        const outcome = await syncPrimeTenant(
+            db,
+            client([{ caseid: 52176699, shipmentStatus: "FAILED_DELIVER_RETURNED_TO_SENDER", stepCode: "RTN_WITHAGENT" }]),
+            "t1",
+            steps,
+        );
+        expect(outcome.cancelsSettled).toBe(1);
+        const [orderUpdate] = updatesOf(calls, "orders");
+        expect(orderUpdate.payload).toEqual({ needs_attention: true, attention_reasons: ["cod_risk_new_customer"] });
+        expect(orderUpdate.filters).toEqual(expect.arrayContaining([["eq", "id", "order-9"], ["eq", "version", 4]]));
+        expect(updatesOf(calls, "prime_shipments").at(-1)?.payload).toMatchObject({ shipment_status: "FAILED_DELIVER_RETURNED_TO_SENDER", step_name: "تعذر التوصيل" });
+    });
+
+    it("a cancelled order Prime delivered anyway is flagged as a wrong status, never moved", async () => {
+        const { db, calls } = fakeDb([], 1, [], [refused("cancelled")]);
+        await syncPrimeTenant(db, client([{ caseid: 52176699, shipmentStatus: "DELIVERED", stepCode: "DLEIVERD" }]), "t1", steps);
+        const [orderUpdate] = updatesOf(calls, "orders");
+        expect(orderUpdate.payload).toEqual({ needs_attention: true, attention_reasons: ["delivery_wrong_status"] });
+        expect(orderUpdate.payload).not.toHaveProperty("status");
+    });
+
+    it("a reopened order drops 'cancel with Prime by hand' without asking Prime", async () => {
+        const { db, calls } = fakeDb([], 1, [], [refused("in_transit")]);
+        const prime = client([]);
+        const outcome = await syncPrimeTenant(db, prime, "t1", steps);
+        expect(outcome.cancelsSettled).toBe(1);
+        expect(prime.shipmentsInfo).not.toHaveBeenCalled();
+        expect(updatesOf(calls, "orders")[0].payload).toEqual({ needs_attention: false, attention_reasons: [] });
     });
 });

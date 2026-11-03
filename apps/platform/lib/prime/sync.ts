@@ -3,7 +3,15 @@ import type { Order } from "@/types/order";
 import { buildStatusUpdate } from "@/lib/orders/status-update";
 import { resolveStatusForOrder } from "@/lib/order-status-machine";
 import { PRIME_INFO_BATCH, type PrimeClient, type PrimeShipmentInfo } from "@/lib/prime/client";
-import { clearPrimeAttention, PRIME_ATTENTION_REASONS, primeStatusAction, withPrimeAttention } from "@/lib/prime/status-map";
+import {
+    clearPrimeAttention,
+    PRIME_CANCEL_BY_HAND,
+    PRIME_SETTLED_REASONS,
+    primeStatusAction,
+    withAttention,
+    withoutAttention,
+    withPrimeAttention,
+} from "@/lib/prime/status-map";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -27,6 +35,8 @@ type SettledRow = {
     orders: Pick<Order, "id" | "status" | "version" | "attention_reasons">;
 };
 
+type RefusedCancelRow = SettledRow & { case_id: number; shipment_status: string | null };
+
 export interface PrimeSyncOutcome {
     checked: number;
     delivered: number;
@@ -35,6 +45,8 @@ export interface PrimeSyncOutcome {
     conflicts: number;
     /** Prime flags dropped from orders a person has since closed (a returned parcel the returns desk scanned in, say). */
     cleared: number;
+    /** "Cancel with Prime by hand" flags dropped: Prime closed the case, or the order was reopened. */
+    cancelsSettled: number;
 }
 
 /**
@@ -60,7 +72,7 @@ export async function syncPrimeTenant(
 
     const rows = data as unknown as TrackedRow[];
     const byCase = new Map(rows.map((r) => [Number(r.case_id), r]));
-    const outcome: PrimeSyncOutcome = { checked: 0, delivered: 0, flagged: 0, conflicts: 0, cleared: 0 };
+    const outcome: PrimeSyncOutcome = { checked: 0, delivered: 0, flagged: 0, conflicts: 0, cleared: 0, cancelsSettled: 0 };
     const now = new Date().toISOString();
 
     for (let i = 0; i < rows.length; i += PRIME_INFO_BATCH) {
@@ -86,6 +98,7 @@ export async function syncPrimeTenant(
     }
 
     outcome.cleared = await settleClosedOrders(db, tenantId, since);
+    outcome.cancelsSettled = await settleRefusedCancels(db, client, tenantId, stepNames, now);
     return outcome;
 }
 
@@ -149,8 +162,9 @@ async function applyInfo(
  * A Prime flag has done its job once a person closed the order: the returns
  * desk scanned the returned parcel in (rejected), or staff cancelled or
  * completed the order. Those flags are dropped here so the order does not
- * stay marked as needing attention forever. Version-guarded like every other
- * write; a lost race is simply retried next run.
+ * stay marked as needing attention forever. "Cancel with Prime by hand" is
+ * not one of them: it is raised on a cancelled order (settleRefusedCancels).
+ * Version-guarded like every other write; a lost race is retried next run.
  */
 async function settleClosedOrders(db: ServiceDb, tenantId: string, since: string): Promise<number> {
     const { data, error } = await db
@@ -159,7 +173,7 @@ async function settleClosedOrders(db: ServiceDb, tenantId: string, since: string
         .eq("tenant_id", tenantId)
         .eq("orders.tenant_id", tenantId)
         .not("orders.status", "in", `(${OPEN_STATUSES.join(",")})`)
-        .overlaps("orders.attention_reasons", [...PRIME_ATTENTION_REASONS])
+        .overlaps("orders.attention_reasons", [...PRIME_SETTLED_REASONS])
         .gte("sent_at", since);
     if (error) throw new Error(error.message);
 
@@ -178,4 +192,86 @@ async function settleClosedOrders(db: ServiceDb, tenantId: string, since: string
         if (written && written.length > 0) cleared += 1;
     }
     return cleared;
+}
+
+/**
+ * Orders cancelled after Prime already had the parcel carry "cancel with
+ * Prime by hand" until the case closes. Their shipments are read here (the
+ * main sync reads open orders only): once Prime cancels, returns or delivers
+ * the parcel, the flag goes. A delivery of a cancelled order is flagged as a
+ * wrong status for a person, never applied. A reopened order drops the flag.
+ */
+async function settleRefusedCancels(
+    db: ServiceDb,
+    client: PrimeClient,
+    tenantId: string,
+    stepNames: Map<string, string>,
+    now: string,
+): Promise<number> {
+    const { data, error } = await db
+        .from("prime_shipments")
+        .select("id, case_id, shipment_status, orders!inner(id, status, version, attention_reasons)")
+        .eq("tenant_id", tenantId)
+        .eq("orders.tenant_id", tenantId)
+        .not("cancel_refused_at", "is", null)
+        .is("cancelled_at", null)
+        .contains("orders.attention_reasons", [PRIME_CANCEL_BY_HAND]);
+    if (error) throw new Error(error.message);
+
+    const rows = data as unknown as RefusedCancelRow[];
+    let settled = 0;
+    const stillCancelled = rows.filter((r) => r.orders.status === "cancelled");
+    for (const row of rows) {
+        if (row.orders.status === "cancelled") continue;
+        if (await writeOrder(db, tenantId, row.orders, withoutAttention(row.orders.attention_reasons, [PRIME_CANCEL_BY_HAND]))) settled += 1;
+    }
+
+    const byCase = new Map(stillCancelled.map((r) => [Number(r.case_id), r]));
+    for (let i = 0; i < stillCancelled.length; i += PRIME_INFO_BATCH) {
+        const infos = await client.shipmentsInfo(stillCancelled.slice(i, i + PRIME_INFO_BATCH).map((r) => Number(r.case_id)));
+        for (const info of infos) {
+            const row = byCase.get(info.caseid);
+            if (!row) continue;
+            const action = primeStatusAction(info.shipmentStatus);
+            if (action.kind === "none") continue;
+            // The select only reads orders that carry the flag, so there is always one to drop.
+            const without = withoutAttention(row.orders.attention_reasons, [PRIME_CANCEL_BY_HAND]);
+            if (!without) continue;
+            const patch = action.kind === "deliver" ? (withAttention(without.attention_reasons, "delivery_wrong_status") ?? without) : without;
+            if (!(await writeOrder(db, tenantId, row.orders, patch))) continue;
+            settled += 1;
+            const step = info.stepCode ?? null;
+            const { error: rowError } = await db
+                .from("prime_shipments")
+                .update({
+                    shipment_status: info.shipmentStatus,
+                    step_code: step,
+                    step_name: step ? (stepNames.get(step) ?? step) : null,
+                    status_changed_at: now,
+                    checked_at: now,
+                })
+                .eq("id", row.id);
+            if (rowError) throw new Error(rowError.message);
+        }
+    }
+    return settled;
+}
+
+/** A version-guarded attention write; true when it landed. */
+async function writeOrder(
+    db: ServiceDb,
+    tenantId: string,
+    order: Pick<Order, "id" | "version">,
+    patch: { needs_attention: boolean; attention_reasons: string[] } | null,
+): Promise<boolean> {
+    if (!patch) return false;
+    const { data, error } = await db
+        .from("orders")
+        .update(patch)
+        .eq("tenant_id", tenantId)
+        .eq("id", order.id)
+        .eq("version", order.version)
+        .select("id");
+    if (error) throw new Error(error.message);
+    return (data?.length ?? 0) > 0;
 }

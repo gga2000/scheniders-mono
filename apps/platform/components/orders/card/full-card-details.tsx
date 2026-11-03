@@ -143,7 +143,9 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                                 {attention.some(r => r.startsWith('delivery_')) && (
                                     <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 animate-pulse border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
                                         <AlertTriangle className="w-3.5 h-3.5" />
-                                        {attention.includes('delivery_price_changed') ? t("orders.card.attn.delivery_price_changed") :
+                                        {attention.includes('delivery_prime_cancel_by_hand') ? t("orders.card.attn.delivery_prime_cancel_by_hand") :
+                                            attention.includes('delivery_prime_edit_refused') ? t("orders.card.attn.delivery_prime_edit_refused") :
+                                        attention.includes('delivery_price_changed') ? t("orders.card.attn.delivery_price_changed") :
                                             attention.includes('delivery_force_delivered') ? t("orders.card.attn.delivery_force_delivered") :
                                                 attention.includes('delivery_amount_mismatch') ? t("orders.card.attn.delivery_amount_mismatch") :
                                                     attention.includes('delivery_phone_mismatch') ? t("orders.card.attn.delivery_phone_mismatch") :

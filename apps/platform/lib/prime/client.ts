@@ -6,9 +6,10 @@ import { env } from "@/lib/env";
  * one integrated system (system code + password + initial token → JWT); every
  * tenant is a Prime merchant + shop under it (prime_connections).
  *
- * Only the calls the link uses are here: create shipments, find one by its
- * receipt, read their status, and the step names. Server-only: the
- * credentials come from server env.
+ * Only the calls the link uses are here: create, update and delete shipments,
+ * find one by its receipt, read their status and the step names, and ask
+ * for a returned parcel to be resent. Server-only: the credentials come from
+ * server env.
  */
 
 export interface PrimeConfig {
@@ -94,7 +95,8 @@ export const PRIME_LIMITS = {
 
 const errorBodySchema = z.object({
     errorMessage: z.string().optional(),
-    errorCode: z.number().optional(),
+    // A number on most endpoints; read a numeric string too, so the code is never lost.
+    errorCode: z.union([z.number(), z.string().regex(/^\d+$/).transform(Number)]).optional(),
     message: z.string().optional(),
 });
 
@@ -130,6 +132,37 @@ const searchRowSchema = z.object({
 
 const stepSchema = z.object({ code: z.string(), name: z.string().nullish(), nameEn: z.string().nullish() });
 
+/** update-case-status answers {success, caseid, custReceiptNoOri}; a refusal is {success:false, errorMessage} with 422. */
+const resendSchema = z.object({ success: z.literal(true), caseid: z.number().nullish() });
+
+/**
+ * The fields update-shipment takes. It replaces the whole set: a field left
+ * out is written as NULL or 0 on Prime's side, so every call sends all of them.
+ * The receipt number and our ids are not in the set and never change.
+ */
+export type PrimeShipmentUpdate = Pick<
+    PrimeShipmentPayload,
+    "senderId" | "receiverName" | "receiverHp1" | "receiverHp2" | "state" | "locationDetails" | "receiptAmtIqd" | "undeclaredShipmentValue" | "qty" | "productInfo" | "rmk" | "haveReturnItems"
+>;
+
+/** A column a resend request may change (update-case-status allowlist), with its new value. */
+export interface PrimeResendFix {
+    column: "c_rcv_hp1" | "c_rcv_hp2" | "c_rcv_addr_rmk" | "c_rcv_state" | "c_receiptamt" | "c_rmk";
+    value: string;
+}
+
+/** Prime error codes the link acts on. */
+export const PRIME_ERROR = {
+    /** update-shipment: the shipment's stage or step no longer allows edits. */
+    notEditable: 5,
+    /** delete-shipment: Prime already received the parcel. */
+    alreadyReceived: 12,
+    /** Shipment not found or not ours (already deleted, say). */
+    notFound: 4005,
+    /** update-case-status: the shipment was already resent. */
+    alreadyResent: 7000,
+} as const;
+
 /** Case ids per shipments-info call. */
 export const PRIME_INFO_BATCH = 50;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -162,7 +195,9 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
     let signingIn: Promise<string> | null = null;
     let steps: { names: Map<string, string>; readAt: number } | null = null;
 
-    async function send(method: "GET" | "POST", path: string, body: unknown, bearer: string | null): Promise<Response> {
+    type Method = "GET" | "POST" | "PUT" | "DELETE";
+
+    async function send(method: Method, path: string, body: unknown, bearer: string | null): Promise<Response> {
         return fetchImpl(`${config.baseUrl}${path}`, {
             method,
             headers: {
@@ -222,7 +257,7 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
     }
 
     /** One call; a 401 (expired token) signs in again and retries once. */
-    async function call<T>(method: "GET" | "POST", path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
+    async function call<T>(method: Method, path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
         let res = await send(method, path, body, await bearer());
         if (res.status === 401) {
             token = null;
@@ -282,6 +317,43 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
             if (caseIds.length === 0) return [];
             if (caseIds.length > PRIME_INFO_BATCH) throw new Error(`shipmentsInfo takes at most ${PRIME_INFO_BATCH} ids`);
             return call("POST", "/external/shipments-info", caseIds, z.array(shipmentInfoSchema));
+        },
+
+        /**
+         * Replaces a shipment's details with the order's current ones (Prime
+         * takes the full set every time). Prime recalculates its charge and
+         * clears its printed flag on each call, so callers send only real
+         * changes. Not retried here: the cron keeps the edit queued and sends
+         * it again on its next run.
+         */
+        async updateShipment(caseId: number, fields: PrimeShipmentUpdate): Promise<void> {
+            await call("PUT", "/external/update-shipment", { caseid: caseId, ...fields }, z.number());
+        },
+
+        /** Deletes a shipment Prime has not received yet. Refused with code 12 once Prime has the parcel. */
+        async deleteShipment(caseId: number): Promise<void> {
+            const deleted = await call("DELETE", "/external/delete-shipment", { caseid: caseId }, z.boolean());
+            if (!deleted) throw new PrimeApiError("Prime did not delete the shipment", 200);
+        },
+
+        /**
+         * Asks Prime to send a returned parcel out again, with corrected
+         * details (a new phone or address the customer gave). Empty values are
+         * ignored by Prime, so they are not sent.
+         */
+        async requestResend(caseId: number, fixes: PrimeResendFix[], remark?: string): Promise<void> {
+            const fieldsToChange = fixes.filter((f) => f.value.trim() !== "").map((f) => ({ p_casesFieldName: f.column, value: f.value }));
+            await call(
+                "POST",
+                "/external/update-case-status",
+                {
+                    caseid: caseId,
+                    action: "REQUEST_RESEND",
+                    ...(remark?.trim() ? { resendRmk: remark.trim() } : {}),
+                    ...(fieldsToChange.length > 0 ? { snagPossibleFixes: [{ fieldsToChange }] } : {}),
+                },
+                resendSchema,
+            );
         },
 
         /** Step code → Arabic step name (falls back to the English name, then the code). Cached for a day. */

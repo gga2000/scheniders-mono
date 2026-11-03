@@ -65,7 +65,9 @@ describe("sendOrdersToPrime", () => {
         const outcome = await sendOrdersToPrime(db, client, "t1", merchant, ["o1", "o2"]);
 
         expect(outcome).toEqual({ sent: [{ orderId: "o1", caseId: 101 }], skipped: [{ orderId: "o2", reason: "after_sale" }], failed: [] });
-        expect(inserts).toEqual([{ tenant_id: "t1", order_id: "o1", receipt_no: "10001", case_id: 101, shipment_status: "ONWAY" }]);
+        expect(inserts).toEqual([
+            { tenant_id: "t1", order_id: "o1", receipt_no: "10001", case_id: 101, shipment_status: "ONWAY", pushed_hash: expect.stringMatching(/^[0-9a-f]{32}$/) },
+        ]);
     });
 
     it("reports an already-sent order as sent without calling Prime, and a closed case as prime_closed", async () => {
@@ -79,6 +81,14 @@ describe("sendOrdersToPrime", () => {
         expect(create).not.toHaveBeenCalled();
         expect(outcome.sent).toEqual([{ orderId: "o1", caseId: 55 }]);
         expect(outcome.failed).toEqual([{ orderId: "o2", reason: "prime_closed", message: "Prime case 56 is FAILED_DELIVER_RETURNED_TO_SENDER" }]);
+    });
+
+    it("an order whose Prime case was deleted on cancel is not reported as sent", async () => {
+        const { db } = fakeDb([order("o1")], [{ order_id: "o1", case_id: 57, shipment_status: "ONWAY", cancelled_at: "2026-11-03T10:00:00Z" }]);
+        const create = vi.fn();
+        const outcome = await sendOrdersToPrime(db, clientWith(create), "t1", merchant, ["o1"]);
+        expect(create).not.toHaveBeenCalled();
+        expect(outcome.failed).toEqual([{ orderId: "o1", reason: "prime_closed", message: "Prime case 57 was deleted when the order was cancelled" }]);
     });
 
     it("tells a refusal (Prime's own words) from an unreachable Prime", async () => {
