@@ -7,7 +7,7 @@ import { DialogContent, BottomSheetContent } from "@scheniders/ui/dialog";
 import { generateWhatsAppLink } from "@/lib/utils";
 import { formatPhoneForDisplay } from "@/lib/order-utils";
 import { getAllGovernorateCodes } from "@/lib/address-validator";
-import type { Order, OrderStatusHistory, OrderNote, MessageTemplate } from "@/lib/supabase";
+import type { Order, MessageTemplate } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { usePrompt } from "@scheniders/ui/prompt-dialog";
@@ -30,8 +30,6 @@ export interface OrderDetailsModalProps {
     onClose: () => void;
     onUpdate: (orderId: string, updates: Partial<Order>, expectedVersion?: number) => Promise<{ success: boolean; error?: string }>;
     onStatusUpdate?: (orderId: string, status: Order["status"], reason?: string) => Promise<{ success: boolean; error?: string }>;
-    onGetTimeline?: (orderId: string) => Promise<OrderStatusHistory[]>;
-    onGetNotes?: (orderId: string) => Promise<OrderNote[]>;
     onDelete?: (orderId: string) => Promise<{ success: boolean; error?: string }>;
     checkOrderIdExists?: (orderId: string, excludeId?: string) => Promise<boolean>;
     onOpenTemplatePanel?: (order: Order) => void;
@@ -46,8 +44,6 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
     onClose,
     onUpdate,
     onStatusUpdate,
-    onGetTimeline,
-    onGetNotes,
     onDelete,
     checkOrderIdExists,
     onOpenTemplatePanel,
@@ -127,7 +123,6 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
     const [blacklistDialogMode, setBlacklistDialogMode] = useState<"add" | "remove">("add");
     const {
         activeTab, setActiveTab,
-        timeline, notes, loadingTimeline,
         isUpdatingStatus, handleStatusChangeForm,
         showDeleteConfirm, deleteCountdown, isDeleting,
         handleDeleteClick, handleDeleteConfirm, handleCancelDelete,
@@ -138,8 +133,6 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
         onClose,
         onUpdate,
         onStatusUpdate,
-        onGetTimeline,
-        onGetNotes,
         onDelete,
         splitOrder,
         promptUser,
@@ -308,8 +301,6 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
         onClose,
         onUpdate,
         onStatusUpdate,
-        onGetTimeline,
-        onGetNotes,
         onDelete,
         checkOrderIdExists,
         onOpenTemplatePanel,
@@ -373,9 +364,6 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
         setBlacklistDialogMode,
         activeTab,
         setActiveTab,
-        timeline,
-        notes,
-        loadingTimeline,
         isUpdatingStatus,
         handleStatusChangeForm,
         showDeleteConfirm,

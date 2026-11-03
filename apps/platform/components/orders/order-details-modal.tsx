@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog, DialogDescription, DialogHeader } from "@scheniders/ui/dialog";
-import { OrderTimeline } from "./order-timeline";
+import { OrderHistory } from "./order-history/order-history";
 import { ProductPicker } from "./product-picker";
 import { OrderCustomerCard } from "./order-customer-card";
 import { OrderItemsEditor } from "./order-items-editor";
@@ -31,7 +31,7 @@ export function OrderDetailsModal(props: OrderDetailsModalProps) {
         );
     }
     const m: OrderDetailsView = { ...base, ...buildOrderDetailsActions(base, order), order };
-    const { open, onStatusUpdate, checkOrderIdExists, isMobile, t, PromptComponent, recordContact, isEditing, formData, handleEdit, updateFormData, handleRemoveItem, handleUpdateItemQuantity, handleAddItem, handleProductSelect, showProductPicker, setShowProductPicker, orderDateError, getBlacklistEntry, addToBlacklist, removeFromBlacklist, blacklistDialogOpen, setBlacklistDialogOpen, blacklistDialogMode, activeTab, timeline, notes, loadingTimeline, isUpdatingStatus, showSplitDialog, setShowSplitDialog, handleSplitOrder, handleStatusChange, showCreateOrderModal, setShowCreateOrderModal, orderInitialData, setOrderInitialData, createOrder, ContentWrapper } = m;
+    const { open, onStatusUpdate, checkOrderIdExists, isMobile, t, PromptComponent, recordContact, isEditing, formData, handleEdit, updateFormData, handleRemoveItem, handleUpdateItemQuantity, handleAddItem, handleProductSelect, showProductPicker, setShowProductPicker, orderDateError, getBlacklistEntry, addToBlacklist, removeFromBlacklist, blacklistDialogOpen, setBlacklistDialogOpen, blacklistDialogMode, activeTab, isUpdatingStatus, showSplitDialog, setShowSplitDialog, handleSplitOrder, handleStatusChange, showCreateOrderModal, setShowCreateOrderModal, orderInitialData, setOrderInitialData, createOrder, ContentWrapper } = m;
 
     return (
         <>
@@ -55,15 +55,7 @@ export function OrderDetailsModal(props: OrderDetailsModalProps) {
 
                     {activeTab === "timeline" && (
                         <div className="py-2">
-
-                            {loadingTimeline ? (
-                                <div className="text-center py-8">
-                                    <div className="w-6 h-6 border-2 border-[var(--ink)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                                    <p className="text-sm text-muted">{t("orderDetail.loadingTimeline")}</p>
-                                </div>
-                            ) : (
-                                <OrderTimeline statusHistory={timeline} notes={notes} />
-                            )}
+                            <OrderHistory order={order} />
                         </div>
                     )}
 

@@ -356,48 +356,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 }
             }
 
-            let auditChanges: string[] = [];
-            if (previousOrder) {
-                const changes: string[] = [];
-                const FieldsToTrack: (keyof Order)[] = [
-                    'customer_name', 'phone', 'secondary_phone', 'city',
-                    'address_details', 'price', 'notes', 'internal_notes',
-                    'priority', 'payment_status', 'scheduled_date', 'created_at'
-                ];
-
-                const fieldLabels: Record<string, string> = {
-                    customer_name: "Name",
-                    phone: "Phone",
-                    secondary_phone: "Secondary Phone",
-                    city: "City",
-                    address_details: "Address",
-                    price: "Price",
-                    notes: "Notes",
-                    internal_notes: "Internal Notes",
-                    priority: "Priority",
-                    payment_status: "Payment Status",
-                    scheduled_date: "Scheduled Date",
-                    created_at: "Order Date"
-                };
-
-                FieldsToTrack.forEach(field => {
-                    const newVal = updates[field];
-                    const oldVal = previousOrder[field];
-                    // Skip if newVal is undefined (not target of update)
-                    if (newVal !== undefined && newVal !== oldVal) {
-                        const label = fieldLabels[field] || field;
-                        changes.push(`${label}: ${oldVal || 'None'} → ${newVal || 'None'}`);
-                    }
-                });
-
-                // Items comparison
-                if (updates.items && JSON.stringify(updates.items) !== JSON.stringify(previousOrder.items)) {
-                    changes.push(`Items updated`);
-                }
-
-                auditChanges = changes;
-            }
-
             // Use the caller's expected version, else the one we hold in cache.
             const conflictCheckVersion = expectedVersion ?? previousOrder?.version;
 
@@ -407,29 +365,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                 expectedVersion: conflictCheckVersion
             });
 
-            // Record audit trail AFTER successful update (not before!)
-            if (auditChanges.length > 0 && previousOrder) {
-                const { profile: currentProfile, user: currentUser } = authRef.current;
-                const changedBy = currentProfile?.display_name || currentUser?.email || 'System';
-
-                const { error: detailHistoryError } = await supabase
-                    .from("order_status_history")
-                    .insert([{
-                        order_id: orderId,
-                        from_status: previousOrder.status,
-                        to_status: previousOrder.status,
-                        changed_at: new Date().toISOString(),
-                        notes: `Updated: ${auditChanges.join(', ')}`,
-                        changed_by: changedBy,
-                        tenant_id: tenantId,
-                    }]);
-
-                if (detailHistoryError) {
-                    console.error("Failed to record detail history:", detailHistoryError);
-                    toast.error(tRef.current("orders.toast.auditFailed"));
-                }
-            }
-
+            // The history entry (field: old → new) is written by the database
+            // trigger log_order_events in the same transaction as the update.
             diag.log(`[Diag:UpdateOrder] MUTATION_OK orderId=${orderId} took=${(performance.now() - _tUpdate).toFixed(1)}ms`);
             return { success: true };
         } catch (err) {
@@ -1223,10 +1160,8 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
 
         // Notes
         addOrderNote: (orderId: string, note: string) => orderRecords.addOrderNote(tenantId, orderId, note),
-        getOrderNotes: orderRecords.getOrderNotes,
 
         // Timeline
-        getOrderTimeline: orderRecords.getOrderTimeline,
 
         // Duplicate management
         dismissDuplicate,

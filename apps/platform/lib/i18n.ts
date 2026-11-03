@@ -6,6 +6,7 @@
 // had drifted into two spellings that said different things.
 import { orderStatusTranslations } from "@/lib/order-status-labels";
 import { teamTranslations } from "@/lib/i18n-team";
+import { orderHistoryTranslations } from "@/lib/i18n-order-history";
 
 export type Locale = "en" | "ar";
 
@@ -13,6 +14,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     en: {
         ...orderStatusTranslations("en"),
         ...teamTranslations("en"),
+        ...orderHistoryTranslations("en"),
         // ── Navigation ──
         "nav.dashboard": "Dashboard",
         "nav.orders": "Orders",
@@ -804,7 +806,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.tip.analytics": "Analytics",
         "orders.tip.undoLast": "Undo Last Action",
         "orders.toast.unknownError": "unknown error",
-        "orders.toast.auditFailed": "Changes saved, but the audit entry could not be recorded",
         "orders.toast.createdNotScheduled": "Order created, but not scheduled",
         "orders.toast.createdDateUnchanged": "Order created, but its date was not changed",
         "orders.toast.setDateFromDetails": "Set the date from the order's details.",
@@ -1383,7 +1384,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.bulk.progress": "{done} of {total}",
         "orders.bulk.progressFailed": "{done} of {total} · {failed} failed",
         "orders.bulk.retry": "Retry {count}",
-        "orders.bulk.historyNotLogged": "{count} of these changes have no history entry.",
         "orders.bulk.reschedule": "Postpone",
         "orders.bulk.rescheduling": "Moving {count} orders...",
         "orders.bulk.rescheduled": "{count} orders moved to {date}",
@@ -6404,6 +6404,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     ar: {
         ...orderStatusTranslations("ar"),
         ...teamTranslations("ar"),
+        ...orderHistoryTranslations("ar"),
         // ── Navigation ──
         "nav.dashboard": "لوحة التحكم",
         "nav.orders": "الطلبات",
@@ -7187,7 +7188,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.tip.analytics": "التحليلات",
         "orders.tip.undoLast": "تراجع عن آخر إجراء",
         "orders.toast.unknownError": "خطأ غير معروف",
-        "orders.toast.auditFailed": "تم حفظ التغييرات، لكن تعذر تسجيلها في سجل التدقيق",
         "orders.toast.createdNotScheduled": "تم إنشاء الطلب، لكن لم تتم جدولته",
         "orders.toast.createdDateUnchanged": "تم إنشاء الطلب، لكن لم يتغير تاريخه",
         "orders.toast.setDateFromDetails": "حدد التاريخ من تفاصيل الطلب.",
@@ -7766,7 +7766,6 @@ export const translations: Record<Locale, Record<string, string>> = {
         "orders.bulk.progress": "{done} من {total}",
         "orders.bulk.progressFailed": "{done} من {total} · فشل {failed}",
         "orders.bulk.retry": "إعادة المحاولة ({count})",
-        "orders.bulk.historyNotLogged": "{count} من هذه التغييرات بلا سجل في التاريخ.",
         "orders.bulk.reschedule": "تأجيل",
         "orders.bulk.rescheduling": "جاري نقل {count} طلب...",
         "orders.bulk.rescheduled": "تم نقل {count} طلب إلى {date}",
