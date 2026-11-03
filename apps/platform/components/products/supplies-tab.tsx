@@ -720,6 +720,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                 snoozedIds={snoozedIds}
                 onSnooze={handleSnooze}
                 onUnsnooze={handleUnsnooze}
+                onAssignSupplier={onEdit ? (supply) => { setReorderOpen(false); onEdit(supply); } : undefined}
             />
 
             <SupplierDetailDrawer

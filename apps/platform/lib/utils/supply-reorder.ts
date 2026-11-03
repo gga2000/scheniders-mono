@@ -91,3 +91,20 @@ export function supplyReorderState(s: ReorderSupply, onOrder: number): ReorderSt
         reorderShortfall({ leadTimeDays, dailyRate, reorderPoint, stock: stock + onOrder }) <= 0;
     return { low, covered, needsOrder: low && !covered, belowReorder, reorderPoint, leadTimeDays, moq, dailyRate, daysUntilStockout };
 }
+
+/**
+ * The one status colour a supply shows everywhere (days pill, stock bar):
+ * - out: nothing on hand
+ * - critical: runs out before a new order could arrive, and nothing covers it
+ * - low: needs ordering
+ * - ok: fine, or what is already on order covers it
+ */
+export type SupplyTone = "out" | "critical" | "low" | "ok";
+
+export function supplyTone(s: ReorderSupply, onOrder: number): SupplyTone {
+    const state = supplyReorderState(s, onOrder);
+    if ((s.stock_quantity ?? 0) <= 0 && !state.covered) return "out";
+    if (!state.needsOrder) return "ok";
+    if (state.daysUntilStockout !== null && state.daysUntilStockout <= state.leadTimeDays) return "critical";
+    return "low";
+}

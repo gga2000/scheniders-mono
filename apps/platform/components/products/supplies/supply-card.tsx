@@ -10,6 +10,7 @@ import { PoStatusChip, type PoStatusInfo } from "./po-status-chip";
 import { SupplierInitialsStack } from "./supplier-initials-badge";
 import { ProductThumb } from "@/components/products/product-thumb";
 import { useLanguage } from "@/hooks/use-language";
+import { supplyTone } from "@/lib/utils/supply-reorder";
 
 interface SupplyCardProps {
     supply: Product;
@@ -47,6 +48,8 @@ export function SupplyCard({
     const stockoutEta = stockoutEtaFrom({ stock, reserved, timesSold30d: timesSold });
     const available = Math.max(0, stock - reserved);
     const onHandValue = stock * (supply.cost ?? 0);
+    // One status for the pill, the badge and the bar.
+    const status = supplyTone(supply, openPo?.quantity ?? 0);
 
     return (
         <div
@@ -100,7 +103,7 @@ export function SupplyCard({
                         <h3 dir="auto" className="text-left font-semibold text-[15px] text-foreground leading-tight line-clamp-2 break-words">
                             {supply.name}
                         </h3>
-                        <DaysOfSupplyPill days={days} size="md" />
+                        <DaysOfSupplyPill days={days} size="md" status={status} />
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[11px] text-muted flex-wrap">
                         <span className="font-mono truncate max-w-[50%]">{supply.sku || t("supplies.sp.noSku")}</span>
@@ -115,6 +118,7 @@ export function SupplyCard({
                         <StockoutEtaBadge
                             daysUntilStockout={stockoutEta}
                             leadTimeDays={leadTimeDays}
+                            status={status}
                         />
                         {openPo && <PoStatusChip info={openPo} size="sm" />}
                     </div>
@@ -127,6 +131,7 @@ export function SupplyCard({
                     stock={stock}
                     reorderPoint={supply.reorder_point}
                     lowStockThreshold={supply.low_stock_threshold}
+                    status={status}
                 />
                 <div className="mt-2 flex items-end justify-between text-[11px] text-muted">
                     <div>

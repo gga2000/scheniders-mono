@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import type { SupplyTone } from "@/lib/utils/supply-reorder";
 
 interface DaysOfSupplyPillProps {
     /** Estimated days of supply remaining. null = no data (no sales velocity). */
@@ -9,8 +10,17 @@ interface DaysOfSupplyPillProps {
     /** Optional trend: direction of recent change in days-of-supply. */
     trend?: "up" | "down" | "flat";
     size?: "sm" | "md";
+    /** The supply's shared status; without it the colour follows the day count alone. */
+    status?: SupplyTone;
     className?: string;
 }
+
+const STATUS_TONE: Record<SupplyTone, { text: string; bg: string; ring: string }> = {
+    out: { text: "text-rose-600 dark:text-rose-300", bg: "bg-rose-50 dark:bg-rose-500/15", ring: "ring-rose-100 dark:ring-rose-500/30" },
+    critical: { text: "text-rose-600 dark:text-rose-300", bg: "bg-rose-50 dark:bg-rose-500/15", ring: "ring-rose-100 dark:ring-rose-500/30" },
+    low: { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-500/15", ring: "ring-amber-100 dark:ring-amber-500/30" },
+    ok: { text: "text-teal-600 dark:text-teal-300", bg: "bg-teal-50 dark:bg-teal-500/15", ring: "ring-teal-100 dark:ring-teal-500/30" },
+};
 
 function tone(days: number | null): {
     text: string;
@@ -40,10 +50,11 @@ export function DaysOfSupplyPill({
     days,
     trend,
     size = "md",
+    status,
     className,
 }: DaysOfSupplyPillProps) {
     const { t: tr } = useLanguage();
-    const t = tone(days);
+    const t = days === null ? tone(null) : status ? STATUS_TONE[status] : tone(days);
     const big = size === "md";
     return (
         <div

@@ -3,6 +3,7 @@
 import { AlertTriangle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import type { SupplyTone } from "@/lib/utils/supply-reorder";
 
 interface StockoutEtaBadgeProps {
     /** Days until stock hits 0, null = no velocity. */
@@ -10,6 +11,8 @@ interface StockoutEtaBadgeProps {
     /** Supplier lead time in days (defaults to 7). */
     leadTimeDays?: number;
     size?: "sm" | "md";
+    /** The supply's shared status: nothing shows once an order covers it. */
+    status?: SupplyTone;
     className?: string;
 }
 
@@ -22,13 +25,15 @@ export function StockoutEtaBadge({
     daysUntilStockout,
     leadTimeDays = 7,
     size = "sm",
+    status,
     className,
 }: StockoutEtaBadgeProps) {
     const { t } = useLanguage();
     if (daysUntilStockout === null) return null;
+    if (status === "ok") return null;
 
-    const isCritical = daysUntilStockout <= leadTimeDays;
-    const isWarning = daysUntilStockout <= leadTimeDays * 2;
+    const isCritical = status ? status !== "low" : daysUntilStockout <= leadTimeDays;
+    const isWarning = status ? true : daysUntilStockout <= leadTimeDays * 2;
 
     if (!isCritical && !isWarning) return null;
 
