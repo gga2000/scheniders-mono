@@ -267,23 +267,9 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
                     });
                     diag.log(`[Diag:StatusUpdate] MUTATION_OK orderId=${orderId} seq=${mySeq} took=${(performance.now() - _tMut).toFixed(1)}ms`);
 
-                    // Reserved/stock math is owned by the DB trigger on `orders`.
-                    // Here we only fire side-effects the trigger does NOT cover:
-                    //   - supplies/BOM deduction
-                    if (previousOrder && previousOrder.status !== status && tenantId) {
-                        import("@/lib/orders/status-side-effects").then(effects =>
-                            effects.applyStatusSideEffect(supabase, {
-                                tenantId,
-                                items: previousOrder.items || [],
-                                from: previousOrder.status,
-                                to: status,
-                            })
-                        ).then(result => {
-                            if (!result.success) {
-                                toast.error(tRef.current("orders.toast.sideEffectFailed", { error: result.error ?? tRef.current("orders.toast.unknownError") }));
-                            }
-                        }).catch(console.error);
-                    }
+                    // Stock, reserved stock and supplies are moved by the
+                    // database triggers on `orders` (trg_inv_order_changed,
+                    // trg_orders_use_supplies), whoever changes the status.
 
                     // The status-history row is written by the database
                     // (trg_log_order_status_change), in the same transaction.
