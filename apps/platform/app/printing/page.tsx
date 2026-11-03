@@ -6,6 +6,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { usePrinting } from "@/hooks/use-printing";
 import { useDispatchQueue, DISPATCH_QUEUE_KEY } from "@/hooks/use-dispatch-queue";
 import { useDispatchRun } from "@/hooks/use-dispatch-run";
+import { usePrimeLink } from "@/hooks/use-prime-link";
 import { useDispatchTwins } from "@/hooks/use-dispatch-twins";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
@@ -108,7 +109,8 @@ export default function PrintingPage() {
 
     const refreshQueue = () => queryClient.invalidateQueries({ queryKey: DISPATCH_QUEUE_KEY });
 
-    const run = useDispatchRun({ printing, bulkUpdateStatus });
+    const prime = usePrimeLink();
+    const run = useDispatchRun({ printing, bulkUpdateStatus, prime });
 
     // The 48h double-dispatch check: the queue plus the orders already out.
     const getDispatchTwin = useDispatchTwins(orders);
@@ -270,6 +272,7 @@ export default function PrintingPage() {
                             <DispatchActionBar
                                 selectedCount={selected.length}
                                 shipping={run.shipping}
+                                primeLinked={prime.connected}
                                 onShip={() => setShipOpen(true)}
                                 onPrint={startPrint}
                             />
@@ -298,6 +301,7 @@ export default function PrintingPage() {
                 getDispatchTwin={getDispatchTwin}
                 onRemove={(ids) => setTick(ids, false)}
                 shipping={run.shipping}
+                primeLinked={prime.connected}
                 onShip={(list, options) => void shipRun(list, options)}
             />
 

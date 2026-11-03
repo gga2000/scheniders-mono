@@ -80,8 +80,18 @@ export async function POST(request: NextRequest) {
         
         const orders = Array.from(orderMap.values());
 
+        // Deliveries the Prime API link already recorded are expected on the statement.
+        const deliveredIds = orders.filter((o) => o.status === "delivered").map((o) => o.id);
+        const linked = deliveredIds.length > 0
+            ? await supabaseAdmin.from("prime_shipments").select("order_id").eq("tenant_id", caller.tenantId).eq("shipment_status", "DELIVERED").in("order_id", deliveredIds)
+            : { data: [] as { order_id: string }[], error: null };
+        if (linked.error) {
+            return NextResponse.json({ success: false, error: `Database error: ${linked.error.message}` }, { status: 500 });
+        }
+        const courierDelivered = new Set(linked.data.map((r) => r.order_id as string));
+
         // Run matching engine
-        const matches = matchParsedRows(parsedPDF.rows, (orders || []) as Order[]);
+        const matches = matchParsedRows(parsedPDF.rows, orders, courierDelivered);
         const summary = calculateSummary(matches);
 
         // Check for duplicate import

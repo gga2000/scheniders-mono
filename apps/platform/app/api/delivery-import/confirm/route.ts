@@ -116,9 +116,8 @@ export async function POST(request: NextRequest) {
             const pdfRow = parsedPDF.rows.find((r) => r.rowNumber === item.pdfRowNumber);
             const resAction = item.resolutionAction;
 
-            const orderUpdate: Record<string, unknown> = {
-                delivered_at: now,
-            };
+            // An order already delivered (e.g. by the Prime link) keeps its real delivery time.
+            const orderUpdate: Record<string, unknown> = item.previousStatus === "delivered" ? {} : { delivered_at: now };
 
             const deliveryNotes: string[] = [];
             const attentionReasons: string[] = [];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock, Check, Copy, FileSpreadsheet, FileText, Printer, RefreshCw, ShieldOff, Truck } from "lucide-react";
+import { CalendarClock, Check, Copy, FileSpreadsheet, FileText, Printer, RefreshCw, Send, ShieldOff, Truck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@scheniders/ui/dialog";
 import { Switch } from "@scheniders/ui/switch";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,9 @@ interface ShipRunDialogProps {
     /** Take orders out of the run (unticks them on the desk). */
     onRemove: (orderIds: string[]) => void;
     shipping: boolean;
-    /** Ship exactly these orders: labels PDF, Prime file, in transit. */
+    /** The orders go to Prime through the API (else in the Prime Excel file). */
+    primeLinked: boolean;
+    /** Ship exactly these orders: labels PDF, Prime hand-off, in transit. */
     onShip: (orders: Order[], options: { moveToTransit: boolean }) => void;
 }
 
@@ -49,6 +51,7 @@ export function ShipRunDialog({
     getDispatchTwin,
     onRemove,
     shipping,
+    primeLinked,
     onShip,
 }: ShipRunDialogProps) {
     const { t } = useLanguage();
@@ -197,7 +200,9 @@ export function ShipRunDialog({
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{t("printing.shipStepsTitle")}</h3>
                         <ol className="mt-2.5 space-y-2 text-sm text-foreground">
                             <Step icon={FileText} text={names.labels} mono />
-                            <Step icon={FileSpreadsheet} text={names.prime} mono />
+                            {primeLinked
+                                ? <Step icon={Send} text={t("printing.shipStepPrimeApi")} />
+                                : <Step icon={FileSpreadsheet} text={names.prime} mono />}
                         </ol>
                         <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-xl bg-[var(--background)] px-3 py-2.5">
                             <Truck className="h-4 w-4 shrink-0 text-muted" />
@@ -207,7 +212,7 @@ export function ShipRunDialog({
                             </span>
                             <Switch checked={moveToTransit} onCheckedChange={setMoveToTransit} aria-label={t("printing.shipStepTransit", { count })} />
                         </label>
-                        <p className="mt-3 text-xs text-muted">{t("printing.shipStepsNote")}</p>
+                        <p className="mt-3 text-xs text-muted">{t(primeLinked ? "printing.shipStepsNoteLinked" : "printing.shipStepsNote")}</p>
                     </section>
                 </div>
 

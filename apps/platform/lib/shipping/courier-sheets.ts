@@ -70,17 +70,27 @@ export function cleanPhoneForExport(phone: string): string {
     return cleaned;
 }
 
-const totalQuantity = (order: CourierSheetOrder) =>
+/** Pieces in the parcel (the courier's "عدد القطع"). */
+export const totalQuantity = (order: CourierSheetOrder) =>
     order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || 1;
 
-const productType = (order: CourierSheetOrder) =>
+/** What the parcel holds, as the courier sees it. */
+export const productType = (order: CourierSheetOrder) =>
     mergeOrderItems(order.items).map((item) => item.name).filter(Boolean).join(" + ") || "ملابس";
 
 // Prepaid orders: courier must not collect COD, so the amount is 0
 // (computeCodAmount) and a note flags it as already paid for the courier.
-function courierNotes(order: CourierSheetOrder): string {
+export function courierNotes(order: CourierSheetOrder): string {
     const isPrepaid = order.payment_status === "prepaid" || order.payment_status === "paid";
     return isPrepaid ? [PREPAID_NOTE, order.notes].filter(Boolean).join(" - ") : order.notes || "";
+}
+
+/** The order's governorate code (BGD, BAS…), read from the city text when the order has none. */
+export function courierGovernorateCode(order: CourierSheetOrder): string {
+    const stored = order.validated_governorate_code || order.governorate_code;
+    if (stored) return stored;
+    if (!order.city) return "";
+    return extractGovernorate(order.city, undefined, order.address_details).governorate?.code || "";
 }
 
 const today = () => new Date().toISOString().split("T")[0];
@@ -104,12 +114,7 @@ export function primeSheet(orders: CourierSheetOrder[]): CourierSheet {
     ];
 
     const rows = orders.map((order) => {
-        // Get governorate code
-        let govCode = order.validated_governorate_code || order.governorate_code || "";
-        if (!govCode && order.city) {
-            const { governorate } = extractGovernorate(order.city, undefined, order.address_details);
-            govCode = governorate?.code || "";
-        }
+        const govCode = courierGovernorateCode(order);
 
         // Clean Order ID:
         // 1. Remove CHK- prefix if present

@@ -76,10 +76,13 @@ function pickBestPhoneMatch(orders: Order[]): Order | null {
 function classifyMatch(
     pdfRow: ParsedPDFRow,
     order: Order,
-    matchedBy: "order_id" | "phone"
+    matchedBy: "order_id" | "phone",
+    courierDelivered: ReadonlySet<string>
 ): { category: MatchCategory; details: string } {
-    // Already delivered or completed
-    if (order.status === "delivered" || order.status === "completed") {
+    // Already delivered or completed. A delivery the Prime link already recorded
+    // is the expected case: the statement is what turns it into completed.
+    const deliveredByLink = order.status === "delivered" && courierDelivered.has(order.id);
+    if ((order.status === "delivered" && !deliveredByLink) || order.status === "completed") {
         return {
             category: "already_delivered",
             details: `Order is already in "${order.status}" status`,
@@ -143,7 +146,9 @@ function classifyMatch(
  */
 export function matchParsedRows(
     pdfRows: ParsedPDFRow[],
-    orders: Order[]
+    orders: Order[],
+    /** Orders the Prime API link marked delivered (prime_shipments DELIVERED). */
+    courierDelivered: ReadonlySet<string> = new Set()
 ): MatchedRow[] {
     // Build lookup maps
     const orderIdMap = new Map<string, Order>();
@@ -304,7 +309,7 @@ export function matchParsedRows(
         }
 
         // 5. Classify the match (matchedBy is guaranteed to be "order_id" or "phone" here since order was found)
-        const { category, details } = classifyMatch(pdfRow, order, matchedBy as "order_id" | "phone");
+        const { category, details } = classifyMatch(pdfRow, order, matchedBy as "order_id" | "phone", courierDelivered);
 
         // 6. Check for reorder (informational overlay, doesn't change category)
         let finalDetails = details;

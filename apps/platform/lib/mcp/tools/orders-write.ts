@@ -13,7 +13,7 @@ import {
     resolveOrderGovernorate,
 } from "@/lib/mcp/orders";
 import { iqd, itemsText, orderLine, statusText } from "@/lib/mcp/format";
-import { buildStatusUpdate } from "@/lib/repositories/order-repository";
+import { buildStatusUpdate } from "@/lib/orders/status-update";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { classifyTransition, resolveStatusForOrder } from "@/lib/order-status-machine";
 import { createOrderForTenant } from "@/lib/order-service";

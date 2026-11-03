@@ -39,6 +39,7 @@ const ROUTES = [
     "waseet-sync",
     "waseet-locations",
     "auto-no-response",
+    "prime-sync",
 ] as const;
 
 const call = async (route: (typeof ROUTES)[number], headers: Record<string, string>) => {
