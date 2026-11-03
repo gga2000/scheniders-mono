@@ -27,6 +27,7 @@ export function useProductReviews() {
         queryKey: ["product-reviews", tenantId],
         enabled: !!tenantId,
         queryFn: async () => {
+            if (!tenantId) return [];
             // Counts on the tabs are totals, so read every review, not the API's first page.
             const data = await fetchAllPages<Record<string, unknown>>(async (offset) => {
                 const { data: page, error, count } = await supabase
@@ -35,7 +36,7 @@ export function useProductReviews() {
                         "id, product_id, rating, title, body, author_name, photo_urls, status, created_at, products(name)",
                         { count: "exact" },
                     )
-                    .eq("tenant_id", tenantId!)
+                    .eq("tenant_id", tenantId)
                     .order("created_at", { ascending: false })
                     .order("id", { ascending: false })
                     .range(offset, offset + 999);
@@ -68,11 +69,12 @@ export function useReviewModeration() {
             id: string;
             status: ReviewStatus;
         }): Promise<void> => {
+            if (!tenantId) throw new Error("No store selected");
             const { error } = await supabase
                 .from("product_reviews")
                 .update({ status })
                 .eq("id", id)
-                .eq("tenant_id", tenantId!);
+                .eq("tenant_id", tenantId);
             if (error) throw error;
         },
         onSuccess: invalidate,
@@ -80,11 +82,12 @@ export function useReviewModeration() {
 
     const remove = useMutation({
         mutationFn: async (id: string): Promise<void> => {
+            if (!tenantId) throw new Error("No store selected");
             const { error } = await supabase
                 .from("product_reviews")
                 .delete()
                 .eq("id", id)
-                .eq("tenant_id", tenantId!);
+                .eq("tenant_id", tenantId);
             if (error) throw error;
         },
         onSuccess: invalidate,

@@ -250,6 +250,32 @@ BEGIN
     END IF;
     RESET ROLE;
 
+    -- ---------------------------------------------------------------- 21-22
+    -- save_recipe is all or nothing: one bad row leaves the saved recipe as it was.
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
+    SELECT count(*) INTO n FROM public.bom_items WHERE product_id = v_prod;
+    BEGIN
+        PERFORM public.save_recipe(v_prod, jsonb_build_array(
+            jsonb_build_object('supply_id', v_s1, 'quantity', 2, 'unit', 'per_unit'),
+            jsonb_build_object('supply_id', v_s2, 'quantity', 0, 'unit', 'per_unit')));
+        v_ok := false;
+    EXCEPTION WHEN invalid_parameter_value THEN v_ok := true; END;
+    IF NOT v_ok OR (SELECT count(*) FROM public.bom_items WHERE product_id = v_prod) <> n THEN
+        v_fail := v_fail || ' 21-save-recipe-atomic';
+    END IF;
+    PERFORM public.save_recipe(v_prod, jsonb_build_array(jsonb_build_object('supply_id', v_s1, 'quantity', 3, 'unit', 'per_item')));
+    IF (SELECT count(*) FROM public.bom_items WHERE product_id = v_prod) <> 1
+       OR (SELECT quantity FROM public.bom_items WHERE product_id = v_prod) <> 3 THEN
+        v_fail := v_fail || ' 21b-save-recipe-replaces';
+    END IF;
+    -- A quantity that is not a number counts as 0 instead of failing the order.
+    BEGIN
+        PERFORM public.use_order_supplies(gen_random_uuid(),
+            jsonb_build_array(jsonb_build_object('product_id', v_prod, 'quantity', '2 pcs')), v_tenant);
+        v_ok := true;
+    EXCEPTION WHEN others THEN v_ok := false; END;
+    IF NOT v_ok THEN v_fail := v_fail || ' 22-bad-quantity-safe'; END IF;
+
     IF v_fail = '' THEN
         RAISE EXCEPTION 'ALL ASSERTIONS PASSED';
     END IF;

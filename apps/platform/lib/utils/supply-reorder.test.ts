@@ -90,6 +90,10 @@ describe("supplyTone", () => {
         expect(supplyTone({ stock_quantity: 0, reorder_point: 10, suppliers: supplier }, 0)).toBe("out");
     });
 
+    it("is out when every unit on hand is reserved", () => {
+        expect(supplyTone({ stock_quantity: 5, reserved_quantity: 5, reorder_point: 10, suppliers: supplier }, 0)).toBe("out");
+    });
+
     it("is ok when well stocked", () => {
         expect(supplyTone({ stock_quantity: 50, reorder_point: 10, times_sold_30d: 30, suppliers: supplier }, 0)).toBe("ok");
     });

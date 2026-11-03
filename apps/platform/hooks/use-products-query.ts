@@ -134,7 +134,7 @@ export function useUpdateProductMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ id, data, expectedUpdatedAt }: { id: string; data: ProductUpdate; expectedUpdatedAt?: string }) => {
+        mutationFn: async ({ id, data, expectedUpdatedAt }: { id: string; data: ProductUpdate; expectedUpdatedAt?: string; refresh?: boolean }) => {
             const updatedAt = await productRepository.update(id, data, { expectedUpdatedAt });
             return { id, data, updatedAt };
         },
@@ -152,7 +152,8 @@ export function useUpdateProductMutation() {
                 queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
             }
         },
-        onSettled: (_data, _err, { id }) => refreshProductRows(queryClient, tenantId, [id]),
+        // refresh: false when the caller (the editor's save) re-reads the row once itself.
+        onSettled: (_data, _err, { id, refresh }) => (refresh === false ? undefined : refreshProductRows(queryClient, tenantId, [id])),
     });
 }
 

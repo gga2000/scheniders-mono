@@ -161,49 +161,20 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                 );
             }
 
-            // Delete rules that were removed.
-            const keptIds = new Set(
-                current.filter((d) => d.id).map((d) => d.id as string)
-            );
-            const toDelete = rules
-                .filter((r) => !keptIds.has(r.id))
-                .map((r) => r.id);
-            if (toDelete.length > 0) {
-                const { error } = await supabase
-                    .from("bom_items")
-                    .delete()
-                    .in("id", toDelete);
-                if (error) throw error;
-            }
-
-            // Upsert each rule.
-            for (const d of current) {
-                if (d.id) {
-                    const { error } = await supabase
-                        .from("bom_items")
-                        .update({
-                            supply_id: d.supply_id,
-                            quantity: d.quantity,
-                            unit: d.unit,
-                        })
-                        .eq("id", d.id);
-                    if (error) throw error;
-                } else {
-                    const { error } = await supabase.from("bom_items").insert({
-                        product_id: productId,
-                        supply_id: d.supply_id,
-                        quantity: d.quantity,
-                        unit: d.unit,
-                        tenant_id: tenantId,
-                    });
-                    if (error) throw error;
-                }
-            }
+            // One call: the recipe is replaced in one transaction, so a
+            // refused row leaves the saved recipe exactly as it was.
+            const { error } = await supabase.rpc("save_recipe", {
+                p_product_id: productId,
+                p_rows: current.map((d) => ({ id: d.id ?? null, supply_id: d.supply_id, quantity: d.quantity, unit: d.unit })),
+            });
+            if (error) throw error;
         },
         onSuccess: () => {
             toast.success(t("recipe.saved"));
             setDrafts(null);
             queryClient.invalidateQueries({ queryKey: ["bom-items", productId] });
+            // The editor locks "supply" on supplies a recipe uses: recount them.
+            queryClient.invalidateQueries({ queryKey: ["supply-recipe-uses"] });
         },
         onError: (err: Error) => {
             // The raw database message is English and technical: say which rule

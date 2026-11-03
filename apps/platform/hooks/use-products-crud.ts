@@ -105,9 +105,9 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     const updateProduct = async (
         id: string,
         data: ProductUpdate,
-        opts: { expectedUpdatedAt?: string } = {},
+        opts: { expectedUpdatedAt?: string; refresh?: boolean } = {},
     ): Promise<string | null> => {
-        const { updatedAt } = await updateProductMutation.mutateAsync({ id, data, expectedUpdatedAt: opts.expectedUpdatedAt });
+        const { updatedAt } = await updateProductMutation.mutateAsync({ id, data, expectedUpdatedAt: opts.expectedUpdatedAt, refresh: opts.refresh });
         return updatedAt;
     };
 

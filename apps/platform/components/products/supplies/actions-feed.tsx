@@ -190,7 +190,8 @@ export function ActionsFeed({
             // Runs out within two lead times; otherwise it is here only for
             // sitting at its reorder point, and the title says so.
             const atRisk = eta != null && eta <= leadTime * 2;
-            const isOut = (s.stock_quantity ?? 0) - (s.reserved_quantity ?? 0) <= 0;
+            // Same rule as the supply card's "out" colour.
+            const isOut = supplyTone(s, 0) === "out";
             const detail = isOut
                 ? t("supplies.af.outDetail", { lead: t("supplies.sp.leadDays", { count: leadTime }) })
                 : isCritical
