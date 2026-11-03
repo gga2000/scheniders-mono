@@ -1,7 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { formatIQD, cn } from "@/lib/utils";
+import { NumberFlowGroup, type Format } from "@number-flow/react";
+import { cn } from "@/lib/utils";
+import { NumberTicker } from "@/components/ui/number-ticker";
 import { useLanguage } from "@/hooks/use-language";
 import { useOrdersPanelStats } from "@/hooks/use-orders-panel-stats";
 import { ErrorBoundary } from "@scheniders/ui/error-boundary";
@@ -29,9 +31,18 @@ interface OrdersAnalyticsPanelProps {
     flaggedCountHidden?: boolean;
 }
 
+const WHOLE: Format = { maximumFractionDigits: 0 };
+const IQD: Format = { style: "currency", currency: "IQD", minimumFractionDigits: 0, maximumFractionDigits: 0 };
 /** Meta bills in dollars: $341.80. */
-const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const whole = (n: number) => Math.round(n).toLocaleString("en-US");
+const USD: Format = { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 };
+const PERCENT: Format = { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 };
+
+const whole = (n: number) => <NumberTicker value={Math.round(n)} format={WHOLE} />;
+const iqd = (n: number) => <NumberTicker value={n} format={IQD} />;
+const usd = (n: number) => <NumberTicker value={n} format={USD} />;
+
+/** Placeholder cells while the figures load: the bar keeps its shape and fills in all at once. */
+const SKELETON_CELLS = 6;
 
 /**
  * The collapsible analytics bar above the orders toolbar: one slim dark strip of up to six figures (orders,
@@ -126,8 +137,24 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
         );
     }
 
+    if (stats.loading) {
+        return (
+            <section aria-label={t("orders.tip.analytics")} aria-busy="true" className={shell} data-testid="orders-analytics-strip">
+                <div className="flex min-w-0 flex-1 items-center" data-testid="orders-analytics-loading">
+                    {Array.from({ length: SKELETON_CELLS }, (_, i) => (
+                        <div key={i} className="flex-auto border-s border-white/10 px-3.5 py-1 first:border-s-0">
+                            <div className="h-2.5 w-12 animate-pulse rounded bg-white/10" />
+                            <div className="mt-2 h-5 w-20 animate-pulse rounded bg-white/15" />
+                        </div>
+                    ))}
+                </div>
+            </section>
+        );
+    }
+
     return (
         <section aria-label={t("orders.tip.analytics")} className={shell} data-testid="orders-analytics-strip">
+            <NumberFlowGroup>
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-y-1.5">
                 {stats.store.show && storeNow && (
                     <OrdersAnalyticsCell
@@ -150,7 +177,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                         testId="conversion"
                         label={t("orders.analytics.conversionRate")}
                         hint={t("orders.analytics.tip.conversion")}
-                        value={storeNow.conversion === null ? "—" : `${storeNow.conversion.toFixed(1)}%`}
+                        value={storeNow.conversion === null ? "—" : <NumberTicker value={storeNow.conversion / 100} format={PERCENT} />}
                         change={pointChange(storeNow.conversion, storeBefore?.conversion ?? null)}
                         changeUnit="pt"
                     />
@@ -159,7 +186,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                     testId="revenue"
                     label={t("orders.analytics.revenue")}
                     hint={t("orders.analytics.tip.revenue")}
-                    value={current.data ? formatIQD(current.data.confirmed_revenue) : null}
+                    value={current.data ? iqd(current.data.confirmed_revenue) : null}
                     change={comparing && current.data && previous.data ? pctChange(current.data.confirmed_revenue, previous.data.confirmed_revenue) : null}
                 />
                 {stats.ads && (
@@ -169,13 +196,13 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                             label={t("orders.analytics.adSpend")}
                             hint={t("orders.analytics.tip.adSpend")}
                             value={spend === undefined ? null : usd(spend.usd)}
-                            sub={spend === undefined ? null : formatIQD(spend.iqd)}
+                            sub={spend === undefined ? null : iqd(spend.iqd)}
                         />
                         <OrdersAnalyticsCell
                             testId="cpa"
                             label={t("orders.analytics.cpa")}
                             hint={t("orders.analytics.tip.cpa")}
-                            value={spend === undefined || !current.data ? null : costPerOrder === null ? "—" : formatIQD(costPerOrder)}
+                            value={spend === undefined || !current.data ? null : costPerOrder === null ? "—" : iqd(costPerOrder)}
                         />
                         {stats.ads.billing.data && (
                             <OrdersAnalyticsCell
@@ -183,7 +210,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                                 label={t("orders.analytics.adOwed")}
                                 hint={t("orders.analytics.tip.adOwed")}
                                 value={usd(stats.ads.billing.data.owedUsd)}
-                                sub={formatIQD(stats.ads.billing.data.owedIqd)}
+                                sub={iqd(stats.ads.billing.data.owedIqd)}
                             />
                         )}
                         {stats.ads.billing.data && (
@@ -192,12 +219,13 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                                 label={t("orders.analytics.adLimit")}
                                 hint={t("orders.analytics.tip.adLimit")}
                                 value={usd(stats.ads.billing.data.leftUsd)}
-                                sub={formatIQD(stats.ads.billing.data.leftIqd)}
+                                sub={iqd(stats.ads.billing.data.leftIqd)}
                             />
                         )}
                     </>
                 )}
             </div>
+            </NumberFlowGroup>
             {pills.length > 0 && (
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5 ps-3" data-testid="orders-analytics-attention">
                     {pills.map((a) => (
