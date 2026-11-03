@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
+import { cachedRead } from "./cached-read";
 import {
   createSupabaseServerClient,
   createSupabasePublicClient,
@@ -127,22 +127,22 @@ const getPublishedTenantBySlug = (slug: string): Promise<Tenant | null> =>
   // requests (the EC29 win). The callback uses the cookie-free public client so
   // it's safe inside unstable_cache. Tagged for future on-demand revalidation
   // (a platform→storefront publish webhook); a 60s TTL bounds staleness today.
-  unstable_cache(
-    async (): Promise<Tenant | null> => {
-      if (!slug) return null;
-      // Service client: anon cannot read tenant config (it holds server-only
-      // tokens). Cookie-free, so it is safe inside unstable_cache; the status
-      // filter and column list in selectTenant keep it to the public row.
-      // Cross-version cast (see ServerClientLike) — same runtime API.
-      const supabase = createSupabaseServiceClient() as unknown as ServerClientLike;
-      return selectTenant(supabase, { kind: "slug", value: slug });
-    },
+  cachedRead(
     ["storefront-tenant-slug", slug],
     {
       revalidate: STOREFRONT_CACHE_SECONDS,
       tags: ["storefront-tenant", `storefront-tenant-${slug}`],
     },
-  )();
+    async (health): Promise<Tenant | null> => {
+      if (!slug) return null;
+      // Service client: anon cannot read tenant config (it holds server-only
+      // tokens). Cookie-free, so it is safe inside unstable_cache; the status
+      // filter and column list in selectTenant keep it to the public row.
+      // Cross-version cast (see ServerClientLike) — same runtime API.
+      const supabase = createSupabaseServiceClient(health) as unknown as ServerClientLike;
+      return selectTenant(supabase, { kind: "slug", value: slug });
+    },
+  );
 
 /**
  * Draft view: a visitor holding a valid preview token for THIS tenant (in
@@ -189,12 +189,17 @@ export const getTenantBySlug = cache(
  * Stub for now — will query a `tenant_domains` table later.
  */
 const getPublishedTenantByCustomDomain = (domain: string): Promise<Tenant | null> =>
-    unstable_cache(
-      async (): Promise<Tenant | null> => {
+    cachedRead(
+      ["storefront-tenant-domain", domain],
+      {
+        revalidate: STOREFRONT_CACHE_SECONDS,
+        tags: ["storefront-tenant", `storefront-tenant-domain-${domain}`],
+      },
+      async (health): Promise<Tenant | null> => {
         if (!domain) return null;
         // Cross-version cast (see ServerClientLike) — same runtime API.
         const supabase =
-          createSupabasePublicClient() as unknown as ServerClientLike;
+          createSupabasePublicClient(health) as unknown as ServerClientLike;
         const { data } = await supabase
           .from("tenant_domains")
           .select("tenant_id")
@@ -209,15 +214,10 @@ const getPublishedTenantByCustomDomain = (domain: string): Promise<Tenant | null
         if (!data?.tenant_id) return null;
         // The domain lookup stays anon (its own RLS policy); the tenant row
         // needs the service client, as in getPublishedTenantBySlug.
-        const service = createSupabaseServiceClient() as unknown as ServerClientLike;
+        const service = createSupabaseServiceClient(health) as unknown as ServerClientLike;
         return selectTenant(service, { kind: "id", value: data.tenant_id });
       },
-      ["storefront-tenant-domain", domain],
-      {
-        revalidate: STOREFRONT_CACHE_SECONDS,
-        tags: ["storefront-tenant", `storefront-tenant-domain-${domain}`],
-      },
-    )();
+    );
 
 export const getTenantByCustomDomain = cache(
   async (domain: string): Promise<Tenant | null> =>

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
+import { cachedRead } from "./cached-read";
 import { createSupabasePublicClient } from "./supabase/server";
 import { withStorefrontStock } from "./storefront-stock";
 import type { Tables } from "@scheniders/supabase";
@@ -23,11 +23,11 @@ function publicCache<R>(
   keyParts: string[],
   read: (supabase: PublicClient) => Promise<R>,
 ): Promise<R> {
-  return unstable_cache(
-    () => read(createSupabasePublicClient()),
+  return cachedRead(
     ["storefront-catalog", ...keyParts],
     { revalidate: STOREFRONT_CACHE_SECONDS, tags: ["storefront-catalog"] },
-  )();
+    (health) => read(createSupabasePublicClient(health)),
+  );
 }
 
 /**

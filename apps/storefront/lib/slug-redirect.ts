@@ -18,7 +18,7 @@
 // =====================================================================
 
 import { cache } from "react";
-import { unstable_cache } from "next/cache";
+import { cachedRead } from "./cached-read";
 import { createSupabasePublicClient } from "./supabase/server";
 
 // Mirrors tenant.ts STOREFRONT_CACHE_SECONDS (not exported there):
@@ -61,9 +61,7 @@ export async function lookupRenamedSlug(
 
 export const resolveRenamedSlug = cache(
   (oldSlug: string): Promise<string | null> =>
-    unstable_cache(
-      () => lookupRenamedSlug(createSupabasePublicClient(), oldSlug),
-      ["storefront-slug-rename", oldSlug],
-      { revalidate: CACHE_SECONDS },
-    )(),
+    cachedRead(["storefront-slug-rename", oldSlug], { revalidate: CACHE_SECONDS }, (health) =>
+      lookupRenamedSlug(createSupabasePublicClient(health), oldSlug),
+    ),
 );

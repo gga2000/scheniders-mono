@@ -11,10 +11,42 @@ import { cookies } from "next/headers";
  */
 const SUPABASE_REQUEST_TIMEOUT_MS = 8_000;
 
-function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+/**
+ * Records whether any request made through a client failed for a reason the
+ * next attempt may not share: the fetch itself threw (timeout, dropped
+ * connection) or the API answered 5xx (it could not reach Postgres). A read
+ * that saw one of these returns its degraded fallback, and `cachedRead` keeps
+ * that fallback out of the cross-request cache. postgrest-js retries a failed
+ * GET, so a read can be marked failed and still end with good data; that read
+ * is merely not cached, and the next request caches it.
+ */
+export interface ReadHealth {
+  failed: boolean;
+}
+
+function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  health?: ReadHealth,
+): Promise<Response> {
   const timeout = AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS);
   const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
-  return fetch(input, { ...init, signal });
+  const request = fetch(input, { ...init, signal });
+  if (!health) return request;
+  return request.then(
+    (response) => {
+      if (response.status >= 500) health.failed = true;
+      return response;
+    },
+    (error: unknown) => {
+      health.failed = true;
+      throw error;
+    },
+  );
+}
+
+function trackedFetch(health?: ReadHealth): typeof fetch {
+  return (input, init) => fetchWithTimeout(input, init, health);
 }
 
 interface CookieToSet {
@@ -61,7 +93,7 @@ export async function createSupabaseServerClient() {
  */
 import { createClient } from "@supabase/supabase-js";
 
-export function createSupabaseServiceClient() {
+export function createSupabaseServiceClient(health?: ReadHealth) {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -70,7 +102,7 @@ export function createSupabaseServiceClient() {
         autoRefreshToken: false,
         persistSession: false,
       },
-      global: { fetch: fetchWithTimeout },
+      global: { fetch: trackedFetch(health) },
     },
   );
 }
@@ -84,7 +116,7 @@ export function createSupabaseServiceClient() {
  * same role anonymous storefront traffic already hits, just without the
  * per-request cookie wiring, so cross-request caching becomes possible.
  */
-export function createSupabasePublicClient() {
+export function createSupabasePublicClient(health?: ReadHealth) {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -93,7 +125,7 @@ export function createSupabasePublicClient() {
         autoRefreshToken: false,
         persistSession: false,
       },
-      global: { fetch: fetchWithTimeout },
+      global: { fetch: trackedFetch(health) },
     },
   );
 }
