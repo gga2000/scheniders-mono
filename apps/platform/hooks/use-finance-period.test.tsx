@@ -12,7 +12,10 @@ describe("useFinancePeriod", () => {
         vi.useFakeTimers();
         vi.setSystemTime(NOW);
     });
-    afterEach(() => vi.useRealTimers());
+    afterEach(() => {
+        vi.useRealTimers();
+        localStorage.clear();
+    });
 
     it("treats today as the Baghdad day, wherever the browser is", () => {
         const { result } = renderHook(() => useFinancePeriod("today"));
@@ -69,5 +72,28 @@ describe("useFinancePeriod", () => {
             result.current.setCompareMode("yoy");
         });
         expect(days(result.current.compareRange)).toEqual(["2027-02-28", "2027-02-28"]);
+    });
+
+    it("reopens on the last preset and comparison the merchant chose", () => {
+        const first = renderHook(() => useFinancePeriod("last30"));
+        act(() => first.result.current.applyPreset("mtd"));
+        act(() => first.result.current.setCompareMode("yoy"));
+        first.unmount();
+
+        const { result } = renderHook(() => useFinancePeriod("last30"));
+        expect(result.current.period.preset).toBe("mtd");
+        expect(result.current.period.compareMode).toBe("yoy");
+        expect(days(result.current.period)).toEqual(["2026-11-01", "2026-11-01"]);
+    });
+
+    it("does not remember a custom range, and ignores a corrupt stored value", () => {
+        const first = renderHook(() => useFinancePeriod("last30"));
+        act(() => first.result.current.applyPreset("last7"));
+        act(() => first.result.current.setCustom(new Date("2026-10-01T12:00:00Z"), new Date("2026-10-05T12:00:00Z")));
+        first.unmount();
+        expect(renderHook(() => useFinancePeriod("last30")).result.current.period.preset).toBe("last7");
+
+        localStorage.setItem("finance.period.v1", "{not json");
+        expect(renderHook(() => useFinancePeriod("last30")).result.current.period.preset).toBe("last30");
     });
 });

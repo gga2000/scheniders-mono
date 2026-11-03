@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { z } from "zod";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 
 export type Granularity = "day" | "week" | "month" | "quarter" | "year";
@@ -55,14 +56,49 @@ function presetRange(preset: PresetKey): { start: Date; end: Date } {
     }
 }
 
+/**
+ * The merchant's last period choice, kept per browser so Finances reopens on it.
+ * A custom range is not kept: its dates would be stale the next day.
+ */
+const STORAGE_KEY = "finance.period.v1";
+const StoredPeriodSchema = z.object({
+    preset: z.enum(["today", "yesterday", "last7", "last30", "mtd", "ytd"]),
+    compareMode: z.enum(["previous", "yoy", "none"]),
+});
+type StoredPeriod = z.infer<typeof StoredPeriodSchema>;
+
+function readStored(): StoredPeriod | null {
+    if (typeof window === "undefined") return null;
+    try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? StoredPeriodSchema.safeParse(JSON.parse(raw)) : null;
+        return parsed?.success ? parsed.data : null;
+    } catch {
+        // Blocked or corrupt storage only costs the remembered choice.
+        return null;
+    }
+}
+
+function writeStored(value: StoredPeriod): void {
+    try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    } catch {
+        // Same: the choice just is not remembered.
+    }
+}
+
 export function useFinancePeriod(initial: PresetKey = "last30") {
-    const initialRange = presetRange(initial);
-    const [period, setPeriod] = useState<FinancePeriod>({
-        start: initialRange.start,
-        end: initialRange.end,
-        preset: initial,
-        compareMode: "previous",
+    const [period, setPeriod] = useState<FinancePeriod>(() => {
+        const stored = readStored();
+        const preset = stored?.preset ?? initial;
+        const range = presetRange(preset);
+        return { start: range.start, end: range.end, preset, compareMode: stored?.compareMode ?? "previous" };
     });
+
+    const { preset, compareMode } = period;
+    useEffect(() => {
+        if (preset !== "custom") writeStored({ preset, compareMode });
+    }, [preset, compareMode]);
 
     const applyPreset = useCallback((preset: PresetKey) => {
         const r = presetRange(preset);
