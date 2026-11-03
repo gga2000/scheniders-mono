@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
 import { sendTemplateMessage, type TemplateType } from "@/lib/interakt";
 import { env } from "@/lib/env";
-import { scheduleFollowUp, DISCOUNT_DELAY_HOURS, REMINDER_DELAY_HOURS } from "@/lib/qstash";
+import { DISCOUNT_DELAY_HOURS, REMINDER_DELAY_HOURS } from "@/lib/qstash";
+import { scheduleFollowUpInWindow } from "@/lib/follow-up-schedule";
+import { isInsideWindow, parseFollowUpWindow } from "@/lib/follow-up-window";
 import { flagOrderForWhatsAppFailure } from "@/lib/whatsapp-error-handler";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { automationFollowUpStamp } from "@/lib/follow-up-state";
@@ -48,6 +50,10 @@ export async function POST(request: Request) {
 
     if (!orderUuid || !templateType) {
         return NextResponse.json({ error: "Missing orderUuid or templateType" }, { status: 400 });
+    }
+
+    if (templateType !== "reminder" && templateType !== "discount") {
+        return NextResponse.json({ error: "templateType must be reminder or discount" }, { status: 400 });
     }
 
     console.log(`[Auto Follow-up] Processing ${templateType} for order ${orderUuid}`);
@@ -96,6 +102,15 @@ export async function POST(request: Request) {
     if (templateType === "discount" && contactCount >= 3) {
         console.log(`[Auto Follow-up] Discount already sent for ${order.order_id} (count=${contactCount})`);
         return NextResponse.json({ skipped: true, reason: "already_sent" });
+    }
+
+    // Never message a customer outside the store's daytime window. QStash can
+    // fire late or retry, so the window is re-checked here and the send is
+    // re-queued for the next opening instead of going out at night.
+    const window = parseFollowUpWindow(settings.value.reminder_window);
+    if (!isInsideWindow(new Date(), window)) {
+        await scheduleFollowUpInWindow({ orderUuid, templateType, earliest: new Date(), window });
+        return NextResponse.json({ skipped: true, reason: "outside_window" });
     }
 
     // 1. Claim the follow-up by incrementing contact_count atomically
@@ -175,15 +190,14 @@ export async function POST(request: Request) {
 
     console.log(`[Auto Follow-up] ${templateType} sent for ${order.order_id} (count: ${contactCount} → ${newContactCount})`);
 
-    // If this was a reminder, schedule the discount follow-up
+    // If this was a reminder, schedule the discount follow-up, again held to the window.
     if (templateType === "reminder") {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL
-            || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-
-        if (baseUrl) {
-            const discountDelay = (DISCOUNT_DELAY_HOURS - REMINDER_DELAY_HOURS) * 3600;
-            await scheduleFollowUp(orderUuid, "discount", discountDelay, baseUrl);
-        }
+        await scheduleFollowUpInWindow({
+            orderUuid,
+            templateType: "discount",
+            earliest: new Date(Date.now() + (DISCOUNT_DELAY_HOURS - REMINDER_DELAY_HOURS) * 3_600_000),
+            window,
+        });
     }
 
     return NextResponse.json({
