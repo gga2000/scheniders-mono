@@ -312,7 +312,7 @@ export function ReorderDrawer({
                                     <ShoppingCart className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                                     {t("supplies.ro.title")}
                                 </h3>
-                                <p className="text-xs text-muted mt-0.5">
+                                <p dir={textDir} className="text-left text-xs text-muted mt-0.5">
                                     {totalItems > 0
                                         ? t("supplies.ro.summary", { items: totalItems, groups: supplierGroups.length })
                                         : t("supplies.ro.allGood")}
@@ -328,7 +328,7 @@ export function ReorderDrawer({
                         </div>
 
                         {coveredCount > 0 && (
-                            <p className="px-5 py-2 border-b border-[var(--card-border)] text-xs text-muted">
+                            <p dir={textDir} className="text-left px-5 py-2 border-b border-[var(--card-border)] text-xs text-muted">
                                 {t("supplies.ro.coveredByPo", { count: coveredCount })}
                             </p>
                         )}
@@ -404,7 +404,7 @@ export function ReorderDrawer({
                                                                 </span>
                                                                 <span>·</span>
                                                                 {noSupplier ? (
-                                                                    <span>{t("supplies.ro.noSupplierHint")}</span>
+                                                                    <span dir={textDir}>{t("supplies.ro.noSupplierHint")}</span>
                                                                 ) : (
                                                                     <span className="font-medium tabular-nums">
                                                                         {formatIQD(group.totalCost)}
@@ -601,6 +601,7 @@ function ReorderItemRow({
     onUnsnooze,
 }: ReorderItemRowProps) {
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const qty = draftQty ?? editedQty[item.supply.id] ?? item.suggestedQty;
     const lineCost = qty * item.unitCost;
 
@@ -666,7 +667,7 @@ function ReorderItemRow({
                     {/* A drafted row shows the draft's amount; the group note says where to change it. */}
                     {draftQty !== null && (
                         <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-muted tabular-nums">
-                            <span>
+                            <span dir={textDir}>
                                 {t("supplies.ro.onDraftQty", { count: draftQty })}
                                 {item.unitCost > 0 && ` × ${formatIQD(item.unitCost)}`}
                             </span>

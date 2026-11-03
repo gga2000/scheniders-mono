@@ -76,7 +76,7 @@ export function DaysOfSupplyPill({
             >
                 {/* No usage yet means "unknown", not "lasts forever": a supply
                     below its reorder point must never read as infinite. */}
-                {days === null ? "—" : tr("supplies.sp.leadDays", { count: days })}
+                {days === null ? "—" : days <= 0 ? tr("supplies.dos.out") : tr("supplies.sp.leadDays", { count: days })}
             </span>
             {trend && days !== null && <TrendGlyph direction={trend} />}
         </div>

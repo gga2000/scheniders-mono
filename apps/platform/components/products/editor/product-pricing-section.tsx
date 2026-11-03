@@ -49,13 +49,14 @@ export function ProductPricingSection({
                         <div>
                             <label className="block text-sm font-medium text-foreground mb-2">
                                 {t("products.ed.compareAt")}
-                                <span className="text-xs text-muted block">{t("products.ed.compareAtHint")}</span>
                             </label>
                             <IqdInput
                                 value={formData.compare_at_price || 0}
                                 onChange={(v) => updateField("compare_at_price", v)}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
+                            {/* Under the field, so the three price inputs line up. */}
+                            <p className="mt-1.5 text-xs text-muted">{t("products.ed.compareAtHint")}</p>
                         </div>
                     </>
                 )}
