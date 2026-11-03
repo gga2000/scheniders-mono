@@ -8,6 +8,7 @@ vi.mock("@/hooks/use-language", () => ({
         t: (k: string, v?: Record<string, unknown>) => (v ? `${k} ${JSON.stringify(v)}` : k),
         language: "en",
     }),
+    useTextDir: () => "ltr",
 }));
 
 import { BulkActionsBar } from "./bulk-actions-bar";

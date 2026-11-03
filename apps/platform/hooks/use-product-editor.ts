@@ -1086,6 +1086,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 });
 
                 if (newProduct) {
+                    refreshRowOf = newProduct.id;
                     try {
                         // Add variants
                         if (formData.variants.length > 0) {
@@ -1099,7 +1100,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                                     option_values: variant.option_values,
                                     image_url: variant.image_url,
                                     is_enabled: variant.is_enabled ?? true,
-                                });
+                                }, NO_ROW_REFRESH);
                             }
                         }
 
@@ -1186,7 +1187,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     duration_minutes: formData.duration_minutes,
                     booking_enabled: formData.booking_enabled,
                     feature_cards: serializeFeatureCards(formData.feature_cards),
-                }, { expectedUpdatedAt: baseUpdatedAtRef.current ?? undefined });
+                }, { expectedUpdatedAt: baseUpdatedAtRef.current ?? undefined, refresh: false });
                 baseUpdatedAtRef.current = savedUpdatedAt;
 
                 // Stock is saved only when the merchant changed it, as a shelf
@@ -1295,6 +1296,8 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             return;
         }
         setSaving(true);
+        // The copy's variants skip their own row refresh; the row is re-read once at the end.
+        let copyId: string | null = null;
         try {
             const newProduct = await addProduct({
                 name: t("products.ed.copyOf", { name: formData.name }),
@@ -1333,6 +1336,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 feature_cards: serializeFeatureCards(formData.feature_cards),
             });
 
+            copyId = newProduct?.id ?? null;
             if (newProduct && formData.variants.length > 0) {
                 for (const variant of formData.variants) {
                     await addVariant(newProduct.id, {
@@ -1344,7 +1348,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         option_values: variant.option_values,
                         image_url: variant.image_url,
                         is_enabled: variant.is_enabled ?? true,
-                    });
+                    }, NO_ROW_REFRESH);
                 }
             }
 
@@ -1361,8 +1365,9 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             toast.error(t(productWriteErrorKey(error)));
         } finally {
             setSaving(false);
+            if (copyId) void refreshProductRows(queryClient, tenantId, [copyId]);
         }
-    }, [formData, product, catalogue, addProduct, addVariant, router, saveRelatedData, tenantId, t, relatedDataLoaded, showCost]);
+    }, [formData, product, catalogue, addProduct, addVariant, router, saveRelatedData, tenantId, t, relatedDataLoaded, showCost, queryClient]);
 
     return {
         showCost,

@@ -60,7 +60,11 @@ interface ProductEditorPageProps {
 export function ProductEditorPage({ product, mode, defaultIsSupply = false }: ProductEditorPageProps) {
     const editor = useProductEditor({ product, mode, defaultIsSupply });
     // A supply used in recipes cannot be unticked (the database refuses it).
-    const { data: recipeUses = 0 } = useSupplyRecipeUses(product?.id, mode === "edit" && !!product?.is_supply);
+    const checkRecipeUses = mode === "edit" && !!product?.is_supply;
+    const { data: recipeUsesCount, isError: recipeUsesFailed } = useSupplyRecipeUses(product?.id, checkRecipeUses);
+    // null while the count loads: the toggle stays locked until it is known. If
+    // the count cannot be read, the database still refuses a bad untick.
+    const recipeUses = checkRecipeUses ? (recipeUsesCount ?? (recipeUsesFailed ? 0 : null)) : 0;
     const { t } = useLanguage();
     // Product cost and margin are for admins only; a supply's cost is its
     // price, so whoever adds supplies keeps seeing it (useProductEditor).

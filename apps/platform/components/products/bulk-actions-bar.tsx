@@ -14,7 +14,7 @@ import {
     Trash2,
 } from "lucide-react";
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { cn, formatCount, formatIQD, parseWholeNumber } from "@/lib/utils";
 import { productWriteErrorKey } from "@/lib/product-write-error";
@@ -59,6 +59,7 @@ export function BulkActionsBar({
     onDelete,
 }: BulkActionsBarProps) {
     const { t, language } = useLanguage();
+    const textDir = useTextDir();
     const [showPriceInput, setShowPriceInput] = useState(false);
     const [newPrice, setNewPrice] = useState("");
     // On by default: a new price usually means "charge this everywhere".
@@ -346,10 +347,12 @@ export function BulkActionsBar({
                                     type="text"
                                     inputMode="numeric"
                                     value={newPrice}
-                                    // Shown with thousands separators, like every other price.
-                                    onChange={(e) => {
-                                        const n = parseWholeNumber(e.target.value);
-                                        setNewPrice(n === null ? e.target.value : formatCount(n));
+                                    onChange={(e) => setNewPrice(e.target.value)}
+                                    // Separators on leaving the field, like every other price;
+                                    // formatting while typing would move the caret.
+                                    onBlur={() => {
+                                        const n = parseWholeNumber(newPrice);
+                                        if (n !== null) setNewPrice(formatCount(n));
                                     }}
                                     placeholder={t("products.bulk.newPrice")}
                                     autoFocus
@@ -393,7 +396,7 @@ export function BulkActionsBar({
                                             onChange={(e) => setAlsoWebsite(e.target.checked)}
                                             className="w-3.5 h-3.5 rounded"
                                         />
-                                        <span dir={language === "ar" ? "rtl" : "ltr"}>
+                                        <span dir={textDir}>
                                             {t("products.bulk.alsoWebsite", {
                                                 count: priceImpact?.keepsStorePrice ?? 0,
                                                 price: formatIQD(parseWholeNumber(newPrice) ?? 0),
@@ -402,7 +405,7 @@ export function BulkActionsBar({
                                     </label>
                                 )}
                                 {priceImpact?.text && (
-                                    <p dir={language === "ar" ? "rtl" : "ltr"} className={cn("basis-full text-left text-xs", priceImpact.belowCost > 0 ? "text-amber-300" : "text-white/70")}>
+                                    <p dir={textDir} className={cn("basis-full text-left text-xs", priceImpact.belowCost > 0 ? "text-amber-300" : "text-white/70")}>
                                         {priceImpact.text}
                                         {belowCostPrice === newPrice && priceImpact.belowCost > 0 && ` ${t("products.bulk.belowCostConfirm")}`}
                                     </p>

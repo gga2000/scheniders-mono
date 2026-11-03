@@ -2,12 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
+import { fetchPurchaseOrderLineCosts } from "@/lib/repositories/purchase-costs";
 
 export interface DraftPoRef {
     id: string;
     number: string;
     /** How many of this supply the draft orders. */
     quantity: number;
+    /** The draft's own price per unit; null when unknown or hidden from this member. */
+    unitCost: number | null;
 }
 
 interface DraftLineRow {
@@ -40,13 +43,23 @@ export function useDraftPosBySupply() {
                     .order("id")
                     .range(from, to)
             );
+            // Line prices are cost data: read per draft (a store has few drafts), empty if hidden.
+            const poIds = [...new Set(rows.flatMap((row) => {
+                const po = Array.isArray(row.purchase_orders) ? row.purchase_orders[0] : row.purchase_orders;
+                return po ? [po.id] : [];
+            }))];
+            const lineCosts = new Map<string, number | null>();
+            for (const costs of await Promise.all(poIds.map(fetchPurchaseOrderLineCosts))) {
+                for (const [lineId, cost] of costs) lineCosts.set(lineId, cost);
+            }
             const map = new Map<string, DraftPoRef>();
             for (const row of rows) {
                 const po = Array.isArray(row.purchase_orders) ? row.purchase_orders[0] : row.purchase_orders;
                 if (!po) continue;
+                const unitCost = lineCosts.get(row.id) ?? null;
                 const seen = map.get(row.product_id);
-                if (!seen) map.set(row.product_id, { id: po.id, number: po.po_number, quantity: row.quantity_ordered });
-                // The same draft may list a supply twice; another draft's lines stay with that draft.
+                if (!seen) map.set(row.product_id, { id: po.id, number: po.po_number, quantity: row.quantity_ordered, unitCost });
+                // A draft lists a supply once (one line per product); another draft's lines stay with that draft.
                 else if (seen.id === po.id) seen.quantity += row.quantity_ordered;
             }
             return map;
@@ -74,7 +87,7 @@ export function useDraftPoBySupplier() {
         queryKey: ["draft-pos-by-supply", tenantId, "by-supplier"],
         enabled: !!tenantId,
         staleTime: 60_000,
-        queryFn: async (): Promise<Map<string, Omit<DraftPoRef, "quantity">>> => {
+        queryFn: async (): Promise<Map<string, Omit<DraftPoRef, "quantity" | "unitCost">>> => {
             if (!tenantId) return new Map();
             const rows = await fetchAllPages<{ id: string; po_number: string; supplier_name: string | null }>((from, to) =>
                 supabase
@@ -85,7 +98,7 @@ export function useDraftPoBySupplier() {
                     .order("id")
                     .range(from, to)
             );
-            const map = new Map<string, Omit<DraftPoRef, "quantity">>();
+            const map = new Map<string, Omit<DraftPoRef, "quantity" | "unitCost">>();
             for (const row of rows) {
                 if (row.supplier_name) map.set(supplierKey(row.supplier_name), { id: row.id, number: row.po_number });
             }

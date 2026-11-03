@@ -49,7 +49,10 @@ interface SupplierGroup {
     supplierEmail: string;
     supplierContact: string;
     items: ReorderItem[];
-    totalCost: number;
+    /** What the supplier's draft already orders for these supplies, at the draft's prices. */
+    onDraftCost: number;
+    /** What the new PO lines would add, at today's prices. */
+    toAddCost: number;
 }
 
 const NO_SUPPLIER_KEY = "__no_supplier__";
@@ -163,14 +166,17 @@ export function ReorderDrawer({
                     supplierEmail: item.primarySupplier?.supplier_email ?? "",
                     supplierContact: item.primarySupplier?.supplier_contact ?? "",
                     items: [],
-                    totalCost: 0,
+                    onDraftCost: 0,
+                    toAddCost: 0,
                 });
             }
             const g = map.get(key)!;
-            // A drafted supply costs what its draft orders, not today's suggestion.
-            const qty = draftBySupply?.get(item.supply.id)?.quantity ?? editedQty[item.supply.id] ?? item.suggestedQty;
+            // A drafted supply costs what its draft orders, at the draft's price;
+            // the rest is what a new PO would add, at today's price.
+            const drafted = draftBySupply?.get(item.supply.id);
             g.items.push(item);
-            g.totalCost += qty * item.unitCost;
+            if (drafted) g.onDraftCost += drafted.quantity * (drafted.unitCost ?? item.unitCost);
+            else g.toAddCost += (editedQty[item.supply.id] ?? item.suggestedQty) * item.unitCost;
         }
 
         const groups = Array.from(map.values()).sort((a, b) => {
@@ -406,8 +412,10 @@ export function ReorderDrawer({
                                                                 {noSupplier ? (
                                                                     <span dir={textDir}>{t("supplies.ro.noSupplierHint")}</span>
                                                                 ) : (
-                                                                    <span className="font-medium tabular-nums">
-                                                                        {formatIQD(group.totalCost)}
+                                                                    <span dir={textDir} className="font-medium tabular-nums">
+                                                                        {group.onDraftCost > 0 && group.toAddCost > 0
+                                                                            ? t("supplies.ro.splitTotal", { onDraft: formatIQD(group.onDraftCost), toAdd: formatIQD(group.toAddCost) })
+                                                                            : formatIQD(group.onDraftCost + group.toAddCost)}
                                                                     </span>
                                                                 )}
                                                                 {hasCritical && (
@@ -502,6 +510,7 @@ export function ReorderDrawer({
                                                                 // A draft already holds this group's quantities:
                                                                 // editing here would change nothing that is sent.
                                                                 draftQty={draftBySupply?.get(item.supply.id)?.quantity ?? null}
+                                                                draftUnitCost={draftBySupply?.get(item.supply.id)?.unitCost ?? null}
                                                                 onAssignSupplier={noSupplier && onAssignSupplier ? () => onAssignSupplier(item.supply) : undefined}
                                                                 snoozed={snoozedIds.has(
                                                                     item.supply.id
@@ -584,6 +593,8 @@ interface ReorderItemRowProps {
     onQtyChange: (qty: number) => void;
     /** What the draft this supply is on orders; null when it is on no draft. */
     draftQty: number | null;
+    /** The draft's own price per unit; null when unknown (today's price is shown). */
+    draftUnitCost?: number | null;
     /** Set for a supply with no supplier: it shows this instead of a quantity. */
     onAssignSupplier?: () => void;
     onSnooze: () => void;
@@ -596,6 +607,7 @@ function ReorderItemRow({
     snoozed,
     onQtyChange,
     draftQty,
+    draftUnitCost = null,
     onAssignSupplier,
     onSnooze,
     onUnsnooze,
@@ -603,7 +615,9 @@ function ReorderItemRow({
     const { t } = useLanguage();
     const textDir = useTextDir();
     const qty = draftQty ?? editedQty[item.supply.id] ?? item.suggestedQty;
-    const lineCost = qty * item.unitCost;
+    // A drafted line is priced as the draft prices it.
+    const unitCost = draftQty !== null && draftUnitCost !== null ? draftUnitCost : item.unitCost;
+    const lineCost = qty * unitCost;
 
     return (
         <div
@@ -669,9 +683,9 @@ function ReorderItemRow({
                         <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-muted tabular-nums">
                             <span dir={textDir}>
                                 {t("supplies.ro.onDraftQty", { count: draftQty })}
-                                {item.unitCost > 0 && ` × ${formatIQD(item.unitCost)}`}
+                                {unitCost > 0 && ` × ${formatIQD(unitCost)}`}
                             </span>
-                            {item.unitCost > 0 && (
+                            {unitCost > 0 && (
                                 <span className="text-sm font-semibold text-foreground">{formatIQD(lineCost)}</span>
                             )}
                         </div>

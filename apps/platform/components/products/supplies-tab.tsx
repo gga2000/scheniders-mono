@@ -31,6 +31,7 @@ import { SuppliersGrid } from "@/components/products/supplies/suppliers-grid";
 import { SupplierDetailDrawer } from "@/components/products/supplies/supplier-detail-drawer";
 import { SupplyDetailDrawer } from "@/components/products/supplies/supply-detail-drawer";
 import { ActionsFeed } from "@/components/products/supplies/actions-feed";
+import { NoRecipeHint } from "@/components/products/supplies/no-recipe-hint";
 import { supplyReorderState } from "@/lib/utils/supply-reorder";
 import { SuppliesBulkActionsBar } from "@/components/products/supplies/supplies-bulk-actions-bar";
 import { useOpenPosBySupply } from "@/hooks/use-open-pos-by-supply";
@@ -502,6 +503,9 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
 
             {section === "supplies" && (
                 <>
+            {/* Shipping a product without a recipe uses no supplies: say how many have none. */}
+            {supplies.length > 0 && <NoRecipeHint products={products} onOpenProduct={onEdit} />}
+
             {/* Actions feed (intelligence layer) */}
             {supplies.length > 0 && (
                 <ActionsFeed
