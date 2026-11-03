@@ -122,7 +122,7 @@ export function ProductDetailModal({
                         {/* Description */}
                         {description && (
                             <div>
-                                <p dir="auto" className="text-muted text-left">{htmlToPlainText(description)}</p>
+                                <p dir="auto" className="text-muted text-left whitespace-pre-line">{htmlToPlainText(description)}</p>
                             </div>
                         )}
 

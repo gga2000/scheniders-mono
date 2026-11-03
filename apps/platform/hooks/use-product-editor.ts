@@ -1112,7 +1112,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                                     price: variant.price,
                                     cost: variant.cost,
                                     stock_quantity: variant.stock_quantity,
-                                    sku: variant.sku,
+                                    sku: variant.sku.trim(),
                                     option_values: variant.option_values,
                                     image_url: variant.image_url,
                                     is_enabled: variant.is_enabled ?? true,
@@ -1232,6 +1232,21 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 const existingVariantIds = new Set(loadedVariantStock.keys());
                 const savedVariants: typeof formData.variants = [];
 
+                // Variant SKUs are unique per store and written one row at a
+                // time, so a SKU moving to another row (a swap, or a freed SKU
+                // given to an earlier row) would clash with its old holder.
+                // Clear the old holders first; the loop then writes the final SKUs.
+                const finalSkuById = new Map(formData.variants.flatMap((v) => (v.id ? [[v.id, v.sku.trim()] as const] : [])));
+                const wantedSkus = new Set(formData.variants.map((v) => v.sku.trim()).filter(Boolean));
+                for (const before of loaded.variants) {
+                    const oldSku = before.sku.trim();
+                    if (!before.id || !existingVariantIds.has(before.id) || !oldSku) continue;
+                    const keepsIt = finalSkuById.get(before.id) === oldSku;
+                    if (!keepsIt && wantedSkus.has(oldSku) && finalSkuById.has(before.id)) {
+                        await updateVariant(product.id, before.id, { sku: "" }, NO_ROW_REFRESH);
+                    }
+                }
+
                 for (const variant of formData.variants) {
                     if (variant.id && existingVariantIds.has(variant.id)) {
                         // Send only what this editor changed: resending every
@@ -1257,7 +1272,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                             price: variant.price,
                             cost: variant.cost,
                             stock_quantity: variant.stock_quantity,
-                            sku: variant.sku,
+                            sku: variant.sku.trim(),
                             option_values: variant.option_values,
                             image_url: variant.image_url,
                             is_enabled: variant.is_enabled ?? true,

@@ -19,6 +19,11 @@ describe("variantChanges", () => {
         expect(variantChanges(loaded, { ...loaded, option_values: { size: "50 ml" } }, true)).toEqual({});
     });
 
+    it("saves a SKU trimmed and ignores spaces-only edits", () => {
+        expect(variantChanges(loaded, { ...loaded, sku: " ENV-50 " }, true)).toEqual({});
+        expect(variantChanges(loaded, { ...loaded, sku: " ENV-100 " }, true)).toEqual({ sku: "ENV-100" });
+    });
+
     it("sends only the changed fields", () => {
         expect(variantChanges(loaded, { ...loaded, name: "50ml", stock_quantity: 9 }, true)).toEqual({ name: "50ml" });
     });

@@ -410,7 +410,7 @@ function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo
                     <p className="text-[11px] uppercase tracking-wide text-muted font-medium mb-1">
                         {t("supplies.sp.description")}
                     </p>
-                    <p dir="auto" className="text-sm text-left">{htmlToPlainText(description)}</p>
+                    <p dir="auto" className="text-sm text-left whitespace-pre-line">{htmlToPlainText(description)}</p>
                 </div>
             )}
         </div>

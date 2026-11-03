@@ -7,7 +7,8 @@ export function variantChanges(before: VariantFormData | undefined, after: Varia
     const patch: VariantPatch = {};
     if (!before || before.name !== after.name) patch.name = after.name;
     if (!before || before.price !== after.price) patch.price = after.price;
-    if (!before || before.sku !== after.sku) patch.sku = after.sku;
+    // Spaces around a SKU are never meant: saved trimmed, like the product SKU.
+    if (!before || before.sku.trim() !== after.sku.trim()) patch.sku = after.sku.trim();
     if (!before || JSON.stringify(before.option_values ?? {}) !== JSON.stringify(after.option_values ?? {})) {
         patch.option_values = after.option_values;
     }
