@@ -25,7 +25,7 @@ import {
     setOrderBatcher,
     useOrderListPreview,
 } from "@/hooks/use-orders-query";
-import { useLoadedOrdersWindowKey } from "@/hooks/orders-list-coverage";
+import { useLoadedOrdersWindowKey, useOrdersListSettledOnce } from "@/hooks/orders-list-coverage";
 
 import { useEffect } from "react";
 import { useOrderFilterState } from "@/hooks/use-order-filter-state";
@@ -186,8 +186,11 @@ export function useOrders() {
     // from the RPC, whose predicates differ.
     //
     // Held until the saved filter has replaced the seed (`filtersSettled`), so
-    // the seed's numbers are never fetched.
-    const { data: serverAggregates } = useOrdersAggregates(filters, { enabled: filtersSettled });
+    // the seed's numbers are never fetched, and until the list is in: until
+    // then the loaded rows' own numbers stand in (below), and on a cold load
+    // this RPC was one of ~17 requests racing the list's own.
+    const listSettled = useOrdersListSettledOnce();
+    const { data: serverAggregates } = useOrdersAggregates(filters, { enabled: filtersSettled && listSettled });
 
 
     // 3. Auxiliary — reference data, customer helpers, stats
