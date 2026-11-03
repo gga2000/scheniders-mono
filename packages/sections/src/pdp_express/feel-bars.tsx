@@ -98,10 +98,10 @@ export function FeelBars({ bars, locale }: { bars: ScentFeelBar[]; locale: Local
                 {Array.from({ length: STOPS }, (_, i) => (
                   <span key={i} className="absolute top-1/2" style={{ [side]: stopAt(i), transform: centre }}>
                     {i === stop ? (
-                      <span data-feel-dot="" className="bk-feel-dot relative block size-6">
-                        <span className="absolute -inset-[7px] rounded-full bg-bk-primary/30" />
-                        <span className="relative flex size-6 items-center justify-center rounded-full bg-bk-primary shadow-md ring-2 ring-bk-ink">
-                          <span className="size-2.5 rounded-full bg-bk-ink" />
+                      <span data-feel-dot="" className="bk-feel-dot relative block size-[18px]">
+                        <span className="absolute -inset-[5px] rounded-full bg-bk-primary/30" />
+                        <span className="relative flex size-[18px] items-center justify-center rounded-full bg-bk-primary shadow-sm ring-2 ring-bk-ink">
+                          <span className="size-[7px] rounded-full bg-bk-ink" />
                         </span>
                       </span>
                     ) : (
