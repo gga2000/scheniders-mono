@@ -119,7 +119,7 @@ export function relativeTime(iso: string, language: string, now: number = Date.n
     return format.format(0, "second");
 }
 
-const MONEY_FIELDS = new Set(["price", "compare_at_price"]);
+const MONEY_FIELDS = new Set(["price", "compare_at_price", "website_price"]);
 
 const INITIAL_LIMIT = 10;
 

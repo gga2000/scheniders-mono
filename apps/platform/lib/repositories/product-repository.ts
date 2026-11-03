@@ -169,25 +169,25 @@ export const productRepository = {
     },
 
     /**
-     * One product in exactly the shape findAll returns, or null when it is gone
-     * (deleted, or no longer readable). After a single-product edit the list is
-     * patched with this row instead of re-downloading the whole catalogue.
+     * These products in exactly the shape findAll returns; a product that is
+     * gone (deleted, or no longer readable) is left out. After an edit the list
+     * is patched with these rows instead of re-downloading the whole catalogue,
+     * and only their costs are read.
      */
-    async findOneForList(tenantId: string, id: string): Promise<Product | null> {
-        return withRetry('productRepository.findOneForList', async () => {
+    async findManyForList(tenantId: string, ids: string[]): Promise<Product[]> {
+        if (ids.length === 0) return [];
+        return withRetry('productRepository.findManyForList', async () => {
             const [{ data, error }, { data: costs, error: costError }] = await Promise.all([
                 supabase
                     .from("products")
                     .select(PRODUCT_WITH_VARIANTS_COLUMNS)
                     .eq("tenant_id", tenantId)
-                    .eq("id", id)
-                    .maybeSingle(),
-                supabase.rpc("product_costs", { p_tenant_id: tenantId }).eq("product_id", id),
+                    .in("id", ids),
+                supabase.rpc("product_costs_for", { p_tenant_id: tenantId, p_product_ids: ids }),
             ]);
             if (error) throw error;
             if (costError) throw costError;
-            if (!data) return null;
-            return withCosts([data as Product], (costs ?? []) as ProductCostRow[])[0];
+            return withCosts((data ?? []) as Product[], (costs ?? []) as ProductCostRow[]);
         });
     },
 

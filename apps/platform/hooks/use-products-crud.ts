@@ -54,6 +54,9 @@ interface VariantFormData {
     cost?: number;
     stock_quantity: number;
     sku?: string;
+    option_values?: Record<string, string>;
+    image_url?: string;
+    is_enabled?: boolean;
 }
 
 interface UseProductsCrudOptions {

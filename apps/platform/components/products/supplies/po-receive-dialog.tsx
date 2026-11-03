@@ -124,7 +124,14 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
             return;
         }
         receive.mutate(
-            { poId, lines: quantities, requestId: requestId.current },
+            {
+                poId,
+                lines: quantities,
+                requestId: requestId.current,
+                productIds: (lines ?? [])
+                    .filter((line) => quantities.some((q) => q.itemId === line.id))
+                    .map((line) => line.productId),
+            },
             {
                 onSuccess: (status) => {
                     toast.success(
