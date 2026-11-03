@@ -8,7 +8,14 @@ import { EASE_CHROME } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { canOfferSelectAll } from "@/lib/order-bulk-scope";
-import { VirtualizedOrderList, VirtualizedOrderTable, AbandonedCartRecoveryStrip } from "@/components/orders/page/lazy";
+import { AbandonedCartRecoveryStrip } from "@/components/orders/page/lazy";
+// Imported directly, not through next/dynamic: as a lazy component the list
+// suspended on its first render with rows, even with its code already loaded,
+// and React holds a suspended reveal back (live: the placeholder showed ~0.3 s
+// after the rows were in and stayed ~0.5 s). The list is the page's content,
+// so its code belongs in the page's own bundle.
+import { VirtualizedOrderList } from "@/components/orders/virtualized-order-list";
+import { VirtualizedOrderTable } from "@/components/orders/virtualized-order-table";
 import type { OrdersPageModel } from "./use-orders-page-model";
 
 /** One section of the orders page; see app/orders/page.tsx. */
