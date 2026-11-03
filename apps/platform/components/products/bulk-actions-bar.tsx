@@ -26,7 +26,8 @@ interface BulkActionsBarProps {
     /** Absent when the user's role may not bulk-change prices. */
     onUpdatePrice?: (newPrice: number) => Promise<void> | void;
     /** Side effects of a bulk price, shown under the input before Apply. */
-    describePrice?: (newPrice: number) => { clearsCompareAt: number; keepsStorePrice: number; belowCost: number };
+    /** What the new price does to the selection; belowCostNames names the products that would sell at a loss. */
+    describePrice?: (newPrice: number) => { clearsCompareAt: number; keepsStorePrice: number; belowCostNames: string[] };
     onArchive: () => Promise<void> | void;
     onExport: () => void;
     onShowOnStore?: () => Promise<void> | void;
@@ -56,7 +57,7 @@ export function BulkActionsBar({
     onUndo,
     onDelete,
 }: BulkActionsBarProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [showPriceInput, setShowPriceInput] = useState(false);
     const [newPrice, setNewPrice] = useState("");
     const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
@@ -143,13 +144,21 @@ export function BulkActionsBar({
     const priceImpact = useMemo(() => {
         const price = parseWholeNumber(newPrice);
         if (!describePrice || price === null || price <= 0) return null;
-        const { clearsCompareAt, keepsStorePrice, belowCost } = describePrice(price);
+        const { clearsCompareAt, keepsStorePrice, belowCostNames } = describePrice(price);
+        const belowCost = belowCostNames.length;
         const parts: string[] = [];
-        if (belowCost > 0) parts.push(t("products.bulk.priceBelowCost", { count: belowCost }));
-        if (clearsCompareAt > 0) parts.push(t("products.bulk.priceClearsCompare", { count: clearsCompareAt }));
-        if (keepsStorePrice > 0) parts.push(t("products.bulk.priceKeepsStore", { count: keepsStorePrice }));
+        // Name the products, so the merchant knows which ones before pressing Apply anyway.
+        if (belowCost === 1) parts.push(t("products.bulk.priceBelowCostOne", { name: belowCostNames[0] }));
+        else if (belowCost > 1) {
+            const names = belowCostNames.slice(0, 3).join(language === "ar" ? "، " : ", ");
+            parts.push(t("products.bulk.priceBelowCostNamed", { count: belowCost, names: belowCost > 3 ? `${names}…` : names }));
+        }
+        if (clearsCompareAt === 1) parts.push(t("products.bulk.priceClearsCompareOne"));
+        else if (clearsCompareAt > 1) parts.push(t("products.bulk.priceClearsCompare", { count: clearsCompareAt }));
+        if (keepsStorePrice === 1) parts.push(t("products.bulk.priceKeepsStoreOne"));
+        else if (keepsStorePrice > 1) parts.push(t("products.bulk.priceKeepsStore", { count: keepsStorePrice }));
         return { text: parts.length > 0 ? parts.join(" ") : null, belowCost };
-    }, [newPrice, describePrice, t]);
+    }, [newPrice, describePrice, t, language]);
 
     // A price under cost needs a second, deliberate press ("Apply anyway").
     // Typing a new price asks again.
@@ -388,7 +397,7 @@ export function BulkActionsBar({
                                     <X className="w-4 h-4 text-white/70" />
                                 </button>
                                 {priceImpact?.text && (
-                                    <p className={cn("basis-full text-xs", priceImpact.belowCost > 0 ? "text-amber-300" : "text-white/70")}>
+                                    <p dir="auto" className={cn("basis-full text-xs", priceImpact.belowCost > 0 ? "text-amber-300" : "text-white/70")}>
                                         {priceImpact.text}
                                         {belowCostPrice === newPrice && priceImpact.belowCost > 0 && ` ${t("products.bulk.belowCostConfirm")}`}
                                     </p>
