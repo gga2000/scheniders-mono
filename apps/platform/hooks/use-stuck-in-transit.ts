@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import { orderKeys } from "@/hooks/use-orders-query";
+import { useOrdersListSettledOnce } from "@/hooks/orders-list-coverage";
 import { supabase } from "@/lib/supabase";
 import {
     inTransitSince,
@@ -55,13 +56,15 @@ async function fetchStuckInTransit(tenantId: string): Promise<StuckInTransit> {
  */
 export function useStuckInTransit(): StuckInTransit {
     const { session, clientReady, tenantId } = useAuth();
+    // Not needed for the first card: waits for the list (see useOrdersListSettledOnce).
+    const listSettled = useOrdersListSettledOnce();
     const { data } = useQuery({
         queryKey: [...orderKeys.lists(), "stuck-in-transit", tenantId],
         queryFn: () => {
             if (!tenantId) throw new Error("No active tenant");
             return fetchStuckInTransit(tenantId);
         },
-        enabled: !!session && clientReady && !!tenantId,
+        enabled: !!session && clientReady && !!tenantId && listSettled,
         staleTime: 60_000,
     });
     return data ?? EMPTY;

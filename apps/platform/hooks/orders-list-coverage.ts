@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import {
     hashKey,
     notifyManager,
@@ -346,4 +346,23 @@ export function useLoadedOrdersWindowKey(): string | null {
 /** The window whose last list fetch failed, or null. */
 export function useFailedOrdersWindowKey(): string | null {
     return useCoverageValue((s) => s.failedKey);
+}
+
+/**
+ * True from the moment the orders list first settles (a fetch committed, a
+ * saved copy was restored, or the fetch failed) and stays true after.
+ *
+ * Gate for reads the first card does not need. On a cold load about 17
+ * requests left together the moment the tenant was known, and each took 2-3x
+ * as long as it does alone (traced live): the list's own reads waited behind
+ * them. Reads that only feed side chips and the duplicate guard now start
+ * once the list is in.
+ */
+export function useOrdersListSettledOnce(): boolean {
+    const loadedKey = useLoadedOrdersWindowKey();
+    const failedKey = useFailedOrdersWindowKey();
+    const settledNow = loadedKey !== null || failedKey !== null;
+    const [settledBefore, setSettledBefore] = useState(false);
+    if (settledNow && !settledBefore) setSettledBefore(true);
+    return settledNow || settledBefore;
 }
