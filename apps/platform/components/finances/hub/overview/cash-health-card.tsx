@@ -72,9 +72,9 @@ export function CashHealthCard({ data }: Props) {
                 >
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                     <p className="text-[11px] text-rose-700 dark:text-rose-300 leading-relaxed">
-                        <span className="font-semibold">
+                        <bdi className="font-semibold">
                             <FinanceValue value={data.cashAtRisk} currency="IQD" abbreviate className="text-inherit" />
-                        </span>{" "}
+                        </bdi>{" "}
                         {t("finances.overview.cash.warn")}
                     </p>
                 </motion.div>

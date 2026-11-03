@@ -316,7 +316,7 @@ function UnitEconomicsTable({ rows }: { rows: SkuRow[] }) {
                                         <td className="py-2 pl-2 text-right">
                                             {r.productId ? (
                                                 <Link
-                                                    href={`/products/${r.productId}`}
+                                                    href={`/products/${r.productId}/edit`}
                                                     className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-muted hover:text-foreground hover:bg-[var(--background)] transition-colors"
                                                     title={t("finances.products.table.open")}
                                                 >

@@ -61,6 +61,9 @@ export function MarginHeatmap({ data }: Props) {
                                 <th className="sticky left-0 z-10 bg-[var(--card-bg)] text-left text-muted font-semibold px-2.5 py-2 min-w-[180px]">
                                     {t("finances.heatmap.product")}
                                 </th>
+                                <th className="text-right text-muted font-semibold px-2.5 py-2 whitespace-nowrap min-w-[80px] border-r border-[var(--card-border)]">
+                                    {t("finances.heatmap.avg")}
+                                </th>
                                 {buckets.map((b) => (
                                     <th
                                         key={b.key}
@@ -69,9 +72,6 @@ export function MarginHeatmap({ data }: Props) {
                                         {bucketLabel(b.key, b.ts)}
                                     </th>
                                 ))}
-                                <th className="text-right text-muted font-semibold px-2.5 py-2 whitespace-nowrap min-w-[80px]">
-                                    {t("finances.heatmap.avg")}
-                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -83,6 +83,9 @@ export function MarginHeatmap({ data }: Props) {
                                             <FinanceValue value={p.total_revenue} abbreviate className="tabular-nums" /> {t("finances.heatmap.revenueSuffix")}
                                         </div>
                                     </td>
+                                    <td className="px-2.5 py-2 border-r border-[var(--card-border)] text-right tabular-nums font-semibold text-foreground">
+                                        {p.total_margin_pct.toFixed(1)}%
+                                    </td>
                                     {buckets.map((b) => {
                                         const cell = cellIndex.get(`${p.name}|${b.key}`);
                                         return (
@@ -91,9 +94,6 @@ export function MarginHeatmap({ data }: Props) {
                                             </td>
                                         );
                                     })}
-                                    <td className="px-2.5 py-2 text-right tabular-nums font-semibold text-foreground">
-                                        {p.total_margin_pct.toFixed(1)}%
-                                    </td>
                                 </tr>
                             ))}
                         </tbody>
