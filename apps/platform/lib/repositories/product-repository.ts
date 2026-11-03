@@ -527,6 +527,8 @@ export const productRepository = {
                 .from("product_price_history")
                 .select("*")
                 .eq("product_id", productId)
+                // The product's own price; variant prices have their own rows.
+                .is("variant_id", null)
                 .order("created_at", { ascending: false })
                 // The editor shows the recent trail; a hot product has tens of thousands of rows.
                 .limit(HISTORY_LIMIT);
