@@ -42,7 +42,7 @@ describe("GovernorateOptions", () => {
 describe("new-order and edit-order modals share one governorate list", () => {
     // Rendering either modal needs auth/query providers; the drift we guard against is
     // a modal going back to its own inline `.map` of governorates, which is visible in source.
-    const files = ["create-order-modal.tsx", "order-customer-card.tsx"];
+    const files = ["create-order/create-order-customer-section.tsx", "order-customer-card.tsx"];
 
     it.each(files)("%s renders <GovernorateOptions /> for the city select", (file) => {
         const source = readFileSync(path.join(__dirname, file), "utf8");

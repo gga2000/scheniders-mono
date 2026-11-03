@@ -195,6 +195,9 @@ export function useOrderCardModel(props: OrderCardProps) {
         : "bg-blue-50 text-blue-600 dark:bg-blue-400/10 dark:text-blue-200";
 
     // Time-based follow-up cue — based on order creation time (how long customer has been waiting)
+    // Reading the clock in render is intended: the cue should reflect "now"
+    // each time the card renders, and a frozen mount-time value would go stale
+    // on long-lived cards. Hence the purity rule is off for these lines only.
     /* eslint-disable react-hooks/purity */
     const hoursSinceCreated = order.created_at
         ? (Date.now() - new Date(order.created_at).getTime()) / 3600000
