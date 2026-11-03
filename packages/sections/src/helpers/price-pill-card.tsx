@@ -14,6 +14,7 @@ import { chromeString } from "./chrome-strings";
 import { formatPrice, discountPercent, formatPercent, formatSavings } from "./format";
 import { cn, PRESSABLE } from "./utils";
 import type { Product } from "../types";
+import { cardName } from "./product-name";
 
 /** Real per-product rating row: the shared `Stars` primitive filled to the
  *  rounded average of the product's approved reviews + a small "(N)" review
@@ -237,7 +238,7 @@ export function PricePillCard({
               textShadow: "0 1px 2px color-mix(in srgb, var(--bk-ink, #1a1a1a) 55%, transparent)",
             }}
           >
-            {product.name}
+            {cardName(product)}
           </h3>
         </div>
 

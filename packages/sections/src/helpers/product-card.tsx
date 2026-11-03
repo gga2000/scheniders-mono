@@ -10,6 +10,7 @@ import { cn } from "./utils";
 import { formatPrice } from "./format";
 import { Sticker, MaterialIcon, WhatsAppIcon } from "./primitives";
 import { whatsappOrderLink } from "./whatsapp";
+import { cardName } from "./product-name";
 import { useCart } from "./cart-store";
 
 type Tint = "mint" | "lilac" | "butter" | "sky" | "pink" | "cream";
@@ -177,7 +178,7 @@ export function SchneidersProductCard({
 
       <StoreLink href={`/products/${product.slug ?? product.id}`} className="block mb-3">
         <h3 className="font-body font-bold text-base text-bk-ink line-clamp-2 leading-tight">
-          {product.name}
+          {cardName(product)}
         </h3>
       </StoreLink>
 
