@@ -9240,6 +9240,15 @@ export type Database = {
           variant_id: string | null
         }[]
       }
+      product_costs_for: {
+        Args: { p_product_ids: string[]; p_tenant_id: string }
+        Returns: {
+          cost: number | null
+          cost_breakdown_json: Json | null
+          product_id: string
+          variant_id: string | null
+        }[]
+      }
       product_supplier_costs: {
         Args: { p_product_id: string }
         Returns: {

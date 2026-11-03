@@ -40,14 +40,15 @@ export async function refreshProductRows(
         await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
         return;
     }
-    let rows: (Product | null)[];
+    let rows: Product[];
     try {
-        rows = await Promise.all(unique.map((id) => productRepository.findOneForList(tenantId, id)));
+        rows = await productRepository.findManyForList(tenantId, unique);
     } catch {
         await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
         return;
     }
-    const byId = new Map(unique.map((id, i) => [id, rows[i]]));
+    const found = new Map(rows.map((row) => [row.id, row]));
+    const byId = new Map(unique.map((id) => [id, found.get(id) ?? null]));
     queryClient.setQueryData<Product[]>(key, (old) => {
         if (!old) return old;
         const present = new Set(old.map((p) => p.id));

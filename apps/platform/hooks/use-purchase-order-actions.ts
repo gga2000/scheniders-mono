@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/components/auth/auth-provider";
-import { productKeys } from "@/hooks/use-products-query";
+import { refreshProductRows } from "@/hooks/use-products-query";
 import {
     receivePurchaseOrder,
     setPurchaseOrderStatus,
@@ -30,12 +30,14 @@ export function usePurchaseOrderActions() {
     });
 
     const receive = useMutation({
-        mutationFn: (args: { poId: string; lines: ReceivedLine[]; requestId: string }) =>
+        mutationFn: (args: { poId: string; lines: ReceivedLine[]; requestId: string; productIds: string[] }) =>
             receivePurchaseOrder(args.poId, args.lines, args.requestId),
-        onSuccess: async () => {
-            await Promise.all([
+        // The stock is booked once the call returns: refresh in the background
+        // (only the received products' rows) so the dialog can close at once.
+        onSuccess: (_status, { productIds }) => {
+            void Promise.all([
                 refreshPurchaseOrders(),
-                queryClient.invalidateQueries({ queryKey: productKeys.all }),
+                refreshProductRows(queryClient, tenantId, productIds),
                 queryClient.invalidateQueries({ queryKey: ["supply-history"] }),
                 queryClient.invalidateQueries({ queryKey: ["po-lines"] }),
                 queryClient.invalidateQueries({ queryKey: ["tenant-supply-history"] }),

@@ -92,6 +92,7 @@ export async function receivePurchaseOrder(
 
 const lineSchema = z.object({
     id: z.string(),
+    product_id: z.string(),
     product_name: z.string(),
     variant_name: z.string().nullable(),
     sku: z.string().nullable(),
@@ -101,6 +102,7 @@ const lineSchema = z.object({
 
 export interface PurchaseOrderLine {
     id: string;
+    productId: string;
     productName: string;
     variantName: string | null;
     sku: string | null;
@@ -120,6 +122,7 @@ export async function fetchPurchaseOrderLines(poId: string): Promise<PurchaseOrd
         .parse(data ?? [])
         .map((row) => ({
             id: row.id,
+            productId: row.product_id,
             productName: row.product_name,
             variantName: row.variant_name,
             sku: row.sku,

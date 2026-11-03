@@ -1,5 +1,6 @@
 "use client";
 
+import { variantChanges } from "@/lib/variant-changes";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
@@ -1181,18 +1182,14 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
                 for (const variant of formData.variants) {
                     if (variant.id && existingVariantIds.has(variant.id)) {
-                        await updateVariant(product.id, variant.id, {
-                            name: variant.name,
-                            price: variant.price,
-                            ...(showCost &&
-                                loaded.variants.find((v) => v.id === variant.id)?.cost !== variant.cost && {
-                                    cost: variant.cost,
-                                }),
-                            sku: variant.sku,
-                            option_values: variant.option_values,
-                            image_url: variant.image_url,
-                            is_enabled: variant.is_enabled ?? true,
-                        } as any);
+                        // Send only what this editor changed: resending every
+                        // field would silently undo a price someone else (or
+                        // Claude) set while this editor was open.
+                        const before = loaded.variants.find((v) => v.id === variant.id);
+                        const patch = variantChanges(before, variant, showCost);
+                        if (Object.keys(patch).length > 0) {
+                            await updateVariant(product.id, variant.id, patch);
+                        }
                         if (loadedVariantStock.get(variant.id) !== variant.stock_quantity) {
                             await productRepository.setCountedStock({
                                 productId: product.id,
@@ -1213,7 +1210,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                             option_values: variant.option_values,
                             image_url: variant.image_url,
                             is_enabled: variant.is_enabled ?? true,
-                        } as any);
+                        });
                         // Keep the new id, so the next save updates this
                         // variant instead of creating it again.
                         savedVariants.push({ ...variant, id: created.id });
