@@ -23,7 +23,7 @@ import { cn, formatIQD } from "@/lib/utils";
 import { useSupplyHistory, type InventoryHistoryEntry } from "@/hooks/use-supply-history";
 import { useSupplyRecipeUsage, type RecipeUsageRow } from "@/hooks/use-supply-recipe-usage";
 import type { HistoryEntry } from "@/lib/utils/supply-forecasting";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { supplyReorderState, supplyTone } from "@/lib/utils/supply-reorder";
 import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
 import { StockFillBar } from "./stock-fill-bar";
@@ -298,7 +298,8 @@ function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo
                         {t("supplies.sp.stockOnHand")}
                     </p>
                     <div className="flex items-center gap-1.5">
-                        <DaysOfSupplyPill days={days} size="md" status={status} />
+                        {/* The ETA badge already says the days; the pill only stands in when there is no ETA. */}
+                        {eta == null && <DaysOfSupplyPill days={days} size="md" status={status} />}
                         <StockoutEtaBadge daysUntilStockout={eta} leadTimeDays={reorder.leadTimeDays} status={status} />
                     </div>
                 </div>
@@ -385,10 +386,12 @@ function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo
 }
 
 function StatCell({ label, value }: { label: string; value: string }) {
+    // Arabic values ("300 في PO-…", "7 أيام") read right to left; the cell stays left-aligned.
+    const textDir = useTextDir();
     return (
         <div>
             <p className="text-[10px] text-muted uppercase tracking-wide">{label}</p>
-            <p className="font-semibold text-sm tabular-nums mt-0.5 truncate whitespace-nowrap" title={value}>{value}</p>
+            <p dir={textDir} className="text-left font-semibold text-sm tabular-nums mt-0.5 truncate whitespace-nowrap" title={value}>{value}</p>
         </div>
     );
 }
@@ -452,10 +455,11 @@ function SuppliersTab({ supply }: { supply: Product }) {
 }
 
 function SupplierStat({ label, value }: { label: string; value: string }) {
+    const textDir = useTextDir();
     return (
         <span className="inline-flex items-baseline gap-1">
             <span className="text-muted uppercase tracking-wide text-[9px]">{label}</span>
-            <span className="font-medium tabular-nums text-[11px]">{value}</span>
+            <span dir={textDir} className="font-medium tabular-nums text-[11px]">{value}</span>
         </span>
     );
 }

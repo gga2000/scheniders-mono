@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { refreshProductRows } from "@/hooks/use-products-query";
 import { toast } from "@/hooks/use-toast";
-import type { Product, ProductVariant, VariantOptionType, OptionValueMetadata, CostBreakdown } from "@/types/product";
+import type { Product, VariantOptionType, OptionValueMetadata, CostBreakdown } from "@/types/product";
 import { isCanonicalSlug, slugify } from "@scheniders/shared";
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useAutoSave } from "@/hooks/use-auto-save";

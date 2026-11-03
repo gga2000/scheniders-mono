@@ -57,7 +57,7 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                         type="text"
                         value={formData.sku}
                         onChange={(e) => updateField("sku", e.target.value)}
-                        placeholder="e.g., DIOR-SAU-100"
+                        placeholder={t("products.ed.skuPh")}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
                 </div>

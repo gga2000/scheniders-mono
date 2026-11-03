@@ -100,10 +100,11 @@ export function SupplyCard({
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                         {/* dir="auto": an Arabic name is cut at its end, not its first word. */}
-                        <h3 dir="auto" className="text-left font-semibold text-[15px] text-foreground leading-tight line-clamp-2 break-words">
+                        <h3 dir="auto" className="min-w-0 flex-1 text-left font-semibold text-[15px] text-foreground leading-tight line-clamp-2 break-words">
                             {supply.name}
                         </h3>
-                        <DaysOfSupplyPill days={days} size="md" status={status} />
+                        {/* A compact pill in its own column, so the name keeps the width. */}
+                        <DaysOfSupplyPill days={days} size="sm" status={status} className="shrink-0" />
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[11px] text-muted flex-wrap">
                         <span className="font-mono truncate max-w-[50%]">{supply.sku || t("supplies.sp.noSku")}</span>

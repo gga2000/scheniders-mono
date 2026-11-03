@@ -16,7 +16,7 @@ import {
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
-import { cn, formatIQD, parseWholeNumber } from "@/lib/utils";
+import { cn, formatCount, formatIQD, parseWholeNumber } from "@/lib/utils";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 
 interface BulkActionsBarProps {
@@ -280,7 +280,7 @@ export function BulkActionsBar({
                     exit={{ opacity: 0, y: 20 }}
                     className="fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+var(--safe-area-bottom)+0.75rem)] md:bottom-6 z-50 flex justify-center pointer-events-none"
                 >
-                    <div className="pointer-events-auto flex flex-wrap items-center justify-start gap-x-3 gap-y-2 w-full max-w-3xl px-4 py-3 sm:px-6 sm:py-4 bg-[var(--ink)] border border-white/25 ring-1 ring-black/10 rounded-2xl shadow-2xl">
+                    <div className="pointer-events-auto flex flex-wrap items-center justify-start gap-x-3 gap-y-2 w-full max-w-3xl px-4 py-3 sm:px-6 sm:py-4 bg-[var(--ink)] border border-white/25 dark:border-white/40 ring-1 ring-black/10 dark:ring-white/10 rounded-2xl shadow-2xl">
                         {/* Selection Count */}
                         <div className="flex items-center gap-2 pr-4 border-r border-white/20 whitespace-nowrap">
                             <span className="text-white font-bold text-lg">
@@ -340,13 +340,17 @@ export function BulkActionsBar({
                                 </button>
                             </div>
                         ) : showPriceInput ? (
-                            /* Price input */
-                            <div className="flex flex-wrap items-center gap-2">
+                            /* Price input: takes the rest of the row, so the count never sits alone. */
+                            <div className="flex flex-1 min-w-[16rem] flex-wrap items-center gap-2">
                                 <input
                                     type="text"
                                     inputMode="numeric"
                                     value={newPrice}
-                                    onChange={(e) => setNewPrice(e.target.value)}
+                                    // Shown with thousands separators, like every other price.
+                                    onChange={(e) => {
+                                        const n = parseWholeNumber(e.target.value);
+                                        setNewPrice(n === null ? e.target.value : formatCount(n));
+                                    }}
                                     placeholder={t("products.bulk.newPrice")}
                                     autoFocus
                                     onKeyDown={(e) =>

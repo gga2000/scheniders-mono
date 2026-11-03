@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useCallback } from "react";
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { Archive, Edit } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 
 interface SwipeableCardProps {
@@ -16,7 +15,6 @@ interface SwipeableCardProps {
 }
 
 const SWIPE_THRESHOLD = 80;
-const SNAP_BACK_DURATION = 0.3;
 
 export function SwipeableCard({
     children,
@@ -28,7 +26,6 @@ export function SwipeableCard({
 }: SwipeableCardProps) {
     const { t } = useLanguage();
     const x = useMotionValue(0);
-    const [swiping, setSwiping] = useState(false);
 
     // Background reveal opacity based on drag distance
     const leftBgOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
@@ -39,8 +36,7 @@ export function SwipeableCard({
     const rightIconScale = useTransform(x, [0, SWIPE_THRESHOLD, SWIPE_THRESHOLD * 1.2], [0.5, 1, 1.1]);
 
     const handleDragEnd = useCallback(
-        (_: any, info: PanInfo) => {
-            setSwiping(false);
+        (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
             if (disabled) return;
 
             if (info.offset.x < -SWIPE_THRESHOLD && onSwipeLeft) {
@@ -100,7 +96,6 @@ export function SwipeableCard({
                 drag="x"
                 dragConstraints={{ left: onSwipeLeft ? -120 : 0, right: onSwipeRight ? 120 : 0 }}
                 dragElastic={0.1}
-                onDragStart={() => setSwiping(true)}
                 onDragEnd={handleDragEnd}
                 transition={{ type: "spring", damping: 25, stiffness: 300 }}
                 className="relative z-10"

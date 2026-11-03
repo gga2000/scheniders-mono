@@ -400,9 +400,9 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                 >
                     <option value="">{t("products.recipe.chooseSupply")}</option>
                     {supplies.map((s) => (
+                        // Name only: the SKU would be cut off in the closed select; it shows on the line below.
                         <option key={s.id} value={s.id}>
                             {s.name}
-                            {s.sku ? ` · ${s.sku}` : ""}
                         </option>
                     ))}
                 </select>
@@ -458,7 +458,8 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                 <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
                     <span dir="ltr" className="min-w-0 truncate text-left">
                         {/* bdi: an Arabic name stays one piece inside the Latin line. */}
-                        {rule.quantity} × <bdi>{selected.name}</bdi> @{" "}
+                        {rule.quantity} × <bdi>{selected.name}</bdi>
+                        {selected.sku && <span className="font-mono"> ({selected.sku})</span>} @{" "}
                         <span className="tabular-nums">
                             {selected.cost == null ? "—" : formatIQD(selected.cost)}
                         </span>

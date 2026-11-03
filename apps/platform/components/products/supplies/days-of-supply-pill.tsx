@@ -54,7 +54,7 @@ export function DaysOfSupplyPill({
     className,
 }: DaysOfSupplyPillProps) {
     const { t: tr } = useLanguage();
-    const t = days === null ? tone(null) : status ? STATUS_TONE[status] : tone(days);
+    const t = status ? STATUS_TONE[status] : tone(days);
     const big = size === "md";
     return (
         <div
