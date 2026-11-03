@@ -106,8 +106,30 @@ function withCosts(rows: Product[], costs: ProductCostRow[]): Product[] {
 
 /** Rows of per-product history the editor loads (newest first). */
 const HISTORY_LIMIT = 300;
-/** Ids per product_costs_for call: products plus their variant rows stay under the 1,000-row cap. */
+/** Ids per product_costs_for call (keeps the request small); each call is also paged. */
 const COST_ID_BATCH = 200;
+
+/**
+ * Cost rows (product and variant) for these products, batched by id and paged
+ * within each batch: a product with many variants cannot push a batch past the
+ * API's 1,000-row cap and silently drop costs.
+ */
+async function fetchCostRowsFor(tenantId: string, ids: string[]): Promise<ProductCostRow[]> {
+    const rows: ProductCostRow[] = [];
+    for (let i = 0; i < ids.length; i += COST_ID_BATCH) {
+        const batch = ids.slice(i, i + COST_ID_BATCH);
+        rows.push(
+            ...(await fetchAllPages<ProductCostRow>((from, to) =>
+                supabase
+                    .rpc("product_costs_for", { p_tenant_id: tenantId, p_product_ids: batch })
+                    .order("product_id")
+                    .order("variant_id")
+                    .range(from, to),
+            )),
+        );
+    }
+    return rows;
+}
 
 /**
  * Bulk archive / restore / show / hide / move in one database statement, so a
@@ -179,17 +201,16 @@ export const productRepository = {
     async findManyForList(tenantId: string, ids: string[]): Promise<Product[]> {
         if (ids.length === 0) return [];
         return withRetry('productRepository.findManyForList', async () => {
-            const [{ data, error }, { data: costs, error: costError }] = await Promise.all([
+            const [{ data, error }, costs] = await Promise.all([
                 supabase
                     .from("products")
                     .select(PRODUCT_WITH_VARIANTS_COLUMNS)
                     .eq("tenant_id", tenantId)
                     .in("id", ids),
-                supabase.rpc("product_costs_for", { p_tenant_id: tenantId, p_product_ids: ids }),
+                fetchCostRowsFor(tenantId, ids),
             ]);
             if (error) throw error;
-            if (costError) throw costError;
-            return withCosts((data ?? []) as Product[], (costs ?? []) as ProductCostRow[]);
+            return withCosts((data ?? []) as Product[], costs);
         });
     },
 
@@ -231,19 +252,11 @@ export const productRepository = {
 
     /**
      * Cost of these products of `tenantId`, for those this member may see cost
-     * of (all for admins, supplies for other editors). Missing = hidden. Read
-     * per id batch: one whole-store call stops at the API's 1,000-row cap.
+     * of (all for admins, supplies for other editors). Missing = hidden.
      */
     async getProductCosts(tenantId: string, ids: string[]): Promise<Map<string, number | null>> {
         const out = new Map<string, number | null>();
-        for (let i = 0; i < ids.length; i += COST_ID_BATCH) {
-            const { data, error } = await supabase.rpc("product_costs_for", {
-                p_tenant_id: tenantId,
-                p_product_ids: ids.slice(i, i + COST_ID_BATCH),
-            });
-            if (error) throw error;
-            for (const [id, c] of costMaps(data ?? []).productCost) out.set(id, c.cost);
-        }
+        for (const [id, c] of costMaps(await fetchCostRowsFor(tenantId, ids)).productCost) out.set(id, c.cost);
         return out;
     },
 

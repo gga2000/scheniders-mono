@@ -129,10 +129,15 @@ export function registerFinanceTools(server: McpServer): void {
                     caller.db.from("products").select("id, name, sku").eq("tenant_id", caller.tenantId).order("id").range(a, b),
                 ),
                 // Cost is not in the member column grant; product_costs() hands it to admins. Read-only, so GET keeps it on the guard's read path.
-                caller.db.rpc("product_costs", { p_tenant_id: caller.tenantId }, { get: true }).then(({ data, error }) => {
-                    if (error) throw error;
-                    return (data ?? []) as CostRow[];
-                }),
+                // Paged: one call stops at the API's 1,000-row cap, and a product
+                // missing its cost would count as free and overstate profit.
+                readAll<CostRow>((a, b) =>
+                    caller.db
+                        .rpc("product_costs", { p_tenant_id: caller.tenantId }, { get: true })
+                        .order("product_id")
+                        .order("variant_id")
+                        .range(a, b),
+                ),
                 readAll<{ category: string; amount: number }>((a, b) =>
                     caller.db
                         .from("expenses")

@@ -95,7 +95,20 @@ export function fakeDb(tables: Record<string, Row[]>, rpc: Record<string, (args:
 
     const db = {
         from,
-        rpc: (name: string, args: Row) => Promise.resolve({ data: rpc[name]?.(args) ?? [], error: null }),
+        // Awaitable as is, or after .order()/.range() like a set-returning RPC.
+        rpc: (name: string, args: Row) => {
+            const rows = rpc[name]?.(args) ?? [];
+            let slice = rows;
+            const call = {
+                order: () => call,
+                range: (from: number, to: number) => {
+                    slice = rows.slice(from, to + 1);
+                    return call;
+                },
+                then: (resolve: (v: { data: Row[]; error: null }) => unknown) => Promise.resolve({ data: slice, error: null }).then(resolve),
+            };
+            return call;
+        },
     } as unknown as SupabaseClient;
 
     return { db, calls, tables };

@@ -21,6 +21,7 @@ export function usePurchaseOrderActions() {
             queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] }),
             queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] }),
             queryClient.invalidateQueries({ queryKey: ["supplier-pos", tenantId] }),
+            queryClient.invalidateQueries({ queryKey: ["draft-pos-by-supply", tenantId] }),
         ]);
 
     const changeStatus = useMutation({
