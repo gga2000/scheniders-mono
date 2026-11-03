@@ -3,6 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { TrendingUp, DollarSign, ShoppingCart, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
+import { formatIQD } from "@/lib/utils";
 
 interface ProductPerformanceCardProps {
     /**
@@ -16,9 +17,7 @@ interface ProductPerformanceCardProps {
 }
 
 
-function formatIQD(value: number): string {
-    return new Intl.NumberFormat("en-IQ").format(Math.round(value)) + " IQD";
-}
+const formatMoney = (value: number): string => formatIQD(Math.round(value));
 
 const stats = [
     {
@@ -60,11 +59,11 @@ export function ProductPerformanceCard({
             case "totalSales":
                 return timesSold != null ? new Intl.NumberFormat("en-IQ").format(timesSold) : "--";
             case "revenue":
-                return totalRevenue != null ? formatIQD(totalRevenue) : "--";
+                return totalRevenue != null ? formatMoney(totalRevenue) : "--";
             case "profitMargin":
                 return profitMargin != null ? `${profitMargin.toFixed(1)}%` : "--";
             case "avgOrderValue":
-                return averageOrderValue != null ? formatIQD(averageOrderValue) : "--";
+                return averageOrderValue != null ? formatMoney(averageOrderValue) : "--";
         }
     }
 

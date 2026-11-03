@@ -6,6 +6,7 @@ import { Switch } from "@scheniders/ui/switch";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
 import { parseStorefrontStock } from "@/lib/storefront-stock";
+import { parseWholeNumber } from "@/lib/utils";
 
 interface ProductInventorySectionProps {
     formData: ProductEditorFormData;
@@ -57,7 +58,7 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                     <input
                         type="number"
                         value={formData.low_stock_threshold}
-                        onChange={(e) => updateField("low_stock_threshold", parseInt(e.target.value, 10) || 5)}
+                        onChange={(e) => updateField("low_stock_threshold", parseWholeNumber(e.target.value) ?? 0)}
                         placeholder="5"
                         min={0}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
@@ -104,7 +105,7 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
             )}
 
             {reservedQuantity > 0 && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-blue)] rounded-xl text-sm text-blue-700 tabular-nums">
+                <div className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-blue)] rounded-xl text-sm text-blue-700 tabular-nums dark:text-blue-300">
                     <span className="font-medium">{t("products.ed.available").replace("{n}", String(available))}</span>
                     <span aria-hidden>·</span>
                     <span>{t("products.ed.reserved").replace("{n}", String(reservedQuantity))}</span>
@@ -114,16 +115,16 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
             )}
 
             {isLowStock && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <p className="text-sm text-amber-700">{t("products.ed.lowStockNote").replace("{n}", String(available))}</p>
+                <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl dark:bg-amber-500/15 dark:border-amber-500/30">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 dark:text-amber-300" />
+                    <p className="text-sm text-amber-700 dark:text-amber-300">{t("products.ed.lowStockNote").replace("{n}", String(available))}</p>
                 </div>
             )}
 
             {isOutOfStock && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl">
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                    <p className="text-sm text-rose-700">{t("products.ed.outOfStockNote")}</p>
+                <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl dark:bg-rose-500/15 dark:border-rose-500/30">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 dark:text-rose-300" />
+                    <p className="text-sm text-rose-700 dark:text-rose-300">{t("products.ed.outOfStockNote")}</p>
                 </div>
             )}
         </div>

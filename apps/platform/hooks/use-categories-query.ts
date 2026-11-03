@@ -6,7 +6,6 @@ import type { Category, CategoryStatus } from "@/types/product";
 import { useAuth } from "@/components/auth/auth-provider";
 import { CACHE_PRESETS } from "@/lib/query-config";
 import { ProductWriteDeniedError } from "@/lib/repositories/product-repository";
-import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
 
 export const categoryKeys = {
     all: ["categories"] as const,
@@ -223,7 +222,6 @@ export function useReorderCategoriesMutation() {
 
 export function useDuplicateCategoryMutation() {
     const queryClient = useQueryClient();
-    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({
             id,
@@ -237,69 +235,28 @@ export function useDuplicateCategoryMutation() {
         }) => {
             const { data: src, error: fetchErr } = await supabase
                 .from("categories")
-                .select("*")
+                .select("name, slug")
                 .eq("id", id)
                 .single();
             if (fetchErr) throw fetchErr;
 
-            const source = src as unknown as Category;
-            const copy = {
-                ...source,
-                id: undefined,
-                tenant_id: tenantId!,
-                name: `${source.name} ${copySuffix}`,
-                slug: `${source.slug}-copy-${Date.now().toString(36)}`,
-                created_at: undefined,
-                updated_at: undefined,
-            };
-            delete (copy as Partial<Category>).id;
-            delete (copy as Partial<Category>).created_at;
-            delete (copy as Partial<Category>).updated_at;
+            // One transaction: the copy and its product links land together or
+            // not at all, so a failure never leaves an empty "… copy" behind.
+            const { data: newId, error: dupErr } = await supabase.rpc("duplicate_category", {
+                p_id: id,
+                p_name: `${src.name} ${copySuffix}`,
+                p_slug: `${src.slug}-copy-${Date.now().toString(36)}`,
+                p_with_products: withProducts,
+            });
+            if (dupErr) throw dupErr;
 
-            const { data: inserted, error: insErr } = await supabase
+            const { data: inserted, error: readErr } = await supabase
                 .from("categories")
-                .insert([copy as never])
-                .select()
+                .select("*")
+                .eq("id", newId as string)
                 .single();
-            if (insErr) throw insErr;
-            const newCategory = inserted as unknown as Category;
-
-            if (withProducts) {
-                try {
-                    // Paged: the API silently stops at 1000 rows.
-                    const assignments = await fetchAllPages<{
-                        product_id: string;
-                        is_featured: boolean | null;
-                        featured_order: number | null;
-                    }>((from, to) =>
-                        supabase
-                            .from("product_categories")
-                            .select("product_id, is_featured, featured_order")
-                            .eq("tenant_id", tenantId!)
-                            .eq("category_id", id)
-                            .order("product_id")
-                            .range(from, to),
-                    );
-                    if (assignments.length > 0) {
-                        const rows = assignments.map((a) => ({
-                            tenant_id: tenantId!,
-                            category_id: newCategory.id,
-                            product_id: a.product_id,
-                            is_primary: false,
-                            is_featured: a.is_featured,
-                            featured_order: a.featured_order,
-                            source: "manual" as const,
-                        }));
-                        const { error: copyErr } = await supabase.from("product_categories").insert(rows as never);
-                        if (copyErr) throw copyErr;
-                    }
-                } catch (copyFailure) {
-                    // Do not leave an empty copy behind.
-                    await supabase.from("categories").delete().eq("id", newCategory.id);
-                    throw copyFailure;
-                }
-            }
-            return newCategory;
+            if (readErr) throw readErr;
+            return inserted as unknown as Category;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: categoryKeys.all });

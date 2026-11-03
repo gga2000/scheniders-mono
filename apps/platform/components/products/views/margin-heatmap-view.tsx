@@ -36,8 +36,8 @@ function getMarginTextColor(margin: number | null): string {
   if (margin < 0) return "text-white";
   if (margin < 10) return "text-white";
   if (margin < 20) return "text-white";
-  if (margin < 30) return "text-gray-900";
-  if (margin < 40) return "text-gray-900";
+  if (margin < 30) return "text-gray-900 dark:text-gray-300";
+  if (margin < 40) return "text-gray-900 dark:text-gray-300";
   if (margin < 50) return "text-white";
   return "text-white";
 }

@@ -281,7 +281,7 @@ export function ActionsFeed({
     if (actions.length === 0) {
         return (
             <div className="rounded-2xl border border-emerald-200/60 bg-gradient-to-r from-emerald-50 to-emerald-50/30 dark:from-emerald-950/40 dark:to-emerald-950/10 dark:border-emerald-900/50 px-4 py-2.5 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 dark:text-emerald-300" />
                 <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
                     {t("supplies.af.allClear")}
                 </p>

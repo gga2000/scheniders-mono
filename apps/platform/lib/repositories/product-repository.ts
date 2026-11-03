@@ -90,27 +90,43 @@ function costMaps(rows: ProductCostRow[]) {
     return { productCost, variantCost };
 }
 
-/**
- * A bulk write names its rows in the URL (`id=in.(...)`), and a thousand uuids
- * is a ~37 KB URL the API refuses. Run in chunks; each chunk is one statement.
- */
-const BULK_ID_CHUNK = 100;
+/** Joins the cost rows (what this member may see) onto product rows. */
+function withCosts(rows: Product[], costs: ProductCostRow[]): Product[] {
+    const { productCost, variantCost } = costMaps(costs);
+    return rows.map((product) => ({
+        ...product,
+        cost: productCost.get(product.id)?.cost ?? null,
+        cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
+        variants: (product.variants ?? []).map((variant) => ({
+            ...variant,
+            cost: variantCost.get(variant.id) ?? null,
+        })),
+    })) as Product[];
+}
 
 /** Rows of per-product history the editor loads (newest first). */
 const HISTORY_LIMIT = 300;
 
-async function inChunks(
+/**
+ * Bulk archive / restore / show / hide / move in one database statement, so a
+ * failure never leaves half the selection changed. The ids travel in the POST
+ * body, not the URL, so a large selection needs no chunking.
+ */
+export type BulkProductFields = {
+    is_archived?: boolean;
+    is_visible?: boolean;
+    category_id?: string | null;
+    reorder_point?: number | null;
+};
+
+async function setProductFields(
     op: string,
     ids: string[],
-    run: (chunk: string[]) => PromiseLike<{ data: { id: string }[] | null; error: { message: string } | null }>,
+    fields: BulkProductFields,
 ): Promise<void> {
-    let changed = 0;
-    for (let i = 0; i < ids.length; i += BULK_ID_CHUNK) {
-        const { data, error } = await run(ids.slice(i, i + BULK_ID_CHUNK));
-        if (error) throw error;
-        changed += data?.length ?? 0;
-    }
-    if (changed < ids.length) throw new ProductWriteDeniedError(op);
+    const { error } = await supabase.rpc("bulk_set_product_fields", { p_ids: ids, p_fields: fields });
+    if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError(op);
+    if (error) throw error;
 }
 
 /**
@@ -148,17 +164,31 @@ export const productRepository = {
             ]);
 
             diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data.length}`);
-            const { productCost, variantCost } = costMaps(costs);
-            return data.map((product) => ({
-                ...product,
-                cost: productCost.get(product.id)?.cost ?? null,
-                cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
-                variants: (product.variants ?? []).map((variant) => ({
-                    ...variant,
-                    cost: variantCost.get(variant.id) ?? null,
-                })),
-            })) as Product[];
+            return withCosts(data, costs);
         })();
+    },
+
+    /**
+     * One product in exactly the shape findAll returns, or null when it is gone
+     * (deleted, or no longer readable). After a single-product edit the list is
+     * patched with this row instead of re-downloading the whole catalogue.
+     */
+    async findOneForList(tenantId: string, id: string): Promise<Product | null> {
+        return withRetry('productRepository.findOneForList', async () => {
+            const [{ data, error }, { data: costs, error: costError }] = await Promise.all([
+                supabase
+                    .from("products")
+                    .select(PRODUCT_WITH_VARIANTS_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .eq("id", id)
+                    .maybeSingle(),
+                supabase.rpc("product_costs", { p_tenant_id: tenantId }).eq("product_id", id),
+            ]);
+            if (error) throw error;
+            if (costError) throw costError;
+            if (!data) return null;
+            return withCosts([data as Product], (costs ?? []) as ProductCostRow[])[0];
+        });
     },
 
     /**
@@ -436,68 +466,47 @@ export const productRepository = {
         }, WRITE_ONCE);
     },
 
-    /** Bulk-archive multiple products. */
+    /** Bulk-archive multiple products. All or nothing: one statement for the whole selection. */
     async bulkArchive(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkArchive', async () => {
-            await inChunks("productRepository.bulkArchive", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .update({ is_archived: true })
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            await setProductFields("productRepository.bulkArchive", ids, { is_archived: true });
         });
     },
 
-    /** Bulk-restore multiple archived products. */
+    /** Bulk-restore multiple archived products. All or nothing: one statement for the whole selection. */
     async bulkRestore(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkRestore', async () => {
-            await inChunks("productRepository.bulkRestore", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .update({ is_archived: false })
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            await setProductFields("productRepository.bulkRestore", ids, { is_archived: false });
         });
     },
 
-    /** Bulk-delete multiple products permanently. */
+    /** Bulk-delete multiple products permanently. All or nothing. */
     async bulkDelete(ids: string[]): Promise<void> {
         return withRetry('productRepository.bulkDelete', async () => {
-            await inChunks("productRepository.bulkDelete", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .delete()
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            const { error } = await supabase.rpc("bulk_delete_products", { p_ids: ids });
+            if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError("productRepository.bulkDelete");
+            if (error) throw error;
         }, WRITE_ONCE);
     },
 
-    /** Bulk-update storefront visibility for multiple products. */
+    /** Bulk-update storefront visibility for multiple products. All or nothing: one statement for the whole selection. */
     async bulkUpdateVisibility(ids: string[], isVisible: boolean): Promise<void> {
         return withRetry('productRepository.bulkUpdateVisibility', async () => {
-            await inChunks("productRepository.bulkUpdateVisibility", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .update({ is_visible: isVisible })
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            await setProductFields("productRepository.bulkUpdateVisibility", ids, { is_visible: isVisible });
         });
     },
 
-    /** Bulk-update category for multiple products. Pass null to clear category. */
+    /** Bulk-update category for multiple products. Pass null to clear category. All or nothing: one statement for the whole selection. */
     async bulkUpdateCategory(ids: string[], categoryId: string | null): Promise<void> {
         return withRetry('productRepository.bulkUpdateCategory', async () => {
-            await inChunks("productRepository.bulkUpdateCategory", ids, (chunk) =>
-                supabase
-                    .from("products")
-                    .update({ category_id: categoryId })
-                    .in("id", chunk)
-                    .select("id"),
-            );
+            await setProductFields("productRepository.bulkUpdateCategory", ids, { category_id: categoryId });
+        });
+    },
+
+    /** Set the same fields on every selected product (or supply). All or nothing. */
+    async bulkUpdateFields(ids: string[], fields: BulkProductFields): Promise<void> {
+        return withRetry('productRepository.bulkUpdateFields', async () => {
+            await setProductFields("productRepository.bulkUpdateFields", ids, fields);
         });
     },
 
@@ -518,6 +527,8 @@ export const productRepository = {
                 .from("product_price_history")
                 .select("*")
                 .eq("product_id", productId)
+                // The product's own price; variant prices have their own rows.
+                .is("variant_id", null)
                 .order("created_at", { ascending: false })
                 // The editor shows the recent trail; a hot product has tens of thousands of rows.
                 .limit(HISTORY_LIMIT);
@@ -682,16 +693,6 @@ export const productRepository = {
         });
     },
 
-    /** Add a single inventory history entry (immutable log). */
-    async addInventoryEntry(productId: string, entry: { change_type: string; quantity_change: number; quantity_before: number; quantity_after: number; reference_id?: string; notes?: string; changed_by?: string }, tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.addInventoryEntry', async () => {
-            const { error } = await supabase
-                .from("inventory_history")
-                .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
-
-            if (error) throw error;
-        }, WRITE_ONCE);
-    },
 
     // =============================================
     // SUPPLIERS
@@ -720,7 +721,7 @@ export const productRepository = {
 
 
     // =============================================
-    // ACTIVITY LOG (immutable log — insert only)
+    // ACTIVITY LOG (written by the database; read only here)
     // =============================================
 
     /** Fetch recent activity log entries for a product (max 50). */
@@ -738,31 +739,6 @@ export const productRepository = {
         });
     },
 
-    /** Add a single activity log entry (immutable log). */
-    async addActivityLogEntry(productId: string, entry: { action: string; changes_json?: Json; user_id?: string }, tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.addActivityLogEntry', async () => {
-            const { error } = await supabase
-                .from("product_activity_log")
-                .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
-
-            if (error) throw error;
-        }, WRITE_ONCE);
-    },
-
-    // =============================================
-    // PRICE HISTORY (immutable log — insert only)
-    // =============================================
-
-    /** Add a single price history entry. */
-    async addPriceHistoryEntry(productId: string, entry: { old_price?: number; new_price: number; changed_by?: string; reason?: string }, tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.addPriceHistoryEntry', async () => {
-            const { error } = await supabase
-                .from("product_price_history")
-                .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
-
-            if (error) throw error;
-        }, WRITE_ONCE);
-    },
 
     // =============================================
     // BUNDLE ITEMS

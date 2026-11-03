@@ -143,7 +143,7 @@ function SortableValueChip({
             {!disabled && (
                 <button
                     type="button"
-                    className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing touch-none text-blue-500 hover:text-blue-700 -ml-1 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing touch-none text-blue-500 hover:text-blue-700 -ml-1 transition-opacity dark:hover:text-blue-300"
                     {...attributes}
                     {...listeners}
                 >
@@ -166,7 +166,7 @@ function SortableValueChip({
 
             {/* Size measurement badge */}
             {optionType === "size" && metadata?.measurement && (
-                <span className="text-[10px] text-blue-600 opacity-75">
+                <span className="text-[10px] text-blue-600 opacity-75 dark:text-blue-300">
                     {metadata.measurement}
                 </span>
             )}
@@ -186,7 +186,7 @@ function SortableValueChip({
                 <button
                     type="button"
                     onClick={onRemove}
-                    className="text-blue-600 hover:text-blue-900"
+                    className="text-blue-600 hover:text-blue-900 dark:text-blue-300 dark:hover:text-blue-300"
                 >
                     <X className="w-3 h-3" />
                 </button>
@@ -264,7 +264,7 @@ function SortableValueChip({
                 <button
                     type="button"
                     onClick={() => setEditingMeasurement(true)}
-                    className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity dark:hover:text-blue-300"
                     title={t("products.variants.editMeasurement")}
                 >
                     <Ruler className="w-3 h-3" />
@@ -274,7 +274,7 @@ function SortableValueChip({
                 <button
                     type="button"
                     onClick={() => setEditingDescription(true)}
-                    className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity dark:hover:text-blue-300"
                     title={t("products.variants.editDescription")}
                 >
                     <Info className="w-3 h-3" />
@@ -427,7 +427,7 @@ function SortableOptionGroup({
                                                     onClick={() => handleTypeSelect(type)}
                                                     className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--background)] transition-colors ${
                                                         optionType === type
-                                                            ? "bg-[var(--pastel-blue)] text-blue-800"
+                                                            ? "bg-[var(--pastel-blue)] text-blue-800 dark:text-blue-300"
                                                             : "text-foreground"
                                                     }`}
                                                 >
@@ -506,7 +506,7 @@ function SortableOptionGroup({
                                             <button
                                                 type="button"
                                                 onClick={() => onAddValue(valueInput)}
-                                                className="p-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg hover:bg-[var(--pastel-green)] transition-colors"
+                                                className="p-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg hover:bg-[var(--pastel-green)] transition-colors dark:text-teal-300"
                                                 title={t("products.variants.addValue")}
                                             >
                                                 <Plus className="w-3.5 h-3.5" />
@@ -524,7 +524,7 @@ function SortableOptionGroup({
                     <button
                         type="button"
                         onClick={onRemoveGroup}
-                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors mt-1"
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors mt-1 dark:hover:bg-rose-500/15"
                         title={t("products.variants.removeOption")}
                     >
                         <Trash2 className="w-4 h-4" />
@@ -739,7 +739,7 @@ export function VariantOptionsBuilder({
                 {!disabled && (
                     <div className="flex items-center gap-2">
                         {atMaxGroups && (
-                            <span className="text-xs text-amber-600 flex items-center gap-1">
+                            <span className="text-xs text-amber-600 flex items-center gap-1 dark:text-amber-300">
                                 <AlertTriangle className="w-3.5 h-3.5" />
                                 {t("products.variants.maxOptions")}
                             </span>
@@ -750,8 +750,8 @@ export function VariantOptionsBuilder({
                             disabled={atMaxGroups}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                                 atMaxGroups
-                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                    : "bg-[var(--pastel-mint)] text-teal-700 hover:bg-[var(--pastel-green)]"
+                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-500/15"
+                                    : "bg-[var(--pastel-mint)] text-teal-700 hover:bg-[var(--pastel-green)] dark:text-teal-300"
                             }`}
                         >
                             <Plus className="w-4 h-4" />
@@ -763,7 +763,7 @@ export function VariantOptionsBuilder({
 
             {/* Combination warning */}
             {showCombinationWarning && (
-                <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-300">
                     <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                     <span>
                         {t("products.variants.combinationWarning", {

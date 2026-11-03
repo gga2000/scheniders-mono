@@ -26,6 +26,7 @@ export function productWriteErrorKey(err: unknown): string {
         if (code === PG_FOREIGN_KEY_VIOLATION) return "products.errors.inUse";
         if (code === PG_SERIALIZATION_FAILURE) return "products.priceChangedSinceUndo";
         if (typeof message === "string" && /tenant is paused/i.test(message)) return "products.errors.storePaused";
+        if (typeof message === "string" && /stock cannot go below zero/i.test(message)) return "products.stockAdjust.belowZero";
     }
     return "products.errors.saveFailed";
 }

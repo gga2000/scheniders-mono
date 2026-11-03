@@ -2,6 +2,7 @@
 
 import { TrendingDown, Plus, Trash2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { formatCount } from "@/lib/utils";
 
 export interface TieredPriceFormData {
     min_quantity: number;
@@ -100,7 +101,7 @@ export function TieredPricingSection({
                 <button
                     type="button"
                     onClick={handleAddTier}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors dark:text-teal-300"
                 >
                     <Plus className="w-4 h-4" />
                     {t("products.ed.tier.add")}
@@ -216,7 +217,7 @@ export function TieredPricingSection({
                             <span
                                 className={`px-2 py-0.5 rounded-full text-xs font-medium text-center ${
                                     tier.price < basePrice
-                                        ? "bg-[var(--pastel-green)] text-green-800"
+                                        ? "bg-[var(--pastel-green)] text-green-800 dark:text-green-300"
                                         : "text-muted"
                                 }`}
                             >
@@ -227,7 +228,7 @@ export function TieredPricingSection({
                             <button
                                 type="button"
                                 onClick={() => handleDelete(index)}
-                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors dark:hover:bg-rose-500/15"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
@@ -238,7 +239,7 @@ export function TieredPricingSection({
 
             {/* Overlap warning */}
             {hasOverlap && (
-                <p className="text-sm text-rose-600 font-medium">
+                <p className="text-sm text-rose-600 font-medium dark:text-rose-300">
                     {t("products.ed.tier.overlap")}
                 </p>
             )}
@@ -246,10 +247,10 @@ export function TieredPricingSection({
             {/* Pricing summary */}
             {tiers.length > 0 && (
                 <p className="text-sm text-muted">
-                    {t("products.ed.tier.base").replace("{price}", basePrice.toLocaleString())}
+                    {t("products.ed.tier.base").replace("{price}", formatCount(basePrice))}
                     {bestPrice !== null && (
                         <>
-                            {" \u00b7 "}{t("products.ed.tier.best").replace("{price}", bestPrice.toLocaleString())}
+                            {" \u00b7 "}{t("products.ed.tier.best").replace("{price}", formatCount(bestPrice))}
                             {bestDiscount !== null && ` (${t("products.ed.tier.off").replace("{pct}", String(bestDiscount))})`}
                         </>
                     )}

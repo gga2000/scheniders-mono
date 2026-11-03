@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/components/auth/auth-provider";
+import { formatBaghdadMonthYear } from "@/lib/customer-format";
 
 interface BatchBadgeProps {
     productId: string;
@@ -56,22 +57,16 @@ function getDaysUntilExpiry(expiryDate: string): number {
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-function formatExpiryShort(dateStr: string): string {
-    return new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        year: "numeric",
-    }).format(new Date(dateStr));
-}
 
 export function BatchBadge({ productId, size = "sm" }: BatchBadgeProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { data: nearestByProduct } = useNearestExpiryByProduct();
     const nearest = nearestByProduct?.get(productId) ?? null;
 
     if (!nearest) return null;
 
     const days = getDaysUntilExpiry(nearest);
-    const label = `${t("products.batch.expiryPrefix")} ${formatExpiryShort(nearest)}`;
+    const label = `${t("products.batch.expiryPrefix")} ${formatBaghdadMonthYear(nearest, language)}`;
 
     let colorClasses: string;
     if (days < 0) {

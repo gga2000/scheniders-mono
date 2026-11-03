@@ -5,9 +5,7 @@ import { Loader2, X } from "lucide-react";
 import { formatIQD, parseWholeNumber } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { useAuth } from "@/components/auth/auth-provider";
 import { useUpdateProductMutation } from "@/hooks/use-products-query";
-import { productRepository } from "@/lib/repositories/product-repository";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 import type { Product } from "@/lib/supabase";
 
@@ -28,7 +26,6 @@ interface PriceQuickEditProps {
  */
 export function PriceQuickEdit({ product, cost, onClose }: PriceQuickEditProps) {
     const { t } = useLanguage();
-    const { tenantId } = useAuth();
     const update = useUpdateProductMutation();
     const [text, setText] = useState(String(product.price));
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -65,18 +62,8 @@ export function PriceQuickEdit({ product, cost, onClose }: PriceQuickEditProps) 
             toast.error(t(productWriteErrorKey(err)));
             return;
         }
-        // The price is saved. A failed history row must not read as a failed save
-        // (a retry would hit the stale-version guard), so it gets its own message.
-        try {
-            await productRepository.addPriceHistoryEntry(
-                product.id,
-                { old_price: product.price, new_price: price, reason: "Manual price update" },
-                tenantId,
-            );
-            toast.success(t("products.priceEdit.saved", { name: product.name }));
-        } catch {
-            toast.warning(t("products.priceEdit.savedNoHistory", { name: product.name }));
-        }
+        // The database records the price history with the same write.
+        toast.success(t("products.priceEdit.saved", { name: product.name }));
         onClose();
     };
 

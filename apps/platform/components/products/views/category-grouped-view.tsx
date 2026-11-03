@@ -36,7 +36,7 @@ import {
     type DragEndEvent,
 } from "@dnd-kit/core";
 import { Product, getStockStatus } from "@/lib/supabase";
-import { cn, formatIQD, maskIQD } from "@/lib/utils";
+import { cn, formatIQD, maskIQD, formatCount } from "@/lib/utils";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { QuickActionsMenu } from "../quick-actions-menu";
@@ -141,7 +141,7 @@ export function CategoryGroupedView({
                 parent_id: null,
                 display_order: 0,
                 is_visible: true,
-            } as any);
+            });
             toast.success(t("products.newCategory.created", { name }));
             setNewCategoryName("");
             setNewCategoryOpen(false);
@@ -361,7 +361,7 @@ export function CategoryGroupedView({
                         <button
                             onClick={submitNewCategory}
                             disabled={!newCategoryName.trim() || addCategory.isPending}
-                            className="p-1 rounded-md hover:bg-[var(--background)] disabled:opacity-40 disabled:cursor-not-allowed text-emerald-600"
+                            className="p-1 rounded-md hover:bg-[var(--background)] disabled:opacity-40 disabled:cursor-not-allowed text-emerald-600 dark:text-emerald-300"
                             aria-label={t("common.save")}
                         >
                             {addCategory.isPending ? (
@@ -663,7 +663,7 @@ function CategorySection({
                             {t("products.views.category.products")}
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-yellow)] text-foreground font-medium">
-                            {group.totalStock.toLocaleString()}{" "}
+                            {formatCount(group.totalStock)}{" "}
                             {t("products.views.category.units")}
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-green)] text-foreground font-medium">
@@ -741,7 +741,7 @@ function MiniProductCard({
             ? "text-red-500"
             : stockStatus === "low_stock"
               ? "text-amber-500"
-              : "text-green-600";
+              : "text-green-600 dark:text-green-300";
 
     const {
         setNodeRef,

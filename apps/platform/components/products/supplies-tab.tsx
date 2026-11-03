@@ -1,10 +1,11 @@
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useSupplierLinks } from "@/hooks/use-supplier-links";
 import { useQueryClient } from "@tanstack/react-query";
-import { productKeys } from "@/hooks/use-products-query";
+import { refreshProductRows } from "@/hooks/use-products-query";
+import { useAuth } from "@/components/auth/auth-provider";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { productWriteErrorKey } from "@/lib/product-write-error";
@@ -70,9 +71,10 @@ const VIEW_MODE_KEY = "supplies.viewMode";
 const SECTION_KEY = "supplies.section";
 
 export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
-    const { products, loading, updateProduct } = useProductsCrud({ withSales: true });
+    const { products, loading } = useProductsCrud({ withSales: true });
     const { t } = useLanguage();
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     const { data: categories = [] } = useCategoriesQuery();
     const { data: openPoBySupply } = useOpenPosBySupply();
     const { data: supplierPos = [] } = useSupplierPos();
@@ -320,7 +322,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         if (delta === 0) return;
         try {
             const next = await adjustSupplyStock(product.id, delta);
-            await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+            await refreshProductRows(queryClient, tenantId, [product.id]);
             toast.success(`${product.name}: ${next - delta} → ${next}`);
         } catch (err) {
             toast.error(t(productWriteErrorKey(err)));
@@ -354,7 +356,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className={cn(
                                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                                 section === "supplies"
-                                    ? "bg-white text-teal-700 shadow-sm ring-1 ring-[var(--card-border)]"
+                                    ? "bg-white text-teal-700 shadow-sm ring-1 ring-[var(--card-border)] dark:text-teal-300"
                                     : "text-muted hover:text-foreground"
                             )}
                             aria-pressed={section === "supplies"}
@@ -371,7 +373,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className={cn(
                                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                                 section === "suppliers"
-                                    ? "bg-white text-teal-700 shadow-sm ring-1 ring-[var(--card-border)]"
+                                    ? "bg-white text-teal-700 shadow-sm ring-1 ring-[var(--card-border)] dark:text-teal-300"
                                     : "text-muted hover:text-foreground"
                             )}
                             aria-pressed={section === "suppliers"}
@@ -425,7 +427,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className={cn(
                                 "p-1.5 rounded-lg transition-all",
                                 viewMode === "grid"
-                                    ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)]"
+                                    ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)] dark:text-teal-300"
                                     : "text-muted hover:text-foreground"
                             )}
                             title={t("supplies.view.grid")}
@@ -439,7 +441,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className={cn(
                                 "p-1.5 rounded-lg transition-all",
                                 viewMode === "list"
-                                    ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)]"
+                                    ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)] dark:text-teal-300"
                                     : "text-muted hover:text-foreground"
                             )}
                             title={t("supplies.view.list")}
@@ -456,7 +458,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                         className={cn(
                             "inline-flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-sm transition-all border",
                             reorderCandidateCount > 0
-                                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/15"
                                 : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:text-foreground"
                         )}
                         title={t("supplies.reorder.title")}
@@ -585,8 +587,10 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
             {supplies.length > 0 && (
                 <p className="text-xs text-muted -mt-1">
                     {searchQuery || selectedCategoryId
-                        ? `${filteredSupplies.length} of ${supplies.length} supplies`
-                        : `${supplies.length} ${supplies.length === 1 ? "supply" : "supplies"}`}
+                        ? t("supplies.count.filtered", { shown: formatCount(filteredSupplies.length), total: formatCount(supplies.length) })
+                        : supplies.length === 1
+                          ? t("supplies.countOne")
+                          : t("supplies.countMany", { count: formatCount(supplies.length) })}
                 </p>
             )}
 
@@ -725,10 +729,13 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     selected={selectedSupplies}
                     categories={categories}
                     onClear={clearSelection}
-                    updateProduct={async (id, patch) => { await updateProduct(id, patch); }}
+                    setFields={async (ids, patch) => {
+                        await productRepository.bulkUpdateFields(ids, patch);
+                        await refreshProductRows(queryClient, tenantId, ids);
+                    }}
                     adjustStock={async (id, delta) => {
                         await adjustSupplyStock(id, delta);
-                        await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+                        await refreshProductRows(queryClient, tenantId, [id]);
                     }}
                 />
             )}

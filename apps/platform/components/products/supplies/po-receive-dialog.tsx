@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import {
     Dialog,
@@ -29,13 +29,17 @@ interface PoReceiveDialogProps {
 /** Enter what arrived per line; the database adds it to stock and moves the PO to partial or received. */
 export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiveDialogProps) {
     const { t } = useLanguage();
+    const queryClient = useQueryClient();
     const { receive } = usePurchaseOrderActions();
     const { can } = usePermission();
     // The database refuses a cost from anyone who cannot see cost, so only offer the field to them.
     const canSetCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS);
     const [entered, setEntered] = useState<Record<string, string>>({});
     const [costs, setCosts] = useState<Record<string, string>>({});
-    // One id per attempt: a retry after a lost response is ignored by the database if the first call landed.
+    // One id per snapshot of the lines: a retry after a lost response is ignored
+    // by the database if the first call landed. The id is renewed whenever the
+    // lines (re)load: if that call did land, the reloaded lines show it, and the
+    // next receipt is a new request, not a silently ignored repeat.
     const requestId = useRef(crypto.randomUUID());
 
     const { data: lines, isLoading } = useQuery({
@@ -56,6 +60,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
     // (Add to stock); a short delivery is edited down instead of typed in.
     useEffect(() => {
         if (!lines) return;
+        requestId.current = crypto.randomUUID();
         setEntered(
             Object.fromEntries(
                 lines
@@ -132,7 +137,11 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     requestId.current = crypto.randomUUID();
                     onOpenChange(false);
                 },
-                onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
+                onError: (err: unknown) => {
+                    toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) }));
+                    // Re-read what the database holds now; that also renews the request id.
+                    void queryClient.invalidateQueries({ queryKey: ["po-lines", poId] });
+                },
             }
         );
     };
@@ -210,8 +219,10 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                         className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 ${qtyOver ? errorBorder : "border-[var(--card-border)]"}`}
                                     />
                                     {(qtyOver || costBad) && (
-                                        <p role="alert" className="col-span-full text-xs text-rose-600">
-                                            {qtyOver ? t("supplies.po.overOrdered") : t("supplies.po.badCost")}
+                                        <p role="alert" className="col-span-full text-xs text-rose-600 dark:text-rose-300">
+                                            {[qtyOver && t("supplies.po.overOrdered"), costBad && t("supplies.po.badCost")]
+                                                .filter(Boolean)
+                                                .join(" ")}
                                         </p>
                                     )}
                                 </div>
@@ -220,13 +231,11 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     </div>
                 )}
 
-
-
                 <DialogFooter className="gap-2">
                     <button
                         type="button"
                         onClick={fillAll}
-                        className="text-sm font-medium text-teal-700 hover:text-teal-800 px-3 py-2"
+                        className="text-sm font-medium text-teal-700 hover:text-teal-800 px-3 py-2 dark:text-teal-300 dark:hover:text-teal-300"
                     >
                         {t("supplies.po.receiveAll")}
                     </button>

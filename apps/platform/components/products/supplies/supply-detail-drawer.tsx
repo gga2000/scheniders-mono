@@ -30,6 +30,7 @@ import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
 import { PoStatusChip, type PoStatusInfo } from "./po-status-chip";
 import { SupplierInitialsBadge } from "./supplier-initials-badge";
 import { ConsumptionSparkline } from "./consumption-sparkline";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 type TabKey = "overview" | "suppliers" | "history" | "recipe";
 
@@ -176,7 +177,7 @@ function Header({
                             className="w-full h-full object-cover"
                         />
                     ) : (
-                        <Box className="w-6 h-6 text-teal-600" />
+                        <Box className="w-6 h-6 text-teal-600 dark:text-teal-300" />
                     )}
                 </div>
                 <div className="min-w-0">
@@ -217,7 +218,7 @@ function Header({
                         type="button"
                         onClick={() => onReorder(supply)}
                         title={t("supplies.sp.createPo")}
-                        className="p-1.5 rounded-lg text-muted hover:text-teal-700 hover:bg-teal-50"
+                        className="p-1.5 rounded-lg text-muted hover:text-teal-700 hover:bg-teal-50 dark:hover:text-teal-300 dark:hover:bg-teal-500/15"
                     >
                         <ShoppingCart className="w-4 h-4" />
                     </button>
@@ -227,7 +228,7 @@ function Header({
                         type="button"
                         onClick={() => onEdit(supply)}
                         title={t("supplies.sp.edit")}
-                        className="p-1.5 rounded-lg text-muted hover:text-sky-700 hover:bg-sky-50"
+                        className="p-1.5 rounded-lg text-muted hover:text-sky-700 hover:bg-sky-50 dark:hover:text-sky-300 dark:hover:bg-sky-500/15"
                     >
                         <Edit2 className="w-4 h-4" />
                     </button>
@@ -383,7 +384,7 @@ function SuppliersTab({ supply }: { supply: Product }) {
                             <div className="flex items-center gap-1.5">
                                 <p className="font-medium text-sm truncate">{name}</p>
                                 {s.is_primary && (
-                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide">
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide dark:bg-amber-500/15 dark:text-amber-300">
                                         {t("supplies.sp.primary")}
                                     </span>
                                 )}
@@ -421,25 +422,25 @@ function SupplierStat({ label, value }: { label: string; value: string }) {
 }
 
 const CHANGE_TYPE_LABEL: Record<string, { labelKey: string; tone: string }> = {
-    received: { labelKey: "supplies.sp.ct.received", tone: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-    sold: { labelKey: "supplies.sp.ct.sold", tone: "bg-sky-50 text-sky-700 ring-sky-200" },
-    sale: { labelKey: "supplies.sp.ct.sold", tone: "bg-sky-50 text-sky-700 ring-sky-200" },
-    adjusted: { labelKey: "supplies.sp.ct.adjusted", tone: "bg-slate-100 text-slate-700 ring-slate-200" },
-    adjustment: { labelKey: "supplies.sp.ct.adjusted", tone: "bg-slate-100 text-slate-700 ring-slate-200" },
-    returned: { labelKey: "supplies.sp.ct.returned", tone: "bg-amber-50 text-amber-700 ring-amber-200" },
-    reserved: { labelKey: "supplies.sp.ct.reserved", tone: "bg-indigo-50 text-indigo-700 ring-indigo-200" },
-    quarantined: { labelKey: "supplies.sp.ct.quarantined", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
-    stock_take: { labelKey: "supplies.sp.ct.stock_take", tone: "bg-teal-50 text-teal-700 ring-teal-200" },
-    transfer: { labelKey: "supplies.sp.ct.transfer", tone: "bg-violet-50 text-violet-700 ring-violet-200" },
-    shrinkage: { labelKey: "supplies.sp.ct.shrinkage", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
-    damaged: { labelKey: "supplies.sp.ct.damaged", tone: "bg-rose-50 text-rose-700 ring-rose-200" },
+    received: { labelKey: "supplies.sp.ct.received", tone: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30" },
+    sold: { labelKey: "supplies.sp.ct.sold", tone: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:ring-sky-500/30" },
+    sale: { labelKey: "supplies.sp.ct.sold", tone: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:ring-sky-500/30" },
+    adjusted: { labelKey: "supplies.sp.ct.adjusted", tone: "bg-slate-100 text-slate-700 ring-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:ring-slate-500/30" },
+    adjustment: { labelKey: "supplies.sp.ct.adjusted", tone: "bg-slate-100 text-slate-700 ring-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:ring-slate-500/30" },
+    returned: { labelKey: "supplies.sp.ct.returned", tone: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30" },
+    reserved: { labelKey: "supplies.sp.ct.reserved", tone: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-500/30" },
+    quarantined: { labelKey: "supplies.sp.ct.quarantined", tone: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30" },
+    stock_take: { labelKey: "supplies.sp.ct.stock_take", tone: "bg-teal-50 text-teal-700 ring-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:ring-teal-500/30" },
+    transfer: { labelKey: "supplies.sp.ct.transfer", tone: "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:ring-violet-500/30" },
+    shrinkage: { labelKey: "supplies.sp.ct.shrinkage", tone: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30" },
+    damaged: { labelKey: "supplies.sp.ct.damaged", tone: "bg-rose-50 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30" },
 };
 
 function labelFor(
     type: string | null,
     t: (key: string) => string
 ): { label: string; tone: string } {
-    const neutral = "bg-slate-100 text-slate-600 ring-slate-200";
+    const neutral = "bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:ring-slate-500/30";
     if (!type) return { label: t("supplies.sp.ct.event"), tone: neutral };
     const known = CHANGE_TYPE_LABEL[type];
     if (known) return { label: t(known.labelKey), tone: known.tone };
@@ -553,8 +554,8 @@ function SummaryTile({
 }) {
     const cls =
         tone === "emerald"
-            ? "from-emerald-50 to-emerald-50/20 border-emerald-200/50 text-emerald-800"
-            : "from-rose-50 to-rose-50/20 border-rose-200/50 text-rose-800";
+            ? "from-emerald-50 to-emerald-50/20 border-emerald-200/50 text-emerald-800 dark:text-emerald-300"
+            : "from-rose-50 to-rose-50/20 border-rose-200/50 text-rose-800 dark:text-rose-300";
     return (
         <div className={cn("rounded-xl border bg-gradient-to-br p-2.5", cls)}>
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide opacity-80">
@@ -567,13 +568,13 @@ function SummaryTile({
 }
 
 function HistoryRow({ entry }: { entry: InventoryHistoryEntry }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const q = entry.quantity_change ?? 0;
     const tag = labelFor(entry.change_type, t);
     const when = entry.created_at ? new Date(entry.created_at) : null;
-    const dateLabel = when ? when.toLocaleDateString() : "—";
+    const dateLabel = entry.created_at ? formatBaghdadDate(entry.created_at, language) : "—";
     const timeLabel = when
-        ? when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        ? when.toLocaleTimeString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" })
         : "";
 
     return (
@@ -605,7 +606,7 @@ function HistoryRow({ entry }: { entry: InventoryHistoryEntry }) {
             <p
                 className={cn(
                     "text-lg font-bold tabular-nums shrink-0",
-                    q >= 0 ? "text-emerald-700" : "text-rose-700"
+                    q >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"
                 )}
             >
                 {q >= 0 ? "+" : ""}
@@ -689,13 +690,13 @@ function RecipeRow({
                           } as unknown as Product)
                     : undefined
             }
-            className="w-full text-left rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 flex items-center gap-3 hover:border-teal-200 hover:shadow-sm transition-all"
+            className="w-full text-left rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 flex items-center gap-3 hover:border-teal-200 hover:shadow-sm transition-all dark:hover:border-teal-500/30"
         >
             <div className="w-10 h-10 rounded-lg overflow-hidden bg-[var(--background)] flex items-center justify-center ring-1 ring-[var(--card-border)] shrink-0">
                 {row.imageUrl ? (
                     <img src={row.imageUrl} alt={row.productName} className="w-full h-full object-cover" />
                 ) : (
-                    <Truck className="w-4 h-4 text-teal-600" />
+                    <Truck className="w-4 h-4 text-teal-600 dark:text-teal-300" />
                 )}
             </div>
             <div className="min-w-0 flex-1">

@@ -5,6 +5,14 @@ import { getOrderStatusLabel } from "@/lib/order-status-labels";
 import { mergeOrderItems } from "@/lib/merge-order-items";
 export { cn, formatIQD, formatIQDArabic } from "@scheniders/shared";
 
+const COUNT_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+
+/** A whole number with Western digits and thousands separators in every
+ * language ("1,250"), never the browser's own locale digits. */
+export function formatCount(value: number): string {
+    return COUNT_FORMAT.format(value);
+}
+
 /**
  * Mask string shown in place of currency values when the user has hidden
  * financial data via RevealToggle.

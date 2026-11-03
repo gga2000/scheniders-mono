@@ -3,6 +3,7 @@
 import { Globe, Link as LinkIcon } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
+import { formatCount } from "@/lib/utils";
 
 interface ProductStorefrontSectionProps {
     formData: ProductEditorFormData;
@@ -50,7 +51,7 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
                         type="button"
                         onClick={autoGenerateSlug}
                         disabled={!formData.name}
-                        className="px-4 py-3 bg-[var(--pastel-yellow)] text-amber-900 rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        className="px-4 py-3 bg-[var(--pastel-yellow)] text-amber-900 rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap dark:text-amber-300"
                     >
                         {t("products.ed.autoGenerate")}
                     </button>
@@ -69,7 +70,7 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
                         const v = e.target.value;
                         updateField("website_price", v === "" ? null : parseInt(v, 10) || 0);
                     }}
-                    placeholder={t("products.ed.websitePricePh").replace("{price}", formData.price.toLocaleString())}
+                    placeholder={t("products.ed.websitePricePh").replace("{price}", formatCount(formData.price))}
                     min={0}
                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 />

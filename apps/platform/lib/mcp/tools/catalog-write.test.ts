@@ -79,17 +79,15 @@ beforeEach(() => {
 });
 
 describe("update_product", () => {
-    it("changes the price by name in the caller's store only, with price history and product activity", async () => {
+    it("changes the price by name in the caller's store only, writing no history or activity rows itself (the DB does)", async () => {
         const res = await call("update_product", { product: "vitamin c serum", price: 30000, confirm: false });
         expect(res.isError).toBe(false);
         expect(env.tables.products[0].price).toBe(30000);
         expect(env.tables.products[1].price).toBe(25000);
         const patch = env.calls.find((c) => c.table === "products" && c.op === "update");
         expect(patch?.filters).toEqual(expect.arrayContaining([`tenant_id=${STORE}`, `id=${SERUM}`]));
-        expect(env.tables.product_price_history).toEqual([
-            expect.objectContaining({ product_id: SERUM, tenant_id: STORE, old_price: 25000, new_price: 30000, changed_by: "Ali (via Claude)" }),
-        ]);
-        expect(env.tables.product_activity_log[0]).toMatchObject({ action: "price_changed", tenant_id: STORE, user_id: "u1" });
+        expect(env.calls.some((c) => c.table === "product_price_history")).toBe(false);
+        expect(env.calls.some((c) => c.table === "product_activity_log")).toBe(false);
     });
 
     it("previews a price that drops below half until confirm", async () => {
@@ -130,15 +128,16 @@ describe("stock", () => {
     });
 
     it("asks which variant for a product that has variants", async () => {
-        const res = await call("adjust_stock", { product: "T-shirt", change: 1, reason: "received", confirm: false });
+        const res = await call("adjust_stock", { product: "T-shirt", change: 1, reason: "received" });
         expect(res.isError).toBe(true);
         expect(res.text).toContain("has variants; say which one: Red");
         expect(rpcCalls).toHaveLength(0);
     });
 
-    it("previews stock going below zero", async () => {
-        const res = await call("adjust_stock", { product: "T-shirt", variant: "red", change: -5, reason: "damaged", confirm: false });
-        expect(res.text).toContain("stock 3 → -2");
+    it("refuses to take stock below zero, saying what is in stock", async () => {
+        const res = await call("adjust_stock", { product: "T-shirt", variant: "red", change: -5, reason: "damaged" });
+        expect(res.isError).toBe(true);
+        expect(res.text).toContain("has 3 in stock, so 5 cannot be removed");
         expect(rpcCalls).toHaveLength(0);
     });
 

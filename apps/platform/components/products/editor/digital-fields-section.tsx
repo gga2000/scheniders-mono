@@ -69,20 +69,20 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
 
                 {formData.download_url ? (
                     <div className="flex items-center gap-3 p-3 bg-[var(--pastel-green)] rounded-xl">
-                        <FileText className="w-5 h-5 text-green-700 shrink-0" />
+                        <FileText className="w-5 h-5 text-green-700 shrink-0 dark:text-green-300" />
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-green-800 truncate">
+                            <p className="text-sm font-medium text-green-800 truncate dark:text-green-300">
                                 {formData.download_url.split('/').pop()}
                             </p>
                             {formData.file_size && (
-                                <p className="text-xs text-green-700">{/^\d+$/.test(formData.file_size) ? formatFileSize(Number(formData.file_size)) : formData.file_size}</p>
+                                <p className="text-xs text-green-700 dark:text-green-300">{/^\d+$/.test(formData.file_size) ? formatFileSize(Number(formData.file_size)) : formData.file_size}</p>
                             )}
                         </div>
                         <a
                             href={formData.download_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 text-green-700 hover:text-green-900 transition-colors"
+                            className="p-1.5 text-green-700 hover:text-green-900 transition-colors dark:text-green-300 dark:hover:text-green-300"
                         >
                             <ExternalLink className="w-4 h-4" />
                         </a>
@@ -92,7 +92,7 @@ export function DigitalFieldsSection({ formData, updateField, productId }: Digit
                                 updateField("download_url", "");
                                 updateField("file_size", "");
                             }}
-                            className="text-xs text-green-700 hover:text-green-900 font-medium"
+                            className="text-xs text-green-700 hover:text-green-900 font-medium dark:text-green-300 dark:hover:text-green-300"
                         >
                             {t("products.digital.remove")}
                         </button>

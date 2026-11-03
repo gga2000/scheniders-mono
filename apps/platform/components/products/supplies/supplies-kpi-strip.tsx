@@ -10,7 +10,7 @@ import {
     Truck,
     Activity,
 } from "lucide-react";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, formatIQD, formatCount } from "@/lib/utils";
 import { supabase, Product } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -131,7 +131,7 @@ function Tile({
                 "relative rounded-2xl border p-4 transition-all duration-200",
                 "hover:shadow-md",
                 tileClass,
-                emphasis && "ring-1 ring-rose-200"
+                emphasis && "ring-1 ring-rose-200 dark:ring-rose-500/30"
             )}
         >
             <div className="flex items-start justify-between">
@@ -261,7 +261,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 sub={supplies.length === 1 ? t("supplies.kpi.supplyCountOne") : t("supplies.kpi.supplyCount", { count: supplies.length })}
                 icon={Package}
                 iconBg="bg-teal-500/15"
-                iconColor="text-teal-600"
+                iconColor="text-teal-600 dark:text-teal-300"
                 tileClass="bg-gradient-to-br from-teal-50 to-white border-teal-100 dark:from-teal-950/40 dark:to-transparent dark:border-teal-900/50"
                 sparkline={<MiniSparkline data={stats.valueBuckets} color="#0d9488" />}
             />
@@ -272,7 +272,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 sub={t("supplies.kpi.atRiskSub")}
                 icon={AlertTriangle}
                 iconBg="bg-amber-500/15"
-                iconColor="text-amber-600"
+                iconColor="text-amber-600 dark:text-amber-300"
                 tileClass="bg-gradient-to-br from-amber-50 to-white border-amber-100 dark:from-amber-950/40 dark:to-transparent dark:border-amber-900/50"
                 sparkline={<MiniBars data={stats.atRiskBuckets} color="#d97706" />}
             />
@@ -283,7 +283,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 sub={stats.outOfStock > 0 ? t("supplies.kpi.attention") : t("supplies.kpi.allStocked")}
                 icon={XCircle}
                 iconBg="bg-rose-500/15"
-                iconColor="text-rose-600"
+                iconColor="text-rose-600 dark:text-rose-300"
                 tileClass="bg-gradient-to-br from-rose-50 to-white border-rose-100 dark:from-rose-950/40 dark:to-transparent dark:border-rose-900/50"
                 emphasis={stats.outOfStock > 0}
             />
@@ -294,7 +294,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 sub={stats.avgDays !== null ? t("supplies.kpi.weighted") : t("supplies.kpi.noData")}
                 icon={Clock}
                 iconBg="bg-sky-500/15"
-                iconColor="text-sky-600"
+                iconColor="text-sky-600 dark:text-sky-300"
                 tileClass="bg-gradient-to-br from-sky-50 to-white border-sky-100 dark:from-sky-950/40 dark:to-transparent dark:border-sky-900/50"
                 sparkline={<MiniSparkline data={stats.daysBuckets} color="#0284c7" />}
             />
@@ -305,17 +305,17 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 sub={poData && poData.totalCost !== null && poData.totalCost > 0 ? formatIQD(poData.totalCost) : poData && poData.count > 0 ? undefined : t("supplies.kpi.noOpenOrders")}
                 icon={Truck}
                 iconBg="bg-indigo-500/15"
-                iconColor="text-indigo-600"
+                iconColor="text-indigo-600 dark:text-indigo-300"
                 tileClass="bg-gradient-to-br from-indigo-50 to-white border-indigo-100 dark:from-indigo-950/40 dark:to-transparent dark:border-indigo-900/50"
             />
 
             <Tile
                 label={t("supplies.kpi.consumed")}
-                value={(consumption?.total ?? 0).toLocaleString()}
+                value={formatCount(consumption?.total ?? 0)}
                 sub={t("supplies.kpi.consumedSub")}
                 icon={Activity}
                 iconBg="bg-violet-500/15"
-                iconColor="text-violet-600"
+                iconColor="text-violet-600 dark:text-violet-300"
                 tileClass="bg-gradient-to-br from-violet-50 to-white border-violet-100 dark:from-violet-950/40 dark:to-transparent dark:border-violet-900/50"
                 sparkline={<MiniBars data={consumption?.days ?? []} color="#7c3aed" />}
             />

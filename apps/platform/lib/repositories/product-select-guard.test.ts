@@ -124,8 +124,9 @@ describe("platform reads of products, product_variants, product_suppliers", () =
     });
 
     it("finds the chains it is meant to check", () => {
-        // A scanner that silently matched nothing would pass the test above.
+        // A scanner that silently matched nothing would pass the test above. (Bulk
+        // writes moved to RPCs, so the repository holds 8 products chains.)
         const repo = fs.readFileSync(path.join(PLATFORM_ROOT, "lib/repositories/product-repository.ts"), "utf8");
-        expect(chains(repo, "products").length).toBeGreaterThan(10);
+        expect(chains(repo, "products").length).toBeGreaterThan(5);
     });
 });

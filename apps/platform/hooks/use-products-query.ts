@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { type Product, type ProductVariant, type ProductPriceHistory } from "@/lib/supabase";
 import { productRepository, type ProductUpdate, type VariantUpdate } from "@/lib/repositories/product-repository";
@@ -22,6 +22,49 @@ export const productKeys = {
     variants: (productId: string) => [...productKeys.detail(productId), "variants"] as const,
 };
 
+
+/**
+ * After an edit to one product, re-read that row into the cached list instead
+ * of re-downloading the catalogue (a 1,500-product store is several pages plus
+ * the cost read). If the row cannot be read, fall back to the full refetch.
+ */
+export async function refreshProductRows(
+    queryClient: QueryClient,
+    tenantId: string | null,
+    ids: string[],
+): Promise<void> {
+    if (!tenantId) return;
+    const key = productKeys.list(tenantId);
+    const unique = [...new Set(ids)];
+    if (!queryClient.getQueryData(key) || unique.length === 0 || unique.length > ROW_REFRESH_LIMIT) {
+        await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+        return;
+    }
+    let rows: (Product | null)[];
+    try {
+        rows = await Promise.all(unique.map((id) => productRepository.findOneForList(tenantId, id)));
+    } catch {
+        await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+        return;
+    }
+    const byId = new Map(unique.map((id, i) => [id, rows[i]]));
+    queryClient.setQueryData<Product[]>(key, (old) => {
+        if (!old) return old;
+        const present = new Set(old.map((p) => p.id));
+        // A new product is not in the list yet: it goes first (the list is newest first).
+        const added = unique.flatMap((id) => {
+            const row = byId.get(id);
+            return row && !present.has(id) ? [row] : [];
+        });
+        return [
+            ...added,
+            ...old.filter((p) => !byId.has(p.id) || byId.get(p.id) !== null).map((p) => byId.get(p.id) ?? p),
+        ];
+    });
+}
+
+/** More rows than this and one full read is cheaper than many single ones. */
+const ROW_REFRESH_LIMIT = 10;
 
 // Hook
 export function useProductsQuery() {
@@ -82,9 +125,7 @@ export function useAddProductMutation() {
         mutationFn: async (productData: Parameters<typeof productRepository.create>[0]) => {
             return productRepository.create(productData, tenantId);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-        }
+        onSuccess: (created) => refreshProductRows(queryClient, tenantId, [created.id]),
     });
 }
 
@@ -110,9 +151,7 @@ export function useUpdateProductMutation() {
                 queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
             }
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-        }
+        onSettled: (_data, _err, { id }) => refreshProductRows(queryClient, tenantId, [id]),
     });
 }
 
@@ -137,7 +176,7 @@ export function useArchiveProductMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, id) => refreshProductRows(queryClient, tenantId, [id])
     });
 }
 
@@ -160,7 +199,7 @@ export function useRestoreProductMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, id) => refreshProductRows(queryClient, tenantId, [id])
     });
 }
 
@@ -195,43 +234,47 @@ export function useDeleteProductMutation() {
 
 export function useBulkUpdatePricesMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ changes, price }: { changes: BulkPriceChange[]; price: number }) => {
             await productRepository.bulkChangePrice(changes, price);
             return { ids: changes.map((c) => c.id), price };
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { changes }) => refreshProductRows(queryClient, tenantId, changes.map((c) => c.id))
     });
 }
 
 export function useRestorePricesMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: (previous: Parameters<typeof productRepository.restorePrices>[0]) =>
             productRepository.restorePrices(previous),
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
+        onSettled: (_data, _err, previous) => refreshProductRows(queryClient, tenantId, previous.map((p) => p.id)),
     });
 }
 
 export function useBulkArchiveMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (ids: string[]) => {
             await productRepository.bulkArchive(ids);
             return ids;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, ids) => refreshProductRows(queryClient, tenantId, ids)
     });
 }
 
 export function useBulkRestoreMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (ids: string[]) => {
             await productRepository.bulkRestore(ids);
             return ids;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, ids) => refreshProductRows(queryClient, tenantId, ids)
     });
 }
 
@@ -291,7 +334,7 @@ export function useAdjustStockMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
     });
 }
 
@@ -322,6 +365,7 @@ export interface CountStockResult {
  */
 export function useSetCountedStockMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (counts: CountStockArgs[]): Promise<CountStockResult> => {
             const result: CountStockResult = { saved: 0, failed: new Map() };
@@ -336,7 +380,7 @@ export function useSetCountedStockMutation() {
             }
             return result;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, counts) => refreshProductRows(queryClient, tenantId, counts.map((c) => c.productId))
     });
 }
 
@@ -359,7 +403,7 @@ export function useBulkUpdateVisibilityMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { ids }) => refreshProductRows(queryClient, tenantId, ids)
     });
 }
 
@@ -398,29 +442,32 @@ export function useAddVariantMutation() {
         mutationFn: async ({ productId, data }: { productId: string; data: Partial<ProductVariant> }) => {
             return productRepository.addVariant(productId, data, tenantId);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
     });
 }
 
 export function useUpdateVariantMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ id, data }: { id: string; data: VariantUpdate }) => {
+        mutationFn: async ({ id, data }: { productId: string; id: string; data: VariantUpdate }) => {
             await productRepository.updateVariant(id, data);
             return { id, data };
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        // Only the product that owns the variant is re-read, not the whole catalogue.
+        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
     });
 }
 
 export function useDeleteVariantMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async (id: string) => {
+        mutationFn: async ({ id }: { productId: string; id: string }) => {
             await productRepository.deleteVariant(id);
             return id;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
     });
 }
 

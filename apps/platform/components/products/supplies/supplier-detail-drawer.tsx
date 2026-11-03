@@ -21,6 +21,7 @@ import { PoStatusChip, type PoStatusInfo, type PoStatus } from "./po-status-chip
 import { StockFillBar } from "./stock-fill-bar";
 import { PoActions } from "./po-actions";
 import type { Product } from "@/lib/supabase";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 type TabKey = "overview" | "supplies" | "pos";
 
@@ -162,7 +163,7 @@ function SupplierTabs({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) =>
 }
 
 function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -183,7 +184,11 @@ function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
                 <KpiTile
                     icon={Truck}
                     label={t("supplies.sd.kpiOpenPos")}
-                    value={supplier.openPoCount.toString()}
+                    value={
+                        supplier.draftPoCount > 0
+                            ? t("supplies.sd.openWithDrafts", { open: supplier.openPoCount, drafts: supplier.draftPoCount })
+                            : supplier.openPoCount.toString()
+                    }
                     tone={supplier.openPoCount > 0 ? "sky" : "slate"}
                 />
                 <KpiTile
@@ -211,7 +216,7 @@ function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
                                     <p className="font-medium text-sm truncate">{p.poNumber}</p>
                                     <p className="text-[11px] text-muted">
                                         {p.createdAt
-                                            ? new Date(p.createdAt).toLocaleDateString()
+                                            ? formatBaghdadDate(p.createdAt, language)
                                             : "—"}
                                     </p>
                                 </div>
@@ -304,7 +309,7 @@ function SuppliesTab({
                         }
                         className={cn(
                             "w-full text-left rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 transition-all",
-                            "hover:border-teal-200 hover:shadow-sm"
+                            "hover:border-teal-200 hover:shadow-sm dark:hover:border-teal-500/30"
                         )}
                     >
                         <div className="flex items-start gap-3">
@@ -317,14 +322,14 @@ function SuppliesTab({
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <Box className="w-5 h-5 text-teal-600" />
+                                    <Box className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                                 )}
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                     <p className="font-medium text-sm truncate">{product.name}</p>
                                     {isPrimary && (
-                                        <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide">
+                                        <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide dark:bg-amber-500/15 dark:text-amber-300">
                                             {t("supplies.sd.primary")}
                                         </span>
                                     )}
@@ -360,7 +365,7 @@ function SuppliesTab({
 }
 
 function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     if (supplier.pos.length === 0) {
         return (
             <div className="text-center py-12 text-muted text-sm">
@@ -389,12 +394,12 @@ function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
                             </div>
                             <p className="text-[11px] text-muted mt-0.5">
                                 {p.createdAt
-                                    ? new Date(p.createdAt).toLocaleDateString()
+                                    ? formatBaghdadDate(p.createdAt, language)
                                     : "—"}
                                 {p.receivedAt && (
                                     <>
                                         {` · ${t("supplies.sd.received")} `}
-                                        {new Date(p.receivedAt).toLocaleDateString()}
+                                        {formatBaghdadDate(p.receivedAt, language)}
                                     </>
                                 )}
                             </p>

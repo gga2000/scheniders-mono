@@ -25,7 +25,6 @@ import { StockIndicator } from "./stock-indicator";
 import { StockQuickAdjust } from "./stock-quick-adjust";
 import { PriceQuickEdit } from "./price-quick-edit";
 import { QuickActionsMenu } from "./quick-actions-menu";
-import { BundleStockIndicator } from "./bundle-stock-indicator";
 import { HealthScoreBadge } from "./health-score-badge";
 import { FillerBadge } from "./filler-badge";
 import { StockStatusBadges } from "./stock-status-badges";
@@ -192,7 +191,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                     className={cn(
                         "absolute bottom-2 right-2 p-1.5 rounded-xl backdrop-blur-md border shadow-lg ring-1 ring-black/5 transition-colors before:absolute before:-inset-2 before:content-['']",
                         product.is_visible
-                            ? "bg-white/25 border-white/40 text-blue-600 hover:bg-white/40"
+                            ? "bg-white/25 border-white/40 text-blue-600 hover:bg-white/40 dark:text-blue-300"
                             : "bg-black/30 border-white/20 text-white hover:bg-black/50"
                     )}
                     title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}
@@ -425,14 +424,6 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         )}
                     </div>
                 </div>
-
-                {/* Bundle stock indicator */}
-                {product.product_type === "bundle" && (product as any).bundle_items?.length > 0 && (
-                    <BundleStockIndicator
-                        bundleItems={(product as any).bundle_items}
-                        size="sm"
-                    />
-                )}
 
                 {/* Nearest batch expiry */}
                 <div className="flex items-center gap-1 flex-wrap">

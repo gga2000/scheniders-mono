@@ -52,8 +52,8 @@ export function SupplyCard({
         <div
             className={cn(
                 "group relative overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-sm transition-all duration-200",
-                "hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-lg hover:shadow-teal-500/5",
-                selected && "ring-2 ring-teal-500 bg-teal-50/20 border-teal-200"
+                "hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-lg hover:shadow-teal-500/5 dark:hover:border-teal-500/30",
+                selected && "ring-2 ring-teal-500 bg-teal-50/20 border-teal-200 dark:bg-teal-500/15 dark:border-teal-500/30"
             )}
         >
             {/* Top-edge inner highlight for premium feel */}
@@ -74,7 +74,7 @@ export function SupplyCard({
                         "absolute left-3 top-3 z-10 inline-flex items-center justify-center w-5 h-5 rounded-md border transition-all",
                         selected
                             ? "bg-teal-500 border-teal-500 text-white opacity-100"
-                            : "bg-white/90 backdrop-blur-sm border-[var(--card-border)] text-transparent opacity-0 group-hover:opacity-100 hover:border-teal-400 focus:opacity-100",
+                            : "bg-white/90 backdrop-blur-sm border-[var(--card-border)] text-transparent opacity-0 group-hover:opacity-100 hover:border-teal-400 focus:opacity-100 dark:bg-[var(--card-bg)]/90",
                     )}
                     aria-pressed={selected}
                     aria-label={selected ? t("supplies.deselectSupply") : t("supplies.selectSupply")}
@@ -90,7 +90,7 @@ export function SupplyCard({
                     {supply.image_url ? (
                         <ProductThumb src={supply.image_url} alt={supply.name} sizes="56px" />
                     ) : (
-                        <Box className="w-6 h-6 text-teal-600" />
+                        <Box className="w-6 h-6 text-teal-600 dark:text-teal-300" />
                     )}
                 </div>
 
@@ -102,10 +102,10 @@ export function SupplyCard({
                         <DaysOfSupplyPill days={days} size="md" />
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[11px] text-muted flex-wrap">
-                        <span className="font-mono truncate max-w-[50%]">{supply.sku || "No SKU"}</span>
+                        <span className="font-mono truncate max-w-[50%]">{supply.sku || t("supplies.sp.noSku")}</span>
                         {categoryName && (
                             <span
-                                className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[10px] font-medium ring-1 ring-teal-100"
+                                className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[10px] font-medium ring-1 ring-teal-100 dark:bg-teal-500/15 dark:text-teal-300 dark:ring-teal-500/30"
                                 title={categoryName}
                             >
                                 {categoryName}
@@ -177,7 +177,7 @@ export function SupplyCard({
                         <button
                             type="button"
                             onClick={() => onAdjustStock(supply, -1)}
-                            className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-rose-50 hover:ring-rose-200 hover:text-rose-600 text-muted transition-colors"
+                            className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-rose-50 hover:ring-rose-200 hover:text-rose-600 text-muted transition-colors dark:bg-[var(--card-bg)]/90 dark:hover:bg-rose-500/15 dark:hover:ring-rose-500/30 dark:hover:text-rose-300"
                             title={t("supplies.adjustMinus")}
                         >
                             <Minus className="w-3.5 h-3.5" />
@@ -185,7 +185,7 @@ export function SupplyCard({
                         <button
                             type="button"
                             onClick={() => onAdjustStock(supply, 1)}
-                            className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-emerald-50 hover:ring-emerald-200 hover:text-emerald-600 text-muted transition-colors"
+                            className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-emerald-50 hover:ring-emerald-200 hover:text-emerald-600 text-muted transition-colors dark:bg-[var(--card-bg)]/90 dark:hover:bg-emerald-500/15 dark:hover:ring-emerald-500/30 dark:hover:text-emerald-300"
                             title={t("supplies.adjustPlus")}
                         >
                             <Plus className="w-3.5 h-3.5" />
@@ -196,7 +196,7 @@ export function SupplyCard({
                     <button
                         type="button"
                         onClick={() => onReorder(supply)}
-                        className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-teal-50 hover:ring-teal-200 hover:text-teal-600 text-muted transition-colors"
+                        className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-teal-50 hover:ring-teal-200 hover:text-teal-600 text-muted transition-colors dark:bg-[var(--card-bg)]/90 dark:hover:bg-teal-500/15 dark:hover:ring-teal-500/30 dark:hover:text-teal-300"
                         title={t("supplies.reorder")}
                     >
                         <ShoppingCart className="w-3.5 h-3.5" />
@@ -206,7 +206,7 @@ export function SupplyCard({
                     <button
                         type="button"
                         onClick={() => onEdit(supply)}
-                        className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-sky-50 hover:ring-sky-200 hover:text-sky-600 text-muted transition-colors"
+                        className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-sky-50 hover:ring-sky-200 hover:text-sky-600 text-muted transition-colors dark:bg-[var(--card-bg)]/90 dark:hover:bg-sky-500/15 dark:hover:ring-sky-500/30 dark:hover:text-sky-300"
                         title={t("supplies.edit")}
                     >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -216,7 +216,7 @@ export function SupplyCard({
                     <button
                         type="button"
                         onClick={() => onMore(supply)}
-                        className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-slate-50 text-muted transition-colors"
+                        className="pointer-events-auto p-1.5 rounded-lg bg-white/90 backdrop-blur-sm ring-1 ring-[var(--card-border)] hover:bg-slate-50 text-muted transition-colors dark:bg-[var(--card-bg)]/90 dark:hover:bg-slate-500/15"
                         title={t("supplies.moreActions")}
                     >
                         <MoreHorizontal className="w-3.5 h-3.5" />

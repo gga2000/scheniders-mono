@@ -22,11 +22,11 @@ interface HealthScoreBadgeProps {
 // =============================================
 
 const gradeColors: Record<HealthGrade, string> = {
-    A: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30",
-    B: "bg-blue-500/15 text-blue-700 ring-blue-500/30",
-    C: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
-    D: "bg-orange-500/15 text-orange-700 ring-orange-500/30",
-    F: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
+    A: "bg-emerald-500/15 text-emerald-700 ring-emerald-500/30 dark:text-emerald-300",
+    B: "bg-blue-500/15 text-blue-700 ring-blue-500/30 dark:text-blue-300",
+    C: "bg-amber-500/15 text-amber-700 ring-amber-500/30 dark:text-amber-300",
+    D: "bg-orange-500/15 text-orange-700 ring-orange-500/30 dark:text-orange-300",
+    F: "bg-rose-500/15 text-rose-700 ring-rose-500/30 dark:text-rose-300",
 };
 
 const sizeClasses: Record<NonNullable<HealthScoreBadgeProps["size"]>, string> = {
@@ -61,10 +61,10 @@ const flagIcons = {
 } as const;
 
 const flagColors: Record<keyof typeof flagIcons, string> = {
-    understock: "bg-amber-500/15 text-amber-700 ring-amber-500/30",
-    dead: "bg-rose-500/15 text-rose-700 ring-rose-500/30",
-    slow: "bg-orange-500/15 text-orange-700 ring-orange-500/30",
-    overstock: "bg-blue-500/15 text-blue-700 ring-blue-500/30",
+    understock: "bg-amber-500/15 text-amber-700 ring-amber-500/30 dark:text-amber-300",
+    dead: "bg-rose-500/15 text-rose-700 ring-rose-500/30 dark:text-rose-300",
+    slow: "bg-orange-500/15 text-orange-700 ring-orange-500/30 dark:text-orange-300",
+    overstock: "bg-blue-500/15 text-blue-700 ring-blue-500/30 dark:text-blue-300",
 };
 
 // =============================================

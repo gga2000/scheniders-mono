@@ -187,7 +187,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
                                 ) : (
                                     <>
                                         <div className="w-12 h-12 rounded-xl bg-[var(--pastel-yellow)] flex items-center justify-center">
-                                            <Upload className="w-6 h-6 text-amber-700" />
+                                            <Upload className="w-6 h-6 text-amber-700 dark:text-amber-300" />
                                         </div>
                                         <div className="text-center">
                                             <p className="text-sm font-medium text-foreground">
@@ -233,7 +233,7 @@ export function ProductImageUpload({ value, onChange, productId }: ProductImageU
 
             {/* Error Message */}
             {error && (
-                <p className="text-sm text-rose-600 flex items-center gap-2">
+                <p className="text-sm text-rose-600 flex items-center gap-2 dark:text-rose-300">
                     <X className="w-4 h-4" />
                     {error}
                 </p>

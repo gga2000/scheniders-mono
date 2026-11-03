@@ -1094,19 +1094,6 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         // Save all related data
                         await saveRelatedData(newProduct.id);
 
-                        // Log creation
-                        await productRepository.addActivityLogEntry(newProduct.id, {
-                            action: "created",
-                        }, tenantId);
-
-                        // Log initial price
-                        if (formData.price > 0) {
-                            await productRepository.addPriceHistoryEntry(newProduct.id, {
-                                new_price: formData.price,
-                                reason: "Initial price",
-                            }, tenantId);
-                        }
-
                     } catch (followUpError) {
                         // The product row exists. Move to its editor so the next Save
                         // updates it instead of inserting a second copy. The "new product" draft is
@@ -1194,7 +1181,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
                 for (const variant of formData.variants) {
                     if (variant.id && existingVariantIds.has(variant.id)) {
-                        await updateVariant(variant.id, {
+                        await updateVariant(product.id, variant.id, {
                             name: variant.name,
                             price: variant.price,
                             ...(showCost &&
@@ -1247,44 +1234,12 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
                 // Delete removed variants
                 for (const removedId of existingVariantIds) {
-                    await deleteVariant(removedId);
+                    await deleteVariant(product.id, removedId);
                 }
 
                 // Save all related data
                 await saveRelatedData(product.id);
 
-                // Track changes for activity log
-                const changes: Record<string, { before: any; after: any }> = {};
-                const prev = initialDataRef.current;
-                if (prev.name !== formData.name) changes.name = { before: prev.name, after: formData.name };
-                if (prev.price !== formData.price) changes.price = { before: prev.price, after: formData.price };
-                if (prev.status !== formData.status) changes.status = { before: prev.status, after: formData.status };
-                if (prev.stock_quantity !== formData.stock_quantity) changes.stock_quantity = { before: prev.stock_quantity, after: formData.stock_quantity };
-                if (prev.is_visible !== formData.is_visible) changes.is_visible = { before: prev.is_visible, after: formData.is_visible };
-                if (prev.image_url !== formData.image_url) changes.image_url = { before: prev.image_url, after: formData.image_url };
-
-                // Determine action type
-                let action: string = "updated";
-                if (prev.status !== formData.status) action = "status_changed";
-                else if (prev.price !== formData.price) action = "price_changed";
-                else if (prev.image_url !== formData.image_url && formData.image_url) action = "image_added";
-                else if (prev.stock_quantity !== formData.stock_quantity) action = "inventory_adjusted";
-
-                if (Object.keys(changes).length > 0) {
-                    await productRepository.addActivityLogEntry(product.id, {
-                        action,
-                        changes_json: changes,
-                    }, tenantId);
-                }
-
-                // Track price changes
-                if (prev.price !== formData.price) {
-                    await productRepository.addPriceHistoryEntry(product.id, {
-                        old_price: prev.price,
-                        new_price: formData.price,
-                        reason: "Manual price update",
-                    }, tenantId);
-                }
 
                 clearDraft();
                 // Update initial data ref to new saved state
@@ -1373,10 +1328,6 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             // Copy related data to the duplicate
             if (newProduct) {
                 await saveRelatedData(newProduct.id);
-                await productRepository.addActivityLogEntry(newProduct.id, {
-                    action: "created",
-                    changes_json: { source: { before: null, after: `Duplicated from ${product.id}` } },
-                }, tenantId);
             }
 
             toast.success(t("products.duplicated"));

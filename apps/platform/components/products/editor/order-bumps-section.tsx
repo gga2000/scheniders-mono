@@ -95,7 +95,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                 <button
                     type="button"
                     onClick={() => setShowSearch(!showSearch)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors dark:text-teal-300"
                 >
                     <Plus className="w-4 h-4" />
                     {t("products.ed.bump.add")}
@@ -236,7 +236,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                             <span className="text-sm text-muted line-through">
                                                 {formatIQD(originalPrice)}
                                             </span>
-                                            <span className="text-sm font-medium text-emerald-600">
+                                            <span className="text-sm font-medium text-emerald-600 dark:text-emerald-300">
                                                 {formatIQD(Math.round(discountedPrice))}
                                             </span>
                                         </>
@@ -251,7 +251,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                 <button
                                     type="button"
                                     onClick={() => removeBump(index)}
-                                    className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                                    className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0 dark:hover:bg-rose-500/15"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
@@ -293,7 +293,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                                     <span className="text-sm text-muted">% off</span>
                                 </div>
                                 {bump.discount_percentage > 0 && (
-                                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium">
+                                    <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs font-medium dark:bg-emerald-500/15 dark:text-emerald-300">
                                         {formatIQD(Math.round(discountedPrice))}
                                     </span>
                                 )}
@@ -302,30 +302,30 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
                             {/* Preview card */}
                             <div className="space-y-1">
                                 <p className="text-xs text-muted">Customer sees:</p>
-                                <div className="p-3 bg-[var(--pastel-yellow)] rounded-lg border border-yellow-200">
+                                <div className="p-3 bg-[var(--pastel-yellow)] rounded-lg border border-yellow-200 dark:border-yellow-500/30">
                                     <div className="flex items-start gap-2">
                                         <div className="w-4 h-4 mt-0.5 border-2 border-yellow-600 rounded shrink-0 flex items-center justify-center">
                                             {/* Unchecked checkbox - visual only */}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-yellow-900">
+                                            <p className="text-sm font-bold text-yellow-900 dark:text-yellow-300">
                                                 {bump.headline || "Add this product!"}
                                             </p>
-                                            <p className="text-xs text-yellow-800 mt-0.5">
+                                            <p className="text-xs text-yellow-800 mt-0.5 dark:text-yellow-300">
                                                 {bump.description || "Get it at a special price when you order now."}
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 {bump.discount_percentage > 0 ? (
                                                     <>
-                                                        <span className="text-xs text-yellow-700 line-through">
+                                                        <span className="text-xs text-yellow-700 line-through dark:text-yellow-300">
                                                             {formatIQD(originalPrice)}
                                                         </span>
-                                                        <span className="text-sm font-bold text-yellow-900">
+                                                        <span className="text-sm font-bold text-yellow-900 dark:text-yellow-300">
                                                             {formatIQD(Math.round(discountedPrice))}
                                                         </span>
                                                     </>
                                                 ) : (
-                                                    <span className="text-sm font-bold text-yellow-900">
+                                                    <span className="text-sm font-bold text-yellow-900 dark:text-yellow-300">
                                                         {formatIQD(originalPrice)}
                                                     </span>
                                                 )}

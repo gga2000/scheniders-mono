@@ -119,7 +119,7 @@ export function CategoriesTab() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-[var(--pastel-yellow)] flex items-center justify-center">
-                        <Layers className="w-6 h-6 text-amber-700" />
+                        <Layers className="w-6 h-6 text-amber-700 dark:text-amber-300" />
                     </div>
                     <div>
                         <h2 className="text-xl font-bold text-foreground">{t("products.cats.title")}</h2>
@@ -157,7 +157,7 @@ export function CategoriesTab() {
             ) : categories.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                     <div className="w-16 h-16 rounded-2xl bg-[var(--pastel-yellow)] flex items-center justify-center mb-4">
-                        <Layers className="w-8 h-8 text-amber-700" />
+                        <Layers className="w-8 h-8 text-amber-700 dark:text-amber-300" />
                     </div>
                     <h3 className="text-lg font-semibold text-foreground mb-2">{t("products.cats.none")}</h3>
                     <p className="text-muted text-sm mb-6 max-w-sm">
@@ -313,7 +313,7 @@ function CategoryRow({
                         className={cn(
                             "p-1.5 rounded-lg",
                             category.is_visible
-                                ? "bg-[var(--pastel-mint)] text-teal-700"
+                                ? "bg-[var(--pastel-mint)] text-teal-700 dark:text-teal-300"
                                 : "bg-[var(--background)] text-muted"
                         )}
                     >
@@ -330,7 +330,7 @@ function CategoryRow({
                     {isConfirming ? (
                         <div className="flex items-center gap-2">
                             {(hasChildren || productCount > 0) && (
-                                <span className="text-xs text-rose-600 max-w-[16rem]">
+                                <span className="text-xs text-rose-600 max-w-[16rem] dark:text-rose-300">
                                     {t("products.cats.deleteWarn", { subs: children.length, products: productCount })}
                                 </span>
                             )}
@@ -362,7 +362,7 @@ function CategoryRow({
                                     onClick={() => onDelete(category.id)}
                                     aria-label={t("products.cats.delete")}
                                     title={t("products.cats.delete")}
-                                    className="p-2 rounded-lg hover:bg-rose-50 text-muted hover:text-rose-500 transition-colors"
+                                    className="p-2 rounded-lg hover:bg-rose-50 text-muted hover:text-rose-500 transition-colors dark:hover:bg-rose-500/15"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>

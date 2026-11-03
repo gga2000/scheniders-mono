@@ -80,7 +80,9 @@ function serve(book: Book, q: RecordedQuery): QueryResult {
     const range = op(q, "range");
     if (range) {
         const [from, to] = range.args as [number, number];
-        return { data: book.rows.slice(from, to + 1), error: null };
+        // A page asked for `count: "exact"` gets the window's total, as PostgREST answers it.
+        const counted = (op(q, "select")?.args[1] as { count?: string } | undefined)?.count === "exact";
+        return { data: book.rows.slice(from, to + 1), error: null, ...(counted ? { count: book.rows.length } : {}) };
     }
     const limit = op(q, "limit")?.args[0] as number;
     return { data: book.rows.slice(0, limit), error: null, count: book.rows.length };
@@ -199,7 +201,7 @@ describe("wide list read: head first, then everything at once", () => {
         const book = makeBook(1_700, [5]);
         respond((q) => serve(book, q));
         const wide = await orderRepository.findAll(TENANT, { onPreview: () => {} });
-        // The narrow-window path is the old read, unchanged; the fixture ignores filters.
+        // The narrow-window path (first page with its count, then the rest); the fixture ignores filters.
         const old = await orderRepository.findWindow(TENANT, NARROW);
         expect(wide).toEqual(old);
         // And risk_data is the trust join: a customer with a row gets its risk, one without gets the default.

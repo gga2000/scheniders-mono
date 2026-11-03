@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
+import { parseWholeNumber } from "@/lib/utils";
 import { Bell, AlertTriangle, CheckCircle } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 
@@ -33,14 +34,14 @@ export function ReorderAlertsSection({ formData, updateField }: ReorderAlertsSec
                     value={reorderPoint ?? ""}
                     onChange={(e) => {
                         const val = e.target.value;
-                        updateField("reorder_point", val === "" ? null : parseInt(val) || 0);
+                        updateField("reorder_point", val === "" ? null : parseWholeNumber(val) ?? 0);
                     }}
-                    placeholder={t("products.ed.reorder.placeholder")}
+                    placeholder={String(formData.low_stock_threshold)}
                     min={0}
                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 />
                 <p className="text-xs text-muted mt-1.5">
-                    {t("products.ed.reorder.hint")}
+                    {t("products.ed.reorder.hint")} {t("products.ed.reorder.fallback", { n: formData.low_stock_threshold })}
                 </p>
             </div>
 

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { productWriteErrorKey } from "./product-write-error";
 
 describe("productWriteErrorKey", () => {
+    it("maps the stock-floor refusal to the below-zero message", () => {
+        expect(productWriteErrorKey({ code: "22023", message: "stock cannot go below zero" }))
+            .toBe("products.stockAdjust.belowZero");
+    });
+
     it("names a unique violation instead of asking for a retry", () => {
         expect(productWriteErrorKey({ code: "23505", message: "duplicate key value violates unique constraint" }))
             .toBe("products.errors.duplicate");

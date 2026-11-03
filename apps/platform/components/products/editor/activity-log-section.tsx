@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
+import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
+import { useCategoriesQuery } from "@/hooks/use-categories-query";
+import { formatCount, formatIQD } from "@/lib/utils";
 
 interface ActivityLogEntry {
     id?: string;
@@ -29,7 +32,7 @@ interface ActivityLogEntry {
         | "inventory_adjusted"
         | "published"
         | "archived";
-    changes_json?: Record<string, { before: any; after: any }> | null;
+    changes_json?: Record<string, { before: unknown; after: unknown }> | null;
     user_id?: string | null;
     created_at: string;
 }
@@ -44,119 +47,106 @@ const ACTION_CONFIG: Record<
         icon: typeof Clock;
         bgClass: string;
         textClass: string;
-        label: string;
     }
 > = {
     created: {
         icon: Zap,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700",
-        label: "Product Created",
+        textClass: "text-green-700 dark:text-green-300",
     },
     updated: {
         icon: Edit,
         bgClass: "bg-[var(--pastel-blue)]",
-        textClass: "text-blue-700",
-        label: "Product Updated",
+        textClass: "text-blue-700 dark:text-blue-300",
     },
     status_changed: {
         icon: Archive,
         bgClass: "bg-[var(--pastel-yellow)]",
-        textClass: "text-yellow-700",
-        label: "Status Changed",
+        textClass: "text-yellow-700 dark:text-yellow-300",
     },
     price_changed: {
         icon: DollarSign,
         bgClass: "bg-[var(--pastel-pink)]",
-        textClass: "text-pink-700",
-        label: "Price Changed",
+        textClass: "text-pink-700 dark:text-pink-300",
     },
     image_added: {
         icon: Image,
         bgClass: "bg-[var(--pastel-mint)]",
-        textClass: "text-teal-700",
-        label: "Image Added",
+        textClass: "text-teal-700 dark:text-teal-300",
     },
     variant_added: {
         icon: Package,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700",
-        label: "Variant Added",
+        textClass: "text-green-700 dark:text-green-300",
     },
     variant_removed: {
         icon: Package,
         bgClass: "bg-[var(--pastel-pink)]",
-        textClass: "text-pink-700",
-        label: "Variant Removed",
+        textClass: "text-pink-700 dark:text-pink-300",
     },
     inventory_adjusted: {
         icon: Box,
         bgClass: "bg-[var(--pastel-blue)]",
-        textClass: "text-blue-700",
-        label: "Inventory Adjusted",
+        textClass: "text-blue-700 dark:text-blue-300",
     },
     published: {
         icon: Zap,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700",
-        label: "Published",
+        textClass: "text-green-700 dark:text-green-300",
     },
     archived: {
         icon: Archive,
         bgClass: "bg-[var(--muted)]/20",
-        textClass: "text-[var(--muted)]",
-        label: "Archived",
+        textClass: "text-muted",
     },
 };
 
-function relativeTime(iso: string): string {
-    const now = Date.now();
-    const then = new Date(iso).getTime();
-    const diffMs = now - then;
+const RELATIVE_STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["year", 365 * 86_400],
+    ["month", 30 * 86_400],
+    ["day", 86_400],
+    ["hour", 3_600],
+    ["minute", 60],
+];
 
-    if (diffMs < 0) return "just now";
-
-    const seconds = Math.floor(diffMs / 1000);
-    if (seconds < 60) return "just now";
-
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
-
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-
-    const days = Math.floor(hours / 24);
-    if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
-
-    const months = Math.floor(days / 30);
-    if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
-
-    const years = Math.floor(months / 12);
-    return `${years} year${years === 1 ? "" : "s"} ago`;
+/** "3 hours ago" / "قبل ٣ ساعات", in the merchant's language. */
+export function relativeTime(iso: string, language: string, now: number = Date.now()): string {
+    const seconds = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
+    const format = new Intl.RelativeTimeFormat(language === "ar" ? "ar" : "en", { numeric: "auto" });
+    for (const [unit, size] of RELATIVE_STEPS) {
+        if (seconds >= size) return format.format(-Math.floor(seconds / size), unit);
+    }
+    return format.format(0, "second");
 }
 
-function formatFieldName(field: string): string {
-    return field
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function formatValue(val: any): string {
-    if (val === null || val === undefined) return "\u2014";
-    if (typeof val === "boolean") return val ? "Yes" : "No";
-    if (typeof val === "object") return JSON.stringify(val);
-    return String(val);
-}
+const MONEY_FIELDS = new Set(["price", "compare_at_price"]);
 
 const INITIAL_LIMIT = 10;
 
 export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    const { data: members } = useTenantMembers();
+    const { data: categories } = useCategoriesQuery();
     const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
     const [showAll, setShowAll] = useState(false);
 
     const visibleEntries = showAll ? entries : entries.slice(0, INITIAL_LIMIT);
     const hasMore = entries.length > INITIAL_LIMIT;
+
+    const memberName = (userId: string) =>
+        members?.find((m) => m.user_id === userId)?.display_name ?? t("products.activity.teamMember");
+
+    const formatValue = (field: string, value: unknown): string => {
+        if (value === null || value === undefined || value === "") return "\u2014";
+        if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
+        if (MONEY_FIELDS.has(field) && typeof value === "number") return formatIQD(value);
+        if (field === "status" && typeof value === "string") return t(`products.activity.status.${value}`);
+        if (field === "category_id" && typeof value === "string") {
+            return categories?.find((c) => c.id === value)?.name ?? t("products.activity.otherCategory");
+        }
+        if (field === "image_url") return t("products.activity.image");
+        return String(value);
+    };
 
     function toggleExpanded(idx: number) {
         setExpandedIds((prev) => {
@@ -202,17 +192,17 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
                                         {/* Top row */}
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <span className="text-sm font-medium text-foreground">
-                                                {config.label}
+                                                {t(`products.activity.action.${entry.action}`)}
                                             </span>
-                                            <span className="text-xs text-muted ml-auto">
-                                                {relativeTime(entry.created_at)}
+                                            <span className="text-xs text-muted ms-auto">
+                                                {relativeTime(entry.created_at, language)}
                                             </span>
                                         </div>
 
                                         {/* User */}
                                         {entry.user_id && (
                                             <p className="text-xs text-muted mt-0.5">
-                                                By: {entry.user_id}
+                                                {t("products.activity.by", { name: memberName(entry.user_id) })}
                                             </p>
                                         )}
 
@@ -255,14 +245,14 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
                                                                     className="flex items-start gap-2 text-xs"
                                                                 >
                                                                     <span className="font-medium text-foreground min-w-[80px] shrink-0">
-                                                                        {formatFieldName(field)}
+                                                                        {t(`products.activity.field.${field}`)}
                                                                     </span>
-                                                                    <span className="text-rose-600 line-through">
-                                                                        {formatValue(change.before)}
+                                                                    <span className="text-rose-600 line-through dark:text-rose-300">
+                                                                        {formatValue(field, change.before)}
                                                                     </span>
                                                                     <span className="text-muted">&rarr;</span>
-                                                                    <span className="text-green-700 font-medium">
-                                                                        {formatValue(change.after)}
+                                                                    <span className="text-green-700 font-medium dark:text-green-300">
+                                                                        {formatValue(field, change.after)}
                                                                     </span>
                                                                 </div>
                                                             )
@@ -295,7 +285,7 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
                         ) : (
                             <>
                                 <ChevronDown className="w-4 h-4" />
-                                Show more ({entries.length - INITIAL_LIMIT} remaining)
+                                {t("products.activity.more", { count: formatCount(entries.length - INITIAL_LIMIT) })}
                             </>
                         )}
                     </button>

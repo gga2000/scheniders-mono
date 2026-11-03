@@ -23,6 +23,7 @@ import { toast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/use-permission";
 import { BATCH_READ_COLUMNS, fetchBatchCosts } from "@/lib/repositories/purchase-costs";
 import { PERMISSIONS } from "@/lib/permissions";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 interface BatchManagerProps {
     productId: string;
@@ -54,9 +55,9 @@ interface NewBatchForm {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-    active: "bg-emerald-100 text-emerald-700",
-    expired: "bg-rose-100 text-rose-700",
-    written_off: "bg-gray-100 text-gray-500",
+    active: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+    expired: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+    written_off: "bg-gray-100 text-gray-500 dark:bg-gray-500/15",
 };
 
 const STATUS_LABEL_KEYS: Record<ProductBatch["status"], string> = {
@@ -90,17 +91,9 @@ function isExpired(expiryDate: string | null): boolean {
     return new Date(expiryDate) < new Date(new Date().toDateString());
 }
 
-function formatDate(dateStr: string | null): string {
-    if (!dateStr) return "-";
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(dateStr));
-}
 
 export function BatchManager({ productId, productName, disabled }: BatchManagerProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { tenantId } = useAuth();
     const queryClient = useQueryClient();
     const { can } = usePermission();
@@ -235,7 +228,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                     onClick={handleOpenForm}
                     disabled={disabled}
                     className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium transition-colors hover:opacity-90",
+                        "flex items-center gap-1.5 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium transition-colors hover:opacity-90 dark:text-teal-300",
                         disabled && "opacity-50 cursor-not-allowed"
                     )}
                 >
@@ -257,11 +250,11 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                             className={cn(
                                 "font-semibold",
                                 summary.earliestExpiry && isExpired(summary.earliestExpiry.toISOString())
-                                    ? "text-rose-600"
+                                    ? "text-rose-600 dark:text-rose-300"
                                     : "text-foreground"
                             )}
                         >
-                            {summary.earliestExpiry ? formatDate(summary.earliestExpiry.toISOString()) : t("products.batch.notAvailable")}
+                            {summary.earliestExpiry ? formatBaghdadDate(summary.earliestExpiry.toISOString(), language) : t("products.batch.notAvailable")}
                         </span>
                     </div>
                 </div>
@@ -393,7 +386,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                 <button
                                     type="submit"
                                     disabled={insertMutation.isPending}
-                                    className="flex items-center gap-1.5 px-4 py-2 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50 dark:text-teal-300"
                                 >
                                     {insertMutation.isPending && (
                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -467,10 +460,10 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                     <span
                                                         className={cn(
                                                             "font-medium",
-                                                            expired ? "text-rose-600" : "text-foreground"
+                                                            expired ? "text-rose-600 dark:text-rose-300" : "text-foreground"
                                                         )}
                                                     >
-                                                        {formatDate(batch.expiry_date)}
+                                                        {batch.expiry_date ? formatBaghdadDate(batch.expiry_date, language) : "-"}
                                                     </span>
                                                 </span>
                                             )}
@@ -483,7 +476,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                 </span>
                                             )}
                                             <span>
-                                                {t("products.batch.receivedPrefix")}{" "}<span className="text-foreground font-medium">{formatDate(batch.received_at)}</span>
+                                                {t("products.batch.receivedPrefix")}{" "}<span className="text-foreground font-medium">{batch.received_at ? formatBaghdadDate(batch.received_at, language) : "-"}</span>
                                             </span>
                                         </div>
 
@@ -502,7 +495,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                         type="button"
                                                         onClick={() => writeOffMutation.mutate(batch.id)}
                                                         disabled={writeOffMutation.isPending}
-                                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+                                                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors dark:text-rose-300 dark:bg-rose-500/15 dark:hover:bg-rose-500/15"
                                                     >
                                                         {writeOffMutation.isPending ? (
                                                             <Loader2 className="w-3 h-3 animate-spin" />
@@ -524,7 +517,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                     type="button"
                                                     onClick={() => setWriteOffConfirm(batch.id)}
                                                     disabled={disabled}
-                                                    className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors disabled:opacity-50"
+                                                    className="text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors disabled:opacity-50 dark:hover:bg-rose-500/15"
                                                     title={t("products.batch.writeOffTitle")}
                                                 >
                                                     <Trash2 className="w-4 h-4" />

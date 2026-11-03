@@ -5191,6 +5191,7 @@ export type Database = {
           product_id: string
           reason: string | null
           tenant_id: string | null
+          variant_id: string | null
         }
         Insert: {
           changed_by?: string | null
@@ -5201,6 +5202,7 @@ export type Database = {
           product_id: string
           reason?: string | null
           tenant_id?: string | null
+          variant_id?: string | null
         }
         Update: {
           changed_by?: string | null
@@ -5211,6 +5213,7 @@ export type Database = {
           product_id?: string
           reason?: string | null
           tenant_id?: string | null
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -5225,6 +5228,13 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_price_history_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]

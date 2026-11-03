@@ -54,7 +54,7 @@ export function NoteCardsTab({ noteCards, onChange, productId }: NoteCardsTabPro
                 <button
                     type="button"
                     onClick={addCard}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0 dark:text-teal-300"
                 >
                     <Plus className="w-4 h-4" />
                     {t("products.notes.add")}
@@ -223,7 +223,7 @@ function NoteCardRow({
                         className="w-full px-3 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-sm text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] resize-none"
                     />
                     {uploadError && (
-                        <p className="text-xs text-rose-600 flex items-center gap-1.5">
+                        <p className="text-xs text-rose-600 flex items-center gap-1.5 dark:text-rose-300">
                             <X className="w-3 h-3" />
                             {uploadError}
                         </p>
@@ -254,7 +254,7 @@ function NoteCardRow({
                         type="button"
                         onClick={onRemove}
                         title={t("products.notes.remove")}
-                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors dark:hover:bg-rose-500/15"
                     >
                         <Trash2 className="w-4 h-4" />
                     </button>
