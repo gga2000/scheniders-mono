@@ -8,6 +8,8 @@ const PG_UNIQUE_VIOLATION = "23505";
 const PG_FOREIGN_KEY_VIOLATION = "23503";
 /** Postgres serialization_failure: set_product_prices found the price edited since the bulk change. */
 const PG_SERIALIZATION_FAILURE = "40001";
+/** Postgres check_violation: e.g. a recipe row naming a product that is not a supply. */
+const PG_CHECK_VIOLATION = "23514";
 
 /**
  * The i18n key that tells the merchant why a product write failed. The
@@ -23,6 +25,9 @@ export function productWriteErrorKey(err: unknown): string {
         const { code, message } = err as { code?: unknown; message?: unknown };
         if (code === PG_INSUFFICIENT_PRIVILEGE) return "products.errors.notPermitted";
         if (code === PG_UNIQUE_VIOLATION) return "products.errors.duplicate";
+        // The recipe guards (guard_bom_supply_is_supply) say which rule broke.
+        if (code === PG_FOREIGN_KEY_VIOLATION && typeof message === "string" && /used in recipes/i.test(message)) return "products.errors.supplyInRecipe";
+        if (code === PG_CHECK_VIOLATION && typeof message === "string" && /is not a supply/i.test(message)) return "products.errors.recipeNotSupply";
         if (code === PG_FOREIGN_KEY_VIOLATION) return "products.errors.inUse";
         if (code === PG_SERIALIZATION_FAILURE) return "products.priceChangedSinceUndo";
         if (typeof message === "string" && /tenant is paused/i.test(message)) return "products.errors.storePaused";

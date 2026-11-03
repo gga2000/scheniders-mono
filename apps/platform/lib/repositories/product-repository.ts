@@ -482,9 +482,13 @@ export const productRepository = {
         }, WRITE_ONCE);
     },
 
-    /** Undo of a bulk price change: each product gets its own previous price and "was" price back. */
+    /**
+     * Undo of a bulk price change: each product gets its own previous price back,
+     * and its "was" / website price only where the bulk change cleared them, so
+     * an edit made to those since is not overwritten.
+     */
     async restorePrices(
-        previous: { id: string; price: number; compare_at_price: number | null; website_price: number | null; currentPrice: number }[],
+        previous: { id: string; price: number; compare_at_price: number | null; website_price: number | null; currentPrice: number; restoreCompareAt: boolean; restoreWebsite: boolean }[],
     ): Promise<void> {
         return withRetry('productRepository.restorePrices', async () => {
             const { error } = await supabase.rpc("set_product_prices", {
@@ -493,9 +497,9 @@ export const productRepository = {
                     price: p.price,
                     // Refuse (40001) if someone edited the price since the bulk change.
                     expected_price: p.currentPrice,
-                    set_compare_at: true,
+                    set_compare_at: p.restoreCompareAt,
                     compare_at_price: p.compare_at_price,
-                    set_website: true,
+                    set_website: p.restoreWebsite,
                     website_price: p.website_price,
                 })),
                 p_reason: "Bulk price change undone",

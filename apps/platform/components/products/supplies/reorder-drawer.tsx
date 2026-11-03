@@ -28,7 +28,7 @@ import { calcSuggestedQty, supplyReorderState, urgencyFor } from "@/lib/utils/su
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import { PoSendConfirmDialog } from "./po-send-confirm-dialog";
-import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
+import { useDraftPosBySupply, useDraftPoBySupplier, supplierKey } from "@/hooks/use-draft-pos-by-supply";
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import type { PoStatusInfo } from "./po-status-chip";
 
@@ -98,6 +98,10 @@ export function ReorderDrawer({
     const { changeStatus } = usePurchaseOrderActions();
     // Which supplies a draft actually lists: only those are "already on a draft".
     const { data: draftBySupply } = useDraftPosBySupply();
+    const { data: draftBySupplier } = useDraftPoBySupplier();
+    /** The supplier's one draft: new lines for this supplier are added to it. */
+    const draftOf = (group: SupplierGroup) =>
+        group.supplierName === NO_SUPPLIER_KEY ? undefined : draftBySupplier?.get(supplierKey(group.supplierName));
 
 
     // Derive reorder items grouped by supplier.
@@ -222,12 +226,16 @@ export function ReorderDrawer({
                     .split("T")[0],
                 lines,
             });
-            return { poNumber: created.poNumber, itemCount: lines.length };
+            return { poNumber: created.poNumber, itemCount: lines.length, addedToDraft: draftOf(group)?.id === created.id };
         },
         // Returned so the mutation (and the "generating" spinner) waits for the
         // refreshed lists: a fast second click cannot raise a duplicate PO.
         onSuccess: (result) => {
-            toast.success(t("supplies.ro.poCreated", { number: result.poNumber, count: result.itemCount }));
+            toast.success(
+                result.addedToDraft
+                    ? t("supplies.ro.addedToDraft", { number: result.poNumber, count: result.itemCount })
+                    : t("supplies.ro.poCreated", { number: result.poNumber, count: result.itemCount })
+            );
             return Promise.all([
                 queryClient.invalidateQueries({ queryKey: ["supply-usage-30d"] }),
                 queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] }),
@@ -416,8 +424,7 @@ export function ReorderDrawer({
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
                                                         {(() => {
-                                                            const onDraft = group.items.find((i) => draftBySupply?.has(i.supply.id));
-                                                            const draft = onDraft ? draftBySupply?.get(onDraft.supply.id) : undefined;
+                                                            const draft = draftOf(group);
                                                             if (!draft) return null;
                                                             // The draft already holds this order: the next step is sending it.
                                                             return (
@@ -455,9 +462,13 @@ export function ReorderDrawer({
                                                                 ) : (
                                                                     <ShoppingCart className="w-3.5 h-3.5" />
                                                                 )}
-                                                                {isGenerating
-                                                                    ? t("supplies.ro.creating")
-                                                                    : t("supplies.ro.createPo")}
+                                                                <span dir={textDir}>
+                                                                    {isGenerating
+                                                                        ? t("supplies.ro.creating")
+                                                                        : draftOf(group)
+                                                                        ? t("supplies.ro.addToDraft", { number: draftOf(group)?.number ?? "" })
+                                                                        : t("supplies.ro.createPo")}
+                                                                </span>
                                                             </button>
                                                         )}
                                                         {isExpanded ? (
@@ -472,13 +483,16 @@ export function ReorderDrawer({
                                                 {isExpanded && (
                                                     <div className="px-5 pb-4 space-y-2">
                                                         {(() => {
-                                                            const onDraft = group.items.find((i) => draftBySupply?.has(i.supply.id));
-                                                            const draft = onDraft ? draftBySupply?.get(onDraft.supply.id) : undefined;
-                                                            return draft ? (
+                                                            const draft = draftOf(group);
+                                                            if (!draft) return null;
+                                                            const allOnDraft = group.items.every((i) => draftBySupply?.get(i.supply.id)?.id === draft.id);
+                                                            return (
                                                                 <p dir={textDir} className="text-left rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-                                                                    {t("supplies.ro.onDraftGroup", { number: draft.number })}
+                                                                    {allOnDraft
+                                                                        ? t("supplies.ro.onDraftGroup", { number: draft.number })
+                                                                        : t("supplies.ro.onDraftSome", { number: draft.number })}
                                                                 </p>
-                                                            ) : null;
+                                                            );
                                                         })()}
                                                         {group.items.map((item) => (
                                                             <ReorderItemRow

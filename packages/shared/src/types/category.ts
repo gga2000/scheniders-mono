@@ -77,6 +77,8 @@ export interface Category {
   published_at: string | null;
   unpublish_at: string | null;
   archived_at: string | null;
+  /** The status it had when archived; Restore returns it there. */
+  status_before_archive?: CategoryStatus | null;
   show_in_main_nav: boolean;
   show_in_mega_menu: boolean;
   show_in_mobile_drawer: boolean;

@@ -544,6 +544,8 @@ function ProductsContent() {
             compare_at_price: p.compare_at_price ?? null,
             website_price: p.website_price ?? null,
             currentPrice: newPrice,
+            restoreCompareAt: p.compare_at_price != null && p.compare_at_price <= newPrice,
+            restoreWebsite: alsoWebsite && p.website_price != null,
         }));
         await bulkUpdatePrices(
             selectedForPrice.map((p) => ({
@@ -563,7 +565,7 @@ function ProductsContent() {
     const lastUndoableRef = useRef<
         | { kind: "archive"; ids: string[] }
         | { kind: "visibility"; previous: { id: string; was_visible: boolean }[] }
-        | { kind: "price"; previous: { id: string; price: number; compare_at_price: number | null; website_price: number | null; currentPrice: number }[] }
+        | { kind: "price"; previous: { id: string; price: number; compare_at_price: number | null; website_price: number | null; currentPrice: number; restoreCompareAt: boolean; restoreWebsite: boolean }[] }
         | null
     >(null);
 

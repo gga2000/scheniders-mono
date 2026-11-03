@@ -20,6 +20,7 @@ import {
   useDuplicateCategoryMutation,
   useReorderCategoriesMutation,
   useBulkUpdateCategoriesMutation,
+  restoreStatusOf,
   type CategoryBulkPatch,
   type ReorderEntry,
 } from "@/hooks/use-categories-query";
@@ -228,6 +229,24 @@ export function CategoriesTabV2() {
     },
     [bulkMutation, reportCategoryError, t],
   );
+  /** Restores each category to the status it had before archiving, one write per status. */
+  const runRestore = useCallback(
+    async (ids: string[]): Promise<string[]> => {
+      const byId = new Map(categories.map((c) => [c.id, c]));
+      const drafts = ids.filter((id) => {
+        const c = byId.get(id);
+        return c ? restoreStatusOf(c) === "draft" : false;
+      });
+      const draftSet = new Set(drafts);
+      const published = ids.filter((id) => !draftSet.has(id));
+      const done = await Promise.all([
+        published.length > 0 ? runBulk(published, { status: "published", archived_at: null }) : Promise.resolve([]),
+        drafts.length > 0 ? runBulk(drafts, { status: "draft", archived_at: null }) : Promise.resolve([]),
+      ]);
+      return done.flat();
+    },
+    [categories, runBulk],
+  );
   /** After a bulk write, only the rows that failed stay selected, ready to retry. */
   const keepFailedSelected = useCallback(
     (ids: string[], done: string[]) => {
@@ -259,7 +278,7 @@ export function CategoriesTabV2() {
     async (c: Category) => {
       if (!canEditCategories) return;
       try {
-        await restoreMutation.mutateAsync(c.id);
+        await restoreMutation.mutateAsync(c);
       } catch (err) {
         reportCategoryError(err);
         return;
@@ -380,13 +399,13 @@ export function CategoriesTabV2() {
 
   const handleBulkRestore = useCallback(async () => {
     if (!canEditCategories) return;
-    const ids = await runBulk([...selectedIds], { status: "published", archived_at: null });
+    const ids = await runRestore([...selectedIds]);
     keepFailedSelected(selectedIds, ids);
     if (ids.length === 0) return;
     toast.success(
       (t("categories.toast.bulkRestored")) + ` (${ids.length})`,
     );
-  }, [selectedIds, keepFailedSelected, t, canEditCategories, runBulk]);
+  }, [selectedIds, keepFailedSelected, t, canEditCategories, runRestore]);
 
   const handleBulkToggleNav = useCallback(
     async (show: boolean) => {
@@ -407,10 +426,10 @@ export function CategoriesTabV2() {
     if (lastArchivedIds.length === 0) return;
     clearUndoTimers();
     setUndoTimeLeft(0);
-    const restored = await runBulk(lastArchivedIds, { status: "published", archived_at: null });
+    const restored = await runRestore(lastArchivedIds);
     setLastArchivedIds([]);
     if (restored.length > 0) toast.success(t("categories.toast.undoArchive"));
-  }, [lastArchivedIds, clearUndoTimers, t, runBulk]);
+  }, [lastArchivedIds, clearUndoTimers, t, runRestore]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

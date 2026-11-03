@@ -53,3 +53,40 @@ export function useDraftPosBySupply() {
         },
     });
 }
+
+/** Supplier names compare the way the one-draft-per-supplier index does. */
+export function supplierKey(name: string): string {
+    return name.trim().toLowerCase();
+}
+
+/**
+ * Each supplier's draft PO, by supplierKey. A supplier has at most one draft,
+ * and creating a PO for that supplier adds to it, so the reorder drawer names
+ * it even when none of the draft's own supplies is low any more.
+ */
+export function useDraftPoBySupplier() {
+    const { tenantId } = useAuth();
+    return useQuery({
+        // Under the same key prefix, so every invalidation of the drafts refreshes it.
+        queryKey: ["draft-pos-by-supply", tenantId, "by-supplier"],
+        enabled: !!tenantId,
+        staleTime: 60_000,
+        queryFn: async (): Promise<Map<string, Omit<DraftPoRef, "quantity">>> => {
+            if (!tenantId) return new Map();
+            const rows = await fetchAllPages<{ id: string; po_number: string; supplier_name: string | null }>((from, to) =>
+                supabase
+                    .from("purchase_orders")
+                    .select("id, po_number, supplier_name")
+                    .eq("tenant_id", tenantId)
+                    .eq("status", "draft")
+                    .order("id")
+                    .range(from, to)
+            );
+            const map = new Map<string, Omit<DraftPoRef, "quantity">>();
+            for (const row of rows) {
+                if (row.supplier_name) map.set(supplierKey(row.supplier_name), { id: row.id, number: row.po_number });
+            }
+            return map;
+        },
+    });
+}
