@@ -705,7 +705,7 @@ export const productRepository = {
 
 
     // =============================================
-    // ACTIVITY LOG (immutable log — insert only)
+    // ACTIVITY LOG (written by the database; read only here)
     // =============================================
 
     /** Fetch recent activity log entries for a product (max 50). */
@@ -721,17 +721,6 @@ export const productRepository = {
             if (error) throw error;
             return data || [];
         });
-    },
-
-    /** Add a single activity log entry (immutable log). */
-    async addActivityLogEntry(productId: string, entry: { action: string; changes_json?: Json; user_id?: string }, tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.addActivityLogEntry', async () => {
-            const { error } = await supabase
-                .from("product_activity_log")
-                .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
-
-            if (error) throw error;
-        }, WRITE_ONCE);
     },
 
 
