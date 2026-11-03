@@ -6,6 +6,7 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { computeCustomerOrderCounts, findOrderDuplicates } from "@/lib/order-duplicates";
 import { useCustomerOrderCounts } from "@/hooks/use-customer-order-counts";
+import { useOrdersListSettledOnce } from "@/hooks/orders-list-coverage";
 import {
     sumRealizedRevenue,
     sumRealizedRevenueForDay,
@@ -53,21 +54,20 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
         blacklistMap: new Map(),
     });
 
-    // Fetch on mount (only if not already loaded)
+    // The blacklist marks cards, so it loads with the tenant. Reject reasons
+    // and message templates are read only when a menu or the template panel
+    // opens, so they wait for the list: on a cold load they were two of ~17
+    // requests racing the list's own (see useOrdersListSettledOnce).
+    const listSettled = useOrdersListSettledOnce();
+
     useEffect(() => {
         const mounted = { value: true };
-        async function fetchAll() {
+        async function fetchBlacklist() {
             try {
-                const [reasonsRes, templatesRes, blacklistRes] = await Promise.all([
-                    supabase.from("order_reasons").select("*").eq("is_active", true).eq("kind", "reject").order("sort_order"),
-                    supabase.from("message_templates").select("*").eq("is_active", true).order("sort_order"),
-                    supabase.from("blacklist").select("phone, reason, notes, added_by").eq("tenant_id", tenantId)
-                ]);
-
+                const { data } = await supabase.from("blacklist").select("phone, reason, notes, added_by").eq("tenant_id", tenantId);
                 if (mounted.value) {
-                    setAuxData({
-                        rejectionReasons: reasonsRes.data || [],
-                        messageTemplates: templatesRes.data || [],
+                    setAuxData(prev => ({
+                        ...prev,
                         // ARCH-4: keyed on the normalized phone, not the raw stored
                         // string. Lookups come from create-order-modal via
                         // normalizeIraqiPhone ("07…") while entries were stored in
@@ -75,20 +75,47 @@ export function useOrderAuxiliary({ orders, archivedOrders, searchOrders }: UseO
                         // blacklisted customer saved as "+964…" or "7…" would never
                         // have matched — the blacklist would silently let the order
                         // through, which is the one thing it exists to prevent.
-                        blacklistMap: new Map((blacklistRes.data || []).map((b: BlacklistEntry) => [normalizePhoneForSearch(b.phone), b])),
-                    });
+                        blacklistMap: new Map((data || []).map((b: BlacklistEntry) => [normalizePhoneForSearch(b.phone), b])),
+                    }));
                 }
             } catch (err) {
-                console.error("Error fetching auxiliary data:", err);
+                console.error("Error fetching blacklist:", err);
             }
         }
 
         if (tenantId) {
-            fetchAll();
+            fetchBlacklist();
         }
 
         return () => { mounted.value = false; };
     }, [tenantId]);
+
+    useEffect(() => {
+        const mounted = { value: true };
+        async function fetchMenus() {
+            try {
+                const [reasonsRes, templatesRes] = await Promise.all([
+                    supabase.from("order_reasons").select("*").eq("is_active", true).eq("kind", "reject").order("sort_order"),
+                    supabase.from("message_templates").select("*").eq("is_active", true).order("sort_order"),
+                ]);
+                if (mounted.value) {
+                    setAuxData(prev => ({
+                        ...prev,
+                        rejectionReasons: reasonsRes.data || [],
+                        messageTemplates: templatesRes.data || [],
+                    }));
+                }
+            } catch (err) {
+                console.error("Error fetching reasons and templates:", err);
+            }
+        }
+
+        if (tenantId && listSettled) {
+            fetchMenus();
+        }
+
+        return () => { mounted.value = false; };
+    }, [tenantId, listSettled]);
 
     function isBlacklisted(phone: string): boolean {
         return auxData.blacklistMap.has(normalizePhoneForSearch(phone));
