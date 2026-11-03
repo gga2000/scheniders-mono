@@ -19,6 +19,8 @@ import {
   useDeleteCategoryMutation,
   useDuplicateCategoryMutation,
   useReorderCategoriesMutation,
+  useBulkUpdateCategoriesMutation,
+  type CategoryBulkPatch,
   type ReorderEntry,
 } from "@/hooks/use-categories-query";
 import { useProductsCrud } from "@/hooks/use-products-crud";
@@ -58,6 +60,7 @@ export function CategoriesTabV2() {
   const deleteMutation = useDeleteCategoryMutation();
   const duplicateMutation = useDuplicateCategoryMutation();
   const reorderMutation = useReorderCategoriesMutation();
+  const bulkMutation = useBulkUpdateCategoriesMutation();
 
   const viewMode = useCategoryStore((s) => s.viewMode);
   const filters = useCategoryStore((s) => s.filters);
@@ -205,21 +208,25 @@ export function CategoriesTabV2() {
     (err: unknown) => toast.error(t(categoryWriteErrorKey(err))),
     [t],
   );
-  /** Runs one write per id; reports how many failed instead of stopping at the first. */
-  const runForEach = useCallback(
-    async (ids: string[], write: (id: string) => Promise<unknown>): Promise<string[]> => {
-      const results = await Promise.allSettled(ids.map((id) => write(id)));
-      const done = ids.filter((_, i) => results[i].status === "fulfilled");
-      const failed = results.find((r): r is PromiseRejectedResult => r.status === "rejected");
-      if (failed) {
+  /** One write for all ids; reports how many did not change. */
+  const runBulk = useCallback(
+    async (ids: string[], patch: CategoryBulkPatch): Promise<string[]> => {
+      let done: string[];
+      try {
+        done = await bulkMutation.mutateAsync({ ids, patch });
+      } catch (err) {
+        reportCategoryError(err);
+        return [];
+      }
+      if (done.length < ids.length) {
         toast.error(
           t("categories.error.someFailed", { failed: ids.length - done.length, total: ids.length }) +
-            " " + t(categoryWriteErrorKey(failed.reason)),
+            " " + t("products.errors.notPermitted"),
         );
       }
       return done;
     },
-    [t],
+    [bulkMutation, reportCategoryError, t],
   );
   /** After a bulk write, only the rows that failed stay selected, ready to retry. */
   const keepFailedSelected = useCallback(
@@ -361,7 +368,7 @@ export function CategoriesTabV2() {
 
   const handleBulkArchive = useCallback(async () => {
     if (!canEditCategories) return;
-    const ids = await runForEach([...selectedIds], (id) => archiveMutation.mutateAsync(id));
+    const ids = await runBulk([...selectedIds], { status: "archived", archived_at: new Date().toISOString() });
     keepFailedSelected(selectedIds, ids);
     if (ids.length === 0) return;
     setLastArchivedIds(ids);
@@ -369,27 +376,22 @@ export function CategoriesTabV2() {
     toast.success(
       (t("categories.toast.bulkArchived")) + ` (${ids.length})`,
     );
-  }, [selectedIds, archiveMutation, keepFailedSelected, startUndoCountdown, t, canEditCategories, runForEach]);
+  }, [selectedIds, keepFailedSelected, startUndoCountdown, t, canEditCategories, runBulk]);
 
   const handleBulkRestore = useCallback(async () => {
     if (!canEditCategories) return;
-    const ids = await runForEach([...selectedIds], (id) => restoreMutation.mutateAsync(id));
+    const ids = await runBulk([...selectedIds], { status: "published", archived_at: null });
     keepFailedSelected(selectedIds, ids);
     if (ids.length === 0) return;
     toast.success(
       (t("categories.toast.bulkRestored")) + ` (${ids.length})`,
     );
-  }, [selectedIds, restoreMutation, keepFailedSelected, t, canEditCategories, runForEach]);
+  }, [selectedIds, keepFailedSelected, t, canEditCategories, runBulk]);
 
   const handleBulkToggleNav = useCallback(
     async (show: boolean) => {
       if (!canEditCategories) return;
-      const ids = await runForEach([...selectedIds], (id) =>
-        updateMutation.mutateAsync({
-          id,
-          data: { show_in_main_nav: show } as Partial<Category>,
-        }),
-      );
+      const ids = await runBulk([...selectedIds], { show_in_main_nav: show });
       keepFailedSelected(selectedIds, ids);
       if (ids.length === 0) return;
       toast.success(
@@ -398,17 +400,17 @@ export function CategoriesTabV2() {
           : t("categories.toast.bulkHideNav"),
       );
     },
-    [selectedIds, updateMutation, keepFailedSelected, t, canEditCategories, runForEach],
+    [selectedIds, keepFailedSelected, t, canEditCategories, runBulk],
   );
 
   const handleUndoArchive = useCallback(async () => {
     if (lastArchivedIds.length === 0) return;
     clearUndoTimers();
     setUndoTimeLeft(0);
-    const restored = await runForEach(lastArchivedIds, (id) => restoreMutation.mutateAsync(id));
+    const restored = await runBulk(lastArchivedIds, { status: "published", archived_at: null });
     setLastArchivedIds([]);
     if (restored.length > 0) toast.success(t("categories.toast.undoArchive"));
-  }, [lastArchivedIds, restoreMutation, clearUndoTimers, t, runForEach]);
+  }, [lastArchivedIds, clearUndoTimers, t, runBulk]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

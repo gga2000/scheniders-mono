@@ -642,7 +642,7 @@ export const productRepository = {
     },
 
     /** Fetch all options for a product, ordered by display_order. */
-    async getProductOptions(productId: string): Promise<any[]> {
+    async getProductOptions(productId: string) {
         return withRetry('productRepository.getProductOptions', async () => {
             const { data, error } = await supabase
                 .from("product_options")
@@ -661,7 +661,7 @@ export const productRepository = {
     // =============================================
 
     /** Fetch tiered pricing for a product, ordered by min_quantity. */
-    async getTieredPrices(productId: string): Promise<any[]> {
+    async getTieredPrices(productId: string) {
         return withRetry('productRepository.getTieredPrices', async () => {
             const { data, error } = await supabase
                 .from("product_tiered_pricing")
@@ -680,7 +680,7 @@ export const productRepository = {
     // =============================================
 
     /** Fetch order bumps for a product, ordered by display_order. */
-    async getOrderBumps(productId: string): Promise<any[]> {
+    async getOrderBumps(productId: string) {
         return withRetry('productRepository.getOrderBumps', async () => {
             const { data, error } = await supabase
                 .from("product_order_bumps")
@@ -699,7 +699,7 @@ export const productRepository = {
     // =============================================
 
     /** Fetch related products, ordered by display_order. */
-    async getRelatedProducts(productId: string): Promise<any[]> {
+    async getRelatedProducts(productId: string) {
         return withRetry('productRepository.getRelatedProducts', async () => {
             const { data, error } = await supabase
                 .from("product_related")
@@ -718,7 +718,7 @@ export const productRepository = {
     // =============================================
 
     /** Fetch inventory history for a product, newest first. */
-    async getInventoryHistory(productId: string): Promise<any[]> {
+    async getInventoryHistory(productId: string) {
         return withRetry('productRepository.getInventoryHistory', async () => {
             const { data, error } = await supabase
                 .from("inventory_history")
@@ -738,7 +738,7 @@ export const productRepository = {
     // =============================================
 
     /** Fetch suppliers for a product, primary first then by created_at. */
-    async getSuppliers(productId: string): Promise<any[]> {
+    async getSuppliers(productId: string) {
         return withRetry('productRepository.getSuppliers', async () => {
             const [{ data, error }, { data: costs, error: costError }] = await Promise.all([
                 supabase
@@ -753,7 +753,7 @@ export const productRepository = {
 
             if (error) throw error;
             if (costError) throw costError;
-            const unitCost = new Map((costs ?? []).map((row: { id: string; unit_cost: number | null }) => [row.id, row.unit_cost]));
+            const unitCost = new Map<string, number | null>((costs ?? []).map((row: { id: string; unit_cost: number | null }) => [row.id, row.unit_cost]));
             return (data ?? []).map((supplier) => ({ ...supplier, unit_cost: unitCost.get(supplier.id) ?? null }));
         });
     },
@@ -764,7 +764,7 @@ export const productRepository = {
     // =============================================
 
     /** Fetch recent activity log entries for a product (max 50). */
-    async getActivityLog(productId: string): Promise<any[]> {
+    async getActivityLog(productId: string) {
         return withRetry('productRepository.getActivityLog', async () => {
             const { data, error } = await supabase
                 .from("product_activity_log")
@@ -784,7 +784,7 @@ export const productRepository = {
     // =============================================
 
     /** Fetch bundle items for a product, ordered by display_order. */
-    async getBundleItems(productId: string): Promise<any[]> {
+    async getBundleItems(productId: string) {
         return withRetry('productRepository.getBundleItems', async () => {
             const { data, error } = await supabase
                 .from("product_bundle_items")

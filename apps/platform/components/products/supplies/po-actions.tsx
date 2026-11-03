@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PackageCheck, Send, CheckCheck, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import type { PurchaseOrderTransition } from "@/lib/repositories/purchase-orders";
@@ -23,6 +23,7 @@ const BUTTON =
 /** What a purchase order can do next: send, confirm, receive, cancel. */
 export function PoActions({ poId, poNumber, status }: PoActionsProps) {
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const { changeStatus } = usePurchaseOrderActions();
     const [receiveOpen, setReceiveOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -94,7 +95,7 @@ export function PoActions({ poId, poNumber, status }: PoActionsProps) {
                 <DialogContent className="max-w-sm">
                     <DialogHeader>
                         <DialogTitle>{t("supplies.po.cancel")}</DialogTitle>
-                        <DialogDescription>{t("supplies.po.cancelConfirm", { number: poNumber })}</DialogDescription>
+                        <DialogDescription dir={textDir} className="text-left">{t("supplies.po.cancelConfirm", { number: poNumber })}</DialogDescription>
                     </DialogHeader>
                     <DialogFooter className="gap-2">
                         <button type="button" className={BUTTON} onClick={() => setCancelOpen(false)}>

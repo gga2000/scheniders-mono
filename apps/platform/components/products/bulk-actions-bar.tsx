@@ -180,10 +180,7 @@ export function BulkActionsBar({
         const ok = await runAction(
             "price",
             () => onUpdatePrice(price, { alsoWebsite }),
-            t("products.bulk.priceSuccess").replace(
-                "{count}",
-                String(selectedCount)
-            ),
+            t("products.bulk.priceSuccess", { count: selectedCount }),
             true
         );
         if (!ok) return;
@@ -196,10 +193,7 @@ export function BulkActionsBar({
         const ok = await runAction(
             "archive",
             onArchive,
-            t("products.bulk.archiveSuccess").replace(
-                "{count}",
-                String(selectedCount)
-            ),
+            t("products.bulk.archiveSuccess", { count: selectedCount }),
             true
         );
         if (ok) onClearSelection();
@@ -210,10 +204,7 @@ export function BulkActionsBar({
         const ok = await runAction(
             "show",
             onShowOnStore,
-            t("products.bulk.showSuccess").replace(
-                "{count}",
-                String(selectedCount)
-            ),
+            t("products.bulk.showSuccess", { count: selectedCount }),
             true
         );
         if (ok) onClearSelection();
@@ -224,10 +215,7 @@ export function BulkActionsBar({
         const ok = await runAction(
             "hide",
             onHideFromStore,
-            t("products.bulk.hideSuccess").replace(
-                "{count}",
-                String(selectedCount)
-            ),
+            t("products.bulk.hideSuccess", { count: selectedCount }),
             true
         );
         if (ok) onClearSelection();
@@ -236,10 +224,7 @@ export function BulkActionsBar({
     const handleExport = useCallback(() => {
         onExport();
         toast.success(
-            t("products.bulk.exportSuccess").replace(
-                "{count}",
-                String(selectedCount)
-            )
+            t("products.bulk.exportSuccess", { count: selectedCount })
         );
     }, [onExport, selectedCount, t]);
 
@@ -295,9 +280,9 @@ export function BulkActionsBar({
                     exit={{ opacity: 0, y: 20 }}
                     className="fixed inset-x-3 bottom-[calc(var(--mobile-nav-height)+var(--safe-area-bottom)+0.75rem)] md:bottom-6 z-50 flex justify-center pointer-events-none"
                 >
-                    <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-2 max-w-full px-4 py-3 sm:px-6 sm:py-4 bg-[var(--ink)] border border-white/15 rounded-2xl shadow-2xl">
+                    <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-2 w-full max-w-3xl px-4 py-3 sm:px-6 sm:py-4 bg-[var(--ink)] border border-white/25 ring-1 ring-black/10 rounded-2xl shadow-2xl">
                         {/* Selection Count */}
-                        <div className="flex items-center gap-2 pr-4 border-r border-white/20">
+                        <div className="flex items-center gap-2 pr-4 border-r border-white/20 whitespace-nowrap">
                             <span className="text-white font-bold text-lg">
                                 {selectedCount}
                             </span>
@@ -307,10 +292,7 @@ export function BulkActionsBar({
                                 {totalCount ? " " : null}
                                 {totalCount ? (
                                     <span className="text-white/40">
-                                        {t("products.bulk.totalProducts").replace(
-                                            "{total}",
-                                            String(totalCount)
-                                        )}
+                                        {t("products.bulk.totalProducts", { total: totalCount })}
                                     </span>
                                 ) : null}
                             </span>
@@ -323,7 +305,7 @@ export function BulkActionsBar({
                                     <AlertTriangle className="w-4 h-4 text-amber-400" />
                                     <div className="text-sm">
                                         <p className="text-white font-medium">
-                                            {t("products.bulk.confirmArchive").replace("{count}", String(selectedCount))}
+                                            {t("products.bulk.confirmArchive", { count: selectedCount })}
                                         </p>
                                         <p className="text-white/50 text-xs">
                                             {t("products.bulk.confirmArchiveDesc")}
@@ -332,7 +314,7 @@ export function BulkActionsBar({
                                             <p className="text-white/40 text-xs mt-0.5 truncate max-w-[300px]">
                                                 {previewNames.join(", ")}
                                                 {moreCount > 0 &&
-                                                    ` ${t("products.bulk.andMore").replace("{count}", String(moreCount))}`}
+                                                    ` ${t("products.bulk.andMore", { count: moreCount })}`}
                                             </p>
                                         )}
                                     </div>
@@ -411,7 +393,7 @@ export function BulkActionsBar({
                                     </label>
                                 )}
                                 {priceImpact?.text && (
-                                    <p dir="auto" className={cn("basis-full text-xs", priceImpact.belowCost > 0 ? "text-amber-300" : "text-white/70")}>
+                                    <p dir={language === "ar" ? "rtl" : "ltr"} className={cn("basis-full text-left text-xs", priceImpact.belowCost > 0 ? "text-amber-300" : "text-white/70")}>
                                         {priceImpact.text}
                                         {belowCostPrice === newPrice && priceImpact.belowCost > 0 && ` ${t("products.bulk.belowCostConfirm")}`}
                                     </p>

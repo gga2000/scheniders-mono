@@ -141,7 +141,7 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                                     ))}
                                     {products.length > 5 && (
                                         <span className="block text-muted">
-                                            {t("products.bulk.andMore").replace("{count}", String(products.length - 5))}
+                                            {t("products.bulk.andMore", { count: products.length - 5 })}
                                         </span>
                                     )}
                                 </span>

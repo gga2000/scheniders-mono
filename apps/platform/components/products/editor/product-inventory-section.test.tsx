@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ProductInventorySection } from "./product-inventory-section";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 
-vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
+vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }), useTextDir: () => "ltr" }));
 
 afterEach(cleanup);
 

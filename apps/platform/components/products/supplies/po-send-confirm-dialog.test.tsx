@@ -11,7 +11,7 @@ vi.mock("@/lib/repositories/purchase-costs", () => ({
     fetchPurchaseOrderLineCosts: async () => new Map([["l1", 500]]),
 }));
 vi.mock("@/hooks/use-permission", () => ({ usePermission: () => ({ can: () => true }) }));
-vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
+vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }), useTextDir: () => "ltr" }));
 
 import { PoSendConfirmDialog } from "./po-send-confirm-dialog";
 

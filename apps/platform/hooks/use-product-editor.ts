@@ -195,7 +195,7 @@ export interface SupplierFormData {
 export interface ActivityLogFormData {
     id?: string;
     action: 'created' | 'updated' | 'status_changed' | 'price_changed' | 'image_added' | 'variant_added' | 'variant_removed' | 'inventory_adjusted' | 'published' | 'archived';
-    changes_json?: Record<string, { before: any; after: any }> | null;
+    changes_json?: Record<string, { before: unknown; after: unknown }> | null;
     user_id?: string | null;
     created_at: string;
 }
@@ -590,19 +590,19 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 if (cancelled) return;
 
                 const relatedUpdates: Partial<ProductEditorFormData> = {
-                    variant_options: options.map((o: any) => ({
+                    variant_options: options.map((o) => ({
                         id: o.id,
                         name: o.name,
                         values: o.values || [],
                         option_type: o.option_type || 'custom',
                         values_metadata: o.values_metadata || null,
                     })),
-                    tiered_prices: tieredPrices.map((t: any) => ({
+                    tiered_prices: tieredPrices.map((t) => ({
                         min_quantity: t.min_quantity,
                         max_quantity: t.max_quantity,
                         price: t.price,
                     })),
-                    order_bumps: orderBumps.map((b: any) => ({
+                    order_bumps: orderBumps.map((b) => ({
                         bump_product_id: b.bump_product_id,
                         discount_percentage: b.discount_percentage,
                         headline: b.headline || "",
@@ -610,12 +610,12 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         display_order: b.display_order,
                         is_active: b.is_active,
                     })),
-                    related_products: relatedProducts.map((r: any) => ({
+                    related_products: relatedProducts.map((r) => ({
                         related_product_id: r.related_product_id,
                         relation_type: r.relation_type,
                         display_order: r.display_order,
                     })),
-                    inventory_history: inventoryHistory.map((h: any) => ({
+                    inventory_history: inventoryHistory.map((h) => ({
                         change_type: h.change_type,
                         quantity_change: h.quantity_change,
                         quantity_before: h.quantity_before,
@@ -625,7 +625,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         changed_by: h.changed_by,
                         created_at: h.created_at,
                     })),
-                    suppliers: suppliers.map((s: any) => ({
+                    suppliers: suppliers.map((s) => ({
                         supplier_name: s.supplier_name,
                         supplier_contact: s.supplier_contact || "",
                         supplier_email: s.supplier_email || "",
@@ -635,20 +635,20 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         notes: s.notes || "",
                         is_primary: s.is_primary,
                     })),
-                    activity_log: activityLog.map((a: any) => ({
+                    activity_log: activityLog.map((a) => ({
                         id: a.id,
                         action: a.action,
                         changes_json: a.changes_json,
                         user_id: a.user_id,
                         created_at: a.created_at,
                     })),
-                    price_history: priceHistory.map((p: any) => ({
+                    price_history: priceHistory.map((p) => ({
                         date: p.created_at,
                         price: Number(p.new_price),
                         changed_by: p.changed_by,
                         reason: p.reason,
                     })),
-                    bundle_items: bundleItems.map((b: any) => ({
+                    bundle_items: bundleItems.map((b) => ({
                         child_product_id: b.child_product_id,
                         quantity: b.quantity,
                         display_order: b.display_order,

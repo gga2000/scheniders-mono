@@ -127,7 +127,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                                     </span>
                                 )}
                                 {supplier.lead_time_days !== null && supplier.lead_time_days > 0 && (
-                                    <span className="text-xs text-muted">{t("products.ed.supplier.days").replace("{days}", String(supplier.lead_time_days))}</span>
+                                    <span className="text-xs text-muted">{t("products.ed.supplier.days", { days: String(supplier.lead_time_days) })}</span>
                                 )}
                                 <ChevronDown
                                     className={`w-4 h-4 text-muted transition-transform ${

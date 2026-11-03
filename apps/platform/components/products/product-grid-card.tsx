@@ -251,7 +251,7 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                             {/* The storefront sells at its own price when one is set. */}
                             {product.website_price != null && product.website_price !== product.price && (
                                 <p className="text-[11px] text-muted whitespace-nowrap tabular-nums">
-                                    {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
+                                    {t("products.ed.storePrice", { price: formatIQD(product.website_price) })}
                                 </p>
                             )}
                         </div>

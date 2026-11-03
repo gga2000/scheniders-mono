@@ -58,7 +58,7 @@ export function StockQuickAdjust({ productId, productName, currentStock, reserve
                 reason,
                 notes: notes.trim() || undefined,
             });
-            toast.success(t("products.stockAdjust.success").replace("{name}", productName));
+            toast.success(t("products.stockAdjust.success", { name: productName }));
             onClose();
         } catch (err) {
             toast.error(t(productWriteErrorKey(err)));
