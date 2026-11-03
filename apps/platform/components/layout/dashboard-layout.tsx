@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { PageGuard } from "@/components/auth/role-guard";
 import { TrialBanner } from "@/components/billing/trial-banner";
 import { TenantPausedBanner } from "@/components/billing/tenant-paused-banner";
+import { AmbientBackdrop } from "./ambient-backdrop";
 
 // Sidebar state context — lets child pages know if the sidebar is expanded
 const SidebarContext = createContext<{ sidebarExpanded: boolean; setMobileMenuOpen?: (open: boolean) => void }>({ sidebarExpanded: false });
@@ -25,6 +26,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const isMobile = useIsMobile();
+    // Living dot backdrop: the orders list only, for now.
+    const ambient = pathname === "/orders";
 
     const handleSetMobileMenuOpen = useCallback((open: boolean) => {
         setMobileMenuOpen(open);
@@ -86,7 +89,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
         <PageGuard>
             <SidebarContext.Provider value={{ sidebarExpanded: !isCollapsed && !isMobile, setMobileMenuOpen: handleSetMobileMenuOpen }}>
-                <div className="flex min-h-screen bg-background text-foreground">
+                {/* `isolate` gives the backdrop its own stacking floor: at -z-10 it paints
+                    above this root's background and below everything else. */}
+                <div className={cn("flex min-h-screen bg-background text-foreground", ambient && "ambient-page isolate")}>
+                    {ambient && <AmbientBackdrop />}
                     {isMobile && mobileMenuOpen && (
                         <div
                             className="mobile-overlay active"

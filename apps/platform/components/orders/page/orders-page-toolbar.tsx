@@ -12,7 +12,7 @@ import { OrdersFilterBar } from "@/components/orders/orders-filter-bar";
 import { EASE_CHROME, EASE_PANEL } from "@/components/layout/page-transition";
 import { OrderPipeline } from "@/components/orders/order-pipeline";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Download, Package, CheckSquare, MapPin, CalendarDays, BarChart3, Trash2, LayoutGrid, Table, Bell, BellOff, List, GitBranch, SlidersHorizontal, LayoutList, Rows3, Archive, RotateCcw, Minimize2, Truck, PackageX, Boxes, Sparkles } from "lucide-react";
+import { Plus, Download, Package, CheckSquare, MapPin, CalendarDays, BarChart3, Trash2, LayoutGrid, Table, Bell, BellOff, List, GitBranch, SlidersHorizontal, LayoutList, Rows3, Archive, RotateCcw, Minimize2, Truck, PackageX, Boxes } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdsTodayChips } from "@/components/ads/ads-today-chips";
 import { AdsChipsToggle } from "@/components/ads/ads-chips-toggle";
@@ -23,7 +23,7 @@ import type { OrdersPageModel } from "./use-orders-page-model";
 
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
-    const { sidebarExpanded, setIsReturnsOpen, setIsStockTodayOpen, setIsScannerOpen, showSubFilters, toggleSubFilters, showAdChannels, toggleAdChannels, showAdsChips, toggleAdsChips, showPipeline, togglePipeline, showFunBg, toggleFunBg, filters, setFilters, clearFilters, filterPresets, saveFilterPreset, loadFilterPreset, deleteFilterPreset, archivedOrders, fetchArchivedOrders, undoLastAction, canUndo, statusCounts, attentionCounts, oversoldCount, isMobile, t, datePreset, viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, showSearchBar, setShowSearchBar, analyticsLevel, setAnalyticsLevel, toolbarCollapsed, toggleToolbarCollapse, setSoundEnabled, showFilters, setShowFilters, groupBy, setGroupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, filterDueToday, setFilterDueToday, activePresetId, setActivePresetId, setIsCreateModalOpen, setIsExportModalOpen, showDatePicker, setShowDatePicker, datePickerPos, selectedOrders, showArchived, setShowArchived, isHeaderAnimating, setIsHeaderAnimating, notificationsEnabled, setNotificationsEnabled, dateButtonRef, datePickerRef, toolbarScrollRef, toolbarFade, filteredOrders, flaggedCount, dueTodayCount, totalRiskCount, countVis, previewing, listCountShown, openScanner, openReturns, openCreateModal, selectAll, isBulkProcessing, setShipConfirmCompany, setShipConfirmOpen, setShipConfirmKey, guardedBulkActions, showMapPanel, setShowMapPanel, hasActiveFilters } = m;
+    const { sidebarExpanded, setIsReturnsOpen, setIsStockTodayOpen, setIsScannerOpen, showSubFilters, toggleSubFilters, showAdChannels, toggleAdChannels, showAdsChips, toggleAdsChips, showPipeline, togglePipeline, filters, setFilters, clearFilters, filterPresets, saveFilterPreset, loadFilterPreset, deleteFilterPreset, archivedOrders, fetchArchivedOrders, undoLastAction, canUndo, statusCounts, attentionCounts, oversoldCount, isMobile, t, datePreset, viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, showSearchBar, setShowSearchBar, analyticsLevel, setAnalyticsLevel, toolbarCollapsed, toggleToolbarCollapse, setSoundEnabled, showFilters, setShowFilters, groupBy, setGroupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, filterDueToday, setFilterDueToday, activePresetId, setActivePresetId, setIsCreateModalOpen, setIsExportModalOpen, showDatePicker, setShowDatePicker, datePickerPos, selectedOrders, showArchived, setShowArchived, isHeaderAnimating, setIsHeaderAnimating, notificationsEnabled, setNotificationsEnabled, dateButtonRef, datePickerRef, toolbarScrollRef, toolbarFade, filteredOrders, flaggedCount, dueTodayCount, totalRiskCount, countVis, previewing, listCountShown, openScanner, openReturns, openCreateModal, selectAll, isBulkProcessing, setShipConfirmCompany, setShipConfirmOpen, setShipConfirmKey, guardedBulkActions, showMapPanel, setShowMapPanel, hasActiveFilters } = m;
     return (
         <>
             {/* Section 1: Toolbar — stagger child */}
@@ -438,23 +438,6 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                 title={t("orders.tip.analytics")}
                                             >
                                                 <BarChart3 className="w-4 h-4" />
-                                            </button>
-
-                                            {/* Fun mouse-follow background (experiment, off by default) */}
-                                            <button
-                                                type="button"
-                                                onClick={toggleFunBg}
-                                                aria-pressed={showFunBg}
-                                                className={cn(
-                                                    "p-2.5 rounded-xl transition-all duration-300",
-                                                    showFunBg
-                                                        ? "bg-violet-100 text-violet-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
-                                                        : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
-                                                )}
-                                                title={t("orders.funBackground", "Fun background")}
-                                                aria-label={t("orders.funBackground", "Fun background")}
-                                            >
-                                                <Sparkles className="w-4 h-4" />
                                             </button>
 
                                             {/* Meta chips toggle (off by default) */}

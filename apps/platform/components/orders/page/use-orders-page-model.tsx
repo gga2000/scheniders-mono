@@ -48,8 +48,6 @@ export function useOrdersPageModel() {
     // Order pipeline funnel — hidden by default, surfaced via toolbar toggle.
     // Per-device pref, mirrors the sub-filters pattern above.
     const [showPipeline, togglePipeline] = usePersistedToggle("ordersShowPipeline");
-    // Experimental mouse-follow backdrop. Off by default; per-device switch in the tools bar.
-    const [showFunBg, toggleFunBg] = usePersistedToggle("ordersFunBackground");
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -935,8 +933,6 @@ export function useOrdersPageModel() {
         toggleAdsChips,
         showPipeline,
         togglePipeline,
-        showFunBg,
-        toggleFunBg,
         recordContact,
         orders,
         hookFilteredOrders,
