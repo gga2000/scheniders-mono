@@ -13,6 +13,7 @@ import type { OrderCardModel } from "./use-order-card-model";
 /** One section of the full order card; see FullOrderCard in ../order-card.tsx. */
 export function FullCardDetails({ m }: { m: OrderCardModel }) {
     const { failedImageUrls, actualInternalNotes, actualNotes, compact, editable, fullAddress, governorateCode, hasDuplicates, isNew, isVerifiedCustomer, items, localSearchQuery, markImageFailed, order, orderReasonInfo, primaryIsWhatsApp, riskLevel, secondaryIsWhatsApp, t, thumbnailUrl } = m;
+    const attention = order.needs_attention ? (order.attention_reasons ?? []) : [];
     return (
         <>
             {/* CENTER SECTION: Product, Phone, Address */}
@@ -139,18 +140,18 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                                         </span>
                                     )}
                                 {/* Delivery Attention Flag - prominent, next to items like Review Required */}
-                                {order.needs_attention && order.attention_reasons?.some(r => r.startsWith('delivery_') && (r !== 'delivery_returning' || ['confirmed', 'in_transit'].includes(order.status))) && (
+                                {attention.some(r => r.startsWith('delivery_')) && (
                                     <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 animate-pulse border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
                                         <AlertTriangle className="w-3.5 h-3.5" />
-                                        {order.attention_reasons!.includes('delivery_price_changed') ? t("orders.card.attn.delivery_price_changed") :
-                                            order.attention_reasons!.includes('delivery_force_delivered') ? t("orders.card.attn.delivery_force_delivered") :
-                                                order.attention_reasons!.includes('delivery_amount_mismatch') ? t("orders.card.attn.delivery_amount_mismatch") :
-                                                    order.attention_reasons!.includes('delivery_phone_mismatch') ? t("orders.card.attn.delivery_phone_mismatch") :
-                                                        order.attention_reasons!.includes('delivery_already_delivered') ? t("orders.card.attn.delivery_already_delivered") :
-                                                            order.attention_reasons!.includes('delivery_wrong_status') ? t("orders.card.attn.delivery_wrong_status") :
-                                                                order.attention_reasons!.includes('delivery_partial_delivery') ? t("orders.card.attn.delivery_partial_delivery") :
-                                                                    order.attention_reasons!.includes('delivery_courier_cancelled') ? t("orders.card.attn.delivery_courier_cancelled") :
-                                                                        order.attention_reasons!.includes('delivery_returning') ? t("orders.card.attn.delivery_returning") :
+                                        {attention.includes('delivery_price_changed') ? t("orders.card.attn.delivery_price_changed") :
+                                            attention.includes('delivery_force_delivered') ? t("orders.card.attn.delivery_force_delivered") :
+                                                attention.includes('delivery_amount_mismatch') ? t("orders.card.attn.delivery_amount_mismatch") :
+                                                    attention.includes('delivery_phone_mismatch') ? t("orders.card.attn.delivery_phone_mismatch") :
+                                                        attention.includes('delivery_already_delivered') ? t("orders.card.attn.delivery_already_delivered") :
+                                                            attention.includes('delivery_wrong_status') ? t("orders.card.attn.delivery_wrong_status") :
+                                                                attention.includes('delivery_partial_delivery') ? t("orders.card.attn.delivery_partial_delivery") :
+                                                                    attention.includes('delivery_courier_cancelled') ? t("orders.card.attn.delivery_courier_cancelled") :
+                                                                        attention.includes('delivery_returning') ? t("orders.card.attn.delivery_returning") :
                                                                             t("orders.card.attn.deliveryReview")}
                                     </span>
                                 )}

@@ -10,7 +10,7 @@ import { openPrintWindow, runFileNames, shippingLabelsDocument, writePrintWindow
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
-import type { usePrimeLink } from "@/hooks/use-prime-link";
+import type { PrimeSendResult, usePrimeLink } from "@/hooks/use-prime-link";
 
 type Printing = ReturnType<typeof usePrinting>;
 
@@ -102,26 +102,53 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
         }
     };
 
+    /** "3 × phone not 11 digits · 1 × <Prime's own reason>" for the failed orders of a run. */
+    const failureSummary = (failed: Extract<PrimeSendResult, { connected: true }>["failed"]): string => {
+        const counts = new Map<string, number>();
+        for (const f of failed) {
+            const label = f.reason === "prime_rejected" && f.message ? f.message : t(`printing.primeReason.${f.reason}`);
+            counts.set(label, (counts.get(label) ?? 0) + 1);
+        }
+        return [...counts].map(([label, n]) => `${n} × ${label}`).join(" · ");
+    };
+
+    const reportHandOff = (result: Extract<PrimeSendResult, { connected: true }>) => {
+        const skippedNote = result.skipped.length > 0 ? t("printing.primeSkippedBody", { count: result.skipped.length }) : "";
+        if (result.failed.length === 0) {
+            toast.success(t("printing.primeSentTitle", { count: result.sent.length }), skippedNote || undefined);
+            return;
+        }
+        const unreachable = result.failed.filter((f) => f.reason === "prime_unreachable").length;
+        if (result.sent.length === 0 && unreachable === result.failed.length) {
+            toast.warning(t("printing.primeDownTitle"), t("printing.primeDownBody"));
+            return;
+        }
+        toast.warning(
+            t("printing.primePartialTitle", { sent: result.sent.length, count: result.failed.length }),
+            [failureSummary(result.failed), skippedNote, t("printing.primePartialBody")].filter(Boolean).join(" · "),
+        );
+    };
+
     /**
-     * Hand the run to Prime: through the API when the tenant has the link, and
-     * the Excel file for every order the API did not take (or for all of them
-     * when Prime could not be reached), so no parcel is ever left without a
-     * hand-off. `ok` is false only when a needed Excel file failed to download.
+     * Hand the run to Prime: through the API when the tenant has the link and
+     * the run really ships (`viaApi`), and the Excel file for every order the
+     * API did not take (or for all of them when Prime could not be reached), so
+     * no parcel is ever left without a hand-off. `ok` is false only when a
+     * needed Excel file failed to download.
      */
-    const handOff = async (orders: Order[], filename: string): Promise<{ ok: boolean; excel: boolean }> => {
+    const handOff = async (orders: Order[], filename: string, viaApi: boolean): Promise<{ ok: boolean; excel: boolean }> => {
         let excelOrders = orders;
-        if (prime.connected) {
-            try {
-                const result = await prime.send(orders.map((o) => o.id));
-                if (result.connected) {
-                    const failed = new Set(result.failed.map((f) => f.orderId));
-                    excelOrders = orders.filter((o) => failed.has(o.id));
-                    if (excelOrders.length === 0) toast.success(t("printing.primeSentTitle", { count: result.sent.length }));
-                    else toast.warning(t("printing.primePartialTitle", { sent: result.sent.length, count: excelOrders.length }), t("printing.primePartialBody"));
-                }
-            } catch (err) {
+        if (viaApi && prime.connected) {
+            const result = await prime.send(orders.map((o) => o.id)).catch((err: unknown) => {
                 console.error("Prime send error:", err);
-                toast.warning(t("printing.primeDownTitle"), t("printing.primeDownBody"));
+                return null;
+            });
+            if (result === null) toast.warning(t("printing.primeDownTitle"), t("printing.primeDownBody"));
+            // `connected: false` means the link is off now; the Excel file covers the run as before.
+            else if (result.connected) {
+                const offApi = new Set([...result.skipped, ...result.failed].map((f) => f.orderId));
+                excelOrders = orders.filter((o) => offApi.has(o.id));
+                reportHandOff(result);
             }
         }
         if (excelOrders.length === 0) return { ok: true, excel: false };
@@ -137,6 +164,9 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
      * left the app and nothing moves. The API hand-off writes no order row, so
      * the move's version check still holds. The run is saved after the move
      * because saving bumps each order's version. Returns true when done.
+     *
+     * "Download files" (`moveToTransit` off) creates nothing at Prime: the
+     * orders stay on the desk, so the Excel file stands in for the API.
      */
     const ship = async (orders: Order[], { moveToTransit }: { moveToTransit: boolean }): Promise<boolean> => {
         if (orders.length === 0 || !checkPrintable(orders)) return false;
@@ -144,7 +174,7 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
         setShipping(true);
         try {
             if (!(await renderPdf(orders, names.labels))) return false;
-            const handedOff = await handOff(orders, names.prime);
+            const handedOff = await handOff(orders, names.prime, moveToTransit);
             if (!handedOff.ok) {
                 toast.error(t("printing.exportFailedTitle"), t("printing.exportFailedAfterPdf"));
                 return false;

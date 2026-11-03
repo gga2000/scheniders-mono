@@ -27,7 +27,13 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     if (connections.length === 0) return NextResponse.json({ success: true, tenants: 0 });
 
-    const stepNames = await client.stepNames();
+    // Step names only label the stored step; a failed read must not stop the delivery sync.
+    let stepNames = new Map<string, string>();
+    try {
+        stepNames = await client.stepNames();
+    } catch (err) {
+        Sentry.captureException(err, { extra: { job: "prime-sync", step: "stepNames" } });
+    }
     const results: Record<string, PrimeSyncOutcome | { error: string }> = {};
     for (const { tenant_id: tenantId } of connections) {
         try {
