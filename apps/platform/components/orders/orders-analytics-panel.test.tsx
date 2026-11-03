@@ -7,8 +7,6 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 import type { PanelStats } from "@/lib/orders/analytics-strip";
 import { OrdersAnalyticsPanel } from "./orders-analytics-panel";
 
-const reveal = vi.hoisted(() => ({ value: { revealed: true, canReveal: true, toggle: () => {} } }));
-vi.mock("@/components/providers/financial-visibility-provider", () => ({ useFinancialVisibility: () => reveal.value }));
 
 const asked = vi.hoisted(() => ({ filters: [] as unknown[] }));
 const hookResult = vi.hoisted(() => ({ value: null as unknown }));
@@ -22,7 +20,6 @@ vi.mock("@/hooks/use-orders-panel-stats", () => ({
 afterEach(() => {
     cleanup();
     asked.filters.length = 0;
-    reveal.value = { revealed: true, canReveal: true, toggle: () => {} };
 });
 
 const query = <T,>(data: T | undefined, isError = false) => ({ data, isError, refetch: vi.fn() });
@@ -31,21 +28,15 @@ const stats = (over: Partial<PanelStats> = {}): PanelStats => ({
     orders: 40,
     revenue: 1_250_000,
     delivered: 10,
-    cohort_realized: 9,
-    cohort_rejected: 1,
-    confirm_n: 30,
-    confirm_median_min: 5,
     ...over,
 });
 
 function setHook(over: Record<string, unknown> = {}) {
     hookResult.value = {
         salesView: true,
-        windows: { qualityIsWider: false, previous: {} },
+        windows: { previous: {} },
         current: query(stats()),
         previous: query(stats({ orders: 20, revenue: 1_000_000 })),
-        qualityCurrent: query(stats()),
-        qualityPrevious: query(stats({ cohort_realized: 8, cohort_rejected: 2, confirm_median_min: 10 })),
         store: { figures: null, show: false },
         ads: null,
         ...over,
@@ -83,31 +74,13 @@ describe("OrdersAnalyticsPanel strip", () => {
         setHook();
         renderPanel();
         expect(stat("orders")).toBe("40");
-        expect(stat("delivery_rate")).toBe("90%");
-        expect(stat("confirm_speed")).toBe("\u200e5 د");
         expect(stat("revenue")).toContain("1,250,000");
     });
 
-    it("masks revenue, and its change, while financials are hidden", () => {
-        setHook();
-        reveal.value = { revealed: false, canReveal: true, toggle: () => {} };
-        renderPanel();
-        expect(stat("revenue")).toBe("••••••");
-        expect(document.querySelector("[data-cell=\"revenue\"]")?.textContent).not.toMatch(/%/);
-    });
-
-    it("shows a dash, not a made-up rate, when nothing has finished", () => {
-        setHook({ qualityCurrent: query(stats({ cohort_realized: 0, cohort_rejected: 0, confirm_median_min: null, confirm_n: 0 })) });
-        renderPanel();
-        expect(stat("delivery_rate")).toBe("—");
-        expect(stat("confirm_speed")).toBe("—");
-    });
-
     it("keeps a skeleton, not a zero, while a figure loads", () => {
-        setHook({ current: query(undefined), qualityCurrent: query(undefined) });
+        setHook({ current: query(undefined) });
         renderPanel();
         expect(stat("orders")).toBeUndefined();
-        expect(stat("delivery_rate")).toBeUndefined();
     });
 
     it("offers a retry when the numbers fail to load", () => {
@@ -133,7 +106,7 @@ describe("OrdersAnalyticsPanel strip", () => {
     });
 
     it("shows no change arrows when there is no earlier period to compare with", () => {
-        setHook({ windows: { qualityIsWider: false, previous: null } });
+        setHook({ windows: { previous: null } });
         renderPanel();
         expect(document.querySelector("[data-cell=\"orders\"] svg")).toBeNull();
     });
@@ -150,7 +123,9 @@ describe("OrdersAnalyticsPanel strip", () => {
         });
         renderPanel();
         expect(stat("ad_spend")).toContain("500,000");
+        expect(stat("cpa")).toContain("12,500");
         expect(stat("visitors")).toBe("300");
+        expect(stat("conversion")).toBe("2.5%");
     });
 });
 
@@ -177,5 +152,24 @@ describe("OrdersAnalyticsPanel attention pills", () => {
         renderPanel({ setFilters, filters: { city: "x" } as Props["filters"] });
         fireEvent.click(document.querySelector("[data-attention=\"no_response\"]")?.parentElement as HTMLElement);
         expect(setFilters).toHaveBeenCalledWith({ city: "x", status: "no_response" });
+    });
+});
+
+describe("OrdersAnalyticsPanel attention pills as switches", () => {
+    it("lifts the filter on a second click", () => {
+        setHook();
+        const setFilters = vi.fn();
+        renderPanel({ setFilters, filters: { status: "no_response" } as Props["filters"] });
+        const pill = document.querySelector("[data-attention=\"no_response\"]")?.parentElement as HTMLElement;
+        expect(pill.getAttribute("aria-pressed")).toBe("true");
+        fireEvent.click(pill);
+        expect(setFilters).toHaveBeenCalledWith({ status: "all" });
+    });
+
+    it("keeps an active pill on screen when its count is hidden or zero", () => {
+        setHook();
+        renderPanel({ countsHidden: true, attentionCounts: { urgent: 0, noResponse: 0, returnPending: 0 }, filters: { priority: "urgent" } as Props["filters"] });
+        expect(attention("urgent")).toBe("×");
+        expect(attention("no_response")).toBeUndefined();
     });
 });

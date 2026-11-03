@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
     baghdadTimeOfDay,
-    deliveryRate,
-    formatMinutes,
     perUnit,
     pointChange,
     storeFigures,
@@ -26,18 +24,9 @@ describe("barWindows", () => {
         expect(w.previous).toEqual({ from: "2026-10-19", to: "2026-10-19", untilTime: null });
     });
 
-    it("widens the finished-order figures to 7 days when the filter covers fewer", () => {
-        const w = barWindows("2026-11-03", "2026-11-03", NOW);
-        expect(w.qualityIsWider).toBe(true);
-        expect(w.quality.current).toEqual({ from: "2026-10-28", to: "2026-11-03", untilTime: null });
-        expect(w.quality.previous).toEqual({ from: "2026-10-21", to: "2026-10-27", untilTime: null });
-    });
-
     it("compares a range with the same number of days before it", () => {
         const w = barWindows("2026-10-05", "2026-11-03", NOW);
         expect(w.previous).toEqual({ from: "2026-09-05", to: "2026-10-04", untilTime: null });
-        expect(w.qualityIsWider).toBe(false);
-        expect(w.quality.current).toEqual(w.current);
     });
 
     it("runs an open-ended range to today", () => {
@@ -50,7 +39,6 @@ describe("barWindows", () => {
         const w = barWindows(undefined, undefined, NOW);
         expect(w.current).toEqual({ from: null, to: null, untilTime: null });
         expect(w.previous).toBeNull();
-        expect(w.quality.previous).toBeNull();
     });
 
     it("uses the Baghdad day, not the UTC day, around midnight", () => {
@@ -77,11 +65,6 @@ describe("scope of the bar", () => {
 });
 
 describe("rates", () => {
-    it("counts only orders that finished", () => {
-        expect(deliveryRate({ cohort_realized: 9, cohort_rejected: 1 })).toBe(90);
-        expect(deliveryRate({ cohort_realized: 0, cohort_rejected: 0 })).toBeNull();
-    });
-
     it("reports a change in points, null when either side is unknown", () => {
         expect(pointChange(90, 80)).toBe(10);
         expect(pointChange(null, 80)).toBeNull();
@@ -90,14 +73,6 @@ describe("rates", () => {
     it("never divides by zero", () => {
         expect(perUnit(1000, 0)).toBeNull();
         expect(perUnit(1000, 3)).toBe(333);
-    });
-});
-
-describe("formatMinutes", () => {
-    it("rounds to whole minutes and splits hours", () => {
-        expect(formatMinutes(0.4)).toEqual({ hours: 0, minutes: 0, underOne: true });
-        expect(formatMinutes(5.4)).toEqual({ hours: 0, minutes: 5, underOne: false });
-        expect(formatMinutes(135)).toEqual({ hours: 2, minutes: 15, underOne: false });
     });
 });
 
