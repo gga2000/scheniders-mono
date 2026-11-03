@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { X, XCircle, PackageX, MessageSquare, Pencil, Check, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -100,13 +100,17 @@ export function CancellationReasonDialog({
         handleClose();
     };
 
+    // Reads the current edit mode and close handler at key-press time, so the
+    // listener only needs re-binding when the dialog opens or closes.
+    const onEscape = useEffectEvent(() => {
+        if (editMode) setEditMode(false);
+        else handleClose();
+    });
+
     useEffect(() => {
         if (!open) return;
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                if (editMode) setEditMode(false);
-                else handleClose();
-            }
+            if (e.key === "Escape") onEscape();
         };
         document.addEventListener("keydown", onKey);
         const prevOverflow = document.body.style.overflow;
@@ -115,8 +119,7 @@ export function CancellationReasonDialog({
             document.removeEventListener("keydown", onKey);
             document.body.style.overflow = prevOverflow;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, editMode]);
+    }, [open]);
 
     if (!open) return null;
 
