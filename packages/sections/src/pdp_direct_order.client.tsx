@@ -49,6 +49,7 @@ import {
   etaForGovernorate,
   formatHours,
   computePointsEarned,
+  resolveLoyalty,
   computePointsRedemption,
   formatPoints,
   computeReferralDiscount,
@@ -818,6 +819,15 @@ export function PdpDirectOrderRender({
   // placement — so this is a promise about delivery, worded as one. Earned on
   // the order's price, which is stored net of every discount.
   const pointsToEarn = computePointsEarned(subtotal - referralAmount - pointsDiscount, loyaltyCfg);
+  const loyaltyRule = resolveLoyalty(loyaltyCfg);
+  const pointsEarn =
+    pointsToEarn > 0 && loyaltyRule.redeemValueIqd > 0
+      ? {
+          points: pointsToEarn,
+          per: Math.max(1, loyaltyRule.minRedeemPoints),
+          value: Math.max(1, loyaltyRule.minRedeemPoints) * loyaltyRule.redeemValueIqd,
+        }
+      : null;
   const total = subtotal - referralAmount - pointsDiscount + (displayedDelivery ?? 0);
   const totalExcludesDelivery = displayedDelivery === null;
 
@@ -1336,6 +1346,18 @@ export function PdpDirectOrderRender({
           subtotal,
           referralAmount,
           pointsDiscount,
+          pointsEarn,
+          pointsRedeem:
+            loyaltyCfg?.enabled === true && normalizeIraqiMobile(form.phone)
+              ? {
+                  orderNumber: pointsOrderNumber,
+                  setOrderNumber: setPointsOrderNumber,
+                  balance: pointsBalance,
+                  min: Math.max(1, loyaltyRule.minRedeemPoints),
+                  using: redeemPoints > 0,
+                  setUsing: (on: boolean) => setRedeemPoints(on ? (pointsBalance ?? 0) : 0),
+                }
+              : null,
           // The delivery the total counts: the flat fee when every governorate
           // costs the same, else the chosen governorate's fee (null = varies).
           delivery: displayedDelivery,

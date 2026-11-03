@@ -26,6 +26,7 @@ import { CartAddedStatus, CartTile, type CartAddOutcome, type CartNote } from ".
 import { ExpressDock } from "./dock";
 import { displayNameOf } from "./identity-label";
 import type { ExpressModel } from "./model";
+import { PointsEarn } from "./points-earn";
 import { PromiseBand } from "./promise-band";
 import { readsRtl, xs } from "./text";
 import { ExpressTrustStrip } from "./trust-strip";
@@ -278,6 +279,9 @@ export function CheckoutRow({
           label={xs("totalPlain", locale)}
           value={<bdi>{formatPrice(m.total, locale)}</bdi>}
         />
+        {(m.pointsEarn || m.pointsRedeem) && (
+          <PointsEarn earn={m.pointsEarn} redeem={m.pointsRedeem} locale={locale} rtl={rtl} />
+        )}
       </div>
 
       {proof && <CtaProof quote={proof.quote} source={proof.source} rtl={rtl} />}

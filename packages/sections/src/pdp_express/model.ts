@@ -63,6 +63,22 @@ export interface ExpressModel {
   /** Friend-code and points discounts already taken off `total` (0 = none). */
   referralAmount: number;
   pointsDiscount: number;
+  /** Points this order earns on delivery, and the redeem rule they count
+   *  toward (`per` points buy `value` IQD off); null while loyalty is off. */
+  pointsEarn: { points: number; per: number; value: number } | null;
+  /** Redeeming points: a previous order number proves the phone is the
+   *  shopper's, then their balance can come off this order. Null while
+   *  loyalty is off or the phone is not yet a valid number. */
+  pointsRedeem: {
+    orderNumber: string;
+    setOrderNumber: (v: string) => void;
+    /** Null until the store confirms the phone + order number pair. */
+    balance: number | null;
+    /** The fewest points that can be spent at once. */
+    min: number;
+    using: boolean;
+    setUsing: (on: boolean) => void;
+  } | null;
   delivery: number | null;
   total: number;
   shipping: GovernorateShippingConfig | null | undefined;
