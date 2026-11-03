@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * only credential. Two hand-written variants had survived:
  *  - `Bearer ${process.env.CRON_SECRET}` (trial-suspend, subscription-renew), which
  *    becomes the literal "Bearer undefined" when the secret is unset;
- *  - an `x-vercel-cron: 1` fallback (waseet-sync, waseet-locations, auto-no-response)
+ *  - an `x-vercel-cron: 1` fallback (waseet-sync, waseet-locations)
  *    that any caller can set, and in waseet-sync an unset secret skipped the check.
  */
 const state = vi.hoisted(() => ({ secret: undefined as string | undefined, touched: false }));
@@ -38,7 +38,6 @@ const ROUTES = [
     "subscription-renew",
     "waseet-sync",
     "waseet-locations",
-    "auto-no-response",
     "prime-sync",
 ] as const;
 
