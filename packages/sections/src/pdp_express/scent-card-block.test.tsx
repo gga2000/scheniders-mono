@@ -143,6 +143,11 @@ describe("scent_layout card — facts when the product has them", () => {
     expect(card).toContain("4 من 5");
     expect(count(card, 'data-fill="1"')).toBe(4);
     expect(count(card, "relative h-1.5 flex-1 overflow-hidden rounded-bk-pill bg-bk-ink/10")).toBe(5);
+    // The fill is the orange → red ramp: the first segment starts at pure
+    // orange, the last filled one ends further along toward red.
+    expect(card).toContain("color-mix(in oklab, #fb923c, #ef4444 0%)");
+    expect(card).toContain("color-mix(in oklab, #fb923c, #ef4444 80%)");
+    expect(card).not.toContain("absolute inset-y-0 bg-bk-ink");
     expect(card).toContain("حسب تجربتنا");
     // The season is a tag in the header, not a chip row.
     expect(card).not.toContain('data-chip-row="season"');

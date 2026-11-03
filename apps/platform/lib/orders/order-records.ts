@@ -1,13 +1,8 @@
-import {
-    supabase,
-    type Order,
-    type OrderNote,
-    type OrderStatusHistory,
-} from "@/lib/supabase";
+import { supabase, type Order } from "@/lib/supabase";
 
-// Order side records: notes, status timeline and print batches. None of these
-// touch the cached order list, so they live outside useOrderCrud and take the
-// tenant from it.
+// Order side records: notes and print batches. Neither touches the cached
+// order list, so they live outside useOrderCrud and take the tenant from it.
+// The history tab reads its own feed through get_order_activity.
 
 export async function addOrderNote(tenantId: string | null, orderId: string, note: string) {
     try {
@@ -25,38 +20,6 @@ export async function addOrderNote(tenantId: string | null, orderId: string, not
             success: false,
             error: err instanceof Error ? err.message : "Failed to add note",
         };
-    }
-}
-
-export async function getOrderNotes(orderId: string): Promise<OrderNote[]> {
-    try {
-        const { data, error: fetchError } = await supabase
-            .from("order_notes")
-            .select("*")
-            .eq("order_id", orderId)
-            .order("created_at", { ascending: false });
-
-        if (fetchError) throw fetchError;
-        return data || [];
-    } catch (err) {
-        console.error("Error fetching notes:", err);
-        return [];
-    }
-}
-
-export async function getOrderTimeline(orderId: string): Promise<OrderStatusHistory[]> {
-    try {
-        const { data, error: fetchError } = await supabase
-            .from("order_status_history")
-            .select("*")
-            .eq("order_id", orderId)
-            .order("changed_at", { ascending: true });
-
-        if (fetchError) throw fetchError;
-        return data || [];
-    } catch (err) {
-        console.error("Error fetching timeline:", err);
-        return [];
     }
 }
 

@@ -49,8 +49,6 @@ function context(over: Record<string, unknown>): Record<string, unknown> {
         fetchOrders: vi.fn(),
         updateOrderStatus: vi.fn(),
         updateOrder: vi.fn(),
-        getOrderTimeline: vi.fn(),
-        getOrderNotes: vi.fn(),
         addOrderNote: vi.fn(),
         deleteOrder: vi.fn(),
         checkOrderIdExists: vi.fn(),

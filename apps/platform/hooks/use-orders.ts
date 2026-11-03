@@ -355,10 +355,8 @@ export function useOrders() {
 
         // Notes
         addOrderNote: crudHook.addOrderNote,
-        getOrderNotes: crudHook.getOrderNotes,
 
         // Timeline
-        getOrderTimeline: crudHook.getOrderTimeline,
 
         // Blacklist
         isBlacklisted: auxiliaryHook.isBlacklisted,

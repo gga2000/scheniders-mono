@@ -5,7 +5,7 @@ import { queriesOn, resetRecording, respond } from "@/lib/__fixtures__/recording
 vi.mock("@/lib/supabase", async () =>
     (await import("@/lib/__fixtures__/recording-supabase")).recordingSupabaseModule());
 
-import { addOrderNote, createBatch, getOrderNotes, getOrderTimeline } from "./order-records";
+import { addOrderNote, createBatch } from "./order-records";
 
 const TENANT = "22222222-2222-4222-8222-222222222222";
 
@@ -65,17 +65,5 @@ describe("order records", () => {
                 tenant_id: TENANT,
             }],
         });
-    });
-
-    it("reads notes newest first and the timeline oldest first", async () => {
-        respond(() => ({ data: [], error: null }));
-
-        await getOrderNotes("o1");
-        await getOrderTimeline("o1");
-
-        const [notes] = queriesOn("order_notes");
-        expect(notes.ops).toContainEqual({ op: "order", args: ["created_at", { ascending: false }] });
-        const [timeline] = queriesOn("order_status_history");
-        expect(timeline.ops).toContainEqual({ op: "order", args: ["changed_at", { ascending: true }] });
     });
 });

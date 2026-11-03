@@ -8899,6 +8899,7 @@ export type Database = {
         Args: { p_months?: number; p_tenant_id: string }
         Returns: Json
       }
+      get_order_activity: { Args: { p_order_id: string }; Returns: Json }
       get_order_duplicate_flags: {
         Args: { _order_ids: string[]; _tenant_id: string }
         Returns: {

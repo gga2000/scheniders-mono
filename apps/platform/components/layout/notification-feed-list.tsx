@@ -16,7 +16,7 @@ import type { FeedNotification } from "@/hooks/use-notification-feed";
 import type { FeedSection } from "@/lib/notification-feed-sections";
 import { cn } from "@/lib/utils";
 import { useStatusLabel } from "@/hooks/use-status-label";
-import { getStatusBadgeStyle } from "@/lib/order-format-utils";
+import { getStatusBadgeStyle, isSystemActor } from "@/lib/order-format-utils";
 import { useLanguage } from "@/components/providers/language-provider";
 import type { Order } from "@/lib/supabase";
 
@@ -140,7 +140,7 @@ export function NotificationFeedList({
     };
 
     const getActorName = (name: string | null) =>
-        name === "Automation" ? t("notifications.actorAutomation", "Automation") : name ?? "";
+        name === "Automation" || isSystemActor(name) ? t("notifications.actorAutomation", "Automation") : name ?? "";
 
     const getIcon = (n: FeedNotification) => {
         if (n.category === "chat") return <AtSign className="w-4 h-4 text-blue-500" />;

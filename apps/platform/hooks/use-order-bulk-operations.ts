@@ -88,23 +88,18 @@ export function useOrderBulkOperations() {
             });
             dismissToast(toastId);
 
-            const historyNote = result.historyNotLogged > 0
-                ? t("orders.bulk.historyNotLogged").replace("{count}", String(result.historyNotLogged))
-                : undefined;
-
             if (result.failures.length === 0) {
                 toast({
                     title: t("toast.statusUpdatedDescCount")
                         .replace("{count}", String(result.count))
                         .replace("{status}", getStatusLabel(status)),
-                    description: historyNote,
-                    variant: historyNote ? "warning" : "success",
+                    variant: "success",
                 });
             } else {
                 const summary = summarizeBulkFailures(result.failures, orders, result.attempted, "updated");
                 toast({
                     title: summary.title,
-                    description: historyNote ? `${summary.description}. ${historyNote}` : summary.description,
+                    description: summary.description,
                     variant: result.count === 0 ? "error" : "warning",
                     duration: 20000,
                     action: summary.retryableIds.length > 0
@@ -167,25 +162,21 @@ export function useOrderBulkOperations() {
             const skippedNote = skipped.length > 0
                 ? t("orders.bulk.rescheduleSkipped").replace("{count}", String(skipped.length))
                 : undefined;
-            const historyNote = result.historyNotLogged > 0
-                ? t("orders.bulk.historyNotLogged").replace("{count}", String(result.historyNotLogged))
-                : undefined;
 
             if (result.failures.length === 0) {
-                const note = [skippedNote, historyNote].filter(Boolean).join(" ");
                 toast({
                     title: (day
                         ? t("orders.bulk.rescheduled").replace("{date}", formatScheduledDate(day))
                         : t("orders.bulk.rescheduleCleared")
                     ).replace("{count}", String(result.count)),
-                    description: note || undefined,
-                    variant: historyNote ? "warning" : "success",
+                    description: skippedNote,
+                    variant: "success",
                 });
             } else {
                 const summary = summarizeBulkFailures(result.failures, orders, result.attempted, "updated");
                 toast({
                     title: summary.title,
-                    description: [summary.description, skippedNote, historyNote].filter(Boolean).join(". "),
+                    description: [summary.description, skippedNote].filter(Boolean).join(". "),
                     variant: result.count === 0 ? "error" : "warning",
                     duration: 20000,
                     action: summary.retryableIds.length > 0
