@@ -171,8 +171,9 @@ describe("scent_layout card — facts when the product has them", () => {
     expect(card).toContain('data-stop="3"');
     expect(count(card, "data-feel-dot")).toBe(1);
     expect(card).toMatch(/font-bold text-bk-ink[^"]*">قوي</);
-    expect(card).toContain("بالمختصر:");
-    expect(card).toMatch(/data-feel-summary[^>]*>بالمختصر: <span[^>]*>قوي</);
+    expect(card).toContain("بالمختصر");
+    expect(card).toContain("data-feel-fill");
+    expect(count(card, "data-feel-chip")).toBe(1);
     expect(card).not.toContain('dir="');
     // Without the config there is no panel.
     expect(cardOf(render(CARD_PROPS, scentProduct))).not.toContain("data-feel-bars");
