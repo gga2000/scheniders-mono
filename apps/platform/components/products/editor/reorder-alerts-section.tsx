@@ -2,7 +2,7 @@
 
 import { useLanguage } from "@/hooks/use-language";
 import { parseWholeNumber } from "@/lib/utils";
-import { Bell, AlertTriangle, CheckCircle } from "lucide-react";
+import { RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 
 interface ReorderAlertsSectionProps {
@@ -20,7 +20,7 @@ export function ReorderAlertsSection({ formData, updateField }: ReorderAlertsSec
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             {/* Header */}
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                <Bell className="w-4 h-4" />
+                <RefreshCw className="w-4 h-4" />
                 {t("products.ed.reorder.title")}
             </h2>
 
@@ -69,11 +69,6 @@ export function ReorderAlertsSection({ formData, updateField }: ReorderAlertsSec
                 </div>
             )}
 
-            {!hasReorderPoint && (
-                <p className="text-sm text-muted py-2">
-                    {t("products.ed.reorder.empty")}
-                </p>
-            )}
         </div>
     );
 }

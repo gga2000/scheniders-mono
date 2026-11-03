@@ -152,6 +152,16 @@ export function ActionsFeed({
         return drifted;
     }, [supplies, supplierPos]);
 
+    // A draft PO per supplier (lower-case name): its supplies need sending, not a new order.
+    const draftBySupplier = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const po of supplierPos) {
+            const name = (po.supplier_name ?? "").trim().toLowerCase();
+            if (po.status === "draft" && name && !map.has(name)) map.set(name, po.po_number);
+        }
+        return map;
+    }, [supplierPos]);
+
     const actions = useMemo<Action[]>(() => {
         const seen = new Set<string>();
         const out: Action[] = [];
@@ -177,20 +187,35 @@ export function ActionsFeed({
             const isCritical =
                 leadTime != null && eta != null && eta < leadTime;
             const detail = isCritical
-                ? t("supplies.af.stockoutDetail", { eta: eta ?? 0, lead: leadTime ?? 0 })
+                ? t("supplies.af.stockoutDetail", { eta: t("supplies.sp.leadDays", { count: eta ?? 0 }), lead: t("supplies.sp.leadDays", { count: leadTime ?? 0 }) })
                 : eta != null
-                ? t("supplies.af.supplyLeft", { eta })
+                ? t("supplies.af.supplyLeft", { eta: t("supplies.sp.leadDays", { count: eta }) })
                 : t("supplies.af.atReorderPoint", { rp });
-            push({
-                id: `${isCritical ? "crit" : "reorder"}:${s.id}`,
-                supply: s,
-                kind: isCritical ? "critical" : "reorder",
-                title: isCritical ? t("supplies.af.stockoutBeforeLead") : t("supplies.af.reorderNow"),
-                detail,
-                tone: "rose",
-                icon: isCritical ? Zap : ShoppingCart,
-                ctaLabel: t("supplies.af.reorder"),
-            });
+            const draftNumber = draftBySupplier.get((primarySupplierOf(s)?.supplier_name ?? "").trim().toLowerCase());
+            if (draftNumber) {
+                push({
+                    id: `draft:${s.id}`,
+                    supply: s,
+                    kind: "reorder",
+                    title: t("supplies.af.inDraft", { number: draftNumber }),
+                    detail: t("supplies.af.inDraftDetail"),
+                    tone: "amber",
+                    icon: ShoppingCart,
+                    ctaLabel: t("supplies.af.review"),
+                });
+            } else {
+                push({
+                    id: `${isCritical ? "crit" : "reorder"}:${s.id}`,
+                    supply: s,
+                    kind: isCritical ? "critical" : "reorder",
+                    title: isCritical ? t("supplies.af.stockoutBeforeLead") : t("supplies.af.reorderNow"),
+                    detail,
+                    // Red only for a stockout before the next delivery can land.
+                    tone: isCritical ? "rose" : "amber",
+                    icon: isCritical ? Zap : ShoppingCart,
+                    ctaLabel: t("supplies.af.reorder"),
+                });
+            }
             if (out.length >= 6) return out;
         }
 
@@ -260,7 +285,7 @@ export function ActionsFeed({
         }
 
         return out.slice(0, 6);
-    }, [supplies, historyBySupply, needsOrderIds, driftedSuppliers, dismissed, t]);
+    }, [supplies, historyBySupply, needsOrderIds, driftedSuppliers, draftBySupplier, dismissed, t]);
 
     const dismissAction = (id: string) => {
         setDismissed((prev) => {
@@ -298,7 +323,10 @@ export function ActionsFeed({
                     <span className="text-xs font-medium text-muted uppercase tracking-wide">
                         {t("supplies.af.today")}
                     </span>
-                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-semibold tabular-nums">
+                    <span className={cn(
+                        "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-white text-[10px] font-semibold tabular-nums",
+                        actions.some((a) => a.kind === "critical") ? "bg-rose-500" : "bg-amber-500",
+                    )}>
                         {actions.length}
                     </span>
                 </div>
@@ -323,7 +351,7 @@ export function ActionsFeed({
             </div>
 
             {!collapsed && (
-                <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
                     {actions.map((a) => {
                         const tone = TONE_CLASSES[a.tone];
                         const Icon = a.icon;
@@ -331,7 +359,7 @@ export function ActionsFeed({
                             <div
                                 key={a.id}
                                 className={cn(
-                                    "snap-start shrink-0 w-[280px] rounded-2xl border p-3.5 relative flex flex-col gap-2 shadow-sm",
+                                    "rounded-2xl border p-3.5 relative flex flex-col gap-2 shadow-sm",
                                     tone.card
                                 )}
                             >

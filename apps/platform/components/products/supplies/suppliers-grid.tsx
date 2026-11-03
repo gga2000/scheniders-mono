@@ -98,7 +98,7 @@ function SupplierCard({ supplier, onSelect }: SupplierCardProps) {
             <div className="flex items-start gap-3">
                 <SupplierInitialsBadge name={supplier.name} size="md" />
                 <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-[15px] leading-tight truncate">{supplier.name}</h3>
+                    <h3 dir="auto" className="text-left font-semibold text-[15px] leading-tight truncate">{supplier.name}</h3>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
                         {supplier.email && (
                             <span className="inline-flex items-center gap-1">

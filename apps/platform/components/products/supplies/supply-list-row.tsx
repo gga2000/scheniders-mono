@@ -87,7 +87,7 @@ export function SupplyListRow({
                 </div>
             </td>
             <td className="px-3 py-3 min-w-[180px]">
-                <div className="font-medium text-sm text-foreground truncate">{supply.name}</div>
+                <div dir="auto" className="text-left font-medium text-sm text-foreground truncate">{supply.name}</div>
                 <div className="text-[11px] text-muted font-mono mt-0.5 flex items-center gap-1.5">
                     <span className="truncate">{supply.sku || t("supplies.sp.noSku")}</span>
                     {supplierNames && supplierNames.length > 0 && (

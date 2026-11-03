@@ -327,7 +327,7 @@ function SuppliesTab({
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
-                                    <p className="font-medium text-sm truncate">{product.name}</p>
+                                    <p dir="auto" className="text-left font-medium text-sm truncate">{product.name}</p>
                                     {isPrimary && (
                                         <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide dark:bg-amber-500/15 dark:text-amber-300">
                                             {t("supplies.sd.primary")}

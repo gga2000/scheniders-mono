@@ -390,7 +390,7 @@ export function ReorderDrawer({
                                                             <Truck className="w-4 h-4" />
                                                         </div>
                                                         <div className="min-w-0">
-                                                            <div className="font-semibold text-sm truncate">
+                                                            <div dir="auto" className="text-left font-semibold text-sm truncate">
                                                                 {group.supplierName === NO_SUPPLIER_KEY ? t("supplies.ro.noSupplier") : group.supplierName}
                                                             </div>
                                                             <div className="text-[11px] text-muted flex items-center gap-2 mt-0.5 whitespace-nowrap">
@@ -474,6 +474,11 @@ export function ReorderDrawer({
                                                 {/* Group items */}
                                                 {isExpanded && (
                                                     <div className="px-5 pb-4 space-y-2">
+                                                        {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
+                                                            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                                                                {t("supplies.ro.onDraftGroup", { number: draftBySupplier.get(group.supplierName.trim().toLowerCase())?.number ?? "" })}
+                                                            </p>
+                                                        )}
                                                         {group.items.map((item) => (
                                                             <ReorderItemRow
                                                                 key={item.supply.id}
@@ -605,7 +610,7 @@ function ReorderItemRow({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                            <div className="font-medium text-sm truncate">
+                            <div dir="auto" className="text-left font-medium text-sm truncate">
                                 {item.supply.name}
                             </div>
                             <div className="text-[11px] text-muted font-mono mt-0.5">
@@ -638,11 +643,9 @@ function ReorderItemRow({
                         />
                     </div>
 
-                    {/* Qty editor + actions */}
+                    {/* Qty editor + actions; a drafted row has neither (the group says why). */}
+                    {!readOnly && (
                     <div className="mt-2.5 flex items-center justify-between gap-2">
-                        {readOnly ? (
-                            <p className="text-[11px] text-muted">{t("supplies.ro.onDraft")}</p>
-                        ) : (
                             <div className="flex items-center gap-2">
                                 <label className="text-[11px] text-muted uppercase tracking-wide">
                                     {t("supplies.ro.qty")}
@@ -663,13 +666,10 @@ function ReorderItemRow({
                                     {item.unitCost > 0 ? `× ${formatIQD(item.unitCost)}` : t("supplies.ro.noCost")}
                                 </span>
                             </div>
-                        )}
                         <div className="flex items-center gap-2">
-                            {!readOnly && (
-                                <span className="text-sm font-semibold tabular-nums">
-                                    {formatIQD(lineCost)}
-                                </span>
-                            )}
+                            <span className="text-sm font-semibold tabular-nums">
+                                {formatIQD(lineCost)}
+                            </span>
                             {snoozed ? (
                                 <button
                                     onClick={onUnsnooze}
@@ -689,6 +689,7 @@ function ReorderItemRow({
                             )}
                         </div>
                     </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -734,7 +735,7 @@ function UrgencyChip({
                 {days !== null
                     ? days <= 0
                         ? t("supplies.ro.outNow")
-                        : t("supplies.ro.daysLeft", { days })
+                        : t("supplies.ro.daysLeft", { days: t("supplies.sp.leadDays", { count: days }) })
                     : t("supplies.ro.critical")}
             </span>
         );
@@ -743,12 +744,12 @@ function UrgencyChip({
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-100 px-2 py-0.5 text-[10px] font-medium dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30">
                 <Clock className="w-3 h-3" />
-                {days !== null ? t("supplies.ro.daysLeft", { days }) : t("supplies.ro.atRisk")}
+                {days !== null ? t("supplies.ro.daysLeft", { days: t("supplies.sp.leadDays", { count: days }) }) : t("supplies.ro.atRisk")}
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 px-2 py-0.5 text-[10px] font-medium dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30">
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-100 px-2 py-0.5 text-[10px] font-medium dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30">
             {t("supplies.ro.belowReorder")}
         </span>
     );
