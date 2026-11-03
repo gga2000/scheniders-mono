@@ -48,11 +48,19 @@ export async function refreshProductRows(
         return;
     }
     const byId = new Map(unique.map((id, i) => [id, rows[i]]));
-    queryClient.setQueryData<Product[]>(key, (old) =>
-        old
-            ?.filter((p) => !byId.has(p.id) || byId.get(p.id) !== null)
-            .map((p) => byId.get(p.id) ?? p),
-    );
+    queryClient.setQueryData<Product[]>(key, (old) => {
+        if (!old) return old;
+        const present = new Set(old.map((p) => p.id));
+        // A new product is not in the list yet: it goes first (the list is newest first).
+        const added = unique.flatMap((id) => {
+            const row = byId.get(id);
+            return row && !present.has(id) ? [row] : [];
+        });
+        return [
+            ...added,
+            ...old.filter((p) => !byId.has(p.id) || byId.get(p.id) !== null).map((p) => byId.get(p.id) ?? p),
+        ];
+    });
 }
 
 /** More rows than this and one full read is cheaper than many single ones. */
@@ -117,9 +125,7 @@ export function useAddProductMutation() {
         mutationFn: async (productData: Parameters<typeof productRepository.create>[0]) => {
             return productRepository.create(productData, tenantId);
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-        }
+        onSuccess: (created) => refreshProductRows(queryClient, tenantId, [created.id]),
     });
 }
 
@@ -228,43 +234,47 @@ export function useDeleteProductMutation() {
 
 export function useBulkUpdatePricesMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async ({ changes, price }: { changes: BulkPriceChange[]; price: number }) => {
             await productRepository.bulkChangePrice(changes, price);
             return { ids: changes.map((c) => c.id), price };
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { changes }) => refreshProductRows(queryClient, tenantId, changes.map((c) => c.id))
     });
 }
 
 export function useRestorePricesMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: (previous: Parameters<typeof productRepository.restorePrices>[0]) =>
             productRepository.restorePrices(previous),
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
+        onSettled: (_data, _err, previous) => refreshProductRows(queryClient, tenantId, previous.map((p) => p.id)),
     });
 }
 
 export function useBulkArchiveMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (ids: string[]) => {
             await productRepository.bulkArchive(ids);
             return ids;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, ids) => refreshProductRows(queryClient, tenantId, ids)
     });
 }
 
 export function useBulkRestoreMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (ids: string[]) => {
             await productRepository.bulkRestore(ids);
             return ids;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, ids) => refreshProductRows(queryClient, tenantId, ids)
     });
 }
 
@@ -393,7 +403,7 @@ export function useBulkUpdateVisibilityMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { ids }) => refreshProductRows(queryClient, tenantId, ids)
     });
 }
 
@@ -432,29 +442,32 @@ export function useAddVariantMutation() {
         mutationFn: async ({ productId, data }: { productId: string; data: Partial<ProductVariant> }) => {
             return productRepository.addVariant(productId, data, tenantId);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
     });
 }
 
 export function useUpdateVariantMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ id, data }: { id: string; data: VariantUpdate }) => {
+        mutationFn: async ({ id, data }: { productId: string; id: string; data: VariantUpdate }) => {
             await productRepository.updateVariant(id, data);
             return { id, data };
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        // Only the product that owns the variant is re-read, not the whole catalogue.
+        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
     });
 }
 
 export function useDeleteVariantMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async (id: string) => {
+        mutationFn: async ({ id }: { productId: string; id: string }) => {
             await productRepository.deleteVariant(id);
             return id;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
     });
 }
 
