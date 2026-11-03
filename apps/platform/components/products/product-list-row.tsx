@@ -237,7 +237,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                 </div>
 
                 {/* Stock column with progress bar */}
-                <div className="hidden sm:flex flex-col items-center gap-1 min-w-[100px]">
+                <div className="hidden sm:flex flex-col items-center gap-1 w-[112px] shrink-0">
                     <Popover open={stockAdjustOpen} onOpenChange={setStockAdjustOpen}>
                         <PopoverTrigger asChild>
                             <button
@@ -305,7 +305,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                 </div>
 
                 {/* Price + Margin */}
-                <div className="hidden md:flex flex-col items-end min-w-[100px]">
+                <div className="hidden md:flex flex-col items-end w-[120px] shrink-0">
                     <Popover open={priceEditOpen} onOpenChange={setPriceEditOpen}>
                         <PopoverTrigger asChild>
                             <button
@@ -352,7 +352,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                 </div>
 
                 {/* Sales */}
-                <div className="hidden lg:flex flex-col items-center min-w-[70px]">
+                <div className="hidden lg:flex flex-col items-center w-[72px] shrink-0">
                     <p className="text-lg font-bold text-foreground">
                         {product.times_sold || 0}
                     </p>
@@ -360,7 +360,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                 </div>
 
                 {/* Revenue */}
-                <div className="hidden lg:flex flex-col items-end min-w-[100px]">
+                <div className="hidden lg:flex flex-col items-end w-[120px] shrink-0">
                     <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">
                         {maskIQD(product.total_revenue || 0, showFinancials)}
                     </p>
@@ -368,12 +368,12 @@ export const ProductListRow = React.memo(function ProductListRow({
                 </div>
 
                 {/* Health Score */}
-                <div className="hidden xl:flex items-center">
+                <div className="hidden xl:flex items-center justify-center w-[56px] shrink-0">
                     <HealthScoreBadge score={healthScore} size="sm" />
                 </div>
 
                 {/* Visibility */}
-                <div className="hidden xl:flex items-center">
+                <div className="hidden xl:flex items-center justify-center w-[40px] shrink-0">
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
