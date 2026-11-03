@@ -429,8 +429,8 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                 <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
                     <span dir="ltr" className="min-w-0 truncate text-left">
                         {/* bdi: an Arabic name stays one piece inside the Latin line. */}
-                        {rule.quantity} × <bdi>{selected.name}</bdi>
-                        {selected.sku && <span className="font-mono"> ({selected.sku})</span>} @{" "}
+                        {/* The select above shows the name; the line names the SKU when there is one. */}
+                        {rule.quantity} × {selected.sku ? <span className="font-mono">{selected.sku}</span> : <bdi>{selected.name}</bdi>} @{" "}
                         <span className="tabular-nums">
                             {selected.cost == null ? "—" : formatIQD(selected.cost)}
                         </span>
