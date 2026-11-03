@@ -7,6 +7,7 @@ import { validatePhoneDetailed } from "@/lib/order-utils";
 import { FollowUpCueBadge } from "../follow-up-cue-badge";
 import { MessageCircle, Edit, XCircle, Ban, ShieldCheck, PhoneCall, CheckCircle, Truck, RotateCcw, Pin, Copy, CopyPlus, MoreVertical, Camera, Scissors } from "lucide-react";
 import type { OrderCardModel } from "./use-order-card-model";
+import { PrimeTrackToggle } from "./prime-track-toggle";
 
 /** One section of the full order card; see FullOrderCard in ../order-card.tsx. */
 export function FullCardActions({ m }: { m: OrderCardModel }) {
@@ -21,6 +22,9 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                     ? "bg-black/5 dark:bg-[#1A1A1A] p-1 gap-1 flex-row rounded-2xl border border-black/5 dark:border-white/5 shadow-inner"
                     : "gap-2"
             )}>
+                {/* Prime band on/off, on cards whose parcel is with Prime */}
+                <PrimeTrackToggle order={order} docked={actionDock} />
+
                 {/* Follow-up cue badge */}
                 {followUp && (
                     <FollowUpCueBadge

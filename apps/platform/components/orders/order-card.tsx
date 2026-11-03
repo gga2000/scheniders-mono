@@ -16,6 +16,7 @@ import { FullCardDetails } from "./card/full-card-details";
 import { FullCardPrice } from "./card/full-card-price";
 import { FullCardMobile } from "./card/full-card-mobile";
 import { FullCardActions } from "./card/full-card-actions";
+import { PrimeBand } from "./card/prime-band";
 
 export const OrderCard = memo(function OrderCard(props: OrderCardProps) {
     const { compact = 0, gridMode = false } = props;
@@ -144,7 +145,8 @@ function FullOrderCard(props: OrderCardProps) {
                     </>
                 )}
 
-                {/* Main Content Row */}
+                {/* Main content row, and the Prime band under it (desktop) */}
+                <div className="flex min-w-0 flex-1 flex-col">
                 <div
                     className={cn(
                         "flex-1 flex items-center gap-4 overflow-hidden cursor-pointer md:cursor-default",
@@ -174,6 +176,8 @@ function FullOrderCard(props: OrderCardProps) {
                     <div className="w-px h-16 bg-[var(--card-border)] flex-shrink-0 hidden md:block dark:bg-white/5" />
 
                     <FullCardActions m={m} />
+                </div>
+                <PrimeBand m={m} />
                 </div>
 
             </motion.div >

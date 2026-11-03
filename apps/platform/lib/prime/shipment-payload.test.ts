@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildPrimeShipment, primeAddress, primePhone, primeShipmentHash, primeUpdateFields } from "./shipment-payload";
+import { buildPrimeShipment, primeAddress, primeShipmentHash, primeUpdateFields } from "./shipment-payload";
+import { primePhone, primePhoneDigits } from "./phone";
 import { PRIME_LIMITS } from "./client";
 import type { CourierSheetOrder } from "@/lib/shipping/courier-sheets";
 
@@ -34,6 +35,13 @@ describe("primePhone", () => {
     ])("%s → %s", (input, expected) => expect(primePhone(input)).toBe(expected));
 
     it.each(["", "12345", "0612345678", null, undefined])("rejects %s", (input) => expect(primePhone(input)).toBeNull());
+
+    it("counts digits the way staff write the number, for «10 digits · Prime needs 11»", () => {
+        expect(primePhoneDigits("0770123456")).toBe(10);
+        expect(primePhoneDigits("+9647701234567")).toBe(11);
+        expect(primePhoneDigits("077012345678")).toBe(12);
+        expect(primePhoneDigits("")).toBe(0);
+    });
 });
 
 describe("buildPrimeShipment", () => {

@@ -9,6 +9,7 @@ import { primeChipState, primeSkipReason, type PrimeChipTone, type PrimeShipment
 import { cn } from "@/lib/utils";
 import type { Order } from "@/types/order";
 import { PrimeResendButton } from "./prime-resend-button";
+import { usePrimeBand } from "./use-prime-band";
 
 /** Cards that can carry the chip: out with Prime, or cancelled after it was sent. */
 const CHIP_ORDER_STATUSES = new Set<string>(["confirmed", "in_transit", "cancelled"]);
@@ -53,7 +54,9 @@ export function PrimeChip({ order }: { order: ChipOrder }) {
 function PrimeChipFor({ order }: { order: ChipOrder }) {
     const { t } = useLanguage();
     const view = usePrimeShipments().get(order.id);
-    if (!view) return null;
+    // The band under the card shows the same parcel in full.
+    const band = usePrimeBand(order);
+    if (!view || band.shown) return null;
     const state = primeChipState(view, order.status);
     const tone = TONE[state.tone];
     const label = state.deleted ? t("orders.prime.deleted") : state.stepName;

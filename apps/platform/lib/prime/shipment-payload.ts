@@ -3,7 +3,6 @@ import { toOmsGovernorateCode } from "@scheniders/shared/governorates";
 import { computeCodAmount } from "@/lib/order-money";
 import { labelReceiptNumber } from "@/lib/dispatch-label";
 import {
-    cleanPhoneForExport,
     courierGovernorateCode,
     courierNotes,
     productType,
@@ -11,6 +10,7 @@ import {
     type CourierSheetOrder,
 } from "@/lib/shipping/courier-sheets";
 import { PRIME_LIMITS, type PrimeShipmentPayload, type PrimeShipmentUpdate } from "@/lib/prime/client";
+import { primePhone } from "@/lib/prime/phone";
 
 /** The Prime merchant + shop a tenant ships as (prime_connections). */
 export interface PrimeMerchant {
@@ -28,12 +28,6 @@ export type PrimeSkipReason = "after_sale" | "no_governorate" | "bad_phone" | "n
 export type PrimePayloadResult =
     | { ok: true; payload: PrimeShipmentPayload }
     | { ok: false; reason: PrimeSkipReason };
-
-/** 07xxxxxxxxx, the 11 digits Prime requires, or null. */
-export function primePhone(phone: string | null | undefined): string | null {
-    const local = cleanPhoneForExport(phone ?? "");
-    return /^7\d{9}$/.test(local) ? `0${local}` : null;
-}
 
 /** Text cut to what Prime's column holds (a longer value is refused with no message). */
 function clip(text: string | null | undefined, max: number): string {

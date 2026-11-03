@@ -29,6 +29,8 @@ interface ShipRunDialogProps {
     shipping: boolean;
     /** The orders go to Prime through the API (else in the Prime Excel file). */
     primeLinked: boolean;
+    /** While the run is handed to Prime: parcels answered so far of the run. */
+    primeProgress?: { done: number; total: number } | null;
     /** Ship exactly these orders: labels PDF, Prime hand-off, in transit. */
     onShip: (orders: Order[], options: { moveToTransit: boolean }) => void;
 }
@@ -52,6 +54,7 @@ export function ShipRunDialog({
     onRemove,
     shipping,
     primeLinked,
+    primeProgress,
     onShip,
 }: ShipRunDialogProps) {
     const { t } = useLanguage();
@@ -239,7 +242,9 @@ export function ShipRunDialog({
                         )}
                     >
                         {shipping ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
-                        {shipping
+                        {shipping && primeProgress && primeProgress.total > 0
+                            ? t("printing.prime.handing", { done: primeProgress.done, total: primeProgress.total })
+                            : shipping
                             ? t("printing.shipping")
                             : t(!moveToTransit ? "printing.shipFilesOnly" : risky ? "printing.shipAnyway" : "printing.shipConfirm", { count })}
                     </button>

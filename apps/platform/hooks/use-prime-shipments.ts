@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -8,6 +8,7 @@ import { orderKeys } from "@/hooks/use-orders-query";
 import { useOrdersListSettledOnce } from "@/hooks/orders-list-coverage";
 import { supabase } from "@/lib/supabase";
 import type { PrimeShipmentView } from "@/lib/prime/chip-state";
+import { primeBucket, primeIsStuck, type PrimeRowFilter } from "@/lib/prime/track";
 
 /** Orders whose card can carry a Prime chip: out with Prime, or cancelled after it was sent. */
 const CHIP_STATUSES = ["confirmed", "in_transit", "cancelled"] as const;
@@ -20,7 +21,11 @@ const rowSchema = z.object({
     order_id: z.string(),
     case_id: z.coerce.number(),
     shipment_status: z.string().nullable(),
+    step_code: z.string().nullable(),
     step_name: z.string().nullable(),
+    sent_at: z.string(),
+    receipt_amount_iqd: z.coerce.number().nullable(),
+    shipment_charge: z.coerce.number().nullable(),
     checked_at: z.string().nullable(),
     status_changed_at: z.string().nullable(),
     push_needed_at: z.string().nullable(),
@@ -38,7 +43,7 @@ async function fetchPrimeShipments(tenantId: string): Promise<ReadonlyMap<string
     const { data, error } = await supabase
         .from("prime_shipments")
         .select(
-            "order_id, case_id, shipment_status, step_name, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at, orders!inner(status)",
+            "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at, orders!inner(status)",
         )
         .eq("tenant_id", tenantId)
         .in("orders.status", [...CHIP_STATUSES])
@@ -52,7 +57,11 @@ async function fetchPrimeShipments(tenantId: string): Promise<ReadonlyMap<string
             {
                 caseId: r.case_id,
                 status: r.shipment_status,
+                stepCode: r.step_code,
                 stepName: r.step_name,
+                sentAt: r.sent_at,
+                receiptAmountIqd: r.receipt_amount_iqd,
+                shipmentCharge: r.shipment_charge,
                 checkedAt: r.checked_at,
                 statusChangedAt: r.status_changed_at,
                 pending: r.push_needed_at !== null || r.cancel_needed_at !== null,
@@ -75,10 +84,14 @@ const primeShipmentsKey = (tenantId: string | null | undefined) => [...orderKeys
  * refreshes it. Tenants without the link get an empty map and no polling.
  */
 export function usePrimeShipments(): ReadonlyMap<string, PrimeShipmentView> {
+    return usePrimeShipmentsQuery().data ?? EMPTY;
+}
+
+function usePrimeShipmentsQuery() {
     const { session, clientReady, tenantId } = useAuth();
     // Not needed for the first card: waits for the list (see useOrdersListSettledOnce).
     const listSettled = useOrdersListSettledOnce();
-    const { data } = useQuery({
+    return useQuery({
         queryKey: primeShipmentsKey(tenantId),
         queryFn: () => {
             if (!tenantId) throw new Error("No active tenant");
@@ -88,7 +101,100 @@ export function usePrimeShipments(): ReadonlyMap<string, PrimeShipmentView> {
         staleTime: 30_000,
         refetchInterval: (query) => ((query.state.data?.size ?? 0) > 0 ? REFRESH_MS : false),
     });
-    return data ?? EMPTY;
+}
+
+const NO_SETS: ReadonlyMap<PrimeRowFilter, ReadonlySet<string>> = new Map();
+
+/**
+ * Order ids per bucket of the "in transit" Prime row (on the way, postponed,
+ * needs you, coming back) and of "stuck 3+ days". Stuck is measured against
+ * when the shipments were read, so it moves with each refresh, not each render.
+ */
+export function usePrimeRowSets(): { sets: ReadonlyMap<PrimeRowFilter, ReadonlySet<string>>; readAt: number } {
+    const { data, dataUpdatedAt } = usePrimeShipmentsQuery();
+    const sets = useMemo(() => {
+        if (!data || data.size === 0) return NO_SETS;
+        const byFilter = new Map<PrimeRowFilter, Set<string>>();
+        const add = (filter: PrimeRowFilter, orderId: string) => {
+            const ids = byFilter.get(filter) ?? new Set<string>();
+            ids.add(orderId);
+            byFilter.set(filter, ids);
+        };
+        for (const [orderId, view] of data) {
+            const bucket = primeBucket(view);
+            if (bucket) add(bucket, orderId);
+            if (primeIsStuck(view, dataUpdatedAt)) add("stuck", orderId);
+        }
+        return byFilter;
+    }, [data, dataUpdatedAt]);
+    return { sets, readAt: dataUpdatedAt };
+}
+
+const journeyAnswer = z.discriminatedUnion("ok", [
+    z.object({
+        success: z.literal(true),
+        ok: z.literal(true),
+        caseId: z.number(),
+        sentAt: z.string(),
+        resentAt: z.string().nullable(),
+        steps: z.array(
+            z.object({ at: z.string().nullable(), stepCode: z.string().nullable(), stepName: z.string().nullable(), status: z.string().nullable() }),
+        ),
+    }),
+    z.object({ success: z.literal(true), ok: z.literal(false), reason: z.string() }),
+]);
+export type PrimeJourneyAnswer = z.infer<typeof journeyAnswer>;
+
+/** The parcel's journey at Prime (GET /api/prime/history), read when its panel opens and kept a minute. */
+export function usePrimeJourney(orderId: string, enabled: boolean) {
+    const { session, tenantId } = useAuth();
+    const token = session?.access_token;
+    return useQuery({
+        queryKey: ["prime-journey", tenantId, orderId],
+        enabled: enabled && !!token,
+        staleTime: 60_000,
+        queryFn: async (): Promise<PrimeJourneyAnswer> => {
+            const res = await fetch(`/api/prime/history?orderId=${encodeURIComponent(orderId)}`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) throw new Error(`Prime journey failed: ${res.status}`);
+            return journeyAnswer.parse(await res.json());
+        },
+    });
+}
+
+/** A customer's earlier parcels with Prime, by phone: how many, and how many came back. */
+export interface PrimeCustomerRecord {
+    parcels: number;
+    delivered: number;
+    returned: number;
+}
+
+const recordRowSchema = z.object({ order_id: z.string(), shipment_status: z.string().nullable() });
+const DELIVERED = new Set(["DELIVERED", "PART_DELIVERED", "DELIVERED_CHANGE_PRICE"]);
+
+/** The customer's other Prime parcels in this store (RLS keeps it to the tenant), for the order's Prime panel. */
+export function usePrimeCustomerRecord(orderId: string, phone: string, enabled: boolean) {
+    const { session, clientReady, tenantId } = useAuth();
+    return useQuery({
+        queryKey: [...orderKeys.lists(), "prime-customer", tenantId, phone],
+        enabled: enabled && !!session && clientReady && !!tenantId && phone.trim() !== "",
+        staleTime: 5 * 60_000,
+        queryFn: async (): Promise<PrimeCustomerRecord> => {
+            if (!tenantId) throw new Error("No active tenant");
+            const { data, error } = await supabase
+                .from("prime_shipments")
+                .select("order_id, shipment_status, orders!inner(phone)")
+                .eq("tenant_id", tenantId)
+                .eq("orders.phone", phone)
+                .is("cancelled_at", null);
+            if (error) throw error;
+            const others = z.array(recordRowSchema).parse(data ?? []).filter((r) => r.order_id !== orderId);
+            return {
+                parcels: others.length,
+                delivered: others.filter((r) => r.shipment_status !== null && DELIVERED.has(r.shipment_status)).length,
+                returned: others.filter((r) => r.shipment_status === "FAILED_DELIVER_RETURNED_TO_SENDER").length,
+            };
+        },
+    });
 }
 
 const resendAnswer = z.object({

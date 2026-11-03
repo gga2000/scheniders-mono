@@ -269,3 +269,48 @@ describe("edits, deletions and resends", () => {
         expect(isPrimeUnreachable(err)).toBe(false);
     });
 });
+
+describe("case history and charges", () => {
+    it("reads each movement in either of Prime's field spellings", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(
+                json(200, [
+                    { district: 0, qty: 0, queueEnterDate: "2026-11-04 00:02:24", receiverName: "", shipmentStatus: "ONWAY", stepCode: "READYTOPICKUP" },
+                    { createddt: "2026-11-04 09:10:00", status: "POSTPONED", stepCode: "POSTPONED" },
+                ]),
+            );
+        const client = createPrimeClient(config, fetchImpl);
+
+        expect(await client.caseHistory(52176701)).toEqual([
+            { stepCode: "READYTOPICKUP", enteredAt: "2026-11-04 00:02:24", status: "ONWAY" },
+            { stepCode: "POSTPONED", enteredAt: "2026-11-04 09:10:00", status: "POSTPONED" },
+        ]);
+        const [url, init] = fetchImpl.mock.calls[1];
+        expect(url).toBe("https://prime.test/myp/webapi/external/case-history/52176701");
+        expect(init?.method).toBe("GET");
+    });
+
+    it("a case that is not ours is Prime's 4005", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(json(422, { errorCode: 4005, errorMessage: "لم يتم إيجاد الشحنة" }));
+        const err = await createPrimeClient(config, fetchImpl).caseHistory(1).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(PrimeApiError);
+        expect((err as PrimeApiError).code).toBe(4005);
+    });
+
+    it("reads the charge, and null when Prime has no price for the state", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(json(200, { shipmentCharge: 6000, stateName: "البصرة", other: { nested: true } }))
+            .mockResolvedValueOnce(json(200, { shipmentCharge: null, stateName: null }));
+        const client = createPrimeClient(config, fetchImpl);
+
+        expect(await client.shipmentCharge("m", "BAS", 36_750)).toBe(6000);
+        expect(await client.shipmentCharge("m", "XXX", 36_750)).toBeNull();
+        const [url, init] = fetchImpl.mock.calls[1];
+        expect(url).toBe("https://prime.test/myp/webapi/external/calculate-shipment-charges");
+        expect(JSON.parse(String(init?.body))).toEqual({ merchantLoginId: "m", state: "BAS", receiptAmtIqd: 36_750 });
+    });
+});

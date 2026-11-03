@@ -8,8 +8,16 @@
 export interface PrimeShipmentView {
     caseId: number;
     status: string | null;
+    /** Prime's step code (list-of-system-steps): where the parcel is (lib/prime/track). */
+    stepCode: string | null;
     /** Prime's own Arabic step name (list-of-system-steps). */
     stepName: string | null;
+    /** When the parcel was handed to Prime. */
+    sentAt: string;
+    /** The cash Prime collects at the door (whole IQD), as Prime last reported it. */
+    receiptAmountIqd: number | null;
+    /** Prime's delivery charge for the parcel (whole IQD), as Prime last reported it. */
+    shipmentCharge: number | null;
     checkedAt: string | null;
     statusChangedAt: string | null;
     /** An edit or cancellation is queued and has not reached Prime yet. */
