@@ -15,7 +15,7 @@ import { fetchPurchaseOrderLines } from "@/lib/repositories/purchase-orders";
 import { fetchPurchaseOrderLineCosts } from "@/lib/repositories/purchase-costs";
 import { formatCount } from "@/lib/utils";
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -31,6 +31,7 @@ interface PoReceiveDialogProps {
 /** Enter what arrived per line; the database adds it to stock and moves the PO to partial or received. */
 export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiveDialogProps) {
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const queryClient = useQueryClient();
     const { receive } = usePurchaseOrderActions();
     const { can } = usePermission();
@@ -166,8 +167,8 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>{t("supplies.po.receiveTitle", { number: poNumber })}</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle dir={textDir} className="text-left">{t("supplies.po.receiveTitle", { number: poNumber })}</DialogTitle>
+                    <DialogDescription dir={textDir} className="text-left">
                         {t("supplies.po.receiveHint")}
                         {canSetCost && ` ${t("supplies.po.invoiceCostHint")}`}
                     </DialogDescription>

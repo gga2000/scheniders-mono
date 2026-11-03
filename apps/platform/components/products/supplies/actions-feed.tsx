@@ -24,7 +24,7 @@ import {
 } from "@/lib/utils/supply-forecasting";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
 import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 
 const COLLAPSE_KEY = "supplies.actionsFeed.collapsed";
 
@@ -102,6 +102,7 @@ export function ActionsFeed({
     onOpenReorder,
 }: ActionsFeedProps) {
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const [collapsed, setCollapsed] = useState<boolean>(true);
     const [dismissed, setDismissed] = useState<Set<string>>(new Set());
     const { data: supplierPos = [] } = useSupplierPos();
@@ -376,7 +377,7 @@ export function ActionsFeed({
                                         <Icon className="w-4 h-4" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+                                        <p dir={textDir} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted">
                                             {a.title}
                                         </p>
                                         <p className="text-sm font-semibold truncate">
@@ -385,7 +386,7 @@ export function ActionsFeed({
                                     </div>
                                 </div>
 
-                                <p className="text-[11px] text-foreground/80 line-clamp-2 min-h-[28px]">
+                                <p dir={textDir} className="text-left text-[11px] text-foreground/80 line-clamp-2 min-h-[28px]">
                                     {a.detail}
                                 </p>
 

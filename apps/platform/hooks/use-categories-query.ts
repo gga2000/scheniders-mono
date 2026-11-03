@@ -96,9 +96,10 @@ export function useAddCategoryMutation() {
             data: Partial<Omit<Category, "id" | "tenant_id" | "created_at" | "updated_at">> &
                 Pick<Category, "name" | "slug">,
         ) => {
+            if (!tenantId) throw new ProductWriteDeniedError("add category");
             const { data: newCategory, error } = await supabase
                 .from("categories")
-                .insert([{ ...data, tenant_id: tenantId! } as never])
+                .insert([{ ...data, tenant_id: tenantId }])
                 .select()
                 .single();
             if (error) throw error;
@@ -116,7 +117,7 @@ export function useUpdateCategoryMutation() {
         mutationFn: async ({ id, data }: { id: string; data: Partial<Category> }) => {
             const { data: changed, error } = await supabase
                 .from("categories")
-                .update(data as never)
+                .update(data)
                 .eq("id", id)
                 .select("id");
             if (error) throw error;
@@ -125,6 +126,36 @@ export function useUpdateCategoryMutation() {
             return { id, data };
         },
         onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+        },
+    });
+}
+
+/** What a bulk change may set on many categories at once. */
+export type CategoryBulkPatch =
+    | { status: "archived"; archived_at: string }
+    | { status: "published"; archived_at: null }
+    | { show_in_main_nav: boolean };
+
+/**
+ * One write for many categories. RLS drops the rows the member may not change,
+ * so the result lists the ids that did change and the caller treats the rest
+ * as failed.
+ */
+export function useBulkUpdateCategoriesMutation() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ ids, patch }: { ids: string[]; patch: CategoryBulkPatch }): Promise<string[]> => {
+            if (ids.length === 0) return [];
+            const { data, error } = await supabase
+                .from("categories")
+                .update(patch)
+                .in("id", ids)
+                .select("id");
+            if (error) throw error;
+            return (data ?? []).map((row) => row.id);
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: categoryKeys.all });
         },
     });
@@ -161,7 +192,7 @@ export function useArchiveCategoryMutation() {
                 .update({
                     status: "archived",
                     archived_at: new Date().toISOString(),
-                } as never)
+                })
                 .eq("id", id)
                 .select("id");
             if (error) throw error;
@@ -183,7 +214,7 @@ export function useRestoreCategoryMutation() {
                 .update({
                     status: "published",
                     archived_at: null,
-                } as never)
+                })
                 .eq("id", id)
                 .select("id");
             if (error) throw error;

@@ -134,7 +134,7 @@ export function AttributesTab() {
                                             <p className="mt-1 text-sm text-muted break-words">{summarise(def, language)}</p>
                                         )}
                                         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted">
-                                            <span>{t("attributes.usedOn").replace("{n}", String(used))}</span>
+                                            <span>{t("attributes.usedOn", { n: String(used) })}</span>
                                             {def.is_filterable && (
                                                 <span className="inline-flex items-center gap-1">
                                                     <Filter className="w-3 h-3" />
@@ -176,7 +176,7 @@ export function AttributesTab() {
                                             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
                                             {/* Deleting cascades to the values, so say how many
                                                 are about to go rather than asking "are you sure?" */}
-                                            <span>{t("attributes.deleteWarning").replace("{n}", String(used))}</span>
+                                            <span>{t("attributes.deleteWarning", { n: String(used) })}</span>
                                         </p>
                                         <div className="mt-3 flex gap-2">
                                             <button

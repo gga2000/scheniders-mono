@@ -58,7 +58,7 @@ export function OrderBumpsSection({ bumps, onChange, currentProductId }: OrderBu
             {
                 bump_product_id: product.id,
                 discount_percentage: 10,
-                headline: t("products.ed.bump.defaultHeadline").replace("{name}", product.name),
+                headline: t("products.ed.bump.defaultHeadline", { name: product.name }),
                 description: t("products.ed.bump.defaultDescription"),
                 display_order: bumps.length,
                 is_active: true,

@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { Package, AlertTriangle } from "lucide-react";
 import { Switch } from "@scheniders/ui/switch";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { parseStorefrontStock } from "@/lib/storefront-stock";
 import { parseWholeNumber } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ interface ProductInventorySectionProps {
 
 export function ProductInventorySection({ formData, updateField, reservedQuantity = 0 }: ProductInventorySectionProps) {
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const available = formData.stock_quantity - reservedQuantity;
     const isLowStock = available > 0 && available <= formData.low_stock_threshold;
     const isOutOfStock = available <= 0;
@@ -63,7 +64,7 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                         min={0}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
-                    <p className="mt-1.5 text-xs text-muted">{t("products.ed.lowStockHint")}</p>
+                    <p dir={textDir} className="text-left mt-1.5 text-xs text-muted">{t("products.ed.lowStockHint")}</p>
                 </div>
             </div>
 
@@ -95,10 +96,10 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                                 min={0}
                                 className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
-                            <p className="text-xs text-muted">{t("products.ed.storefrontStockOn")}</p>
+                            <p dir={textDir} className="text-left text-xs text-muted">{t("products.ed.storefrontStockOn")}</p>
                         </div>
                     ) : (
-                        <p className="text-xs text-muted">
+                        <p dir={textDir} className="text-left text-xs text-muted">
                             {t("products.ed.storefrontStockOff", { count: Math.max(0, available) })}
                         </p>
                     )}
@@ -107,25 +108,25 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
 
             {reservedQuantity > 0 && (
                 <div className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-blue)] rounded-xl text-sm text-blue-700 tabular-nums">
-                    <span className="font-medium">{t("products.ed.available").replace("{n}", String(available))}</span>
+                    <span className="font-medium">{t("products.ed.available", { n: String(available) })}</span>
                     <span aria-hidden>·</span>
-                    <span>{t("products.ed.reserved").replace("{n}", String(reservedQuantity))}</span>
+                    <span>{t("products.ed.reserved", { n: String(reservedQuantity) })}</span>
                     <span aria-hidden>·</span>
-                    <span>{t("products.ed.total").replace("{n}", String(formData.stock_quantity))}</span>
+                    <span>{t("products.ed.total", { n: String(formData.stock_quantity) })}</span>
                 </div>
             )}
 
             {isLowStock && (
                 <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl dark:bg-amber-500/15 dark:border-amber-500/30">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 dark:text-amber-300" />
-                    <p className="text-sm text-amber-700 dark:text-amber-300">{t("products.ed.lowStockNote").replace("{n}", String(available))}</p>
+                    <p dir={textDir} className="text-left text-sm text-amber-700 dark:text-amber-300">{t("products.ed.lowStockNote", { n: available })}</p>
                 </div>
             )}
 
             {isOutOfStock && (
                 <div className="flex items-center gap-2 px-4 py-3 bg-rose-50 border border-rose-200 rounded-xl dark:bg-rose-500/15 dark:border-rose-500/30">
                     <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 dark:text-rose-300" />
-                    <p className="text-sm text-rose-700 dark:text-rose-300">{t("products.ed.outOfStockNote")}</p>
+                    <p dir={textDir} className="text-left text-sm text-rose-700 dark:text-rose-300">{t("products.ed.outOfStockNote")}</p>
                 </div>
             )}
         </div>

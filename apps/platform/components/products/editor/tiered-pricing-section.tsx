@@ -247,11 +247,11 @@ export function TieredPricingSection({
             {/* Pricing summary */}
             {tiers.length > 0 && (
                 <p className="text-sm text-muted">
-                    {t("products.ed.tier.base").replace("{price}", formatCount(basePrice))}
+                    {t("products.ed.tier.base", { price: formatCount(basePrice) })}
                     {bestPrice !== null && (
                         <>
-                            {" \u00b7 "}{t("products.ed.tier.best").replace("{price}", formatCount(bestPrice))}
-                            {bestDiscount !== null && ` (${t("products.ed.tier.off").replace("{pct}", String(bestDiscount))})`}
+                            {" \u00b7 "}{t("products.ed.tier.best", { price: formatCount(bestPrice) })}
+                            {bestDiscount !== null && ` (${t("products.ed.tier.off", { pct: String(bestDiscount) })})`}
                         </>
                     )}
                 </p>

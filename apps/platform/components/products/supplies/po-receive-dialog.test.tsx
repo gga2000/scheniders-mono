@@ -12,7 +12,7 @@ vi.mock("@/lib/repositories/purchase-orders", () => ({
 vi.mock("@/hooks/use-purchase-order-actions", () => ({
     usePurchaseOrderActions: () => ({ receive: { mutate, isPending: false } }),
 }));
-vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
+vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }), useTextDir: () => "ltr" }));
 vi.mock("@/hooks/use-permission", () => ({ usePermission: () => ({ can: () => false }) }));
 vi.mock("@/hooks/use-toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 

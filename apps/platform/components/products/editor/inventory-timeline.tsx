@@ -197,7 +197,7 @@ export function InventoryTimeline({ entries }: InventoryTimelineProps) {
 
                                         {/* Before -> After */}
                                         <p className="text-sm text-muted mt-1">
-                                            {t("products.ed.inv.beforeAfter").replace("{before}", String(entry.quantity_before)).replace("{after}", String(entry.quantity_after))}
+                                            {t("products.ed.inv.beforeAfter", { before: String(entry.quantity_before), after: String(entry.quantity_after) })}
                                         </p>
 
                                         {/* Bottom details */}

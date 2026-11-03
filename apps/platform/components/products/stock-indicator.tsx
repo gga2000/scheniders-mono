@@ -124,7 +124,7 @@ export function StockIndicator({
                 <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.reorderTo")}</span><span className="font-semibold">{reorderSuggestion}</span></div>
             )}
             {daysToStockout !== null && (
-                <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.stockoutIn")}</span><span className="font-semibold">{t("products.stock.tip.days").replace("{days}", String(daysToStockout))}</span></div>
+                <div className="flex items-center justify-between"><span className="text-white/60">{t("products.stock.tip.stockoutIn")}</span><span className="font-semibold">{t("products.stock.tip.days", { days: String(daysToStockout) })}</span></div>
             )}
         </div>
     ) : null;
@@ -181,7 +181,7 @@ export function StockIndicator({
                     role="progressbar"
                     aria-valuenow={quantity}
                     aria-valuemax={effectiveThreshold}
-                    aria-label={t("products.stock.tip.level").replace("{quantity}", String(quantity)).replace("{threshold}", String(effectiveThreshold))}
+                    aria-label={t("products.stock.tip.level", { quantity: String(quantity), threshold: String(effectiveThreshold) })}
                 >
                     <div
                         className={cn(

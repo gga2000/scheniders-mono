@@ -97,7 +97,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                                         <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
                                     </div>
                                     <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                                        {(t("products.variants.willBeAdded")).replace("{count}", String(diff.added.length))}
+                                        {t("products.variants.willBeAdded", { count: diff.added.length })}
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 pl-7">
@@ -116,7 +116,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                                         <Minus className="w-3 h-3 text-rose-600 dark:text-rose-300" />
                                     </div>
                                     <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
-                                        {(t("products.variants.willBeRemoved")).replace("{count}", String(diff.removed.length))}
+                                        {t("products.variants.willBeRemoved", { count: diff.removed.length })}
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 pl-7">
@@ -135,7 +135,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                                         <Check className="w-3 h-3 text-muted" />
                                     </div>
                                     <p className="text-sm text-muted">
-                                        {(t("products.variants.unchanged")).replace("{count}", String(diff.unchanged.length))}
+                                        {t("products.variants.unchanged", { count: diff.unchanged.length })}
                                     </p>
                                 </div>
                             </div>

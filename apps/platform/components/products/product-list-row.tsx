@@ -336,7 +336,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                     </Popover>
                     {product.website_price != null && product.website_price !== product.price && (
                         <span className="text-xs text-muted tabular-nums">
-                            {t("products.ed.storePrice").replace("{price}", formatIQD(product.website_price))}
+                            {t("products.ed.storePrice", { price: formatIQD(product.website_price) })}
                         </span>
                     )}
                     {margin !== null && (

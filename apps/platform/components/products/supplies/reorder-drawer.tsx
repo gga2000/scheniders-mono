@@ -21,7 +21,7 @@ import type { ProductSupplier } from "@/types/product";
 import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { calcSuggestedQty, supplyReorderState, urgencyFor } from "@/lib/utils/supply-reorder";
@@ -78,6 +78,7 @@ export function ReorderDrawer({
     supplierLinksReady = true,
 }: ReorderDrawerProps) {
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const { tenantId } = useAuth();
     const { can } = usePermission();
     const canSeeCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS);
@@ -159,7 +160,8 @@ export function ReorderDrawer({
                 });
             }
             const g = map.get(key)!;
-            const qty = editedQty[item.supply.id] ?? item.suggestedQty;
+            // A drafted supply costs what its draft orders, not today's suggestion.
+            const qty = draftBySupply?.get(item.supply.id)?.quantity ?? editedQty[item.supply.id] ?? item.suggestedQty;
             g.items.push(item);
             g.totalCost += qty * item.unitCost;
         }
@@ -183,7 +185,7 @@ export function ReorderDrawer({
             snoozedCount: snoozed,
             coveredCount: covered,
         };
-    }, [supplies, openPoBySupply, snoozedIds, editedQty, showSnoozed]);
+    }, [supplies, openPoBySupply, snoozedIds, editedQty, showSnoozed, draftBySupply]);
 
     const toggleGroup = useCallback((name: string) => {
         setExpandedGroups((prev) => {
@@ -348,8 +350,9 @@ export function ReorderDrawer({
                                         const isGenerating = generating.has(
                                             group.supplierName
                                         );
+                                        // A supply already on a draft is being handled.
                                         const hasCritical = group.items.some(
-                                            (i) => i.urgency === "critical"
+                                            (i) => i.urgency === "critical" && !draftBySupply?.has(i.supply.id)
                                         );
                                         const noSupplier =
                                             group.supplierName === NO_SUPPLIER_KEY;
@@ -425,7 +428,7 @@ export function ReorderDrawer({
                                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white"
                                                                 >
                                                                     {changeStatus.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                                                                    {t("supplies.ro.sendDraft", { number: draft.number })}
+                                                                    <span dir={textDir}>{t("supplies.ro.sendDraft", { number: draft.number })}</span>
                                                                 </button>
                                                             );
                                                         })()}
@@ -469,7 +472,7 @@ export function ReorderDrawer({
                                                             const onDraft = group.items.find((i) => draftBySupply?.has(i.supply.id));
                                                             const draft = onDraft ? draftBySupply?.get(onDraft.supply.id) : undefined;
                                                             return draft ? (
-                                                                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                                                                <p dir={textDir} className="text-left rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
                                                                     {t("supplies.ro.onDraftGroup", { number: draft.number })}
                                                                 </p>
                                                             ) : null;
@@ -481,7 +484,7 @@ export function ReorderDrawer({
                                                                 editedQty={editedQty}
                                                                 // A draft already holds this group's quantities:
                                                                 // editing here would change nothing that is sent.
-                                                                readOnly={!!draftBySupply?.has(item.supply.id)}
+                                                                draftQty={draftBySupply?.get(item.supply.id)?.quantity ?? null}
                                                                 snoozed={snoozedIds.has(
                                                                     item.supply.id
                                                                 )}
@@ -561,7 +564,8 @@ interface ReorderItemRowProps {
     editedQty: Record<string, number>;
     snoozed: boolean;
     onQtyChange: (qty: number) => void;
-    readOnly: boolean;
+    /** What the draft this supply is on orders; null when it is on no draft. */
+    draftQty: number | null;
     onSnooze: () => void;
     onUnsnooze: () => void;
 }
@@ -571,12 +575,12 @@ function ReorderItemRow({
     editedQty,
     snoozed,
     onQtyChange,
-    readOnly,
+    draftQty,
     onSnooze,
     onUnsnooze,
 }: ReorderItemRowProps) {
     const { t } = useLanguage();
-    const qty = editedQty[item.supply.id] ?? item.suggestedQty;
+    const qty = draftQty ?? editedQty[item.supply.id] ?? item.suggestedQty;
     const lineCost = qty * item.unitCost;
 
     return (
@@ -638,8 +642,20 @@ function ReorderItemRow({
                         />
                     </div>
 
-                    {/* Qty editor + actions; a drafted row has neither (the group says why). */}
-                    {!readOnly && (
+                    {/* A drafted row shows the draft's amount; the group note says where to change it. */}
+                    {draftQty !== null && (
+                        <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-muted tabular-nums">
+                            <span>
+                                {t("supplies.ro.onDraftQty", { count: draftQty })}
+                                {item.unitCost > 0 && ` × ${formatIQD(item.unitCost)}`}
+                            </span>
+                            {item.unitCost > 0 && (
+                                <span className="text-sm font-semibold text-foreground">{formatIQD(lineCost)}</span>
+                            )}
+                        </div>
+                    )}
+                    {/* Qty editor + actions */}
+                    {draftQty === null && (
                     <div className="mt-2.5 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                 <label className="text-[11px] text-muted uppercase tracking-wide">

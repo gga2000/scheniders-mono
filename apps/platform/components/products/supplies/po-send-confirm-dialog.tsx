@@ -12,7 +12,7 @@ import {
 } from "@scheniders/ui/dialog";
 import { fetchPurchaseOrderLines } from "@/lib/repositories/purchase-orders";
 import { fetchPurchaseOrderLineCosts } from "@/lib/repositories/purchase-costs";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { formatCount, formatIQD } from "@/lib/utils";
@@ -32,6 +32,7 @@ interface PoSendConfirmDialogProps {
  */
 export function PoSendConfirmDialog({ open, onOpenChange, poId, poNumber, sending, onSend }: PoSendConfirmDialogProps) {
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const { data: lines, isLoading } = useQuery({
         queryKey: ["po-lines", poId],
         enabled: open,
@@ -57,8 +58,8 @@ export function PoSendConfirmDialog({ open, onOpenChange, poId, poNumber, sendin
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{t("supplies.ro.sendDraftTitle", { number: poNumber })}</DialogTitle>
-                    <DialogDescription>{t("supplies.ro.sendDraftHint")}</DialogDescription>
+                    <DialogTitle dir={textDir} className="text-left">{t("supplies.ro.sendDraftTitle", { number: poNumber })}</DialogTitle>
+                    <DialogDescription dir={textDir} className="text-left">{t("supplies.ro.sendDraftHint")}</DialogDescription>
                 </DialogHeader>
 
                 {isLoading || !lines ? (
@@ -104,7 +105,7 @@ export function PoSendConfirmDialog({ open, onOpenChange, poId, poNumber, sendin
                         className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white"
                     >
                         {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                        {t("supplies.ro.sendDraft", { number: poNumber })}
+                        <span dir={textDir}>{t("supplies.ro.sendDraft", { number: poNumber })}</span>
                     </button>
                 </DialogFooter>
             </DialogContent>

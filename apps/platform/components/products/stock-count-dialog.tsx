@@ -78,14 +78,12 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
             // Keep the counts that did not save so they can be retried.
             setCounts(failed);
             toast.error(
-                t("products.count.partial")
-                    .replace("{saved}", String(saved))
-                    .replace("{failed}", String(Object.keys(failed).length)),
+                t("products.count.partial", { saved, failed: Object.keys(failed).length }),
                 t(productWriteErrorKey(firstError)),
             );
             return;
         }
-        toast.success(t("products.count.saved").replace("{count}", String(saved)));
+        toast.success(t("products.count.saved", { count: saved }));
         close();
     };
 
@@ -121,10 +119,11 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
                                     <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
                                     <p className={cn("text-xs tabular-nums", flagged ? "text-rose-700 dark:text-rose-400" : "text-muted")}>
                                         {flagged && <span className="font-semibold">{t("products.count.needsCount")} · </span>}
-                                        {t("products.count.inStock")
-                                            .replace("{stock}", String(p.stock_quantity ?? 0))
-                                            .replace("{reserved}", String(p.reserved_quantity ?? 0))
-                                            .replace("{openBox}", String(p.open_box_quantity ?? 0))}
+                                        {t("products.count.inStock", {
+                                            stock: p.stock_quantity ?? 0,
+                                            reserved: p.reserved_quantity ?? 0,
+                                            openBox: p.open_box_quantity ?? 0,
+                                        })}
                                     </p>
                                 </div>
                                 {PILES.map((pile) => {
@@ -162,7 +161,7 @@ export function StockCountDialog({ open, onOpenChange, products }: StockCountDia
                         className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl bg-[var(--ink)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                     >
                         {saving && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
-                        {t("products.count.save").replace("{count}", String(entered.length))}
+                        {t("products.count.save", { count: entered.length })}
                     </button>
                 </DialogFooter>
             </DialogContent>
