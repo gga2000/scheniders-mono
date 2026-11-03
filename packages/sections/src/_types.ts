@@ -55,6 +55,8 @@ export interface SectionRenderContext {
     completed_orders: number;
     customers: number;
     governorates_served: number;
+    /** Orders placed in the last 7 days; absent when the count is stale. */
+    orders_7d?: number;
   };
   /**
    * Published articles, newest first — resolved upstream from the config's

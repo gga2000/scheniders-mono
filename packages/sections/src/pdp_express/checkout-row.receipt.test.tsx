@@ -16,7 +16,7 @@ type ReceiptFields = Pick<
   | "props" | "product" | "locale" | "s" | "price" | "compareAt" | "qty"
   | "subtotal" | "referralAmount" | "pointsDiscount" | "delivery" | "total"
   | "shipping" | "oos" | "submitting" | "status" | "errorMsg" | "submitErrorId"
-  | "waHref" | "reassurance" | "trustChips"
+  | "waHref" | "reassurance" | "trustChips" | "form"
 >;
 
 function receipt(fields: Partial<ReceiptFields>): string {
@@ -42,6 +42,7 @@ function receipt(fields: Partial<ReceiptFields>): string {
     waHref: null,
     reassurance: "",
     trustChips: [],
+    form: { governorate_code: "" } as ExpressModel["form"],
     ...fields,
   };
   return renderToStaticMarkup(
@@ -71,5 +72,27 @@ describe("express receipt adds up", () => {
     const html = receipt({});
     expect(html).not.toContain("خصم رمز صديقك");
     expect(html).not.toContain("خصم نقاطك");
+  });
+});
+
+describe("expected arrival row", () => {
+  it("is never in server markup, so a cached page cannot show a stale day", () => {
+    const html = receipt({
+      props: { ...pdp_direct_order.defaultProps, layout: "express", show_arrival_day: true },
+      shipping: { default_rate: { fee_iqd: 0, eta_hours: 24 } } as ExpressModel["shipping"],
+    });
+    expect(html).not.toContain("data-arrival-day");
+    expect(html).not.toContain("الوصول المتوقع");
+  });
+});
+
+describe("gift row", () => {
+  it("shows the gift the store sends, marked free, and nothing without one", () => {
+    const html = receipt({
+      props: { ...pdp_direct_order.defaultProps, layout: "express", receipt_gift_i18n: { ar: "تيستر هدية × 1" } },
+    });
+    expect(html).toContain("تيستر هدية × 1");
+    expect(html).toMatch(/data-receipt-gift="" class="text-bk-success">مجاني</);
+    expect(receipt({})).not.toContain("data-receipt-gift");
   });
 });

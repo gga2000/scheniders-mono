@@ -7692,6 +7692,7 @@ export type Database = {
           customers: number
           first_order_at: string | null
           governorates_served: number
+          orders_7d: number
           refreshed_at: string
           tenant_id: string
         }
@@ -7700,6 +7701,7 @@ export type Database = {
           customers?: number
           first_order_at?: string | null
           governorates_served?: number
+          orders_7d?: number
           refreshed_at?: string
           tenant_id: string
         }
@@ -7708,6 +7710,7 @@ export type Database = {
           customers?: number
           first_order_at?: string | null
           governorates_served?: number
+          orders_7d?: number
           refreshed_at?: string
           tenant_id?: string
         }

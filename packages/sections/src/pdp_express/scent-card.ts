@@ -89,10 +89,25 @@ export interface ScentStoryCard {
   body: string;
 }
 
+/** One two-ended feel bar: the merchant's words at each end and where the
+ *  product's value sits between them. */
+export interface ScentFeelBar {
+  key: string;
+  low: string;
+  high: string;
+  value: number;
+  max: number;
+  /** 0 (all the way to `low`) … 1 (all the way to `high`). */
+  at: number;
+  /** Which end the knob leans to; "mid" inside the middle fifth. */
+  lean: "low" | "mid" | "high";
+}
+
 export interface ScentCardData {
   lead: string;
   tiers: ScentTier[];
   meters: ScentMeter[];
+  feelBars: ScentFeelBar[];
   /** The meters' source tag («حسب تجربتنا»); "" without meters. */
   factsSource: string;
   /** The chip rows, without the season (it is `season`). */
@@ -204,6 +219,27 @@ function metersOf(
   });
 }
 
+/** Half the width of the middle band that leans to neither end. */
+const FEEL_MID_HALF = 0.1;
+
+function feelBarsOf(
+  byKey: Map<string, ResolvedProductAttribute>,
+  bars: ScentCardConfig["feel_bars"],
+  locale: LocaleCode,
+): ScentFeelBar[] {
+  return (bars ?? []).flatMap((b) => {
+    const attr = byKey.get(b.key);
+    if (!attr || attr.kind !== "range" || !Number.isFinite(attr.value)) return [];
+    const { range_min: min, range_max: max } = attr.def;
+    const low = resolveI18n(b.low_i18n, locale).trim();
+    const high = resolveI18n(b.high_i18n, locale).trim();
+    if (!(max > min) || !low || !high) return [];
+    const at = Math.round(Math.min(1, Math.max(0, (attr.value - min) / (max - min))) * 100) / 100;
+    const lean = at < 0.5 - FEEL_MID_HALF ? "low" : at > 0.5 + FEEL_MID_HALF ? "high" : "mid";
+    return [{ key: b.key, low, high, value: attr.value, max, at, lean }];
+  });
+}
+
 function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
@@ -277,6 +313,7 @@ export function buildScentCard(input: {
 
   const tiers = pairPhotos(journey?.stages ?? [], cards, locale);
   const meters = metersOf(byKey, config.meter_keys ?? [], locale);
+  const feelBars = feelBarsOf(byKey, config.feel_bars, locale);
   const journeyRows = journey?.chipRows ?? [];
   const season = seasonOf(byKey, journeyRows);
   const chipRows = season ? journeyRows.filter((r) => r.key !== SEASON_KEY) : journeyRows;
@@ -288,13 +325,22 @@ export function buildScentCard(input: {
   }));
 
   const hasFacts = meters.length > 0 || chipRows.length > 0 || note !== null;
-  if (tiers.length === 0 && !hasFacts && !season && !lead && story.length === 0 && storyCards.length === 0) {
+  if (
+    tiers.length === 0 &&
+    !hasFacts &&
+    feelBars.length === 0 &&
+    !season &&
+    !lead &&
+    story.length === 0 &&
+    storyCards.length === 0
+  ) {
     return null;
   }
   return {
     lead,
     tiers,
     meters,
+    feelBars,
     factsSource: meters.length > 0 ? resolveI18n(config.facts_source_i18n, locale).trim() : "",
     chipRows,
     season,

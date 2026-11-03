@@ -12,13 +12,16 @@ import {
   cn,
   IRAQ_GOVERNORATES,
   computeDeliveryFee,
+  etaForGovernorate,
   resolveI18n,
+  summarizeDelivery,
 } from "@scheniders/shared";
 import type { GovernorateShippingConfig, LocaleCode } from "@scheniders/shared";
 import { ContactLine } from "../helpers/contact-line";
 import { EXPRESS_SUBMIT_ID, useFormWatched } from "../helpers/express-order-store";
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon, WhatsAppIcon } from "../helpers/primitives";
+import { useArrivalDay } from "./arrival-day";
 import { CartAddedStatus, CartTile, type CartAddOutcome, type CartNote } from "./cart-action";
 import { ExpressDock } from "./dock";
 import { displayNameOf } from "./identity-label";
@@ -28,6 +31,31 @@ import { readsRtl, xs } from "./text";
 import { ExpressTrustStrip } from "./trust-strip";
 
 /** True when every governorate's computed fee is 0 for this basket. */
+/** The ETA (hours) for this basket: the chosen governorate's, else the
+ *  slowest one's when every governorate declares one; null = none set. */
+function etaHoursOf(m: ExpressModel): number | null {
+  const code = IRAQ_GOVERNORATES.find((g) => g.code === m.form.governorate_code)?.code;
+  if (code) return etaForGovernorate(m.shipping, code);
+  return summarizeDelivery(m.shipping, { subtotalIqd: m.subtotal, itemCount: m.qty }).eta_hours?.max ?? null;
+}
+
+/** «الوصول المتوقع»: drawn only once the client knows today's date. */
+function ArrivalRow({ m, locale, rtl }: { m: ExpressModel; locale: LocaleCode; rtl: boolean }) {
+  const line = useArrivalDay(etaHoursOf(m), locale);
+  if (!line) return null;
+  return (
+    <Row
+      rtl={rtl}
+      label={xs("arrivalRow", locale)}
+      value={
+        <span data-arrival-day="" className="font-bold text-bk-ink">
+          {line}
+        </span>
+      }
+    />
+  );
+}
+
 export function isDeliveryFreeEverywhere(
   subtotal: number,
   qty: number,
@@ -46,7 +74,7 @@ function Row({
   strong,
 }: {
   rtl: boolean;
-  label: string;
+  label: React.ReactNode;
   note?: string;
   value: React.ReactNode;
   strong?: boolean;
@@ -127,6 +155,7 @@ export function CheckoutRow({
   const freeEverywhere = isDeliveryFreeEverywhere(m.subtotal, m.qty, m.shipping);
   // color_lock (D4): green is for WhatsApp and success states only.
   const freeInk = m.props.color_lock === true ? "text-bk-ink" : "text-bk-success";
+  const gift = resolveI18n(m.props.receipt_gift_i18n, locale).trim();
   // promise_layout "band": the band replaces the reassurance line, the
   // contact line and the under-CTA chips, and renders after the status
   // messages so they stay directly under the submit.
@@ -194,6 +223,22 @@ export function CheckoutRow({
               }
             />
           )}
+          {gift && (
+            <Row
+              rtl={rtl}
+              label={
+                <span className={cn("inline-flex items-center gap-1.5", rtl && "flex-row-reverse")}>
+                  <MaterialIcon name="redeem" className="text-base" />
+                  {gift}
+                </span>
+              }
+              value={
+                <span data-receipt-gift="" className={freeInk}>
+                  {xs("deliveryFree", locale)}
+                </span>
+              }
+            />
+          )}
           {m.referralAmount > 0 && (
             <Row
               rtl={rtl}
@@ -225,6 +270,7 @@ export function CheckoutRow({
               </span>
             }
           />
+          {m.props.show_arrival_day === true && <ArrivalRow m={m} locale={locale} rtl={rtl} />}
         </div>
         <Row
           rtl={rtl}

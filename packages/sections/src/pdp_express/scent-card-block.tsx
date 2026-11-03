@@ -11,12 +11,14 @@
 //      to base, each stage's name and hint, then its notes on an equal
 //      three-column grid (photo over name; a note without one gets its
 //      first letter in a tile);
-//   4. facts, only with data: one tile per meter (a fractional value
+//   4. «شلون تحسّه»: two-ended feel bars, only for configured range
+//      attributes the product has a value for (feel-bars.tsx);
+//   5. facts, only with data: one tile per meter (a fractional value
 //      fills its last segment partly) with the source tag under them, the
 //      chip rows, the staying-power line on an espresso band. The season
 //      is a tag beside the gender tag;
-//   5. «الثبات، بكلام زبون»: one verbatim clause, the reviewer in <bdi>;
-//   6. the rating and «قصة العطر», which opens the story in a BottomSheet.
+//   6. «الثبات، بكلام زبون»: one verbatim clause, the reviewer in <bdi>;
+//   7. the rating and «قصة العطر», which opens the story in a BottomSheet.
 // The data comes from `buildScentCard`; this file only draws it. Rows flip
 // with classes, never `dir`. Yellow is not used here (D4): stars are the
 // amber accent, meters and the monogram are ink/espresso.
@@ -31,6 +33,7 @@ import { displayRating } from "../helpers/format";
 import { isOptimizableImageHost } from "../helpers/image";
 import { MaterialIcon, Stars } from "../helpers/primitives";
 import type { Product } from "../types";
+import { FeelBars } from "./feel-bars";
 import { GENDER_ICON, Tag, reviewCountLabel } from "./identity-label";
 import { monogramOf, type ScentCardData } from "./scent-card";
 import { readsRtl, xs } from "./text";
@@ -182,6 +185,8 @@ export function ScentCardBlock({
           ))}
         </ol>
       )}
+
+      <FeelBars bars={card.feelBars} locale={locale} />
 
       {hasFacts && (
         <div data-scent-facts="" className="space-y-bk-sm">
