@@ -14,7 +14,7 @@ import type { ExpressModel } from "./model";
 type ReceiptFields = Pick<
   ExpressModel,
   | "props" | "product" | "locale" | "s" | "price" | "compareAt" | "qty"
-  | "subtotal" | "referralAmount" | "pointsDiscount" | "delivery" | "total"
+  | "subtotal" | "referralAmount" | "pointsDiscount" | "pointsEarn" | "pointsRedeem" | "delivery" | "total"
   | "shipping" | "oos" | "submitting" | "status" | "errorMsg" | "submitErrorId"
   | "waHref" | "reassurance" | "trustChips" | "form"
 >;
@@ -31,6 +31,8 @@ function receipt(fields: Partial<ReceiptFields>): string {
     subtotal: 36750,
     referralAmount: 0,
     pointsDiscount: 0,
+    pointsEarn: null,
+    pointsRedeem: null,
     delivery: 0,
     total: 36750,
     shipping: { default_rate: { fee_iqd: 0 } } as ExpressModel["shipping"],
@@ -94,5 +96,26 @@ describe("gift row", () => {
     expect(html).toContain("تيستر هدية × 1");
     expect(html).toMatch(/data-receipt-gift="" class="text-bk-success">مجاني</);
     expect(receipt({})).not.toContain("data-receipt-gift");
+  });
+});
+
+describe("points earn line", () => {
+  it("says what this order earns and what the points buy, after the total", () => {
+    const html = receipt({ pointsEarn: { points: 347, per: 1000, value: 5000 }, subtotal: 34750, total: 34750 });
+    expect(html).toContain("هذا الطلب يعطيك 347 نقطة");
+    expect(html).toContain("تنضاف لما يوصلك الطلب. كل 1000 نقطة = خصم 5,000");
+    expect(html.indexOf("data-points-earn")).toBeGreaterThan(html.indexOf("المجموع"));
+  });
+
+  it("is absent while the points programme is off", () => {
+    expect(receipt({})).not.toContain("data-points-earn");
+  });
+
+  it("offers a quiet way in for earlier points once the phone is valid", () => {
+    const html = receipt({
+      pointsRedeem: { orderNumber: "", setOrderNumber: () => {}, balance: null, min: 1000, using: false, setUsing: () => {} },
+    });
+    expect(html).toContain("عندك نقاط من طلب سابق؟");
+    expect(html).not.toContain("data-points-redeem");
   });
 });
