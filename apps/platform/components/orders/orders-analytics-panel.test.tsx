@@ -111,6 +111,13 @@ describe("OrdersAnalyticsPanel strip", () => {
         expect(document.querySelector("[data-cell=\"orders\"] svg")).toBeNull();
     });
 
+    it("leaves out the limit cell when Meta has no limit", () => {
+        setHook({ ads: { spend: query(500_000), limit: query(null) } });
+        renderPanel();
+        expect(document.querySelector("[data-cell=\"ad_limit\"]")).toBeNull();
+        expect(stat("cpa")).toContain("12,500");
+    });
+
     it("only draws the Meta and store cells when they apply", () => {
         setHook();
         renderPanel();
@@ -118,12 +125,13 @@ describe("OrdersAnalyticsPanel strip", () => {
         expect(document.querySelector("[data-cell=\"visitors\"]")).toBeNull();
         cleanup();
         setHook({
-            ads: { spend: query(500_000) },
+            ads: { spend: query(500_000), limit: query({ leftIqd: 1_200_000, capIqd: 3_000_000, owedIqd: 0 }) },
             store: { figures: { current: { visitors: 300, conversion: 2.5 }, previous: { visitors: 200, conversion: 2 } }, show: true },
         });
         renderPanel();
         expect(stat("ad_spend")).toContain("500,000");
         expect(stat("cpa")).toContain("12,500");
+        expect(stat("ad_limit")).toContain("1,200,000");
         expect(stat("visitors")).toBe("300");
         expect(stat("conversion")).toBe("2.5%");
     });

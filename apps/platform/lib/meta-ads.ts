@@ -183,3 +183,45 @@ export async function fetchTokenHealth(accessToken: string): Promise<TokenHealth
         hasAdsRead: (scopes ?? []).includes("ads_read"),
     };
 }
+
+const accountLimitSchema = z.object({
+    currency: z.string(),
+    // Minor units (cents for USD), sent as strings. spend_cap "0" means no cap is set.
+    spend_cap: numericString.optional(),
+    amount_spent: numericString.optional(),
+    balance: numericString.optional(),
+});
+
+export interface AccountLimit {
+    currency: string;
+    /** Account spending limit in major units, or null when none is set. */
+    spendCap: number | null;
+    /** Lifetime spend counted against the cap, major units. */
+    amountSpent: number;
+    /** What Meta has spent but not yet billed, major units. */
+    balance: number;
+}
+
+/** The ad account's spending limit and how much of it is used (read-only, needs `ads_read`). Throws MetaAdsError when Meta cannot say. */
+export async function fetchAccountLimit(params: { adAccountId: string; accessToken: string }): Promise<AccountLimit> {
+    const query = new URLSearchParams({ fields: "currency,spend_cap,amount_spent,balance" });
+    const res = await fetch(`${GRAPH_HOST}/${GRAPH_VERSION}/act_${params.adAccountId}?${query}`, {
+        headers: { Authorization: `Bearer ${params.accessToken}` },
+        cache: "no-store",
+    });
+    const body: unknown = await res.json().catch(() => null);
+    if (!res.ok) {
+        const parsed = graphErrorSchema.safeParse(body);
+        throw new MetaAdsError(parsed.success ? parsed.data.error.message : `Meta API HTTP ${res.status}`);
+    }
+    const parsed = accountLimitSchema.safeParse(body);
+    if (!parsed.success) throw new MetaAdsError("Unexpected response from Meta API");
+    const major = (minor: string | undefined) => Number(minor ?? 0) / 100;
+    const cap = major(parsed.data.spend_cap);
+    return {
+        currency: parsed.data.currency,
+        spendCap: cap > 0 ? cap : null,
+        amountSpent: major(parsed.data.amount_spent),
+        balance: major(parsed.data.balance),
+    };
+}

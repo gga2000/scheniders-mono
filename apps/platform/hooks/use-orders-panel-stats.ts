@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import type { OrderFilters } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
@@ -64,6 +65,28 @@ async function fetchAdSpend(from: string | null, to: string | null): Promise<num
     }
 }
 
+const limitSchema = z.object({
+    success: z.literal(true),
+    limit: z.object({ leftIqd: z.number(), capIqd: z.number(), owedIqd: z.number() }).nullable(),
+});
+
+/** Room left under the Meta account's spending limit (IQD); null when Meta sets no limit. Admin-only route. */
+function useAdLimit(enabled: boolean) {
+    const { session } = useAuth();
+    const token = session?.access_token ?? "";
+    return useQuery({
+        queryKey: ["orders-panel-ad-limit"],
+        queryFn: async () => {
+            const res = await fetch("/api/settings/meta-ads/limit", { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) throw new Error(`Meta limit failed: ${res.status}`);
+            return limitSchema.parse(await res.json()).limit;
+        },
+        enabled: enabled && token !== "",
+        staleTime: TICK_MS,
+        retry: false,
+    });
+}
+
 /** Visitors and orders per day from the first-party storefront log, the longest stretch it answers (60 days). */
 function useStoreDays(enabled: boolean) {
     const { tenantId } = useAuth();
@@ -121,12 +144,14 @@ export function useOrdersPanelStats(filters: OrderFilters) {
         staleTime: REFRESH_MS,
     });
 
+    const limit = useAdLimit(adsOn);
+
     return {
         salesView,
         windows,
         current,
         previous,
         store: { figures: storeResult?.current ? storeResult : null, show: storeWide && (store.data?.days ?? []).some((d) => d.visitors > 0) },
-        ads: adsOn ? { spend } : null,
+        ads: adsOn ? { spend, limit } : null,
     };
 }

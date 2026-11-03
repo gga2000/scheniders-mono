@@ -174,6 +174,14 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                             hint={t("orders.analytics.tip.cpa")}
                             value={spend === undefined || !current.data ? null : costPerOrder === null ? "—" : formatIQD(costPerOrder)}
                         />
+                        {stats.ads.limit.data && (
+                            <OrdersAnalyticsCell
+                                testId="ad_limit"
+                                label={t("orders.analytics.adLimit")}
+                                hint={t("orders.analytics.tip.adLimit")}
+                                value={formatIQD(stats.ads.limit.data.leftIqd)}
+                            />
+                        )}
                     </>
                 )}
             </div>
