@@ -18,6 +18,7 @@ import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 import { applyStatusSideEffect } from "@/lib/orders/status-side-effects";
 import { classifyTransition, resolveStatusForOrder } from "@/lib/order-status-machine";
 import { createOrderForTenant } from "@/lib/order-service";
+import { DeliverySlotSchema, type DeliverySlot } from "@/lib/orders/delivery-slot";
 import type { CreateOrderInput, Order, OrderItem } from "@/types/order";
 
 /** One status change can touch at most this many orders. */
@@ -30,6 +31,18 @@ const orderSourceSchema = z.enum(["whatsapp", "lightfunnels", "meta", "tiktok", 
 const ITEMS_EDITABLE: readonly Order["status"][] = ["new", "contacted", "no_response", "suspended", "confirmed"];
 /** Price and discount can also change while the order is with the courier (the courier is told the new COD). */
 const MONEY_EDITABLE: readonly Order["status"][] = [...ITEMS_EDITABLE, "in_transit"];
+
+/** A Baghdad calendar day, "YYYY-MM-DD", that exists (2026-02-31 is refused). */
+const calendarDaySchema = z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+    .refine((v) => {
+        const d = new Date(`${v}T00:00:00Z`);
+        return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+    }, "Not a real calendar day");
+
+const scheduledDateField = calendarDaySchema.describe("Postpone the order to this day (YYYY-MM-DD): it is parked in the orders list and held back from shipping until then");
+const deliverySlotField = DeliverySlotSchema.describe('When the customer wants the parcel: "morning", "afternoon", "evening", or an exact 24h time like "16:30"');
 
 const orderLineInputSchema = z.object({
     product_id: z.string().uuid(),
@@ -237,6 +250,7 @@ export function registerOrderWriteTools(server: McpServer): void {
         kind: "write",
         description:
             "Edit an order: customer and delivery details (name, phones, governorate, address, notes, internal notes, delivery fee), where it came from (source), " +
+            "when it is scheduled for (scheduled_date; empty string un-schedules), the customer's delivery slot, the gift flag and which number to WhatsApp, " +
             "its items (replaces the whole list; lines use the product's short name and the catalog price unless a price is given), its discount and its price. " +
             "`price` is the items total after discount; when items or discount change it is recomputed unless you give it. Only the fields given are changed. " +
             "Items can change until the order is with the courier; price and discount also while in transit; after that use refund_order or replace_order. " +
@@ -253,6 +267,10 @@ export function registerOrderWriteTools(server: McpServer): void {
                 internal_notes: z.string().max(1000).optional(),
                 delivery_fee: z.number().int().min(0).max(1_000_000).optional(),
                 source: orderSourceSchema.optional(),
+                scheduled_date: scheduledDateField.or(z.literal("")).optional().describe("Empty string removes the schedule"),
+                delivery_slot: deliverySlotField.or(z.literal("")).optional().describe("Empty string removes the slot"),
+                is_gift: z.boolean().optional(),
+                whatsapp_contact_slot: z.enum(["primary", "secondary"]).nullable().optional().describe("Which number the customer asked to be contacted on; null clears it"),
                 items: z.array(orderLineInputSchema).min(1).max(50).optional().describe("The complete new list of lines, not a delta"),
                 discount: z.number().int().min(0).max(100_000_000).optional(),
                 price: z.number().int().min(0).max(100_000_000).optional().describe("Items total after discount, when it differs from the sum of the lines"),
@@ -279,7 +297,14 @@ export function registerOrderWriteTools(server: McpServer): void {
                 );
             }
 
-            const next: Partial<Order> = {};
+            if (
+                (input.scheduled_date !== undefined || input.delivery_slot !== undefined) &&
+                !ITEMS_EDITABLE.includes(order.status)
+            ) {
+                throw new McpToolError(`Order #${order.order_id} is ${order.status}: it can no longer be scheduled or given a delivery slot.`);
+            }
+
+            const next: Partial<Omit<Order, "delivery_slot">> & { delivery_slot?: DeliverySlot | null } = {};
             if (input.customer_name !== undefined) next.customer_name = input.customer_name;
             if (input.phone !== undefined) next.phone = orderPhone(input.phone, "Phone");
             if (input.secondary_phone !== undefined) next.secondary_phone = input.secondary_phone ? orderPhone(input.secondary_phone, "Second phone") : undefined;
@@ -289,6 +314,10 @@ export function registerOrderWriteTools(server: McpServer): void {
             if (input.internal_notes !== undefined) next.internal_notes = input.internal_notes;
             if (input.delivery_fee !== undefined) next.delivery_fee = input.delivery_fee;
             if (input.source !== undefined) next.source = input.source;
+            if (input.scheduled_date !== undefined) next.scheduled_date = input.scheduled_date === "" ? null : input.scheduled_date;
+            if (input.delivery_slot !== undefined) next.delivery_slot = input.delivery_slot === "" ? null : input.delivery_slot;
+            if (input.is_gift !== undefined) next.is_gift = input.is_gift;
+            if (input.whatsapp_contact_slot !== undefined) next.whatsapp_contact_slot = input.whatsapp_contact_slot;
 
             if (changesMoney) {
                 const items = input.items ? await buildOrderItems(caller, input.items, order.items ?? []) : (order.items ?? []);
@@ -379,6 +408,9 @@ export function registerOrderWriteTools(server: McpServer): void {
             delivery_fee: z.number().int().min(0).max(1_000_000).default(0),
             discount: z.number().int().min(0).max(100_000_000).default(0),
             notes: z.string().max(1000).optional(),
+            scheduled_date: scheduledDateField.optional(),
+            delivery_slot: deliverySlotField.optional(),
+            is_gift: z.boolean().optional().describe("Mark the order as a gift"),
             confirm: z.boolean().default(false).describe("false returns a preview; true creates the order"),
         }),
         async run(caller, input) {
@@ -397,6 +429,9 @@ export function registerOrderWriteTools(server: McpServer): void {
                 `${input.customer_name} | ${phone} | ${gov.city}, ${input.address_details} | source ${input.source}`,
                 `Items: ${itemsText(items)}`,
                 `Items total ${iqd(itemsTotal)} − discount ${iqd(input.discount)} = ${iqd(price)}; delivery ${iqd(input.delivery_fee)}; customer pays ${iqd(price + input.delivery_fee)}`,
+                ...(input.scheduled_date ? [`Scheduled for ${input.scheduled_date}`] : []),
+                ...(input.delivery_slot ? [`Delivery slot ${input.delivery_slot}`] : []),
+                ...(input.is_gift ? ["Gift"] : []),
             ];
             if (!input.confirm) return ["Preview — no order created yet:", ...summary, "Call again with confirm: true to create it."].join("\n");
 
@@ -417,6 +452,8 @@ export function registerOrderWriteTools(server: McpServer): void {
                 is_shop_order: false,
                 is_replacement: false,
                 source: input.source,
+                ...(input.delivery_slot ? { delivery_slot: input.delivery_slot } : {}),
+                ...(input.is_gift ? { is_gift: true } : {}),
                 entered_by: caller.userId,
                 created_via: "claude",
             };
@@ -427,12 +464,30 @@ export function registerOrderWriteTools(server: McpServer): void {
             const result = await createOrderForTenant(orderData, caller.tenantId);
             if (!result.success || !result.data) throw new McpToolError(result.error || "The order was not created.");
 
-            const created = result.data as Order;
+            let created = result.data as Order;
+            // The create function has no scheduled-date column; set it right
+            // after, pinned to the version we just got back.
+            let scheduleWarning: string | null = null;
+            if (input.scheduled_date) {
+                const { data: scheduled, error: scheduleError } = await caller.db
+                    .from("orders")
+                    .update({ scheduled_date: input.scheduled_date })
+                    .eq("tenant_id", caller.tenantId)
+                    .eq("id", created.id)
+                    .select(ORDER_READ_COLUMNS)
+                    .maybeSingle();
+                if (scheduleError || !scheduled) {
+                    if (scheduleError) Sentry.captureException(scheduleError, { extra: { orderId: created.id } });
+                    scheduleWarning = `the order was created but could not be scheduled for ${input.scheduled_date}; use update_order to schedule it`;
+                } else {
+                    created = scheduled as unknown as Order;
+                }
+            }
             const logWarning = await logOrderActivity(caller, "order.create", created, {});
             return [
                 `Created order #${created.order_id}.`,
                 orderLine(created, true),
-                ...[result.warning, logWarning].filter(Boolean).map((w) => `Warning: ${w}`),
+                ...[result.warning, scheduleWarning, logWarning].filter(Boolean).map((w) => `Warning: ${w}`),
             ].join("\n");
         },
     });
