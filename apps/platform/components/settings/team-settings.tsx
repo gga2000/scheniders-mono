@@ -190,9 +190,9 @@ export function TeamSettings() {
                 <div>
                     <h2 className="text-2xl font-bold flex items-center gap-2">
                         <Users className="w-6 h-6 text-primary" />
-                        {t("team.title")}
+                        {t("team.settings.title")}
                     </h2>
-                    <p className="text-muted-foreground">{t("team.subtitle")}</p>
+                    <p className="text-muted-foreground">{t("team.settings.subtitle")}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button

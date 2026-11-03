@@ -3,8 +3,8 @@
 import type { Locale } from "@/lib/i18n";
 
 const en: Record<string, string> = {
-    "team.title": "Team & Permissions",
-    "team.subtitle": "Manage user access and roles",
+    "team.settings.title": "Team & Permissions",
+    "team.settings.subtitle": "Manage user access and roles",
     "team.permissionsMatrix": "Permissions Matrix",
     "team.addMember": "Add member",
     "team.stat.total": "Total Users",
@@ -93,8 +93,8 @@ const en: Record<string, string> = {
 };
 
 const ar: Record<string, string> = {
-    "team.title": "الفريق والصلاحيات",
-    "team.subtitle": "إدارة وصول المستخدمين وأدوارهم",
+    "team.settings.title": "الفريق والصلاحيات",
+    "team.settings.subtitle": "إدارة وصول المستخدمين وأدوارهم",
     "team.permissionsMatrix": "مصفوفة الصلاحيات",
     "team.addMember": "إضافة عضو",
     "team.stat.total": "إجمالي المستخدمين",
