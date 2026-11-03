@@ -28,7 +28,7 @@ export function RefundsTab({ orders, period, compareRange }: Props) {
     return (
         <div className="space-y-5">
             <RefundsHero data={data} />
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 items-start">
                 <div className="xl:col-span-3">
                     <RefundsTimeline data={data} />
                 </div>
@@ -36,7 +36,7 @@ export function RefundsTab({ orders, period, compareRange }: Props) {
                     <RefundReasons rows={data.reasons} totalValue={data.totalValue} />
                 </div>
             </div>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
                 <TopRefundedProducts rows={data.products} />
                 <RefundsByCity rows={data.byCity} />
             </div>
