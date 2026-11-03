@@ -6,6 +6,7 @@ import { X, Clock, RefreshCw, Shield, Loader2, User, Camera, Check } from "lucid
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
 import { UserRole, PERMISSION_CATEGORIES } from "@/lib/permissions";
 import { activityLogger, ActivityLogEntry } from "@/lib/activity-logger";
 import { toast } from "@/hooks/use-toast";
@@ -28,6 +29,7 @@ interface EditUserModalProps {
 
 export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
     const { user: currentUser, refreshProfile, tenantId } = useAuth();
+    const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState<"profile" | "permissions" | "activity">("profile");
     const [displayName, setDisplayName] = useState(user.display_name || "");
     const [role, setRole] = useState<UserRole>(user.role);
@@ -70,7 +72,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
             setLogs(data);
         } catch (err) {
             console.error("Error fetching logs:", err);
-            toast.error("Could not load this member's activity.");
+            toast.error(t("team.edit.memberFeedFail"));
         } finally {
             setLoadingLogs(false);
         }
@@ -113,16 +115,16 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
         if (!file) return;
 
         if (!tenantId) {
-            toast.error("No active store. Reload the page and try again.");
+            toast.error(t("team.err.noStore"));
             return;
         }
         const ext = AVATAR_TYPES[file.type];
         if (!ext) {
-            toast.error("Use a PNG, JPG or WebP image.");
+            toast.error(t("team.edit.photoType"));
             return;
         }
         if (file.size > AVATAR_MAX_BYTES) {
-            toast.error("The image is larger than 2MB.");
+            toast.error(t("team.edit.photoSize"));
             return;
         }
 
@@ -141,7 +143,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
             setAvatarUrl(publicUrl);
         } catch (error) {
             console.error("Error uploading avatar:", error);
-            toast.error(errorMessage(error, "Could not upload the photo."));
+            toast.error(errorMessage(error, t("team.edit.photoFail")));
         } finally {
             setUploading(false);
         }
@@ -149,7 +151,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
 
     const saveProfile = async () => {
         if (!tenantId) {
-            toast.error("No active store. Reload the page and try again.");
+            toast.error(t("team.err.noStore"));
             return;
         }
         setSaving(true);
@@ -193,11 +195,11 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                 await refreshProfile();
             }
 
-            toast.success("Saved");
+            toast.success(t("team.edit.saved"));
             onClose();
         } catch (err) {
             console.error("Error updating profile:", err);
-            toast.error(errorMessage(err, "Could not save changes."));
+            toast.error(errorMessage(err, t("team.edit.saveFail")));
         } finally {
             setSaving(false);
         }
@@ -218,12 +220,12 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                 entityId: user.id,
                 details: { updated_user: displayName || user.email, changes: { removed: true } }
             }, tenantId);
-            toast.success(`${displayName || user.email} was removed from the team`);
+            toast.success(t("team.edit.removed", { name: displayName || user.email }));
             onUpdate();
             onClose();
         } catch (err) {
             console.error("Error removing member:", err);
-            toast.error(errorMessage(err, "Could not remove this member."));
+            toast.error(errorMessage(err, t("team.edit.removeFail")));
             setConfirmRemove(false);
         } finally {
             setRemoving(false);
@@ -251,7 +253,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
             );
             
             if (!success) {
-                toast.error(error || "Failed to update user override");
+                toast.error(error || t("team.edit.overrideFail"));
                 // Rollback optimistic update
                 if (existing) {
                     setOverrides(prev => [...prev, existing]);
@@ -261,7 +263,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
             }
         } catch (err) {
             console.error("Error toggling override:", err);
-            toast.error("Failed to communicate with server");
+            toast.error(t("team.err.server"));
             // Rollback optimistic update
             if (existing) {
                 setOverrides(prev => [...prev, existing]);
@@ -309,7 +311,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                 : "border-transparent text-muted-foreground hover:bg-muted/50"
                         )}
                     >
-                        Profile Settings
+                        {t("team.edit.tabProfile")}
                     </button>
                     <button
                         onClick={() => setActiveTab("permissions")}
@@ -320,7 +322,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                 : "border-transparent text-muted-foreground hover:bg-muted/50"
                         )}
                     >
-                        User Permissions
+                        {t("team.edit.tabPermissions")}
                     </button>
                     <button
                         onClick={() => setActiveTab("activity")}
@@ -331,7 +333,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                 : "border-transparent text-muted-foreground hover:bg-muted/50"
                         )}
                     >
-                        Activity History
+                        {t("team.edit.tabActivity")}
                     </button>
                 </div>
 
@@ -369,35 +371,35 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                     />
                                 </div>
                                 <div>
-                                    <h3 className="font-medium">Profile Picture</h3>
-                                    <p className="text-sm text-muted-foreground">Upload a PNG, JPG or WebP (max 2MB).</p>
+                                    <h3 className="font-medium">{t("team.edit.photo")}</h3>
+                                    <p className="text-sm text-muted-foreground">{t("team.edit.photoHint")}</p>
                                 </div>
                             </div>
 
                             {/* Name */}
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Display Name / Nickname</label>
+                                <label className="text-sm font-medium">{t("team.edit.name")}</label>
                                 <input
                                     type="text"
                                     value={displayName}
                                     onChange={(e) => setDisplayName(e.target.value)}
                                     className="w-full h-11 px-4 rounded-xl bg-background border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
-                                    placeholder="e.g. John Doe"
+                                    placeholder={t("team.edit.namePlaceholder")}
                                 />
                             </div>
 
                             {/* Role */}
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Role</label>
+                                <label className="text-sm font-medium">{t("team.edit.role")}</label>
                                 <select
                                     value={role}
                                     disabled={currentUser?.id === user.id}
                                     onChange={(e) => setRole(e.target.value as UserRole)}
                                     className="w-full h-11 px-4 rounded-xl bg-background border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                                 >
-                                    <option value="employee">Employee</option>
-                                    <option value="viewer">Viewer</option>
-                                    <option value="admin">Admin</option>
+                                    <option value="employee">{t("team.role.employee")}</option>
+                                    <option value="viewer">{t("team.role.viewer")}</option>
+                                    <option value="admin">{t("team.role.admin")}</option>
                                 </select>
                             </div>
 
@@ -407,7 +409,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                 className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                             >
                                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                Save Changes
+                                {t("team.edit.save")}
                             </button>
 
                             {canRemove && (
@@ -415,8 +417,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                     {confirmRemove ? (
                                         <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-3">
                                             <p className="text-sm">
-                                                Remove <span className="font-semibold">{displayName || user.email}</span> from this store?
-                                                They lose access right away. Their past work stays in your records.
+                                                {t("team.edit.removeConfirm", { name: displayName || user.email })}
                                             </p>
                                             <div className="flex gap-2">
                                                 <button
@@ -425,14 +426,14 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                                     className="flex-1 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 disabled:opacity-50 flex items-center justify-center gap-2"
                                                 >
                                                     {removing && <Loader2 className="w-4 h-4 animate-spin" />}
-                                                    Yes, remove
+                                                    {t("team.edit.removeYes")}
                                                 </button>
                                                 <button
                                                     onClick={() => setConfirmRemove(false)}
                                                     disabled={removing}
                                                     className="flex-1 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted"
                                                 >
-                                                    Cancel
+                                                    {t("team.edit.cancel")}
                                                 </button>
                                             </div>
                                         </div>
@@ -441,7 +442,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                             onClick={() => setConfirmRemove(true)}
                                             className="text-sm font-medium text-rose-600 hover:text-rose-700"
                                         >
-                                            Remove from team
+                                            {t("team.edit.remove")}
                                         </button>
                                     )}
                                 </div>
@@ -452,9 +453,9 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 flex gap-3">
                                 <Shield className="w-5 h-5 text-blue-500 shrink-0" />
                                 <div className="text-sm">
-                                    <p className="font-medium text-blue-700 dark:text-blue-300">Permission Overrides</p>
+                                    <p className="font-medium text-blue-700 dark:text-blue-300">{t("team.edit.overridesTitle")}</p>
                                     <p className="text-blue-600/80 dark:text-blue-400/80">
-                                        Customize permissions for this specific user. These settings override the default Role permissions.
+                                        {t("team.edit.overridesBody")}
                                     </p>
                                 </div>
                             </div>
@@ -490,7 +491,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                                                             status === 'override_granted' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" :
                                                                                 "bg-rose-500/10 border-rose-500/20 text-rose-500"
                                                                     )}>
-                                                                        {status === 'inherited' ? 'Inherited' : status === 'override_granted' ? 'Granted Override' : 'Revoked'}
+                                                                        {status === 'inherited' ? t("team.edit.inherited") : status === 'override_granted' ? t("team.edit.granted") : t("team.edit.revoked")}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -522,12 +523,12 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-semibold flex items-center gap-2">
                                     <Clock className="w-4 h-4 text-muted-foreground" />
-                                    Recent Activity
+                                    {t("team.edit.recent")}
                                 </h3>
                                 <button
                                     onClick={fetchActivityLogs}
                                     className="p-1 hover:bg-muted rounded-full"
-                                    title="Refresh Logs"
+                                    title={t("team.edit.refreshLogs")}
                                 >
                                     <RefreshCw className={cn("w-4 h-4 text-muted-foreground", loadingLogs && "animate-spin")} />
                                 </button>
@@ -536,11 +537,11 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                             {loadingLogs ? (
                                 <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
                             ) : logs.length === 0 ? (
-                                <div className="text-center py-8 text-muted-foreground text-sm">No activity recorded yet</div>
+                                <div className="text-center py-8 text-muted-foreground text-sm">{t("team.feed.empty")}</div>
                             ) : (
                                 <div className="space-y-3">
                                     {logs.map((log) => {
-                                        const { icon, title, description } = formatActivityDescription(log);
+                                        const { icon, title, description } = formatActivityDescription(log, t);
                                         return (
                                             <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
                                                 <div className="p-2 rounded-lg bg-background border border-border shrink-0">
@@ -550,7 +551,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                                     <div className="flex items-center justify-between gap-2">
                                                         <p className="font-medium text-sm text-foreground truncate">{title}</p>
                                                         <span className="text-[10px] text-muted-foreground shrink-0">
-                                                            {formatRelativeTime(log.created_at)}
+                                                            {formatRelativeTime(log.created_at, t)}
                                                         </span>
                                                     </div>
                                                     <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
