@@ -30,6 +30,7 @@ import type { ExpressModel } from "./model";
 import { OfferClock } from "./offer-clock";
 import { OrderLine } from "./order-line";
 import { phoneDigits, phoneIssue } from "./phone";
+import { OrdersProof } from "./orders-proof";
 import { PricePlate } from "./price-plate";
 import { ScrollHint } from "./scroll-hint";
 import { buildScentCard } from "./scent-card";
@@ -120,6 +121,14 @@ export function PdpExpress({ model: m }: { model: ExpressModel }) {
             />
             {clock && m.onSale && m.discountPct !== null && (
               <OfferClock clock={clock} locale={locale} colorLock={props.color_lock === true} />
+            )}
+            {props.orders_proof === "week" && (
+              <OrdersProof
+                count={m.ctx.public_stats?.orders_7d}
+                min={props.orders_proof_min}
+                locale={locale}
+                colorLock={props.color_lock === true}
+              />
             )}
           </div>
         )}

@@ -90,6 +90,11 @@ export const EXPRESS_STRINGS = {
   deliveryFree: { en: "Free", ar: "مجاني", ku: "بەخۆڕایی" },
   // show_arrival_day: the receipt's expected-arrival row ({date}: weekday,
   // day and month, Baghdad time).
+  // orders_proof "week": {count} is the store's real 7-day order count.
+  ordersWeekOne: { en: "1 order this week", ar: "طلب واحد هذا الأسبوع", ku: "1 داواکاری ئەم هەفتەیە" },
+  ordersWeekTwo: { en: "2 orders this week", ar: "طلبين هذا الأسبوع", ku: "2 داواکاری ئەم هەفتەیە" },
+  ordersWeekFew: { en: "{count} orders this week", ar: "{count} طلبات هذا الأسبوع", ku: "{count} داواکاری ئەم هەفتەیە" },
+  ordersWeekMany: { en: "{count} orders this week", ar: "{count} طلب هذا الأسبوع", ku: "{count} داواکاری ئەم هەفتەیە" },
   arrivalRow: { en: "Expected arrival", ar: "الوصول المتوقع", ku: "گەیشتنی چاوەڕوانکراو" },
   arrivalToday: { en: "Today, {date}", ar: "اليوم، {date}", ku: "ئەمڕۆ، {date}" },
   arrivalTomorrow: { en: "Tomorrow, {date}", ar: "باچر، {date}", ku: "سبەی، {date}" },

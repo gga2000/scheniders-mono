@@ -232,6 +232,11 @@ const schema = z.object({
   /** Express receipt: a gift that ships with every order («تيستر هدية × 1»),
    *  as one row marked free. Only for a gift the store really sends. */
   receipt_gift_i18n: i18nStringOptional.catch(undefined),
+  /** Express: a «191 طلب هذا الأسبوع» pill under the price — the store's
+   *  real count of placed orders in the last 7 days (tenant_public_stats).
+   *  Hidden below `orders_proof_min` or when the count is stale. */
+  orders_proof: z.enum(["week"]).optional().catch(undefined),
+  orders_proof_min: z.number().int().min(1).optional().catch(undefined),
   /** Express: "band" replaces the reassurance line, the contact line and
    *  the trust chips with one espresso promise band under the order
    *  status messages (try before you pay, delivery, who calls + save our

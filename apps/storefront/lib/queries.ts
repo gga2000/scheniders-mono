@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { z } from "zod";
 import { cachedRead } from "./cached-read";
 import { createSupabasePublicClient } from "./supabase/server";
 import { withStorefrontStock } from "./storefront-stock";
@@ -662,7 +663,21 @@ export interface TenantPublicStats {
   completed_orders: number;
   customers: number;
   governorates_served: number;
+  /** Orders placed in the last 7 days; absent when the row is too old to
+   *  still describe "this week". */
+  orders_7d?: number;
 }
+
+/** A weekly count refreshed longer ago than this is not shown. */
+const ORDERS_7D_MAX_AGE_MS = 6 * 3_600_000;
+
+const publicStatsRowSchema = z.object({
+  completed_orders: z.number(),
+  customers: z.number(),
+  governorates_served: z.number(),
+  orders_7d: z.number(),
+  refreshed_at: z.string(),
+});
 
 /**
  * Pre-aggregated public counts. Never reads `orders` — that table is
@@ -675,7 +690,7 @@ export const getTenantPublicStats = cache(
     publicCache(["getTenantPublicStats", tenantId], async (supabase) => {
       const { data, error } = await supabase
         .from("tenant_public_stats")
-        .select("completed_orders, customers, governorates_served")
+        .select("completed_orders, customers, governorates_served, orders_7d, refreshed_at")
         .eq("tenant_id", tenantId)
         .maybeSingle();
 
@@ -683,7 +698,15 @@ export const getTenantPublicStats = cache(
         console.error("[queries.getTenantPublicStats]", error);
         return null;
       }
-      return (data as TenantPublicStats) ?? null;
+      if (!data) return null;
+      const row = publicStatsRowSchema.safeParse(data);
+      if (!row.success) {
+        console.error("[queries.getTenantPublicStats] unexpected row", row.error.message);
+        return null;
+      }
+      const { refreshed_at, orders_7d, ...counts } = row.data;
+      const fresh = Date.now() - Date.parse(refreshed_at) <= ORDERS_7D_MAX_AGE_MS;
+      return fresh ? { ...counts, orders_7d } : counts;
     }),
 );
 

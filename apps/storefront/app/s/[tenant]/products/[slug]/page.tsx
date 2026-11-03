@@ -3,6 +3,7 @@ import { summarizeDelivery } from "@scheniders/shared";
 import { resolveStoreTenant, requireProduct } from "@/lib/route-guards";
 import {
   getProductBySlug,
+  getTenantPublicStats,
   getProductImages,
   getProductVariants,
   listApprovedReviews,
@@ -97,9 +98,10 @@ export default async function ProductPage({ params }: Props) {
     });
     // P1-13: approved reviews ride in on the product so product_reviews
     // renders its list in the SSR HTML (the client fetch is revalidation only).
-    const [related, reviews] = await Promise.all([
+    const [related, reviews, publicStats] = await Promise.all([
       listProducts(tenant.id, { limit: 24, withAttributes: true }),
       listApprovedReviews(tenant.id, product.id),
+      getTenantPublicStats(tenant.id),
     ]);
     // A variant row without its own price sells at the product's price.
     const pricedVariants = variants.map((v) => ({ ...v, price: v.price ?? product.price }));
@@ -156,7 +158,13 @@ export default async function ProductPage({ params }: Props) {
           v2={v2}
           page={v2Page}
           runtime={runtime}
-          renderCtx={{ tenant, products: related, categories, product: hydratedProduct }}
+          renderCtx={{
+            tenant,
+            products: related,
+            categories,
+            product: hydratedProduct,
+            public_stats: publicStats ?? undefined,
+          }}
         />
       </>
     );
