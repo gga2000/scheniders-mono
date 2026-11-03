@@ -18,8 +18,9 @@ vi.mock("@/hooks/use-orders-panel-stats", () => ({
 }));
 
 // The real NumberFlow draws digits in a shadow root jsdom cannot read: render the final formatted text instead.
-vi.mock("@/components/ui/number-ticker", () => ({
-    NumberTicker: ({ value, format }: { value: number; format?: Intl.NumberFormatOptions }) => (
+vi.mock("@/components/ui/number-ticker", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/components/ui/number-ticker")>()),
+    NumberTicker:({ value, format }: { value: number; format?: Intl.NumberFormatOptions }) => (
         <span>{new Intl.NumberFormat("en-US", format).format(value)}</span>
     ),
 }));
