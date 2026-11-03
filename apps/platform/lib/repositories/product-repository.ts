@@ -221,26 +221,28 @@ export const productRepository = {
 
     /**
      * The detail fields the list leaves out (description, dimensions, note
-     * cards), by product id. Read for one product's
-     * page or for the rows being exported, never for the whole catalogue.
+     * cards), by product id: for one product's page, a copy, or the rows an
+     * export writes, not on every list load.
      */
     async findDetails(tenantId: string, ids: string[]): Promise<Map<string, ProductDetails>> {
         const unique = [...new Set(ids)];
         if (unique.length === 0) return new Map();
-        return withRetry('productRepository.findDetails', async () => {
-            const rows: ProductDetailsRow[] = [];
-            // PostgREST puts `in` lists in the URL: keep each request short.
-            for (let i = 0; i < unique.length; i += DETAIL_ID_CHUNK) {
+        const rows: ProductDetailsRow[] = [];
+        // PostgREST puts `in` lists in the URL: keep each request short. Each
+        // chunk has its own retry budget, so a long export never restarts.
+        for (let i = 0; i < unique.length; i += DETAIL_ID_CHUNK) {
+            const chunk = unique.slice(i, i + DETAIL_ID_CHUNK);
+            rows.push(...(await withRetry('productRepository.findDetails', async () => {
                 const { data, error } = await supabase
                     .from("products")
                     .select(PRODUCT_DETAIL_COLUMNS)
                     .eq("tenant_id", tenantId)
-                    .in("id", unique.slice(i, i + DETAIL_ID_CHUNK));
+                    .in("id", chunk);
                 if (error) throw error;
-                rows.push(...((data ?? []) as ProductDetailsRow[]));
-            }
-            return new Map(rows.map(({ id, ...details }) => [id, details]));
-        });
+                return (data ?? []) as ProductDetailsRow[];
+            })));
+        }
+        return new Map(rows.map(({ id, ...details }) => [id, details]));
     },
 
     /**

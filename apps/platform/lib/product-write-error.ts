@@ -26,6 +26,7 @@ export function productWriteErrorKey(err: unknown): string {
         if (code === PG_INSUFFICIENT_PRIVILEGE) return "products.errors.notPermitted";
         // save_recipe names a repeated supply; the bom_items key says the same if a write slips past it.
         if (code === PG_UNIQUE_VIOLATION && typeof message === "string" && /same supply twice|bom_items_product_id_supply_id_unit_key/i.test(message)) return "products.errors.recipeDuplicate";
+        if (code === PG_UNIQUE_VIOLATION && typeof message === "string" && /idx_product_variants_tenant_sku/.test(message)) return "products.errors.variantSkuTaken";
         if (code === PG_UNIQUE_VIOLATION) return "products.errors.duplicate";
         // The recipe guards (guard_bom_supply_is_supply) say which rule broke.
         if (code === PG_FOREIGN_KEY_VIOLATION && typeof message === "string" && /used in recipes/i.test(message)) return "products.errors.supplyInRecipe";

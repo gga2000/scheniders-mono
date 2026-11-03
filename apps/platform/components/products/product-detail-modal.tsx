@@ -22,6 +22,7 @@ import { useFinancialVisibility } from "@/components/providers/financial-visibil
 import { StockIndicator } from "./stock-indicator";
 import { ProductThumb } from "@/components/products/product-thumb";
 import { useProductDetails } from "@/hooks/use-products-query";
+import { htmlToPlainText } from "@/lib/utils/html-to-plain-text";
 
 interface ProductDetailModalProps {
     isOpen: boolean;
@@ -121,7 +122,7 @@ export function ProductDetailModal({
                         {/* Description */}
                         {description && (
                             <div>
-                                <p className="text-muted">{description}</p>
+                                <p dir="auto" className="text-muted text-left">{htmlToPlainText(description)}</p>
                             </div>
                         )}
 

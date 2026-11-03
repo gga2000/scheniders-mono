@@ -232,6 +232,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                         onApplyToAll={editor.applyToAllVariants}
                                         onDeleteVariants={editor.deleteVariants}
                                         productSku={editor.formData.sku}
+                                        takenSkus={editor.takenVariantSkus}
                                         productPrice={editor.formData.price}
                                         productCost={editor.formData.cost}
                                         showCost={showCost}

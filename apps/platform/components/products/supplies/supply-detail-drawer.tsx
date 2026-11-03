@@ -29,6 +29,7 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { supplyReorderState, supplyTone } from "@/lib/utils/supply-reorder";
 import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
 import { useProductDetails } from "@/hooks/use-products-query";
+import { htmlToPlainText } from "@/lib/utils/html-to-plain-text";
 import { StockFillBar } from "./stock-fill-bar";
 import { DaysOfSupplyPill, daysOfSupplyFrom } from "./days-of-supply-pill";
 import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
@@ -409,7 +410,7 @@ function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo
                     <p className="text-[11px] uppercase tracking-wide text-muted font-medium mb-1">
                         {t("supplies.sp.description")}
                     </p>
-                    <p className="text-sm whitespace-pre-wrap">{description}</p>
+                    <p dir="auto" className="text-sm text-left">{htmlToPlainText(description)}</p>
                 </div>
             )}
         </div>

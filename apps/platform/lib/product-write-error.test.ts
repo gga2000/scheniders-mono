@@ -26,6 +26,7 @@ describe("productWriteErrorKey", () => {
         expect(productWriteErrorKey({ code: "23505", message: "recipe lists the same supply twice" })).toBe("products.errors.recipeDuplicate");
         expect(productWriteErrorKey({ code: "23505", message: "duplicate key value violates unique constraint \"bom_items_product_id_supply_id_unit_key\"" })).toBe("products.errors.recipeDuplicate");
         expect(productWriteErrorKey({ code: "23505", message: "duplicate key value violates unique constraint \"idx_products_tenant_sku\"" })).toBe("products.errors.duplicate");
+        expect(productWriteErrorKey({ code: "23505", message: "duplicate key value violates unique constraint \"idx_product_variants_tenant_sku\"" })).toBe("products.errors.variantSkuTaken");
     });
 
     it("reports a paused store", () => {

@@ -450,6 +450,7 @@ function ProductsContent() {
             category_id: product.category_id,
             website_price: product.website_price,
             short_description: product.short_description || undefined,
+            product_type: product.product_type,
         });
         } catch (err) {
             reportWriteError(err);

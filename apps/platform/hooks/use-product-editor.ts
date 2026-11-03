@@ -531,6 +531,12 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     const canEditSuppliers = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS)
         || !!product?.is_supply;
 
+    // Variant SKUs other products use; variant SKUs are unique per store.
+    const takenVariantSkus = useMemo(
+        () => new Set(catalogue.flatMap((p) => (p.id === product?.id ? [] : (p.variants ?? []).flatMap((v) => (v.sku ? [v.sku] : []))))),
+        [catalogue, product?.id],
+    );
+
     const emptyForm = useMemo(
         () => (defaultIsSupply ? { ...DEFAULT_FORM_DATA, is_supply: true } : DEFAULT_FORM_DATA),
         [defaultIsSupply]
@@ -1036,6 +1042,16 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             return false;
         }
 
+        // Variant SKUs are unique per store: a repeat is refused before anything is written,
+        // so a save never stops half-way on the database's unique key.
+        const variantSkus = formData.variants.map((v) => v.sku.trim()).filter(Boolean);
+        const takenElsewhere = takenVariantSkus;
+        const repeatedSku = variantSkus.find((sku, i) => variantSkus.indexOf(sku) !== i || takenElsewhere.has(sku));
+        if (repeatedSku) {
+            toast.error(t("products.ed.err.variantSkuTaken", { sku: repeatedSku }));
+            return false;
+        }
+
         // Validate cost is not greater than price (warning only for negative margin)
         if (formData.cost > 0 && formData.cost > formData.price && !formData.is_supply) {
             // Allow but warn
@@ -1114,6 +1130,8 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         console.error("Product created but follow-up save failed", followUpError);
                         clearDraft();
                         toast.error(t("products.ed.err.createPartial"));
+                        await refreshProductRows(queryClient, tenantId, [newProduct.id]);
+                        refreshRowOf = null;
                         router.push(`/products/${newProduct.id}/edit`);
                         return false;
                     }
@@ -1122,6 +1140,9 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 clearDraft();
                 toast.success(t("products.created"));
                 if (newProduct) {
+                    // The edit page finds the product in the list: put the row there first.
+                    await refreshProductRows(queryClient, tenantId, [newProduct.id]);
+                    refreshRowOf = null;
                     router.push(`/products/${newProduct.id}/edit`);
                 }
             } else if (product) {
@@ -1286,7 +1307,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             // Once per save, also after a failure half-way: the list shows what was written.
             if (refreshRowOf) void refreshProductRows(queryClient, tenantId, [refreshRowOf]);
         }
-    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost, relatedDataLoaded, queryClient]);
+    }, [formData, mode, product, takenVariantSkus, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost, relatedDataLoaded, queryClient]);
 
     // Duplicate product
     const duplicateProduct = useCallback(async () => {
@@ -1363,6 +1384,9 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
             toast.success(t("products.duplicated"));
             if (newProduct) {
+                // The edit page finds the copy in the list: put its row there first.
+                await refreshProductRows(queryClient, tenantId, [newProduct.id]);
+                copyId = null;
                 router.push(`/products/${newProduct.id}/edit`);
             }
         } catch (error) {
@@ -1375,6 +1399,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
 
     return {
         showCost,
+        takenVariantSkus,
         canReclassifySupply,
         canEditSuppliers,
         formData,

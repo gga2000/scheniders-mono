@@ -53,6 +53,8 @@ interface VariantMatrixTableProps {
     onApplyToAll: (field: "price" | "cost" | "stock_quantity", value: number) => void;
     onDeleteVariants?: (indices: number[]) => void;
     productSku?: string;
+    /** Variant SKUs other products already use (variant SKUs are unique per store). */
+    takenSkus?: ReadonlySet<string>;
     productPrice: number;
     productCost: number;
     /** Cost and margin are for admins only (products.manage). */
@@ -136,17 +138,29 @@ function stockIndicatorColor(
     return "bg-emerald-500";
 }
 
-function generateSkuForVariant(
+/**
+ * "<product SKU>-<option values>", each value in full (Green and Grey stay
+ * apart), then "-2", "-3"... until it is free. Variant SKUs are unique per
+ * store, so `taken` holds every SKU already in use, here and on other products.
+ */
+const NO_SKUS: ReadonlySet<string> = new Set();
+
+export function generateSkuForVariant(
     variant: VariantRowData,
     options: VariantMatrixTableProps["options"],
-    productSku?: string,
+    productSku: string | undefined,
+    taken: ReadonlySet<string>,
 ): string {
-    const base = productSku || "SKU";
-    const parts = options.map((opt) => {
-        const val = variant.option_values?.[opt.name] || "";
-        return val.substring(0, 3).toUpperCase().replace(/\s+/g, "");
-    });
-    return [base, ...parts].filter(Boolean).join("-");
+    const base = productSku?.trim() || "SKU";
+    const parts = options.map((opt) =>
+        (variant.option_values?.[opt.name] || "").toUpperCase().replace(/[^\p{L}\p{N}]+/gu, ""),
+    );
+    const sku = [base, ...parts].filter(Boolean).join("-");
+    if (!taken.has(sku)) return sku;
+    for (let n = 2; ; n++) {
+        const candidate = `${sku}-${n}`;
+        if (!taken.has(candidate)) return candidate;
+    }
 }
 
 function getColorHex(
@@ -170,6 +184,7 @@ export function VariantMatrixTable({
     onApplyToAll,
     onDeleteVariants,
     productSku,
+    takenSkus = NO_SKUS,
     productPrice,
     productCost,
     showCost = true,
@@ -501,12 +516,15 @@ export function VariantMatrixTable({
 
     const bulkGenerateSkus = useCallback(() => {
         const targets = hasSelection ? selectedArray : variants.map((_, i) => i);
+        const targetSet = new Set(targets);
+        // Rows not being regenerated keep their SKUs; each new one is added as it is made.
+        const taken = new Set([...takenSkus, ...variants.flatMap((v, i) => (!targetSet.has(i) && v.sku ? [v.sku] : []))]);
         targets.forEach((i) => {
-            onUpdateVariant(i, {
-                sku: generateSkuForVariant(variants[i], options, productSku),
-            });
+            const sku = generateSkuForVariant(variants[i], options, productSku, taken);
+            taken.add(sku);
+            onUpdateVariant(i, { sku });
         });
-    }, [hasSelection, selectedArray, variants, options, productSku, onUpdateVariant]);
+    }, [hasSelection, selectedArray, variants, options, productSku, takenSkus, onUpdateVariant]);
 
     const bulkDelete = useCallback(() => {
         if (!onDeleteVariants) return;
@@ -1285,6 +1303,7 @@ export function VariantMatrixTable({
                                                                         variant,
                                                                         options,
                                                                         productSku,
+                                                                        new Set([...takenSkus, ...variants.flatMap((v, i) => (i !== index && v.sku ? [v.sku] : []))]),
                                                                     ),
                                                                 })
                                                             }
