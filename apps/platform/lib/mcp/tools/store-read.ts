@@ -34,8 +34,10 @@ type ProductRow = {
     open_box_quantity: number | null;
     low_stock_threshold: number | null;
     is_visible: boolean | null;
+    /** The price the website charges when it differs from `price`. */
+    website_price: number | null;
 };
-type VariantRow = Omit<ProductRow, "is_visible"> & { product_id: string; is_enabled: boolean | null };
+type VariantRow = Omit<ProductRow, "is_visible" | "website_price"> & { product_id: string; is_enabled: boolean | null };
 
 const available = (r: { stock_quantity: number | null; reserved_quantity: number | null }) =>
     (r.stock_quantity ?? 0) - (r.reserved_quantity ?? 0);
@@ -253,7 +255,7 @@ export function registerStoreReadTools(server: McpServer): void {
         async run(caller, input) {
             let q = caller.db
                 .from("products")
-                .select("id, name, sku, price, stock_quantity, reserved_quantity, open_box_quantity, low_stock_threshold, is_visible")
+                .select("id, name, sku, price, website_price, stock_quantity, reserved_quantity, open_box_quantity, low_stock_threshold, is_visible")
                 .eq("tenant_id", caller.tenantId)
                 .eq("is_archived", false)
                 .or("is_supply.is.null,is_supply.eq.false");
@@ -298,7 +300,7 @@ export function registerStoreReadTools(server: McpServer): void {
             for (const p of shown.slice(0, input.limit)) {
                 const vs = variants.get(p.id) ?? [];
                 lines.push(
-                    `${p.name}${p.sku ? ` [${p.sku}]` : ""} (id ${p.id}) | ${iqd(p.price)} | ${p.is_visible ? "visible" : "hidden"}` +
+                    `${p.name}${p.sku ? ` [${p.sku}]` : ""} (id ${p.id}) | ${iqd(p.price)}${p.website_price != null ? ` (website charges ${iqd(p.website_price)})` : ""} | ${p.is_visible ? "visible" : "hidden"}` +
                         (vs.length === 0 ? ` | ${stockText(p)}` : ""),
                 );
                 for (const v of vs) {

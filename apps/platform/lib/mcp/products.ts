@@ -22,6 +22,8 @@ export type CatalogProduct = {
     name: string;
     sku: string | null;
     price: number | null;
+    /** The price the website charges when it differs from `price`. */
+    website_price: number | null;
     compare_at_price: number | null;
     stock_quantity: number | null;
     reserved_quantity: number | null;
@@ -42,7 +44,7 @@ export type CatalogVariant = {
     is_enabled: boolean | null;
 };
 
-const PRODUCT_COLUMNS = "id, name, sku, price, compare_at_price, stock_quantity, reserved_quantity, open_box_quantity, is_visible";
+const PRODUCT_COLUMNS = "id, name, sku, price, website_price, compare_at_price, stock_quantity, reserved_quantity, open_box_quantity, is_visible";
 const VARIANT_COLUMNS = "id, product_id, name, sku, price, compare_at_price, stock_quantity, reserved_quantity, open_box_quantity, is_enabled";
 const UUID = z.string().uuid();
 

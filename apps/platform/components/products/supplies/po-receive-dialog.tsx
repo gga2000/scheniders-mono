@@ -99,7 +99,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
     // and the PO price used instead: refuse it so the merchant fixes it.
     const badCost = canSetCost && Object.values(costs).some((raw) => {
         const trimmed = raw.trim();
-        return trimmed !== "" && !(Number.isInteger(Number(trimmed)) && Number(trimmed) >= 0);
+        return trimmed !== "" && !(Number.isInteger(Number(trimmed)) && Number(trimmed) > 0);
     });
 
     const gridCols = canSetCost ? "grid-cols-[1fr_7rem_6rem]" : "grid-cols-[1fr_6rem]";
