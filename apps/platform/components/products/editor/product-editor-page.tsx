@@ -393,7 +393,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                             <CollapsibleSection title={t("products.ed.sec.barcode")} icon={<Barcode className="w-4 h-4 text-muted" />} persistKey="barcode-qr">
                                 <BarcodeGenerator
                                     barcode={editor.formData.barcode ?? ""}
-                                    onChange={(barcode) => editor.updateField("barcode" as any, barcode)}
+                                    onChange={(barcode) => editor.updateField("barcode", barcode)}
                                     productSku={editor.formData.sku}
                                     productSlug={editor.formData.slug}
                                 />

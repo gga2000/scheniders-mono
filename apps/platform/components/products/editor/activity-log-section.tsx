@@ -170,7 +170,8 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
                 <div className="relative pl-8 before:absolute before:left-3 before:top-0 before:bottom-0 before:w-0.5 before:bg-[var(--card-border)]">
                     <div className="space-y-4">
                         {visibleEntries.map((entry, idx) => {
-                            const config = ACTION_CONFIG[entry.action];
+                            // An action this screen does not know yet shows as a plain update.
+                            const config = ACTION_CONFIG[entry.action] ?? ACTION_CONFIG.updated;
                             const Icon = config.icon;
                             const isExpanded = expandedIds.has(idx);
                             const hasDiff =

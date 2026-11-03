@@ -40,7 +40,7 @@ export interface CategoryRowProps {
   onDelete?: (c: Category) => void;
   onToggleVisibility?: (c: Category) => void;
   onScopeChange?: (c: Category, scope: CategoryScope) => void;
-  dragHandleProps?: Record<string, unknown>;
+  dragHandleProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
   isDragging?: boolean;
   onOpenDetail?: (c: Category) => void;
 }
@@ -98,9 +98,9 @@ export function CategoryRow({
       {/* Drag handle */}
       {dragHandleProps && (
         <button
-          {...(dragHandleProps as any)}
+          {...dragHandleProps}
           className="shrink-0 cursor-grab active:cursor-grabbing text-muted hover:text-foreground"
-          aria-label="Drag to reorder"
+          aria-label={t("categories.row.dragToReorder")}
         >
           <GripVertical className="w-4 h-4" />
         </button>
@@ -164,12 +164,12 @@ export function CategoryRow({
           <span className="font-medium truncate">{category.name}</span>
           {category.status === "draft" && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
-              {t("categories.status.draft") || "Draft"}
+              {t("categories.status.draft")}
             </span>
           )}
           {category.status === "archived" && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-200 text-gray-700 dark:text-gray-300">
-              {t("categories.status.archived") || "Archived"}
+              {t("categories.status.archived")}
             </span>
           )}
           {scheduled && (
@@ -181,7 +181,7 @@ export function CategoryRow({
                   : ""
               }
             >
-              {t("categories.scheduled") || "Scheduled"}
+              {t("categories.scheduled")}
             </span>
           )}
           {category.scope === "internal" && (
@@ -190,7 +190,7 @@ export function CategoryRow({
               title={t("categories.scope.internalHint") || undefined}
             >
               <Store className="w-2.5 h-2.5" />
-              {t("categories.scope.internal") || "Store only"}
+              {t("categories.scope.internal")}
             </span>
           )}
           {category.scope === "website" && (
@@ -199,13 +199,13 @@ export function CategoryRow({
               title={t("categories.scope.websiteHint") || undefined}
             >
               <Globe className="w-2.5 h-2.5" />
-              {t("categories.scope.website") || "Website"}
+              {t("categories.scope.website")}
             </span>
           )}
           {missingSeo && category.status === "published" && (
             <AlertCircle
               className="w-3.5 h-3.5 text-amber-600 shrink-0 dark:text-amber-300"
-              aria-label="Missing SEO metadata"
+              aria-label={t("categories.row.missingSeo")}
             />
           )}
         </div>
@@ -236,8 +236,8 @@ export function CategoryRow({
         {productCount}{" "}
         <span className="hidden sm:inline">
           {productCount === 1
-            ? t("categories.product") || "product"
-            : t("categories.products") || "products"}
+            ? t("categories.product")
+            : t("categories.products")}
         </span>
       </div>
 
@@ -299,7 +299,7 @@ export function CategoryRow({
                 {onDuplicate && (
                   <MenuItem
                     icon={Copy}
-                    label={t("common.duplicate") || "Duplicate"}
+                    label={t("common.duplicate")}
                     onClick={() => {
                       setMenuOpen(false);
                       onDuplicate(category);
@@ -309,7 +309,7 @@ export function CategoryRow({
                 {onArchive && category.status !== "archived" && (
                   <MenuItem
                     icon={Archive}
-                    label={t("common.archive") || "Archive"}
+                    label={t("common.archive")}
                     onClick={() => {
                       setMenuOpen(false);
                       onArchive(category);
@@ -320,7 +320,7 @@ export function CategoryRow({
                   <MenuItem
                     icon={Trash2}
                     tone="rose"
-                    label={t("common.delete") || "Delete"}
+                    label={t("common.delete")}
                     onClick={() => {
                       setMenuOpen(false);
                       onDelete(category);

@@ -108,7 +108,7 @@ export function LandedCostSection({
                     )}
                 >
                     <Plus className="w-4 h-4" />
-                    {t("products.cost.addBreakdown") || "Add cost breakdown"}
+                    {t("products.cost.addBreakdown")}
                 </button>
             </div>
         );
@@ -124,7 +124,7 @@ export function LandedCostSection({
                 <div className="flex items-center gap-2">
                     <Calculator className="w-4 h-4 text-muted" />
                     <h3 className="text-sm font-semibold text-muted uppercase tracking-wider">
-                        {t("products.cost.breakdown") || "Cost Breakdown"}
+                        {t("products.cost.breakdown")}
                     </h3>
                     {landedCost > 0 && (
                         <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-[var(--card-border)] text-muted font-medium">
@@ -194,7 +194,7 @@ export function LandedCostSection({
                             <div className="flex items-center gap-3 pt-3 border-t border-[var(--card-border)]">
                                 <div className="w-4 shrink-0" />
                                 <span className="text-sm font-semibold text-foreground w-36 shrink-0">
-                                    {t("products.cost.landedCost") || "Landed Cost"}
+                                    {t("products.cost.landedCost")}
                                 </span>
                                 <div className="flex-1">
                                     <span className="text-base font-bold text-foreground">
@@ -207,7 +207,7 @@ export function LandedCostSection({
                                 <div className={cn("inline-flex items-center gap-2 px-3 py-2 rounded-xl", marginColor)}>
                                     <TrendingUp className="w-3.5 h-3.5" />
                                     <span className="text-sm font-bold">
-                                        {t("products.cost.trueMargin") || "True Margin"}:{" "}
+                                        {t("products.cost.trueMargin")}:{" "}
                                         {trueMargin.margin.toFixed(1)}%
                                     </span>
                                     <span className="text-xs opacity-80">

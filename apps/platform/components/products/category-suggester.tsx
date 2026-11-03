@@ -200,7 +200,7 @@ export function CategorySuggester({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h2 className="text-base font-semibold text-[var(--foreground)]">
-                                        {t("products.suggester.title") || "Suggest categories"}
+                                        {t("products.suggester.title")}
                                     </h2>
                                     <p className="mt-0.5 text-sm text-muted">
                                         {t("products.suggester.subtitle", {
@@ -223,8 +223,7 @@ export function CategorySuggester({
                             <div className="flex-1 overflow-y-auto overscroll-contain p-3">
                                 {uncategorised.length === 0 && (
                                     <div className="px-4 py-10 text-center text-sm text-muted">
-                                        {t("products.suggester.empty") ||
-                                            "No uncategorized products"}
+                                        {t("products.suggester.empty")}
                                     </div>
                                 )}
 
@@ -232,8 +231,7 @@ export function CategorySuggester({
                                     strongBuckets.length === 0 &&
                                     noMatchCount === 0 && (
                                         <div className="px-4 py-10 text-center text-sm text-muted">
-                                            {t("products.suggester.empty") ||
-                                                "No uncategorized products"}
+                                            {t("products.suggester.empty")}
                                         </div>
                                     )}
 
@@ -274,8 +272,7 @@ export function CategorySuggester({
                                                         )}
                                                     >
                                                         <span>
-                                                            {t("products.suggester.review") ||
-                                                                "Review"}
+                                                            {t("products.suggester.review")}
                                                         </span>
                                                         {isExpanded ? (
                                                             <ChevronUp className="w-3 h-3" />
@@ -289,8 +286,7 @@ export function CategorySuggester({
                                                         onClick={() => handleAssignAll(bucket)}
                                                         className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--foreground)] text-[var(--background)] hover:opacity-90 transition-opacity"
                                                     >
-                                                        {t("products.suggester.assignAll") ||
-                                                            "Assign all"}
+                                                        {t("products.suggester.assignAll")}
                                                     </button>
                                                 </div>
 

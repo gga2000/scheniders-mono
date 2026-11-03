@@ -102,7 +102,7 @@ export function CategoryGridView({
                 <div className="absolute top-2 end-2 flex gap-1">
                   {c.status === "draft" && (
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
-                      {t("categories.status.draft") || "Draft"}
+                      {t("categories.status.draft")}
                     </span>
                   )}
                   {c.show_in_main_nav && (

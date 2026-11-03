@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Product, ProductVariant } from "@/lib/supabase";
 import { useProductSalesQuery } from "@/hooks/use-product-sales-query";
 import type { BulkPriceChange } from "@/hooks/use-products-query";
+import type { NewProduct, ProductUpdate } from "@/lib/repositories/product-repository";
 import {
     useProductsQuery,
     useAddProductMutation,
@@ -23,30 +24,6 @@ import {
     useUpdateVariantMutation,
     useDeleteVariantMutation,
 } from "@/hooks/use-products-query";
-
-interface ProductFormData {
-    name: string;
-    description?: string;
-    sku?: string; // Product SKU for LightFunnels matching
-    price: number;
-    compare_at_price?: number; // Original price before discount
-    cost?: number;
-    stock_quantity: number;
-    open_box_quantity?: number;
-    low_stock_threshold: number;
-    image_url?: string;
-    tag_color?: string; // Custom color for product tag display
-    is_supply?: boolean;
-    is_filler?: boolean;
-    // Storefront fields
-    slug?: string;
-    is_visible?: boolean;
-    display_order?: number;
-    category_id?: string | null;
-    website_price?: number | null;
-    storefront_stock?: number | null;
-    short_description?: string;
-}
 
 interface VariantFormData {
     name: string;
@@ -121,13 +98,13 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     // CRUD Operations Wrappers
     // =============================================
 
-    const addProduct = (data: ProductFormData): Promise<Product> =>
+    const addProduct = (data: NewProduct): Promise<Product> =>
         addProductMutation.mutateAsync(data);
 
     /** Resolves to the product's new updated_at (see productRepository.update). */
     const updateProduct = async (
         id: string,
-        data: Omit<Partial<ProductFormData>, "stock_quantity">,
+        data: ProductUpdate,
         opts: { expectedUpdatedAt?: string } = {},
     ): Promise<string | null> => {
         const { updatedAt } = await updateProductMutation.mutateAsync({ id, data, expectedUpdatedAt: opts.expectedUpdatedAt });

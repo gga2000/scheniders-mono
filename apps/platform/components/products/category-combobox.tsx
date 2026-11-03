@@ -268,10 +268,10 @@ export function CategoryCombobox({
 
     const selectedLabel =
         selectedCategory?.name ??
-        (allowUncategorized ? t("products.category.uncategorized") || "Uncategorized" : "");
+        (allowUncategorized ? t("products.category.uncategorized") : "");
 
     const searchPlaceholder =
-        placeholder ?? (t("products.category.searchPlaceholder") || "Search categories...");
+        placeholder ?? (t("products.category.searchPlaceholder"));
 
     const renderRow = (row: ListRow, index: number) => {
         const isActive = index === activeIndex;
@@ -299,7 +299,7 @@ export function CategoryCombobox({
                 >
                     <FolderOpen className="w-4 h-4 text-muted shrink-0" />
                     <span className="flex-1 text-[var(--foreground)] truncate">
-                        {t("products.category.uncategorized") || "Uncategorized"}
+                        {t("products.category.uncategorized")}
                     </span>
                     {selected && <Check className="w-4 h-4 text-muted shrink-0" />}
                 </div>
@@ -327,7 +327,7 @@ export function CategoryCombobox({
                     )}
                     <span className="flex-1 text-[var(--foreground)] truncate">
                         {creating
-                            ? t("products.category.creating") || "Creating..."
+                            ? t("products.category.creating")
                             : t("products.category.create", { name: row.query }) ||
                               `Create "${row.query}"`}
                     </span>
@@ -390,8 +390,8 @@ export function CategoryCombobox({
                 ) : rows.length === 0 ? (
                     <div className="px-4 py-6 text-center text-sm text-muted">
                         {categories.length === 0
-                            ? t("products.category.empty") || "No categories yet"
-                            : t("products.category.noMatches") || "No matches"}
+                            ? t("products.category.empty")
+                            : t("products.category.noMatches")}
                     </div>
                 ) : (
                     rows.map((row, i) => renderRow(row, i))
@@ -430,7 +430,7 @@ export function CategoryCombobox({
                     )}
                 >
                     {selectedLabel ||
-                        (t("products.category.searchPlaceholder") || "Search categories...")}
+                        (t("products.category.searchPlaceholder"))}
                 </span>
                 <ChevronDown
                     className={cn(

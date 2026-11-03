@@ -1072,7 +1072,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     duration_minutes: formData.duration_minutes,
                     booking_enabled: formData.booking_enabled,
                     feature_cards: serializeFeatureCards(formData.feature_cards),
-                } as any);
+                });
 
                 if (newProduct) {
                     try {
@@ -1088,7 +1088,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                                     option_values: variant.option_values,
                                     image_url: variant.image_url,
                                     is_enabled: variant.is_enabled ?? true,
-                                } as any);
+                                });
                             }
                         }
 
@@ -1156,7 +1156,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     duration_minutes: formData.duration_minutes,
                     booking_enabled: formData.booking_enabled,
                     feature_cards: serializeFeatureCards(formData.feature_cards),
-                } as any, { expectedUpdatedAt: baseUpdatedAtRef.current ?? undefined });
+                }, { expectedUpdatedAt: baseUpdatedAtRef.current ?? undefined });
                 baseUpdatedAtRef.current = savedUpdatedAt;
 
                 // Stock is saved only when the merchant changed it, as a shelf
@@ -1305,7 +1305,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 duration_minutes: formData.duration_minutes,
                 booking_enabled: formData.booking_enabled,
                 feature_cards: serializeFeatureCards(formData.feature_cards),
-            } as any);
+            });
 
             if (newProduct && formData.variants.length > 0) {
                 for (const variant of formData.variants) {
@@ -1318,7 +1318,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         option_values: variant.option_values,
                         image_url: variant.image_url,
                         is_enabled: variant.is_enabled ?? true,
-                    } as any);
+                    });
                 }
             }
 

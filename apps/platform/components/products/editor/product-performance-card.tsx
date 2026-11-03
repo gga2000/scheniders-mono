@@ -3,7 +3,7 @@
 import { useLanguage } from "@/hooks/use-language";
 import { TrendingUp, DollarSign, ShoppingCart, BarChart3 } from "lucide-react";
 import { motion } from "framer-motion";
-import { formatIQD } from "@/lib/utils";
+import { formatCount, formatIQD } from "@/lib/utils";
 
 interface ProductPerformanceCardProps {
     /**
@@ -57,7 +57,7 @@ export function ProductPerformanceCard({
     function getValue(key: (typeof stats)[number]["key"]): string {
         switch (key) {
             case "totalSales":
-                return timesSold != null ? new Intl.NumberFormat("en-IQ").format(timesSold) : "--";
+                return timesSold != null ? formatCount(timesSold) : "--";
             case "revenue":
                 return totalRevenue != null ? formatMoney(totalRevenue) : "--";
             case "profitMargin":
