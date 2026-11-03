@@ -175,7 +175,7 @@ export function CheckoutRow({
               saving > 0 ? (
                 // show_savings: the item at its regular price in red, the
                 // saving under it in green, so the rows add up to the total.
-                <bdi className="text-bk-danger" data-receipt-regular="">
+                <bdi className="text-bk-danger line-through decoration-1" data-receipt-regular="">
                   {formatPrice(m.subtotal + saving, locale)}
                 </bdi>
               ) : (

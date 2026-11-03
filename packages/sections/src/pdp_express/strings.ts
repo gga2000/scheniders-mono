@@ -61,6 +61,8 @@ export const EXPRESS_STRINGS = {
     ar: "مثال: قرب مصرف الرافدين",
     ku: "نموونە: نزیک بانکی ڕافیدەین",
   },
+  hideFields: { en: "Hide the details", ar: "إخفاء التفاصيل", ku: "وردەکارییەکان بشارەوە" },
+  showFields: { en: "Show the details", ar: "إظهار التفاصيل", ku: "وردەکارییەکان پیشان بدە" },
   addAltPhone: { en: "Add a backup number", ar: "أضف رقم ثاني للاحتياط", ku: "ژمارەیەکی یەدەگ زیاد بکە" },
   altPhoneLabel: { en: "Backup number", ar: "رقم ثاني", ku: "ژمارەی یەدەگ" },
   quantity: { en: "Quantity", ar: "الكمية", ku: "بڕ" },

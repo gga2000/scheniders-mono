@@ -276,23 +276,46 @@ export function BoutiqueFooter({
           />
         )}
 
-        {/* Fine print */}
-        <div className={cn("mt-10 space-y-1 border-t border-bk-on-secondary/10 pt-5 font-bk-body text-xs text-bk-on-secondary/55", text)}>
-          {props.legal?.company_name && (
-            <p>
-              <bdi>
-                {t("legalName", locale)}: <bdi>{props.legal.company_name}</bdi>
-              </bdi>
-            </p>
+        {/* Fine print: the legal facts as one registration plate (label over
+            value, a hairline between), then the rights line centred under
+            it. Only the facts the merchant entered are drawn. */}
+        <div className="mt-10 space-y-4">
+          {(props.legal?.company_name || props.legal?.business_license) && (
+            <dl
+              data-footer-legal=""
+              className="divide-y divide-bk-on-secondary/10 rounded-bk-card border-bk border-bk-on-secondary/15 bg-bk-on-secondary/5"
+            >
+              {props.legal?.company_name && (
+                <div className={cn("flex items-center gap-3 px-4 py-3.5", row)}>
+                  <MaterialIcon name="apartment" className="shrink-0 text-xl text-bk-primary" />
+                  <div className={cn("min-w-0 flex-1", text)}>
+                    <dt className="font-bk-body text-xs font-bold text-bk-on-secondary/60">
+                      {t("legalName", locale)}
+                    </dt>
+                    <dd className="mt-0.5 font-bk-display text-base font-black leading-snug">
+                      <bdi>{props.legal.company_name}</bdi>
+                    </dd>
+                  </div>
+                </div>
+              )}
+              {props.legal?.business_license && (
+                <div className={cn("flex items-center gap-3 px-4 py-3.5", row)}>
+                  <MaterialIcon name="verified" className="shrink-0 text-xl text-bk-primary" />
+                  <div className={cn("min-w-0 flex-1", text)}>
+                    <dt className="font-bk-body text-xs font-bold text-bk-on-secondary/60">
+                      {t("license", locale)}
+                    </dt>
+                    <dd className="mt-0.5 font-bk-body text-base font-bold tabular-nums tracking-wide">
+                      <bdi>{props.legal.business_license}</bdi>
+                    </dd>
+                  </div>
+                </div>
+              )}
+            </dl>
           )}
-          {props.legal?.business_license && (
-            <p>
-              <bdi>
-                {t("license", locale)}: <bdi className="tabular-nums">{props.legal.business_license}</bdi>
-              </bdi>
-            </p>
-          )}
-          <p>{rights}</p>
+          <p className="text-balance text-center font-bk-body text-xs leading-relaxed text-bk-on-secondary/55">
+            {rights}
+          </p>
         </div>
       </div>
     </footer>

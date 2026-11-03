@@ -7,9 +7,10 @@
 // العطر» and the note cards:
 //   1. eyebrow + who it is for;
 //   2. the lead line;
-//   3. the always-open pyramid as a timeline: a rail of stage dots that
-//      deepen from top to base, each stage's name and hint, then its notes
-//      as chips (a note with a photo carries it as a small round avatar);
+//   3. the always-open pyramid: numbered stage badges that deepen from top
+//      to base, each stage's name and hint, then its notes on an equal
+//      three-column grid (photo over name; a note without one gets its
+//      first letter in a tile);
 //   4. facts, only with data: one tile per meter (a fractional value
 //      fills its last segment partly) with the source tag under them, the
 //      chip rows, the staying-power line on an espresso band. The season
@@ -34,9 +35,13 @@ import { GENDER_ICON, Tag, reviewCountLabel } from "./identity-label";
 import { monogramOf, type ScentCardData } from "./scent-card";
 import { readsRtl, xs } from "./text";
 
-/** Stage dots, top → base: the ink deepens as the scent settles. Full
+/** Stage badges, top → base: the ink deepens as the scent settles. Full
  *  literals so Tailwind's content scan sees them. */
-const STAGE_DOT = ["bg-bk-ink/30", "bg-bk-ink/60", "bg-bk-ink"] as const;
+const STAGE_BADGE = [
+  "bg-bk-ink/15 text-bk-ink",
+  "bg-bk-ink/55 text-bk-surface",
+  "bg-bk-ink text-bk-surface",
+] as const;
 
 export function ScentCardBlock({
   card,
@@ -119,58 +124,62 @@ export function ScentCardBlock({
         <ol
           aria-label={xs("notesListLabel", locale)}
           data-scent-timeline=""
-          className="rounded-bk-card bg-bk-surface px-3.5 py-1"
+          className="divide-y divide-dashed divide-bk-divider rounded-bk-card bg-bk-surface px-3.5"
         >
-          {card.tiers.map((t, ti) => {
-            const last = ti === card.tiers.length - 1;
-            return (
-              <li
-                key={t.key}
-                data-stage={t.key}
-                className={cn("relative flex gap-3 py-3", rtl && "flex-row-reverse")}
-              >
-                {/* The rail: one dot per stage, deeper ink as the scent
-                    settles from the first spray to what stays. */}
-                <span aria-hidden="true" className="relative flex w-3 shrink-0 justify-center pt-1">
-                  <span className={cn("relative z-10 size-3 rounded-bk-pill ring-4 ring-bk-surface", STAGE_DOT[ti % STAGE_DOT.length])} />
-                  {!last && <span className="absolute inset-y-0 top-5 -bottom-4 w-px bg-bk-divider" />}
+          {card.tiers.map((t, ti) => (
+            <li key={t.key} data-stage={t.key} className="space-y-3 py-4">
+              {/* Stage header: a numbered badge that deepens from the first
+                  spray to what stays, then the stage name and its hint. */}
+              <p className={cn("flex items-center gap-2.5", rtl && "flex-row-reverse")}>
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex size-6 shrink-0 items-center justify-center rounded-bk-pill font-bk-body text-xs font-black tabular-nums",
+                    STAGE_BADGE[ti % STAGE_BADGE.length],
+                  )}
+                >
+                  {ti + 1}
                 </span>
-                <div className={cn("min-w-0 flex-1 space-y-2", align)}>
-                  <p className={cn("flex flex-wrap items-baseline gap-x-2", rtl && "flex-row-reverse")}>
-                    <span className="font-bk-display text-[15px] font-black text-bk-ink">{t.label}</span>
-                    {t.hint && (
-                      <span className="font-bk-body text-xs font-semibold text-bk-ink-soft">{t.hint}</span>
-                    )}
-                  </p>
-                  <ul className={cn("flex flex-wrap gap-1.5", rtl && "flex-row-reverse")}>
-                    {t.notes.map((n, i) => (
-                      <li
-                        key={`${n.name}-${i}`}
-                        data-note-photo={n.image ? "" : undefined}
-                        data-note-chip={n.image ? undefined : ""}
-                        className={cn(
-                          "inline-flex h-8 items-center gap-1.5 rounded-bk-pill border-bk border-bk-divider bg-bk-surface-alt font-bk-body text-[13px] font-bold text-bk-ink",
-                          n.image ? (rtl ? "flex-row-reverse pl-3 pr-1" : "pl-1 pr-3") : "px-3",
-                        )}
+                <span className="font-bk-display text-[15px] font-black text-bk-ink">{t.label}</span>
+                {t.hint && (
+                  <span className="font-bk-body text-xs font-semibold text-bk-ink-soft">{t.hint}</span>
+                )}
+              </p>
+              {/* Notes sit on one grid: equal columns, a photo over its name,
+                  so every stage lines up the same way. */}
+              <ul className="grid grid-cols-3 gap-x-2 gap-y-3">
+                {t.notes.map((n, i) => (
+                  <li
+                    key={`${n.name}-${i}`}
+                    data-note-photo={n.image ? "" : undefined}
+                    data-note-chip={n.image ? undefined : ""}
+                    className="flex min-w-0 flex-col items-center gap-1.5 text-center"
+                  >
+                    {n.image ? (
+                      <Image
+                        src={n.image}
+                        alt=""
+                        width={56}
+                        height={56}
+                        unoptimized={!isOptimizableImageHost(n.image)}
+                        className="size-14 rounded-bk-card object-cover"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="flex size-14 items-center justify-center rounded-bk-card bg-bk-surface-alt font-bk-display text-lg font-black text-bk-ink-soft"
                       >
-                        {n.image && (
-                          <Image
-                            src={n.image}
-                            alt=""
-                            width={24}
-                            height={24}
-                            unoptimized={!isOptimizableImageHost(n.image)}
-                            className="size-6 rounded-bk-pill object-cover"
-                          />
-                        )}
-                        <bdi>{n.name}</bdi>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </li>
-            );
-          })}
+                        {monogramOf(n.name)}
+                      </span>
+                    )}
+                    <bdi className="w-full text-balance font-bk-body text-[13px] font-bold leading-tight text-bk-ink">
+                      {n.name}
+                    </bdi>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
         </ol>
       )}
 

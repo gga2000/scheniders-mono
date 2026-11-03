@@ -97,7 +97,7 @@ describe("pdp_direct_order express — show_savings receipt", () => {
     // 32,000 regular − 7,000 saving = 25,000 total.
     expect(html.slice(regular, regular + 120)).toContain("32,000");
     expect(html.slice(saving, saving + 120)).toContain("7,000");
-    expect(html).toMatch(/text-bk-danger" data-receipt-regular/);
+    expect(html).toMatch(/text-bk-danger line-through decoration-1" data-receipt-regular/);
     expect(html).toMatch(/text-bk-success" data-receipt-saving/);
   });
 

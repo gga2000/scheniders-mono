@@ -215,6 +215,17 @@ export function ExpressForm({
     hasError("customer_name") ||
     focusStage === "name" ||
     addressOpen;
+  // collapsible_fields: the shopper folds name and address away to keep
+  // only the number showing. A field error always reopens them, so a failed
+  // submit can focus the field it names.
+  const [folded, setFolded] = useState(false);
+  const hideRest =
+    folded &&
+    !hasError("customer_name") &&
+    !hasError("governorate_code") &&
+    !hasError("address_details") &&
+    !hasError("alt_phone");
+  const canFold = m.props.collapsible_fields === true && nameOpen;
   const altVisible = altOpen || form.alt_phone !== "" || hasError("alt_phone");
 
   // The backup number field replaces the button that opened it, so focus
@@ -381,8 +392,24 @@ export function ExpressForm({
         )}
       </div>
 
-      <Stage open={nameOpen} step="name" onFocusWithin={onStageFocus}>
-        <StageItem open={nameOpen} className={text}>
+      {canFold && (
+        <button
+          type="button"
+          data-fold-fields=""
+          aria-expanded={!hideRest}
+          onClick={() => setFolded((f) => !f)}
+          className={cn(
+            "mt-1 inline-flex min-h-11 items-center gap-1.5 font-bk-body text-sm font-bold text-bk-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus",
+            rtl && "flex-row-reverse",
+          )}
+        >
+          <MaterialIcon name={hideRest ? "expand_more" : "expand_less"} className="text-lg" />
+          {xs(hideRest ? "showFields" : "hideFields", locale)}
+        </button>
+      )}
+
+      <Stage open={nameOpen && !hideRest} step="name" onFocusWithin={onStageFocus}>
+        <StageItem open={nameOpen && !hideRest} className={text}>
           <label htmlFor={m.fieldA11yCore("customer_name").id} className={labelCls}>
             {xs("nameLabel", locale)}
           </label>
@@ -406,8 +433,8 @@ export function ExpressForm({
         </StageItem>
       </Stage>
 
-      <Stage open={addressOpen} step="address" onFocusWithin={onStageFocus}>
-        <StageItem open={addressOpen}>
+      <Stage open={addressOpen && !hideRest} step="address" onFocusWithin={onStageFocus}>
+        <StageItem open={addressOpen && !hideRest}>
           <p
             className={cn(
               "flex items-center gap-1.5 font-bk-display text-[15px] font-black text-bk-ink",
@@ -419,7 +446,7 @@ export function ExpressForm({
           </p>
         </StageItem>
 
-        <StageItem open={addressOpen} className={text}>
+        <StageItem open={addressOpen && !hideRest} className={text}>
           <label htmlFor={m.fieldA11yCore("governorate_code").id} className={labelCls}>
             {xs("governorateLabel", locale)}
           </label>
@@ -456,7 +483,7 @@ export function ExpressForm({
           {err("governorate_code")}
         </StageItem>
 
-        <StageItem open={addressOpen} late className={text}>
+        <StageItem open={addressOpen && !hideRest} late className={text}>
           <label htmlFor={m.fieldA11yCore("address_details").id} className={labelCls}>
             {xs("addressLabel", locale)}
           </label>
@@ -481,8 +508,8 @@ export function ExpressForm({
         </StageItem>
       </Stage>
 
-      <Stage open={extrasOpen} step="extras" onFocusWithin={onStageFocus}>
-        <StageItem open={extrasOpen} className={text}>
+      <Stage open={extrasOpen && !hideRest} step="extras" onFocusWithin={onStageFocus}>
+        <StageItem open={extrasOpen && !hideRest} className={text}>
           <label htmlFor={`${m.submitErrorId}-landmark`} className={labelCls}>
             {xs("landmarkLabel", locale)}{" "}
             <span className="font-normal text-bk-ink-faint">({xs("optional", locale)})</span>
@@ -501,7 +528,7 @@ export function ExpressForm({
           />
         </StageItem>
 
-        <StageItem open={extrasOpen} late className={altVisible ? text : undefined}>
+        <StageItem open={extrasOpen && !hideRest} late className={altVisible ? text : undefined}>
           {altVisible ? (
             <>
               <label htmlFor={altA11y.id} className={labelCls}>
