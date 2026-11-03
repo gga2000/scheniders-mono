@@ -207,7 +207,7 @@ export function PostPurchaseOfferRender({
               <p className="font-body text-xs text-bk-ink-soft">{offer.description}</p>
             )}
             <p className="mt-0.5 flex items-baseline gap-1.5">
-              <span className="font-display text-base font-black tabular-nums text-bk-primary">
+              <span className="font-display text-base font-black tabular-nums text-bk-ink">
                 <bdi>{formatPrice(offer.offer_price, locale)}</bdi>
               </span>
               {offer.offer_price < offer.base_price && (
