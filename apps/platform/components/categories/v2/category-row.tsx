@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CategoryScopeControl } from "@/components/products/category-scope-control";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
 import type { Category, CategoryScope } from "@scheniders/shared";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 
@@ -74,7 +75,7 @@ export function CategoryRow({
   isDragging,
   onOpenDetail,
 }: CategoryRowProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const visible = category.is_visible && category.status !== "archived";
@@ -177,7 +178,7 @@ export function CategoryRow({
               className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-teal-100 text-teal-700"
               title={
                 category.published_at
-                  ? `Publishes ${new Date(category.published_at).toLocaleString()}`
+                  ? t("categories.publishesOn", { date: formatBaghdadDate(category.published_at, language) })
                   : ""
               }
             >

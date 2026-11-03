@@ -3,6 +3,7 @@
 import { DollarSign, TrendingUp, TrendingDown, Percent } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
+import { formatCount } from "@/lib/utils";
 
 interface ProductPricingSectionProps {
     formData: ProductEditorFormData;
@@ -91,13 +92,13 @@ export function ProductPricingSection({
                             <div className="inline-flex items-center gap-2 px-3 py-2 bg-rose-100 dark:bg-rose-950/40 rounded-xl">
                                 <TrendingDown className="w-3.5 h-3.5 text-rose-700 dark:text-rose-300" />
                                 <span className="text-sm font-bold text-rose-900 dark:text-rose-200">{profitMargin.toFixed(1)}%</span>
-                                <span className="text-xs text-rose-700 dark:text-rose-300">{t("products.ed.lossPerUnit").replace("{amount}", Math.abs(profitAmount).toLocaleString())}</span>
+                                <span className="text-xs text-rose-700 dark:text-rose-300">{t("products.ed.lossPerUnit").replace("{amount}", formatCount(Math.abs(profitAmount)))}</span>
                             </div>
                         ) : (
                             <div className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--pastel-green)] rounded-xl">
                                 <TrendingUp className="w-3.5 h-3.5 text-green-700" />
                                 <span className="text-sm font-bold text-green-900">{profitMargin.toFixed(1)}%</span>
-                                <span className="text-xs text-green-700">{t("products.ed.perUnit").replace("{amount}", profitAmount.toLocaleString())}</span>
+                                <span className="text-xs text-green-700">{t("products.ed.perUnit").replace("{amount}", formatCount(profitAmount))}</span>
                             </div>
                         )
                     )}
@@ -106,7 +107,7 @@ export function ProductPricingSection({
                             <Percent className="w-3.5 h-3.5 text-rose-700" />
                             <span className="text-sm font-bold text-rose-900">{discountPercentage}%</span>
                             <span className="text-xs text-rose-700">
-                                {t("products.ed.saveAmount").replace("{amount}", (formData.compare_at_price - formData.price).toLocaleString())}
+                                {t("products.ed.saveAmount").replace("{amount}", formatCount(formData.compare_at_price - formData.price))}
                             </span>
                         </div>
                     )}
