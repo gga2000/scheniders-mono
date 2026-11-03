@@ -113,7 +113,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                                 />
                             </div>
                             {!customError && preview && (
-                                <div className="text-[11px] text-muted tabular-nums">{preview}</div>
+                                <div className="text-[11px] text-muted tabular-nums"><bdi>{preview}</bdi></div>
                             )}
                             {customError && (
                                 <div className="text-[11px] text-rose-600 dark:text-rose-400">{customError}</div>
