@@ -190,21 +190,24 @@ const accountBillingSchema = z.object({
     balance: numericString.optional(),
 });
 
-const paymentCycleSchema = z.object({
-    data: z.array(z.object({ threshold_amount: z.union([z.number(), numericString]).optional() })),
-});
+/**
+ * The balance at which Meta charges the card ("Your balance reaches" on Meta's billing page), in USD. Meta's API
+ * does not hand it to a read-only ads_read token, and it only changes when the owner changes it there, so it is
+ * kept here as a named constant: update it when the owner says the threshold moved.
+ */
+export const META_BILLING_THRESHOLD_USD = 422;
 
 export interface AccountBilling {
     currency: string;
-    /** What Meta has spent on the account but not yet charged, major units (the "Current balance" on Meta's billing page). */
+    /** What Meta has spent on the account but not yet charged, in major units (the "Current balance" on Meta's billing page). */
     balance: number;
-    /** Balance at which Meta charges the card ("Your balance reaches"), major units; null when Meta does not say. */
-    threshold: number | null;
 }
 
-async function graphGet(path: string, query: URLSearchParams, accessToken: string): Promise<unknown> {
-    const res = await fetch(`${GRAPH_HOST}/${GRAPH_VERSION}/${path}?${query}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+/** The ad account's unbilled balance (read-only). Throws MetaAdsError when Meta cannot say. */
+export async function fetchAccountBilling(params: { adAccountId: string; accessToken: string }): Promise<AccountBilling> {
+    const query = new URLSearchParams({ fields: "currency,balance" });
+    const res = await fetch(`${GRAPH_HOST}/${GRAPH_VERSION}/act_${params.adAccountId}?${query}`, {
+        headers: { Authorization: `Bearer ${params.accessToken}` },
         cache: "no-store",
     });
     const body: unknown = await res.json().catch(() => null);
@@ -212,31 +215,7 @@ async function graphGet(path: string, query: URLSearchParams, accessToken: strin
         const parsed = graphErrorSchema.safeParse(body);
         throw new MetaAdsError(parsed.success ? parsed.data.error.message : `Meta API HTTP ${res.status}`);
     }
-    return body;
-}
-
-/**
- * The ad account's billing position (read-only): the balance Meta has not charged yet and the balance that
- * triggers the next charge. The balance is required (throws MetaAdsError); the threshold is best effort, since
- * Meta may hide the payment cycle from an `ads_read` token, and then comes back null.
- */
-export async function fetchAccountBilling(params: { adAccountId: string; accessToken: string }): Promise<AccountBilling> {
-    const account = accountBillingSchema.safeParse(
-        await graphGet(`act_${params.adAccountId}`, new URLSearchParams({ fields: "currency,balance" }), params.accessToken),
-    );
-    if (!account.success) throw new MetaAdsError("Unexpected response from Meta API");
-
-    const minor = (value: string | number | undefined) => (value === undefined ? null : Number(value) / 100);
-    let threshold: number | null = null;
-    try {
-        const cycle = paymentCycleSchema.safeParse(
-            await graphGet(`act_${params.adAccountId}/adspaymentcycle`, new URLSearchParams({ fields: "threshold_amount" }), params.accessToken),
-        );
-        const amount = cycle.success ? minor(cycle.data.data[0]?.threshold_amount) : null;
-        threshold = amount !== null && amount > 0 ? amount : null;
-    } catch (e) {
-        // Only "Meta will not show the payment cycle" is expected; anything else is a real failure.
-        if (!(e instanceof MetaAdsError)) throw e;
-    }
-    return { currency: account.data.currency, balance: minor(account.data.balance) ?? 0, threshold };
+    const parsed = accountBillingSchema.safeParse(body);
+    if (!parsed.success) throw new MetaAdsError("Unexpected response from Meta API");
+    return { currency: parsed.data.currency, balance: Number(parsed.data.balance ?? 0) / 100 };
 }

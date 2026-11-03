@@ -29,6 +29,8 @@ interface OrdersAnalyticsPanelProps {
     flaggedCountHidden?: boolean;
 }
 
+/** Meta bills in dollars: $341.80. */
+const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const whole = (n: number) => Math.round(n).toLocaleString("en-US");
 
 /**
@@ -79,7 +81,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
     const comparing = windows.previous !== null;
 
     const spend = stats.ads?.spend.data;
-    const costPerOrder = spend === undefined || !current.data ? null : perUnit(spend, current.data.orders);
+    const costPerOrder = spend === undefined || !current.data ? null : perUnit(spend.iqd, current.data.orders);
     const storeNow = stats.store.figures?.current;
     const storeBefore = stats.store.figures?.previous;
 
@@ -166,7 +168,8 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                             testId="ad_spend"
                             label={t("orders.analytics.adSpend")}
                             hint={t("orders.analytics.tip.adSpend")}
-                            value={spend === undefined ? null : formatIQD(spend)}
+                            value={spend === undefined ? null : usd(spend.usd)}
+                            sub={spend === undefined ? null : formatIQD(spend.iqd)}
                         />
                         <OrdersAnalyticsCell
                             testId="cpa"
@@ -179,15 +182,17 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                                 testId="ad_owed"
                                 label={t("orders.analytics.adOwed")}
                                 hint={t("orders.analytics.tip.adOwed")}
-                                value={formatIQD(stats.ads.billing.data.owedIqd)}
+                                value={usd(stats.ads.billing.data.owedUsd)}
+                                sub={formatIQD(stats.ads.billing.data.owedIqd)}
                             />
                         )}
-                        {stats.ads.billing.data?.leftIqd != null && (
+                        {stats.ads.billing.data && (
                             <OrdersAnalyticsCell
                                 testId="ad_limit"
                                 label={t("orders.analytics.adLimit")}
                                 hint={t("orders.analytics.tip.adLimit")}
-                                value={formatIQD(stats.ads.billing.data.leftIqd)}
+                                value={usd(stats.ads.billing.data.leftUsd)}
+                                sub={formatIQD(stats.ads.billing.data.leftIqd)}
                             />
                         )}
                     </>
