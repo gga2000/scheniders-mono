@@ -3,7 +3,7 @@
 import { AbandonedCartBadge } from "@/components/orders/abandoned-cart-badge";
 import { AbandonedCartAccent } from "@/components/orders/abandoned-cart-accent";
 import { CodRiskChip } from "@/components/orders/cod-risk-chip";
-import { memo } from "react";
+import { Fragment, memo } from "react";
 import { createPortal } from "react-dom";
 import { Order } from "@/lib/supabase";
 import { RiskBadge } from "@/components/orders/risk-badge";
@@ -123,6 +123,11 @@ function FullOrderCard(props: OrderCardProps) {
                 >
                     <AbandonedCartAccent order={order} orientation="vertical" />
                 </motion.div>
+
+                {/* Multi-item order: gold hairline along the top edge (clipped by the card's rounded corners) */}
+                {items.length > 1 && (
+                    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-10 hidden h-[3px] bg-amber-400 md:block" />
+                )}
 
                 {/* Selection Checkbox - Positioned top-left on mobile, inline on desktop */}
                 {onToggleSelection && (
@@ -609,6 +614,13 @@ function FullOrderCard(props: OrderCardProps) {
                             <div className="flex-1 min-w-0">
                                 {items.length > 0 ? (
                                     <div className="flex flex-wrap gap-2">
+                                        <div
+                                            className={cn(
+                                                "contents",
+                                                items.length > 1 && "!flex flex-wrap items-center gap-y-1 rounded-2xl border border-amber-200 bg-amber-50 p-1 dark:border-amber-500/20 dark:bg-amber-500/10"
+                                            )}
+                                            data-multi-item={items.length > 1 ? "true" : undefined}
+                                        >
                                         {items.map((item, idx) => {
                                             // Only color quantity badge if > 1
                                             const quantityColor = item.quantity === 1
@@ -618,9 +630,15 @@ function FullOrderCard(props: OrderCardProps) {
                                                     : 'bg-rose-100 text-rose-700 border-rose-300';
 
                                             return (
+                                                <Fragment key={idx}>
+                                                {idx > 0 && (
+                                                    <span aria-hidden="true" className="mx-1 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs font-extrabold text-white">+</span>
+                                                )}
                                                 <span
-                                                    key={idx}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground bg-[var(--background)] border-l-[3px] dark:bg-gradient-to-r dark:from-white/5 dark:to-transparent"
+                                                    className={cn(
+                                                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground border-l-[3px]",
+                                                        items.length > 1 ? "bg-transparent" : "bg-[var(--background)] dark:bg-gradient-to-r dark:from-white/5 dark:to-transparent"
+                                                    )}
                                                     style={{
                                                         borderLeftColor: item.tag_color || '#22c55e'
                                                     }}
@@ -647,8 +665,15 @@ function FullOrderCard(props: OrderCardProps) {
                                                         </span>
                                                     )}
                                                 </span>
+                                                </Fragment>
                                             );
                                         })}
+                                        {items.length > 1 && (
+                                            <span className="px-2 text-xs font-extrabold text-amber-700 dark:text-amber-400">
+                                                {t("orders.card.totalPieces", { count: items.reduce((sum, item) => sum + item.quantity, 0) })}
+                                            </span>
+                                        )}
+                                        </div>
                                         {/* Review Required Tag - Next to items */}
                                         {(riskLevel === 'high' || riskLevel === 'blocked') &&
                                             ['new', 'contacted', 'confirmed'].includes(order.status) && (
