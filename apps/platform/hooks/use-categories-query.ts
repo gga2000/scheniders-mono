@@ -134,7 +134,7 @@ export function useUpdateCategoryMutation() {
 /** What a bulk change may set on many categories at once. */
 export type CategoryBulkPatch =
     | { status: "archived"; archived_at: string }
-    | { status: "published"; archived_at: null }
+    | { status: "published" | "draft"; archived_at: null }
     | { show_in_main_nav: boolean };
 
 /**
@@ -205,14 +205,25 @@ export function useArchiveCategoryMutation() {
     });
 }
 
+/**
+ * The status an archived category goes back to: what it had before it was
+ * archived (the database remembers it), so a draft never comes back published.
+ * A category not archived yet (an undo right after archiving) keeps its own.
+ */
+export function restoreStatusOf(category: Pick<Category, "status" | "status_before_archive">): "draft" | "published" {
+    const before = category.status === "archived" ? category.status_before_archive : category.status;
+    return before === "draft" ? "draft" : "published";
+}
+
 export function useRestoreCategoryMutation() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: async (id: string) => {
+        mutationFn: async (category: Pick<Category, "id" | "status" | "status_before_archive">) => {
+            const id = category.id;
             const { data: changed, error } = await supabase
                 .from("categories")
                 .update({
-                    status: "published",
+                    status: restoreStatusOf(category),
                     archived_at: null,
                 })
                 .eq("id", id)

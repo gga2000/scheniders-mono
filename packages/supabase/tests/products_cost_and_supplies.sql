@@ -26,6 +26,12 @@
 --    12. product_suppliers refuses a product of another store;
 --    13. authenticated has no TRUNCATE on the catalogue tables;
 --    14. a recipe row (bom_items) refuses a supply of another store.
+--   Purchase orders and recipes (20261103181054, 20261103190822):
+--    15. creating a PO for a supplier that has a draft adds to that draft
+--        (same product sums on one line, total recomputed);
+--    16. a member may not delete a product open orders reserve;
+--    17. a recipe row refuses a sellable product as its supply;
+--    18. a supply a recipe uses cannot be unticked.
 --
 -- SAFE TO RUN AGAINST PRODUCTION
 --   One DO block that ends by raising an exception, so every write is rolled
@@ -48,6 +54,7 @@ DECLARE
     b1 int; b2 int; s1 int; s2 int; n int;
     v_fail text := '';
     v_ok boolean;
+    v_po_a uuid; v_po_b uuid; v_tmp uuid; v_total numeric;
     r record;
 BEGIN
     SELECT p.tenant_id INTO v_tenant FROM public.products p WHERE p.is_supply
@@ -184,6 +191,44 @@ BEGIN
        OR has_table_privilege('authenticated', 'public.product_suppliers', 'TRUNCATE') THEN
         v_fail := v_fail || ' 13-no-truncate';
     END IF;
+
+    -- ---------------------------------------------------------------- 15
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v_owner, 'role', 'authenticated')::text, true);
+    SELECT id INTO v_po_a FROM public.create_purchase_order(v_tenant, 'tt-draft-supplier',
+        jsonb_build_array(jsonb_build_object('product_id', v_s1, 'quantity_ordered', 2, 'unit_cost', 100)));
+    SELECT id, total_cost INTO v_po_b, v_total FROM public.create_purchase_order(v_tenant, ' TT-Draft-Supplier ',
+        jsonb_build_array(jsonb_build_object('product_id', v_s1, 'quantity_ordered', 3, 'unit_cost', 100),
+                          jsonb_build_object('product_id', v_s2, 'quantity_ordered', 1, 'unit_cost', 50)));
+    IF v_po_a IS DISTINCT FROM v_po_b
+       OR (SELECT count(*) FROM public.purchase_order_items WHERE po_id = v_po_a) <> 2
+       OR (SELECT quantity_ordered FROM public.purchase_order_items WHERE po_id = v_po_a AND product_id = v_s1) <> 5
+       OR v_total <> 550
+       OR (SELECT total_cost FROM public.purchase_orders WHERE id = v_po_a) <> 550 THEN
+        v_fail := v_fail || ' 15-po-adds-to-draft';
+    END IF;
+
+    -- ---------------------------------------------------------------- 16
+    INSERT INTO public.products (tenant_id, name, slug, price, reserved_quantity)
+    VALUES (v_tenant, 'tt-reserved', 'tt-' || gen_random_uuid(), 1000, 1) RETURNING id INTO v_tmp;
+    SET LOCAL ROLE authenticated;
+    BEGIN
+        DELETE FROM public.products WHERE id = v_tmp;
+        v_ok := false;
+    EXCEPTION WHEN foreign_key_violation THEN v_ok := true; END;
+    RESET ROLE;
+    IF NOT v_ok THEN v_fail := v_fail || ' 16-reserved-delete-refused'; END IF;
+
+    -- ---------------------------------------------------------------- 17-18
+    BEGIN
+        INSERT INTO public.bom_items (product_id, supply_id, quantity, unit, tenant_id) VALUES (v_prod, v_prod2, 1, 'per_unit', v_tenant);
+        v_ok := false;
+    EXCEPTION WHEN check_violation THEN v_ok := true; END;
+    IF NOT v_ok THEN v_fail := v_fail || ' 17-recipe-sellable-refused'; END IF;
+    BEGIN
+        UPDATE public.products SET is_supply = false WHERE id = v_s2;
+        v_ok := false;
+    EXCEPTION WHEN foreign_key_violation THEN v_ok := true; END;
+    IF NOT v_ok THEN v_fail := v_fail || ' 18-untick-used-supply-refused'; END IF;
 
     IF v_fail = '' THEN
         RAISE EXCEPTION 'ALL ASSERTIONS PASSED';

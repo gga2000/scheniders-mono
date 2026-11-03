@@ -975,6 +975,8 @@ export type Database = {
           show_in_mobile_drawer: boolean
           slug: string
           status: string
+
+          status_before_archive: string | null
           tenant_id: string
           unpublish_at: string | null
           updated_at: string
@@ -1012,6 +1014,8 @@ export type Database = {
           show_in_mobile_drawer?: boolean
           slug: string
           status?: string
+
+          status_before_archive?: string | null
           tenant_id: string
           unpublish_at?: string | null
           updated_at?: string
@@ -1049,6 +1053,8 @@ export type Database = {
           show_in_mobile_drawer?: boolean
           slug?: string
           status?: string
+
+          status_before_archive?: string | null
           tenant_id?: string
           unpublish_at?: string | null
           updated_at?: string

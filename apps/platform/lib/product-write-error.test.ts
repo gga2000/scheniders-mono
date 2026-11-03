@@ -20,6 +20,11 @@ describe("productWriteErrorKey", () => {
         expect(productWriteErrorKey({ code: "23503" })).toBe("products.errors.inUse");
     });
 
+    it("names the recipe rule a supply change broke", () => {
+        expect(productWriteErrorKey({ code: "23503", message: "supply 1 is used in recipes" })).toBe("products.errors.supplyInRecipe");
+        expect(productWriteErrorKey({ code: "23514", message: "recipe supply 1 is not a supply" })).toBe("products.errors.recipeNotSupply");
+    });
+
     it("reports a paused store", () => {
         expect(productWriteErrorKey({ message: "tenant is paused" })).toBe("products.errors.storePaused");
     });

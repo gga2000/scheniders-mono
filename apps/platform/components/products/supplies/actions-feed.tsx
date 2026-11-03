@@ -23,6 +23,7 @@ import {
 } from "@/lib/utils/supply-forecasting";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
 import { stockoutEtaFrom } from "./stockout-eta-badge";
+import { supplyReorderState, supplyTone } from "@/lib/utils/supply-reorder";
 import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 
@@ -86,12 +87,6 @@ function primarySupplierOf(supply: Product): ProductSupplier | null {
     const list = Array.isArray(raw) ? raw : [];
     if (list.length === 0) return null;
     return list.find((s) => s?.is_primary) ?? list[0];
-}
-
-function leadTimeOf(supply: Product): number | null {
-    const primary = primarySupplierOf(supply);
-    const lt = primary?.lead_time_days;
-    return typeof lt === "number" && lt > 0 ? lt : null;
 }
 
 export function ActionsFeed({
@@ -176,16 +171,18 @@ export function ActionsFeed({
             .filter((s) => needsOrderIds.has(s.id))
             .sort((a, b) => (etaOf(a) ?? Infinity) - (etaOf(b) ?? Infinity));
         for (const s of toOrder) {
-            const rp = s.reorder_point ?? s.low_stock_threshold ?? 5;
+            // The supply card's own rule (lead time defaults to 7 days), so the
+            // feed and the card never disagree on red.
+            const state = supplyReorderState(s, 0);
+            const rp = state.reorderPoint;
             const eta = etaOf(s);
-            const leadTime = leadTimeOf(s);
-            const isCritical =
-                leadTime != null && eta != null && eta < leadTime;
+            const leadTime = state.leadTimeDays;
+            const isCritical = supplyTone(s, 0) !== "low";
             // Runs out within two lead times; otherwise it is here only for
             // sitting at its reorder point, and the title says so.
-            const atRisk = eta != null && eta <= (leadTime ?? 7) * 2;
+            const atRisk = eta != null && eta <= leadTime * 2;
             const detail = isCritical
-                ? t("supplies.af.stockoutDetail", { eta: t("supplies.sp.leadDays", { count: eta ?? 0 }), lead: t("supplies.sp.leadDays", { count: leadTime ?? 0 }) })
+                ? t("supplies.af.stockoutDetail", { eta: t("supplies.sp.leadDays", { count: eta ?? 0 }), lead: t("supplies.sp.leadDays", { count: leadTime }) })
                 : eta != null
                 ? t("supplies.af.supplyLeft", { eta: t("supplies.sp.leadDays", { count: eta }) })
                 : t("supplies.af.atReorderPoint", { rp });
