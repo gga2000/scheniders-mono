@@ -30,6 +30,11 @@ describe("buildFinanceInsights", () => {
         expect(ids(buildFinanceInsights(make({ margin_pct: 2, net_profit: 5_000 })))).not.toContain("margin_negative");
     });
 
+    it("does not call the shop losing while most sales are still undelivered", () => {
+        const early = make({ gross_revenue: 3_000_000, delivered_revenue: 70_000, margin_pct: -880, net_profit: -612_000 });
+        expect(ids(buildFinanceInsights(early))).not.toContain("margin_negative");
+    });
+
     it("does not judge the delivery rate on a tiny order count", () => {
         expect(ids(buildFinanceInsights(make({ orders_count: 5, delivery_rate: 20 })))).not.toContain("delivery_rate_low");
         expect(ids(buildFinanceInsights(make({ orders_count: 40, delivery_rate: 20 })))).toContain("delivery_rate_low");
