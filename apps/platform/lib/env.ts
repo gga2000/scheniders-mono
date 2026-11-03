@@ -80,6 +80,12 @@ const serverSchema = z.object({
     INTERAKT_WEBHOOK_SECRET: z.string().min(1).optional(),
     WASEET_USERNAME: z.string().min(1).optional(),
     WASEET_PASSWORD: z.string().min(1).optional(),
+    // Prime courier API: Scheniders' integrated-system account (lib/prime).
+    // Prime issues a separate host and login per environment (test / production).
+    PRIME_API_BASE_URL: z.string().url().startsWith("https://").optional(),
+    PRIME_SYSTEM_CODE: z.string().min(1).optional(),
+    PRIME_PASSWORD: z.string().min(1).optional(),
+    PRIME_INITIAL_TOKEN: z.string().min(1).optional(),
     GEMINI_API_KEY: z.string().min(1).optional(),
     TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
     TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -136,6 +142,10 @@ function validateEnv() {
             INTERAKT_WEBHOOK_SECRET: orUndef(process.env.INTERAKT_WEBHOOK_SECRET),
             WASEET_USERNAME: orUndef(process.env.WASEET_USERNAME),
             WASEET_PASSWORD: orUndef(process.env.WASEET_PASSWORD),
+            PRIME_API_BASE_URL: orUndef(process.env.PRIME_API_BASE_URL),
+            PRIME_SYSTEM_CODE: orUndef(process.env.PRIME_SYSTEM_CODE),
+            PRIME_PASSWORD: orUndef(process.env.PRIME_PASSWORD),
+            PRIME_INITIAL_TOKEN: orUndef(process.env.PRIME_INITIAL_TOKEN),
             GEMINI_API_KEY: orUndef(process.env.GEMINI_API_KEY),
             TELEGRAM_BOT_TOKEN: orUndef(process.env.TELEGRAM_BOT_TOKEN),
             TELEGRAM_WEBHOOK_SECRET: orUndef(process.env.TELEGRAM_WEBHOOK_SECRET),

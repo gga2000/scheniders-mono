@@ -11,6 +11,7 @@ import {
     windowWantsPreview,
     type OrderListPreview,
 } from "@/lib/orders/list-preview";
+import { buildStatusUpdate, type StatusUpdateContext } from "@/lib/orders/status-update";
 import { FutureOrderDateError, isFutureCreatedAtViolation } from "@/lib/order-date-guard";
 import { ExchangedOrderStatusError, isExchangedOriginalStatusViolation } from "@/lib/order-status-guard";
 import { EXPORT_COLUMNS, LIST_COLUMNS, ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
@@ -30,39 +31,6 @@ import {
     trustKey,
     type TrustRow,
 } from "@/lib/customer-trust-risk";
-
-/** Attribution and reason fields that ride along with a status change. */
-export type StatusUpdateContext = {
-    rejectionReason?: string;
-    rejectionReasonId?: string;
-    changedByName?: string;
-    changedByAvatar?: string;
-};
-
-/**
- * The column set a status change writes: the status, its timestamps, the
- * rejection reason (cleared when moving to a non-rejecting status) and the
- * actor. Shared by the single-order and batched paths so they cannot drift.
- */
-export function buildStatusUpdate(status: Order["status"], ctx: StatusUpdateContext): Partial<Order> {
-    const updateData: Partial<Order> = { status };
-    const loose = updateData as Record<string, unknown>;
-    if (ctx.rejectionReason) {
-        updateData.rejection_reason = ctx.rejectionReason;
-    } else if (status !== "cancelled" && status !== "rejected") {
-        loose.rejection_reason = null;
-    }
-    if (ctx.rejectionReasonId !== undefined) {
-        loose.reason_id = ctx.rejectionReasonId || null;
-    } else if (status !== "cancelled" && status !== "rejected") {
-        loose.reason_id = null;
-    }
-    if (status === "delivered") updateData.delivered_at = new Date().toISOString();
-    if (status === "cancelled") updateData.cancelled_at = new Date().toISOString();
-    if (ctx.changedByName) updateData.last_status_changed_by_name = ctx.changedByName;
-    if (ctx.changedByAvatar) updateData.last_status_changed_by_avatar = ctx.changedByAvatar;
-    return updateData;
-}
 
 /** A batch status write gives up after this long; the batch then falls back to per-order writes. */
 const STATUS_BATCH_TIMEOUT_MS = 30_000;

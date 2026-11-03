@@ -6,7 +6,9 @@ import { useLanguage } from "@/hooks/use-language";
 interface DispatchActionBarProps {
     selectedCount: number;
     shipping: boolean;
-    /** Opens the ship dialog: labels PDF + Prime file, then in transit. */
+    /** The run goes to Prime through the API instead of the Excel file. */
+    primeLinked: boolean;
+    /** Opens the ship dialog: labels PDF + Prime hand-off, then in transit. */
     onShip: () => void;
     /** Labels straight to the printer; no order moves. */
     onPrint: () => void;
@@ -17,7 +19,7 @@ interface DispatchActionBarProps {
  * files, after the checks in the ship dialog) and a quiet print icon prints the
  * labels without shipping anything.
  */
-export function DispatchActionBar({ selectedCount, shipping, onShip, onPrint }: DispatchActionBarProps) {
+export function DispatchActionBar({ selectedCount, shipping, primeLinked, onShip, onPrint }: DispatchActionBarProps) {
     const { t } = useLanguage();
     const none = selectedCount === 0;
 
@@ -42,7 +44,7 @@ export function DispatchActionBar({ selectedCount, shipping, onShip, onPrint }: 
                 className="flex h-10 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[var(--ink)] disabled:opacity-60"
             >
                 {shipping ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
-                {shipping ? t("printing.shipping") : t("printing.shipButton", { count: selectedCount })}
+                {shipping ? t("printing.shipping") : t(primeLinked ? "printing.shipButtonLinked" : "printing.shipButton", { count: selectedCount })}
             </button>
         </div>
     );

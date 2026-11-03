@@ -37,6 +37,10 @@
             "schedule": "30 3 * * *"
         },
         {
+            "path": "/api/cron/prime-sync",
+            "schedule": "*/15 * * * *"
+        },
+        {
             "path": "/api/cron/waseet-locations",
             "schedule": "0 3 * * 1"
         }

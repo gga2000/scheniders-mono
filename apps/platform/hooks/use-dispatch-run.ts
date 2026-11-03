@@ -10,6 +10,7 @@ import { openPrintWindow, runFileNames, shippingLabelsDocument, writePrintWindow
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
+import type { usePrimeLink } from "@/hooks/use-prime-link";
 
 type Printing = ReturnType<typeof usePrinting>;
 
@@ -17,6 +18,8 @@ interface DispatchRunOptions {
     printing: Printing;
     /** Reports partial failures itself; `count` is how many orders actually moved. */
     bulkUpdateStatus: (ids: string[], status: Order["status"]) => Promise<{ count: number }>;
+    /** The tenant's Prime API link; without one the run downloads the Prime Excel file. */
+    prime: Pick<ReturnType<typeof usePrimeLink>, "connected" | "send">;
 }
 
 /**
@@ -25,7 +28,7 @@ interface DispatchRunOptions {
  * order; only the hand-off does. Each run is recorded so a printed order never
  * looks unprinted and an old run can be printed again.
  */
-export function useDispatchRun({ printing, bulkUpdateStatus }: DispatchRunOptions) {
+export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRunOptions) {
     const { t } = useLanguage();
     const [pdfLoading, setPdfLoading] = useState(false);
     const [shipping, setShipping] = useState(false);
@@ -100,12 +103,40 @@ export function useDispatchRun({ printing, bulkUpdateStatus }: DispatchRunOption
     };
 
     /**
-     * Ship the run the ship dialog settled on: the labels PDF, then the Prime
-     * file, then (unless `moveToTransit` is off) the orders move to in transit,
-     * and last the run is saved. The PDF goes first because it is the step that
-     * can fail on the server; if it does, nothing has left the app and nothing
-     * moves. The run is saved after the move because saving bumps each order's
-     * version, and the move checks versions. Returns true when done.
+     * Hand the run to Prime: through the API when the tenant has the link, and
+     * the Excel file for every order the API did not take (or for all of them
+     * when Prime could not be reached), so no parcel is ever left without a
+     * hand-off. `ok` is false only when a needed Excel file failed to download.
+     */
+    const handOff = async (orders: Order[], filename: string): Promise<{ ok: boolean; excel: boolean }> => {
+        let excelOrders = orders;
+        if (prime.connected) {
+            try {
+                const result = await prime.send(orders.map((o) => o.id));
+                if (result.connected) {
+                    const failed = new Set(result.failed.map((f) => f.orderId));
+                    excelOrders = orders.filter((o) => failed.has(o.id));
+                    if (excelOrders.length === 0) toast.success(t("printing.primeSentTitle", { count: result.sent.length }));
+                    else toast.warning(t("printing.primePartialTitle", { sent: result.sent.length, count: excelOrders.length }), t("printing.primePartialBody"));
+                }
+            } catch (err) {
+                console.error("Prime send error:", err);
+                toast.warning(t("printing.primeDownTitle"), t("printing.primeDownBody"));
+            }
+        }
+        if (excelOrders.length === 0) return { ok: true, excel: false };
+        const file = await printing.downloadPrimeFile(excelOrders, filename);
+        return { ok: file.success, excel: true };
+    };
+
+    /**
+     * Ship the run the ship dialog settled on: the labels PDF, then the hand-off
+     * to Prime (API and/or Excel file), then (unless `moveToTransit` is off) the
+     * orders move to in transit, and last the run is saved. The PDF goes first
+     * because it is the step that can fail on the server; if it does, nothing has
+     * left the app and nothing moves. The API hand-off writes no order row, so
+     * the move's version check still holds. The run is saved after the move
+     * because saving bumps each order's version. Returns true when done.
      */
     const ship = async (orders: Order[], { moveToTransit }: { moveToTransit: boolean }): Promise<boolean> => {
         if (orders.length === 0 || !checkPrintable(orders)) return false;
@@ -113,16 +144,17 @@ export function useDispatchRun({ printing, bulkUpdateStatus }: DispatchRunOption
         setShipping(true);
         try {
             if (!(await renderPdf(orders, names.labels))) return false;
-            const file = await printing.downloadPrimeFile(orders, names.prime);
-            if (!file.success) {
+            const handedOff = await handOff(orders, names.prime);
+            if (!handedOff.ok) {
                 toast.error(t("printing.exportFailedTitle"), t("printing.exportFailedAfterPdf"));
                 return false;
             }
             const moved = moveToTransit ? (await bulkUpdateStatus(orders.map((o) => o.id), "in_transit")).count : 0;
             const recorded = await printing.recordPrimeRun(orders);
             if (!recorded) toast.warning(t("printing.exportNotRecordedTitle"), t("printing.exportNotRecordedBody"));
-            if (!moveToTransit) toast.success(t("printing.filesOnlyTitle", { count: orders.length }), t("printing.handedOffBody"));
-            else if (moved > 0) toast.success(t("printing.handedOffTitle", { count: moved }), t("printing.handedOffBody"));
+            const downloads = t(handedOff.excel ? "printing.handedOffBody" : "printing.handedOffPdfOnlyBody");
+            if (!moveToTransit) toast.success(t("printing.filesOnlyTitle", { count: orders.length }), downloads);
+            else if (moved > 0) toast.success(t("printing.handedOffTitle", { count: moved }), downloads);
             return true;
         } finally {
             setShipping(false);
