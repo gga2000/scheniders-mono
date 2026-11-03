@@ -102,19 +102,10 @@ export function registerCatalogWriteTools(server: McpServer): void {
             if (error) throw error;
             if (!changed || changed.length === 0) throw new McpToolError("Your role in this store cannot edit products.");
 
-            // The product page's activity log. Product price history is written by
-            // the database with the update itself; a variant's price has none.
-            const warnings: string[] = [];
-            const { error: logError } = await caller.db.from("product_activity_log").insert({
-                tenant_id: caller.tenantId,
-                product_id: product.id,
-                action: "price" in patch ? "price_changed" : "updated",
-                changes_json: { ...changes, ...(variant ? { variant: variant.name } : {}), source: "claude" },
-                user_id: caller.userId,
-            });
-            if (logError) warnings.push(`product activity not recorded (${logError.message})`);
+            // The database records the price history and the product's activity log
+            // with the update itself; a variant's price has no history.
 
-            return [`Updated ${label(product, variant)}:`, ...summary, ...warnings.map((w) => `Warning: ${w}`)].join("\n");
+            return [`Updated ${label(product, variant)}:`, ...summary].join("\n");
         },
     });
 

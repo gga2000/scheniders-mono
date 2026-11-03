@@ -79,7 +79,7 @@ beforeEach(() => {
 });
 
 describe("update_product", () => {
-    it("changes the price by name in the caller's store only, with product activity (price history is a DB trigger)", async () => {
+    it("changes the price by name in the caller's store only, writing no history or activity rows itself (the DB does)", async () => {
         const res = await call("update_product", { product: "vitamin c serum", price: 30000, confirm: false });
         expect(res.isError).toBe(false);
         expect(env.tables.products[0].price).toBe(30000);
@@ -87,7 +87,7 @@ describe("update_product", () => {
         const patch = env.calls.find((c) => c.table === "products" && c.op === "update");
         expect(patch?.filters).toEqual(expect.arrayContaining([`tenant_id=${STORE}`, `id=${SERUM}`]));
         expect(env.calls.some((c) => c.table === "product_price_history")).toBe(false);
-        expect(env.tables.product_activity_log[0]).toMatchObject({ action: "price_changed", tenant_id: STORE, user_id: "u1" });
+        expect(env.calls.some((c) => c.table === "product_activity_log")).toBe(false);
     });
 
     it("previews a price that drops below half until confirm", async () => {
