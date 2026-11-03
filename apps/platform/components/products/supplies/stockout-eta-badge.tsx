@@ -41,7 +41,7 @@ export function StockoutEtaBadge({
     const label =
         daysUntilStockout <= 0
             ? t("supplies.eta.outNow")
-            : t("supplies.eta.runsOut", { days: daysUntilStockout });
+            : t("supplies.eta.runsOut", { days: t("supplies.sp.leadDays", { count: daysUntilStockout }) });
 
     return (
         <span
@@ -51,7 +51,7 @@ export function StockoutEtaBadge({
                 tone,
                 className
             )}
-            title={t("supplies.eta.title", { lead: leadTimeDays, days: daysUntilStockout })}
+            title={t("supplies.eta.title", { lead: t("supplies.sp.leadDays", { count: leadTimeDays }), days: t("supplies.sp.leadDays", { count: daysUntilStockout }) })}
         >
             <Icon className={big ? "w-3.5 h-3.5" : "w-3 h-3"} />
             {label}

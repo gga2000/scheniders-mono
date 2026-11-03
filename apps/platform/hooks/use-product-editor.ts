@@ -516,6 +516,9 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     // writing back the empty value.
     const showCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS)
         || mode === "create" || !!product?.is_supply;
+    // Ticking "supply" changes who may see the cost, so the database lets only
+    // cost viewers do it on an existing product (20261103174119).
+    const canReclassifySupply = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS) || mode === "create";
     // Supplier rows carry unit cost, so save_product_children refuses them from
     // a caller who cannot read cost, even as an empty list. Create mode shows
     // the cost field (the row's own cost is writable) but not this section.
@@ -1118,6 +1121,11 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 // of stopping the save half-way.
                 const keptIds = new Set(formData.variants.flatMap((v) => (v.id ? [v.id] : [])));
                 const removedIds = initialDataRef.current.variants.flatMap((v) => (v.id && !keptIds.has(v.id) ? [v.id] : []));
+                // A delete cannot be undone: refuse before it if someone else
+                // saved this product first, the same check the update makes.
+                if (removedIds.length > 0 && baseUpdatedAtRef.current) {
+                    await productRepository.assertUnchanged(product.id, baseUpdatedAtRef.current);
+                }
                 for (const removedId of removedIds) {
                     await deleteVariant(product.id, removedId);
                     initialDataRef.current = {
@@ -1343,10 +1351,11 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         } finally {
             setSaving(false);
         }
-    }, [formData, product, catalogue, addProduct, addVariant, router, saveRelatedData, tenantId, t, relatedDataLoaded]);
+    }, [formData, product, catalogue, addProduct, addVariant, router, saveRelatedData, tenantId, t, relatedDataLoaded, showCost]);
 
     return {
         showCost,
+        canReclassifySupply,
         canEditSuppliers,
         formData,
         setFormData,

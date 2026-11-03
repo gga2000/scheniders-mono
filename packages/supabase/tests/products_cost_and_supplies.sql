@@ -2,18 +2,20 @@
 -- products_cost_and_supplies: regression check
 -- =============================================================================
 --
--- WHAT THIS PROVES (after 20261103165038, 20261103165411, 20261103165748)
+-- WHAT THIS PROVES (after 20261103165038, 20261103165411, 20261103165748, 20261103174119)
 --   Cost guard (guard_cost_writes), as an active employee (products.edit, no
 --   cost access):
 --     1. may change a supply's cost;
 --     2. may NOT change an existing sellable product's cost;
 --     3. may add a supplier row with a unit cost to a supply;
 --     4. may NOT add one to a sellable product;
---     5. may create a new product with a starting cost.
+--     5. may create a new product with a starting cost;
+--    5b. may NOT tick "supply" on an existing sellable product (that would
+--        open its cost to them).
 --   Supplies used by orders (trg_orders_use_supplies):
 --     6. an order created in_transit takes its recipe rows from the supplies:
 --        per_unit x quantity, per_item once per line, per_order once per
---        product, rounded up per supply;
+--        order (the largest amount asked), rounded up per supply;
 --     7. moving on to delivered, then cancelled, takes nothing more and gives
 --        nothing back;
 --     8. a confirmed order takes nothing until it ships;
@@ -22,7 +24,8 @@
 --    10. a received cost of 0 is refused;
 --    11. adjust_product_stock refuses an unknown reason;
 --    12. product_suppliers refuses a product of another store;
---    13. authenticated has no TRUNCATE on the catalogue tables.
+--    13. authenticated has no TRUNCATE on the catalogue tables;
+--    14. a recipe row (bom_items) refuses a supply of another store.
 --
 -- SAFE TO RUN AGAINST PRODUCTION
 --   One DO block that ends by raising an exception, so every write is rolled
@@ -97,6 +100,10 @@ BEGIN
     EXCEPTION WHEN others THEN v_ok := false; END;
     IF NOT v_ok THEN v_fail := v_fail || ' 5-employee-new-product-cost'; END IF;
 
+    BEGIN UPDATE public.products SET is_supply = true WHERE id = v_prod; v_ok := true;
+    EXCEPTION WHEN insufficient_privilege THEN v_ok := false; END;
+    IF v_ok THEN v_fail := v_fail || ' 5b-employee-ticks-supply'; END IF;
+
     RESET ROLE;
 
     -- ---------------------------------------------------------------- 6-9
@@ -116,8 +123,8 @@ BEGIN
     RETURNING id INTO v_order;
     SELECT stock_quantity INTO s1 FROM public.products WHERE id = v_s1;
     SELECT stock_quantity INTO s2 FROM public.products WHERE id = v_s2;
-    -- s1: 3 + 1 per_unit, 0.5 per_item -> ceil(4.5) = 5; s2: once per product = 2
-    IF s1 <> b1 - 5 OR s2 <> b2 - 2 THEN v_fail := v_fail || format(' 6-shipped-uses-recipe(%s,%s)', b1 - s1, b2 - s2); END IF;
+    -- s1: 3 + 1 per_unit, 0.5 per_item -> ceil(4.5) = 5; s2: once per order = 1
+    IF s1 <> b1 - 5 OR s2 <> b2 - 1 THEN v_fail := v_fail || format(' 6-shipped-uses-recipe(%s,%s)', b1 - s1, b2 - s2); END IF;
 
     UPDATE public.orders SET status = 'delivered' WHERE id = v_order;
     UPDATE public.orders SET status = 'cancelled' WHERE id = v_order;
@@ -163,6 +170,12 @@ BEGIN
         v_ok := false;
     EXCEPTION WHEN insufficient_privilege THEN v_ok := true; END;
     IF NOT v_ok THEN v_fail := v_fail || ' 12-foreign-product-supplier-refused'; END IF;
+
+    BEGIN
+        INSERT INTO public.bom_items (product_id, supply_id, quantity, unit, tenant_id) VALUES (v_prod, v_foreign, 1, 'per_unit', v_tenant);
+        v_ok := false;
+    EXCEPTION WHEN insufficient_privilege THEN v_ok := true; END;
+    IF NOT v_ok THEN v_fail := v_fail || ' 14-foreign-recipe-supply-refused'; END IF;
 
     IF has_table_privilege('authenticated', 'public.products', 'TRUNCATE')
        OR has_table_privilege('authenticated', 'public.product_variants', 'TRUNCATE')

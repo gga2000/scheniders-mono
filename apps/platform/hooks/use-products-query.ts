@@ -10,7 +10,7 @@ import { diag } from "@/lib/diag";
 import { categoryKeys } from "@/hooks/use-categories-query";
 
 // Query keys
-export type BulkPriceChange = { id: string; oldPrice: number; clearCompareAt: boolean };
+export type BulkPriceChange = { id: string; oldPrice: number; clearCompareAt: boolean; clearWebsitePrice: boolean };
 
 export const productKeys = {
     all: ["products"] as const,

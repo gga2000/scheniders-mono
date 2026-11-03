@@ -165,15 +165,15 @@ describe("productRepository SKU persistence", () => {
 describe("productRepository price changes", () => {
     it("restores each product's own price and 'was' price in one database call", async () => {
         await productRepository.restorePrices([
-            { id: "p1", price: 20000, compare_at_price: 25000, currentPrice: 30000 },
-            { id: "p2", price: 15000, compare_at_price: null, currentPrice: 30000 },
+            { id: "p1", price: 20000, compare_at_price: 25000, website_price: 22000, currentPrice: 30000 },
+            { id: "p2", price: 15000, compare_at_price: null, website_price: null, currentPrice: 30000 },
         ]);
 
         expect(rpcSpy).toHaveBeenCalledTimes(1);
         expect(rpcSpy).toHaveBeenCalledWith("set_product_prices", {
             p_changes: [
-                { id: "p1", price: 20000, expected_price: 30000, set_compare_at: true, compare_at_price: 25000 },
-                { id: "p2", price: 15000, expected_price: 30000, set_compare_at: true, compare_at_price: null },
+                { id: "p1", price: 20000, expected_price: 30000, set_compare_at: true, compare_at_price: 25000, set_website: true, website_price: 22000 },
+                { id: "p2", price: 15000, expected_price: 30000, set_compare_at: true, compare_at_price: null, set_website: true, website_price: null },
             ],
             p_reason: "Bulk price change undone",
         });
@@ -183,15 +183,15 @@ describe("productRepository price changes", () => {
     it("changes the price and clears compare-at only where asked, in one call", async () => {
         await productRepository.bulkChangePrice(
             [
-                { id: "p1", oldPrice: 30000, clearCompareAt: true },
-                { id: "p2", oldPrice: 30000, clearCompareAt: false },
+                { id: "p1", oldPrice: 30000, clearCompareAt: true, clearWebsitePrice: true },
+                { id: "p2", oldPrice: 30000, clearCompareAt: false, clearWebsitePrice: false },
             ],
             20000,
         );
         expect(rpcSpy).toHaveBeenCalledWith("set_product_prices", {
             p_changes: [
-                { id: "p1", price: 20000, set_compare_at: true, compare_at_price: null },
-                { id: "p2", price: 20000, set_compare_at: false, compare_at_price: null },
+                { id: "p1", price: 20000, set_compare_at: true, compare_at_price: null, set_website: true, website_price: null },
+                { id: "p2", price: 20000, set_compare_at: false, compare_at_price: null, set_website: false, website_price: null },
             ],
             p_reason: "Bulk price change",
         });
@@ -200,7 +200,7 @@ describe("productRepository price changes", () => {
     it("reports a refused change as a permission problem, not a success", async () => {
         rpcResult = { data: null, error: { code: "42501", message: "product not found or not allowed" } };
         await expect(
-            productRepository.restorePrices([{ id: "p1", price: 1000, compare_at_price: null, currentPrice: 2000 }]),
+            productRepository.restorePrices([{ id: "p1", price: 1000, compare_at_price: null, website_price: null, currentPrice: 2000 }]),
         ).rejects.toBeInstanceOf(ProductWriteDeniedError);
     });
 });

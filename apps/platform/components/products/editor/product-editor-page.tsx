@@ -428,6 +428,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 formData={editor.formData}
                                 updateField={editor.updateField}
                                 mode={mode}
+                                canReclassifySupply={editor.canReclassifySupply}
                                 timesSold={product?.times_sold}
                                 totalRevenue={product?.total_revenue}
                                 profitMargin={showCost ? editor.profitMargin : null}

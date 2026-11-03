@@ -382,7 +382,7 @@ function SuppliersTab({ supply }: { supply: Product }) {
                         <SupplierInitialsBadge name={name} size="md" />
                         <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                                <p className="font-medium text-sm truncate">{name}</p>
+                                <p dir="auto" className="text-left font-medium text-sm truncate">{name}</p>
                                 {s.is_primary && (
                                     <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide dark:bg-amber-500/15 dark:text-amber-300">
                                         {t("supplies.sp.primary")}
@@ -700,7 +700,7 @@ function RecipeRow({
                 )}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm truncate">{row.productName}</p>
+                <p dir="auto" className="text-left font-medium text-sm truncate">{row.productName}</p>
                 <p className="text-[11px] text-muted font-mono truncate">
                     {row.sku || t("supplies.sp.noSku")}
                 </p>

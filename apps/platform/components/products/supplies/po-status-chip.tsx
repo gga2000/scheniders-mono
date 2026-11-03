@@ -35,10 +35,10 @@ function daysUntil(date: string | null): number | null {
 
 function formatEta(days: number | null, t: (key: string, vars?: Record<string, string | number>) => string): string {
     if (days === null) return "";
-    if (days < 0) return t("supplies.po.overdue", { days: Math.abs(days) });
+    if (days < 0) return t("supplies.po.overdue", { days: t("supplies.sp.leadDays", { count: Math.abs(days) }) });
     if (days === 0) return t("supplies.po.arrivingToday");
     if (days === 1) return t("supplies.po.arrivingTomorrow");
-    return t("supplies.po.arrivingIn", { days });
+    return t("supplies.po.arrivingIn", { days: t("supplies.sp.leadDays", { count: days }) });
 }
 
 export function PoStatusChip({ info, size = "sm", onClick }: PoStatusChipProps) {

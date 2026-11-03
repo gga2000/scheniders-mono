@@ -24,7 +24,8 @@ interface BulkActionsBarProps {
     totalCount?: number;
     selectedProductNames?: string[];
     /** Absent when the user's role may not bulk-change prices. */
-    onUpdatePrice?: (newPrice: number) => Promise<void> | void;
+    /** alsoWebsite: products with their own website price move to the new price too. */
+    onUpdatePrice?: (newPrice: number, opts: { alsoWebsite: boolean }) => Promise<void> | void;
     /** Side effects of a bulk price, shown under the input before Apply. */
     /** What the new price does to the selection; belowCostNames names the products that would sell at a loss. */
     describePrice?: (newPrice: number) => { clearsCompareAt: number; keepsStorePrice: number; belowCostNames: string[] };
@@ -60,6 +61,8 @@ export function BulkActionsBar({
     const { t, language } = useLanguage();
     const [showPriceInput, setShowPriceInput] = useState(false);
     const [newPrice, setNewPrice] = useState("");
+    // On by default: a new price usually means "charge this everywhere".
+    const [alsoWebsite, setAlsoWebsite] = useState(true);
     const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
     const [loadingAction, setLoadingAction] = useState<LoadingAction>(null);
     const [undoState, setUndoState] = useState<{
@@ -155,10 +158,10 @@ export function BulkActionsBar({
         }
         if (clearsCompareAt === 1) parts.push(t("products.bulk.priceClearsCompareOne"));
         else if (clearsCompareAt > 1) parts.push(t("products.bulk.priceClearsCompare", { count: clearsCompareAt }));
-        if (keepsStorePrice === 1) parts.push(t("products.bulk.priceKeepsStoreOne"));
-        else if (keepsStorePrice > 1) parts.push(t("products.bulk.priceKeepsStore", { count: keepsStorePrice }));
-        return { text: parts.length > 0 ? parts.join(" ") : null, belowCost };
-    }, [newPrice, describePrice, t, language]);
+        if (!alsoWebsite && keepsStorePrice === 1) parts.push(t("products.bulk.priceKeepsStoreOne"));
+        else if (!alsoWebsite && keepsStorePrice > 1) parts.push(t("products.bulk.priceKeepsStore", { count: keepsStorePrice }));
+        return { text: parts.length > 0 ? parts.join(" ") : null, belowCost, keepsStorePrice };
+    }, [newPrice, describePrice, t, language, alsoWebsite]);
 
     // A price under cost needs a second, deliberate press ("Apply anyway").
     // Typing a new price asks again.
@@ -176,7 +179,7 @@ export function BulkActionsBar({
 
         const ok = await runAction(
             "price",
-            () => onUpdatePrice(price),
+            () => onUpdatePrice(price, { alsoWebsite }),
             t("products.bulk.priceSuccess").replace(
                 "{count}",
                 String(selectedCount)
@@ -186,7 +189,7 @@ export function BulkActionsBar({
         if (!ok) return;
         setShowPriceInput(false);
         setNewPrice("");
-    }, [newPrice, onUpdatePrice, selectedCount, runAction, t, needsBelowCostConfirm]);
+    }, [newPrice, onUpdatePrice, selectedCount, runAction, t, needsBelowCostConfirm, alsoWebsite]);
 
     const handleConfirmArchive = useCallback(async () => {
         setConfirmAction(null);
@@ -396,6 +399,17 @@ export function BulkActionsBar({
                                 >
                                     <X className="w-4 h-4 text-white/70" />
                                 </button>
+                                {(priceImpact?.keepsStorePrice ?? 0) > 0 && (
+                                    <label className="basis-full flex items-center gap-2 text-xs text-white/80 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={alsoWebsite}
+                                            onChange={(e) => setAlsoWebsite(e.target.checked)}
+                                            className="w-3.5 h-3.5 rounded"
+                                        />
+                                        {t("products.bulk.alsoWebsite", { count: priceImpact?.keepsStorePrice ?? 0 })}
+                                    </label>
+                                )}
                                 {priceImpact?.text && (
                                     <p dir="auto" className={cn("basis-full text-xs", priceImpact.belowCost > 0 ? "text-amber-300" : "text-white/70")}>
                                         {priceImpact.text}

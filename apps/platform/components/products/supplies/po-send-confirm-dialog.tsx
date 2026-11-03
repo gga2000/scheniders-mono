@@ -11,8 +11,11 @@ import {
     DialogTitle,
 } from "@scheniders/ui/dialog";
 import { fetchPurchaseOrderLines } from "@/lib/repositories/purchase-orders";
+import { fetchPurchaseOrderLineCosts } from "@/lib/repositories/purchase-costs";
 import { useLanguage } from "@/hooks/use-language";
-import { formatCount } from "@/lib/utils";
+import { usePermission } from "@/hooks/use-permission";
+import { PERMISSIONS } from "@/lib/permissions";
+import { formatCount, formatIQD } from "@/lib/utils";
 
 interface PoSendConfirmDialogProps {
     open: boolean;
@@ -34,6 +37,21 @@ export function PoSendConfirmDialog({ open, onOpenChange, poId, poNumber, sendin
         enabled: open,
         queryFn: () => fetchPurchaseOrderLines(poId),
     });
+    const { can } = usePermission();
+    const canSeeCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS);
+    // What the supplier will charge, so the merchant checks money as well as counts.
+    const { data: lineCosts } = useQuery({
+        queryKey: ["po-line-costs", poId],
+        enabled: open && canSeeCost,
+        queryFn: () => fetchPurchaseOrderLineCosts(poId),
+    });
+    const costOf = (id: string) => {
+        const c = lineCosts?.get(id);
+        return c != null && c > 0 ? c : null;
+    };
+    const total = lines && lineCosts && lines.every((l) => costOf(l.id) !== null)
+        ? lines.reduce((sum, l) => sum + (costOf(l.id) ?? 0) * l.quantityOrdered, 0)
+        : null;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -56,9 +74,18 @@ export function PoSendConfirmDialog({ open, onOpenChange, poId, poNumber, sendin
                                     {line.productName}
                                     {line.variantName ? ` · ${line.variantName}` : ""}
                                 </span>
-                                <span className="shrink-0 tabular-nums text-muted">× {formatCount(line.quantityOrdered)}</span>
+                                <span className="shrink-0 tabular-nums text-muted">
+                                    × {formatCount(line.quantityOrdered)}
+                                    {costOf(line.id) !== null && ` · ${formatIQD(costOf(line.id) ?? 0)}`}
+                                </span>
                             </li>
                         ))}
+                        {total !== null && (
+                            <li className="flex items-center justify-between gap-3 px-3 py-2 text-sm font-semibold">
+                                <span>{t("products.stock.tip.total")}</span>
+                                <span className="tabular-nums">{formatIQD(total)}</span>
+                            </li>
+                        )}
                     </ul>
                 )}
 

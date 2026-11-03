@@ -96,7 +96,8 @@ export function SupplyCard({
 
                 <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-[15px] text-foreground leading-tight truncate">
+                        {/* dir="auto": an Arabic name is cut at its end, not its first word. */}
+                        <h3 dir="auto" className="text-left font-semibold text-[15px] text-foreground leading-tight line-clamp-2 break-words">
                             {supply.name}
                         </h3>
                         <DaysOfSupplyPill days={days} size="md" />
