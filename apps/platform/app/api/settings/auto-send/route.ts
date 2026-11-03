@@ -26,10 +26,10 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         if (error || !data) {
-            return NextResponse.json({ enabled: false, default_discount_percent: 10, reminder_window: DEFAULT_FOLLOW_UP_WINDOW });
+            return NextResponse.json({ enabled: false, reminder_enabled: true, default_discount_percent: 10, reminder_window: DEFAULT_FOLLOW_UP_WINDOW });
         }
 
-        return NextResponse.json({ reminder_window: DEFAULT_FOLLOW_UP_WINDOW, ...data.value });
+        return NextResponse.json({ reminder_enabled: true, reminder_window: DEFAULT_FOLLOW_UP_WINDOW, ...data.value });
     } catch {
         return NextResponse.json({ enabled: false, default_discount_percent: 10 });
     }
@@ -45,7 +45,6 @@ export async function PUT(request: NextRequest) {
     if (!caller.ok) return caller.response;
     try {
         const body = await request.json();
-        const enabled = body.enabled === true;
         const defaultDiscount = body.default_discount_percent ?? 10;
 
         // Keep what the toggle doesn't send (the reminder window) instead of wiping it.
@@ -56,6 +55,12 @@ export async function PUT(request: NextRequest) {
             .eq("tenant_id", caller.tenantId)
             .maybeSingle();
         const previous = (existing?.value ?? {}) as Record<string, unknown>;
+
+        // The toggle sends only `enabled`, the reminder form never does: each
+        // keeps the other's value instead of resetting it.
+        const enabled = typeof body.enabled === "boolean" ? body.enabled : previous.enabled === true;
+        const reminderEnabled =
+            typeof body.reminder_enabled === "boolean" ? body.reminder_enabled : previous.reminder_enabled !== false;
 
         let reminderWindow = previous.reminder_window;
         if (body.reminder_window !== undefined) {
@@ -69,6 +74,7 @@ export async function PUT(request: NextRequest) {
         const value = {
             ...previous,
             enabled,
+            reminder_enabled: reminderEnabled,
             default_discount_percent: defaultDiscount,
             ...(reminderWindow !== undefined ? { reminder_window: reminderWindow } : {}),
         };
