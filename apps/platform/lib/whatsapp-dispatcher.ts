@@ -77,7 +77,7 @@ export async function dispatchWhatsAppEvent({
         .eq("tenant_id", order.tenant_id)
         .single();
 
-    const settingsValue = settings?.value as { enabled?: boolean; reminder_window?: unknown } | null | undefined;
+    const settingsValue = settings?.value as { enabled?: boolean; reminder_window?: unknown; reminder_enabled?: boolean } | null | undefined;
     if (settingsValue?.enabled !== true) {
         console.log(`[WhatsApp Dispatcher] Skipping order ${orderId} because whatsapp_auto_send is disabled.`);
         return { success: true, skipped: true };
@@ -190,7 +190,7 @@ export async function dispatchWhatsAppEvent({
     // The confirmation is out: queue the reminder for REMINDER_DELAY_HOURS after
     // the order, held to the store's daytime window. A scheduling failure must
     // not fail a send that already went out.
-    if (templateType === "confirmation") {
+    if (templateType === "confirmation" && settingsValue?.reminder_enabled !== false) {
         try {
             const earliest = new Date(new Date(order.created_at).getTime() + REMINDER_DELAY_HOURS * 3_600_000);
             await scheduleFollowUpInWindow({

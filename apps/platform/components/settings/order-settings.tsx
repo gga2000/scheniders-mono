@@ -1,9 +1,10 @@
 "use client";
 
-import { Settings, Package, XCircle, MessageSquare } from "lucide-react";
+import { Settings, Package, XCircle, MessageSquare, BellRing } from "lucide-react";
 import { OrderReasonsManager } from "@/components/settings/order-reasons-manager";
 import { DeliveryFeesForm } from "@/components/settings/delivery-fees-form";
 import { WorkflowSettingsForm } from "@/components/settings/workflow-settings-form";
+import { ReminderSettingsForm } from "@/components/settings/reminder-settings-form";
 import { MessageTemplatesList } from "@/components/settings/message-templates-list";
 
 
@@ -49,6 +50,17 @@ export function OrderSettings() {
                         <h3 className="text-lg font-semibold text-foreground">Workflow Rules</h3>
                     </div>
                     <WorkflowSettingsForm />
+                </div>
+
+                {/* Automatic WhatsApp reminder */}
+                <div className="pastel-card p-6 md:col-span-2 lg:col-span-3">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 rounded-lg bg-[var(--pastel-yellow)] flex items-center justify-center">
+                            <BellRing className="h-4 w-4 text-amber-700" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">Order Reminder</h3>
+                    </div>
+                    <ReminderSettingsForm />
                 </div>
 
                 {/* Message Templates - Spans 2 cols on LG */}

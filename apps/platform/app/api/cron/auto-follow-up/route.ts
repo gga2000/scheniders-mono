@@ -104,6 +104,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ skipped: true, reason: "already_sent" });
     }
 
+    // The store can switch automatic reminders off; a reminder already queued
+    // must then stay unsent. (The discount follow-up is not a reminder.)
+    if (templateType === "reminder" && settings.value.reminder_enabled === false) {
+        return NextResponse.json({ skipped: true, reason: "reminders_disabled" });
+    }
+
     // Never message a customer outside the store's daytime window. QStash can
     // fire late or retry, so the window is re-checked here and the send is
     // re-queued for the next opening instead of going out at night.
