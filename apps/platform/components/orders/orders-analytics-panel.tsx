@@ -21,7 +21,7 @@ interface OrdersAnalyticsPanelProps {
     /** Orders with a data-quality problem or a rejection, for the attention pills. */
     flaggedCount: number;
     /** Urgent / no response / returns pending, each the length of the list its click opens (useOrderFilters). */
-    attentionCounts: { urgent: number; noResponse: number; returnPending: number };
+    attentionCounts: { urgent: number; returnPending: number };
     /**
      * Attention numbers are not shown: the list they would describe is not the one on screen (search, archive,
      * a refinement, or a window still loading). See lib/orders/count-visibility.ts.
@@ -106,10 +106,6 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
         {
             key: "urgent", label: t("orders.stats.urgent"), n: countsHidden ? null : attentionCounts.urgent, tone: "text-red-400", active: filters.priority === "urgent",
             apply: () => setFilters({ ...filters, priority: "urgent" }), clear: () => setFilters({ ...filters, priority: undefined }),
-        },
-        {
-            key: "no_response", label: t("orders.stats.noResponse"), n: countsHidden ? null : attentionCounts.noResponse, tone: "text-orange-400", active: filters.status === "no_response",
-            apply: () => setFilters({ ...filters, status: "no_response" }), clear: () => setFilters({ ...filters, status: "all" }),
         },
         {
             key: "return_pending", label: t("orders.stats.returnsPending"), n: countsHidden ? null : attentionCounts.returnPending, tone: "text-yellow-300", active: filters.status === "return_pending",
