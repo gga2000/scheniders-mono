@@ -28,7 +28,7 @@ import { calcSuggestedQty, supplyReorderState, urgencyFor } from "@/lib/utils/su
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import { PoSendConfirmDialog } from "./po-send-confirm-dialog";
-import { useSupplierPos } from "@/hooks/use-supplier-pos";
+import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import type { PoStatusInfo } from "./po-status-chip";
 
@@ -91,16 +91,9 @@ export function ReorderDrawer({
 
     // A draft is not "on order" so its lines are still listed here; a second
     // Create PO would double the draft. Newest first, so the first match wins.
-    const { data: supplierPos = [] } = useSupplierPos();
     const { changeStatus } = usePurchaseOrderActions();
-    const draftBySupplier = useMemo(() => {
-        const map = new Map<string, { id: string; number: string }>();
-        for (const po of supplierPos) {
-            const key = (po.supplier_name ?? "").trim().toLowerCase();
-            if (po.status === "draft" && key && !map.has(key)) map.set(key, { id: po.id, number: po.po_number });
-        }
-        return map;
-    }, [supplierPos]);
+    // Which supplies a draft actually lists: only those are "already on a draft".
+    const { data: draftBySupply } = useDraftPosBySupply();
 
 
     // Derive reorder items grouped by supplier.
@@ -204,7 +197,7 @@ export function ReorderDrawer({
     const generatePO = useMutation({
         mutationFn: async (group: SupplierGroup) => {
             if (!tenantId) throw new Error("No tenant");
-            const lines = group.items.map((item) => ({
+            const lines = group.items.filter((item) => !draftBySupply?.has(item.supply.id)).map((item) => ({
                 productId: item.supply.id,
                 quantityOrdered: editedQty[item.supply.id] ?? item.suggestedQty,
                 unitCost: item.unitCost,
@@ -235,6 +228,7 @@ export function ReorderDrawer({
                 queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] }),
                 queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] }),
                 queryClient.invalidateQueries({ queryKey: ["supplier-pos"] }),
+                queryClient.invalidateQueries({ queryKey: ["draft-pos-by-supply"] }),
             ]);
         },
         onError: (err: unknown) => {
@@ -248,12 +242,7 @@ export function ReorderDrawer({
                 toast.error(t("supplies.ro.linksNotReady"));
                 return;
             }
-            const existingDraft = draftBySupplier.get(group.supplierName.trim().toLowerCase());
-            if (existingDraft) {
-                toast.error(t("supplies.ro.draftExists", { number: existingDraft.number }));
-                return;
-            }
-            const uncosted = group.items.filter((i) => i.unitCost <= 0);
+            const uncosted = group.items.filter((i) => i.unitCost <= 0 && !draftBySupply?.has(i.supply.id));
             if (uncosted.length > 0) {
                 // A zero-cost line would create a PO that understates what is owed.
                 toast.error(
@@ -274,7 +263,7 @@ export function ReorderDrawer({
                 });
             }
         },
-        [generatePO, t, canSeeCost, supplierLinksReady, draftBySupplier]
+        [generatePO, t, canSeeCost, supplierLinksReady, draftBySupply]
     );
 
     return (
@@ -420,8 +409,9 @@ export function ReorderDrawer({
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
-                                                        {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (() => {
-                                                            const draft = draftBySupplier.get(group.supplierName.trim().toLowerCase());
+                                                        {(() => {
+                                                            const onDraft = group.items.find((i) => draftBySupply?.has(i.supply.id));
+                                                            const draft = onDraft ? draftBySupply?.get(onDraft.supply.id) : undefined;
                                                             if (!draft) return null;
                                                             // The draft already holds this order: the next step is sending it.
                                                             return (
@@ -439,7 +429,8 @@ export function ReorderDrawer({
                                                                 </button>
                                                             );
                                                         })()}
-                                                        {!noSupplier && !draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
+                                                        {/* Supplies the draft does not list still need a PO of their own. */}
+                                                        {!noSupplier && group.items.some((i) => !draftBySupply?.has(i.supply.id)) && (
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
@@ -474,11 +465,15 @@ export function ReorderDrawer({
                                                 {/* Group items */}
                                                 {isExpanded && (
                                                     <div className="px-5 pb-4 space-y-2">
-                                                        {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
-                                                            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-                                                                {t("supplies.ro.onDraftGroup", { number: draftBySupplier.get(group.supplierName.trim().toLowerCase())?.number ?? "" })}
-                                                            </p>
-                                                        )}
+                                                        {(() => {
+                                                            const onDraft = group.items.find((i) => draftBySupply?.has(i.supply.id));
+                                                            const draft = onDraft ? draftBySupply?.get(onDraft.supply.id) : undefined;
+                                                            return draft ? (
+                                                                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                                                                    {t("supplies.ro.onDraftGroup", { number: draft.number })}
+                                                                </p>
+                                                            ) : null;
+                                                        })()}
                                                         {group.items.map((item) => (
                                                             <ReorderItemRow
                                                                 key={item.supply.id}
@@ -486,7 +481,7 @@ export function ReorderDrawer({
                                                                 editedQty={editedQty}
                                                                 // A draft already holds this group's quantities:
                                                                 // editing here would change nothing that is sent.
-                                                                readOnly={!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase())}
+                                                                readOnly={!!draftBySupply?.has(item.supply.id)}
                                                                 snoozed={snoozedIds.has(
                                                                     item.supply.id
                                                                 )}

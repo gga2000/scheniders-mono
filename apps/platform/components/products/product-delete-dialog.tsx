@@ -20,7 +20,7 @@ interface DeleteImpact {
     /** Bundles, order bumps, related lists and curated collections that lose these products. */
     usedByOthers: number;
     reviews: number;
-    /** Products a purchase order, stock take, alert or recipe still points at; the database refuses to delete them. */
+    /** Products an open order, purchase order, stock take, alert or recipe still points at; the database refuses to delete them. */
     blockedIds: Set<string>;
 }
 
@@ -53,6 +53,13 @@ async function referencedIds(table: string, column: string, ids: string[]): Prom
     return found;
 }
 
+/** Products open orders still hold (on the product or a variant); the database refuses to delete them. */
+function reservedIds(products: Product[]): string[] {
+    return products
+        .filter((p) => (p.reserved_quantity ?? 0) > 0 || (p.variants ?? []).some((v) => (v.reserved_quantity ?? 0) > 0))
+        .map((p) => p.id);
+}
+
 async function loadImpact(products: Product[]): Promise<DeleteImpact> {
     const ids = products.map((p) => p.id);
     // Purchase orders and stock counts can point at a variant; that blocks its product too.
@@ -79,7 +86,7 @@ async function loadImpact(products: Product[]): Promise<DeleteImpact> {
     return {
         usedByOthers: bundles + bumps + related + curated,
         reviews,
-        blockedIds: new Set([...poItems, ...stockTakes, ...alerts, ...bom, ...variantBlocked]),
+        blockedIds: new Set([...poItems, ...stockTakes, ...alerts, ...bom, ...variantBlocked, ...reservedIds(products)]),
     };
 }
 

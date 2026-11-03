@@ -23,6 +23,7 @@ import {
     type HistoryEntry,
 } from "@/lib/utils/supply-forecasting";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
+import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
 import { useLanguage } from "@/hooks/use-language";
 
 const COLLAPSE_KEY = "supplies.actionsFeed.collapsed";
@@ -152,15 +153,8 @@ export function ActionsFeed({
         return drifted;
     }, [supplies, supplierPos]);
 
-    // A draft PO per supplier (lower-case name): its supplies need sending, not a new order.
-    const draftBySupplier = useMemo(() => {
-        const map = new Map<string, string>();
-        for (const po of supplierPos) {
-            const name = (po.supplier_name ?? "").trim().toLowerCase();
-            if (po.status === "draft" && name && !map.has(name)) map.set(name, po.po_number);
-        }
-        return map;
-    }, [supplierPos]);
+    // The draft each supply is on, from the draft's own lines.
+    const { data: draftBySupply } = useDraftPosBySupply();
 
     const actions = useMemo<Action[]>(() => {
         const seen = new Set<string>();
@@ -191,7 +185,7 @@ export function ActionsFeed({
                 : eta != null
                 ? t("supplies.af.supplyLeft", { eta: t("supplies.sp.leadDays", { count: eta }) })
                 : t("supplies.af.atReorderPoint", { rp });
-            const draftNumber = draftBySupplier.get((primarySupplierOf(s)?.supplier_name ?? "").trim().toLowerCase());
+            const draftNumber = draftBySupply?.get(s.id)?.number;
             if (draftNumber) {
                 push({
                     id: `draft:${s.id}`,
@@ -285,7 +279,7 @@ export function ActionsFeed({
         }
 
         return out.slice(0, 6);
-    }, [supplies, historyBySupply, needsOrderIds, driftedSuppliers, draftBySupplier, dismissed, t]);
+    }, [supplies, historyBySupply, needsOrderIds, driftedSuppliers, draftBySupply, dismissed, t]);
 
     const dismissAction = (id: string) => {
         setDismissed((prev) => {
