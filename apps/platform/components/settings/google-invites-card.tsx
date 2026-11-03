@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 import { Mail, UserPlus, Trash2, Clock } from "lucide-react";
 
 interface Invite {
@@ -24,6 +25,7 @@ const ROLES = ["employee", "viewer", "admin"] as const;
  */
 export function GoogleInvitesCard({ onMembersChanged }: { onMembersChanged?: () => void }) {
     const { tenantId } = useAuth();
+    const { t } = useLanguage();
     const [invites, setInvites] = useState<Invite[]>([]);
     const [email, setEmail] = useState("");
     const [role, setRole] = useState<string>("employee");
@@ -58,13 +60,13 @@ export function GoogleInvitesCard({ onMembersChanged }: { onMembersChanged?: () 
             });
             const json = await res.json().catch(() => ({}));
             if (!res.ok) {
-                toast.error("Couldn't send invite", json.error || "Please try again.");
+                toast.error(t("team.invite.failed"), json.error || t("team.invite.tryAgain"));
             } else if (json.reactivated) {
-                toast.success("Member restored", `${email} is back on the team with the ${role} role.`);
+                toast.success(t("team.invite.restored"), t("team.invite.restoredDesc", { email, role: t(`team.role.${role}`) }));
                 setEmail("");
                 onMembersChanged?.();
             } else {
-                toast.success("Invite created", `${email} can now sign in with Google to join.`);
+                toast.success(t("team.invite.created"), t("team.invite.createdDesc", { email }));
                 setEmail("");
                 load();
             }
@@ -75,8 +77,8 @@ export function GoogleInvitesCard({ onMembersChanged }: { onMembersChanged?: () 
 
     const handleRevoke = async (id: string) => {
         const res = await fetch(`/api/team/invite?id=${id}`, { method: "DELETE", headers: await authHeader() });
-        if (res.ok) { toast.success("Invite revoked"); load(); }
-        else toast.error("Couldn't revoke invite");
+        if (res.ok) { toast.success(t("team.invite.revoked")); load(); }
+        else toast.error(t("team.invite.revokeFailed"));
     };
 
     return (
@@ -85,11 +87,10 @@ export function GoogleInvitesCard({ onMembersChanged }: { onMembersChanged?: () 
                 <div className="w-8 h-8 rounded-lg bg-[var(--pastel-mint)] flex items-center justify-center">
                     <UserPlus className="h-4 w-4 text-teal-700" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground">Invite by email (Google sign-in)</h3>
+                <h3 className="text-base font-semibold text-foreground">{t("team.invite.cardTitle")}</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-5">
-                Pre-authorize a teammate&apos;s email. When they choose <span className="font-medium text-foreground">Continue with Google</span>,
-                they&apos;re added to this workspace automatically — no password to set.
+                {t("team.invite.cardDesc")}
             </p>
 
             <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-2.5 mb-5">
@@ -109,31 +110,31 @@ export function GoogleInvitesCard({ onMembersChanged }: { onMembersChanged?: () 
                     onChange={(e) => setRole(e.target.value)}
                     className="h-10 rounded-xl border border-(--card-border) bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-(--pastel-mint) focus:border-transparent capitalize"
                 >
-                    {ROLES.map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
+                    {ROLES.map((r) => <option key={r} value={r} className="capitalize">{t(`team.role.${r}`)}</option>)}
                 </select>
                 <button
                     type="submit"
                     disabled={busy || !email}
                     className="h-10 px-5 rounded-xl text-sm font-semibold text-white bg-[var(--button-success)] hover:bg-[var(--button-success-hover)] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                 >
-                    {busy ? "Inviting…" : "Send invite"}
+                    {busy ? t("team.invite.sending") : t("team.invite.send")}
                 </button>
             </form>
 
             {invites.length > 0 && (
                 <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pending invites</p>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("team.invite.pending")}</p>
                     {invites.map((inv) => (
                         <div key={inv.id} className="flex items-center justify-between rounded-xl border border-(--card-border) bg-background px-4 py-2.5">
                             <div className="flex items-center gap-3 min-w-0">
                                 <Clock className="w-4 h-4 text-amber-500 shrink-0" />
                                 <span className="text-sm text-foreground truncate">{inv.email}</span>
-                                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-(--pastel-blue) text-blue-800 capitalize shrink-0">{inv.role}</span>
+                                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-(--pastel-blue) text-blue-800 shrink-0">{t(`team.role.${inv.role}`)}</span>
                             </div>
                             <button
                                 onClick={() => handleRevoke(inv.id)}
                                 className="text-muted-foreground hover:text-rose-600 transition-colors p-1.5 rounded-lg hover:bg-rose-50 shrink-0"
-                                title="Revoke invite"
+                                title={t("team.invite.revoke")}
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>
