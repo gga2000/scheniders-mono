@@ -3360,11 +3360,101 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
   [data-menu-drawer], [data-menu-drawer] * { animation-duration: 1ms !important; }
 }
 
-/* Orders page: experimental sonar backdrop dot colour (components/ui/sonar-grid). */
+/* ============================================
+   Ambient backdrop (components/layout/ambient-backdrop.tsx), orders page.
+   One dot grid anchored to the viewport. The header draws the same grid with
+   the same anchor, so dots line up across the glass edge. Motion is opacity
+   and transform only (GPU-composited, no repaint).
+   ============================================ */
 :root {
-  --orders-sonar-dot: rgb(99, 102, 241);
+  --ambient-dot: rgb(100 116 139 / 0.24);
+  --ambient-dot-lit: rgb(79 70 229 / 0.55);
+  --ambient-glow-a: rgb(129 140 248 / 0.16);
+  --ambient-glow-b: rgb(251 191 36 / 0.12);
+  --ambient-grid: 24px;
+  --ambient-dot-image: radial-gradient(circle at center, var(--ambient-dot) 1px, transparent 1.5px);
+}
+.dark {
+  --ambient-dot: rgb(148 163 184 / 0.16);
+  --ambient-dot-lit: rgb(165 180 252 / 0.6);
+  --ambient-glow-a: rgb(99 102 241 / 0.14);
+  --ambient-glow-b: rgb(245 158 11 / 0.06);
 }
 
-.dark {
-  --orders-sonar-dot: rgb(165, 180, 252);
+.ambient-backdrop__dots,
+.ambient-backdrop__twinkle {
+  position: absolute;
+  inset: 0;
+  background-size: var(--ambient-grid) var(--ambient-grid);
+  background-position: calc(var(--ambient-grid) / 2) calc(var(--ambient-grid) / 2);
+}
+.ambient-backdrop__dots {
+  background-image: var(--ambient-dot-image);
+}
+/* Same grid, lit dots, revealed through soft static spots that breathe in turn. */
+.ambient-backdrop__twinkle {
+  background-image: radial-gradient(circle at center, var(--ambient-dot-lit) 1.1px, transparent 1.7px);
+  opacity: 0;
+  animation: ambient-breathe 9s ease-in-out infinite;
+  will-change: opacity;
+}
+.ambient-backdrop__twinkle--a {
+  mask-image:
+    radial-gradient(28vmax 22vmax at 22% 30%, #000 0%, transparent 70%),
+    radial-gradient(22vmax 18vmax at 78% 72%, #000 0%, transparent 70%);
+}
+.ambient-backdrop__twinkle--b {
+  mask-image:
+    radial-gradient(24vmax 20vmax at 70% 20%, #000 0%, transparent 70%),
+    radial-gradient(26vmax 20vmax at 30% 82%, #000 0%, transparent 70%);
+  animation-delay: -4.5s;
+}
+.ambient-backdrop__glow {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 9999px;
+  will-change: transform;
+}
+.ambient-backdrop__glow--a {
+  top: -25vmax;
+  left: -15vmax;
+  background: radial-gradient(closest-side, var(--ambient-glow-a), transparent);
+  animation: ambient-drift-a 38s ease-in-out infinite alternate;
+}
+.ambient-backdrop__glow--b {
+  bottom: -30vmax;
+  right: -20vmax;
+  background: radial-gradient(closest-side, var(--ambient-glow-b), transparent);
+  animation: ambient-drift-b 46s ease-in-out infinite alternate;
+}
+@keyframes ambient-breathe {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+@keyframes ambient-drift-a {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(28vw, 18vh, 0) scale(1.15); }
+}
+@keyframes ambient-drift-b {
+  from { transform: translate3d(0, 0, 0) scale(1.1); }
+  to { transform: translate3d(-30vw, -16vh, 0) scale(0.95); }
+}
+
+/* Header glass: draw the grid on the bar itself (it blurs what is behind it),
+   anchored to the viewport like the page grid so the dots meet seamlessly. */
+.ambient-page .app-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--ambient-dot-image);
+  background-size: var(--ambient-grid) var(--ambient-grid);
+  background-position: calc(var(--ambient-grid) / 2) calc(var(--ambient-grid) / 2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-backdrop__twinkle,
+  .ambient-backdrop__glow { animation: none; }
 }
