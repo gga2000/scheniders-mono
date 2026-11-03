@@ -1,0 +1,62 @@
+name: Migrations
+
+# Applies new files in packages/supabase/migrations to the production database
+# (project sduvpgqwhxragxtxztur) when they land on main, so nobody pastes SQL
+# by hand. Needs one repo secret: SUPABASE_DB_URL (session-pooler connection
+# string, port 5432 — the direct db.* host is IPv6-only and GitHub runners
+# cannot reach it).
+#
+# On pull requests it only checks filenames/versions (no secret, no database).
+
+on:
+  push:
+    branches: [main]
+    paths: ["packages/supabase/migrations/**"]
+  pull_request:
+    branches: [main]
+    paths: ["packages/supabase/migrations/**"]
+  workflow_dispatch:
+
+jobs:
+  check-names:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: New migration files are well named and use unused versions
+        run: |
+          set -euo pipefail
+          dir=packages/supabase/migrations
+          base="origin/${{ github.base_ref }}"
+          mapfile -t added < <(git diff --diff-filter=A --name-only "$base"...HEAD -- "$dir")
+          bad=0
+          for f in "${added[@]}"; do
+            [[ "$f" =~ ^$dir/[0-9]{14}_[a-z0-9_]+\.sql$ ]] || { echo "::error file=$f::Name must be YYYYMMDDHHMMSS_description.sql"; bad=1; }
+          done
+          dups=$(for f in "${added[@]}"; do basename "$f" | cut -c1-14; done | sort | uniq -d)
+          for v in $dups; do echo "::error::Two new migrations share version $v"; bad=1; done
+          for f in "${added[@]}"; do
+            v=$(basename "$f" | cut -c1-14)
+            if git ls-tree -r --name-only "$base" -- "$dir" | grep -q "^$dir/$v"; then
+              echo "::error file=$f::Version $v already exists on main"; bad=1
+            fi
+          done
+          exit $bad
+
+  apply:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # One at a time, never cancelled: two merges must not apply together.
+    concurrency:
+      group: apply-migrations
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Apply new migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: .github/scripts/apply-migrations.sh
