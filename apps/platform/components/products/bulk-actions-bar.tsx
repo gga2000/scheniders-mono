@@ -255,7 +255,7 @@ export function BulkActionsBar({
                         </span>
                         <button
                             onClick={handleUndo}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--pastel-yellow)] text-amber-900 rounded-lg text-xs font-bold hover:opacity-90 transition-colors dark:text-amber-300"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--pastel-yellow)] text-amber-900 rounded-lg text-xs font-bold hover:opacity-90 transition-colors"
                         >
                             <Undo2 className="w-3.5 h-3.5" />
                             {t("products.bulk.undo")}

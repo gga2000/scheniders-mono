@@ -409,7 +409,7 @@ export function ImageEditorModal({ imageUrl, onSave, onClose }: ImageEditorModal
                             {hasCropSelection && (
                                 <button
                                     onClick={applyCrop}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-[var(--pastel-green)] text-green-800 rounded-xl text-sm font-medium hover:opacity-90 transition-colors dark:text-green-300"
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-[var(--pastel-green)] text-green-800 rounded-xl text-sm font-medium hover:opacity-90 transition-colors"
                                 >
                                     <Check className="w-4 h-4" />
                                     {t("products.img.apply")}
@@ -501,7 +501,7 @@ function ToolButton({
             disabled={disabled}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
                 active
-                    ? "bg-[var(--pastel-yellow)] text-amber-900 dark:text-amber-300"
+                    ? "bg-[var(--pastel-yellow)] text-amber-900"
                     : "bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-[var(--card-border)]"
             } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
             title={label}

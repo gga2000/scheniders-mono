@@ -146,7 +146,7 @@ export function BarcodeGenerator({
                     type="button"
                     onClick={handleAutoGenerate}
                     disabled={disabled}
-                    className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap dark:text-teal-300"
+                    className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                     <Sparkles className="w-4 h-4" />
                     {t("products.barcode.generate")}

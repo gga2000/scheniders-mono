@@ -80,7 +80,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                 <button
                     type="button"
                     onClick={addSupplier}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors dark:text-teal-300"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     {t("products.ed.supplier.add")}
@@ -122,7 +122,7 @@ export function SupplierSection({ suppliers, onChange, showCost = true }: Suppli
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                                 {supplier.is_primary && (
-                                    <span className="px-2 py-0.5 bg-[var(--pastel-green)] text-green-800 rounded-full text-xs font-medium dark:text-green-300">
+                                    <span className="px-2 py-0.5 bg-[var(--pastel-green)] text-green-800 rounded-full text-xs font-medium">
                                         {t("products.ed.supplier.primary")}
                                     </span>
                                 )}

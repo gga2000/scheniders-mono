@@ -16,7 +16,6 @@ import type { Product } from "@/lib/supabase";
 import type { ProductSupplier } from "@/types/product";
 import { cn } from "@/lib/utils";
 import {
-    dailyRateFromHistory,
     daysUntilStockout,
     deadStockScore,
     detectConsumptionAnomaly,
@@ -168,8 +167,8 @@ export function ActionsFeed({
             const available = Math.max(0, stock - reserved);
             const rp = s.reorder_point ?? s.low_stock_threshold ?? 5;
             if (stock > rp) continue;
-            const entries = historyBySupply.get(s.id) ?? [];
-            const rate = dailyRateFromHistory(entries);
+            // Same 30-day usage the supply cards use, so both show one number.
+            const rate = (s.times_sold_30d ?? 0) / 30;
             const eta = daysUntilStockout(available, rate);
             const leadTime = leadTimeOf(s);
             const isCritical =

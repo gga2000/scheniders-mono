@@ -325,7 +325,7 @@ export function ProductLocationPicker({
                         onClick={handleAdd}
                         disabled={!newLocationId || !newQuantity || assignMutation.isPending}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-xl text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0 dark:text-teal-300",
+                            "flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-xl text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0",
                             (!newLocationId || !newQuantity || assignMutation.isPending) &&
                                 "opacity-50 cursor-not-allowed"
                         )}

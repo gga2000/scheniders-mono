@@ -65,11 +65,11 @@ interface VariantMatrixTableProps {
 // ---------------------------------------------------------------------------
 
 const OPTION_BADGE_STYLES = [
-    "bg-[var(--pastel-blue)] text-blue-800 dark:text-blue-300",
-    "bg-[var(--pastel-pink)] text-pink-800 dark:text-pink-300",
-    "bg-[var(--pastel-mint)] text-teal-800 dark:text-teal-300",
-    "bg-[var(--pastel-yellow)] text-yellow-800 dark:text-yellow-300",
-    "bg-[var(--pastel-green)] text-green-800 dark:text-green-300",
+    "bg-[var(--pastel-blue)] text-blue-800",
+    "bg-[var(--pastel-pink)] text-pink-800",
+    "bg-[var(--pastel-mint)] text-teal-800",
+    "bg-[var(--pastel-yellow)] text-yellow-800",
+    "bg-[var(--pastel-green)] text-green-800",
 ];
 
 const EDITABLE_COLUMNS = ["price", "cost", "stock_quantity", "sku", "barcode"] as const;
@@ -531,7 +531,7 @@ export function VariantMatrixTable({
                         {t("products.vm.variantMatrix")}
                     </h2>
                     {variants.length > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--pastel-blue)] text-blue-800 dark:text-blue-300">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--pastel-blue)] text-blue-800">
                             {variants.length}{" "}
                             {variants.length !== 1
                                 ? t("products.vm.variants")
@@ -563,7 +563,7 @@ export function VariantMatrixTable({
                             type="button"
                             onClick={() => setShowApplyAll(!showApplyAll)}
                             disabled={disabled}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 dark:text-teal-300"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50"
                         >
                             {t("products.vm.applyToAll")}
                             <ChevronDown
@@ -614,7 +614,7 @@ export function VariantMatrixTable({
                                                 }
                                                 setShowApplyAll(false);
                                             }}
-                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity dark:text-green-300"
+                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
                                         >
                                             {t("products.vm.apply")}
                                         </button>
@@ -645,7 +645,7 @@ export function VariantMatrixTable({
                                                 }
                                                 setShowApplyAll(false);
                                             }}
-                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity dark:text-green-300"
+                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
                                         >
                                             {t("products.vm.apply")}
                                         </button>
@@ -677,7 +677,7 @@ export function VariantMatrixTable({
                                                 }
                                                 setShowApplyAll(false);
                                             }}
-                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity dark:text-green-300"
+                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
                                         >
                                             {t("products.vm.apply")}
                                         </button>
@@ -741,7 +741,7 @@ export function VariantMatrixTable({
                                                     setBulkPopover(null);
                                                     setBulkValue(0);
                                                 }}
-                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 dark:text-green-300"
+                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
                                             >
                                                 {t("products.vm.apply")}
                                             </button>
@@ -788,7 +788,7 @@ export function VariantMatrixTable({
                                                     setBulkPopover(null);
                                                     setBulkValue(0);
                                                 }}
-                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 dark:text-green-300"
+                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
                                             >
                                                 {t("products.vm.apply")}
                                             </button>
@@ -842,7 +842,7 @@ export function VariantMatrixTable({
                                                     setBulkPopover(null);
                                                     setBulkValue(0);
                                                 }}
-                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 dark:text-green-300"
+                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
                                             >
                                                 {t("products.vm.apply")}
                                             </button>

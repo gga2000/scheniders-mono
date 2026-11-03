@@ -160,7 +160,7 @@ export function StorefrontPreview({
                                     <span className="text-base text-muted line-through">
                                         {formatIQD(compareAtPrice)}
                                     </span>
-                                    <span className="px-2 py-0.5 bg-[var(--pastel-pink)] text-rose-700 text-xs font-semibold rounded-lg dark:text-rose-300">
+                                    <span className="px-2 py-0.5 bg-[var(--pastel-pink)] text-rose-700 text-xs font-semibold rounded-lg">
                                         -{discountPercentage}%
                                     </span>
                                 </>

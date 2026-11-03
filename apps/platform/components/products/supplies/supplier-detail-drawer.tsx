@@ -251,10 +251,10 @@ function KpiTile({
 }) {
     const toneClasses =
         tone === "teal"
-            ? "from-teal-50 to-teal-50/20 border-teal-200/50"
+            ? "from-teal-50 to-teal-50/20 border-teal-200/50 dark:from-teal-500/10 dark:to-transparent dark:border-teal-500/20"
             : tone === "sky"
-            ? "from-sky-50 to-sky-50/20 border-sky-200/50"
-            : "from-slate-50 to-slate-50/20 border-slate-200/50";
+            ? "from-sky-50 to-sky-50/20 border-sky-200/50 dark:from-sky-500/10 dark:to-transparent dark:border-sky-500/20"
+            : "from-slate-50 to-slate-50/20 border-slate-200/50 dark:from-slate-500/10 dark:to-transparent dark:border-slate-500/20";
     return (
         <div
             className={cn(

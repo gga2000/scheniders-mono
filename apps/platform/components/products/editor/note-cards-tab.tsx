@@ -54,7 +54,7 @@ export function NoteCardsTab({ noteCards, onChange, productId }: NoteCardsTabPro
                 <button
                     type="button"
                     onClick={addCard}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0 dark:text-teal-300"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0"
                 >
                     <Plus className="w-4 h-4" />
                     {t("products.notes.add")}

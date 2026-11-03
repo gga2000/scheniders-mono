@@ -315,7 +315,7 @@ function OverviewTab({ supply }: { supply: Product }) {
 
             {/* Value stats */}
             <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-teal-50/20 p-3">
+                <div className="rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-teal-50/20 p-3 dark:border-teal-500/20 dark:from-teal-500/10 dark:to-transparent">
                     <p className="text-[10px] uppercase tracking-wide text-muted font-medium">
                         {t("supplies.sp.unitCost")}
                     </p>
@@ -323,7 +323,7 @@ function OverviewTab({ supply }: { supply: Product }) {
                         {formatIQD(supply.cost ?? 0)}
                     </p>
                 </div>
-                <div className="rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-teal-50/20 p-3">
+                <div className="rounded-2xl border border-teal-200/50 bg-gradient-to-br from-teal-50 to-teal-50/20 p-3 dark:border-teal-500/20 dark:from-teal-500/10 dark:to-transparent">
                     <p className="text-[10px] uppercase tracking-wide text-muted font-medium">
                         {t("supplies.sp.onHandValue")}
                     </p>
@@ -554,8 +554,8 @@ function SummaryTile({
 }) {
     const cls =
         tone === "emerald"
-            ? "from-emerald-50 to-emerald-50/20 border-emerald-200/50 text-emerald-800 dark:text-emerald-300"
-            : "from-rose-50 to-rose-50/20 border-rose-200/50 text-rose-800 dark:text-rose-300";
+            ? "from-emerald-50 to-emerald-50/20 border-emerald-200/50 dark:from-emerald-500/10 dark:to-transparent dark:border-emerald-500/20 text-emerald-800 dark:text-emerald-300"
+            : "from-rose-50 to-rose-50/20 border-rose-200/50 dark:from-rose-500/10 dark:to-transparent dark:border-rose-500/20 text-rose-800 dark:text-rose-300";
     return (
         <div className={cn("rounded-xl border bg-gradient-to-br p-2.5", cls)}>
             <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide opacity-80">

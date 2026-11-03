@@ -52,47 +52,47 @@ const ACTION_CONFIG: Record<
     created: {
         icon: Zap,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700 dark:text-green-300",
+        textClass: "text-green-700",
     },
     updated: {
         icon: Edit,
         bgClass: "bg-[var(--pastel-blue)]",
-        textClass: "text-blue-700 dark:text-blue-300",
+        textClass: "text-blue-700",
     },
     status_changed: {
         icon: Archive,
         bgClass: "bg-[var(--pastel-yellow)]",
-        textClass: "text-yellow-700 dark:text-yellow-300",
+        textClass: "text-yellow-700",
     },
     price_changed: {
         icon: DollarSign,
         bgClass: "bg-[var(--pastel-pink)]",
-        textClass: "text-pink-700 dark:text-pink-300",
+        textClass: "text-pink-700",
     },
     image_added: {
         icon: Image,
         bgClass: "bg-[var(--pastel-mint)]",
-        textClass: "text-teal-700 dark:text-teal-300",
+        textClass: "text-teal-700",
     },
     variant_added: {
         icon: Package,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700 dark:text-green-300",
+        textClass: "text-green-700",
     },
     variant_removed: {
         icon: Package,
         bgClass: "bg-[var(--pastel-pink)]",
-        textClass: "text-pink-700 dark:text-pink-300",
+        textClass: "text-pink-700",
     },
     inventory_adjusted: {
         icon: Box,
         bgClass: "bg-[var(--pastel-blue)]",
-        textClass: "text-blue-700 dark:text-blue-300",
+        textClass: "text-blue-700",
     },
     published: {
         icon: Zap,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700 dark:text-green-300",
+        textClass: "text-green-700",
     },
     archived: {
         icon: Archive,

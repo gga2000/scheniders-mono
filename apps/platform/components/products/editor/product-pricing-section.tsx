@@ -1,5 +1,6 @@
 "use client";
 
+import { IqdInput } from "./iqd-input";
 import { DollarSign, TrendingUp, TrendingDown, Percent } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
@@ -38,12 +39,9 @@ export function ProductPricingSection({
                             <label className="block text-sm font-medium text-foreground mb-2">
                                 {t("products.ed.price")} <span className="text-rose-500">*</span>
                             </label>
-                            <input
-                                type="number"
-                                value={formData.price || ""}
-                                onChange={(e) => updateField("price", parseInt(e.target.value, 10) || 0)}
-                                placeholder="0"
-                                min={0}
+                            <IqdInput
+                                value={formData.price || 0}
+                                onChange={(v) => updateField("price", v)}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
                         </div>
@@ -53,12 +51,9 @@ export function ProductPricingSection({
                                 {t("products.ed.compareAt")}
                                 <span className="text-xs text-muted block">{t("products.ed.compareAtHint")}</span>
                             </label>
-                            <input
-                                type="number"
-                                value={formData.compare_at_price || ""}
-                                onChange={(e) => updateField("compare_at_price", parseInt(e.target.value, 10) || 0)}
-                                placeholder="0"
-                                min={0}
+                            <IqdInput
+                                value={formData.compare_at_price || 0}
+                                onChange={(v) => updateField("compare_at_price", v)}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                             />
                         </div>
@@ -71,14 +66,11 @@ export function ProductPricingSection({
                         {t("products.ed.cost")}
                         {formData.is_supply && <span className="text-rose-500 ms-1">*</span>}
                     </label>
-                    <input
-                        type="number"
-                        value={formData.cost || ""}
-                        onChange={(e) => updateField("cost", parseInt(e.target.value, 10) || 0)}
-                        placeholder="0"
-                        min={0}
-                        className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
-                    />
+                    <IqdInput
+                                value={formData.cost || 0}
+                                onChange={(v) => updateField("cost", v)}
+                                className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                            />
                 </div>
                 )}
             </div>

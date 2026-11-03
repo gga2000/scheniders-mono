@@ -203,10 +203,9 @@ export function CategoryRow({
             </span>
           )}
           {missingSeo && category.status === "published" && (
-            <AlertCircle
-              className="w-3.5 h-3.5 text-amber-600 shrink-0 dark:text-amber-300"
-              aria-label={t("categories.row.missingSeo")}
-            />
+            <span role="img" title={t("categories.row.missingSeo")} aria-label={t("categories.row.missingSeo")} className="shrink-0">
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-300" aria-hidden />
+            </span>
           )}
         </div>
         <div className="text-xs text-muted truncate">/{category.slug}</div>
@@ -321,6 +320,11 @@ export function CategoryRow({
                     icon={Trash2}
                     tone="rose"
                     label={t("common.delete")}
+                    // A category with products cannot be deleted: say so here
+                    // instead of offering Delete and refusing it afterwards.
+                    disabledReason={
+                      productCount > 0 ? t("categories.row.deleteBlocked", { n: productCount }) : undefined
+                    }
                     onClick={() => {
                       setMenuOpen(false);
                       onDelete(category);
@@ -341,23 +345,32 @@ function MenuItem({
   label,
   onClick,
   tone = "default",
+  disabledReason,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   onClick: () => void;
   tone?: "default" | "rose";
+  /** When set, the item is shown but cannot be used, and says why. */
+  disabledReason?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={!!disabledReason}
       className={cn(
-        "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--background)] transition-colors text-start",
-        tone === "rose" && "text-rose-700 dark:text-rose-300",
+        "w-full flex items-start gap-2 px-3 py-2 text-sm hover:bg-[var(--background)] transition-colors text-start",
+        "disabled:cursor-not-allowed disabled:hover:bg-transparent",
+        tone === "rose" && !disabledReason && "text-rose-700 dark:text-rose-300",
+        disabledReason && "text-muted",
       )}
     >
-      <Icon className="w-4 h-4" />
-      {label}
+      <Icon className="w-4 h-4 mt-0.5 shrink-0" />
+      <span className="min-w-0">
+        {label}
+        {disabledReason && <span className="block text-xs text-muted">{disabledReason}</span>}
+      </span>
     </button>
   );
 }

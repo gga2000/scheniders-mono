@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calcSuggestedQty, urgencyFor } from "./supply-reorder";
+import { calcSuggestedQty, reorderShortfall, urgencyFor } from "./supply-reorder";
 
 describe("calcSuggestedQty", () => {
     it("covers lead time with a 1.3 safety factor plus the gap to the reorder point", () => {
@@ -17,6 +17,14 @@ describe("calcSuggestedQty", () => {
 
     it("still returns at least the MOQ when stock is already above the reorder point", () => {
         expect(calcSuggestedQty({ leadTimeDays: 5, dailyRate: 0, reorderPoint: 10, stock: 100, moq: 6 })).toBe(6);
+    });
+});
+
+describe("reorderShortfall", () => {
+    it("is zero or less once stock on hand plus on order covers the lead time and reorder point", () => {
+        // 7 days x 10/day x 1.3 = 91, plus (100 - (50 + 500)) -> negative: covered
+        expect(reorderShortfall({ leadTimeDays: 7, dailyRate: 10, reorderPoint: 100, stock: 550 })).toBeLessThanOrEqual(0);
+        expect(reorderShortfall({ leadTimeDays: 7, dailyRate: 10, reorderPoint: 100, stock: 50 })).toBe(141);
     });
 });
 

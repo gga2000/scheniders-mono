@@ -113,7 +113,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                 <button
                     type="button"
                     onClick={() => setShowSearch(!showSearch)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors dark:text-teal-300"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     {t("products.bundle.addProduct")}

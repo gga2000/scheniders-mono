@@ -101,7 +101,7 @@ export function TieredPricingSection({
                 <button
                     type="button"
                     onClick={handleAddTier}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors dark:text-teal-300"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     {t("products.ed.tier.add")}
@@ -217,7 +217,7 @@ export function TieredPricingSection({
                             <span
                                 className={`px-2 py-0.5 rounded-full text-xs font-medium text-center ${
                                     tier.price < basePrice
-                                        ? "bg-[var(--pastel-green)] text-green-800 dark:text-green-300"
+                                        ? "bg-[var(--pastel-green)] text-green-800"
                                         : "text-muted"
                                 }`}
                             >
