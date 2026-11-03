@@ -1,5 +1,5 @@
 import type { Order } from "@/types/order";
-import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
+import { addDaysToDayKey, baghdadDayKey, toBaghdadDayKey } from "@/lib/order-window";
 import { isRealizedRevenue, realizedAt } from "@/lib/order-revenue";
 
 const HISTORY_DAYS = 60;
@@ -18,7 +18,10 @@ export interface Scenario {
 export interface ForecastPoint {
     /** Baghdad day key. */
     day: string;
+    /** Realized revenue delivered that day. */
     historical: number | null;
+    /** Trailing 7-day average of `historical`: deliveries arrive in courier batches, so the daily line is spiky. */
+    avg7: number | null;
     best: number | null;
     likely: number | null;
     worst: number | null;
@@ -69,6 +72,7 @@ export function buildForecast(orders: readonly Order[], now: number = Date.now()
     }
 
     const revenues = history.map((h) => h.revenue);
+    const avg7 = trailingAvg(revenues, 7);
     const avg14 = trailingAvg(revenues, 14);
     const avg30 = trailingAvg(revenues, 30);
     const baseline = avg30[avg30.length - 1] || 0;
@@ -78,8 +82,8 @@ export function buildForecast(orders: readonly Order[], now: number = Date.now()
 
     const trend = baseline * (1 + momentum);
     const projection: Scenario[] = [];
-    const chart: ForecastPoint[] = history.map((h) => ({
-        day: h.day, historical: h.revenue, best: null, likely: null, worst: null,
+    const chart: ForecastPoint[] = history.map((h, i) => ({
+        day: h.day, historical: h.revenue, avg7: Math.round(avg7[i]), best: null, likely: null, worst: null,
     }));
     for (let d = 1; d <= PROJECTION_DAYS; d++) {
         const scenario = {
@@ -88,7 +92,7 @@ export function buildForecast(orders: readonly Order[], now: number = Date.now()
             worst: Math.round(trend * WORST_FACTOR),
         };
         projection.push(scenario);
-        chart.push({ day: addDaysToDayKey(today, d), historical: null, ...scenario });
+        chart.push({ day: addDaysToDayKey(today, d), historical: null, avg7: null, ...scenario });
     }
 
     const sumWindow = (n: number): Scenario => projection.slice(0, n).reduce(

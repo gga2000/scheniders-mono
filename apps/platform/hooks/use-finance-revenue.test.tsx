@@ -53,9 +53,16 @@ describe("useFinanceRevenue channels", () => {
         const [meta] = run(orders).channels;
         expect(meta.revenue).toBe(18000);
         expect(meta.orders).toBe(2);
+        expect(meta.delivered_orders).toBe(1);
         expect(meta.product_cost).toBe(4000);
         expect(meta.gross_profit).toBe(6000);
         expect(meta.margin_pct).toBeCloseTo(60);
+    });
+
+    it("counts no delivered orders for a channel whose orders are all still in transit", () => {
+        const [meta] = run([order({ id: "a", status: "in_transit", price: 8000, items: [item(8000)] })]).channels;
+        expect(meta.delivered_orders).toBe(0);
+        expect(meta.product_cost).toBe(0);
     });
 
     it("ignores delivered return rows and sums channels to the Overview gross profit", () => {

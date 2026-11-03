@@ -52,6 +52,7 @@ export function ChannelPnL({ rows }: Props) {
                     <tbody>
                         {rows.map((r, i) => {
                             const bar = (r.revenue / maxRev) * 100;
+                            const awaiting = r.delivered_orders === 0;
                             const marginTone = r.margin_pct < 0
                                 ? "text-rose-600 dark:text-rose-400"
                                 : r.margin_pct < 10
@@ -81,11 +82,12 @@ export function ChannelPnL({ rows }: Props) {
                                     <td className="py-2 px-2 text-right tabular-nums text-foreground font-semibold">
                                         <FinanceValue value={r.revenue} abbreviate className="tabular-nums" />
                                     </td>
-                                    <td className="py-2 px-2 text-right tabular-nums text-muted">
-                                        <FinanceValue value={r.product_cost} abbreviate className="tabular-nums" />
+                                    {/* Cost and profit only exist for delivered orders; a channel with none yet shows a dash, not a false 0. */}
+                                    <td className="py-2 px-2 text-right tabular-nums text-muted" title={awaiting ? t("finances.channel.noDelivered") : undefined}>
+                                        {awaiting ? "—" : <FinanceValue value={r.product_cost} abbreviate className="tabular-nums" />}
                                     </td>
-                                    <td className="py-2 px-2 text-right tabular-nums">
-                                        <FinanceValue value={r.gross_profit} abbreviate signed className={cn("tabular-nums font-semibold", marginTone)} />
+                                    <td className="py-2 px-2 text-right tabular-nums text-muted" title={awaiting ? t("finances.channel.noDelivered") : undefined}>
+                                        {awaiting ? "—" : <FinanceValue value={r.gross_profit} abbreviate signed className={cn("tabular-nums font-semibold", marginTone)} />}
                                     </td>
                                     <td className={cn("py-2 pl-2 text-right tabular-nums font-semibold", marginTone)}>
                                         {r.product_cost > 0

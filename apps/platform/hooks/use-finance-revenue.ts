@@ -48,6 +48,8 @@ export interface ChannelPnLRow {
     label: string;
     revenue: number;
     orders: number;
+    /** Orders already delivered: cost and profit only exist for these, so 0 means "nothing to show yet", not "no cost". */
+    delivered_orders: number;
     product_cost: number;
     /** Delivered revenue minus product cost. Courier bills are expenses, so delivery is not subtracted per channel (same walk as the Overview). */
     gross_profit: number;
@@ -243,6 +245,7 @@ export function useFinanceRevenue(
                     label: CHANNEL_LABELS[k] || k,
                     revenue: v.revenue,
                     orders: v.orders,
+                    delivered_orders: v.delivered_orders,
                     product_cost: v.product_cost,
                     gross_profit,
                     margin_pct: v.delivered_revenue > 0
