@@ -65,21 +65,21 @@ async function fetchAdSpend(from: string | null, to: string | null): Promise<num
     }
 }
 
-const limitSchema = z.object({
+const billingSchema = z.object({
     success: z.literal(true),
-    limit: z.object({ leftIqd: z.number(), capIqd: z.number(), owedIqd: z.number() }).nullable(),
+    billing: z.object({ owedIqd: z.number(), thresholdIqd: z.number().nullable(), leftIqd: z.number().nullable() }).nullable(),
 });
 
-/** Room left under the Meta account's spending limit (IQD); null when Meta sets no limit. Admin-only route. */
-function useAdLimit(enabled: boolean) {
+/** What the Meta account owes and how far it is from the next charge (IQD). Admin-only route. */
+function useAdBilling(enabled: boolean) {
     const { session } = useAuth();
     const token = session?.access_token ?? "";
     return useQuery({
-        queryKey: ["orders-panel-ad-limit"],
+        queryKey: ["orders-panel-ad-billing"],
         queryFn: async () => {
-            const res = await fetch("/api/settings/meta-ads/limit", { headers: { Authorization: `Bearer ${token}` } });
-            if (!res.ok) throw new Error(`Meta limit failed: ${res.status}`);
-            return limitSchema.parse(await res.json()).limit;
+            const res = await fetch("/api/settings/meta-ads/billing", { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) throw new Error(`Meta billing failed: ${res.status}`);
+            return billingSchema.parse(await res.json()).billing;
         },
         enabled: enabled && token !== "",
         staleTime: TICK_MS,
@@ -144,7 +144,7 @@ export function useOrdersPanelStats(filters: OrderFilters) {
         staleTime: REFRESH_MS,
     });
 
-    const limit = useAdLimit(adsOn);
+    const billing = useAdBilling(adsOn);
 
     return {
         salesView,
@@ -152,6 +152,6 @@ export function useOrdersPanelStats(filters: OrderFilters) {
         current,
         previous,
         store: { figures: storeResult?.current ? storeResult : null, show: storeWide && (store.data?.days ?? []).some((d) => d.visitors > 0) },
-        ads: adsOn ? { spend, limit } : null,
+        ads: adsOn ? { spend, billing } : null,
     };
 }

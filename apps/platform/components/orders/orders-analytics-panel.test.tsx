@@ -27,6 +27,7 @@ const query = <T,>(data: T | undefined, isError = false) => ({ data, isError, re
 const stats = (over: Partial<PanelStats> = {}): PanelStats => ({
     orders: 40,
     revenue: 1_250_000,
+    confirmed_revenue: 2_000_000,
     delivered: 10,
     ...over,
 });
@@ -74,7 +75,7 @@ describe("OrdersAnalyticsPanel strip", () => {
         setHook();
         renderPanel();
         expect(stat("orders")).toBe("40");
-        expect(stat("revenue")).toContain("1,250,000");
+        expect(stat("revenue")).toContain("2,000,000");
     });
 
     it("keeps a skeleton, not a zero, while a figure loads", () => {
@@ -111,8 +112,8 @@ describe("OrdersAnalyticsPanel strip", () => {
         expect(document.querySelector("[data-cell=\"orders\"] svg")).toBeNull();
     });
 
-    it("leaves out the limit cell when Meta has no limit", () => {
-        setHook({ ads: { spend: query(500_000), limit: query(null) } });
+    it("leaves out the left-to-charge cell when Meta hides the threshold", () => {
+        setHook({ ads: { spend: query(500_000), billing: query({ owedIqd: 586_000, thresholdIqd: null, leftIqd: null }) } });
         renderPanel();
         expect(document.querySelector("[data-cell=\"ad_limit\"]")).toBeNull();
         expect(stat("cpa")).toContain("12,500");
@@ -125,13 +126,14 @@ describe("OrdersAnalyticsPanel strip", () => {
         expect(document.querySelector("[data-cell=\"visitors\"]")).toBeNull();
         cleanup();
         setHook({
-            ads: { spend: query(500_000), limit: query({ leftIqd: 1_200_000, capIqd: 3_000_000, owedIqd: 0 }) },
+            ads: { spend: query(500_000), billing: query({ owedIqd: 586_000, thresholdIqd: 724_000, leftIqd: 138_000 }) },
             store: { figures: { current: { visitors: 300, conversion: 2.5 }, previous: { visitors: 200, conversion: 2 } }, show: true },
         });
         renderPanel();
         expect(stat("ad_spend")).toContain("500,000");
         expect(stat("cpa")).toContain("12,500");
-        expect(stat("ad_limit")).toContain("1,200,000");
+        expect(stat("ad_owed")).toContain("586,000");
+        expect(stat("ad_limit")).toContain("138,000");
         expect(stat("visitors")).toBe("300");
         expect(stat("conversion")).toBe("2.5%");
     });
