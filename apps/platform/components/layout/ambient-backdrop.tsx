@@ -1,6 +1,6 @@
 /**
- * Living page backdrop: a fine dot grid with a slow twinkle and two soft
- * colour drifts behind it. Pure CSS (styles in globals.css under
+ * Living page backdrop: a fine dot grid that drifts slowly, with a soft
+ * twinkle and two faint colour glows behind it. Pure CSS (styles in globals.css under
  * "Ambient backdrop"), so no JS runs per frame. Only `opacity` and `transform`
  * animate, which the browser composites on the GPU without repainting.
  *
