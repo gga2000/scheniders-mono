@@ -1099,14 +1099,6 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                             action: "created",
                         }, tenantId);
 
-                        // Log initial price
-                        if (formData.price > 0) {
-                            await productRepository.addPriceHistoryEntry(newProduct.id, {
-                                new_price: formData.price,
-                                reason: "Initial price",
-                            }, tenantId);
-                        }
-
                     } catch (followUpError) {
                         // The product row exists. Move to its editor so the next Save
                         // updates it instead of inserting a second copy. The "new product" draft is
@@ -1274,15 +1266,6 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     await productRepository.addActivityLogEntry(product.id, {
                         action,
                         changes_json: changes,
-                    }, tenantId);
-                }
-
-                // Track price changes
-                if (prev.price !== formData.price) {
-                    await productRepository.addPriceHistoryEntry(product.id, {
-                        old_price: prev.price,
-                        new_price: formData.price,
-                        reason: "Manual price update",
                     }, tenantId);
                 }
 

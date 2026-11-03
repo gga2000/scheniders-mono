@@ -3,16 +3,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import type { Product } from "@/lib/supabase";
 
 const mutateAsync = vi.fn();
-const addPriceHistoryEntry = vi.fn();
 
 vi.mock("@/hooks/use-products-query", () => ({
     useUpdateProductMutation: () => ({ mutateAsync, isPending: false }),
-}));
-vi.mock("@/lib/repositories/product-repository", () => ({
-    productRepository: { addPriceHistoryEntry: (...args: unknown[]) => addPriceHistoryEntry(...args) },
-}));
-vi.mock("@/components/auth/auth-provider", () => ({
-    useAuth: () => ({ tenantId: "tenant-1" }),
 }));
 vi.mock("@/hooks/use-toast", () => ({
     toast: { success: vi.fn(), error: vi.fn() },
@@ -29,7 +22,6 @@ const product = {
 
 beforeEach(() => {
     mutateAsync.mockResolvedValue({ id: "p1" });
-    addPriceHistoryEntry.mockResolvedValue(undefined);
 });
 afterEach(() => {
     cleanup();
@@ -37,7 +29,7 @@ afterEach(() => {
 });
 
 describe("PriceQuickEdit", () => {
-    it("saves against the loaded updated_at and records the price history", async () => {
+    it("saves against the loaded updated_at", async () => {
         const onClose = vi.fn();
         render(<PriceQuickEdit product={product} onClose={onClose} />);
         fireEvent.change(screen.getByRole("textbox"), { target: { value: "30,000" } });
@@ -49,11 +41,6 @@ describe("PriceQuickEdit", () => {
             data: { price: 30000 },
             expectedUpdatedAt: "2026-10-31T10:00:00Z",
         });
-        expect(addPriceHistoryEntry).toHaveBeenCalledWith(
-            "p1",
-            expect.objectContaining({ old_price: 25000, new_price: 30000 }),
-            "tenant-1",
-        );
     });
 
     it("does not write when the price is unchanged", async () => {
@@ -63,7 +50,6 @@ describe("PriceQuickEdit", () => {
 
         await waitFor(() => expect(onClose).toHaveBeenCalled());
         expect(mutateAsync).not.toHaveBeenCalled();
-        expect(addPriceHistoryEntry).not.toHaveBeenCalled();
     });
 
     it("keeps save disabled for zero or non-numbers, and warns below cost", () => {

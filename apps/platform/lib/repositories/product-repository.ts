@@ -682,16 +682,6 @@ export const productRepository = {
         });
     },
 
-    /** Add a single inventory history entry (immutable log). */
-    async addInventoryEntry(productId: string, entry: { change_type: string; quantity_change: number; quantity_before: number; quantity_after: number; reference_id?: string; notes?: string; changed_by?: string }, tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.addInventoryEntry', async () => {
-            const { error } = await supabase
-                .from("inventory_history")
-                .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
-
-            if (error) throw error;
-        }, WRITE_ONCE);
-    },
 
     // =============================================
     // SUPPLIERS
@@ -749,20 +739,6 @@ export const productRepository = {
         }, WRITE_ONCE);
     },
 
-    // =============================================
-    // PRICE HISTORY (immutable log — insert only)
-    // =============================================
-
-    /** Add a single price history entry. */
-    async addPriceHistoryEntry(productId: string, entry: { old_price?: number; new_price: number; changed_by?: string; reason?: string }, tenantId: string | null): Promise<void> {
-        return withRetry('productRepository.addPriceHistoryEntry', async () => {
-            const { error } = await supabase
-                .from("product_price_history")
-                .insert([{ product_id: productId, tenant_id: tenantId, ...entry }]);
-
-            if (error) throw error;
-        }, WRITE_ONCE);
-    },
 
     // =============================================
     // BUNDLE ITEMS
