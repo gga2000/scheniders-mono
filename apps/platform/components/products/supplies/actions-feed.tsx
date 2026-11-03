@@ -209,8 +209,9 @@ export function ActionsFeed({
                     id: `draft:${s.id}`,
                     supply: s,
                     kind: "reorder",
-                    title: t("supplies.af.inDraft", { number: draftNumber }),
-                    detail: t("supplies.af.inDraftDetail", { names: (draftNames.get(draftRef?.id ?? "") ?? [s.name]).join(listSep) }),
+                    title: t("supplies.af.inDraft", { number: draftNumber, count: (draftNames.get(draftRef?.id ?? "") ?? [s.name]).length }),
+                    // Each name isolated (FSI…PDI, like <bdi>), so Latin names and the colon keep their places in Arabic.
+                    detail: t("supplies.af.inDraftDetail", { names: (draftNames.get(draftRef?.id ?? "") ?? [s.name]).map((n) => `\u2068${n}\u2069`).join(listSep) }),
                     tone: "amber",
                     icon: ShoppingCart,
                     ctaLabel: t("supplies.af.review"),

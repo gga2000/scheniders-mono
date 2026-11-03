@@ -12,7 +12,7 @@ import { productWriteErrorKey } from "@/lib/product-write-error";
 import { Product, getStockStatus, supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -880,20 +880,6 @@ function ProductsContent() {
                                     </div>
                                 </div>
 
-                                {/* Selection Indicator */}
-                                <AnimatePresence>
-                                    {activeTab === "products" && selectedIds.size > 0 && (
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.8, x: -20 }}
-                                            animate={{ opacity: 1, scale: 1, x: 0 }}
-                                            exit={{ opacity: 0, scale: 0.8, x: -20 }}
-                                            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--ink)] text-white"
-                                        >
-                                            <span className="text-sm font-bold">{selectedIds.size}</span>
-                                            <span className="text-xs font-medium opacity-80">{t("products.selection.selected")}</span>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
                             </div>
                         </div>
 

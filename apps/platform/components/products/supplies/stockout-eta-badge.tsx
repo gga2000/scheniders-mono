@@ -13,6 +13,8 @@ interface StockoutEtaBadgeProps {
     size?: "sm" | "md";
     /** The supply's shared status: nothing shows once an order covers it. */
     status?: SupplyTone;
+    /** Show only a reason (out now, below reorder point), never a day count: a days pill next to it already says that. */
+    reasonOnly?: boolean;
     className?: string;
 }
 
@@ -26,14 +28,17 @@ export function StockoutEtaBadge({
     leadTimeDays = 7,
     size = "sm",
     status,
+    reasonOnly = false,
     className,
 }: StockoutEtaBadgeProps) {
     const { t } = useLanguage();
-    if (daysUntilStockout === null) return null;
     if (status === "ok") return null;
+    // No usage yet: the only reason to flag it is sitting below its reorder point.
+    if (daysUntilStockout === null && status !== "low") return null;
 
-    const isCritical = status ? status !== "low" : daysUntilStockout <= leadTimeDays;
-    const isWarning = status ? true : daysUntilStockout <= leadTimeDays * 2;
+    const days = daysUntilStockout ?? Infinity;
+    const isCritical = status ? status !== "low" : days <= leadTimeDays;
+    const isWarning = status ? true : days <= leadTimeDays * 2;
 
     if (!isCritical && !isWarning) return null;
 
@@ -45,13 +50,16 @@ export function StockoutEtaBadge({
 
     // Amber only for sitting at the reorder point, with stock for a while yet:
     // say that, not a far-off day count that reads as a warning.
-    const reorderOnly = status === "low" && daysUntilStockout > leadTimeDays * 2;
+    const reorderOnly = status === "low" && (daysUntilStockout === null || daysUntilStockout > leadTimeDays * 2);
+    if (daysUntilStockout === null && !reorderOnly) return null;
+    const outNow = daysUntilStockout !== null && daysUntilStockout <= 0;
+    if (reasonOnly && !outNow && !reorderOnly) return null;
     const label =
-        daysUntilStockout <= 0
+        outNow
             ? t("supplies.eta.outNow")
             : reorderOnly
             ? t("supplies.eta.belowReorder")
-            : t("supplies.eta.runsOut", { days: t("supplies.sp.leadDays", { count: daysUntilStockout }) });
+            : t("supplies.eta.runsOut", { days: t("supplies.sp.leadDays", { count: daysUntilStockout ?? 0 }) });
 
     return (
         <span
@@ -61,7 +69,7 @@ export function StockoutEtaBadge({
                 tone,
                 className
             )}
-            title={t("supplies.eta.title", { lead: t("supplies.sp.leadDays", { count: leadTimeDays }), days: t("supplies.sp.leadDays", { count: daysUntilStockout }) })}
+            title={daysUntilStockout === null ? undefined : t("supplies.eta.title", { lead: t("supplies.sp.leadDays", { count: leadTimeDays }), days: t("supplies.sp.leadDays", { count: daysUntilStockout }) })}
         >
             <Icon className={big ? "w-3.5 h-3.5" : "w-3 h-3"} />
             {label}

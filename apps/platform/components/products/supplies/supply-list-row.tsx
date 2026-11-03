@@ -140,7 +140,7 @@ export function SupplyListRow({
                 </div>
             </td>
             <td className="px-3 py-3 text-right tabular-nums text-sm font-medium whitespace-nowrap">
-                {formatIQD(supply.cost || 0)}
+                {supply.cost == null ? "—" : supply.cost > 0 ? formatIQD(supply.cost) : <span className="text-muted">{t("supplies.sc.noCost")}</span>}
             </td>
             <td className="px-3 py-3 text-right tabular-nums text-sm font-medium text-muted whitespace-nowrap">
                 {formatIQD(onHandValue)}

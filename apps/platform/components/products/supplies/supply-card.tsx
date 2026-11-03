@@ -103,8 +103,6 @@ export function SupplyCard({
                         <h3 dir="auto" className="min-w-0 flex-1 text-left font-semibold text-[15px] text-foreground leading-tight line-clamp-2 break-words">
                             {supply.name}
                         </h3>
-                        {/* A compact pill in its own column, so the name keeps the width. */}
-                        <DaysOfSupplyPill days={days} size="sm" status={status} className="shrink-0" />
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-[11px] text-muted flex-wrap">
                         <span className="font-mono truncate max-w-[50%]">{supply.sku || t("supplies.sp.noSku")}</span>
@@ -116,10 +114,12 @@ export function SupplyCard({
                                 {categoryName}
                             </span>
                         )}
+                        {/* Reason only: the days pill on the stock row says the days. */}
                         <StockoutEtaBadge
                             daysUntilStockout={stockoutEta}
                             leadTimeDays={leadTimeDays}
                             status={status}
+                            reasonOnly
                         />
                         {openPo && <PoStatusChip info={openPo} size="sm" />}
                     </div>
@@ -134,8 +134,10 @@ export function SupplyCard({
                     lowStockThreshold={supply.low_stock_threshold}
                     status={status}
                 />
-                <div className="mt-2 flex items-end justify-between text-[11px] text-muted">
-                    <div>
+                <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        {/* The days pill sits with the stock it describes, so the name keeps the full width. */}
+                        <DaysOfSupplyPill days={days} size="sm" status={status} className="shrink-0" />
                         <span className="font-medium text-foreground tabular-nums">{stock}</span>
                         <span> {t("supplies.onHand")}</span>
                         {reserved > 0 && (
@@ -156,7 +158,10 @@ export function SupplyCard({
             <div className="mt-3 pt-3 border-t border-[var(--card-border)] flex items-end justify-between gap-2">
                 <div className="min-w-0">
                     <p className="text-[10px] text-muted uppercase tracking-wide">{t("supplies.sc.unitCost")}</p>
-                    <p className="font-semibold text-sm leading-tight">{formatIQD(supply.cost || 0)}</p>
+                    <p className="font-semibold text-sm leading-tight">
+                        {/* Hidden cost (null) is unknown; 0 is a cost nobody set, not a price. */}
+                        {supply.cost == null ? "—" : supply.cost > 0 ? formatIQD(supply.cost) : <span className="text-muted font-medium">{t("supplies.sc.noCost")}</span>}
+                    </p>
                     {supplierNames && supplierNames.length > 0 && (
                         <div className="mt-1.5">
                             <SupplierInitialsStack names={supplierNames} max={3} size="xs" />
