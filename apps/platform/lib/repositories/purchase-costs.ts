@@ -43,3 +43,10 @@ export async function fetchPurchaseOrderCosts(tenantId: string): Promise<Map<str
     );
     return new Map(rows.map((row) => [row.id, row.total_cost]));
 }
+
+/** Ordered cost per unit of each line of a purchase order, by line id. Empty for a member who may not see cost. */
+export async function fetchPurchaseOrderLineCosts(poId: string): Promise<Map<string, number | null>> {
+    const { data, error } = await supabase.rpc("purchase_order_line_costs", { p_po_id: poId });
+    if (error) throw error;
+    return new Map(((data ?? []) as { id: string; unit_cost: number | null }[]).map((row) => [row.id, row.unit_cost]));
+}

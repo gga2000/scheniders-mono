@@ -17,47 +17,8 @@ import { useLanguage } from "@/hooks/use-language";
 
 interface SuppliesKpiStripProps {
     supplies: Product[];
-}
-
-function MiniSparkline({
-    data,
-    color = "currentColor",
-    width = 54,
-    height = 20,
-}: {
-    data: number[];
-    color?: string;
-    width?: number;
-    height?: number;
-}) {
-    if (data.length < 2) return null;
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const range = max - min || 1;
-    const points = data
-        .map((v, i) => {
-            const x = (i / (data.length - 1)) * width;
-            const y = height - ((v - min) / range) * (height - 2) - 1;
-            return `${x},${y}`;
-        })
-        .join(" ");
-    return (
-        <svg
-            width={width}
-            height={height}
-            viewBox={`0 0 ${width} ${height}`}
-            className="shrink-0 opacity-80"
-        >
-            <polyline
-                points={points}
-                fill="none"
-                stroke={color}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-        </svg>
-    );
+    /** Low and not on an open PO: the same count as the Reorder button badge. */
+    needsOrderCount: number;
 }
 
 function MiniBars({
@@ -164,29 +125,23 @@ function daysOfSupplyFor(p: Product): number | null {
     return Math.round(available / daily);
 }
 
-export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
+export function SuppliesKpiStrip({ supplies, needsOrderCount }: SuppliesKpiStripProps) {
     const { t } = useLanguage();
     const { tenantId } = useAuth();
 
     const stats = useMemo(() => {
         let inventoryValue = 0;
-        let atRisk = 0;
         let outOfStock = 0;
         let daysSum = 0;
         let daysDenom = 0;
-        const valueBuckets = new Array(7).fill(0);
-        const atRiskBuckets = new Array(7).fill(0);
-        const daysBuckets = new Array(7).fill(0);
 
-        supplies.forEach((p, i) => {
+        supplies.forEach((p) => {
             const stock = p.stock_quantity ?? 0;
             const cost = p.cost ?? 0;
-            const threshold = p.reorder_point ?? p.low_stock_threshold ?? 5;
             const value = stock * cost;
             inventoryValue += value;
 
             if (stock === 0) outOfStock++;
-            else if (stock <= threshold) atRisk++;
 
             const days = daysOfSupplyFor(p);
             const rate = (p.times_sold_30d ?? 0) / 30;
@@ -194,23 +149,14 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 daysSum += days * rate;
                 daysDenom += rate;
             }
-
-            const b = i % 7;
-            valueBuckets[b] += value;
-            if (stock <= threshold && stock > 0) atRiskBuckets[b] += 1;
-            if (days !== null) daysBuckets[b] += days;
         });
 
         const avgDays = daysDenom > 0 ? Math.round(daysSum / daysDenom) : null;
 
         return {
             inventoryValue,
-            atRisk,
             outOfStock,
             avgDays,
-            valueBuckets,
-            atRiskBuckets,
-            daysBuckets,
         };
     }, [supplies]);
 
@@ -263,18 +209,16 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 iconBg="bg-teal-500/15"
                 iconColor="text-teal-600 dark:text-teal-300"
                 tileClass="bg-gradient-to-br from-teal-50 to-white border-teal-100 dark:from-teal-950/40 dark:to-transparent dark:border-teal-900/50"
-                sparkline={<MiniSparkline data={stats.valueBuckets} color="#0d9488" />}
             />
 
             <Tile
                 label={t("supplies.kpi.atRisk")}
-                value={stats.atRisk.toString()}
+                value={needsOrderCount.toString()}
                 sub={t("supplies.kpi.atRiskSub")}
                 icon={AlertTriangle}
                 iconBg="bg-amber-500/15"
                 iconColor="text-amber-600 dark:text-amber-300"
                 tileClass="bg-gradient-to-br from-amber-50 to-white border-amber-100 dark:from-amber-950/40 dark:to-transparent dark:border-amber-900/50"
-                sparkline={<MiniBars data={stats.atRiskBuckets} color="#d97706" />}
             />
 
             <Tile
@@ -296,7 +240,6 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
                 iconBg="bg-sky-500/15"
                 iconColor="text-sky-600 dark:text-sky-300"
                 tileClass="bg-gradient-to-br from-sky-50 to-white border-sky-100 dark:from-sky-950/40 dark:to-transparent dark:border-sky-900/50"
-                sparkline={<MiniSparkline data={stats.daysBuckets} color="#0284c7" />}
             />
 
             <Tile

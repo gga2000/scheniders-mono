@@ -24,7 +24,7 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
-import { calcSuggestedQty, reorderShortfall, urgencyFor } from "@/lib/utils/supply-reorder";
+import { calcSuggestedQty, supplyReorderState, urgencyFor } from "@/lib/utils/supply-reorder";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import { PoSendConfirmDialog } from "./po-send-confirm-dialog";
@@ -110,50 +110,28 @@ export function ReorderDrawer({
         let covered = 0;
 
         for (const s of supplies) {
-            const stock = s.stock_quantity ?? 0;
-            const reorderPoint = s.reorder_point ?? s.low_stock_threshold ?? 5;
-            const reserved = s.reserved_quantity ?? 0;
-            const available = Math.max(0, stock - reserved);
-
-            // Skip if well-stocked and sales velocity is low/zero.
-            // The supplies tab fills this with 30-day usage (one rate everywhere).
-            const sold30 = s.times_sold_30d ?? 0;
-            const dailyRate = sold30 / 30;
-            const daysUntilStockout =
-                dailyRate > 0 ? Math.round(available / dailyRate) : null;
-
-            const suppliers = Array.isArray(s.suppliers) ? s.suppliers : [];
-            const primary = suppliers.find((x) => x.is_primary) ?? suppliers[0] ?? null;
-            const leadTimeDays = primary?.lead_time_days ?? 7;
-            const moq = primary?.minimum_order_quantity ?? 1;
-            // A supplier cost of 0 is "not set", not a price: fall back to the supply's own cost.
-            const unitCost = Math.round(
-                primary?.unit_cost && primary.unit_cost > 0 ? primary.unit_cost : (s.cost ?? 0),
-            );
-
-            const belowReorder = stock <= reorderPoint;
-            const atRisk =
-                daysUntilStockout !== null && daysUntilStockout <= leadTimeDays * 2;
-
-            if (!belowReorder && !atRisk) continue;
+            // Stock already ordered counts: a second PO for it would double-buy.
+            const onOrder = openPoBySupply?.get(s.id)?.quantity ?? 0;
+            const { low, covered: isCovered, reorderPoint, dailyRate, daysUntilStockout, leadTimeDays, moq } =
+                supplyReorderState(s, onOrder);
+            if (!low) continue;
 
             if (snoozedIds.has(s.id)) {
                 snoozed += 1;
                 if (!showSnoozed) continue;
             }
-
-            // Stock already ordered counts: a second PO for it would double-buy.
-            const onOrder = openPoBySupply?.get(s.id)?.quantity ?? 0;
-            // Covered once what is arriving reaches the reorder point and lasts
-            // through the lead time; then a new PO would only double-buy.
-            if (
-                onOrder > 0 &&
-                stock + onOrder > reorderPoint &&
-                reorderShortfall({ leadTimeDays, dailyRate, reorderPoint, stock: stock + onOrder }) <= 0
-            ) {
+            if (isCovered) {
                 covered += 1;
                 continue;
             }
+
+            const suppliers = Array.isArray(s.suppliers) ? s.suppliers : [];
+            const primary = suppliers.find((x) => x.is_primary) ?? suppliers[0] ?? null;
+            const stock = s.stock_quantity ?? 0;
+            // A supplier cost of 0 is "not set", not a price: fall back to the supply's own cost.
+            const unitCost = Math.round(
+                primary?.unit_cost && primary.unit_cost > 0 ? primary.unit_cost : (s.cost ?? 0),
+            );
             const suggested = calcSuggestedQty({
                 leadTimeDays,
                 dailyRate,

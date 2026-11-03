@@ -12,6 +12,8 @@ import {
     DialogTitle,
 } from "@scheniders/ui/dialog";
 import { fetchPurchaseOrderLines } from "@/lib/repositories/purchase-orders";
+import { fetchPurchaseOrderLineCosts } from "@/lib/repositories/purchase-costs";
+import { formatCount } from "@/lib/utils";
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
@@ -48,6 +50,13 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
         queryFn: () => fetchPurchaseOrderLines(poId),
     });
 
+    // The price each line was ordered at, so "As on PO" says what it means.
+    const { data: lineCosts } = useQuery({
+        queryKey: ["po-line-costs", poId],
+        enabled: open && canSetCost,
+        queryFn: () => fetchPurchaseOrderLineCosts(poId),
+    });
+
     const outstanding = useMemo(
         () =>
             new Map(
@@ -81,7 +90,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     return {
                         itemId: line.id,
                         quantity: Number.isFinite(raw) ? Math.min(Math.max(raw, 0), max) : 0,
-                        ...(canSetCost && Number.isInteger(cost) && cost >= 0 ? { unitCost: cost } : {}),
+                        ...(canSetCost && Number.isInteger(cost) && cost > 0 ? { unitCost: cost } : {}),
                     };
                 })
                 .filter((line) => line.quantity > 0),
@@ -184,7 +193,8 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                             const costBad =
                                 canSetCost &&
                                 rawLineCost !== "" &&
-                                !(Number.isInteger(Number(rawLineCost)) && Number(rawLineCost) >= 0);
+                                !(Number.isInteger(Number(rawLineCost)) && Number(rawLineCost) > 0);
+                            const poCost = lineCosts?.get(line.id);
                             const errorBorder = "border-rose-400 focus:outline-rose-500";
                             return (
                                 <div
@@ -209,7 +219,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                             step={1}
                                             disabled={max === 0}
                                             value={costs[line.id] ?? ""}
-                                            placeholder={t("supplies.po.sameAsPo")}
+                                            placeholder={poCost != null && poCost > 0 ? formatCount(poCost) : t("supplies.po.sameAsPo")}
                                             aria-label={t("supplies.po.invoiceCost")}
                                             onChange={(e) => setCosts((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                             className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 ${costBad ? errorBorder : "border-[var(--card-border)]"}`}
@@ -225,11 +235,14 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                         onChange={(e) => setEntered((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                         className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 ${qtyOver ? errorBorder : "border-[var(--card-border)]"}`}
                                     />
-                                    {(qtyOver || costBad) && (
+                                    {qtyOver && (
                                         <p role="alert" className="col-span-full text-xs text-rose-600 dark:text-rose-300">
-                                            {[qtyOver && t("supplies.po.overOrdered"), costBad && t("supplies.po.badCost")]
-                                                .filter(Boolean)
-                                                .join(" ")}
+                                            {t("supplies.po.overOrdered")}
+                                        </p>
+                                    )}
+                                    {costBad && (
+                                        <p role="alert" className="col-span-full text-xs text-rose-600 dark:text-rose-300">
+                                            {t("supplies.po.badCost")}
                                         </p>
                                     )}
                                 </div>

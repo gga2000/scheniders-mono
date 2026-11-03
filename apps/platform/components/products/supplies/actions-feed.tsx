@@ -48,6 +48,8 @@ interface Action {
 interface ActionsFeedProps {
     supplies: Product[];
     historyBySupply: Map<string, HistoryEntry[]>;
+    /** Supplies the shared reorder rule says still need a PO (not snoozed, not on order). */
+    needsOrderIds: Set<string>;
     onOpenSupply?: (p: Product) => void;
     onOpenReorder?: () => void;
 }
@@ -94,6 +96,7 @@ function leadTimeOf(supply: Product): number | null {
 export function ActionsFeed({
     supplies,
     historyBySupply,
+    needsOrderIds,
     onOpenSupply,
     onOpenReorder,
 }: ActionsFeedProps) {
@@ -162,11 +165,11 @@ export function ActionsFeed({
 
         // 1. Reorder now (or critical stockout < lead time)
         for (const s of supplies) {
+            if (!needsOrderIds.has(s.id)) continue;
             const stock = s.stock_quantity ?? 0;
             const reserved = s.reserved_quantity ?? 0;
             const available = Math.max(0, stock - reserved);
             const rp = s.reorder_point ?? s.low_stock_threshold ?? 5;
-            if (stock > rp) continue;
             // Same 30-day usage the supply cards use, so both show one number.
             const rate = (s.times_sold_30d ?? 0) / 30;
             const eta = daysUntilStockout(available, rate);
@@ -257,7 +260,7 @@ export function ActionsFeed({
         }
 
         return out.slice(0, 6);
-    }, [supplies, historyBySupply, driftedSuppliers, dismissed, t]);
+    }, [supplies, historyBySupply, needsOrderIds, driftedSuppliers, dismissed, t]);
 
     const dismissAction = (id: string) => {
         setDismissed((prev) => {
