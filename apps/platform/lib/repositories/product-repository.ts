@@ -4,7 +4,7 @@ import type { Product, ProductSupplier, ProductVariant, ProductPriceHistory } fr
 import { diag } from "@/lib/diag";
 import type { Json } from "@scheniders/supabase";
 import { fetchAllPages } from "./fetch-all-pages";
-import { PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
+import { PRODUCT_DETAIL_COLUMNS, PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
 
 /**
  * Stock is never part of a generic update. A product edit carries the stock it
@@ -153,6 +153,11 @@ async function setProductFields(
     if (error) throw error;
 }
 
+/** The fields the catalogue list leaves out; see PRODUCT_DETAIL_FIELDS. */
+export type ProductDetails = Pick<Product, "description" | "dimensions_json" | "feature_cards">;
+type ProductDetailsRow = ProductDetails & { id: string };
+const DETAIL_ID_CHUNK = 200;
+
 /**
  * ProductRepository — Centralized data access for products.
  */
@@ -211,6 +216,30 @@ export const productRepository = {
             ]);
             if (error) throw error;
             return withCosts((data ?? []) as Product[], costs);
+        });
+    },
+
+    /**
+     * The detail fields the list leaves out (description, dimensions, note
+     * cards), by product id. Read for one product's
+     * page or for the rows being exported, never for the whole catalogue.
+     */
+    async findDetails(tenantId: string, ids: string[]): Promise<Map<string, ProductDetails>> {
+        const unique = [...new Set(ids)];
+        if (unique.length === 0) return new Map();
+        return withRetry('productRepository.findDetails', async () => {
+            const rows: ProductDetailsRow[] = [];
+            // PostgREST puts `in` lists in the URL: keep each request short.
+            for (let i = 0; i < unique.length; i += DETAIL_ID_CHUNK) {
+                const { data, error } = await supabase
+                    .from("products")
+                    .select(PRODUCT_DETAIL_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .in("id", unique.slice(i, i + DETAIL_ID_CHUNK));
+                if (error) throw error;
+                rows.push(...((data ?? []) as ProductDetailsRow[]));
+            }
+            return new Map(rows.map(({ id, ...details }) => [id, details]));
         });
     },
 

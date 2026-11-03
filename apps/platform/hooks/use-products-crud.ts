@@ -98,8 +98,9 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     // CRUD Operations Wrappers
     // =============================================
 
-    const addProduct = (data: NewProduct): Promise<Product> =>
-        addProductMutation.mutateAsync(data);
+    /** refresh: false when the caller re-reads the new row once itself (the editor's save). */
+    const addProduct = (data: NewProduct, opts: { refresh?: boolean } = {}): Promise<Product> =>
+        addProductMutation.mutateAsync({ data, refresh: opts.refresh });
 
     /** Resolves to the product's new updated_at (see productRepository.update). */
     const updateProduct = async (

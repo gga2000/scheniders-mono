@@ -65,7 +65,14 @@ describe("supplyReorderState", () => {
 
     it("is fine when well stocked with no usage", () => {
         const s = supplyReorderState({ stock_quantity: 50, reorder_point: 10 }, 0);
-        expect(s).toMatchObject({ low: false, needsOrder: false, daysUntilStockout: null, leadTimeDays: 7, moq: 1 });
+        expect(s).toMatchObject({ low: false, needsOrder: false, daysUntilStockout: null, leadTimeDays: 7, leadTimeIsDefault: true, moq: 1 });
+    });
+
+    it("counts only free stock against the reorder point", () => {
+        // 50 on hand, all reserved, no usage: nothing free, so it needs ordering.
+        const s = supplyReorderState({ stock_quantity: 50, reserved_quantity: 50, reorder_point: 10 }, 0);
+        expect(s).toMatchObject({ belowReorder: true, low: true, needsOrder: true });
+        expect(supplyReorderState({ ...base }, 0).leadTimeIsDefault).toBe(false);
     });
 });
 

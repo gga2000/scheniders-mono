@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useProductsCrud } from "@/hooks/use-products-crud";
+import { useProductDetails } from "@/hooks/use-products-query";
 import { useLanguage } from "@/hooks/use-language";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { AccessDenied } from "@/components/auth/access-denied";
@@ -24,13 +25,20 @@ function EditProductContent() {
     const { products, loading, pending, error } = useProductsCrud({ withSales: true });
     const { t } = useLanguage();
 
-    const product = products.find((p) => p.id === productId);
+    const listRow = products.find((p) => p.id === productId);
+    // The list leaves out the long fields; the editor starts only once they are here.
+    const details = useProductDetails(listRow ? productId : null);
+    const product = useMemo(
+        () => (listRow && details.data ? { ...listRow, ...details.data } : undefined),
+        [listRow, details.data],
+    );
+    const detailsFailed = !!listRow && details.isError;
 
-    if (loading || (pending && !error)) {
+    if (loading || (pending && !error) || (listRow && !product && !detailsFailed && details.data !== null)) {
         return <EditorSkeleton />;
     }
 
-    if (!product && error) {
+    if (!product && (error || detailsFailed)) {
         return (
             <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
                 <div className="text-center">

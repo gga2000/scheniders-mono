@@ -87,6 +87,38 @@ const INPUT_BASE =
 // Helpers
 // ---------------------------------------------------------------------------
 
+interface SortableHeaderProps {
+    label: string;
+    sortKey: SortableColumn;
+    className?: string;
+    sortConfig: { key: SortableColumn; direction: "asc" | "desc" } | null;
+    onSort: (key: SortableColumn) => void;
+}
+
+/** A column header that sorts the matrix; outside the table so it is not remade each render. */
+function SortableHeader({ label, sortKey, className, sortConfig, onSort }: SortableHeaderProps) {
+    const active = sortConfig?.key === sortKey;
+    return (
+        <th
+            className={cn(TH, "cursor-pointer select-none hover:text-foreground transition-colors", className)}
+            onClick={() => onSort(sortKey)}
+        >
+            <span className="inline-flex items-center gap-1">
+                {label}
+                {active ? (
+                    sortConfig.direction === "asc" ? (
+                        <ChevronUp className="w-3 h-3" />
+                    ) : (
+                        <ChevronDown className="w-3 h-3" />
+                    )
+                ) : (
+                    <ArrowUpDown className="w-3 h-3 opacity-30" />
+                )}
+            </span>
+        </th>
+    );
+}
+
 function computeMargin(price: number, cost: number): number | null {
     if (!price || price === 0) return null;
     return ((price - cost) / price) * 100;
@@ -486,36 +518,6 @@ export function VariantMatrixTable({
     // Sort header helper
     // -----------------------------------------------------------------------
 
-    function SortableHeader({
-        label,
-        sortKey,
-        className,
-    }: {
-        label: string;
-        sortKey: SortableColumn;
-        className?: string;
-    }) {
-        const active = sortConfig?.key === sortKey;
-        return (
-            <th
-                className={cn(TH, "cursor-pointer select-none hover:text-foreground transition-colors", className)}
-                onClick={() => toggleSort(sortKey)}
-            >
-                <span className="inline-flex items-center gap-1">
-                    {label}
-                    {active ? (
-                        sortConfig.direction === "asc" ? (
-                            <ChevronUp className="w-3 h-3" />
-                        ) : (
-                            <ChevronDown className="w-3 h-3" />
-                        )
-                    ) : (
-                        <ArrowUpDown className="w-3 h-3 opacity-30" />
-                    )}
-                </span>
-            </th>
-        );
-    }
 
     // -----------------------------------------------------------------------
     // Render
@@ -931,6 +933,8 @@ export function VariantMatrixTable({
 
                                     {/* Enable toggle */}
                                     <SortableHeader
+                                        sortConfig={sortConfig}
+                                        onSort={toggleSort}
                                         label={t("products.vm.on")}
                                         sortKey="is_enabled"
                                         className="w-16"
@@ -944,23 +948,31 @@ export function VariantMatrixTable({
                                     ))}
 
                                     <SortableHeader
+                                        sortConfig={sortConfig}
+                                        onSort={toggleSort}
                                         label={`${t("products.vm.price")} (IQD)`}
                                         sortKey="price"
                                         className="text-left"
                                     />
                                     {showCost && (
                                         <SortableHeader
+                                            sortConfig={sortConfig}
+                                            onSort={toggleSort}
                                             label={`${t("products.vm.cost")} (IQD)`}
                                             sortKey="cost"
                                             className="text-left"
                                         />
                                     )}
                                     <SortableHeader
+                                        sortConfig={sortConfig}
+                                        onSort={toggleSort}
                                         label={t("products.vm.stock")}
                                         sortKey="stock_quantity"
                                         className="text-left"
                                     />
                                     <SortableHeader
+                                        sortConfig={sortConfig}
+                                        onSort={toggleSort}
                                         label="SKU"
                                         sortKey="sku"
                                         className="text-left"
@@ -972,6 +984,8 @@ export function VariantMatrixTable({
                                     )}
                                     {showCost && (
                                         <SortableHeader
+                                            sortConfig={sortConfig}
+                                            onSort={toggleSort}
                                             label={t("products.vm.margin")}
                                             sortKey="margin"
                                             className="text-left"

@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Package, AlertTriangle, XCircle, TrendingDown } from "lucide-react";
-import { Product, getStockStatus } from "@/lib/supabase";
+import type { Product } from "@/lib/supabase";
 import { cn, formatIQD, maskIQD } from "@/lib/utils";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -12,12 +12,7 @@ import { ProductThumb } from "@/components/products/product-thumb";
 interface KanbanStockBoardProps {
     products: Product[];
     selectedIds: Set<string>;
-    onToggleSelection: (id: string) => void;
     onViewDetails: (product: Product) => void;
-    onEdit: (product: Product) => void;
-    onArchive: (id: string) => void;
-    onRestore: (id: string) => void;
-    onVisibilityToggle: (product: Product) => void;
 }
 
 type ColumnKey = "healthy" | "lowStock" | "outOfStock" | "overstock";
@@ -128,14 +123,12 @@ function MiniCard({
     product,
     column,
     isSelected,
-    onToggleSelection,
     onViewDetails,
     t,
 }: {
     product: Product;
     column: ColumnDef;
     isSelected: boolean;
-    onToggleSelection: (id: string) => void;
     onViewDetails: (product: Product) => void;
     t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
@@ -203,12 +196,7 @@ function MiniCard({
 export function KanbanStockBoard({
     products,
     selectedIds,
-    onToggleSelection,
     onViewDetails,
-    onEdit,
-    onArchive,
-    onRestore,
-    onVisibilityToggle,
 }: KanbanStockBoardProps) {
     const { t } = useLanguage();
     const { revealed: showFinancials } = useFinancialVisibility();
@@ -296,7 +284,6 @@ export function KanbanStockBoard({
                                     product={product}
                                     column={col}
                                     isSelected={selectedIds.has(product.id)}
-                                    onToggleSelection={onToggleSelection}
                                     onViewDetails={onViewDetails}
                                     t={t}
                                 />

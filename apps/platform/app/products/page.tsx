@@ -10,6 +10,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 import { Product, getStockStatus, supabase } from "@/lib/supabase";
+import { productRepository } from "@/lib/repositories/product-repository";
 import { useQuery } from "@tanstack/react-query";
 import { PageTransition, StaggerContainer, StaggerItem } from "@/components/layout/page-transition";
 import { motion } from "framer-motion";
@@ -418,13 +419,23 @@ function ProductsContent() {
 
     const handleDuplicateProduct = useCallback(async (product: Product) => {
         let newProduct: Product;
+        // The list row has no description: read it so the copy keeps it.
+        let description: string | undefined;
+        try {
+            description = tenantId
+                ? (await productRepository.findDetails(tenantId, [product.id])).get(product.id)?.description
+                : undefined;
+        } catch {
+            toast.error(t("products.duplicateFailedRead"));
+            return;
+        }
         const takenSkus = new Set(products.flatMap((p) => (p.sku ? [p.sku] : [])));
         const takenSlugs = new Set(products.flatMap((p) => (p.slug ? [p.slug] : [])));
         try {
         newProduct = await addProduct({
             name: t("products.ed.copyOf", { name: product.name }),
             sku: product.sku ? uniqueCopyValue(product.sku, takenSkus) : undefined,
-            description: product.description,
+            description,
             price: product.price,
             compare_at_price: product.compare_at_price || undefined,
             ...(canSeeCost && { cost: product.cost }),
@@ -445,7 +456,7 @@ function ProductsContent() {
             return;
         }
         router.push(`/products/${newProduct.id}/edit`);
-    }, [addProduct, products, router, reportWriteError, t, canSeeCost]);
+    }, [addProduct, products, router, reportWriteError, t, canSeeCost, tenantId]);
 
     // Delete (one product or a selection) opens the impact dialog first.
     const [deleteTargets, setDeleteTargets] = useState<Product[]>([]);
@@ -648,20 +659,35 @@ function ProductsContent() {
         clearSelection();
     }, [selectedIds, products, bulkUpdateVisibility, clearSelection]);
 
-    const handleBulkExport = useCallback(() => {
-        const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-        exportToCSV(selectedProducts, "selected-products", canSeeCost, { t, locale: language });
+    // The list has no descriptions; an export reads them for its own rows only.
+    const withDescriptions = useCallback(async (rows: Product[]): Promise<Product[] | null> => {
+        if (!tenantId) return null;
+        try {
+            const details = await productRepository.findDetails(tenantId, rows.map((p) => p.id));
+            return rows.map((p) => ({ ...p, ...details.get(p.id) }));
+        } catch {
+            toast.error(t("products.export.failed"));
+            return null;
+        }
+    }, [tenantId, t]);
+
+    const handleBulkExport = useCallback(async () => {
+        const rows = await withDescriptions(products.filter((p) => selectedIds.has(p.id)));
+        if (!rows) return;
+        exportToCSV(rows, "selected-products", canSeeCost, { t, locale: language });
         clearSelection();
-    }, [products, selectedIds, clearSelection, canSeeCost, t, language]);
+    }, [products, selectedIds, clearSelection, canSeeCost, t, language, withDescriptions]);
 
     // Export handlers
-    const handleExportCSV = useCallback(() => {
-        exportToCSV(filteredProducts, "products", canSeeCost, { t, locale: language });
-    }, [filteredProducts, canSeeCost, t, language]);
+    const handleExportCSV = useCallback(async () => {
+        const rows = await withDescriptions(filteredProducts);
+        if (rows) exportToCSV(rows, "products", canSeeCost, { t, locale: language });
+    }, [filteredProducts, canSeeCost, t, language, withDescriptions]);
 
-    const handleExportExcel = useCallback(() => {
-        exportToExcel(filteredProducts, "products", canSeeCost, { t, locale: language });
-    }, [filteredProducts, canSeeCost, t, language]);
+    const handleExportExcel = useCallback(async () => {
+        const rows = await withDescriptions(filteredProducts);
+        if (rows) exportToExcel(rows, "products", canSeeCost, { t, locale: language });
+    }, [filteredProducts, canSeeCost, t, language, withDescriptions]);
 
     const handlePrintReport = useCallback(() => {
         printProductReport(filteredProducts, canSeeCost, { t, locale: language });
@@ -1201,12 +1227,7 @@ function ProductsContent() {
                                 <KanbanStockBoard
                                     products={filteredProducts}
                                     selectedIds={selectedIds}
-                                    onToggleSelection={toggleSelection}
                                     onViewDetails={handleViewDetails}
-                                    onEdit={handleEditProduct}
-                                    onArchive={handleArchive}
-                                    onRestore={handleRestore}
-                                    onVisibilityToggle={handleVisibilityToggle}
                                 />
                             ) : viewMode === "heatmap" ? (
                                 <MarginHeatmapView

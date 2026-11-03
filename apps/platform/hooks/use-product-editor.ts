@@ -1083,7 +1083,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     duration_minutes: formData.duration_minutes,
                     booking_enabled: formData.booking_enabled,
                     feature_cards: serializeFeatureCards(formData.feature_cards),
-                });
+                }, NO_ROW_REFRESH);
 
                 if (newProduct) {
                     refreshRowOf = newProduct.id;
@@ -1334,17 +1334,21 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 duration_minutes: formData.duration_minutes,
                 booking_enabled: formData.booking_enabled,
                 feature_cards: serializeFeatureCards(formData.feature_cards),
-            });
+            }, NO_ROW_REFRESH);
 
             copyId = newProduct?.id ?? null;
             if (newProduct && formData.variants.length > 0) {
+                // Variant SKUs are unique per store, like product SKUs: each copy takes a free "-copy" name.
+                const takenVariantSkus = new Set(catalogue.flatMap((p) => (p.variants ?? []).flatMap((v) => (v.sku ? [v.sku] : []))));
                 for (const variant of formData.variants) {
+                    const copySku = variant.sku ? uniqueCopyValue(variant.sku, takenVariantSkus) : "";
+                    if (copySku) takenVariantSkus.add(copySku);
                     await addVariant(newProduct.id, {
                         name: variant.name,
                         price: variant.price,
                         ...(showCost && { cost: variant.cost }),
                         stock_quantity: 0,
-                        sku: variant.sku ? `${variant.sku}-copy` : "",
+                        sku: copySku,
                         option_values: variant.option_values,
                         image_url: variant.image_url,
                         is_enabled: variant.is_enabled ?? true,

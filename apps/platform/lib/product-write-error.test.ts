@@ -23,6 +23,9 @@ describe("productWriteErrorKey", () => {
     it("names the recipe rule a supply change broke", () => {
         expect(productWriteErrorKey({ code: "23503", message: "supply 1 is used in recipes" })).toBe("products.errors.supplyInRecipe");
         expect(productWriteErrorKey({ code: "23514", message: "recipe supply 1 is not a supply" })).toBe("products.errors.recipeNotSupply");
+        expect(productWriteErrorKey({ code: "23505", message: "recipe lists the same supply twice" })).toBe("products.errors.recipeDuplicate");
+        expect(productWriteErrorKey({ code: "23505", message: "duplicate key value violates unique constraint \"bom_items_product_id_supply_id_unit_key\"" })).toBe("products.errors.recipeDuplicate");
+        expect(productWriteErrorKey({ code: "23505", message: "duplicate key value violates unique constraint \"idx_products_tenant_sku\"" })).toBe("products.errors.duplicate");
     });
 
     it("reports a paused store", () => {

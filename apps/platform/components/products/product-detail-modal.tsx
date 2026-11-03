@@ -21,6 +21,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { StockIndicator } from "./stock-indicator";
 import { ProductThumb } from "@/components/products/product-thumb";
+import { useProductDetails } from "@/hooks/use-products-query";
 
 interface ProductDetailModalProps {
     isOpen: boolean;
@@ -43,6 +44,8 @@ export function ProductDetailModal({
     // Cost and margin stay masked for anyone without products.manage.
     const { can } = usePermission();
     const costRevealed = revealed && can(PERMISSIONS.MANAGE_PRODUCTS);
+    // The list row has no description; it is read when the modal opens.
+    const description = useProductDetails(isOpen ? product?.id : null).data?.description;
     if (!isOpen || !product) return null;
 
     const stockStatus = getStockStatus(product);
@@ -116,9 +119,9 @@ export function ProductDetailModal({
                     {/* Content */}
                     <div className="p-6 space-y-6">
                         {/* Description */}
-                        {product.description && (
+                        {description && (
                             <div>
-                                <p className="text-muted">{product.description}</p>
+                                <p className="text-muted">{description}</p>
                             </div>
                         )}
 
