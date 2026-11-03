@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { HistoryEntry } from "@/lib/utils/supply-forecasting";
+import { isUsageMovement, type HistoryEntry } from "@/lib/utils/supply-forecasting";
 
 interface ConsumptionSparklineProps {
     entries: HistoryEntry[];
@@ -9,15 +9,6 @@ interface ConsumptionSparklineProps {
     height?: number;
     days?: number;
     className?: string;
-}
-
-const OUT_TYPES = new Set(["sale", "sold", "shrinkage", "damaged", "transfer"]);
-
-function isOut(e: HistoryEntry): boolean {
-    const q = e.quantity_change ?? 0;
-    if (q < 0) return true;
-    const t = (e.change_type ?? "").toLowerCase();
-    return OUT_TYPES.has(t);
 }
 
 export function ConsumptionSparkline({
@@ -35,7 +26,7 @@ export function ConsumptionSparkline({
         const arr = new Array(days).fill(0) as number[];
         let any = false;
         for (const e of entries) {
-            if (!isOut(e)) continue;
+            if (!isUsageMovement(e)) continue;
             const t = e.created_at ? new Date(e.created_at).getTime() : 0;
             if (!t) continue;
             const dayIdx = Math.floor(t / day) - startDay;

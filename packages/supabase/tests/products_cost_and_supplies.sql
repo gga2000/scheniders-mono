@@ -38,7 +38,7 @@
 --        quantity counts as 0; 23. a repeated supply is refused by name;
 --    24. swapping two rows' supplies saves; 25. a row refused after the old
 --        rows were removed leaves the recipe as it was; 26. variant SKUs are
---        unique per store.
+--        unique per store; 27. a manual adjust is not counted as use.
 --
 -- SAFE TO RUN AGAINST PRODUCTION
 --   One DO block that ends by raising an exception, so every write is rolled
@@ -321,6 +321,13 @@ BEGIN
         v_ok := false;
     EXCEPTION WHEN unique_violation THEN v_ok := true; END;
     IF NOT v_ok THEN v_fail := v_fail || ' 26-variant-sku-unique'; END IF;
+    -- A manual adjust is a correction, not use (20261103215850).
+    SELECT coalesce((SELECT used FROM public.supply_usage_30d(v_tenant) WHERE product_id = v_s2), 0) INTO n;
+    PERFORM public.adjust_product_stock(v_s2, 5, 'received', NULL, 'tt');
+    PERFORM public.adjust_product_stock(v_s2, -3, 'adjusted', NULL, 'tt');
+    IF coalesce((SELECT used FROM public.supply_usage_30d(v_tenant) WHERE product_id = v_s2), 0) <> n THEN
+        v_fail := v_fail || ' 27-adjust-not-usage';
+    END IF;
 
     IF v_fail = '' THEN
         RAISE EXCEPTION 'ALL ASSERTIONS PASSED';

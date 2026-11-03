@@ -4,31 +4,25 @@ export type HistoryEntry = {
     created_at: string | null;
 };
 
-const OUT_TYPES = new Set(["sale", "sold", "shrinkage", "damaged", "transfer"]);
-
-function isOutMovement(entry: HistoryEntry): boolean {
-    const q = entry.quantity_change ?? 0;
-    if (q < 0) return true;
-    const type = (entry.change_type ?? "").toLowerCase();
-    return OUT_TYPES.has(type);
-}
-
 /**
- * Sum of absolute out-movement units in the last `windowDays`, divided by the
- * window. Ignores inbound movements (received, returned, positive adjustments).
+ * Stock changes that are not use: counts and corrections fix the number,
+ * write-offs, supplier returns, open-box moves and QC undos are not consumed.
+ * The same list as the supply_usage_7d / supply_usage_30d RPCs, so the
+ * sparkline, the feed and the reorder rule read one usage.
  */
-export function dailyRateFromHistory(entries: HistoryEntry[], windowDays = 30): number {
-    if (!entries || entries.length === 0 || windowDays <= 0) return 0;
-    const since = Date.now() - windowDays * 24 * 60 * 60 * 1000;
-    let total = 0;
-    for (const e of entries) {
-        const t = e.created_at ? new Date(e.created_at).getTime() : 0;
-        if (!t || t < since) continue;
-        if (!isOutMovement(e)) continue;
-        total += Math.abs(e.quantity_change ?? 0);
-    }
-    if (total <= 0) return 0;
-    return total / windowDays;
+export const NOT_USAGE_CHANGE_TYPES: ReadonlySet<string> = new Set([
+    "count",
+    "adjusted",
+    "written_off",
+    "returned_to_supplier",
+    "open_box_count",
+    "qc_undo",
+]);
+
+/** A stock movement that counts as use: stock went down for a reason other than a correction. */
+export function isUsageMovement(entry: HistoryEntry): boolean {
+    if ((entry.quantity_change ?? 0) >= 0) return false;
+    return !NOT_USAGE_CHANGE_TYPES.has((entry.change_type ?? "").toLowerCase());
 }
 
 export function daysUntilStockout(availableStock: number, dailyRate: number): number | null {
@@ -94,7 +88,7 @@ export function splitOutMovements(entries: HistoryEntry[]): {
     let prior = 0;
     let lastOutTs: number | null = null;
     for (const e of entries) {
-        if (!isOutMovement(e)) continue;
+        if (!isUsageMovement(e)) continue;
         const t = e.created_at ? new Date(e.created_at).getTime() : 0;
         if (!t) continue;
         const qty = Math.abs(e.quantity_change ?? 0);
