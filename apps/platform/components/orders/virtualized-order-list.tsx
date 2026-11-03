@@ -75,6 +75,9 @@ const GRID_ROW_HEIGHT_ULTRA_COMPACT = 130;
 const GRID_ROW_GAP = 8;
 const LIST_GAP = 12;
 
+/** Rows rendered above and below the viewport once the first rows have painted. */
+const OVERSCAN = 5;
+
 export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     orders,
     loadingId,
@@ -157,12 +160,24 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
         return compactView === 2 ? ULTRA_COMPACT_CARD_HEIGHT : compactView === 1 ? COMPACT_CARD_HEIGHT : ESTIMATED_CARD_HEIGHT;
     }, [compactView, gridMode]);
 
+    // The first paint builds only the cards on screen; the off-screen overscan
+    // follows a frame later. Built together, the first commit carried five
+    // cards nobody could see yet (live: 8 rows for 3 on screen, one ~200 ms
+    // long task before the first card appeared).
+    const hasRows = orders.length > 0;
+    const [overscanReady, setOverscanReady] = useState(false);
+    useEffect(() => {
+        if (!hasRows || overscanReady) return;
+        const frame = requestAnimationFrame(() => setOverscanReady(true));
+        return () => cancelAnimationFrame(frame);
+    }, [hasRows, overscanReady]);
+
     // Use window-based virtualizer - cards scroll with the page
     const virtualizer = useWindowVirtualizer({
         count: rowCount,
         getItemKey,
         estimateSize,
-        overscan: 5, // Render 5 extra items above/below viewport
+        overscan: overscanReady ? OVERSCAN : 0,
         gap: gridMode ? GRID_ROW_GAP : LIST_GAP,
         scrollMargin,
     });
@@ -222,7 +237,6 @@ export const VirtualizedOrderList = memo(function VirtualizedOrderList({
     };
 
     // Load tracing: the first frame that paints rows ends the /orders load.
-    const hasRows = orders.length > 0;
     useEffect(() => {
         if (hasRows) perfTrace.markPainted("orders:list-painted", "orders", { empty: false });
     }, [hasRows]);
