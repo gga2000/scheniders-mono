@@ -154,7 +154,7 @@ describe("scent_layout card — facts when the product has them", () => {
     expect(count(card, "data-note-chip")).toBe(6);
   });
 
-  it("feel bars: the ends, the leaning end in full ink, the knob on the reading side", () => {
+  it("feel scale: the ends, the leaning end in full ink, one dot on its stop, a summary", () => {
     const props: Props = {
       ...CARD_PROPS,
       scent_card: {
@@ -167,8 +167,12 @@ describe("scent_layout card — facts when the product has them", () => {
     expect(card).toContain('data-lean="high"');
     expect(card).toContain('aria-label="بين ناعم وقوي: 4 من 5"');
     expect(card).toContain("شلون تحسّه");
-    expect(card).toContain("right:calc(0.75 * (100% - 1.5rem))");
-    expect(card).toMatch(/font-black text-bk-ink">قوي</);
+    // 4 of 1-5 sits on the fourth of five stops, one large dot.
+    expect(card).toContain('data-stop="3"');
+    expect(count(card, "data-feel-dot")).toBe(1);
+    expect(card).toMatch(/font-bold text-bk-ink[^"]*">قوي</);
+    expect(card).toContain("بالمختصر:");
+    expect(card).toMatch(/data-feel-summary[^>]*>بالمختصر: <span[^>]*>قوي</);
     expect(card).not.toContain('dir="');
     // Without the config there is no panel.
     expect(cardOf(render(CARD_PROPS, scentProduct))).not.toContain("data-feel-bars");

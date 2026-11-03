@@ -192,6 +192,8 @@ export const EXPRESS_STRINGS = {
     ar: "بين {low} و{high}: {value} من {max}",
     ku: "لە نێوان {low} و {high}: {value} لە {max}",
   },
+  feelSummary: { en: "In short:", ar: "بالمختصر:", ku: "بە کورتی:" },
+  feelJoin: { en: ", ", ar: "، ", ku: "، " },
   closeSheet: { en: "Close", ar: "إغلاق", ku: "داخستن" },
   // add_to_cart (slice 1g): the cart tile beside the submit, and the line
   // under the order buttons once a tap has put the perfume in the cart.
