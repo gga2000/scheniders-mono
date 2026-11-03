@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -97,6 +97,7 @@ async function coldLoad() {
     return ctx;
 }
 
+let clock: MockInstance<() => number> | undefined;
 beforeEach(() => {
     H.tenantId = TENANT;
     H.findWindow.mockReset();
@@ -106,6 +107,12 @@ beforeEach(() => {
     H.findLatestUpdatedAt.mockResolvedValue(FETCH_MARK);
     H.findChangedSince.mockResolvedValue([]);
     sessionStorage.clear();
+    // Mark and rows resolve in the same instant here; trackListFetch moves the
+    // mark back by any lag between them (covered in orders-list-coverage.test.ts).
+    clock = vi.spyOn(performance, "now").mockReturnValue(0);
+});
+afterEach(() => {
+    clock?.mockRestore();
 });
 
 describe("catch-up delta watermark", () => {
