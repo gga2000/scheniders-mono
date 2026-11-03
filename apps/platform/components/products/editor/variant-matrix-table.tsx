@@ -16,7 +16,7 @@ import {
     Search,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, formatIQD, formatCount } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import type { VariantOptionType, OptionValueMetadata } from "@/types/product";
 
@@ -1419,7 +1419,7 @@ export function VariantMatrixTable({
                                 {t("products.vm.totalStock")}:
                             </span>
                             <span className="font-medium text-foreground">
-                                {totalStock.toLocaleString()}
+                                {formatCount(totalStock)}
                             </span>
                         </div>
                         <span className="text-[var(--card-border)]">|</span>

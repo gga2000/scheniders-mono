@@ -3,6 +3,7 @@
 import { Truck, FileText, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 export type PoStatus = "draft" | "sent" | "confirmed" | "received";
 
@@ -41,7 +42,7 @@ function formatEta(days: number | null, t: (key: string, vars?: Record<string, s
 }
 
 export function PoStatusChip({ info, size = "sm", onClick }: PoStatusChipProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const eta = daysUntil(info.expectedDate);
     const isOverdue = eta !== null && eta < 0;
 
@@ -80,7 +81,7 @@ export function PoStatusChip({ info, size = "sm", onClick }: PoStatusChipProps) 
     const iconSize = size === "md" ? "w-3 h-3" : "w-2.5 h-2.5";
 
     const title = `${t("supplies.po.title", { po: info.poNumber, count: info.quantity })}${
-        info.expectedDate ? ` · ${t("supplies.po.expected", { date: new Date(info.expectedDate).toLocaleDateString() })}` : ""
+        info.expectedDate ? ` · ${t("supplies.po.expected", { date: formatBaghdadDate(info.expectedDate, language) })}` : ""
     }`;
 
     const className = cn(

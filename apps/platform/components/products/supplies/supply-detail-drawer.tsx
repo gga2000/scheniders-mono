@@ -30,6 +30,7 @@ import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
 import { PoStatusChip, type PoStatusInfo } from "./po-status-chip";
 import { SupplierInitialsBadge } from "./supplier-initials-badge";
 import { ConsumptionSparkline } from "./consumption-sparkline";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 type TabKey = "overview" | "suppliers" | "history" | "recipe";
 
@@ -567,13 +568,13 @@ function SummaryTile({
 }
 
 function HistoryRow({ entry }: { entry: InventoryHistoryEntry }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const q = entry.quantity_change ?? 0;
     const tag = labelFor(entry.change_type, t);
     const when = entry.created_at ? new Date(entry.created_at) : null;
-    const dateLabel = when ? when.toLocaleDateString() : "—";
+    const dateLabel = entry.created_at ? formatBaghdadDate(entry.created_at, language) : "—";
     const timeLabel = when
-        ? when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        ? when.toLocaleTimeString(language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" })
         : "";
 
     return (

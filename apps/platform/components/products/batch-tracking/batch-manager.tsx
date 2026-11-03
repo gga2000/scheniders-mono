@@ -23,6 +23,7 @@ import { toast } from "@/hooks/use-toast";
 import { usePermission } from "@/hooks/use-permission";
 import { BATCH_READ_COLUMNS, fetchBatchCosts } from "@/lib/repositories/purchase-costs";
 import { PERMISSIONS } from "@/lib/permissions";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 interface BatchManagerProps {
     productId: string;
@@ -90,17 +91,9 @@ function isExpired(expiryDate: string | null): boolean {
     return new Date(expiryDate) < new Date(new Date().toDateString());
 }
 
-function formatDate(dateStr: string | null): string {
-    if (!dateStr) return "-";
-    return new Intl.DateTimeFormat("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(dateStr));
-}
 
 export function BatchManager({ productId, productName, disabled }: BatchManagerProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const { tenantId } = useAuth();
     const queryClient = useQueryClient();
     const { can } = usePermission();
@@ -261,7 +254,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                     : "text-foreground"
                             )}
                         >
-                            {summary.earliestExpiry ? formatDate(summary.earliestExpiry.toISOString()) : t("products.batch.notAvailable")}
+                            {summary.earliestExpiry ? formatBaghdadDate(summary.earliestExpiry.toISOString(), language) : t("products.batch.notAvailable")}
                         </span>
                     </div>
                 </div>
@@ -470,7 +463,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                             expired ? "text-rose-600" : "text-foreground"
                                                         )}
                                                     >
-                                                        {formatDate(batch.expiry_date)}
+                                                        {batch.expiry_date ? formatBaghdadDate(batch.expiry_date, language) : "-"}
                                                     </span>
                                                 </span>
                                             )}
@@ -483,7 +476,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                                 </span>
                                             )}
                                             <span>
-                                                {t("products.batch.receivedPrefix")}{" "}<span className="text-foreground font-medium">{formatDate(batch.received_at)}</span>
+                                                {t("products.batch.receivedPrefix")}{" "}<span className="text-foreground font-medium">{batch.received_at ? formatBaghdadDate(batch.received_at, language) : "-"}</span>
                                             </span>
                                         </div>
 

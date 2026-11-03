@@ -13,6 +13,7 @@ import {
     PackageOpen,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 export interface InventoryHistoryFormData {
     change_type: (typeof HISTORY_TYPES)[number];
@@ -103,19 +104,6 @@ const TYPE_CONFIG: Record<
     },
 };
 
-function formatDate(dateStr?: string): string {
-    if (!dateStr) return "";
-    try {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-        });
-    } catch {
-        return dateStr;
-    }
-}
 
 function formatQuantityChange(value: number): { text: string; colorClass: string } {
     if (value >= 0) {
@@ -125,7 +113,7 @@ function formatQuantityChange(value: number): { text: string; colorClass: string
 }
 
 export function InventoryTimeline({ entries }: InventoryTimelineProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [filter, setFilter] = useState<InventoryHistoryFormData["change_type"] | "all">("all");
     const typeLabel = (type: string) => t(`products.ed.inv.type.${type}`);
 
@@ -202,7 +190,7 @@ export function InventoryTimeline({ entries }: InventoryTimelineProps) {
                                             </span>
                                             {entry.created_at && (
                                                 <span className="text-xs text-muted ml-auto">
-                                                    {formatDate(entry.created_at)}
+                                                    {entry.created_at ? formatBaghdadDate(entry.created_at, language) : ""}
                                                 </span>
                                             )}
                                         </div>

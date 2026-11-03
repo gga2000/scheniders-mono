@@ -36,7 +36,7 @@ import {
     type DragEndEvent,
 } from "@dnd-kit/core";
 import { Product, getStockStatus } from "@/lib/supabase";
-import { cn, formatIQD, maskIQD } from "@/lib/utils";
+import { cn, formatIQD, maskIQD, formatCount } from "@/lib/utils";
 import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { QuickActionsMenu } from "../quick-actions-menu";
@@ -663,7 +663,7 @@ function CategorySection({
                             {t("products.views.category.products")}
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-yellow)] text-foreground font-medium">
-                            {group.totalStock.toLocaleString()}{" "}
+                            {formatCount(group.totalStock)}{" "}
                             {t("products.views.category.units")}
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-[var(--pastel-green)] text-foreground font-medium">

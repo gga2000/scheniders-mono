@@ -10,7 +10,7 @@ import {
     Truck,
     Activity,
 } from "lucide-react";
-import { cn, formatIQD } from "@/lib/utils";
+import { cn, formatIQD, formatCount } from "@/lib/utils";
 import { supabase, Product } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -311,7 +311,7 @@ export function SuppliesKpiStrip({ supplies }: SuppliesKpiStripProps) {
 
             <Tile
                 label={t("supplies.kpi.consumed")}
-                value={(consumption?.total ?? 0).toLocaleString()}
+                value={formatCount(consumption?.total ?? 0)}
                 sub={t("supplies.kpi.consumedSub")}
                 icon={Activity}
                 iconBg="bg-violet-500/15"

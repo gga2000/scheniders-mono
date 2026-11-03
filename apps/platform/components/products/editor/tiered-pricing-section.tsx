@@ -2,6 +2,7 @@
 
 import { TrendingDown, Plus, Trash2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { formatCount } from "@/lib/utils";
 
 export interface TieredPriceFormData {
     min_quantity: number;
@@ -246,10 +247,10 @@ export function TieredPricingSection({
             {/* Pricing summary */}
             {tiers.length > 0 && (
                 <p className="text-sm text-muted">
-                    {t("products.ed.tier.base").replace("{price}", basePrice.toLocaleString())}
+                    {t("products.ed.tier.base").replace("{price}", formatCount(basePrice))}
                     {bestPrice !== null && (
                         <>
-                            {" \u00b7 "}{t("products.ed.tier.best").replace("{price}", bestPrice.toLocaleString())}
+                            {" \u00b7 "}{t("products.ed.tier.best").replace("{price}", formatCount(bestPrice))}
                             {bestDiscount !== null && ` (${t("products.ed.tier.off").replace("{pct}", String(bestDiscount))})`}
                         </>
                     )}

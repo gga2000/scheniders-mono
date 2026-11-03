@@ -21,6 +21,7 @@ import { PoStatusChip, type PoStatusInfo, type PoStatus } from "./po-status-chip
 import { StockFillBar } from "./stock-fill-bar";
 import { PoActions } from "./po-actions";
 import type { Product } from "@/lib/supabase";
+import { formatBaghdadDate } from "@/lib/customer-format";
 
 type TabKey = "overview" | "supplies" | "pos";
 
@@ -162,7 +163,7 @@ function SupplierTabs({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) =>
 }
 
 function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -211,7 +212,7 @@ function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
                                     <p className="font-medium text-sm truncate">{p.poNumber}</p>
                                     <p className="text-[11px] text-muted">
                                         {p.createdAt
-                                            ? new Date(p.createdAt).toLocaleDateString()
+                                            ? formatBaghdadDate(p.createdAt, language)
                                             : "—"}
                                     </p>
                                 </div>
@@ -360,7 +361,7 @@ function SuppliesTab({
 }
 
 function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     if (supplier.pos.length === 0) {
         return (
             <div className="text-center py-12 text-muted text-sm">
@@ -389,12 +390,12 @@ function PosTab({ supplier }: { supplier: AggregatedSupplier }) {
                             </div>
                             <p className="text-[11px] text-muted mt-0.5">
                                 {p.createdAt
-                                    ? new Date(p.createdAt).toLocaleDateString()
+                                    ? formatBaghdadDate(p.createdAt, language)
                                     : "—"}
                                 {p.receivedAt && (
                                     <>
                                         {` · ${t("supplies.sd.received")} `}
-                                        {new Date(p.receivedAt).toLocaleDateString()}
+                                        {formatBaghdadDate(p.receivedAt, language)}
                                     </>
                                 )}
                             </p>
