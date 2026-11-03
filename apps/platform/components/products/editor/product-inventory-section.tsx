@@ -63,6 +63,7 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                         min={0}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                     />
+                    <p className="mt-1.5 text-xs text-muted">{t("products.ed.lowStockHint")}</p>
                 </div>
             </div>
 

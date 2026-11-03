@@ -479,6 +479,9 @@ export function ReorderDrawer({
                                                                 key={item.supply.id}
                                                                 item={item}
                                                                 editedQty={editedQty}
+                                                                // A draft already holds this group's quantities:
+                                                                // editing here would change nothing that is sent.
+                                                                readOnly={!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase())}
                                                                 snoozed={snoozedIds.has(
                                                                     item.supply.id
                                                                 )}
@@ -558,6 +561,7 @@ interface ReorderItemRowProps {
     editedQty: Record<string, number>;
     snoozed: boolean;
     onQtyChange: (qty: number) => void;
+    readOnly: boolean;
     onSnooze: () => void;
     onUnsnooze: () => void;
 }
@@ -567,6 +571,7 @@ function ReorderItemRow({
     editedQty,
     snoozed,
     onQtyChange,
+    readOnly,
     onSnooze,
     onUnsnooze,
 }: ReorderItemRowProps) {
@@ -635,30 +640,36 @@ function ReorderItemRow({
 
                     {/* Qty editor + actions */}
                     <div className="mt-2.5 flex items-center justify-between gap-2">
+                        {readOnly ? (
+                            <p className="text-[11px] text-muted">{t("supplies.ro.onDraft")}</p>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <label className="text-[11px] text-muted uppercase tracking-wide">
+                                    {t("supplies.ro.qty")}
+                                </label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    step={Math.max(1, item.moq)}
+                                    value={qty}
+                                    onChange={(e) =>
+                                        onQtyChange(
+                                            Math.max(1, parseInt(e.target.value, 10) || 1)
+                                        )
+                                    }
+                                    className="w-20 px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-200"
+                                />
+                                <span className="text-[11px] text-muted tabular-nums">
+                                    {item.unitCost > 0 ? `× ${formatIQD(item.unitCost)}` : t("supplies.ro.noCost")}
+                                </span>
+                            </div>
+                        )}
                         <div className="flex items-center gap-2">
-                            <label className="text-[11px] text-muted uppercase tracking-wide">
-                                {t("supplies.ro.qty")}
-                            </label>
-                            <input
-                                type="number"
-                                min={1}
-                                step={Math.max(1, item.moq)}
-                                value={qty}
-                                onChange={(e) =>
-                                    onQtyChange(
-                                        Math.max(1, parseInt(e.target.value, 10) || 1)
-                                    )
-                                }
-                                className="w-20 px-2 py-1 rounded-lg border border-[var(--card-border)] bg-[var(--background)] text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-teal-200"
-                            />
-                            <span className="text-[11px] text-muted tabular-nums">
-                                {item.unitCost > 0 ? `× ${formatIQD(item.unitCost)}` : t("supplies.ro.noCost")}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold tabular-nums">
-                                {formatIQD(lineCost)}
-                            </span>
+                            {!readOnly && (
+                                <span className="text-sm font-semibold tabular-nums">
+                                    {formatIQD(lineCost)}
+                                </span>
+                            )}
                             {snoozed ? (
                                 <button
                                     onClick={onUnsnooze}
