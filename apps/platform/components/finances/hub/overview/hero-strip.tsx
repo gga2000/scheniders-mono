@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
     TrendingUp, Wallet, Truck, HandCoins, PiggyBank, Landmark,
 } from "lucide-react";
-import { FinanceValue } from "../primitives/finance-value";
+import { FinanceValue, formatFinance } from "../primitives/finance-value";
 import { Delta } from "../primitives/delta";
 import { Sparkline } from "../primitives/sparkline";
 import { useLanguage } from "@/hooks/use-language";
@@ -61,7 +61,7 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
         {
             id: "net_profit",
             label: t("finances.hero.net"),
-            sublabel: data.delivered_revenue > 0 ? t("finances.hero.netMargin", { pct: data.margin_pct.toFixed(1) }) : t("finances.hero.netNone"),
+            sublabel: netSublabel(data, t),
             value: data.net_profit,
             prevValue: data.prev_net_profit,
             series: profitSeries,
@@ -185,6 +185,19 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
             })}
         </motion.div>
     );
+}
+
+/** A loss while money is still on the way is mostly timing, so say how much is not counted yet instead of a scary margin. */
+export function netSublabel(
+    data: Pick<FinanceOverviewResult, "delivered_revenue" | "net_profit" | "cash_float" | "margin_pct">,
+    t: (key: string, vars?: Record<string, string | number>) => string,
+): string {
+    if (data.delivered_revenue <= 0) return t("finances.hero.netNone");
+    if (data.net_profit < 0 && data.cash_float > 0) {
+        const { body } = formatFinance(data.cash_float, { abbreviate: true });
+        return t("finances.hero.netPending", { amount: `${body} IQD` });
+    }
+    return t("finances.hero.netMargin", { pct: data.margin_pct.toFixed(1) });
 }
 
 function accentToBg(a: string): string {
