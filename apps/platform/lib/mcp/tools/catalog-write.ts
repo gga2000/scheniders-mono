@@ -15,6 +15,9 @@ const STOCK_REASONS = ["received", "damaged", "sold", "other"] as const;
 function stockError(error: { code?: string; message: string }): Error {
     if (error.code === "42501") return new McpToolError("Your role in this store cannot change stock.");
     if (error.code === "P0002") return new McpToolError("That variant does not belong to this product.");
+    if (/stock cannot go below zero/i.test(error.message)) {
+        return new McpToolError("Stock cannot go below zero; nothing changed. Check the current stock and try a smaller change.");
+    }
     return new Error(error.message);
 }
 
@@ -99,8 +102,8 @@ export function registerCatalogWriteTools(server: McpServer): void {
             if (error) throw error;
             if (!changed || changed.length === 0) throw new McpToolError("Your role in this store cannot edit products.");
 
-            // The product page's activity log. Price history is written by the database
-            // with the price update itself.
+            // The product page's activity log. Product price history is written by
+            // the database with the update itself; a variant's price has none.
             const warnings: string[] = [];
             const { error: logError } = await caller.db.from("product_activity_log").insert({
                 tenant_id: caller.tenantId,
@@ -122,26 +125,25 @@ export function registerCatalogWriteTools(server: McpServer): void {
         description:
             "Add stock (positive change, e.g. a delivery received) or remove it (negative, e.g. damaged), with a reason. " +
             "The change applies to the current stock, exactly like the products page. For a shelf count use set_stock_count. " +
-            "A change that would leave stock below zero returns a preview first.",
+            "Stock cannot go below zero: removing more than is in stock is refused (use set_stock_count to correct a wrong number).",
         input: z.object({
             product: productRefSchema,
             variant: variantRefSchema.optional(),
             change: z.number().int().min(-100_000).max(100_000).refine((n) => n !== 0, "The change cannot be zero"),
             reason: z.enum(STOCK_REASONS),
             notes: z.string().trim().max(300).optional(),
-            confirm: z.boolean().default(false),
         }),
         async run(caller, input) {
             requireWriter(caller);
             const { product, variants } = await findProduct(caller, input.product);
             const variant = pickVariant(product, variants, input.variant);
             const before = (variant ?? product).stock_quantity ?? 0;
-            const after = before + input.change;
-            if (after < 0 && !input.confirm) {
-                return [
-                    `Preview — nothing changed yet. ${label(product, variant)}: stock ${before} → ${after}.`,
-                    "⚠ Stock would go below zero. Call again with confirm: true to apply anyway.",
-                ].join("\n");
+            // The database refuses a manual change that lowers stock below zero.
+            if (input.change < 0 && before + input.change < 0) {
+                throw new McpToolError(
+                    `${label(product, variant)} has ${before} in stock, so ${-input.change} cannot be removed. ` +
+                        "Nothing changed. If the stock number is wrong, correct it with set_stock_count.",
+                );
             }
 
             const { data, error } = await caller.db.rpc("adjust_product_stock", {
