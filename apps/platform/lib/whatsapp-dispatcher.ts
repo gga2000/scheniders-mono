@@ -17,6 +17,9 @@ import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/wh
 import type { Order } from "@/types/order";
 import { automationFollowUpStamp } from "@/lib/follow-up-state";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { REMINDER_DELAY_HOURS } from "@/lib/qstash";
+import { scheduleFollowUpInWindow } from "@/lib/follow-up-schedule";
+import { parseFollowUpWindow } from "@/lib/follow-up-window";
 
 let _admin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const admin = () => (_admin ??= createSupabaseServiceClient());
@@ -74,7 +77,7 @@ export async function dispatchWhatsAppEvent({
         .eq("tenant_id", order.tenant_id)
         .single();
 
-    const settingsValue = settings?.value as { enabled?: boolean } | null | undefined;
+    const settingsValue = settings?.value as { enabled?: boolean; reminder_window?: unknown } | null | undefined;
     if (settingsValue?.enabled !== true) {
         console.log(`[WhatsApp Dispatcher] Skipping order ${orderId} because whatsapp_auto_send is disabled.`);
         return { success: true, skipped: true };
@@ -182,6 +185,23 @@ export async function dispatchWhatsAppEvent({
             // bot's timeline entry is invisible to the merchant (NEW-P1-17).
             tenant_id: order.tenant_id,
         });
+    }
+
+    // The confirmation is out: queue the reminder for REMINDER_DELAY_HOURS after
+    // the order, held to the store's daytime window. A scheduling failure must
+    // not fail a send that already went out.
+    if (templateType === "confirmation") {
+        try {
+            const earliest = new Date(new Date(order.created_at).getTime() + REMINDER_DELAY_HOURS * 3_600_000);
+            await scheduleFollowUpInWindow({
+                orderUuid: order.id,
+                templateType: "reminder",
+                earliest,
+                window: parseFollowUpWindow(settingsValue?.reminder_window),
+            });
+        } catch (scheduleErr) {
+            console.error("[WhatsApp Dispatcher] Failed to schedule reminder:", scheduleErr);
+        }
     }
 
     console.log(`[WhatsApp Dispatcher] Successfully processed order ${orderId}.`);

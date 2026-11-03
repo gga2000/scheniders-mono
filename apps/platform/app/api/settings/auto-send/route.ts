@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { followUpWindowSchema, DEFAULT_FOLLOW_UP_WINDOW } from "@/lib/follow-up-window";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 
 export const dynamic = "force-dynamic";
@@ -25,10 +26,10 @@ export async function GET(request: NextRequest) {
             .maybeSingle();
 
         if (error || !data) {
-            return NextResponse.json({ enabled: false, default_discount_percent: 10 });
+            return NextResponse.json({ enabled: false, default_discount_percent: 10, reminder_window: DEFAULT_FOLLOW_UP_WINDOW });
         }
 
-        return NextResponse.json(data.value);
+        return NextResponse.json({ reminder_window: DEFAULT_FOLLOW_UP_WINDOW, ...data.value });
     } catch {
         return NextResponse.json({ enabled: false, default_discount_percent: 10 });
     }
@@ -47,7 +48,30 @@ export async function PUT(request: NextRequest) {
         const enabled = body.enabled === true;
         const defaultDiscount = body.default_discount_percent ?? 10;
 
-        const value = { enabled, default_discount_percent: defaultDiscount };
+        // Keep what the toggle doesn't send (the reminder window) instead of wiping it.
+        const { data: existing } = await supabaseAdmin()
+            .from("app_settings")
+            .select("value")
+            .eq("key", SETTINGS_KEY)
+            .eq("tenant_id", caller.tenantId)
+            .maybeSingle();
+        const previous = (existing?.value ?? {}) as Record<string, unknown>;
+
+        let reminderWindow = previous.reminder_window;
+        if (body.reminder_window !== undefined) {
+            const parsed = followUpWindowSchema.safeParse(body.reminder_window);
+            if (!parsed.success) {
+                return NextResponse.json({ error: "Invalid reminder_window" }, { status: 400 });
+            }
+            reminderWindow = parsed.data;
+        }
+
+        const value = {
+            ...previous,
+            enabled,
+            default_discount_percent: defaultDiscount,
+            ...(reminderWindow !== undefined ? { reminder_window: reminderWindow } : {}),
+        };
 
         const { error } = await supabaseAdmin()
             .from("app_settings")
