@@ -51,7 +51,11 @@ export function useDuplicateWindowAlerts(
         queryKey: duplicateCandidateKeys.window(candidateWindow),
         queryFn: () => {
             if (!tenantId) throw new Error("No active tenant");
-            return orderRepository.findWindow(tenantId, candidateWindow);
+            // No risk join: the duplicate index and the compare modal never
+            // read `risk_data`, and the visible rows that do are the list's own
+            // (they win in the merge below). The join cost this read its own
+            // `customer_trust` requests, racing the list's on every page load.
+            return orderRepository.findWindow(tenantId, candidateWindow, { withRisk: false });
         },
         enabled: candidateWindow !== null && !!session && clientReady && !!tenantId,
         staleTime: 60_000,
