@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { NumberTickerDelay } from "@/components/ui/number-ticker";
 
 export type ChangeUnit = "%" | "pt";
 
@@ -18,8 +20,18 @@ interface CellProps {
     note?: ReactNode;
     /** A smaller second figure under the headline (the IQD equivalent of a USD figure). */
     sub?: ReactNode;
+    /** Place in the bar, from 0: cells enter and start rolling one after another, left to right. */
+    order?: number;
     testId: string;
 }
+
+/** Gap between one cell entering and the next. */
+const STAGGER_S = 0.11;
+/** The number starts rolling just after its cell begins to appear. */
+const ROLL_LAG_S = 0.12;
+/** The change arrow shows once the roll has mostly landed. */
+const CHANGE_LAG_S = 0.9;
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 /** 12% / 3.1% / 102× — a change from a base of 1 order reads as noise, so past +1000% it is a multiple. */
 function formatChange(value: number, unit: ChangeUnit): string {
@@ -44,10 +56,20 @@ function Change({ value, unit, lowerIsBetter }: { value: number; unit: ChangeUni
 }
 
 /** One figure of the orders analytics bar: a small label, the number, and what changed (or a quiet note). */
-export function OrdersAnalyticsCell({ label, hint, value, change = null, changeUnit = "%", lowerIsBetter = false, note, sub, testId }: CellProps) {
+export function OrdersAnalyticsCell({ label, hint, value, change = null, changeUnit = "%", lowerIsBetter = false, note, sub, order = 0, testId }: CellProps) {
     const showChange = value !== null && change !== null && Math.abs(change) >= 0.05;
+    const reduceMotion = useReducedMotion();
+    const enter = order * STAGGER_S;
     return (
-        <div className="flex-auto border-s border-white/10 px-3.5 py-1 first:border-s-0" title={hint} data-cell={testId}>
+        <NumberTickerDelay.Provider value={Math.round((enter + ROLL_LAG_S) * 1000)}>
+        <motion.div
+            className="flex-auto border-s border-white/10 px-3.5 py-1 first:border-s-0"
+            title={hint}
+            data-cell={testId}
+            initial={reduceMotion ? false : { opacity: 0, y: 8, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ delay: enter, duration: 0.6, ease: EASE_OUT }}
+        >
             <div className="whitespace-nowrap text-[11px] text-stone-400">{label}</div>
             <div className="flex items-baseline gap-2">
                 {value === null ? (
@@ -57,7 +79,16 @@ export function OrdersAnalyticsCell({ label, hint, value, change = null, changeU
                         {value}
                     </span>
                 )}
-                {showChange ? <Change value={change} unit={changeUnit} lowerIsBetter={lowerIsBetter} /> : null}
+                {showChange ? (
+                    // The arrow lands once the number has nearly finished rolling, so the eye reads value then change.
+                    <motion.span
+                        initial={reduceMotion ? false : { opacity: 0, x: -4 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: enter + CHANGE_LAG_S, duration: 0.45, ease: EASE_OUT }}
+                    >
+                        <Change value={change} unit={changeUnit} lowerIsBetter={lowerIsBetter} />
+                    </motion.span>
+                ) : null}
                 {value !== null && note ? <span className="whitespace-nowrap text-[11px] text-stone-400">{note}</span> : null}
             </div>
             {value !== null && sub ? (
@@ -65,6 +96,7 @@ export function OrdersAnalyticsCell({ label, hint, value, change = null, changeU
                     {sub}
                 </div>
             ) : null}
-        </div>
+        </motion.div>
+        </NumberTickerDelay.Provider>
     );
 }

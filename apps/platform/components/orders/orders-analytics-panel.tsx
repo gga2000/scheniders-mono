@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { NumberFlowGroup, type Format } from "@number-flow/react";
+import type { Format } from "@number-flow/react";
 import { cn } from "@/lib/utils";
 import { NumberTicker } from "@/components/ui/number-ticker";
 import { useLanguage } from "@/hooks/use-language";
@@ -152,12 +152,16 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
         );
     }
 
+    // Cells enter one after another, left to right, in the order they render.
+    let place = 0;
+    const next = () => place++;
+
     return (
         <section aria-label={t("orders.tip.analytics")} className={shell} data-testid="orders-analytics-strip">
-            <NumberFlowGroup>
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-y-1.5">
                 {stats.store.show && storeNow && (
                     <OrdersAnalyticsCell
+                        order={next()}
                         testId="visitors"
                         label={t("orders.analytics.visitors")}
                         hint={t("orders.analytics.tip.visitors")}
@@ -166,6 +170,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                     />
                 )}
                 <OrdersAnalyticsCell
+                    order={next()}
                     testId="orders"
                     label={t("orders.analytics.orders")}
                     hint={t("orders.analytics.tip.orders")}
@@ -174,6 +179,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                 />
                 {stats.store.show && storeNow && (
                     <OrdersAnalyticsCell
+                        order={next()}
                         testId="conversion"
                         label={t("orders.analytics.conversionRate")}
                         hint={t("orders.analytics.tip.conversion")}
@@ -183,6 +189,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                     />
                 )}
                 <OrdersAnalyticsCell
+                    order={next()}
                     testId="revenue"
                     label={t("orders.analytics.revenue")}
                     hint={t("orders.analytics.tip.revenue")}
@@ -192,6 +199,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                 {stats.ads && (
                     <>
                         <OrdersAnalyticsCell
+                            order={next()}
                             testId="ad_spend"
                             label={t("orders.analytics.adSpend")}
                             hint={t("orders.analytics.tip.adSpend")}
@@ -199,6 +207,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                             sub={spend === undefined ? null : iqd(spend.iqd)}
                         />
                         <OrdersAnalyticsCell
+                            order={next()}
                             testId="cpa"
                             label={t("orders.analytics.cpa")}
                             hint={t("orders.analytics.tip.cpa")}
@@ -206,6 +215,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                         />
                         {stats.ads.billing.data && (
                             <OrdersAnalyticsCell
+                                order={next()}
                                 testId="ad_owed"
                                 label={t("orders.analytics.adOwed")}
                                 hint={t("orders.analytics.tip.adOwed")}
@@ -215,6 +225,7 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                         )}
                         {stats.ads.billing.data && (
                             <OrdersAnalyticsCell
+                                order={next()}
                                 testId="ad_limit"
                                 label={t("orders.analytics.adLimit")}
                                 hint={t("orders.analytics.tip.adLimit")}
@@ -225,7 +236,6 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                     </>
                 )}
             </div>
-            </NumberFlowGroup>
             {pills.length > 0 && (
                 <div className="flex shrink-0 flex-wrap items-center gap-1.5 ps-3" data-testid="orders-analytics-attention">
                     {pills.map((a) => (
