@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { scheduleReminderAfterConfirmation } from "@/lib/follow-up-schedule";
 import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
 import type { Order } from "@/types/order";
 import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
@@ -161,6 +162,21 @@ export async function POST(request: NextRequest) {
                         : {}),
                 })
                 .eq("id", order.id);
+
+            // A confirmation sent by hand gets the same automatic reminder as the
+            // automatic one. The reminder job re-checks everything when it fires.
+            if (templateType === "confirmation") {
+                const { data: autoSend } = await supabaseAdmin()
+                    .from("app_settings")
+                    .select("value")
+                    .eq("key", "whatsapp_auto_send")
+                    .eq("tenant_id", order.tenant_id)
+                    .maybeSingle();
+                const value = autoSend?.value as { enabled?: boolean; reminder_enabled?: boolean; reminder_window?: unknown } | null | undefined;
+                if (value?.enabled === true) {
+                    await scheduleReminderAfterConfirmation(order, value);
+                }
+            }
 
             // Log status change in order_status_history (only if status changed)
             if (shouldUpdateStatus) {
