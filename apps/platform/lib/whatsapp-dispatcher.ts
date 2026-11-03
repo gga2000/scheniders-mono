@@ -17,9 +17,7 @@ import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/wh
 import type { Order } from "@/types/order";
 import { automationFollowUpStamp } from "@/lib/follow-up-state";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
-import { REMINDER_DELAY_HOURS } from "@/lib/qstash";
-import { scheduleFollowUpInWindow } from "@/lib/follow-up-schedule";
-import { parseFollowUpWindow } from "@/lib/follow-up-window";
+import { scheduleReminderAfterConfirmation } from "@/lib/follow-up-schedule";
 
 let _admin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const admin = () => (_admin ??= createSupabaseServiceClient());
@@ -187,21 +185,9 @@ export async function dispatchWhatsAppEvent({
         });
     }
 
-    // The confirmation is out: queue the reminder for REMINDER_DELAY_HOURS after
-    // the order, held to the store's daytime window. A scheduling failure must
-    // not fail a send that already went out.
-    if (templateType === "confirmation" && settingsValue?.reminder_enabled !== false) {
-        try {
-            const earliest = new Date(new Date(order.created_at).getTime() + REMINDER_DELAY_HOURS * 3_600_000);
-            await scheduleFollowUpInWindow({
-                orderUuid: order.id,
-                templateType: "reminder",
-                earliest,
-                window: parseFollowUpWindow(settingsValue?.reminder_window),
-            });
-        } catch (scheduleErr) {
-            console.error("[WhatsApp Dispatcher] Failed to schedule reminder:", scheduleErr);
-        }
+    // The confirmation is out: queue the reminder (held to the store's window).
+    if (templateType === "confirmation") {
+        await scheduleReminderAfterConfirmation(order, settingsValue);
     }
 
     console.log(`[WhatsApp Dispatcher] Successfully processed order ${orderId}.`);
