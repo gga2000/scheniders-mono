@@ -141,7 +141,7 @@ export function CategoryGroupedView({
                 parent_id: null,
                 display_order: 0,
                 is_visible: true,
-            } as any);
+            });
             toast.success(t("products.newCategory.created", { name }));
             setNewCategoryName("");
             setNewCategoryOpen(false);
