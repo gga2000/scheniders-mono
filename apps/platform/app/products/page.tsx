@@ -536,12 +536,13 @@ function ProductsContent() {
         belowCostNames: selectedForPrice.filter((p) => p.cost != null && p.cost > 0 && newPrice < p.cost).map((p) => p.name),
     }), [selectedForPrice]);
 
-    const handleBulkUpdatePrice = useCallback(async (newPrice: number) => {
-        // Kept for the Undo toast: each product's own price and "was" price.
+    const handleBulkUpdatePrice = useCallback(async (newPrice: number, { alsoWebsite }: { alsoWebsite: boolean }) => {
+        // Kept for the Undo toast: each product's own price, "was" price and website price.
         const previous = selectedForPrice.map((p) => ({
             id: p.id,
             price: p.price,
             compare_at_price: p.compare_at_price ?? null,
+            website_price: p.website_price ?? null,
             currentPrice: newPrice,
         }));
         await bulkUpdatePrices(
@@ -550,6 +551,7 @@ function ProductsContent() {
                 oldPrice: p.price,
                 // A "was" price at or below the new price would show a fake discount.
                 clearCompareAt: p.compare_at_price != null && p.compare_at_price <= newPrice,
+                clearWebsitePrice: alsoWebsite && p.website_price != null,
             })),
             newPrice,
         );
@@ -561,7 +563,7 @@ function ProductsContent() {
     const lastUndoableRef = useRef<
         | { kind: "archive"; ids: string[] }
         | { kind: "visibility"; previous: { id: string; was_visible: boolean }[] }
-        | { kind: "price"; previous: { id: string; price: number; compare_at_price: number | null; currentPrice: number }[] }
+        | { kind: "price"; previous: { id: string; price: number; compare_at_price: number | null; website_price: number | null; currentPrice: number }[] }
         | null
     >(null);
 

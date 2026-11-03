@@ -45,7 +45,7 @@ describe("BulkActionsBar price", () => {
         fireEvent.click(screen.getByText("products.bulk.apply"));
         expect(onUpdatePrice).not.toHaveBeenCalled();
         fireEvent.click(screen.getByText("products.bulk.applyAnyway"));
-        await waitFor(() => expect(onUpdatePrice).toHaveBeenCalledWith(1000));
+        await waitFor(() => expect(onUpdatePrice).toHaveBeenCalledWith(1000, { alsoWebsite: true }));
     });
 
     it("applies at once when nothing goes below cost, with one notice (the undo bar)", async () => {
@@ -53,7 +53,7 @@ describe("BulkActionsBar price", () => {
         renderBar(onUpdatePrice, []);
         typePrice("50000");
         fireEvent.click(screen.getByText("products.bulk.apply"));
-        await waitFor(() => expect(onUpdatePrice).toHaveBeenCalledWith(50000));
+        await waitFor(() => expect(onUpdatePrice).toHaveBeenCalledWith(50000, { alsoWebsite: true }));
         expect(toast.success).not.toHaveBeenCalled();
     });
 });

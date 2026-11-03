@@ -448,7 +448,7 @@ export const productRepository = {
      * history. Either everything applies or nothing does.
      */
     async bulkChangePrice(
-        changes: { id: string; oldPrice: number; clearCompareAt: boolean }[],
+        changes: { id: string; oldPrice: number; clearCompareAt: boolean; clearWebsitePrice: boolean }[],
         price: number,
     ): Promise<void> {
         return withRetry('productRepository.bulkChangePrice', async () => {
@@ -458,6 +458,9 @@ export const productRepository = {
                     price,
                     set_compare_at: c.clearCompareAt,
                     compare_at_price: null,
+                    // Cleared = the website charges the new price too.
+                    set_website: c.clearWebsitePrice,
+                    website_price: null,
                 })),
                 p_reason: "Bulk price change",
             });
@@ -468,7 +471,7 @@ export const productRepository = {
 
     /** Undo of a bulk price change: each product gets its own previous price and "was" price back. */
     async restorePrices(
-        previous: { id: string; price: number; compare_at_price: number | null; currentPrice: number }[],
+        previous: { id: string; price: number; compare_at_price: number | null; website_price: number | null; currentPrice: number }[],
     ): Promise<void> {
         return withRetry('productRepository.restorePrices', async () => {
             const { error } = await supabase.rpc("set_product_prices", {
@@ -479,6 +482,8 @@ export const productRepository = {
                     expected_price: p.currentPrice,
                     set_compare_at: true,
                     compare_at_price: p.compare_at_price,
+                    set_website: true,
+                    website_price: p.website_price,
                 })),
                 p_reason: "Bulk price change undone",
             });
