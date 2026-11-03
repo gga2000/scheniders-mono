@@ -47,6 +47,7 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
         };
     }, []);
 
+    const preview = formatDraftRange(start, end, language === "ar" ? "ar-IQ-u-nu-latn" : "en-US", t("finances.period.to"));
     const label = formatRangeLabel(period, t, language === "ar" ? "ar-IQ-u-nu-latn" : "en-US");
 
     return (
@@ -111,6 +112,9 @@ export function PeriodPicker({ period, onApplyPreset, onApplyCustom, onChangeCom
                                     className="flex-1 px-2 py-1.5 rounded-lg bg-[var(--background)] border border-[var(--card-border)] text-[12px] text-foreground outline-none focus:border-[var(--ink)]"
                                 />
                             </div>
+                            {!customError && preview && (
+                                <div className="text-[11px] text-muted tabular-nums">{preview}</div>
+                            )}
                             {customError && (
                                 <div className="text-[11px] text-rose-600 dark:text-rose-400">{customError}</div>
                             )}
@@ -190,4 +194,16 @@ function formatRangeLabel(
     if (p.preset === "today") return t("finances.period.today");
     if (p.preset === "yesterday") return t("finances.period.yesterday");
     return sameYear ? `${s} – ${e}` : `${s}, ${startYear} – ${e}, ${endYear}`;
+}
+
+/** Spells the typed dates out with the month name, so the browser's own MM/DD or DD/MM box is never the only cue. */
+function formatDraftRange(start: string, end: string, locale: string, joiner: string): string | null {
+    const fmt = (key: string) => {
+        const d = new Date(`${key}T12:00:00Z`);
+        if (Number.isNaN(d.getTime())) return null;
+        return d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+    };
+    const s = fmt(start);
+    const e = fmt(end);
+    return s && e ? `${s} ${joiner} ${e}` : null;
 }
