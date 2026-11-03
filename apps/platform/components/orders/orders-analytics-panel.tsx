@@ -157,8 +157,8 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                     testId="revenue"
                     label={t("orders.analytics.revenue")}
                     hint={t("orders.analytics.tip.revenue")}
-                    value={current.data ? formatIQD(current.data.revenue) : null}
-                    change={comparing && current.data && previous.data ? pctChange(current.data.revenue, previous.data.revenue) : null}
+                    value={current.data ? formatIQD(current.data.confirmed_revenue) : null}
+                    change={comparing && current.data && previous.data ? pctChange(current.data.confirmed_revenue, previous.data.confirmed_revenue) : null}
                 />
                 {stats.ads && (
                     <>
@@ -174,12 +174,20 @@ function AnalyticsBar({ filters, setFilters, flaggedCount, attentionCounts, coun
                             hint={t("orders.analytics.tip.cpa")}
                             value={spend === undefined || !current.data ? null : costPerOrder === null ? "—" : formatIQD(costPerOrder)}
                         />
-                        {stats.ads.limit.data && (
+                        {stats.ads.billing.data && (
+                            <OrdersAnalyticsCell
+                                testId="ad_owed"
+                                label={t("orders.analytics.adOwed")}
+                                hint={t("orders.analytics.tip.adOwed")}
+                                value={formatIQD(stats.ads.billing.data.owedIqd)}
+                            />
+                        )}
+                        {stats.ads.billing.data?.leftIqd != null && (
                             <OrdersAnalyticsCell
                                 testId="ad_limit"
                                 label={t("orders.analytics.adLimit")}
                                 hint={t("orders.analytics.tip.adLimit")}
-                                value={formatIQD(stats.ads.limit.data.leftIqd)}
+                                value={formatIQD(stats.ads.billing.data.leftIqd)}
                             />
                         )}
                     </>

@@ -60,6 +60,8 @@ const count = z.number().catch(0);
 export const panelStatsSchema = z.object({
     orders: count,
     revenue: count,
+    /** Price of the orders placed in the window that are confirmed or further along. */
+    confirmed_revenue: count,
     delivered: count,
 });
 export type PanelStats = z.infer<typeof panelStatsSchema>;

@@ -184,29 +184,27 @@ export async function fetchTokenHealth(accessToken: string): Promise<TokenHealth
     };
 }
 
-const accountLimitSchema = z.object({
+const accountBillingSchema = z.object({
     currency: z.string(),
-    // Minor units (cents for USD), sent as strings. spend_cap "0" means no cap is set.
-    spend_cap: numericString.optional(),
-    amount_spent: numericString.optional(),
+    // Minor units (cents for USD), sent as strings.
     balance: numericString.optional(),
 });
 
-export interface AccountLimit {
+const paymentCycleSchema = z.object({
+    data: z.array(z.object({ threshold_amount: z.union([z.number(), numericString]).optional() })),
+});
+
+export interface AccountBilling {
     currency: string;
-    /** Account spending limit in major units, or null when none is set. */
-    spendCap: number | null;
-    /** Lifetime spend counted against the cap, major units. */
-    amountSpent: number;
-    /** What Meta has spent but not yet billed, major units. */
+    /** What Meta has spent on the account but not yet charged, major units (the "Current balance" on Meta's billing page). */
     balance: number;
+    /** Balance at which Meta charges the card ("Your balance reaches"), major units; null when Meta does not say. */
+    threshold: number | null;
 }
 
-/** The ad account's spending limit and how much of it is used (read-only, needs `ads_read`). Throws MetaAdsError when Meta cannot say. */
-export async function fetchAccountLimit(params: { adAccountId: string; accessToken: string }): Promise<AccountLimit> {
-    const query = new URLSearchParams({ fields: "currency,spend_cap,amount_spent,balance" });
-    const res = await fetch(`${GRAPH_HOST}/${GRAPH_VERSION}/act_${params.adAccountId}?${query}`, {
-        headers: { Authorization: `Bearer ${params.accessToken}` },
+async function graphGet(path: string, query: URLSearchParams, accessToken: string): Promise<unknown> {
+    const res = await fetch(`${GRAPH_HOST}/${GRAPH_VERSION}/${path}?${query}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
         cache: "no-store",
     });
     const body: unknown = await res.json().catch(() => null);
@@ -214,14 +212,31 @@ export async function fetchAccountLimit(params: { adAccountId: string; accessTok
         const parsed = graphErrorSchema.safeParse(body);
         throw new MetaAdsError(parsed.success ? parsed.data.error.message : `Meta API HTTP ${res.status}`);
     }
-    const parsed = accountLimitSchema.safeParse(body);
-    if (!parsed.success) throw new MetaAdsError("Unexpected response from Meta API");
-    const major = (minor: string | undefined) => Number(minor ?? 0) / 100;
-    const cap = major(parsed.data.spend_cap);
-    return {
-        currency: parsed.data.currency,
-        spendCap: cap > 0 ? cap : null,
-        amountSpent: major(parsed.data.amount_spent),
-        balance: major(parsed.data.balance),
-    };
+    return body;
+}
+
+/**
+ * The ad account's billing position (read-only): the balance Meta has not charged yet and the balance that
+ * triggers the next charge. The balance is required (throws MetaAdsError); the threshold is best effort, since
+ * Meta may hide the payment cycle from an `ads_read` token, and then comes back null.
+ */
+export async function fetchAccountBilling(params: { adAccountId: string; accessToken: string }): Promise<AccountBilling> {
+    const account = accountBillingSchema.safeParse(
+        await graphGet(`act_${params.adAccountId}`, new URLSearchParams({ fields: "currency,balance" }), params.accessToken),
+    );
+    if (!account.success) throw new MetaAdsError("Unexpected response from Meta API");
+
+    const minor = (value: string | number | undefined) => (value === undefined ? null : Number(value) / 100);
+    let threshold: number | null = null;
+    try {
+        const cycle = paymentCycleSchema.safeParse(
+            await graphGet(`act_${params.adAccountId}/adspaymentcycle`, new URLSearchParams({ fields: "threshold_amount" }), params.accessToken),
+        );
+        const amount = cycle.success ? minor(cycle.data.data[0]?.threshold_amount) : null;
+        threshold = amount !== null && amount > 0 ? amount : null;
+    } catch (e) {
+        // Only "Meta will not show the payment cycle" is expected; anything else is a real failure.
+        if (!(e instanceof MetaAdsError)) throw e;
+    }
+    return { currency: account.data.currency, balance: minor(account.data.balance) ?? 0, threshold };
 }
