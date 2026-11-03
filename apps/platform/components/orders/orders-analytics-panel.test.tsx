@@ -17,6 +17,13 @@ vi.mock("@/hooks/use-orders-panel-stats", () => ({
     },
 }));
 
+// The real NumberFlow draws digits in a shadow root jsdom cannot read: render the final formatted text instead.
+vi.mock("@/components/ui/number-ticker", () => ({
+    NumberTicker: ({ value, format }: { value: number; format?: Intl.NumberFormatOptions }) => (
+        <span>{new Intl.NumberFormat("en-US", format).format(value)}</span>
+    ),
+}));
+
 afterEach(() => {
     cleanup();
     asked.filters.length = 0;
@@ -35,6 +42,7 @@ const stats = (over: Partial<PanelStats> = {}): PanelStats => ({
 function setHook(over: Record<string, unknown> = {}) {
     hookResult.value = {
         salesView: true,
+        loading: false,
         windows: { previous: {} },
         current: query(stats()),
         previous: query(stats({ orders: 20, revenue: 1_000_000 })),
@@ -105,6 +113,13 @@ describe("OrdersAnalyticsPanel strip", () => {
         renderPanel();
         expect(stat("orders")).toBeUndefined();
         expect(document.querySelector("[data-testid=\"orders-analytics-strip\"]")?.textContent).toContain("المبيعات");
+    });
+
+    it("shows one skeleton, not half-filled cells, until every figure has answered", () => {
+        setHook({ loading: true });
+        renderPanel();
+        expect(document.querySelector("[data-testid=\"orders-analytics-loading\"]")).not.toBeNull();
+        expect(document.querySelector("[data-cell]")).toBeNull();
     });
 
     it("shows no change arrows when there is no earlier period to compare with", () => {

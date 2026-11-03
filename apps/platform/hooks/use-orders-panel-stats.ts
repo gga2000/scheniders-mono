@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import type { OrderFilters } from "@/lib/supabase";
@@ -48,6 +48,9 @@ function usePanelStats(window: PanelWindow | null, scope: BarScope, enabled: boo
         },
         enabled: !!tenantId && window !== null && enabled,
         staleTime: REFRESH_MS,
+        // A new window (the 5-minute tick, a filter change) keeps the old figures on screen until the new ones land,
+        // so the bar rolls from number to number instead of blanking.
+        placeholderData: keepPreviousData,
     });
 }
 
@@ -139,18 +142,31 @@ export function useOrdersPanelStats(filters: OrderFilters) {
     );
 
     const connection = useMetaAdsConnection();
-    const adsOn = storeWide && canAccessRoute("/ads", role, permissions) && connection.data?.is_active === true;
+    const mayOpenAds = storeWide && canAccessRoute("/ads", role, permissions);
+    const adsOn = mayOpenAds && connection.data?.is_active === true;
     const spend = useQuery({
         queryKey: ["orders-panel-ad-spend", windows.current.from, windows.current.to],
         queryFn: () => fetchAdSpend(windows.current.from, windows.current.to),
         enabled: adsOn,
         staleTime: REFRESH_MS,
+        placeholderData: keepPreviousData,
     });
 
     const billing = useAdBilling(adsOn);
 
+    // The bar shows its figures all at once: until every figure it is going to show has answered (or failed), it
+    // stays a skeleton, so cells never pop in one by one. Disabled queries report isLoading false.
+    const loading =
+        current.isLoading ||
+        previous.isLoading ||
+        store.isLoading ||
+        (mayOpenAds && connection.isLoading) ||
+        spend.isLoading ||
+        billing.isLoading;
+
     return {
         salesView,
+        loading,
         windows,
         current,
         previous,
