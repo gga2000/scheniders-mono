@@ -166,6 +166,22 @@ function formatRelativeTime(date: string): string {
 // ... InviteUserModal (Keep existing implementation, maybe update with avatar/name but user asked for functionality to be added to employees usually after creation or during editing)
 // For brevity, I will focus on the Edit User Modal which is the main requirement.
 
+// Photo rules: a 2MB image in a format the avatars bucket accepts.
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_TYPES: Record<string, string> = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/webp": "webp",
+};
+
+// Supabase errors are plain objects with a message, not Error instances.
+function errorMessage(err: unknown, fallback: string): string {
+    if (typeof err === "object" && err !== null && "message" in err && typeof err.message === "string" && err.message) {
+        return err.message;
+    }
+    return fallback;
+}
+
 // EDIT USER MODAL
 interface EditUserModalProps {
     user: UserProfile;
@@ -181,6 +197,9 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(user.avatar_url);
     const [uploading, setUploading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [removing, setRemoving] = useState(false);
+    const [confirmRemove, setConfirmRemove] = useState(false);
+    const canRemove = currentUser?.id !== user.id && user.role !== "super_admin";
 
     // Permission Overrides State
     const [overrides, setOverrides] = useState<UserPermissionOverride[]>([]);
@@ -247,59 +266,76 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
     };
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const input = e.target;
+        const file = input.files?.[0];
+        // Let the same file be picked again after an error.
+        input.value = "";
+        if (!file) return;
+
+        if (!tenantId) {
+            toast.error("No active store. Reload the page and try again.");
+            return;
+        }
+        const ext = AVATAR_TYPES[file.type];
+        if (!ext) {
+            toast.error("Use a PNG, JPG or WebP image.");
+            return;
+        }
+        if (file.size > AVATAR_MAX_BYTES) {
+            toast.error("The image is larger than 2MB.");
+            return;
+        }
+
+        setUploading(true);
         try {
-            setUploading(true);
-            const file = e.target.files?.[0];
-            if (!file) return;
-
-            const fileExt = file.name.split('.').pop();
-            const filePath = `${user.id}/${Math.random()}.${fileExt}`;
-
+            // <store>/<member>/<file>: storage rules only let a member write
+            // their own folder, or a store admin write a member's, in a store
+            // both belong to.
+            const filePath = `${tenantId}/${user.id}/${crypto.randomUUID()}.${ext}`;
             const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file);
-
+                .from("avatars")
+                .upload(filePath, file, { contentType: file.type, cacheControl: "31536000" });
             if (uploadError) throw uploadError;
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
-
+            const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath);
             setAvatarUrl(publicUrl);
         } catch (error) {
-            console.error('Error uploading avatar:', error);
-            alert('Error uploading avatar');
+            console.error("Error uploading avatar:", error);
+            toast.error(errorMessage(error, "Could not upload the photo."));
         } finally {
             setUploading(false);
         }
     };
 
     const saveProfile = async () => {
+        if (!tenantId) {
+            toast.error("No active store. Reload the page and try again.");
+            return;
+        }
         setSaving(true);
         try {
-            const { error } = await supabase
-                .from('user_profiles')
-                .update({
-                    display_name: displayName,
-                    avatar_url: avatarUrl
-                })
-                .eq('id', user.id);
-
+            // Definer function: a store admin may edit a member's name and
+            // photo (the profile row is not writable through RLS); it checks
+            // the caller administers this member.
+            const { error } = await supabase.rpc("update_team_member_profile", {
+                p_tenant_id: tenantId,
+                p_user_id: user.id,
+                p_display_name: displayName,
+                p_avatar_url: avatarUrl,
+            });
             if (error) throw error;
 
             // The role is per store: it lives on this tenant's membership row.
             // RLS lets only a tenant admin change it, and never their own.
             if (role !== user.role) {
-                if (!tenantId) throw new Error("No active account");
                 const { error: roleError } = await supabase
-                    .from('tenant_members')
+                    .from("tenant_members")
                     .update({ role })
-                    .eq('tenant_id', tenantId)
-                    .eq('user_id', user.id);
+                    .eq("tenant_id", tenantId)
+                    .eq("user_id", user.id);
                 if (roleError) throw roleError;
             }
 
-            // Log activity
             await activityLogger.log({
                 action: "settings.update",
                 entityType: "user",
@@ -317,11 +353,40 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                 await refreshProfile();
             }
 
+            toast.success("Saved");
             onClose();
         } catch (err) {
             console.error("Error updating profile:", err);
+            toast.error(errorMessage(err, "Could not save changes."));
         } finally {
             setSaving(false);
+        }
+    };
+
+    const removeMember = async () => {
+        if (!tenantId) return;
+        setRemoving(true);
+        try {
+            const { error } = await supabase.rpc("remove_team_member", {
+                p_tenant_id: tenantId,
+                p_user_id: user.id,
+            });
+            if (error) throw error;
+            await activityLogger.log({
+                action: "settings.update",
+                entityType: "user",
+                entityId: user.id,
+                details: { updated_user: displayName || user.email, changes: { removed: true } }
+            }, tenantId);
+            toast.success(`${displayName || user.email} was removed from the team`);
+            onUpdate();
+            onClose();
+        } catch (err) {
+            console.error("Error removing member:", err);
+            toast.error(errorMessage(err, "Could not remove this member."));
+            setConfirmRemove(false);
+        } finally {
+            setRemoving(false);
         }
     };
 
@@ -458,14 +523,14 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                     <input
                                         ref={fileInputRef}
                                         type="file"
-                                        accept="image/*"
+                                        accept="image/png,image/jpeg,image/webp"
                                         className="hidden"
                                         onChange={handleAvatarUpload}
                                     />
                                 </div>
                                 <div>
                                     <h3 className="font-medium">Profile Picture</h3>
-                                    <p className="text-sm text-muted-foreground">Upload a PNG or JPG (max 2MB).</p>
+                                    <p className="text-sm text-muted-foreground">Upload a PNG, JPG or WebP (max 2MB).</p>
                                 </div>
                             </div>
 
@@ -504,6 +569,43 @@ function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                                 Save Changes
                             </button>
+
+                            {canRemove && (
+                                <div className="border-t border-border pt-5">
+                                    {confirmRemove ? (
+                                        <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 space-y-3">
+                                            <p className="text-sm">
+                                                Remove <span className="font-semibold">{displayName || user.email}</span> from this store?
+                                                They lose access right away. Their past work stays in your records.
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={removeMember}
+                                                    disabled={removing}
+                                                    className="flex-1 py-2 rounded-lg bg-rose-600 text-white text-sm font-medium hover:bg-rose-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                                                >
+                                                    {removing && <Loader2 className="w-4 h-4 animate-spin" />}
+                                                    Yes, remove
+                                                </button>
+                                                <button
+                                                    onClick={() => setConfirmRemove(false)}
+                                                    disabled={removing}
+                                                    className="flex-1 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => setConfirmRemove(true)}
+                                            className="text-sm font-medium text-rose-600 hover:text-rose-700"
+                                        >
+                                            Remove from team
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ) : activeTab === "permissions" ? (
                         <div className="space-y-4">
@@ -1161,7 +1263,7 @@ function InviteUserModal({ onClose, onUserCreated }: { onClose: () => void; onUs
                     </div>
                     <div>
                         <label className="text-sm font-medium">Password</label>
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full h-10 px-3 border rounded-lg" required />
+                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full h-10 px-3 border rounded-lg" required minLength={8} maxLength={72} />
                     </div>
                     <div>
                         <label className="text-sm font-medium">Name</label>
@@ -1175,6 +1277,11 @@ function InviteUserModal({ onClose, onUserCreated }: { onClose: () => void; onUs
                             <option value="admin">Admin</option>
                         </select>
                     </div>
+                    {error && (
+                        <p role="alert" className="text-sm text-rose-600 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+                            {error}
+                        </p>
+                    )}
                     <button className="w-full bg-primary text-primary-foreground py-2 rounded-lg" disabled={loading}>
                         {loading ? "Creating..." : "Create User"}
                     </button>

@@ -42,7 +42,7 @@ function membershipInsert() {
 }
 
 function profileUpdate() {
-    return fake.calls.find((c) => c.table === "user_profiles" && c.op === "update")?.payload as
+    return fake.calls.find((c) => c.table === "user_profiles" && c.op === "upsert")?.payload as
         | { role: string }
         | undefined;
 }
@@ -91,16 +91,44 @@ describe("POST /api/auth/create-user — membership role", () => {
         }
     });
 
-    it("reports a failed membership insert instead of answering success", async () => {
+    it("writes the profile row itself, since no trigger does", async () => {
+        const res = await POST(request({ role: "employee", displayName: "Sara" }));
+        expect(res.status).toBe(200);
+        expect(fake.calls.find((c) => c.table === "user_profiles" && c.op === "upsert")?.payload).toMatchObject({
+            id: "new-user-id",
+            email: "new@example.com",
+            display_name: "Sara",
+            current_tenant_id: TENANT,
+        });
+    });
+
+    it("undoes the login when the membership insert fails, and does not answer success", async () => {
         respond = (call) =>
             call.table === "tenant_members" && call.op === "insert"
                 ? { error: { message: "violates check constraint tenant_members_role_check", code: "23514" } }
                 : defaultRespond(call);
         const res = await POST(request({ role: "employee" }));
-        const body = (await res.json()) as { success?: boolean; userId?: string };
-        expect(res.status).not.toBe(200);
+        const body = (await res.json()) as { success?: boolean };
+        expect(res.status).toBe(500);
         expect(body.success).not.toBe(true);
-        expect(body.userId).toBe("new-user-id");
+        expect(fake.deletedUsers).toEqual(["new-user-id"]);
+    });
+
+    it("undoes the login and skips the membership when the profile write fails", async () => {
+        respond = (call) =>
+            call.table === "user_profiles" && call.op === "upsert"
+                ? { error: { message: "boom" } }
+                : defaultRespond(call);
+        const res = await POST(request({ role: "employee" }));
+        expect(res.status).toBe(500);
+        expect(membershipInsert()).toBeUndefined();
+        expect(fake.deletedUsers).toEqual(["new-user-id"]);
+    });
+
+    it("rejects a short password before creating anything", async () => {
+        const res = await POST(request({ password: "short" }));
+        expect(res.status).toBe(400);
+        expect(fake.created).toHaveLength(0);
     });
 
     it("still refuses a role outside the allowlist", async () => {
