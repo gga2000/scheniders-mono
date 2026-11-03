@@ -81,8 +81,7 @@ function useStoreDays(enabled: boolean) {
 }
 
 /**
- * Everything the orders analytics bar shows for the page's current filters: orders, revenue, delivery rate and
- * confirm speed from get_orders_panel_stats (server-side, Baghdad days, the revenue rule Finances uses), Meta spend
+ * Everything the orders analytics bar shows for the page's current filters: orders and revenue from get_orders_panel_stats (server-side, Baghdad days, the revenue rule Finances uses), Meta spend
  * for people who may open /ads on a connected store, and the storefront's visitors. Ad spend and visitors are
  * store-wide, so they only appear while no city / product / priority / payment filter narrows the list.
  */
@@ -106,8 +105,6 @@ export function useOrdersPanelStats(filters: OrderFilters) {
 
     const current = usePanelStats(windows.current, scope, salesView);
     const previous = usePanelStats(windows.previous, scope, salesView);
-    const qualityCurrent = usePanelStats(windows.quality.current, scope, salesView);
-    const qualityPrevious = usePanelStats(windows.quality.previous, scope, salesView);
 
     const store = useStoreDays(storeWide);
     const storeResult = useMemo(
@@ -129,8 +126,6 @@ export function useOrdersPanelStats(filters: OrderFilters) {
         windows,
         current,
         previous,
-        qualityCurrent,
-        qualityPrevious,
         store: { figures: storeResult?.current ? storeResult : null, show: storeWide && (store.data?.days ?? []).some((d) => d.visitors > 0) },
         ads: adsOn ? { spend } : null,
     };

@@ -2,9 +2,6 @@ import { z } from "zod";
 import { addDaysToDayKey, baghdadDayKey } from "@/lib/order-window";
 import type { OrderFilters } from "@/lib/supabase";
 
-/** Delivery rate and confirm speed describe orders that have had time to play out, so a single day is too thin. */
-export const MIN_QUALITY_DAYS = 7;
-
 /** One request to get_orders_panel_stats. A null bound is open ended. */
 export interface PanelWindow {
     from: string | null;
@@ -17,10 +14,6 @@ export interface BarWindows {
     current: PanelWindow;
     /** The period just before `current`, same length; null when there is nothing fair to compare with. */
     previous: PanelWindow | null;
-    /** The windows behind delivery rate and confirm speed. Equal to the main pair unless `current` is under a week. */
-    quality: { current: PanelWindow; previous: PanelWindow | null };
-    /** True when `quality` covers more days than the page's date filter. */
-    qualityIsWider: boolean;
 }
 
 /** Baghdad wall-clock time, HH:MM:SS. */
@@ -39,31 +32,14 @@ function dayCount(from: string, to: string): number {
  */
 export function barWindows(dateFrom: string | null | undefined, dateTo: string | null | undefined, now: Date = new Date()): BarWindows {
     const today = baghdadDayKey(now);
-    const open = { from: dateFrom ?? null, to: dateTo ?? null, untilTime: null };
-    if (!dateFrom) {
-        return { current: open, previous: null, quality: { current: open, previous: null }, qualityIsWider: false };
-    }
-    const from = dateFrom;
+    if (!dateFrom) return { current: { from: null, to: dateTo ?? null, untilTime: null }, previous: null };
     const to = dateTo ?? today;
-    const current: PanelWindow = { from, to, untilTime: null };
-    const days = dayCount(from, to);
+    const days = dayCount(dateFrom, to);
     const previous: PanelWindow =
-        from === to && to === today
+        dateFrom === to && to === today
             ? { from: addDaysToDayKey(today, -1), to: addDaysToDayKey(today, -1), untilTime: baghdadTimeOfDay(now) }
-            : { from: addDaysToDayKey(from, -days), to: addDaysToDayKey(from, -1), untilTime: null };
-    if (days >= MIN_QUALITY_DAYS) {
-        return { current, previous, quality: { current, previous }, qualityIsWider: false };
-    }
-    const qFrom = addDaysToDayKey(to, -(MIN_QUALITY_DAYS - 1));
-    return {
-        current,
-        previous,
-        quality: {
-            current: { from: qFrom, to, untilTime: null },
-            previous: { from: addDaysToDayKey(qFrom, -MIN_QUALITY_DAYS), to: addDaysToDayKey(qFrom, -1), untilTime: null },
-        },
-        qualityIsWider: true,
-    };
+            : { from: addDaysToDayKey(dateFrom, -days), to: addDaysToDayKey(dateFrom, -1), untilTime: null };
+    return { current: { from: dateFrom, to, untilTime: null }, previous };
 }
 
 const NON_SALE_STATUS_VIEWS: ReadonlyArray<OrderFilters["status"]> = ["refunds", "refunded", "refund_pending", "replacements"];
@@ -79,25 +55,14 @@ export function followsStoreWideNumbers(filters: Pick<OrderFilters, "city" | "pr
 }
 
 const count = z.number().catch(0);
-const nullableNumber = z.number().nullable().catch(null);
 
 /** get_orders_panel_stats returns jsonb, so the generated types say only `Json`. */
 export const panelStatsSchema = z.object({
     orders: count,
     revenue: count,
     delivered: count,
-    cohort_realized: count,
-    cohort_rejected: count,
-    confirm_n: count,
-    confirm_median_min: nullableNumber,
 });
 export type PanelStats = z.infer<typeof panelStatsSchema>;
-
-/** Delivered share of orders that finished (delivered or refused). Null while none has finished. */
-export function deliveryRate(stats: Pick<PanelStats, "cohort_realized" | "cohort_rejected">): number | null {
-    const decided = stats.cohort_realized + stats.cohort_rejected;
-    return decided > 0 ? (stats.cohort_realized / decided) * 100 : null;
-}
 
 /** Percentage-point change between two rates; null when either side is unknown. */
 export function pointChange(now: number | null, before: number | null): number | null {
@@ -158,11 +123,4 @@ export function storeFigures(
         previous = sumDays(days, prev.from, prev.to);
     }
     return { current, previous };
-}
-
-/** Under a minute reads "<1", then whole minutes, then hours and minutes. */
-export function formatMinutes(minutes: number): { hours: number; minutes: number; underOne: boolean } {
-    if (minutes < 1) return { hours: 0, minutes: 0, underOne: true };
-    const whole = Math.round(minutes);
-    return { hours: Math.floor(whole / 60), minutes: whole % 60, underOne: false };
 }
