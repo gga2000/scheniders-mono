@@ -73,7 +73,7 @@ export function FeelBars({ bars, locale }: { bars: ScentFeelBar[]; locale: Local
               <span
                 className={cn(
                   "absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-bk-pill from-bk-ink/10 to-bk-ink/45",
-                  rtl ? "bg-linear-to-l" : "bg-linear-to-r",
+                  rtl ? "bg-gradient-to-l" : "bg-gradient-to-r",
                 )}
               />
               <span className="absolute inset-x-3 top-1/2 flex -translate-y-1/2 justify-between">
