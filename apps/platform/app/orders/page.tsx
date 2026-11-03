@@ -48,6 +48,7 @@ import { CollapsedToolbar } from "@/components/orders/toolbar/collapsed-toolbar"
 import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { OrdersAnalyticsPanel } from "@/components/orders/orders-analytics-panel";
 import { OrdersFilterBar } from "@/components/orders/orders-filter-bar";
+import { OrdersMouseBackground } from "@/components/orders/orders-mouse-background";
 import { EmptyState } from "@/components/ui/empty-states";
 import { StaggerContainer, StaggerItem, EASE_CHROME, EASE_PANEL, EASE_CROSSFADE } from "@/components/layout/page-transition";
 import { useSidebar } from "@/components/layout/dashboard-layout";
@@ -106,6 +107,7 @@ import {
     Truck,
     PackageX,
     Boxes,
+    Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canOfferSelectAll } from "@/lib/order-bulk-scope";
@@ -135,6 +137,8 @@ export default function OrdersPage() {
     // Order pipeline funnel — hidden by default, surfaced via toolbar toggle.
     // Per-device pref, mirrors the sub-filters pattern above.
     const [showPipeline, togglePipeline] = usePersistedToggle("ordersShowPipeline");
+    // Experimental mouse-follow backdrop. Off by default; per-device switch in the tools bar.
+    const [showFunBg, toggleFunBg] = usePersistedToggle("ordersFunBackground");
     useEffect(() => {
         setIsMounted(true);
     }, []);
@@ -1042,6 +1046,7 @@ export default function OrdersPage() {
                     }}
                 >
                     <div className="min-h-screen p-4 md:p-6 lg:p-8 orders-page relative">
+                        {showFunBg && <OrdersMouseBackground />}
                         <div className="space-y-4 md:space-y-6">
                             {/* Section 1: Toolbar — stagger child */}
                             <motion.div
@@ -1458,6 +1463,23 @@ export default function OrdersPage() {
                                                                 title={t("orders.tip.analytics")}
                                                             >
                                                                 <BarChart3 className="w-4 h-4" />
+                                                            </button>
+
+                                                            {/* Fun mouse-follow background (experiment, off by default) */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={toggleFunBg}
+                                                                aria-pressed={showFunBg}
+                                                                className={cn(
+                                                                    "p-2.5 rounded-xl transition-all duration-300",
+                                                                    showFunBg
+                                                                        ? "bg-violet-100 text-violet-600 shadow-sm dark:bg-[var(--primary)] dark:text-black"
+                                                                        : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5"
+                                                                )}
+                                                                title={t("orders.funBackground", "Fun background")}
+                                                                aria-label={t("orders.funBackground", "Fun background")}
+                                                            >
+                                                                <Sparkles className="w-4 h-4" />
                                                             </button>
 
                                                             {/* Meta chips toggle (off by default) */}

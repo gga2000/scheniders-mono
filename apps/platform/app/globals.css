@@ -3359,3 +3359,14 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
 @media (prefers-reduced-motion: reduce) {
   [data-menu-drawer], [data-menu-drawer] * { animation-duration: 1ms !important; }
 }
+
+/* Orders page: experimental mouse-follow backdrop. The resting dot grid is pure CSS; the canvas inside only paints the lens under the cursor. */
+.orders-mouse-bg {
+  background-image: radial-gradient(circle, rgba(100, 116, 139, 0.22) 1px, transparent 1.4px);
+  background-size: 24px 24px;
+  background-position: 12px 12px;
+}
+
+.dark .orders-mouse-bg {
+  background-image: radial-gradient(circle, rgba(150, 165, 205, 0.18) 1px, transparent 1.4px);
+}
