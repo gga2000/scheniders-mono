@@ -146,21 +146,27 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
         return false;
     }, [drafts, rules]);
 
+    // A supply may appear once per unit (the database key is product, supply, unit).
+    const duplicateKeys = useMemo(() => {
+        const seen = new Set<string>();
+        const dupes = new Set<string>();
+        for (const d of activeDrafts) {
+            if (!d.supply_id) continue;
+            const k = `${d.supply_id}|${d.unit}`;
+            if (seen.has(k)) dupes.add(d.key);
+            seen.add(k);
+        }
+        return dupes;
+    }, [activeDrafts]);
+    const hasIncomplete = activeDrafts.some((d) => !d.supply_id || d.quantity <= 0);
+    const canSave = duplicateKeys.size === 0 && !hasIncomplete;
+
     const saveMutation = useMutation({
         mutationFn: async () => {
             if (!productId || !tenantId) throw new Error("Missing product or tenant");
             const current = activeDrafts;
 
-            // Validate
-            const invalid = current.filter(
-                (d) => !d.supply_id || d.quantity <= 0
-            );
-            if (invalid.length > 0) {
-                throw new Error(
-                    "Every recipe row needs a supply and a quantity greater than 0"
-                );
-            }
-
+            // Save is disabled until every row is complete and unique; the database checks again.
             // One call: the recipe is replaced in one transaction, so a
             // refused row leaves the saved recipe exactly as it was.
             const { error } = await supabase.rpc("save_recipe", {
@@ -265,6 +271,8 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                                 key={d.key}
                                 rule={d}
                                 supplies={supplies}
+                                takenSupplyIds={new Set(activeDrafts.flatMap((o) => (o.key !== d.key && o.unit === d.unit && o.supply_id ? [o.supply_id] : [])))}
+                                duplicate={duplicateKeys.has(d.key)}
                                 onChange={(patch) => setRule(d.key, patch)}
                                 onRemove={() => removeRule(d.key)}
                             />
@@ -293,6 +301,11 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                 {/* Save / discard bar */}
                 {isDirty && (
                     <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--card-border)]">
+                        {!canSave && (
+                            <p className="mr-auto text-[12px] text-muted">
+                                {t(duplicateKeys.size > 0 ? "recipe.err.duplicate" : "recipe.err.incomplete")}
+                            </p>
+                        )}
                         <button
                             type="button"
                             onClick={discard}
@@ -304,7 +317,7 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                         <button
                             type="button"
                             onClick={() => saveMutation.mutate()}
-                            disabled={saveMutation.isPending}
+                            disabled={saveMutation.isPending || !canSave}
                             className={cn(
                                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                                 "bg-teal-500 text-white hover:bg-teal-600 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -348,17 +361,20 @@ function EmptyRecipe({ onAdd }: { onAdd: () => void }) {
 interface RuleRowProps {
     rule: DraftRule;
     supplies: Product[];
+    /** Supplies another row already lists with this row's unit. */
+    takenSupplyIds: ReadonlySet<string>;
+    duplicate: boolean;
     onChange: (patch: Partial<DraftRule>) => void;
     onRemove: () => void;
 }
 
-function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
+function RuleRow({ rule, supplies, takenSupplyIds, duplicate, onChange, onRemove }: RuleRowProps) {
     const { t } = useLanguage();
     const selected = supplies.find((s) => s.id === rule.supply_id);
     const lineCost = selected?.cost == null ? null : selected.cost * rule.quantity;
 
     return (
-        <div className="rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-3">
+        <div className={cn("rounded-xl border bg-[var(--background)] p-3", duplicate ? "border-rose-300 dark:border-rose-500/50" : "border-[var(--card-border)]")}>
             <div className="grid grid-cols-1 md:grid-cols-[1fr_100px_160px_auto] gap-2 items-center">
                 {/* Supply picker */}
                 <select
@@ -372,7 +388,7 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                     <option value="">{t("products.recipe.chooseSupply")}</option>
                     {supplies.map((s) => (
                         // Name only: the SKU would be cut off in the closed select; it shows on the line below.
-                        <option key={s.id} value={s.id}>
+                        <option key={s.id} value={s.id} disabled={takenSupplyIds.has(s.id) && s.id !== rule.supply_id}>
                             {s.name}
                         </option>
                     ))}
@@ -423,6 +439,10 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                     <Trash2 className="w-4 h-4" />
                 </button>
             </div>
+
+            {duplicate && (
+                <p className="mt-2 text-[11px] text-rose-600 dark:text-rose-300">{t("recipe.err.duplicateRow")}</p>
+            )}
 
             {/* Cost preview */}
             {selected && (

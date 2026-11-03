@@ -12,7 +12,9 @@ import {
     Edit2,
     FileText,
     Loader2,
+    Minus,
     Package,
+    Plus,
     ShoppingCart,
     Truck,
     Users,
@@ -26,6 +28,8 @@ import type { HistoryEntry } from "@/lib/utils/supply-forecasting";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { supplyReorderState, supplyTone } from "@/lib/utils/supply-reorder";
 import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
+import { useProductDetails } from "@/hooks/use-products-query";
+import { htmlToPlainText } from "@/lib/utils/html-to-plain-text";
 import { StockFillBar } from "./stock-fill-bar";
 import { DaysOfSupplyPill, daysOfSupplyFrom } from "./days-of-supply-pill";
 import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
@@ -215,6 +219,28 @@ function Header({
                         </button>
                     </>
                 )}
+                {onAdjustStock && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => onAdjustStock(supply, -1)}
+                            title={t("supplies.adjustMinus")}
+                            aria-label={t("supplies.adjustMinus")}
+                            className="p-1.5 rounded-lg text-muted hover:text-rose-700 hover:bg-rose-50 dark:hover:text-rose-300 dark:hover:bg-rose-500/15"
+                        >
+                            <Minus className="w-4 h-4" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onAdjustStock(supply, 1)}
+                            title={t("supplies.adjustPlus")}
+                            aria-label={t("supplies.adjustPlus")}
+                            className="p-1.5 rounded-lg text-muted hover:text-emerald-700 hover:bg-emerald-50 dark:hover:text-emerald-300 dark:hover:bg-emerald-500/15"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    </>
+                )}
                 {onReorder && (
                     <button
                         type="button"
@@ -275,6 +301,8 @@ function Tabs({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void })
 }
 
 function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo | null }) {
+    // The list row has no description; it is read for the supply on show.
+    const description = useProductDetails(supply.id).data?.description;
     const { t } = useLanguage();
     const { data: draftBySupply } = useDraftPosBySupply();
     const draft = draftBySupply?.get(supply.id);
@@ -344,7 +372,11 @@ function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo
                     />
                     <StatCell
                         label={t("supplies.sp.leadTime")}
-                        value={t("supplies.sp.leadDays", { count: reorder.leadTimeDays })}
+                        value={
+                            reorder.leadTimeIsDefault
+                                ? t("supplies.sp.leadDaysDefault", { count: reorder.leadTimeDays })
+                                : t("supplies.sp.leadDays", { count: reorder.leadTimeDays })
+                        }
                     />
                     <StatCell
                         label={t("supplies.sp.usesPerDay")}
@@ -373,12 +405,12 @@ function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo
                 </div>
             </div>
 
-            {supply.description && (
+            {description && (
                 <div className="pastel-card p-4">
                     <p className="text-[11px] uppercase tracking-wide text-muted font-medium mb-1">
                         {t("supplies.sp.description")}
                     </p>
-                    <p className="text-sm whitespace-pre-wrap">{supply.description}</p>
+                    <p dir="auto" className="text-sm text-left">{htmlToPlainText(description)}</p>
                 </div>
             )}
         </div>

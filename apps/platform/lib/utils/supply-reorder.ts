@@ -58,10 +58,15 @@ export interface ReorderState {
     belowReorder: boolean;
     reorderPoint: number;
     leadTimeDays: number;
+    /** No supplier gives a lead time: leadTimeDays is the 7-day default. */
+    leadTimeIsDefault: boolean;
     moq: number;
     dailyRate: number;
     daysUntilStockout: number | null;
 }
+
+/** Used when no supplier states a lead time; screens label it as an assumption. */
+export const DEFAULT_LEAD_TIME_DAYS = 7;
 
 /**
  * One rule for "does this supply need ordering", shared by the Reorder button
@@ -76,10 +81,12 @@ export function supplyReorderState(s: ReorderSupply, onOrder: number): ReorderSt
     const daysUntilStockout = dailyRate > 0 ? Math.round(available / dailyRate) : null;
     const suppliers = Array.isArray(s.suppliers) ? s.suppliers : [];
     const primary = suppliers.find((x) => x.is_primary) ?? suppliers[0] ?? null;
-    const leadTimeDays = primary?.lead_time_days ?? 7;
+    const leadTimeIsDefault = primary?.lead_time_days == null;
+    const leadTimeDays = primary?.lead_time_days ?? DEFAULT_LEAD_TIME_DAYS;
     const moq = primary?.minimum_order_quantity ?? 1;
 
-    const belowReorder = stock <= reorderPoint;
+    // Stock reserved for open orders is already spoken for: the free amount is what counts.
+    const belowReorder = available <= reorderPoint;
     const atRisk = daysUntilStockout !== null && daysUntilStockout <= leadTimeDays * 2;
     const low = belowReorder || atRisk;
     // Covered once what is arriving reaches the reorder point and lasts through
@@ -87,9 +94,9 @@ export function supplyReorderState(s: ReorderSupply, onOrder: number): ReorderSt
     const covered =
         low &&
         onOrder > 0 &&
-        stock + onOrder > reorderPoint &&
-        reorderShortfall({ leadTimeDays, dailyRate, reorderPoint, stock: stock + onOrder }) <= 0;
-    return { low, covered, needsOrder: low && !covered, belowReorder, reorderPoint, leadTimeDays, moq, dailyRate, daysUntilStockout };
+        available + onOrder > reorderPoint &&
+        reorderShortfall({ leadTimeDays, dailyRate, reorderPoint, stock: available + onOrder }) <= 0;
+    return { low, covered, needsOrder: low && !covered, belowReorder, reorderPoint, leadTimeDays, leadTimeIsDefault, moq, dailyRate, daysUntilStockout };
 }
 
 /**

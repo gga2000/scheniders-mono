@@ -131,7 +131,8 @@ export function ReorderDrawer({
 
             const suppliers = Array.isArray(s.suppliers) ? s.suppliers : [];
             const primary = suppliers.find((x) => x.is_primary) ?? suppliers[0] ?? null;
-            const stock = s.stock_quantity ?? 0;
+            // Reserved stock is spoken for: order against what is free.
+            const free = Math.max(0, (s.stock_quantity ?? 0) - (s.reserved_quantity ?? 0));
             // A supplier cost of 0 is "not set", not a price: fall back to the supply's own cost.
             const unitCost = Math.round(
                 primary?.unit_cost && primary.unit_cost > 0 ? primary.unit_cost : (s.cost ?? 0),
@@ -140,7 +141,7 @@ export function ReorderDrawer({
                 leadTimeDays,
                 dailyRate,
                 reorderPoint,
-                stock: stock + onOrder,
+                stock: free + onOrder,
                 moq,
             });
 

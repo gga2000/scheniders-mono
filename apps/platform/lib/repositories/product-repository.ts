@@ -4,7 +4,7 @@ import type { Product, ProductSupplier, ProductVariant, ProductPriceHistory } fr
 import { diag } from "@/lib/diag";
 import type { Json } from "@scheniders/supabase";
 import { fetchAllPages } from "./fetch-all-pages";
-import { PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
+import { PRODUCT_DETAIL_COLUMNS, PRODUCT_READ_COLUMNS, PRODUCT_WITH_VARIANTS_COLUMNS, VARIANT_READ_COLUMNS, SUPPLIER_READ_COLUMNS } from "./product-columns";
 
 /**
  * Stock is never part of a generic update. A product edit carries the stock it
@@ -153,6 +153,11 @@ async function setProductFields(
     if (error) throw error;
 }
 
+/** The fields the catalogue list leaves out; see PRODUCT_DETAIL_FIELDS. */
+export type ProductDetails = Pick<Product, "description" | "dimensions_json" | "feature_cards">;
+type ProductDetailsRow = ProductDetails & { id: string };
+const DETAIL_ID_CHUNK = 200;
+
 /**
  * ProductRepository — Centralized data access for products.
  */
@@ -212,6 +217,32 @@ export const productRepository = {
             if (error) throw error;
             return withCosts((data ?? []) as Product[], costs);
         });
+    },
+
+    /**
+     * The detail fields the list leaves out (description, dimensions, note
+     * cards), by product id: for one product's page, a copy, or the rows an
+     * export writes, not on every list load.
+     */
+    async findDetails(tenantId: string, ids: string[]): Promise<Map<string, ProductDetails>> {
+        const unique = [...new Set(ids)];
+        if (unique.length === 0) return new Map();
+        const rows: ProductDetailsRow[] = [];
+        // PostgREST puts `in` lists in the URL: keep each request short. Each
+        // chunk has its own retry budget, so a long export never restarts.
+        for (let i = 0; i < unique.length; i += DETAIL_ID_CHUNK) {
+            const chunk = unique.slice(i, i + DETAIL_ID_CHUNK);
+            rows.push(...(await withRetry('productRepository.findDetails', async () => {
+                const { data, error } = await supabase
+                    .from("products")
+                    .select(PRODUCT_DETAIL_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .in("id", chunk);
+                if (error) throw error;
+                return (data ?? []) as ProductDetailsRow[];
+            })));
+        }
+        return new Map(rows.map(({ id, ...details }) => [id, details]));
     },
 
     /**

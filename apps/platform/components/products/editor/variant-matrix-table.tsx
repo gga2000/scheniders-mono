@@ -53,6 +53,8 @@ interface VariantMatrixTableProps {
     onApplyToAll: (field: "price" | "cost" | "stock_quantity", value: number) => void;
     onDeleteVariants?: (indices: number[]) => void;
     productSku?: string;
+    /** Variant SKUs other products already use (variant SKUs are unique per store). */
+    takenSkus?: ReadonlySet<string>;
     productPrice: number;
     productCost: number;
     /** Cost and margin are for admins only (products.manage). */
@@ -87,6 +89,38 @@ const INPUT_BASE =
 // Helpers
 // ---------------------------------------------------------------------------
 
+interface SortableHeaderProps {
+    label: string;
+    sortKey: SortableColumn;
+    className?: string;
+    sortConfig: { key: SortableColumn; direction: "asc" | "desc" } | null;
+    onSort: (key: SortableColumn) => void;
+}
+
+/** A column header that sorts the matrix; outside the table so it is not remade each render. */
+function SortableHeader({ label, sortKey, className, sortConfig, onSort }: SortableHeaderProps) {
+    const active = sortConfig?.key === sortKey;
+    return (
+        <th
+            className={cn(TH, "cursor-pointer select-none hover:text-foreground transition-colors", className)}
+            onClick={() => onSort(sortKey)}
+        >
+            <span className="inline-flex items-center gap-1">
+                {label}
+                {active ? (
+                    sortConfig.direction === "asc" ? (
+                        <ChevronUp className="w-3 h-3" />
+                    ) : (
+                        <ChevronDown className="w-3 h-3" />
+                    )
+                ) : (
+                    <ArrowUpDown className="w-3 h-3 opacity-30" />
+                )}
+            </span>
+        </th>
+    );
+}
+
 function computeMargin(price: number, cost: number): number | null {
     if (!price || price === 0) return null;
     return ((price - cost) / price) * 100;
@@ -104,17 +138,29 @@ function stockIndicatorColor(
     return "bg-emerald-500";
 }
 
-function generateSkuForVariant(
+/**
+ * "<product SKU>-<option values>", each value in full (Green and Grey stay
+ * apart), then "-2", "-3"... until it is free. Variant SKUs are unique per
+ * store, so `taken` holds every SKU already in use, here and on other products.
+ */
+const NO_SKUS: ReadonlySet<string> = new Set();
+
+export function generateSkuForVariant(
     variant: VariantRowData,
     options: VariantMatrixTableProps["options"],
-    productSku?: string,
+    productSku: string | undefined,
+    taken: ReadonlySet<string>,
 ): string {
-    const base = productSku || "SKU";
-    const parts = options.map((opt) => {
-        const val = variant.option_values?.[opt.name] || "";
-        return val.substring(0, 3).toUpperCase().replace(/\s+/g, "");
-    });
-    return [base, ...parts].filter(Boolean).join("-");
+    const base = productSku?.trim() || "SKU";
+    const parts = options.map((opt) =>
+        (variant.option_values?.[opt.name] || "").toUpperCase().replace(/[^\p{L}\p{N}]+/gu, ""),
+    );
+    const sku = [base, ...parts].filter(Boolean).join("-");
+    if (!taken.has(sku)) return sku;
+    for (let n = 2; ; n++) {
+        const candidate = `${sku}-${n}`;
+        if (!taken.has(candidate)) return candidate;
+    }
 }
 
 function getColorHex(
@@ -138,6 +184,7 @@ export function VariantMatrixTable({
     onApplyToAll,
     onDeleteVariants,
     productSku,
+    takenSkus = NO_SKUS,
     productPrice,
     productCost,
     showCost = true,
@@ -469,12 +516,15 @@ export function VariantMatrixTable({
 
     const bulkGenerateSkus = useCallback(() => {
         const targets = hasSelection ? selectedArray : variants.map((_, i) => i);
+        const targetSet = new Set(targets);
+        // Rows not being regenerated keep their SKUs; each new one is added as it is made.
+        const taken = new Set([...takenSkus, ...variants.flatMap((v, i) => (!targetSet.has(i) && v.sku ? [v.sku] : []))]);
         targets.forEach((i) => {
-            onUpdateVariant(i, {
-                sku: generateSkuForVariant(variants[i], options, productSku),
-            });
+            const sku = generateSkuForVariant(variants[i], options, productSku, taken);
+            taken.add(sku);
+            onUpdateVariant(i, { sku });
         });
-    }, [hasSelection, selectedArray, variants, options, productSku, onUpdateVariant]);
+    }, [hasSelection, selectedArray, variants, options, productSku, takenSkus, onUpdateVariant]);
 
     const bulkDelete = useCallback(() => {
         if (!onDeleteVariants) return;
@@ -486,36 +536,6 @@ export function VariantMatrixTable({
     // Sort header helper
     // -----------------------------------------------------------------------
 
-    function SortableHeader({
-        label,
-        sortKey,
-        className,
-    }: {
-        label: string;
-        sortKey: SortableColumn;
-        className?: string;
-    }) {
-        const active = sortConfig?.key === sortKey;
-        return (
-            <th
-                className={cn(TH, "cursor-pointer select-none hover:text-foreground transition-colors", className)}
-                onClick={() => toggleSort(sortKey)}
-            >
-                <span className="inline-flex items-center gap-1">
-                    {label}
-                    {active ? (
-                        sortConfig.direction === "asc" ? (
-                            <ChevronUp className="w-3 h-3" />
-                        ) : (
-                            <ChevronDown className="w-3 h-3" />
-                        )
-                    ) : (
-                        <ArrowUpDown className="w-3 h-3 opacity-30" />
-                    )}
-                </span>
-            </th>
-        );
-    }
 
     // -----------------------------------------------------------------------
     // Render
@@ -931,6 +951,8 @@ export function VariantMatrixTable({
 
                                     {/* Enable toggle */}
                                     <SortableHeader
+                                        sortConfig={sortConfig}
+                                        onSort={toggleSort}
                                         label={t("products.vm.on")}
                                         sortKey="is_enabled"
                                         className="w-16"
@@ -944,23 +966,31 @@ export function VariantMatrixTable({
                                     ))}
 
                                     <SortableHeader
+                                        sortConfig={sortConfig}
+                                        onSort={toggleSort}
                                         label={`${t("products.vm.price")} (IQD)`}
                                         sortKey="price"
                                         className="text-left"
                                     />
                                     {showCost && (
                                         <SortableHeader
+                                            sortConfig={sortConfig}
+                                            onSort={toggleSort}
                                             label={`${t("products.vm.cost")} (IQD)`}
                                             sortKey="cost"
                                             className="text-left"
                                         />
                                     )}
                                     <SortableHeader
+                                        sortConfig={sortConfig}
+                                        onSort={toggleSort}
                                         label={t("products.vm.stock")}
                                         sortKey="stock_quantity"
                                         className="text-left"
                                     />
                                     <SortableHeader
+                                        sortConfig={sortConfig}
+                                        onSort={toggleSort}
                                         label="SKU"
                                         sortKey="sku"
                                         className="text-left"
@@ -972,6 +1002,8 @@ export function VariantMatrixTable({
                                     )}
                                     {showCost && (
                                         <SortableHeader
+                                            sortConfig={sortConfig}
+                                            onSort={toggleSort}
                                             label={t("products.vm.margin")}
                                             sortKey="margin"
                                             className="text-left"
@@ -1271,6 +1303,7 @@ export function VariantMatrixTable({
                                                                         variant,
                                                                         options,
                                                                         productSku,
+                                                                        new Set([...takenSkus, ...variants.flatMap((v, i) => (i !== index && v.sku ? [v.sku] : []))]),
                                                                     ),
                                                                 })
                                                             }

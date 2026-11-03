@@ -2,6 +2,7 @@ import { Product, Order } from "@/lib/supabase";
 import { formatIQD } from "@/lib/utils";
 import type { Locale } from "@/lib/i18n";
 import { courierSheet, courierWorkbook, type CourierCompany } from "@/lib/shipping/courier-sheets";
+import { htmlToPlainText } from "@/lib/utils/html-to-plain-text";
 
 export { cleanPhoneForExport } from "@/lib/shipping/courier-sheets";
 
@@ -123,18 +124,6 @@ export function exportToCSV(
 
     // The BOM makes Excel read the file as UTF-8, so Arabic names stay readable.
     downloadFile(`\uFEFF${csvContent}`, `${filename}.csv`, "text/csv;charset=utf-8;");
-}
-
-/** Rich-text descriptions are HTML; a spreadsheet cell wants the words only. */
-function htmlToPlainText(html: string): string {
-    return html
-        .replace(/<[^>]*>/g, " ")
-        .replace(/&nbsp;/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/\s+/g, " ")
-        .trim();
 }
 
 /** Quote a CSV cell; a leading = + - @ would run as a formula in Excel, so prefix it with a quote mark. */

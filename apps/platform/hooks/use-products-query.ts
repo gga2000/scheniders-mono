@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { type Product, type ProductVariant, type ProductPriceHistory } from "@/lib/supabase";
-import { productRepository, type ProductUpdate, type VariantUpdate } from "@/lib/repositories/product-repository";
+import { productRepository, type ProductDetails, type ProductUpdate, type VariantUpdate } from "@/lib/repositories/product-repository";
 import { CACHE_PRESETS } from '@/lib/query-config';
 import { useAuth } from "@/components/auth/auth-provider";
 import { diag } from "@/lib/diag";
@@ -100,6 +100,28 @@ export function useProductsQuery() {
 }
 
 /**
+ * One product's detail fields (description, dimensions, note cards), which the
+ * list leaves out. Read fresh each time a page opens it, so an editor never
+ * starts from text saved over since. `undefined` while loading; null when the
+ * product is gone.
+ */
+export function useProductDetails(productId: string | null | undefined) {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: [...productKeys.detail(productId ?? ""), "fields", tenantId],
+        queryFn: async (): Promise<ProductDetails | null> => {
+            if (!tenantId || !productId) return null;
+            const found = await productRepository.findDetails(tenantId, [productId]);
+            return found.get(productId) ?? null;
+        },
+        enabled: !!tenantId && !!productId,
+        staleTime: 0,
+        gcTime: 0,
+        refetchOnWindowFocus: false,
+    });
+}
+
+/**
  * Prefetch products for instant navigation
  */
 export function usePrefetchProducts() {
@@ -123,10 +145,10 @@ export function useAddProductMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async (productData: Parameters<typeof productRepository.create>[0]) => {
-            return productRepository.create(productData, tenantId);
+        mutationFn: async ({ data }: { data: Parameters<typeof productRepository.create>[0]; refresh?: boolean }) => {
+            return productRepository.create(data, tenantId);
         },
-        onSuccess: (created) => refreshProductRows(queryClient, tenantId, [created.id]),
+        onSuccess: (created, { refresh }) => (refresh === false ? undefined : refreshProductRows(queryClient, tenantId, [created.id])),
     });
 }
 

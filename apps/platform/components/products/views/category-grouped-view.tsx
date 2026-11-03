@@ -592,7 +592,7 @@ interface CategorySectionProps {
     isCollapsed: boolean;
     onToggleCollapse: () => void;
     onAddProducts: () => void;
-    t: (key: string, params?: Record<string, any>) => string;
+    t: ReturnType<typeof useLanguage>["t"];
     children: React.ReactNode;
 }
 

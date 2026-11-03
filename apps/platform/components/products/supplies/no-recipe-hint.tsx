@@ -1,10 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
-import { ListChecks } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ListChecks, X } from "lucide-react";
 import type { Product } from "@/lib/supabase";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useProductsWithRecipe } from "@/hooks/use-products-with-recipe";
+import { useAuth } from "@/components/auth/auth-provider";
+
+/** Only shipped goods use packaging: digital and service products never need a recipe. */
+const NEEDS_RECIPE: ReadonlySet<Product["product_type"]> = new Set(["physical", "bundle"]);
 
 interface NoRecipeHintProps {
     products: Product[];
@@ -14,20 +18,45 @@ interface NoRecipeHintProps {
 
 /**
  * Supplies are deducted only through recipes: a product without one uses no
- * supplies when it ships. Says how many active products have none, and opens
- * the first so a recipe can be added.
+ * supplies when it ships. Says how many active shipped products have none,
+ * and opens the best seller among them so a recipe can be added. Dismissed,
+ * it stays hidden until more products lack a recipe than when it was closed.
  */
 export function NoRecipeHint({ products, onOpenProduct }: NoRecipeHintProps) {
     const { t } = useLanguage();
     const textDir = useTextDir();
+    const { tenantId } = useAuth();
     const { data: withRecipe } = useProductsWithRecipe();
+    const storageKey = `products.noRecipeHint.dismissedCount:${tenantId ?? ""}`;
+    const [dismissedCount, setDismissedCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        // Storage can be blocked (private window): then the hint simply shows.
+        try {
+            const saved = Number(localStorage.getItem(storageKey));
+            setDismissedCount(Number.isFinite(saved) && saved > 0 ? saved : null);
+        } catch {
+            setDismissedCount(null);
+        }
+    }, [storageKey]);
 
     const missing = useMemo(() => {
         if (!withRecipe) return [];
-        return products.filter((p) => !p.is_supply && !p.is_archived && p.status !== "archived" && !withRecipe.has(p.id));
+        return products
+            .filter((p) => !p.is_supply && !p.is_archived && p.status !== "archived" && NEEDS_RECIPE.has(p.product_type ?? "physical") && !withRecipe.has(p.id))
+            .sort((a, b) => (b.times_sold_30d ?? 0) - (a.times_sold_30d ?? 0));
     }, [products, withRecipe]);
 
-    if (missing.length === 0) return null;
+    if (missing.length === 0 || (dismissedCount !== null && missing.length <= dismissedCount)) return null;
+
+    const dismiss = () => {
+        setDismissedCount(missing.length);
+        try {
+            localStorage.setItem(storageKey, String(missing.length));
+        } catch {
+            // Not remembered across visits; hidden for this one.
+        }
+    };
 
     return (
         <div className="flex items-center gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3">
@@ -44,6 +73,15 @@ export function NoRecipeHint({ products, onOpenProduct }: NoRecipeHintProps) {
                     <span dir={textDir}>{t("supplies.noRecipe.cta", { name: missing[0].name })}</span>
                 </button>
             )}
+            <button
+                type="button"
+                onClick={dismiss}
+                aria-label={t("supplies.noRecipe.dismiss")}
+                title={t("supplies.noRecipe.dismiss")}
+                className="shrink-0 rounded-lg p-1.5 text-muted hover:bg-[var(--background)] hover:text-foreground"
+            >
+                <X className="w-3.5 h-3.5" />
+            </button>
         </div>
     );
 }
