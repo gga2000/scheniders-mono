@@ -367,7 +367,7 @@ export function registerOrderWriteTools(server: McpServer): void {
         description:
             "Create a COD delivery order, exactly like the New order form: products come from the catalog (use list_products for ids), " +
             "lines carry the product's short name and the catalog price (or the price given for the line), the order starts as confirmed, plan limits and billing apply, and the store's order number is assigned. " +
-            "`price` stored = items total minus discount; the delivery fee is separate (default 5,000 IQD).",
+            "`price` stored = items total minus discount; the delivery fee is separate and defaults to 0 (the store ships free); only set delivery_fee when the user gives one.",
         input: z.object({
             customer_name: z.string().trim().min(1).max(120),
             phone: z.string().trim().min(7).max(30),
@@ -376,7 +376,7 @@ export function registerOrderWriteTools(server: McpServer): void {
             address_details: z.string().trim().min(1).max(500),
             items: z.array(orderLineInputSchema).min(1).max(50),
             source: orderSourceSchema.default("other").describe("Where the order came from (whatsapp, meta, tiktok, telegram, shop, ...)"),
-            delivery_fee: z.number().int().min(0).max(1_000_000).default(5000),
+            delivery_fee: z.number().int().min(0).max(1_000_000).default(0),
             discount: z.number().int().min(0).max(100_000_000).default(0),
             notes: z.string().max(1000).optional(),
             confirm: z.boolean().default(false).describe("false returns a preview; true creates the order"),
