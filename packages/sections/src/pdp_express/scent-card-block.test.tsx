@@ -122,6 +122,13 @@ describe("scent_layout card — Wayfarer as the draft has it", () => {
     expect(card).not.toContain("🫐");
   });
 
+  it("a note card with no body shows its photo and title without an empty paragraph", () => {
+    const bare = { ...wayferProduct, feature_cards: [{ title: "نعناع بارد", body: "", image_url: "/scent-notes/mint.webp" }] };
+    const sheet = cardOf(render(CARD_PROPS, bare));
+    expect(sheet).toContain(">نعناع بارد<");
+    expect(sheet).not.toContain('text-xs leading-relaxed text-bk-ink-soft"></p>');
+  });
+
   it("keeps yellow out and adds no dir attribute", () => {
     expect(card).not.toMatch(/bg-bk-primary|text-bk-primary/);
     expect(card).not.toContain('dir="');

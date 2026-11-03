@@ -344,7 +344,7 @@ export function ScentCardBlock({
                         )}
                         <div className={cn("min-w-0", align)}>
                           <p className="font-bk-body text-sm font-bold text-bk-ink">{c.title}</p>
-                          <p className="font-bk-body text-xs leading-relaxed text-bk-ink-soft">{c.body}</p>
+                          {c.body && <p className="font-bk-body text-xs leading-relaxed text-bk-ink-soft">{c.body}</p>}
                         </div>
                       </li>
                     ))}
