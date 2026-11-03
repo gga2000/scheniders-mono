@@ -128,15 +128,16 @@ describe("stock", () => {
     });
 
     it("asks which variant for a product that has variants", async () => {
-        const res = await call("adjust_stock", { product: "T-shirt", change: 1, reason: "received", confirm: false });
+        const res = await call("adjust_stock", { product: "T-shirt", change: 1, reason: "received" });
         expect(res.isError).toBe(true);
         expect(res.text).toContain("has variants; say which one: Red");
         expect(rpcCalls).toHaveLength(0);
     });
 
-    it("previews stock going below zero", async () => {
-        const res = await call("adjust_stock", { product: "T-shirt", variant: "red", change: -5, reason: "damaged", confirm: false });
-        expect(res.text).toContain("stock 3 → -2");
+    it("refuses to take stock below zero, saying what is in stock", async () => {
+        const res = await call("adjust_stock", { product: "T-shirt", variant: "red", change: -5, reason: "damaged" });
+        expect(res.isError).toBe(true);
+        expect(res.text).toContain("has 3 in stock, so 5 cannot be removed");
         expect(rpcCalls).toHaveLength(0);
     });
 
