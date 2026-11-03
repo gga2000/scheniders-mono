@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calcSuggestedQty, reorderShortfall, urgencyFor } from "./supply-reorder";
+import { calcSuggestedQty, reorderShortfall, urgencyFor, supplyReorderState } from "./supply-reorder";
 
 describe("calcSuggestedQty", () => {
     it("covers lead time with a 1.3 safety factor plus the gap to the reorder point", () => {
@@ -39,5 +39,32 @@ describe("urgencyFor", () => {
     it("is ok beyond that, and when there is no consumption", () => {
         expect(urgencyFor(30, 7)).toBe("ok");
         expect(urgencyFor(null, 7)).toBe("ok");
+    });
+});
+
+describe("supplyReorderState", () => {
+    const base = { stock_quantity: 3, reorder_point: 10, times_sold_30d: 30, suppliers: [{ is_primary: true, lead_time_days: 5 }] };
+
+    it("needs ordering when below the reorder point and nothing is on order", () => {
+        const s = supplyReorderState(base, 0);
+        expect(s).toMatchObject({ low: true, covered: false, needsOrder: true, leadTimeDays: 5, dailyRate: 1 });
+    });
+
+    it("is covered once an open PO lifts stock past the point and through the lead time", () => {
+        expect(supplyReorderState(base, 20)).toMatchObject({ low: true, covered: true, needsOrder: false });
+    });
+
+    it("still needs ordering when the open PO is too small", () => {
+        expect(supplyReorderState(base, 5).needsOrder).toBe(true);
+    });
+
+    it("flags a supply above its point that runs out within two lead times", () => {
+        const s = supplyReorderState({ ...base, stock_quantity: 16, times_sold_30d: 60 }, 0);
+        expect(s).toMatchObject({ belowReorder: false, low: true, needsOrder: true, daysUntilStockout: 8 });
+    });
+
+    it("is fine when well stocked with no usage", () => {
+        const s = supplyReorderState({ stock_quantity: 50, reorder_point: 10 }, 0);
+        expect(s).toMatchObject({ low: false, needsOrder: false, daysUntilStockout: null, leadTimeDays: 7, moq: 1 });
     });
 });

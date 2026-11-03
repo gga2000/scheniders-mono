@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Infinity as InfinityIcon } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
 interface DaysOfSupplyPillProps {
@@ -64,11 +63,9 @@ export function DaysOfSupplyPill({
                     t.text
                 )}
             >
-                {days === null ? (
-                    <InfinityIcon className={cn(big ? "w-5 h-5" : "w-3.5 h-3.5", "inline-block -mt-0.5")} />
-                ) : (
-                    tr("supplies.sp.leadDays", { count: days })
-                )}
+                {/* No usage yet means "unknown", not "lasts forever": a supply
+                    below its reorder point must never read as infinite. */}
+                {days === null ? "—" : tr("supplies.sp.leadDays", { count: days })}
             </span>
             {trend && days !== null && <TrendGlyph direction={trend} />}
         </div>

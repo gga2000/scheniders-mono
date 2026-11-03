@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import type { PurchaseOrderTransition } from "@/lib/repositories/purchase-orders";
 import { PoReceiveDialog } from "./po-receive-dialog";
+import { PoSendConfirmDialog } from "./po-send-confirm-dialog";
 
 interface PoActionsProps {
     poId: string;
@@ -25,6 +26,7 @@ export function PoActions({ poId, poNumber, status }: PoActionsProps) {
     const { changeStatus } = usePurchaseOrderActions();
     const [receiveOpen, setReceiveOpen] = useState(false);
     const [cancelOpen, setCancelOpen] = useState(false);
+    const [sendOpen, setSendOpen] = useState(false);
 
     const canReceive = status === "sent" || status === "confirmed" || status === "partial";
     const canCancel = canReceive || status === "draft";
@@ -36,6 +38,7 @@ export function PoActions({ poId, poNumber, status }: PoActionsProps) {
                 onSuccess: () => {
                     toast.success(t(toastKey, { number: poNumber }));
                     setCancelOpen(false);
+                    setSendOpen(false);
                 },
                 onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
             }
@@ -47,7 +50,7 @@ export function PoActions({ poId, poNumber, status }: PoActionsProps) {
         <>
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 {status === "draft" && (
-                    <button type="button" className={BUTTON} disabled={changeStatus.isPending} onClick={() => move("sent", "supplies.po.sentToast")}>
+                    <button type="button" className={BUTTON} disabled={changeStatus.isPending} onClick={() => setSendOpen(true)}>
                         <Send className="w-3 h-3" />
                         {t("supplies.po.send")}
                     </button>
@@ -71,6 +74,17 @@ export function PoActions({ poId, poNumber, status }: PoActionsProps) {
                     </button>
                 )}
             </div>
+
+            {status === "draft" && sendOpen && (
+                <PoSendConfirmDialog
+                    open
+                    onOpenChange={setSendOpen}
+                    poId={poId}
+                    poNumber={poNumber}
+                    sending={changeStatus.isPending}
+                    onSend={() => move("sent", "supplies.po.sentToast")}
+                />
+            )}
 
             {canReceive && (
                 <PoReceiveDialog open={receiveOpen} onOpenChange={setReceiveOpen} poId={poId} poNumber={poNumber} />

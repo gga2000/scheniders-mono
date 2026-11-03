@@ -31,6 +31,7 @@ import { SuppliersGrid } from "@/components/products/supplies/suppliers-grid";
 import { SupplierDetailDrawer } from "@/components/products/supplies/supplier-detail-drawer";
 import { SupplyDetailDrawer } from "@/components/products/supplies/supply-detail-drawer";
 import { ActionsFeed } from "@/components/products/supplies/actions-feed";
+import { supplyReorderState } from "@/lib/utils/supply-reorder";
 import { SuppliesBulkActionsBar } from "@/components/products/supplies/supplies-bulk-actions-bar";
 import { useOpenPosBySupply } from "@/hooks/use-open-pos-by-supply";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
@@ -233,15 +234,17 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         }
     }, [section, selectedIds.size]);
 
-    const reorderCandidateCount = useMemo(() => {
-        let count = 0;
+    // One "needs ordering" rule for the Reorder badge, KPI strip, Today's
+    // Actions and the reorder drawer, so the four never disagree.
+    const needsOrderIds = useMemo(() => {
+        const ids = new Set<string>();
         for (const s of supplies) {
-            const stock = (s.stock_quantity ?? 0) + (openPoBySupply?.get(s.id)?.quantity ?? 0);
-            const rp = s.reorder_point ?? s.low_stock_threshold ?? 5;
-            if (stock <= rp && !snoozedIds.has(s.id)) count++;
+            if (snoozedIds.has(s.id)) continue;
+            if (supplyReorderState(s, openPoBySupply?.get(s.id)?.quantity ?? 0).needsOrder) ids.add(s.id);
         }
-        return count;
+        return ids;
     }, [supplies, snoozedIds, openPoBySupply]);
+    const reorderCandidateCount = needsOrderIds.size;
 
     const supplyMeta = useMemo(() => {
         const leadMap = new Map<string, number>();
@@ -503,6 +506,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                 <ActionsFeed
                     supplies={supplies}
                     historyBySupply={historyBySupply ?? new Map()}
+                    needsOrderIds={needsOrderIds}
                     onOpenSupply={handleOpenDetailFor}
                     onOpenReorder={() => setReorderOpen(true)}
                 />
@@ -536,7 +540,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
 
                     {!dashboardCollapsed && (
                         <>
-                            <SuppliesKpiStrip supplies={supplies} />
+                            <SuppliesKpiStrip supplies={supplies} needsOrderCount={reorderCandidateCount} />
                             <LowStockAlert products={supplies} onViewProduct={onEdit} />
                         </>
                     )}
