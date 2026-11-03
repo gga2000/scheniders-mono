@@ -54,7 +54,8 @@ function serve(q: RecordedQuery, fail: (q: RecordedQuery) => QueryResult | null)
     if (isHeadCount(q)) return { data: null, error: null, count: book.length, status: 200 };
     if (q.target === "orders" && hasEq(q, "is_pinned", true)) return { data: [], error: null, status: 200 };
     const range = rangeOf(q);
-    if (range) return { data: book.slice(range[0], range[1] + 1), error: null, status: 200 };
+    const counted = (op(q, "select")?.args[1] as { count?: string } | undefined)?.count === "exact";
+    if (range) return { data: book.slice(range[0], range[1] + 1), error: null, status: 200, ...(counted ? { count: book.length } : {}) };
     const limit = op(q, "limit")?.args[0] as number | undefined;
     return { data: book.slice(0, limit ?? book.length), error: null, count: book.length, status: 200 };
 }
@@ -114,7 +115,39 @@ describe("a list page that fails in transit is re-read on its own", () => {
 
         expect(rows).toHaveLength(ROWS.length);
         expect(recorded.filter(isOrderPage)).toHaveLength(4);
-        expect(recorded.filter((q) => q.target === "orders" && isHeadCount(q))).toHaveLength(1);
+        // The count rides on the first page: no separate count HEAD.
+        expect(recorded.filter((q) => q.target === "orders" && isHeadCount(q))).toHaveLength(0);
+    });
+
+    it("narrow read: the first page carries the count, the rest follow it", async () => {
+        respond((q) => serve(q, () => null));
+        const rows = await orderRepository.findWindow(TENANT, NARROW);
+
+        expect(rows.map((r) => r.id)).toEqual(ROWS.map((r) => r.id));
+        const pages = recorded.filter(isOrderPage);
+        expect(pages.map((q) => rangeOf(q)?.[0])).toEqual([0, 1000, 2000]);
+        expect(op(pages[0], "select")?.args[1]).toEqual({ count: "exact" });
+        expect(op(pages[1], "select")?.args[1]).toBeUndefined();
+    });
+
+    it("narrow read that fits one page: a single orders request", async () => {
+        respond((q) => {
+            if (q.target === "customer_trust") return { data: [], error: null, status: 200 };
+            return { data: ROWS.slice(0, 40), error: null, status: 200, count: 40 };
+        });
+        const rows = await orderRepository.findWindow(TENANT, NARROW);
+
+        expect(rows).toHaveLength(40);
+        expect(recorded.filter((q) => q.target === "orders")).toHaveLength(1);
+    });
+
+    it("an empty narrow window: one request, no rows", async () => {
+        respond(() => ({ data: [], error: null, status: 200, count: 0 }));
+        const rows = await orderRepository.findWindow(TENANT, NARROW);
+
+        expect(rows).toEqual([]);
+        expect(recorded.filter((q) => q.target === "orders")).toHaveLength(1);
+        expect(recorded.filter((q) => q.target === "customer_trust")).toHaveLength(0);
     });
 
     it("trust book page: the same", async () => {
