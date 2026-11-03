@@ -19,20 +19,19 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { exportSuppliesToCsv } from "@/lib/utils/supply-csv-export";
 import { useLanguage } from "@/hooks/use-language";
+import type { BulkProductFields } from "@/lib/repositories/product-repository";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 
 type PopoverKind = null | "reorder" | "category" | "adjust";
 
-type SupplyPatch = {
-    reorder_point?: number | null;
-    category_id?: string | null;
-    is_archived?: boolean;
-};
+type SupplyPatch = Pick<BulkProductFields, "reorder_point" | "category_id" | "is_archived">;
 
 interface SuppliesBulkActionsBarProps {
     selected: Product[];
     categories: Category[];
     onClear: () => void;
-    updateProduct: (id: string, patch: SupplyPatch) => Promise<void>;
+    /** Writes the same patch to every selected supply in one all-or-nothing call. */
+    setFields: (ids: string[], patch: SupplyPatch) => Promise<void>;
     /** Adds or removes units on the current stock (never an absolute write). */
     adjustStock: (id: string, delta: number) => Promise<unknown>;
 }
@@ -41,7 +40,7 @@ export function SuppliesBulkActionsBar({
     selected,
     categories,
     onClear,
-    updateProduct,
+    setFields,
     adjustStock,
 }: SuppliesBulkActionsBarProps) {
     const { t } = useLanguage();
@@ -61,8 +60,24 @@ export function SuppliesBulkActionsBar({
 
     const selectedCount = selected.length;
 
-    const runPatch = (patchFor: (supply: Product) => SupplyPatch, successLabel: string) =>
-        runBulk((supply) => updateProduct(supply.id, patchFor(supply)), successLabel);
+    const runPatch = async (patch: SupplyPatch, successLabel: string) => {
+        if (busy || selectedCount === 0) return;
+        setBusy(true);
+        try {
+            await setFields(selected.map((s) => s.id), patch);
+            toast.success(
+                successLabel,
+                selectedCount === 1 ? t("supplies.bulk.suppliesUpdatedOne") : t("supplies.bulk.suppliesUpdated", { count: selectedCount }),
+            );
+            setOpenPopover(null);
+            onClear();
+        } catch (error) {
+            // One statement for the whole selection: nothing was changed.
+            toast.error(t("supplies.bulk.failed", { label: successLabel }), t(productWriteErrorKey(error)));
+        } finally {
+            setBusy(false);
+        }
+    };
 
     const runBulk = async (
         writeFor: (supply: Product) => Promise<unknown> | null,
@@ -150,7 +165,7 @@ export function SuppliesBulkActionsBar({
                             <ReorderPointForm
                                 busy={busy}
                                 onSubmit={(value) =>
-                                    runPatch(() => ({ reorder_point: value }), t("supplies.bulk.reorderPointSet"))
+                                    runPatch({ reorder_point: value }, t("supplies.bulk.reorderPointSet"))
                                 }
                             />
                         </PopoverButton>
@@ -168,7 +183,7 @@ export function SuppliesBulkActionsBar({
                                 categories={categories}
                                 onSubmit={(categoryId) =>
                                     runPatch(
-                                        () => ({ category_id: categoryId }),
+                                        { category_id: categoryId },
                                         t("supplies.bulk.categoryUpdated"),
                                     )
                                 }
@@ -213,7 +228,7 @@ export function SuppliesBulkActionsBar({
                         <button
                             type="button"
                             onClick={() =>
-                                runPatch(() => ({ is_archived: true }), t("supplies.bulk.archived"))
+                                runPatch({ is_archived: true }, t("supplies.bulk.archived"))
                             }
                             disabled={busy}
                             className={cn(

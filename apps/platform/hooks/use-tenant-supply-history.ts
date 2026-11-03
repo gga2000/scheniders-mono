@@ -28,8 +28,11 @@ export function useTenantSupplyHistory(supplyIds: string[]) {
             if (!tenantId) return new Map();
             // Supplies' rows only, read in pages: a whole-tenant read capped at 5000
             // rows silently dropped older supply movements once orders piled up.
+            // The function orders by (created_at, id); no client re-sort, which
+            // would drop the id tie-break and let rows with the same time move
+            // between pages (one counted twice, another skipped).
             const rows = await fetchAllPages<SupplyHistoryRow>((from, to) =>
-                supabase.rpc("supply_history_30d", { p_tenant_id: tenantId }).order("created_at", { ascending: false }).range(from, to)
+                supabase.rpc("supply_history_30d", { p_tenant_id: tenantId }).range(from, to)
             );
             const out = new Map<string, HistoryEntry[]>();
             for (const row of rows) {
