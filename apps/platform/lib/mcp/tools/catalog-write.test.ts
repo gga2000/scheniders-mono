@@ -79,16 +79,14 @@ beforeEach(() => {
 });
 
 describe("update_product", () => {
-    it("changes the price by name in the caller's store only, with price history and product activity", async () => {
+    it("changes the price by name in the caller's store only, with product activity (price history is a DB trigger)", async () => {
         const res = await call("update_product", { product: "vitamin c serum", price: 30000, confirm: false });
         expect(res.isError).toBe(false);
         expect(env.tables.products[0].price).toBe(30000);
         expect(env.tables.products[1].price).toBe(25000);
         const patch = env.calls.find((c) => c.table === "products" && c.op === "update");
         expect(patch?.filters).toEqual(expect.arrayContaining([`tenant_id=${STORE}`, `id=${SERUM}`]));
-        expect(env.tables.product_price_history).toEqual([
-            expect.objectContaining({ product_id: SERUM, tenant_id: STORE, old_price: 25000, new_price: 30000, changed_by: "Ali (via Claude)" }),
-        ]);
+        expect(env.calls.some((c) => c.table === "product_price_history")).toBe(false);
         expect(env.tables.product_activity_log[0]).toMatchObject({ action: "price_changed", tenant_id: STORE, user_id: "u1" });
     });
 
