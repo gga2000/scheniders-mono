@@ -43,9 +43,14 @@ export function StockoutEtaBadge({
         : "bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30";
     const Icon = isCritical ? AlertTriangle : Clock;
 
+    // Amber only for sitting at the reorder point, with stock for a while yet:
+    // say that, not a far-off day count that reads as a warning.
+    const reorderOnly = status === "low" && daysUntilStockout > leadTimeDays * 2;
     const label =
         daysUntilStockout <= 0
             ? t("supplies.eta.outNow")
+            : reorderOnly
+            ? t("supplies.eta.belowReorder")
             : t("supplies.eta.runsOut", { days: t("supplies.sp.leadDays", { count: daysUntilStockout }) });
 
     return (

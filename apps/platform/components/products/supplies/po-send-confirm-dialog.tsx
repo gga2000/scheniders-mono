@@ -83,14 +83,14 @@ export function PoSendConfirmDialog({ open, onOpenChange, poId, poNumber, sendin
                         ))}
                         {total !== null && (
                             <li className="flex items-center justify-between gap-3 px-3 py-2 text-sm font-semibold">
-                                <span>{t("products.stock.tip.total")}</span>
+                                <span>{t("supplies.po.total")}</span>
                                 <span className="tabular-nums">{formatIQD(total)}</span>
                             </li>
                         )}
                     </ul>
                 )}
 
-                <DialogFooter className="gap-2">
+                <DialogFooter className="gap-2 mt-4 pt-4">
                     <button
                         type="button"
                         onClick={() => onOpenChange(false)}

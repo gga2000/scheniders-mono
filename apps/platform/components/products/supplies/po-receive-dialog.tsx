@@ -259,7 +259,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     </div>
                 )}
 
-                <DialogFooter className="gap-2">
+                <DialogFooter className="gap-2 mt-4 pt-4">
                     {canFillAll && (
                     <button
                         type="button"

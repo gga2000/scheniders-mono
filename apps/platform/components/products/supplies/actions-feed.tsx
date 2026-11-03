@@ -96,7 +96,7 @@ export function ActionsFeed({
     onOpenSupply,
     onOpenReorder,
 }: ActionsFeedProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const textDir = useTextDir();
     const [collapsed, setCollapsed] = useState<boolean>(true);
     const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -170,8 +170,15 @@ export function ActionsFeed({
         const toOrder = supplies
             .filter((s) => needsOrderIds.has(s.id))
             .sort((a, b) => (etaOf(a) ?? Infinity) - (etaOf(b) ?? Infinity));
-        // One card per draft PO: its supplies are reviewed and sent together.
+        // One card per draft PO: its supplies are reviewed and sent together,
+        // and the card names every one of them.
         const draftsShown = new Set<string>();
+        const draftNames = new Map<string, string[]>();
+        for (const s of toOrder) {
+            const ref = draftBySupply?.get(s.id);
+            if (ref) draftNames.set(ref.id, [...(draftNames.get(ref.id) ?? []), s.name]);
+        }
+        const listSep = language === "ar" ? "، " : ", ";
         for (const s of toOrder) {
             // The supply card's own rule (lead time defaults to 7 days), so the
             // feed and the card never disagree on red.
@@ -190,7 +197,7 @@ export function ActionsFeed({
                 ? t("supplies.af.stockoutDetail", { eta: t("supplies.sp.leadDays", { count: eta ?? 0 }), lead: t("supplies.sp.leadDays", { count: leadTime }) })
                 : eta != null
                 ? t("supplies.af.supplyLeft", { eta: t("supplies.sp.leadDays", { count: eta }) })
-                : t("supplies.af.atReorderPoint", { rp });
+                : t("supplies.af.noUsageDetail");
             const draftRef = draftBySupply?.get(s.id);
             const draftNumber = draftRef?.number;
             // Still counted as seen, so it does not come back as a spike or dead-stock card.
@@ -202,7 +209,7 @@ export function ActionsFeed({
                     supply: s,
                     kind: "reorder",
                     title: t("supplies.af.inDraft", { number: draftNumber }),
-                    detail: t("supplies.af.inDraftDetail"),
+                    detail: t("supplies.af.inDraftDetail", { names: (draftNames.get(draftRef?.id ?? "") ?? [s.name]).join(listSep) }),
                     tone: "amber",
                     icon: ShoppingCart,
                     ctaLabel: t("supplies.af.review"),
@@ -295,7 +302,7 @@ export function ActionsFeed({
         }
 
         return out.slice(0, 6);
-    }, [supplies, historyBySupply, needsOrderIds, driftedSuppliers, draftBySupply, dismissed, t]);
+    }, [supplies, historyBySupply, needsOrderIds, driftedSuppliers, draftBySupply, dismissed, t, language]);
 
     const dismissAction = (id: string) => {
         setDismissed((prev) => {

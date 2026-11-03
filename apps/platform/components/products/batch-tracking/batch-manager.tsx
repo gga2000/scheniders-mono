@@ -9,8 +9,6 @@ import {
     Calendar,
     Hash,
     AlertTriangle,
-    ChevronDown,
-    ChevronUp,
     X,
     Loader2,
 } from "lucide-react";
@@ -209,7 +207,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
             cost_per_unit: showCost && form.cost_per_unit ? parseFloat(form.cost_per_unit) : null,
             notes: form.notes || null,
             status: "active",
-            tenant_id: tenantId!,
+            tenant_id: tenantId,
             received_at: new Date().toISOString(),
         });
     };

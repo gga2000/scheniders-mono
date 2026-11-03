@@ -73,7 +73,7 @@ function SortableGridItem({
     children,
 }: {
     product: Product;
-    children: (props: { listeners: any; isDragging: boolean }) => React.ReactNode;
+    children: (props: { listeners: ReturnType<typeof useSortable>["listeners"]; isDragging: boolean }) => React.ReactNode;
 }) {
     const {
         attributes,

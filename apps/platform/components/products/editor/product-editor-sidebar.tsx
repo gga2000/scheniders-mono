@@ -148,7 +148,9 @@ export function ProductEditorSidebar({ formData, updateField, mode, canReclassif
                     <div>
                         <label className="block text-sm font-medium text-foreground mb-2">
                             {t("products.ed.displayOrder")}
-                            <span className="text-xs text-muted ms-1">{t("products.ed.displayOrderHint")}</span>
+                            {/* A real space: a margin sits on the wrong side once Arabic text is reordered. */}
+                            {" "}
+                            <span className="text-xs text-muted">{t("products.ed.displayOrderHint")}</span>
                         </label>
                         <input
                             type="number"
@@ -165,13 +167,14 @@ export function ProductEditorSidebar({ formData, updateField, mode, canReclassif
                             <Tag className="w-3.5 h-3.5 inline me-1" />
                             {t("products.ed.tagColor")}
                         </label>
-                        <div className="flex flex-wrap gap-2">
+                        {/* Eight swatches on one row: the sidebar is too narrow for 8 x 32px plus gaps. */}
+                        <div className="grid grid-cols-8 gap-1.5">
                             {TAG_COLORS.map((preset) => (
                                 <button
                                     key={preset.color}
                                     type="button"
                                     onClick={() => updateField("tag_color", preset.color)}
-                                    className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                                    className={`aspect-square w-full rounded-lg border-2 transition-all ${
                                         formData.tag_color === preset.color
                                             ? "border-foreground scale-110 shadow-lg"
                                             : "border-transparent hover:scale-105"

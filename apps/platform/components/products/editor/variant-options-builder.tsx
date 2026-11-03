@@ -232,7 +232,7 @@ function SortableValueChip({
                             }
                         }}
                         onBlur={() => setEditingMeasurement(false)}
-                        placeholder="e.g. 42cm"
+                        placeholder={t("products.vo.measurementPh")}
                         autoFocus
                         className="w-28 px-2 py-1 bg-[var(--background)] border border-[var(--card-border)] rounded-md text-xs text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                     />
@@ -252,7 +252,7 @@ function SortableValueChip({
                             }
                         }}
                         onBlur={() => setEditingDescription(false)}
-                        placeholder="e.g. 100% organic"
+                        placeholder={t("products.vo.materialPh")}
                         autoFocus
                         className="w-40 px-2 py-1 bg-[var(--background)] border border-[var(--card-border)] rounded-md text-xs text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
                     />
