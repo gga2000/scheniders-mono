@@ -22,6 +22,7 @@ const WRITES = new Set(["insert", "upsert", "update", "delete"]);
 export function fakeServiceClient(respond: (call: FakeCall) => FakeResult) {
     const calls: FakeCall[] = [];
     const created: { email?: string }[] = [];
+    const deletedUsers: string[] = [];
 
     function from(table: string) {
         const call: FakeCall = { table, op: "select", payload: undefined };
@@ -52,9 +53,13 @@ export function fakeServiceClient(respond: (call: FakeCall) => FakeResult) {
                     created.push(input);
                     return { data: { user: { id: "new-user-id" } }, error: null };
                 },
+                deleteUser: async (id: string) => {
+                    deletedUsers.push(id);
+                    return { data: null, error: null };
+                },
             },
         },
     };
 
-    return { client, calls, created };
+    return { client, calls, created, deletedUsers };
 }

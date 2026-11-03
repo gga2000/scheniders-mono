@@ -1,6 +1,7 @@
 import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { activeTenantRole } from "@/lib/auth/active-tenant-role";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import {
     assertNotBlocked,
     blockedResponseBody,
@@ -8,7 +9,15 @@ import {
 } from "@/lib/restrictions";
 import { tenantMemberRoleFor } from "@/lib/tenant-member-role";
 
-const ALLOWED_ROLES = new Set(["admin", "employee", "viewer"]);
+const createUserSchema = z.object({
+    email: z.string().trim().toLowerCase().email().max(254),
+    password: z.string().min(8).max(72),
+    displayName: z.string().trim().max(80).optional(),
+    // Same allowlist as /api/team/invite: a tenant admin must never be able to
+    // mint a platform-level role such as super_admin.
+    role: z.enum(["admin", "employee", "viewer"]).optional(),
+    tenantId: z.string().uuid().optional(),
+});
 
 export async function POST(request: Request) {
     try {
@@ -26,18 +35,19 @@ export async function POST(request: Request) {
 
         const supabaseAdmin = createSupabaseServiceClient();
 
-        // Parse request body
-        const { email, password, displayName, role, tenantId } = await request.json();
-
-        if (!email || !password) {
-            return NextResponse.json({ error: "البريد الإلكتروني وكلمة المرور مطلوبان" }, { status: 400 });
+        const parsed = createUserSchema.safeParse(await request.json().catch(() => null));
+        if (!parsed.success) {
+            const field = parsed.error.issues[0]?.path[0];
+            const message =
+                field === "password"
+                    ? "كلمة المرور يجب أن تكون 8 أحرف على الأقل"
+                    : field === "role"
+                      ? "Invalid role"
+                      : "البريد الإلكتروني وكلمة المرور مطلوبان";
+            return NextResponse.json({ error: message }, { status: 400 });
         }
-
-        // Same allowlist as /api/team/invite: a tenant admin must never be able
-        // to mint a platform-level role such as super_admin.
-        if (role !== undefined && !ALLOWED_ROLES.has(role)) {
-            return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-        }
+        const { email: normalizedEmail, password, role, tenantId } = parsed.data;
+        const name = parsed.data.displayName || normalizedEmail.split("@")[0];
 
         // Resolve tenant: use provided tenantId or fall back to inviting user's tenant
         let resolvedTenantId = tenantId;
@@ -71,62 +81,72 @@ export async function POST(request: Request) {
         }
 
         const { data, error: createError } = await supabaseAdmin.auth.admin.createUser({
-            email,
+            email: normalizedEmail,
             password,
             email_confirm: true,
             user_metadata: {
-                display_name: displayName || email.split("@")[0],
+                display_name: name,
             },
         });
 
         if (createError) {
+            // The login already exists (maybe in another store). Never attach an
+            // existing account to this store from here: that person has to be
+            // invited by email so they accept it themselves.
+            if (createError.code === "email_exists") {
+                return NextResponse.json(
+                    { error: "هذا البريد مسجل مسبقاً. استخدم دعوة البريد الإلكتروني بدلاً من ذلك." },
+                    { status: 409 },
+                );
+            }
             return NextResponse.json({ error: createError.message }, { status: 400 });
         }
 
-        if (data.user) {
-            const profileRole: string = role || "employee";
-            // Update the user profile with role and tenant
-            const { error: profileError } = await supabaseAdmin
-                .from("user_profiles")
-                .update({
-                    role: profileRole,
-                    display_name: displayName || email.split("@")[0],
-                    is_active: true,
-                    ...(resolvedTenantId ? { current_tenant_id: resolvedTenantId } : {}),
-                })
-                .eq("id", data.user.id);
-
-            if (profileError) {
-                return NextResponse.json(
-                    { error: "تم إنشاء الحساب لكن تعذر تحديث الملف الشخصي", userId: data.user.id },
-                    { status: 207 }
-                );
-            }
-
-            // Create the tenant_members entry so RLS grants access. Its role is
-            // admin | employee | viewer (tenant_members_role_check); platform
-            // roles never go into this column.
-            const { error: memberError } = await supabaseAdmin.from("tenant_members").insert({
-                tenant_id: resolvedTenantId,
-                user_id: data.user.id,
-                role: tenantMemberRoleFor(profileRole),
-                invited_by: user.id,
-                status: "active",
-                joined_at: new Date().toISOString(),
-            });
-
-            // Without the membership the account can sign in but reaches no
-            // tenant data, so this is not a success.
-            if (memberError) {
-                console.error("[create-user] tenant_members insert failed:", memberError.message);
-                return NextResponse.json(
-                    { error: "تم إنشاء الحساب لكن تعذر ربطه بالمتجر", userId: data.user.id },
-                    { status: 207 }
-                );
-            }
+        const newUserId = data.user?.id;
+        if (!newUserId) {
+            return NextResponse.json({ error: "حدث خطأ غير متوقع" }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true, userId: data.user?.id });
+        const profileRole = role ?? "employee";
+
+        // No database trigger creates the profile row for a new login, so it is
+        // written here. The membership below has a foreign key to it.
+        const { error: profileError } = await supabaseAdmin.from("user_profiles").upsert({
+            id: newUserId,
+            email: normalizedEmail,
+            role: profileRole,
+            display_name: name,
+            is_active: true,
+            current_tenant_id: resolvedTenantId,
+        });
+
+        // The membership grants access through RLS; its role is admin |
+        // employee | viewer (tenant_members_role_check), never a platform role.
+        const { error: memberError } = profileError
+            ? { error: null }
+            : await supabaseAdmin.from("tenant_members").insert({
+                  tenant_id: resolvedTenantId,
+                  user_id: newUserId,
+                  role: tenantMemberRoleFor(profileRole),
+                  invited_by: user.id,
+                  status: "active",
+                  joined_at: new Date().toISOString(),
+              });
+
+        // A login with no profile or no membership reaches no store data, so
+        // this is a failure: undo the login rather than leave an orphan the
+        // admin cannot see or reuse.
+        if (profileError || memberError) {
+            console.error("[create-user] provisioning failed:", (profileError ?? memberError)?.message);
+            await supabaseAdmin.from("user_profiles").delete().eq("id", newUserId);
+            const { error: rollbackError } = await supabaseAdmin.auth.admin.deleteUser(newUserId);
+            if (rollbackError) {
+                console.error("[create-user] rollback failed:", rollbackError.message);
+            }
+            return NextResponse.json({ error: "تعذر إنشاء المستخدم. حاول مرة أخرى." }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true, userId: newUserId });
     } catch (err) {
         console.error("[create-user] unexpected error:", err);
         return NextResponse.json({ error: "حدث خطأ غير متوقع" }, { status: 500 });
