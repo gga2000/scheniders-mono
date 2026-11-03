@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { focusManager, onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -74,6 +74,7 @@ function setup(window: OrderWindow = null) {
 const saveBook = (rows: Order[], over: Record<string, unknown> = {}) =>
     writePersistedBook({ userId: USER, tenantId: TENANT, windowKey: "all", rows, mark: MARK, savedAt: Date.now(), ...over });
 
+let clock: MockInstance<() => number> | undefined;
 beforeEach(() => {
     mem = new MemoryStorage();
     setBookStorageForTests(mem);
@@ -82,8 +83,12 @@ beforeEach(() => {
     H.findWindow.mockResolvedValue([]);
     H.findChangedSince.mockResolvedValue([]);
     H.findTrustFor.mockResolvedValue([]);
+    // Mark and rows resolve in the same instant here; trackListFetch moves the
+    // mark back by any lag between them (covered in orders-list-coverage.test.ts).
+    clock = vi.spyOn(performance, "now").mockReturnValue(0);
 });
 afterEach(() => {
+    clock?.mockRestore();
     cleanup();
     setOrderBatcher(null);
     setBookStorageForTests(null);

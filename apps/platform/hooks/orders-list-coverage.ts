@@ -196,19 +196,35 @@ function storeFor(qc: QueryClient): Store {
 }
 
 /**
+ * Move `mark` back by `lagMs`, rounded up to whole milliseconds. Unchanged when
+ * there is no mark or no lag.
+ */
+export function backdateMark(mark: string | null, lagMs: number): string | null {
+    if (mark === null || lagMs <= 0) return mark;
+    return new Date(Date.parse(mark) - Math.ceil(lagMs)).toISOString();
+}
+
+/**
  * Run one list fetch for `windowKey`, recording it so its commit can claim the
- * window. Reads the tenant-wide high-water mark first (`readMark`); the
- * watermark is taken from that, never from the rows. `readMark` reports its
- * own errors and resolves null when the mark is unavailable — the fetch still
- * runs, and commits the watermark from before it started (an older, so safe,
- * lower bound).
+ * window. The watermark comes from the tenant-wide high-water mark
+ * (`readMark`), never from the rows. `readMark` reports its own errors and
+ * resolves null when the mark is unavailable — the fetch still commits, with
+ * the watermark from before it started (an older, so safe, lower bound).
+ *
+ * The mark is read alongside the rows, not before them: waiting for it held
+ * the first page back by a full round trip (about 1.1 s on a cold /orders
+ * load, live perf trace). Read in parallel, the database may take the mark a
+ * little after the rows' snapshot, so the mark is moved back by however long
+ * it arrived after the rows were requested. The database took the mark before
+ * its reply arrived and the rows no earlier than their request left, so the
+ * moved mark is never later than the rows' snapshot: the same lower bound the
+ * serial read gave, which the first delta's DELTA_OVERLAP_MS then widens.
  */
 export async function trackListFetch<T>(
     qc: QueryClient,
     windowKey: string,
     readMark: () => Promise<string | null>,
-    /** Receives the mark, so a snapshot of the rows can store what they are complete up to. */
-    run: (mark: string | null) => Promise<T>,
+    run: () => Promise<T>,
 ): Promise<T> {
     const store = storeFor(qc);
     const token = ++store.tokenSeq;
@@ -218,11 +234,18 @@ export async function trackListFetch<T>(
         emit(store);
     }
 
-    const mark = await readMark();
-    if (store.inFlight?.token === token) store.inFlight.mark = mark;
+    let markArrivedAt = 0;
+    const markRead = readMark().then((mark) => {
+        markArrivedAt = performance.now();
+        return mark;
+    });
+    const rowsRequestedAt = performance.now();
 
     try {
-        return await run(mark);
+        const rows = await run();
+        const mark = backdateMark(await markRead, markArrivedAt - rowsRequestedAt);
+        if (store.inFlight?.token === token) store.inFlight.mark = mark;
+        return rows;
     } catch (err) {
         // `fetchOrders` ignores the abort signal, so a cancelled fetch resolves
         // and is discarded by React Query; a rejection here is a real error.

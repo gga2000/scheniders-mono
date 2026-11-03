@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { createElement, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { act, renderHook } from "@testing-library/react";
@@ -7,6 +7,7 @@ import { listCovers } from "@/lib/orders/coverage-key";
 import {
     ORDERS_LIST_MUTATION_KEY,
     advanceSyncWatermark,
+    backdateMark,
     cacheCoversActiveWindow,
     cancelListFetches,
     ensureCoverage,
@@ -46,6 +47,18 @@ function deferred<T>() {
 }
 
 const flush = () => new Promise((r) => setTimeout(r, 5));
+
+// The mark is read alongside the rows and moved back by however long it
+// arrived after them. Frozen here, so marks stay exact unless a test moves it.
+let clock: MockInstance<() => number>;
+let now = 0;
+beforeEach(() => {
+    now = 0;
+    clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+});
+afterEach(() => {
+    clock.mockRestore();
+});
 
 function fetchList(qc: QueryClient, key: string, rows: Row[], mark: string | null = "2026-10-18T10:00:00.000Z") {
     return qc.fetchQuery({ queryKey: LIST, queryFn: () => trackListFetch(qc, key, async () => mark, async () => rows) });
@@ -198,6 +211,43 @@ describe("orders list coverage", () => {
     });
 });
 
+describe("mark read alongside the rows", () => {
+    it("asks for the rows without waiting for the mark", async () => {
+        const { qc } = setup();
+        const mark = deferred<string | null>();
+        const run = vi.fn(async () => [] as Row[]);
+        const done = qc.fetchQuery({ queryKey: LIST, queryFn: () => trackListFetch(qc, TODAY, () => mark.promise, run) });
+        await flush();
+        expect(run).toHaveBeenCalledTimes(1);
+        mark.resolve("2026-10-18T10:00:00.000Z");
+        await done;
+        expect(getSyncWatermark(qc)).toEqual({ at: "2026-10-18T10:00:00.000Z", fromFetch: true });
+    });
+
+    it("a mark that arrives after the rows were asked for is moved back by the gap", async () => {
+        const { qc } = setup();
+        const mark = deferred<string | null>();
+        const done = qc.fetchQuery({ queryKey: LIST, queryFn: () => trackListFetch(qc, TODAY, () => mark.promise, async () => []) });
+        await flush();
+        now = 1_500.2;
+        mark.resolve("2026-10-18T10:00:00.000Z");
+        await done;
+        expect(getSyncWatermark(qc)).toEqual({ at: "2026-10-18T09:59:58.499Z", fromFetch: true });
+    });
+
+    it("the list only commits once the mark is in", async () => {
+        const { qc } = setup();
+        const mark = deferred<string | null>();
+        const done = qc.fetchQuery({ queryKey: LIST, queryFn: () => trackListFetch(qc, TODAY, () => mark.promise, async () => []) });
+        await flush();
+        expect(getLoadedWindowKey(qc)).toBeNull();
+        mark.resolve(null);
+        await done;
+        expect(getLoadedWindowKey(qc)).toBe(TODAY);
+        expect(getSyncWatermark(qc)).toBeNull();
+    });
+});
+
 describe("sync watermark advance", () => {
     it("a complete delta raises it to its newest row and spends the overlap", async () => {
         const { qc } = setup();
@@ -321,6 +371,14 @@ describe("cancelled list fetches flush once no list mutation is pending", () => 
 });
 
 describe("pure helpers", () => {
+    it("backdateMark moves a mark back by the lag, rounded up to whole ms", () => {
+        expect(backdateMark("2026-10-18T10:00:00.000Z", 0.1)).toBe("2026-10-18T09:59:59.999Z");
+        expect(backdateMark("2026-10-18T10:00:00.000Z", 2_000)).toBe("2026-10-18T09:59:58.000Z");
+        expect(backdateMark("2026-10-18T10:00:00.123456+00:00", 0)).toBe("2026-10-18T10:00:00.123456+00:00");
+        expect(backdateMark("2026-10-18T10:00:00.000Z", -50)).toBe("2026-10-18T10:00:00.000Z");
+        expect(backdateMark(null, 2_000)).toBeNull();
+    });
+
     it("listCovers", () => {
         expect(listCovers(null, "all")).toBe(false);
         expect(listCovers(null, TODAY)).toBe(false);
