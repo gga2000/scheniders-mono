@@ -41,6 +41,9 @@ function pct(curr: number, prev: number): number {
     return ((curr - prev) / Math.abs(prev)) * 100;
 }
 
+/** Share of sales value that must be delivered before the margin is judged. */
+const MIN_DELIVERED_SHARE = 0.5;
+
 const SEVERITY_RANK: Record<InsightSeverity, number> = { critical: 0, warning: 1, positive: 2, info: 3 };
 
 export function buildFinanceInsights(data: FinanceOverviewResult, units: MoneyUnits = EN_UNITS): Insight[] {
@@ -68,8 +71,10 @@ export function buildFinanceInsights(data: FinanceOverviewResult, units: MoneyUn
         }
     }
 
-    // 2. Margin health
-    if (data.delivered_revenue > 0) {
+    // 2. Margin health. Profit only counts delivered sales, so judging it while most of the
+    // period's orders are still on the road (e.g. early in the month) would call a healthy
+    // shop "losing". Wait until at least half of the sales value has been delivered.
+    if (data.delivered_revenue > 0 && data.delivered_revenue >= data.gross_revenue * MIN_DELIVERED_SHARE) {
         const margin = data.margin_pct.toFixed(1);
         const metric = { labelKey: "finances.insight.metric.margin", value: `${margin}%` };
         if (data.margin_pct < 5 && data.net_profit < 0) {
