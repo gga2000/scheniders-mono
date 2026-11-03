@@ -3368,17 +3368,13 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
    ============================================ */
 :root {
   --ambient-dot: rgb(100 116 139 / 0.24);
-  --ambient-dot-lit: rgb(79 70 229 / 0.7);
-  --ambient-glow-a: rgb(129 140 248 / 0.16);
-  --ambient-glow-b: rgb(251 191 36 / 0.12);
+  --ambient-dot-lit: rgb(71 85 105 / 0.55);
   --ambient-grid: 24px;
   --ambient-dot-image: radial-gradient(circle at center, var(--ambient-dot) 1px, transparent 1.5px);
 }
 .dark {
   --ambient-dot: rgb(148 163 184 / 0.16);
-  --ambient-dot-lit: rgb(165 180 252 / 0.6);
-  --ambient-glow-a: rgb(99 102 241 / 0.14);
-  --ambient-glow-b: rgb(245 158 11 / 0.06);
+  --ambient-dot-lit: rgb(203 213 225 / 0.5);
 }
 
 /* The grid drifts one cell diagonally and loops, so the motion is seamless.
@@ -3413,25 +3409,6 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
     radial-gradient(26vmax 20vmax at 30% 82%, #000 0%, transparent 70%);
   animation-delay: -3.5s, 0s;
 }
-.ambient-backdrop__glow {
-  position: absolute;
-  width: 60vmax;
-  height: 60vmax;
-  border-radius: 9999px;
-  will-change: transform;
-}
-.ambient-backdrop__glow--a {
-  top: -25vmax;
-  left: -15vmax;
-  background: radial-gradient(closest-side, var(--ambient-glow-a), transparent);
-  animation: ambient-drift-a 38s ease-in-out infinite alternate;
-}
-.ambient-backdrop__glow--b {
-  bottom: -30vmax;
-  right: -20vmax;
-  background: radial-gradient(closest-side, var(--ambient-glow-b), transparent);
-  animation: ambient-drift-b 46s ease-in-out infinite alternate;
-}
 @keyframes ambient-grid-drift {
   from { transform: translate3d(0, 0, 0); }
   to { transform: translate3d(var(--ambient-grid), var(--ambient-grid), 0); }
@@ -3440,15 +3417,6 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
   0%, 100% { opacity: 0; }
   50% { opacity: 1; }
 }
-@keyframes ambient-drift-a {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(28vw, 18vh, 0) scale(1.15); }
-}
-@keyframes ambient-drift-b {
-  from { transform: translate3d(0, 0, 0) scale(1.1); }
-  to { transform: translate3d(-30vw, -16vh, 0) scale(0.95); }
-}
-
 /* At the top of the page the header has nothing to frost, so on the ambient
    page it goes fully clear: no tint, no blur, no edge highlight, and the page
    grid shows straight through with no seam beside the sidebar. The glass
@@ -3462,6 +3430,5 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
 
 @media (prefers-reduced-motion: reduce) {
   .ambient-backdrop__dots,
-  .ambient-backdrop__twinkle,
-  .ambient-backdrop__glow { animation: none; }
+  .ambient-backdrop__twinkle { animation: none; }
 }
