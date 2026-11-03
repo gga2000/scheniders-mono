@@ -1,10 +1,14 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { OrderStore } from "@/store/use-order-store";
 
 // Heavy orders-page pieces, loaded on the client only.
+const loadOrderList = () => import("@/components/orders/virtualized-order-list");
+const loadOrderTable = () => import("@/components/orders/virtualized-order-table");
+
 export const VirtualizedOrderList = dynamic(
-    () => import("@/components/orders/virtualized-order-list").then(mod => ({ default: mod.VirtualizedOrderList })),
+    () => loadOrderList().then(mod => ({ default: mod.VirtualizedOrderList })),
     { ssr: false, loading: () => <div className="w-full h-[600px] animate-pulse bg-muted/20 rounded-2xl" /> }
 );
 export const DateRangePicker = dynamic(
@@ -20,7 +24,7 @@ export const StickyFilterBar = dynamic(
     { ssr: false, loading: () => <div className="w-full h-14 animate-pulse bg-muted/20 rounded-2xl" /> }
 );
 export const VirtualizedOrderTable = dynamic(
-    () => import("@/components/orders/virtualized-order-table").then(mod => ({ default: mod.VirtualizedOrderTable })),
+    () => loadOrderTable().then(mod => ({ default: mod.VirtualizedOrderTable })),
     { loading: () => null, ssr: false }
 );
 export const ScrollToTopButton = dynamic(
@@ -39,3 +43,16 @@ export const AbandonedCartRecoveryStrip = dynamic(
     () => import("@/components/orders/abandoned-cart-recovery-strip").then(mod => ({ default: mod.AbandonedCartRecoveryStrip })),
     { ssr: false, loading: () => null }
 );
+
+/**
+ * Start downloading the card list (or the table) while the rows load. The list
+ * only renders once rows exist, so its chunk used to be requested only then:
+ * live, cards painted ~1.1 s after the rows were in, mostly idle waiting on it.
+ * The bundler shares one module promise, so the render later finds it loaded.
+ * A failed download is not reported here: the render's own import retries it
+ * and the page's error boundary reports a real failure.
+ */
+export function preloadOrdersView(viewMode: OrderStore["viewMode"]): void {
+    if (viewMode === "table") loadOrderTable().catch(() => undefined);
+    else if (viewMode === "cards" || viewMode === "list") loadOrderList().catch(() => undefined);
+}
