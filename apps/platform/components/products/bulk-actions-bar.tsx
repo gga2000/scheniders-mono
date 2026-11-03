@@ -28,7 +28,7 @@ interface BulkActionsBarProps {
     onUpdatePrice?: (newPrice: number, opts: { alsoWebsite: boolean }) => Promise<void> | void;
     /** Side effects of a bulk price, shown under the input before Apply. */
     /** What the new price does to the selection; belowCostNames names the products that would sell at a loss. */
-    describePrice?: (newPrice: number) => { clearsCompareAt: number; keepsStorePrice: number; belowCostNames: string[] };
+    describePrice?: (newPrice: number, alsoWebsite: boolean) => { clearsCompareAt: number; keepsStorePrice: number; belowCostNames: string[] };
     onArchive: () => Promise<void> | void;
     onExport: () => void;
     onShowOnStore?: () => Promise<void> | void;
@@ -147,7 +147,7 @@ export function BulkActionsBar({
     const priceImpact = useMemo(() => {
         const price = parseWholeNumber(newPrice);
         if (!describePrice || price === null || price <= 0) return null;
-        const { clearsCompareAt, keepsStorePrice, belowCostNames } = describePrice(price);
+        const { clearsCompareAt, keepsStorePrice, belowCostNames } = describePrice(price, alsoWebsite);
         const belowCost = belowCostNames.length;
         const parts: string[] = [];
         // Name the products, so the merchant knows which ones before pressing Apply anyway.

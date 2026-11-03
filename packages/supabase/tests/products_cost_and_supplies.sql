@@ -207,6 +207,16 @@ BEGIN
         v_fail := v_fail || ' 15-po-adds-to-draft';
     END IF;
 
+    -- ---------------------------------------------------------------- 19
+    -- A newer quote for a line the draft already lists replaces its price.
+    SELECT total_cost INTO v_total FROM public.create_purchase_order(v_tenant, 'tt-draft-supplier',
+        jsonb_build_array(jsonb_build_object('product_id', v_s1, 'quantity_ordered', 1, 'unit_cost', 120)));
+    IF (SELECT unit_cost FROM public.purchase_order_items WHERE po_id = v_po_a AND product_id = v_s1) <> 120
+       OR (SELECT quantity_ordered FROM public.purchase_order_items WHERE po_id = v_po_a AND product_id = v_s1) <> 6
+       OR v_total <> 770 THEN
+        v_fail := v_fail || ' 19-po-latest-price-wins';
+    END IF;
+
     -- ---------------------------------------------------------------- 16
     INSERT INTO public.products (tenant_id, name, slug, price, reserved_quantity)
     VALUES (v_tenant, 'tt-reserved', 'tt-' || gen_random_uuid(), 1000, 1) RETURNING id INTO v_tmp;
@@ -229,6 +239,16 @@ BEGIN
         v_ok := false;
     EXCEPTION WHEN foreign_key_violation THEN v_ok := true; END;
     IF NOT v_ok THEN v_fail := v_fail || ' 18-untick-used-supply-refused'; END IF;
+
+    -- ---------------------------------------------------------------- 20
+    -- The public catalog never shows a draft category.
+    INSERT INTO public.categories (tenant_id, name, slug, status, is_visible, scope)
+    VALUES (v_tenant, 'tt-draft-cat', 'tt-' || gen_random_uuid(), 'draft', true, 'both') RETURNING id INTO v_tmp;
+    SET LOCAL ROLE anon;
+    IF EXISTS (SELECT 1 FROM public.categories WHERE id = v_tmp) THEN
+        v_fail := v_fail || ' 20-public-no-draft-category';
+    END IF;
+    RESET ROLE;
 
     IF v_fail = '' THEN
         RAISE EXCEPTION 'ALL ASSERTIONS PASSED';

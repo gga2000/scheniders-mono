@@ -204,14 +204,20 @@ export function useRestoreProductMutation() {
     });
 }
 
+/**
+ * After a delete the cached list already lacks the rows (removed optimistically),
+ * so only a failure re-reads them; curated collections (product_categories)
+ * lose the product either way, so categories are refreshed.
+ */
+function afterDelete(queryClient: QueryClient, tenantId: string | null, ids: string[], failed: boolean) {
+    return Promise.all([
+        failed ? refreshProductRows(queryClient, tenantId, ids) : undefined,
+        queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
+    ]);
+}
+
 export function useDeleteProductMutation() {
     const queryClient = useQueryClient();
-    // A deleted product also leaves curated collections (product_categories).
-    const invalidateAfterDelete = () =>
-        Promise.all([
-            queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
-            queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
-        ]);
     const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (id: string) => {
@@ -229,7 +235,7 @@ export function useDeleteProductMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: invalidateAfterDelete
+        onSettled: (_data, err, id) => afterDelete(queryClient, tenantId, [id], err != null)
     });
 }
 
@@ -281,18 +287,18 @@ export function useBulkRestoreMutation() {
 
 export function useBulkDeleteMutation() {
     const queryClient = useQueryClient();
-    // A deleted product also leaves curated collections (product_categories).
-    const invalidateAfterDelete = () =>
-        Promise.all([
-            queryClient.invalidateQueries({ queryKey: productKeys.lists() }),
-            queryClient.invalidateQueries({ queryKey: categoryKeys.all }),
-        ]);
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (ids: string[]) => {
             await productRepository.bulkDelete(ids);
             return ids;
         },
-        onSettled: invalidateAfterDelete
+        // bulk_delete_products is one statement: on success every id is gone.
+        onSuccess: (_data, ids) => {
+            const gone = new Set(ids);
+            queryClient.setQueryData<Product[]>(productKeys.list(tenantId), (old) => old?.filter((p) => !gone.has(p.id)));
+        },
+        onSettled: (_data, err, ids) => afterDelete(queryClient, tenantId, ids, err != null)
     });
 }
 
@@ -440,10 +446,11 @@ export function useAddVariantMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ productId, data }: { productId: string; data: Partial<ProductVariant> }) => {
+        mutationFn: async ({ productId, data }: { productId: string; data: Partial<ProductVariant>; refresh?: boolean }) => {
             return productRepository.addVariant(productId, data, tenantId);
         },
-        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
+        // refresh: false when the caller saves several variants and refreshes the row once at the end.
+        onSettled: (_data, _err, { productId, refresh }) => (refresh === false ? undefined : refreshProductRows(queryClient, tenantId, [productId]))
     });
 }
 
@@ -451,12 +458,12 @@ export function useUpdateVariantMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ id, data }: { productId: string; id: string; data: VariantUpdate }) => {
+        mutationFn: async ({ id, data }: { productId: string; id: string; data: VariantUpdate; refresh?: boolean }) => {
             await productRepository.updateVariant(id, data);
             return { id, data };
         },
         // Only the product that owns the variant is re-read, not the whole catalogue.
-        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
+        onSettled: (_data, _err, { productId, refresh }) => (refresh === false ? undefined : refreshProductRows(queryClient, tenantId, [productId]))
     });
 }
 
@@ -464,11 +471,11 @@ export function useDeleteVariantMutation() {
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     return useMutation({
-        mutationFn: async ({ id }: { productId: string; id: string }) => {
+        mutationFn: async ({ id }: { productId: string; id: string; refresh?: boolean }) => {
             await productRepository.deleteVariant(id);
             return id;
         },
-        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
+        onSettled: (_data, _err, { productId, refresh }) => (refresh === false ? undefined : refreshProductRows(queryClient, tenantId, [productId]))
     });
 }
 

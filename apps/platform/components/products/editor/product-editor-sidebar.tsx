@@ -14,6 +14,8 @@ interface ProductEditorSidebarProps {
     mode: "create" | "edit";
     /** Only cost viewers may tick or untick "supply" on an existing product. */
     canReclassifySupply: boolean;
+    /** Recipe rows that use this supply; while any do it cannot stop being a supply. */
+    recipeUses?: number;
     timesSold?: number;
     totalRevenue?: number;
     profitMargin?: number | null;
@@ -31,8 +33,10 @@ const TAG_COLORS = [
     { color: '#ef4444', name: 'Red' },
 ];
 
-export function ProductEditorSidebar({ formData, updateField, mode, canReclassifySupply, timesSold, totalRevenue, profitMargin, averageOrderValue }: ProductEditorSidebarProps) {
+export function ProductEditorSidebar({ formData, updateField, mode, canReclassifySupply, recipeUses = 0, timesSold, totalRevenue, profitMargin, averageOrderValue }: ProductEditorSidebarProps) {
     const { t } = useLanguage();
+    const lockedByRecipes = formData.is_supply && recipeUses > 0;
+    const canToggleSupply = canReclassifySupply && !lockedByRecipes;
     return (
         <div className="space-y-6">
             {/* Status */}
@@ -52,18 +56,22 @@ export function ProductEditorSidebar({ formData, updateField, mode, canReclassif
 
                 {/* Supply toggle */}
                 <div className="p-3 bg-[var(--background)] rounded-xl">
-                    <label className={cn("flex items-center gap-3", canReclassifySupply ? "cursor-pointer" : "cursor-not-allowed opacity-70")}>
+                    <label className={cn("flex items-center gap-3", canToggleSupply ? "cursor-pointer" : "cursor-not-allowed opacity-70")}>
                         <input
                             type="checkbox"
                             checked={formData.is_supply}
-                            disabled={!canReclassifySupply}
+                            disabled={!canToggleSupply}
                             onChange={(e) => updateField("is_supply", e.target.checked)}
                             className="w-4 h-4 rounded border-2 border-[var(--muted)] text-[var(--pastel-yellow)] focus:ring-[var(--pastel-yellow)] focus:ring-offset-0 bg-transparent cursor-pointer disabled:cursor-not-allowed"
                         />
                         <div>
                             <p className="text-sm font-medium text-foreground">{t("products.ed.supply")}</p>
                             <p className="text-xs text-muted">
-                                {canReclassifySupply ? t("products.ed.supplyHint") : t("products.ed.supplyLocked")}
+                                {!canReclassifySupply
+                                    ? t("products.ed.supplyLocked")
+                                    : lockedByRecipes
+                                    ? t("products.ed.supplyInRecipes", { count: recipeUses })
+                                    : t("products.ed.supplyHint")}
                             </p>
                         </div>
                     </label>

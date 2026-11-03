@@ -183,14 +183,18 @@ export function ActionsFeed({
             // Runs out within two lead times; otherwise it is here only for
             // sitting at its reorder point, and the title says so.
             const atRisk = eta != null && eta <= leadTime * 2;
-            const detail = isCritical
+            const isOut = (s.stock_quantity ?? 0) - (s.reserved_quantity ?? 0) <= 0;
+            const detail = isOut
+                ? t("supplies.af.outDetail", { lead: t("supplies.sp.leadDays", { count: leadTime }) })
+                : isCritical
                 ? t("supplies.af.stockoutDetail", { eta: t("supplies.sp.leadDays", { count: eta ?? 0 }), lead: t("supplies.sp.leadDays", { count: leadTime }) })
                 : eta != null
                 ? t("supplies.af.supplyLeft", { eta: t("supplies.sp.leadDays", { count: eta }) })
                 : t("supplies.af.atReorderPoint", { rp });
             const draftRef = draftBySupply?.get(s.id);
             const draftNumber = draftRef?.number;
-            if (draftRef && draftsShown.has(draftRef.id)) continue;
+            // Still counted as seen, so it does not come back as a spike or dead-stock card.
+            if (draftRef && draftsShown.has(draftRef.id)) { seen.add(s.id); continue; }
             if (draftRef) draftsShown.add(draftRef.id);
             if (draftNumber) {
                 push({
@@ -208,7 +212,9 @@ export function ActionsFeed({
                     id: `${isCritical ? "crit" : "reorder"}:${s.id}`,
                     supply: s,
                     kind: isCritical ? "critical" : "reorder",
-                    title: isCritical
+                    title: isOut
+                        ? t("supplies.af.outOfStock")
+                        : isCritical
                         ? t("supplies.af.stockoutBeforeLead")
                         : atRisk
                         ? t("supplies.af.reorderNow")

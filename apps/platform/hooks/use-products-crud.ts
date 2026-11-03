@@ -153,19 +153,24 @@ export function useProductsCrud({ withSales = false }: UseProductsCrudOptions = 
     // Variant Operations Wrappers
     // =============================================
 
-    const addVariant = (productId: string, data: VariantFormData): Promise<ProductVariant> =>
-        addVariantMutation.mutateAsync({ productId, data });
+    // { refresh: false } skips re-reading the product row after this write; the
+    // caller saving several variants re-reads it once at the end.
+    type VariantWriteOptions = { refresh?: boolean };
+
+    const addVariant = (productId: string, data: VariantFormData, opts?: VariantWriteOptions): Promise<ProductVariant> =>
+        addVariantMutation.mutateAsync({ productId, data, refresh: opts?.refresh });
 
     const updateVariant = async (
         productId: string,
         variantId: string,
         data: Omit<Partial<VariantFormData>, "stock_quantity">,
+        opts?: VariantWriteOptions,
     ): Promise<void> => {
-        await updateVariantMutation.mutateAsync({ productId, id: variantId, data });
+        await updateVariantMutation.mutateAsync({ productId, id: variantId, data, refresh: opts?.refresh });
     };
 
-    const deleteVariant = async (productId: string, variantId: string): Promise<void> => {
-        await deleteVariantMutation.mutateAsync({ productId, id: variantId });
+    const deleteVariant = async (productId: string, variantId: string, opts?: VariantWriteOptions): Promise<void> => {
+        await deleteVariantMutation.mutateAsync({ productId, id: variantId, refresh: opts?.refresh });
     };
 
     const reorderProducts = async (updates: { id: string; display_order: number }[]): Promise<void> => {

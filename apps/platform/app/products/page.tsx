@@ -83,6 +83,7 @@ import { ForecastingCards } from "@/components/products/forecasting-cards";
 // Store
 import { uniqueCopyValue } from "@/lib/unique-copy-value";
 import { normalizeArabicText } from "@/lib/order-filter-utils";
+import { clearsCompareAt } from "@/lib/utils/bulk-price";
 import { useProductStore, type ViewMode } from "@/store/use-product-store";
 
 export default function ProductsPage() {
@@ -529,8 +530,8 @@ function ProductsContent() {
     );
 
     // What a bulk price would also change, shown before Apply.
-    const describeBulkPrice = useCallback((newPrice: number) => ({
-        clearsCompareAt: selectedForPrice.filter((p) => p.compare_at_price != null && p.compare_at_price <= newPrice).length,
+    const describeBulkPrice = useCallback((newPrice: number, alsoWebsite: boolean) => ({
+        clearsCompareAt: selectedForPrice.filter((p) => clearsCompareAt(p, newPrice, alsoWebsite)).length,
         keepsStorePrice: selectedForPrice.filter((p) => p.website_price != null && p.website_price !== newPrice).length,
         // Cost is absent for members who can't see it, so they get no warning.
         belowCostNames: selectedForPrice.filter((p) => p.cost != null && p.cost > 0 && newPrice < p.cost).map((p) => p.name),
@@ -544,15 +545,14 @@ function ProductsContent() {
             compare_at_price: p.compare_at_price ?? null,
             website_price: p.website_price ?? null,
             currentPrice: newPrice,
-            restoreCompareAt: p.compare_at_price != null && p.compare_at_price <= newPrice,
+            restoreCompareAt: clearsCompareAt(p, newPrice, alsoWebsite),
             restoreWebsite: alsoWebsite && p.website_price != null,
         }));
         await bulkUpdatePrices(
             selectedForPrice.map((p) => ({
                 id: p.id,
                 oldPrice: p.price,
-                // A "was" price at or below the new price would show a fake discount.
-                clearCompareAt: p.compare_at_price != null && p.compare_at_price <= newPrice,
+                clearCompareAt: clearsCompareAt(p, newPrice, alsoWebsite),
                 clearWebsitePrice: alsoWebsite && p.website_price != null,
             })),
             newPrice,

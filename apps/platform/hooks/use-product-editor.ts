@@ -3,6 +3,8 @@
 import { variantChanges } from "@/lib/variant-changes";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshProductRows } from "@/hooks/use-products-query";
 import { toast } from "@/hooks/use-toast";
 import type { Product, ProductVariant, VariantOptionType, OptionValueMetadata, CostBreakdown } from "@/types/product";
 import { isCanonicalSlug, slugify } from "@scheniders/shared";
@@ -498,6 +500,9 @@ function storeOverride(websitePrice: number | null, price: number): number | nul
     return websitePrice && websitePrice > 0 && websitePrice !== price ? websitePrice : null;
 }
 
+/** Variant writes inside one editor save: the row is re-read once when the save ends. */
+const NO_ROW_REFRESH = { refresh: false } as const;
+
 interface UseProductEditorOptions {
     product?: Product | null; // null for new product mode
     mode: "create" | "edit";
@@ -508,6 +513,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
     const router = useRouter();
     const { products: catalogue, addProduct, updateProduct, addVariant, updateVariant, deleteVariant } = useProductsCrud();
     const { tenantId } = useAuth();
+    const queryClient = useQueryClient();
     const { t } = useLanguage();
     const { can } = usePermission();
     // Cost is readable only by admins (product_costs, migration
@@ -1037,6 +1043,8 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
         }
 
         setSaving(true);
+        // Variant writes skip their own row refresh; the product row is re-read once, below.
+        let refreshRowOf: string | null = null;
         try {
             if (mode === "create") {
                 const newProduct = await addProduct({
@@ -1116,6 +1124,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     router.push(`/products/${newProduct.id}/edit`);
                 }
             } else if (product) {
+                refreshRowOf = product.id;
                 // Removed variants go first: one still on a purchase order is
                 // refused ("in use") before anything else is written, instead
                 // of stopping the save half-way.
@@ -1127,7 +1136,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     await productRepository.assertUnchanged(product.id, baseUpdatedAtRef.current);
                 }
                 for (const removedId of removedIds) {
-                    await deleteVariant(product.id, removedId);
+                    await deleteVariant(product.id, removedId, NO_ROW_REFRESH);
                     initialDataRef.current = {
                         ...initialDataRef.current,
                         variants: initialDataRef.current.variants.filter((v) => v.id !== removedId),
@@ -1209,7 +1218,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                         const before = loaded.variants.find((v) => v.id === variant.id);
                         const patch = variantChanges(before, variant, showCost);
                         if (Object.keys(patch).length > 0) {
-                            await updateVariant(product.id, variant.id, patch);
+                            await updateVariant(product.id, variant.id, patch, NO_ROW_REFRESH);
                         }
                         if (loadedVariantStock.get(variant.id) !== variant.stock_quantity) {
                             await productRepository.setCountedStock({
@@ -1230,7 +1239,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                             option_values: variant.option_values,
                             image_url: variant.image_url,
                             is_enabled: variant.is_enabled ?? true,
-                        });
+                        }, NO_ROW_REFRESH);
                         // Keep the new id, so the next save updates this
                         // variant instead of creating it again.
                         savedVariants.push({ ...variant, id: created.id });
@@ -1273,8 +1282,10 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
             return false;
         } finally {
             setSaving(false);
+            // Once per save, also after a failure half-way: the list shows what was written.
+            if (refreshRowOf) void refreshProductRows(queryClient, tenantId, [refreshRowOf]);
         }
-    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost, relatedDataLoaded]);
+    }, [formData, mode, product, addProduct, updateProduct, addVariant, updateVariant, deleteVariant, clearDraft, router, saveRelatedData, tenantId, t, showCost, relatedDataLoaded, queryClient]);
 
     // Duplicate product
     const duplicateProduct = useCallback(async () => {

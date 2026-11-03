@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { productRepository } from "@/lib/repositories/product-repository";
+import { productWriteErrorKey } from "@/lib/product-write-error";
 import type { Product } from "@/lib/supabase";
 import { cn, formatIQD } from "@/lib/utils";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -205,8 +206,10 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
             queryClient.invalidateQueries({ queryKey: ["bom-items", productId] });
         },
         onError: (err: Error) => {
-            // The raw database message is English and technical: show a translated one.
-            toast.error(t("recipe.saveFailed"), t("recipe.err.saveGeneric"));
+            // The raw database message is English and technical: say which rule
+            // broke when the database names one, else a generic retry line.
+            const key = productWriteErrorKey(err);
+            toast.error(t("recipe.saveFailed"), key === "products.errors.saveFailed" ? t("recipe.err.saveGeneric") : t(key));
         },
     });
 
