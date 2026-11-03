@@ -6,6 +6,7 @@ import { Switch } from "@scheniders/ui/switch";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
 import { parseStorefrontStock } from "@/lib/storefront-stock";
+import { parseWholeNumber } from "@/lib/utils";
 
 interface ProductInventorySectionProps {
     formData: ProductEditorFormData;
@@ -57,7 +58,7 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                     <input
                         type="number"
                         value={formData.low_stock_threshold}
-                        onChange={(e) => updateField("low_stock_threshold", parseInt(e.target.value, 10) || 5)}
+                        onChange={(e) => updateField("low_stock_threshold", parseWholeNumber(e.target.value) ?? 0)}
                         placeholder="5"
                         min={0}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"

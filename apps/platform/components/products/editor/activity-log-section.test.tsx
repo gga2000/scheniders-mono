@@ -41,7 +41,7 @@ describe("ActivityLogSection", () => {
         expect(screen.queryByText(/u1/)).toBeNull();
 
         fireEvent.click(screen.getByText("products.activity.show"));
-        expect(screen.getByText("61,000 IQD")).toBeTruthy();
+        expect(screen.getByText(/IQD\s61,000/)).toBeTruthy();
         expect(screen.getByText("Perfumes")).toBeTruthy();
     });
 });

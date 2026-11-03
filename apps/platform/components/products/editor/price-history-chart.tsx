@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadShortDate } from "@/lib/customer-format";
+import { formatIQD } from "@/lib/utils";
 
 interface PriceHistoryEntry {
     date: string; // ISO date
@@ -16,8 +17,7 @@ interface PriceHistoryChartProps {
     currentPrice: number;
 }
 
-const formatPrice = (price: number): string =>
-    new Intl.NumberFormat("en-IQ").format(price) + " IQD";
+const formatPrice = (price: number): string => formatIQD(price);
 
 
 // Axis ticks in IQD, short: "60K", "1.2M".

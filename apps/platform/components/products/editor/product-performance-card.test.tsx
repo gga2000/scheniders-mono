@@ -1,3 +1,4 @@
+import { formatIQD } from "@/lib/utils";
 import { describe, it, expect, afterEach } from "vitest";
 import type { ReactElement } from "react";
 import { cleanup, render as rtlRender, screen } from "@testing-library/react";
@@ -31,8 +32,8 @@ describe("ProductPerformanceCard", () => {
         render(<ProductPerformanceCard timesSold={0} totalRevenue={25000} averageOrderValue={12500} profitMargin={40} />);
 
         expect(statValue("المبيعات")).toBe("0");
-        expect(statValue("الإيرادات")).toBe("25,000 IQD");
-        expect(statValue("متوسط قيمة الطلب")).toBe("12,500 IQD");
+        expect(statValue("الإيرادات")).toBe(formatIQD(25000));
+        expect(statValue("متوسط قيمة الطلب")).toBe(formatIQD(12500));
         expect(statValue("هامش الربح")).toBe("40.0%");
     });
 });
