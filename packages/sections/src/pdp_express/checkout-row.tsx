@@ -171,8 +171,29 @@ export function CheckoutRow({
             rtl={rtl}
             label={displayNameOf(m.product)}
             note={`× ${m.qty}`}
-            value={<bdi>{formatPrice(m.subtotal, locale)}</bdi>}
+            value={
+              saving > 0 ? (
+                // show_savings: the item at its regular price in red, the
+                // saving under it in green, so the rows add up to the total.
+                <bdi className="text-bk-danger" data-receipt-regular="">
+                  {formatPrice(m.subtotal + saving, locale)}
+                </bdi>
+              ) : (
+                <bdi>{formatPrice(m.subtotal, locale)}</bdi>
+              )
+            }
           />
+          {saving > 0 && (
+            <Row
+              rtl={rtl}
+              label={xs("savingsRow", locale)}
+              value={
+                <bdi className="text-bk-success" data-receipt-saving="">
+                  −{formatPrice(saving, locale)}
+                </bdi>
+              }
+            />
+          )}
           {m.referralAmount > 0 && (
             <Row
               rtl={rtl}
@@ -185,13 +206,6 @@ export function CheckoutRow({
               rtl={rtl}
               label={xs("pointsRow", locale)}
               value={<bdi>−{formatPrice(m.pointsDiscount, locale)}</bdi>}
-            />
-          )}
-          {saving > 0 && (
-            <Row
-              rtl={rtl}
-              label={xs("savingsRow", locale)}
-              value={<bdi>−{formatPrice(saving, locale)}</bdi>}
             />
           )}
           <Row

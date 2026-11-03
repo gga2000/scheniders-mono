@@ -86,3 +86,24 @@ describe("absent = today's markup", () => {
     );
   });
 });
+
+describe("pdp_direct_order express — show_savings receipt", () => {
+  it("regular price in red, the saving in green, rows add up to the total", () => {
+    const html = render({ ...EXPRESS_IRAQ_DRAFT_PDP_PROPS, show_savings: true });
+    const regular = html.indexOf("data-receipt-regular");
+    const saving = html.indexOf("data-receipt-saving");
+    expect(regular).toBeGreaterThan(-1);
+    expect(saving).toBeGreaterThan(regular);
+    // 32,000 regular − 7,000 saving = 25,000 total.
+    expect(html.slice(regular, regular + 120)).toContain("32,000");
+    expect(html.slice(saving, saving + 120)).toContain("7,000");
+    expect(html).toMatch(/text-bk-danger" data-receipt-regular/);
+    expect(html).toMatch(/text-bk-success" data-receipt-saving/);
+  });
+
+  it("without show_savings the item row keeps the price paid", () => {
+    const html = render(EXPRESS_IRAQ_DRAFT_PDP_PROPS);
+    expect(html).not.toContain("data-receipt-regular");
+    expect(html).not.toContain("data-receipt-saving");
+  });
+});
