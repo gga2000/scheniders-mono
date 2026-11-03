@@ -1,6 +1,6 @@
 /**
- * Living page backdrop: a fine dot grid that drifts slowly, with a soft
- * twinkle and two faint colour glows behind it. Pure CSS (styles in globals.css under
+ * Living page backdrop: a fine neutral dot grid that drifts slowly, with a
+ * soft twinkle where patches of dots darken and fade. Pure CSS (styles in globals.css under
  * "Ambient backdrop"), so no JS runs per frame. Only `opacity` and `transform`
  * animate, which the browser composites on the GPU without repainting.
  *
@@ -11,8 +11,6 @@
 export function AmbientBackdrop() {
     return (
         <div aria-hidden="true" className="ambient-backdrop pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-            <div className="ambient-backdrop__glow ambient-backdrop__glow--a" />
-            <div className="ambient-backdrop__glow ambient-backdrop__glow--b" />
             <div className="ambient-backdrop__dots" />
             <div className="ambient-backdrop__twinkle ambient-backdrop__twinkle--a" />
             <div className="ambient-backdrop__twinkle ambient-backdrop__twinkle--b" />
