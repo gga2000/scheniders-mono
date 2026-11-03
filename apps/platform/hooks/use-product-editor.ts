@@ -1113,6 +1113,19 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     router.push(`/products/${newProduct.id}/edit`);
                 }
             } else if (product) {
+                // Removed variants go first: one still on a purchase order is
+                // refused ("in use") before anything else is written, instead
+                // of stopping the save half-way.
+                const keptIds = new Set(formData.variants.flatMap((v) => (v.id ? [v.id] : [])));
+                const removedIds = initialDataRef.current.variants.flatMap((v) => (v.id && !keptIds.has(v.id) ? [v.id] : []));
+                for (const removedId of removedIds) {
+                    await deleteVariant(product.id, removedId);
+                    initialDataRef.current = {
+                        ...initialDataRef.current,
+                        variants: initialDataRef.current.variants.filter((v) => v.id !== removedId),
+                    };
+                }
+
                 const savedUpdatedAt = await updateProduct(product.id, {
                     name: formData.name,
                     short_name: formData.short_name.trim() || null,
@@ -1175,8 +1188,8 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 );
 
                 // Handle variants. Only the variants this editor loaded (or
-                // created in an earlier save) are updated or deleted, so a
-                // variant someone else added meanwhile is left alone.
+                // created in an earlier save) are updated, so a variant
+                // someone else added meanwhile is left alone.
                 const existingVariantIds = new Set(loadedVariantStock.keys());
                 const savedVariants: typeof formData.variants = [];
 
@@ -1198,7 +1211,6 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                                 notes: "Product editor",
                             });
                         }
-                        existingVariantIds.delete(variant.id);
                         savedVariants.push(variant);
                     } else {
                         const created = await addVariant(product.id, {
@@ -1227,11 +1239,6 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                             variants: current.variants.map((v) => (v === variant ? { ...v, id: createdId } : v)),
                         }));
                     }
-                }
-
-                // Delete removed variants
-                for (const removedId of existingVariantIds) {
-                    await deleteVariant(product.id, removedId);
                 }
 
                 // Save all related data
