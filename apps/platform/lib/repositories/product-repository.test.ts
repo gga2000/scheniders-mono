@@ -205,3 +205,27 @@ describe("productRepository price changes", () => {
     });
 });
 
+
+describe("productRepository bulk writes", () => {
+    it("archives, shows, moves and deletes the whole selection in one database call each", async () => {
+        const ids = Array.from({ length: 250 }, (_, i) => `p${i}`);
+        await productRepository.bulkArchive(ids);
+        await productRepository.bulkUpdateVisibility(ids, false);
+        await productRepository.bulkUpdateCategory(ids, null);
+        await productRepository.bulkDelete(ids);
+
+        expect(rpcSpy.mock.calls).toEqual([
+            ["bulk_set_product_fields", { p_ids: ids, p_fields: { is_archived: true } }],
+            ["bulk_set_product_fields", { p_ids: ids, p_fields: { is_visible: false } }],
+            ["bulk_set_product_fields", { p_ids: ids, p_fields: { category_id: null } }],
+            ["bulk_delete_products", { p_ids: ids }],
+        ]);
+        expect(updateSpy).not.toHaveBeenCalled();
+    });
+
+    it("reports a selection the role may not fully change as a permission problem", async () => {
+        rpcResult = { data: null, error: { code: "42501", message: "not allowed to change 3 of the selected products" } };
+        await expect(productRepository.bulkRestore(["p1"])).rejects.toBeInstanceOf(ProductWriteDeniedError);
+        await expect(productRepository.bulkDelete(["p1"])).rejects.toBeInstanceOf(ProductWriteDeniedError);
+    });
+});
