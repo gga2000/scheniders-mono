@@ -1121,6 +1121,11 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 // of stopping the save half-way.
                 const keptIds = new Set(formData.variants.flatMap((v) => (v.id ? [v.id] : [])));
                 const removedIds = initialDataRef.current.variants.flatMap((v) => (v.id && !keptIds.has(v.id) ? [v.id] : []));
+                // A delete cannot be undone: refuse before it if someone else
+                // saved this product first, the same check the update makes.
+                if (removedIds.length > 0 && baseUpdatedAtRef.current) {
+                    await productRepository.assertUnchanged(product.id, baseUpdatedAtRef.current);
+                }
                 for (const removedId of removedIds) {
                     await deleteVariant(product.id, removedId);
                     initialDataRef.current = {

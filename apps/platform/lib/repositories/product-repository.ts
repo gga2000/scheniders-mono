@@ -388,6 +388,17 @@ export const productRepository = {
         }, WRITE_ONCE);
     },
 
+    /**
+     * Throw ProductChangedElsewhereError when the product no longer carries
+     * `expectedUpdatedAt`: the editor checks this before deleting variants,
+     * which cannot be undone if the save then loses to someone else's.
+     */
+    async assertUnchanged(id: string, expectedUpdatedAt: string): Promise<void> {
+        const { data, error } = await supabase.from("products").select("updated_at").eq("id", id).maybeSingle();
+        if (error) throw error;
+        if (data && data.updated_at !== expectedUpdatedAt) throw new ProductChangedElsewhereError();
+    },
+
     /** Archive a product. */
     async archive(id: string): Promise<void> {
         return withRetry('productRepository.archive', async () => {
