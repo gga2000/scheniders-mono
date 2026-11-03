@@ -311,9 +311,9 @@ function listQuery(tenantId: string, window: OrderWindow, columns: string, optio
     return q;
 }
 
-/** Page `i` of the list, in the total order every list read uses. */
-function listPage(tenantId: string, window: OrderWindow, i: number) {
-    return listQuery(tenantId, window, LIST_COLUMNS)
+/** Page `i` of the list, in the total order every list read uses; `withCount` also returns the window's exact row count. */
+function listPage(tenantId: string, window: OrderWindow, i: number, withCount = false) {
+    return listQuery(tenantId, window, LIST_COLUMNS, withCount ? { count: "exact" } : undefined)
         .order("created_at", { ascending: false })
         // Tie-break on id: parallel pages over a non-unique sort key can
         // repeat or skip rows at page boundaries, and a skipped row is missing
@@ -594,24 +594,27 @@ export const orderRepository = {
 
         const _t = performance.now();
 
-        // Count first, then page through ALL of them.
+        // The first page carries the exact count, then the rest are read
+        // together. A narrow window (the default view is one day) fits in that
+        // first page, so the list costs one round trip, not a count HEAD and
+        // then the page: on the critical path to the first card.
         //
         // Deliberately NOT a bare `.limit(n)`: truncating would leave the list
         // showing 1,000 rows while the status chips report the real total, i.e.
         // the list silently disagreeing with its own counts. The payload win
-        // comes from the window being narrow (the default view is a single
-        // day), never from dropping rows the merchant filtered for.
-        const { count, error: countErr } = await traced(opts.trace, "count", () => listQuery(tenantId, window, "id", { count: "exact", head: true }));
-        if (countErr) throw countErr;
+        // comes from the window being narrow, never from dropping rows the
+        // merchant filtered for.
+        const first = await traced(opts.trace, "first-page", () => readPage(() => listPage(tenantId, window, 0, true)));
+        if (first.error) throw first.error;
 
-        const totalRows = count ?? 0;
-        if (totalRows === 0) return [];
-
+        const totalRows = first.count ?? 0;
         const pageCount = Math.ceil(totalRows / PAGE);
-        const pages = await traced(opts.trace, "pages", () => Promise.all(
-            Array.from({ length: pageCount }, (_, i) => readPage(() => listPage(tenantId, window, i))),
-        ), () => ({ pages: pageCount }));
-        const rows = tracedSync(opts.trace, "normalize", () => pageRows(pages));
+        const rest = pageCount > 1
+            ? await traced(opts.trace, "pages", () => Promise.all(
+                Array.from({ length: pageCount - 1 }, (_, i) => readPage(() => listPage(tenantId, window, i + 1))),
+            ), () => ({ pages: pageCount - 1 }))
+            : [];
+        const rows = tracedSync(opts.trace, "normalize", () => pageRows([first, ...rest]));
 
         diag.log(`[Diag:Repo] findWindow rows=${rows.length} pages=${pageCount} took=${(performance.now() - _t).toFixed(1)}ms`);
         return opts.withRisk === false ? rows : withRiskData(tenantId, rows, opts.trace);
