@@ -650,7 +650,7 @@ function ReorderItemRow({
                         />
                         <Stat
                             label={t("supplies.ro.leadTime")}
-                            value={t("supplies.ro.leadDaysShort", { n: item.leadTimeDays })}
+                            value={t("supplies.ro.leadDaysShort", { count: item.leadTimeDays })}
                             tone="muted"
                         />
                     </div>

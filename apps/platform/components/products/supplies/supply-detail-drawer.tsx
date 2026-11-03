@@ -395,7 +395,7 @@ function SuppliersTab({ supply }: { supply: Product }) {
                             </div>
                             <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
                                 {s.lead_time_days != null && (
-                                    <SupplierStat label={t("supplies.sp.leadTime")} value={t("supplies.sp.leadDays", { n: s.lead_time_days })} />
+                                    <SupplierStat label={t("supplies.sp.leadTime")} value={t("supplies.sp.leadDays", { count: s.lead_time_days })} />
                                 )}
                                 {s.minimum_order_quantity != null && s.minimum_order_quantity > 1 && (
                                     <SupplierStat label={t("supplies.sp.moq")} value={s.minimum_order_quantity.toString()} />

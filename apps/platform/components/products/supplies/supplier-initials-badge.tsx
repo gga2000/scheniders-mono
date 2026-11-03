@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { initialsOf } from "@/lib/initials";
 
 interface SupplierInitialsBadgeProps {
     name: string;
@@ -18,18 +19,6 @@ const PALETTE = [
     "bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-500/30",
     "bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200 dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:ring-fuchsia-500/30",
 ];
-
-function initialsOf(name: string): string {
-    const cleaned = name.trim();
-    if (!cleaned) return "?";
-    // The Arabic article "ال" is on most names; "ال" as initials says nothing.
-    const parts = cleaned
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((w) => (w.length > 2 ? w.replace(/^ال/, "") : w));
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function colorFor(name: string): string {
     let hash = 0;

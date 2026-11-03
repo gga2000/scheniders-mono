@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Package,
     Plus,
     Trash2,
     Calendar,
@@ -216,13 +215,9 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
     };
 
     return (
-        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    {t("products.batch.title")}
-                </h2>
+        <div className="space-y-5">
+            {/* The editor's collapsible section carries the title. */}
+            <div className="flex items-center justify-end">
                 <button
                     type="button"
                     onClick={handleOpenForm}

@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
-import { cn } from "@/lib/utils";
+import { cn, parseWholeNumber } from "@/lib/utils";
 
 type LocationType = "warehouse" | "zone" | "aisle" | "shelf" | "bin";
 
@@ -180,8 +180,8 @@ export function ProductLocationPicker({
 
     const handleAdd = useCallback(() => {
         if (!newLocationId || !newQuantity) return;
-        const qty = parseInt(newQuantity);
-        if (qty <= 0) return;
+        const qty = parseWholeNumber(newQuantity);
+        if (qty === null || qty <= 0) return;
         assignMutation.mutate({ locationId: newLocationId, quantity: qty });
     }, [newLocationId, newQuantity, assignMutation]);
 
@@ -191,10 +191,6 @@ export function ProductLocationPicker({
 
     return (
         <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                <MapPin className="w-4 h-4" />
-                {"Storage Locations"}
-            </h3>
 
             {/* Assigned locations list */}
             {isLoading ? (
@@ -211,7 +207,7 @@ export function ProductLocationPicker({
                             className="p-4 bg-[var(--background)] rounded-xl border border-dashed border-[var(--card-border)] text-center"
                         >
                             <p className="text-muted text-sm">
-                                {"No locations assigned. Add a storage location below."}
+                                {t("products.location.none")}
                             </p>
                         </motion.div>
                     )}
@@ -248,15 +244,16 @@ export function ProductLocationPicker({
 
                                 {/* Quantity input */}
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <label className="text-xs text-muted">
-                                        {"Qty"}
-                                    </label>
+                                    <span className="text-xs text-muted" aria-hidden="true">
+                                        {t("products.location.qty")}
+                                    </span>
                                     <input
+                                        aria-label={t("products.location.qtyFor", { name: loc.name })}
                                         type="number"
                                         defaultValue={assignment.quantity}
                                         onBlur={(e) => {
-                                            const qty = parseInt(e.target.value) || 0;
-                                            if (qty >= 0) {
+                                            const qty = parseWholeNumber(e.target.value);
+                                            if (qty !== null && qty >= 0 && qty !== assignment.quantity) {
                                                 updateQuantityMutation.mutate({
                                                     locationId: assignment.location_id,
                                                     quantity: qty,
@@ -276,6 +273,7 @@ export function ProductLocationPicker({
                                 <button
                                     type="button"
                                     onClick={() => removeMutation.mutate(assignment.location_id)}
+                                    aria-label={t("products.location.remove", { name: loc.name })}
                                     disabled={disabled || removeMutation.isPending}
                                     className={cn(
                                         "p-1.5 text-muted hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50 dark:hover:text-rose-300 dark:hover:bg-rose-500/15",
@@ -299,23 +297,21 @@ export function ProductLocationPicker({
                         className="flex-1 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
                     >
                         <option value="">
-                            {"Select location..."}
+                            {t("products.location.select")}
                         </option>
-                        {availableLocations.map((loc) => {
-                            const Icon = typeIcons[loc.type];
-                            return (
-                                <option key={loc.id} value={loc.id}>
-                                    {loc.name} ({loc.code})
-                                </option>
-                            );
-                        })}
+                        {availableLocations.map((loc) => (
+                            <option key={loc.id} value={loc.id}>
+                                {loc.name} ({loc.code})
+                            </option>
+                        ))}
                     </select>
 
                     <input
                         type="number"
                         value={newQuantity}
                         onChange={(e) => setNewQuantity(e.target.value)}
-                        placeholder={"Qty"}
+                        placeholder={t("products.location.qty")}
+                        aria-label={t("products.location.qty")}
                         min={1}
                         className="w-24 px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all text-sm"
                     />
@@ -335,16 +331,16 @@ export function ProductLocationPicker({
                         ) : (
                             <Plus className="w-4 h-4" />
                         )}
-                        {"Add"}
+                        {t("products.location.add")}
                     </button>
                 </div>
             )}
 
             {/* Error display */}
-            {(assignMutation.isError || removeMutation.isError) && (
+            {(assignMutation.isError || removeMutation.isError || updateQuantityMutation.isError) && (
                 <div className="flex items-center gap-2 text-sm text-rose-600 dark:text-rose-300">
                     <AlertTriangle className="w-4 h-4" />
-                    {"Failed to update storage locations. Please try again."}
+                    {t("products.location.failed")}
                 </div>
             )}
         </div>

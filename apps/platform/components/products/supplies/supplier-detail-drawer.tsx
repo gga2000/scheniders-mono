@@ -177,7 +177,7 @@ function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
                     label={t("supplies.sd.kpiLead")}
                     value={
                         supplier.avgLeadTimeDays != null
-                            ? t("supplies.sd.days", { n: supplier.avgLeadTimeDays })
+                            ? t("supplies.sd.days", { count: supplier.avgLeadTimeDays })
                             : "—"
                     }
                 />

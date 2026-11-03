@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-    Barcode,
     QrCode,
     Copy,
     Check,
@@ -106,12 +105,7 @@ export function BarcodeGenerator({
     }, [barcode]);
 
     return (
-        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-4">
-            {/* Header */}
-            <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                <Barcode className="w-4 h-4" />
-                {t("products.barcode.title")}
-            </h2>
+        <div className="space-y-4">
 
             {/* Barcode input row */}
             <div className="flex items-center gap-2">

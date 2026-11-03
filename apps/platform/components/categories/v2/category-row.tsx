@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { CategoryScopeControl } from "@/components/products/category-scope-control";
 import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadDate } from "@/lib/customer-format";
+import { initialsOf } from "@/lib/initials";
 import type { Category, CategoryScope } from "@scheniders/shared";
 import { MiniSparkline } from "@/components/ui/mini-sparkline";
 
@@ -149,7 +150,7 @@ export function CategoryRow({
           <span className="text-lg">{category.icon}</span>
         ) : (
           <span className="text-xs font-bold text-[var(--ink)]">
-            {category.name.slice(0, 2).toUpperCase()}
+            {initialsOf(category.name)}
           </span>
         )}
       </div>
