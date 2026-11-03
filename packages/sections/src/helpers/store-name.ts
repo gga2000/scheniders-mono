@@ -7,21 +7,21 @@
 // `commerce.contact.name_i18n` when it parses and resolves to a non-empty
 // string, else `tenants.business_name` (trimmed, "" when absent).
 //
-// It parses the name on its own, with the shared `storeContactNameSchema`,
+// It parses the name on its own, with the shared `parseContactName`,
 // so it works even when the contact block has no usable call number.
 // =====================================================================
 
-import { z } from "zod";
-import { resolveI18n, storeContactNameSchema } from "@scheniders/shared";
-import type { LocaleCode } from "@scheniders/shared";
+import { parseContactName, resolveI18n } from "@scheniders/shared";
+import type { I18nString, LocaleCode } from "@scheniders/shared";
 
-const namedContactTenant = z.object({
-  store_config_v2: z.object({
-    commerce: z.object({
-      contact: z.object({ name_i18n: storeContactNameSchema }),
-    }),
-  }),
-});
+function field(v: unknown, key: string): unknown {
+  return typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>)[key] : undefined;
+}
+
+function contactName(tenant: unknown): I18nString | null {
+  const contact = field(field(field(tenant, "store_config_v2"), "commerce"), "contact");
+  return parseContactName(field(contact, "name_i18n"));
+}
 
 function businessName(tenant: unknown): string {
   if (typeof tenant !== "object" || tenant === null || !("business_name" in tenant)) return "";
@@ -30,9 +30,9 @@ function businessName(tenant: unknown): string {
 }
 
 export function storeDisplayName(tenant: unknown, locale: LocaleCode): string {
-  const parsed = namedContactTenant.safeParse(tenant);
-  if (parsed.success) {
-    const named = resolveI18n(parsed.data.store_config_v2.commerce.contact.name_i18n, locale).trim();
+  const name = contactName(tenant);
+  if (name) {
+    const named = resolveI18n(name, locale).trim();
     if (named) return named;
   }
   return businessName(tenant);

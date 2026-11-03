@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { StoreBaseProvider } from "./helpers/store-context";
-import { PricePillCard } from "./product_grid";
+import { PricePillCard } from "./helpers/price-pill-card";
 import type { Product } from "./types";
 
 const product = (over: Partial<Product> = {}): Product =>

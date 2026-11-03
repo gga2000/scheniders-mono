@@ -5,7 +5,7 @@
 // table the marketing pixels see. Purchases are recorded by the checkout
 // server with its own total — never from here.
 import { useEffect } from "react";
-import { setFunnelSink, type FunnelEvent } from "@scheniders/sections";
+import { setFunnelSink, type FunnelEvent } from "@scheniders/sections/helpers/pixels";
 
 const FLUSH_MS = 800;
 /** Matches the /api/events body limit. */

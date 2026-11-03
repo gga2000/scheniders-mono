@@ -6,7 +6,7 @@
 // cycle through site_footer.client.
 
 import { useState } from "react";
-import { z } from "zod";
+import { isValidEmail } from "./helpers/email";
 import type { LocaleCode } from "@scheniders/shared";
 import { MaterialIcon } from "./helpers/primitives";
 import { chromeString } from "./helpers/chrome-strings";
@@ -53,11 +53,6 @@ export const SOCIAL_PLATFORMS: ReadonlyArray<{
 // states. Isolated in its own component so the hooks stay scoped to the
 // enabled case (the whole file is already a client component).
 // ---------------------------------------------------------------------
-
-/** Client-side email validation for the footer signup field. */
-const emailSchema = z.email();
-const isValidEmail = (value: string): boolean =>
-  emailSchema.safeParse(value.trim()).success;
 
 export function InfoPanelNewsletterForm({
   locale,

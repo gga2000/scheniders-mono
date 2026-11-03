@@ -99,7 +99,7 @@ import type { Props } from "./pdp_direct_order";
 // constant, and the definition module cannot import it from here (a value
 // exported by a "use client" module is an opaque reference on the server).
 // The two-way import is benign — the constant is only read at render time.
-import { DEFAULT_URGENCY_MAX_STOCK } from "./pdp_direct_order";
+import { DEFAULT_URGENCY_MAX_STOCK } from "./pdp_constants";
 import { PdpExpress } from "./pdp_express/express-view";
 import { displayNameOf } from "./pdp_express/identity-label";
 import { EXPRESS_FIELD_ORDER } from "./pdp_express/model";

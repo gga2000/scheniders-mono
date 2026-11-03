@@ -22,7 +22,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { z } from "zod";
+import type { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import type { SectionRenderContext } from "./_types";
 import type { barBg, Props } from "./countdown_announcement";

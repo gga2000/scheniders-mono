@@ -22,7 +22,7 @@ import { resolveI18n } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { ChunkyButton, MaterialIcon, Section, WhatsAppButton } from "./helpers/primitives";
 import { SchneidersProductCard } from "./helpers/product-card";
-import { PricePillCard } from "./product_grid";
+import { PricePillCard } from "./helpers/price-pill-card";
 import { useStoreBase } from "./helpers/store-context";
 import { formatCount } from "./helpers/format";
 import { resolveTenantWhatsapp, whatsappDigits } from "./helpers/whatsapp";

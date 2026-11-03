@@ -14,10 +14,7 @@ import type { LocaleCode } from "@scheniders/shared";
 import { buildFacets, matchesFacets, type FacetId } from "./attribute-facets";
 import type { Product } from "../types";
 import { SchneidersProductCard } from "./product-card";
-// PricePillCard lives in product_grid, which imports this module — the cycle
-// is safe because the binding is only read at render time, and
-// search_results_grid.client.tsx already imports it the same way.
-import { PricePillCard } from "../product_grid";
+import { PricePillCard } from "./price-pill-card";
 import { BentoCard, ChunkyButton, MaterialIcon } from "./primitives";
 
 const PAGE_SIZE = 8;

@@ -13,7 +13,7 @@
 "use client";
 
 import { useState } from "react";
-import { z } from "zod";
+import { isValidEmail } from "./helpers/email";
 import { resolveI18n } from "@scheniders/shared";
 import {
   BentoCard,
@@ -25,11 +25,6 @@ import {
 } from "./helpers/primitives";
 import type { SectionRenderContext } from "./_types";
 import type { Props } from "./newsletter_inline";
-
-/** Client-side email validation for the inline signup field. */
-const emailSchema = z.email();
-const isValidEmail = (value: string): boolean =>
-  emailSchema.safeParse(value.trim()).success;
 
 export function NewsletterInlineRender({
   props,

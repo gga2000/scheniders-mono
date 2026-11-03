@@ -11,7 +11,7 @@ import type { Props } from "./product_finder";
 import type { SectionRenderContext } from "./_types";
 import type { Product } from "./types";
 import { Section, SectionHeader, ChunkyButton } from "./helpers/primitives";
-import { PricePillCard } from "./product_grid";
+import { PricePillCard } from "./helpers/price-pill-card";
 import { cn, PRESSABLE } from "./helpers/utils";
 
 export function ProductFinderRender({
