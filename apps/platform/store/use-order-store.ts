@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { Order } from "@/types/order";
+import type { PrimeRowFilter } from "@/lib/prime/track";
 
 // ---------------------------------------------------------------------------
 // Debounced Storage Adapter
@@ -29,6 +30,10 @@ interface ViewPreferencesSlice {
   compactView: 0 | 1 | 2;
   compactGrid: boolean;
   actionDock: boolean;
+  /** The Prime track band under each Prime parcel's card (the "Prime track on cards" switch). */
+  primeTrackOnCards: boolean;
+  /** Cards whose band the truck button flipped away from the switch; cleared when the switch moves. Not persisted. */
+  primeTrackOverrides: Readonly<Record<string, boolean>>;
   showSearchBar: boolean;
   analyticsLevel: 0 | 1 | 2;
   toolbarCollapsed: boolean;
@@ -40,6 +45,8 @@ interface ViewPreferencesSlice {
   setCompactView: (val: 0 | 1 | 2) => void;
   setCompactGrid: (val: boolean) => void;
   setActionDock: (val: boolean) => void;
+  setPrimeTrackOnCards: (val: boolean) => void;
+  setPrimeTrackOverride: (orderId: string, shown: boolean) => void;
   setShowSearchBar: (val: boolean) => void;
   setAnalyticsLevel: (val: 0 | 1 | 2) => void;
   setToolbarCollapsed: (val: boolean) => void;
@@ -61,6 +68,8 @@ interface FilterUISlice {
   filterStuckTransit: boolean;
   /** Show only delivered/completed orders of the last 30 days whose payment is not checked (lib/orders/payment-check.ts). */
   filterPaymentUnchecked: boolean;
+  /** In transit: show only Prime parcels in this bucket, or stuck 3+ days (lib/prime/track.ts). */
+  filterPrimeBucket: PrimeRowFilter | null;
   sortConfig: { key: string; direction: "asc" | "desc" } | null;
   sortConfigs: Array<{ key: string; direction: "asc" | "desc" }>;
   columnFilters: Record<string, string>;
@@ -78,6 +87,7 @@ interface FilterUISlice {
   setFilterDueToday: (val: boolean) => void;
   setFilterStuckTransit: (val: boolean) => void;
   setFilterPaymentUnchecked: (val: boolean) => void;
+  setFilterPrimeBucket: (val: PrimeRowFilter | null) => void;
   toggleSort: (key: string, shiftKey?: boolean) => void;
   setColumnFilters: (filters: Record<string, string>) => void;
   setOpenFilterColumn: (val: string | null) => void;
@@ -199,6 +209,8 @@ export const useOrderStore = create<OrderStore>()(
       compactView: 0,
       compactGrid: false,
       actionDock: true,
+      primeTrackOnCards: true,
+      primeTrackOverrides: {},
       showSearchBar: true,
       analyticsLevel: 0,
       toolbarCollapsed: false,
@@ -208,6 +220,9 @@ export const useOrderStore = create<OrderStore>()(
       setCompactView: (val) => set({ compactView: val }),
       setCompactGrid: (val) => set({ compactGrid: val }),
       setActionDock: (val) => set({ actionDock: val }),
+      setPrimeTrackOnCards: (val) => set({ primeTrackOnCards: val, primeTrackOverrides: {} }),
+      setPrimeTrackOverride: (orderId, shown) =>
+        set((s) => ({ primeTrackOverrides: { ...s.primeTrackOverrides, [orderId]: shown } })),
       setShowSearchBar: (val) => set({ showSearchBar: val }),
       setAnalyticsLevel: (val) => set({ analyticsLevel: val }),
       setToolbarCollapsed: (val) => set({ toolbarCollapsed: val }),
@@ -230,6 +245,7 @@ export const useOrderStore = create<OrderStore>()(
       filterDueToday: false,
       filterStuckTransit: false,
       filterPaymentUnchecked: false,
+      filterPrimeBucket: null,
       sortConfig: null,
       sortConfigs: [],
       columnFilters: {},
@@ -247,6 +263,7 @@ export const useOrderStore = create<OrderStore>()(
       setFilterDueToday: (val) => set({ filterDueToday: val }),
       setFilterStuckTransit: (val) => set({ filterStuckTransit: val }),
       setFilterPaymentUnchecked: (val) => set({ filterPaymentUnchecked: val }),
+      setFilterPrimeBucket: (val) => set({ filterPrimeBucket: val }),
       toggleSort: (key, shiftKey) =>
         set((s) => {
           if (shiftKey) {
@@ -414,6 +431,7 @@ export const useOrderStore = create<OrderStore>()(
         compactView: state.compactView,
         compactGrid: state.compactGrid,
         actionDock: state.actionDock,
+        primeTrackOnCards: state.primeTrackOnCards,
         showSearchBar: state.showSearchBar,
         analyticsLevel: state.analyticsLevel,
         toolbarCollapsed: state.toolbarCollapsed,

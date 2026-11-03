@@ -27,6 +27,7 @@ import { AdCampaignFilter } from "@/components/orders/ad-campaign-filter";
 import { LeadQualityStrip } from "@/components/orders/lead-quality-strip";
 import { StuckTransitChip } from "@/components/orders/stuck-transit-chip";
 import { PaymentUncheckedChip } from "@/components/orders/payment-unchecked-chip";
+import { PrimeTransitRow } from "@/components/orders/prime-transit-row";
 import type { PaymentStatus } from "@/lib/supabase";
 
 /**
@@ -204,6 +205,8 @@ export function OrdersFilterBar({
                                 isMobile={false}
                             />
                         )}
+
+                        {!isMobile && <PrimeTransitRow filters={filters} />}
 
                         {/* Which ad channel brought these orders in. Hidden until the
                             search-bar toggle turns it on, except while a channel is

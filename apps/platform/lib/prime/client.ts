@@ -132,6 +132,30 @@ const searchRowSchema = z.object({
 
 const stepSchema = z.object({ code: z.string(), name: z.string().nullish(), nameEn: z.string().nullish() });
 
+/**
+ * One movement of a parcel (case-history). Prime's test system answers
+ * `queueEnterDate` and `shipmentStatus`; its guide documents `createddt` and
+ * `status`. Both are read.
+ */
+const historyRowSchema = z
+    .object({
+        stepCode: z.string().nullish(),
+        queueEnterDate: z.string().nullish(),
+        createddt: z.string().nullish(),
+        shipmentStatus: z.string().nullish(),
+        status: z.string().nullish(),
+    })
+    .transform((r) => ({
+        stepCode: r.stepCode ?? null,
+        /** Baghdad wall clock, "2026-11-04 00:02:24" (see lib/prime/track primeHistoryTime). */
+        enteredAt: r.queueEnterDate ?? r.createddt ?? null,
+        status: r.shipmentStatus ?? r.status ?? null,
+    }));
+export type PrimeCaseMovement = z.infer<typeof historyRowSchema>;
+
+/** calculate-shipment-charges: a large object; only the charge is read. Null when Prime has no price for the state. */
+const chargeSchema = z.object({ shipmentCharge: z.number().nonnegative().nullish() });
+
 /** update-case-status answers {success, caseid, custReceiptNoOri}; a refusal is {success:false, errorMessage} with 422. */
 const resendSchema = z.object({ success: z.literal(true), caseid: z.number().nullish() });
 
@@ -354,6 +378,21 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
                 },
                 resendSchema,
             );
+        },
+
+        /** Every movement of one shipment, oldest first as Prime lists them. Refused with 4005 for a case that is not ours. */
+        async caseHistory(caseId: number): Promise<PrimeCaseMovement[]> {
+            return call("GET", `/external/case-history/${caseId}`, undefined, z.array(historyRowSchema));
+        },
+
+        /**
+         * What Prime charges the merchant to deliver a parcel of this amount to
+         * this state, in whole IQD, or null when Prime has no price for it (it
+         * answers 200 with a null charge for a state it does not serve).
+         */
+        async shipmentCharge(merchantLoginId: string, state: string, receiptAmtIqd: number): Promise<number | null> {
+            const answer = await call("POST", "/external/calculate-shipment-charges", { merchantLoginId, state, receiptAmtIqd }, chargeSchema);
+            return answer.shipmentCharge ?? null;
         },
 
         /** Step code → Arabic step name (falls back to the English name, then the code). Cached for a day. */

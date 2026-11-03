@@ -10,7 +10,7 @@ import { openPrintWindow, runFileNames, shippingLabelsDocument, writePrintWindow
 import { downloadLabelPdf } from "@/lib/pdf-download";
 import { loadAfterSalePickups } from "@/lib/after-sale/label-pickups";
 import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
-import type { PrimeSendResult, usePrimeLink } from "@/hooks/use-prime-link";
+import type { PrimeSendProgress, PrimeSendResult, usePrimeLink } from "@/hooks/use-prime-link";
 
 type Printing = ReturnType<typeof usePrinting>;
 
@@ -32,6 +32,8 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
     const { t } = useLanguage();
     const [pdfLoading, setPdfLoading] = useState(false);
     const [shipping, setShipping] = useState(false);
+    // The last run's hand-off to Prime as it goes: the desk marks each parcel as it gets its case number.
+    const [primeProgress, setPrimeProgress] = useState<PrimeSendProgress | null>(null);
 
     // Refund / replacement labels list what the courier takes back from the customer.
     const labelsDocument = async (orders: Order[], autoPrint: boolean) =>
@@ -139,7 +141,7 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
     const handOff = async (orders: Order[], filename: string, viaApi: boolean): Promise<{ ok: boolean; excel: boolean }> => {
         let excelOrders = orders;
         if (viaApi && prime.connected) {
-            const result = await prime.send(orders.map((o) => o.id)).catch((err: unknown) => {
+            const result = await prime.send(orders.map((o) => o.id), setPrimeProgress).catch((err: unknown) => {
                 console.error("Prime send error:", err);
                 return null;
             });
@@ -172,6 +174,7 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
         if (orders.length === 0 || !checkPrintable(orders)) return false;
         const names = runFileNames(orders.length);
         setShipping(true);
+        setPrimeProgress(null);
         try {
             if (!(await renderPdf(orders, names.labels))) return false;
             const handedOff = await handOff(orders, names.prime, moveToTransit);
@@ -198,5 +201,5 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
         if (!result.success) toast.error(t("printing.exportFailedTitle"), result.error);
     };
 
-    return { pdfLoading, shipping, printLabels, downloadLabels, ship, primeFileAgain };
+    return { pdfLoading, shipping, primeProgress, printLabels, downloadLabels, ship, primeFileAgain };
 }

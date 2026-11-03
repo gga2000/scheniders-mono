@@ -4,7 +4,11 @@ import { primeChipState, primeSkipReason, type PrimeShipmentView } from "./chip-
 const view = (over: Partial<PrimeShipmentView> = {}): PrimeShipmentView => ({
     caseId: 52176693,
     status: "ONWAY",
+    stepCode: "READYTOPICKUP",
     stepName: "جاهز للبيك اب",
+    sentAt: "2026-11-03T12:00:00Z",
+    receiptAmountIqd: 36_750,
+    shipmentCharge: 5_000,
     checkedAt: "2026-11-03T14:05:00Z",
     statusChangedAt: "2026-11-03T13:00:00Z",
     pending: false,

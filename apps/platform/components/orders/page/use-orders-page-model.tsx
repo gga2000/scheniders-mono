@@ -5,6 +5,7 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useR
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useStuckInTransit } from "@/hooks/use-stuck-in-transit";
+import { usePrimeRowSets } from "@/hooks/use-prime-shipments";
 import { usePaymentUnchecked } from "@/hooks/use-payment-unchecked";
 import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
 import { useStockShortfallGuard } from "@/hooks/use-stock-shortfall-guard";
@@ -463,6 +464,9 @@ export function useOrdersPageModel() {
     const defFilterPaymentUnchecked = React.useDeferredValue(filterPaymentUnchecked);
     const paymentUncheckedIds = usePaymentUnchecked();
     const paymentUncheckedSet = useMemo(() => new Set(paymentUncheckedIds), [paymentUncheckedIds]);
+    const filterPrimeBucket = useOrderStore(s => s.filterPrimeBucket);
+    const defFilterPrimeBucket = React.useDeferredValue(filterPrimeBucket);
+    const { sets: primeRowSets } = usePrimeRowSets();
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
@@ -518,12 +522,18 @@ export function useOrdersPageModel() {
             result = result.filter(o => paymentUncheckedSet.has(o.id));
         }
 
+        // 1.9. In transit, one bucket of the Prime row (lib/prime/track.ts).
+        if (defFilterPrimeBucket) {
+            const ids = primeRowSets.get(defFilterPrimeBucket);
+            result = result.filter(o => ids?.has(o.id) ?? false);
+        }
+
         // 2. Sort: pinned first, parked last, then the column sorts, else
         // newest first (lib/orders/list-sort.ts — shared with the preview's
         // prefix proof).
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
         return sortDesktopList(result, activeSorts);
-    }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, getCustomerOrderCount, defRiskLevel]);
+    }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
 
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
     // Counted with the same predicate the filter uses, so the number on the card
@@ -562,7 +572,8 @@ export function useOrdersPageModel() {
         dueToday: defFilterDueToday,
         stuckTransit: defFilterStuckTransit,
         paymentUnchecked: defFilterPaymentUnchecked,
-    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked]);
+        primeBucket: defFilterPrimeBucket !== null,
+    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterPrimeBucket]);
 
     // The head of a wide list fetch, while the window loads — rows in under a
     // second instead of a skeleton for the whole book. Only for the plain list:
@@ -573,10 +584,10 @@ export function useOrdersPageModel() {
     // book lands are dropped.
     const previewOrders = useMemo(() => {
         if (!listPreview || defShowArchived || groupBy !== "none") return null;
-        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday || defFilterStuckTransit || defFilterPaymentUnchecked) return null;
+        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday || defFilterStuckTransit || defFilterPaymentUnchecked || defFilterPrimeBucket) return null;
         if (defSortConfigs.length > 0 || defSortConfig) return null;
         return desktopPreviewRows(listPreview.rows);
-    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defSortConfigs, defSortConfig]);
+    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterPrimeBucket, defSortConfigs, defSortConfig]);
     const previewing = previewOrders !== null;
     // A count of the list is its length only once the list is the whole
     // window (or the server's search hits): never over a preview or the

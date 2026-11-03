@@ -7,12 +7,15 @@ import { usePrinting } from "@/hooks/use-printing";
 import { useDispatchQueue, DISPATCH_QUEUE_KEY } from "@/hooks/use-dispatch-queue";
 import { useDispatchRun } from "@/hooks/use-dispatch-run";
 import { usePrimeLink } from "@/hooks/use-prime-link";
+import { usePrimeDeskPreview } from "@/hooks/use-prime-desk";
 import { useDispatchTwins } from "@/hooks/use-dispatch-twins";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { getQueueFlags, groupForPacking, hasBlockingFlag, type PackGroup } from "@/lib/dispatch-queue";
 import { mergeOrderItems } from "@/lib/merge-order-items";
+import { doorCash } from "@/lib/dispatch-label";
+import { primeDeskCounts, primeDeskState, primeRunMoney } from "@/lib/prime/desk-state";
 import { ordersOfRun } from "@/lib/print-runs";
 import type { Order, PrintBatch } from "@/lib/supabase";
 import { OrderCard } from "@/components/printing/order-card";
@@ -23,6 +26,8 @@ import { RunHistory } from "@/components/printing/run-history";
 import { PackGroupHeader } from "@/components/printing/pack-group-header";
 import { ReprintWarningModal } from "@/components/printing/reprint-warning-modal";
 import { ShipRunDialog } from "@/components/printing/ship-run-dialog";
+import { PrimeDeskStrip } from "@/components/printing/prime-desk-strip";
+import { PrimeConnectedPill } from "@/components/printing/prime-connected-pill";
 
 type View = "today" | "history";
 
@@ -112,6 +117,22 @@ export default function PrintingPage() {
     const prime = usePrimeLink();
     const run = useDispatchRun({ printing, bulkUpdateStatus, prime });
 
+    // With the Prime link: each order's fee and readiness before the run, and its case number as the run goes.
+    const primeDesk = usePrimeDeskPreview(orders, prime.connected);
+    const primeOf = (order: Order) => {
+        if (!prime.connected) return undefined;
+        const row = primeDesk.rows.get(order.id);
+        return {
+            state: primeDeskState(order.id, row, run.primeProgress),
+            fee: row?.kind === "ready" ? row.fee : undefined,
+            onSaved: () => void refreshQueue(),
+        };
+    };
+    const primeCounts = useMemo(
+        () => primeDeskCounts(orders.map((o) => o.id), primeDesk.rows, run.primeProgress),
+        [orders, primeDesk.rows, run.primeProgress],
+    );
+
     // The 48h double-dispatch check: the queue plus the orders already out.
     const getDispatchTwin = useDispatchTwins(orders);
 
@@ -173,6 +194,8 @@ export default function PrintingPage() {
                             {view === "today" ? t("printing.subtitle", { date: today }) : t("printing.historySubtitle")}
                         </p>
                     </div>
+                    <div className="flex items-center gap-3">
+                    {prime.connected && <PrimeConnectedPill branchName={prime.branchName} />}
                     <div role="tablist" className="flex rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-1">
                         {(["today", "history"] as const).map((tab) => (
                             <button
@@ -188,6 +211,7 @@ export default function PrintingPage() {
                                 {tab === "today" ? t("printing.view_queue") : t("printing.view_history")}
                             </button>
                         ))}
+                    </div>
                     </div>
                 </header>
 
@@ -210,6 +234,7 @@ export default function PrintingPage() {
                 ) : (
                     <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-5">
                         <div className="flex min-w-0 flex-col gap-3">
+                            {prime.connected && orders.length > 0 && <PrimeDeskStrip counts={primeCounts} />}
                             <section className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]">
                                 <DeskToolbar
                                     selectedCount={selected.length}
@@ -261,6 +286,7 @@ export default function PrintingPage() {
                                                             showItems={g.kind !== "item"}
                                                             onToggle={() => setTick([order.id], !isTicked(order))}
                                                             onFocus={() => setFocusId(order.id)}
+                                                            prime={primeOf(order)}
                                                         />
                                                     ))}
                                                 </div>
@@ -275,6 +301,8 @@ export default function PrintingPage() {
                                 primeLinked={prime.connected}
                                 onShip={() => setShipOpen(true)}
                                 onPrint={startPrint}
+                                primeMoney={prime.connected ? primeRunMoney(selected.map((o) => ({ id: o.id, cash: doorCash(o) })), primeDesk.rows) : undefined}
+                                primeProgress={run.primeProgress}
                             />
                         </div>
                         <LabelPreviewRail
@@ -302,6 +330,7 @@ export default function PrintingPage() {
                 onRemove={(ids) => setTick(ids, false)}
                 shipping={run.shipping}
                 primeLinked={prime.connected}
+                primeProgress={run.primeProgress}
                 onShip={(list, options) => void shipRun(list, options)}
             />
 

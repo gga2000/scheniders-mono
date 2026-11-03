@@ -6,6 +6,8 @@ import { getQueueFlags, hasBlockingFlag } from "@/lib/dispatch-queue";
 import { doorCash, labelReceiptNumber } from "@/lib/dispatch-label";
 import { useLanguage } from "@/hooks/use-language";
 import { DeskChip as Chip } from "@/components/printing/desk-chip";
+import { PrimeDeskLine } from "@/components/printing/prime-desk-line";
+import type { PrimeDeskState } from "@/lib/prime/desk-state";
 import type { Order } from "@/lib/supabase";
 
 interface OrderCardProps {
@@ -17,12 +19,14 @@ interface OrderCardProps {
     showItems: boolean;
     onToggle: () => void;
     onFocus: () => void;
+    /** The Prime hand-off line, when the tenant ships through the Prime API. */
+    prime?: { state: PrimeDeskState | null; fee: number | null | undefined; onSaved: () => void };
 }
 
 const amountFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
 /** One order in the desk grid: who, where, what, and the cash at the door. */
-export function OrderCard({ order, selected, focused, showItems, onToggle, onFocus }: OrderCardProps) {
+export function OrderCard({ order, selected, focused, showItems, onToggle, onFocus, prime }: OrderCardProps) {
     const { t } = useLanguage();
     const flags = getQueueFlags(order);
     const blocked = hasBlockingFlag(flags);
@@ -75,6 +79,7 @@ export function OrderCard({ order, selected, focused, showItems, onToggle, onFoc
                     {cash.direction === "prepaid" && <Chip tone="mute">{t("printing.cashPrepaid")}</Chip>}
                 </div>
             )}
+            {prime && <PrimeDeskLine order={order} state={prime.state} fee={prime.fee} onSaved={prime.onSaved} />}
         </div>
     );
 }
