@@ -1,8 +1,11 @@
 "use client";
 
+import { useRef } from "react";
 import { Package, AlertTriangle } from "lucide-react";
+import { Switch } from "@scheniders/ui/switch";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { useLanguage } from "@/hooks/use-language";
+import { parseStorefrontStock } from "@/lib/storefront-stock";
 
 interface ProductInventorySectionProps {
     formData: ProductEditorFormData;
@@ -15,6 +18,15 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
     const available = formData.stock_quantity - reservedQuantity;
     const isLowStock = available > 0 && available <= formData.low_stock_threshold;
     const isOutOfStock = available <= 0;
+
+    // On = the store shows formData.storefront_stock; off = it follows real stock (column null).
+    // The number is remembered while off so flipping back restores it.
+    const customOn = formData.storefront_stock != null;
+    const lastCustom = useRef<number | null>(null);
+    if (formData.storefront_stock != null) lastCustom.current = formData.storefront_stock;
+    const setCustom = (on: boolean) => {
+        updateField("storefront_stock", on ? (lastCustom.current ?? Math.max(0, available)) : null);
+    };
 
     return (
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
@@ -52,6 +64,44 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                     />
                 </div>
             </div>
+
+            {!formData.is_supply && (
+                <div className="rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                        <label htmlFor="storefront-stock-toggle" className="text-sm font-medium text-foreground">
+                            {t("products.ed.storefrontStockToggle")}
+                        </label>
+                        <Switch
+                            id="storefront-stock-toggle"
+                            checked={customOn}
+                            onCheckedChange={setCustom}
+                        />
+                    </div>
+                    {customOn ? (
+                        <div className="space-y-2">
+                            <label htmlFor="storefront-stock" className="block text-sm font-medium text-foreground">
+                                {t("products.ed.storefrontStock")}
+                            </label>
+                            <input
+                                id="storefront-stock"
+                                type="number"
+                                inputMode="numeric"
+                                value={formData.storefront_stock ?? 0}
+                                onChange={(e) => {
+                                    updateField("storefront_stock", parseStorefrontStock(e.target.value) ?? 0);
+                                }}
+                                min={0}
+                                className="w-full px-4 py-3 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
+                            />
+                            <p className="text-xs text-muted">{t("products.ed.storefrontStockOn")}</p>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-muted">
+                            {t("products.ed.storefrontStockOff", { count: Math.max(0, available) })}
+                        </p>
+                    )}
+                </div>
+            )}
 
             {reservedQuantity > 0 && (
                 <div className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-blue)] rounded-xl text-sm text-blue-700 tabular-nums">
