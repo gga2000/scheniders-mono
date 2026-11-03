@@ -90,6 +90,20 @@ function costMaps(rows: ProductCostRow[]) {
     return { productCost, variantCost };
 }
 
+/** Joins the cost rows (what this member may see) onto product rows. */
+function withCosts(rows: Product[], costs: ProductCostRow[]): Product[] {
+    const { productCost, variantCost } = costMaps(costs);
+    return rows.map((product) => ({
+        ...product,
+        cost: productCost.get(product.id)?.cost ?? null,
+        cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
+        variants: (product.variants ?? []).map((variant) => ({
+            ...variant,
+            cost: variantCost.get(variant.id) ?? null,
+        })),
+    })) as Product[];
+}
+
 /** Rows of per-product history the editor loads (newest first). */
 const HISTORY_LIMIT = 300;
 
@@ -143,17 +157,31 @@ export const productRepository = {
             ]);
 
             diag.log(`[Diag:ProductRepo] findAll query DONE took=${(performance.now() - _t).toFixed(1)}ms rows=${data.length}`);
-            const { productCost, variantCost } = costMaps(costs);
-            return data.map((product) => ({
-                ...product,
-                cost: productCost.get(product.id)?.cost ?? null,
-                cost_breakdown_json: productCost.get(product.id)?.cost_breakdown_json ?? null,
-                variants: (product.variants ?? []).map((variant) => ({
-                    ...variant,
-                    cost: variantCost.get(variant.id) ?? null,
-                })),
-            })) as Product[];
+            return withCosts(data, costs);
         })();
+    },
+
+    /**
+     * One product in exactly the shape findAll returns, or null when it is gone
+     * (deleted, or no longer readable). After a single-product edit the list is
+     * patched with this row instead of re-downloading the whole catalogue.
+     */
+    async findOneForList(tenantId: string, id: string): Promise<Product | null> {
+        return withRetry('productRepository.findOneForList', async () => {
+            const [{ data, error }, { data: costs, error: costError }] = await Promise.all([
+                supabase
+                    .from("products")
+                    .select(PRODUCT_WITH_VARIANTS_COLUMNS)
+                    .eq("tenant_id", tenantId)
+                    .eq("id", id)
+                    .maybeSingle(),
+                supabase.rpc("product_costs", { p_tenant_id: tenantId }).eq("product_id", id),
+            ]);
+            if (error) throw error;
+            if (costError) throw costError;
+            if (!data) return null;
+            return withCosts([data as Product], (costs ?? []) as ProductCostRow[])[0];
+        });
     },
 
     /**

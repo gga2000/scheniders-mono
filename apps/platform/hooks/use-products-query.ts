@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { type Product, type ProductVariant, type ProductPriceHistory } from "@/lib/supabase";
 import { productRepository, type ProductUpdate, type VariantUpdate } from "@/lib/repositories/product-repository";
@@ -22,6 +22,41 @@ export const productKeys = {
     variants: (productId: string) => [...productKeys.detail(productId), "variants"] as const,
 };
 
+
+/**
+ * After an edit to one product, re-read that row into the cached list instead
+ * of re-downloading the catalogue (a 1,500-product store is several pages plus
+ * the cost read). If the row cannot be read, fall back to the full refetch.
+ */
+export async function refreshProductRows(
+    queryClient: QueryClient,
+    tenantId: string | null,
+    ids: string[],
+): Promise<void> {
+    if (!tenantId) return;
+    const key = productKeys.list(tenantId);
+    const unique = [...new Set(ids)];
+    if (!queryClient.getQueryData(key) || unique.length === 0 || unique.length > ROW_REFRESH_LIMIT) {
+        await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+        return;
+    }
+    let rows: (Product | null)[];
+    try {
+        rows = await Promise.all(unique.map((id) => productRepository.findOneForList(tenantId, id)));
+    } catch {
+        await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+        return;
+    }
+    const byId = new Map(unique.map((id, i) => [id, rows[i]]));
+    queryClient.setQueryData<Product[]>(key, (old) =>
+        old
+            ?.filter((p) => !byId.has(p.id) || byId.get(p.id) !== null)
+            .map((p) => byId.get(p.id) ?? p),
+    );
+}
+
+/** More rows than this and one full read is cheaper than many single ones. */
+const ROW_REFRESH_LIMIT = 10;
 
 // Hook
 export function useProductsQuery() {
@@ -110,9 +145,7 @@ export function useUpdateProductMutation() {
                 queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
             }
         },
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: productKeys.lists() });
-        }
+        onSettled: (_data, _err, { id }) => refreshProductRows(queryClient, tenantId, [id]),
     });
 }
 
@@ -137,7 +170,7 @@ export function useArchiveProductMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, id) => refreshProductRows(queryClient, tenantId, [id])
     });
 }
 
@@ -160,7 +193,7 @@ export function useRestoreProductMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, id) => refreshProductRows(queryClient, tenantId, [id])
     });
 }
 
@@ -291,7 +324,7 @@ export function useAdjustStockMutation() {
         onError: (_err, _vars, context) => {
             if (context?.previousProducts) queryClient.setQueryData(productKeys.list(tenantId), context.previousProducts);
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, { productId }) => refreshProductRows(queryClient, tenantId, [productId])
     });
 }
 
@@ -322,6 +355,7 @@ export interface CountStockResult {
  */
 export function useSetCountedStockMutation() {
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     return useMutation({
         mutationFn: async (counts: CountStockArgs[]): Promise<CountStockResult> => {
             const result: CountStockResult = { saved: 0, failed: new Map() };
@@ -336,7 +370,7 @@ export function useSetCountedStockMutation() {
             }
             return result;
         },
-        onSettled: () => queryClient.invalidateQueries({ queryKey: productKeys.lists() })
+        onSettled: (_data, _err, counts) => refreshProductRows(queryClient, tenantId, counts.map((c) => c.productId))
     });
 }
 
