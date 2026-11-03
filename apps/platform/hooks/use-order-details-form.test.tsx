@@ -9,7 +9,7 @@ vi.mock("@/hooks/use-toast", () => ({
     toast: { error: H.toastError, success: H.toastSuccess },
 }));
 
-import { useOrderDetailsForm } from "./use-order-details-form";
+import { useOrderDetailsForm, useOrderIdEdit } from "./use-order-details-form";
 import { FUTURE_ORDER_DATE_CODE } from "@/lib/order-date-guard";
 
 const order = {
@@ -90,5 +90,36 @@ describe("useOrderDetailsForm — order date vs schedule", () => {
         await act(() => hook.result.current.handleSave());
 
         expect(onUpdate.mock.calls[0][1]).not.toHaveProperty("scheduled_date");
+    });
+});
+
+describe("useOrderIdEdit — order number check", () => {
+    const run = async (check: (id: string, exclude?: string) => Promise<boolean>) => {
+        vi.useFakeTimers();
+        const hook = renderHook(() =>
+            useOrderIdEdit({ order, setOrder: vi.fn(), onUpdate: vi.fn(), checkOrderIdExists: check, t }));
+        act(() => hook.result.current.startIdEdit());
+        act(() => hook.result.current.handleIdChange("8800"));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(500);
+        });
+        vi.useRealTimers();
+        return hook.result.current;
+    };
+
+    it("flags a number that is already taken", async () => {
+        const check = vi.fn().mockResolvedValue(true);
+        const state = await run(check);
+
+        expect(check).toHaveBeenCalledWith("8800", "o1");
+        expect(state.idError).toBe("orderDetail.idExists");
+        expect(state.isCheckingId).toBe(false);
+    });
+
+    it("stops checking and shows no verdict when the check fails", async () => {
+        const state = await run(vi.fn().mockRejectedValue(new Error("Unauthorized")));
+
+        expect(state.idError).toBeNull();
+        expect(state.isCheckingId).toBe(false);
     });
 });

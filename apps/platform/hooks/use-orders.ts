@@ -357,11 +357,6 @@ export function useOrders() {
         // Timeline
         getOrderTimeline: crudHook.getOrderTimeline,
 
-        // Reminders
-        setFollowUpReminder: crudHook.setFollowUpReminder,
-        getActiveReminders: crudHook.getActiveReminders,
-        completeReminder: crudHook.completeReminder,
-
         // Blacklist
         isBlacklisted: auxiliaryHook.isBlacklisted,
         getBlacklistEntry: auxiliaryHook.getBlacklistEntry,
