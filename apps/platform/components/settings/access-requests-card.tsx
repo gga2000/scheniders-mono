@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
+import { useLanguage } from "@/hooks/use-language";
 import { Inbox, Check, X } from "lucide-react";
 
 interface Req {
@@ -27,6 +28,7 @@ const ROLES = ["employee", "viewer", "admin"] as const;
  */
 export function AccessRequestsCard() {
     const { role } = useAuth();
+    const { t } = useLanguage();
     const [requests, setRequests] = useState<Req[]>([]);
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [sel, setSel] = useState<Record<string, { tenantId: string; role: string }>>({});
@@ -56,7 +58,7 @@ export function AccessRequestsCard() {
 
     const approve = async (id: string) => {
         const s = sel[id];
-        if (!s?.tenantId) { toast.error("Pick a workspace first"); return; }
+        if (!s?.tenantId) { toast.error(t("team.access.pickWorkspace")); return; }
         setBusyId(id);
         try {
             const res = await fetch("/api/admin/access-requests", {
@@ -65,8 +67,8 @@ export function AccessRequestsCard() {
                 body: JSON.stringify({ requestId: id, tenantId: s.tenantId, role: s.role || "employee" }),
             });
             const j = await res.json().catch(() => ({}));
-            if (res.ok) { toast.success("Access approved"); load(); }
-            else toast.error("Couldn't approve", j.error || "Please try again.");
+            if (res.ok) { toast.success(t("team.access.approved")); load(); }
+            else toast.error(t("team.access.approveFailed"), j.error || t("team.invite.tryAgain"));
         } finally { setBusyId(null); }
     };
 
@@ -74,8 +76,8 @@ export function AccessRequestsCard() {
         setBusyId(id);
         try {
             const res = await fetch(`/api/admin/access-requests?id=${id}`, { method: "DELETE", headers: await authHeader() });
-            if (res.ok) { toast.success("Request rejected"); load(); }
-            else toast.error("Couldn't reject request");
+            if (res.ok) { toast.success(t("team.access.rejected")); load(); }
+            else toast.error(t("team.access.rejectFailed"));
         } finally { setBusyId(null); }
     };
 
@@ -85,18 +87,18 @@ export function AccessRequestsCard() {
                 <div className="w-8 h-8 rounded-lg bg-[var(--pastel-pink)] flex items-center justify-center">
                     <Inbox className="h-4 w-4 text-rose-700" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground">Access requests</h3>
+                <h3 className="text-base font-semibold text-foreground">{t("team.access.title")}</h3>
                 {requests.length > 0 && (
                     <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-500 text-white">{requests.length}</span>
                 )}
-                <span className="ml-auto text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Super-admin</span>
+                <span className="ml-auto text-[11px] font-medium text-muted-foreground uppercase tracking-wide">{t("team.access.badge")}</span>
             </div>
             <p className="text-sm text-muted-foreground mb-5">
-                People who signed in (e.g. with Google) but aren&apos;t set up yet. Approve to provision them into a workspace.
+                {t("team.access.desc")}
             </p>
 
             {requests.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">No pending requests.</p>
+                <p className="text-sm text-muted-foreground py-2">{t("team.access.none")}</p>
             ) : (
                 <div className="space-y-2.5">
                     {requests.map((r) => (
@@ -110,7 +112,7 @@ export function AccessRequestsCard() {
                                 onChange={(e) => setReq(r.id, { tenantId: e.target.value })}
                                 className="h-9 rounded-lg border border-(--card-border) bg-background px-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-(--pastel-pink)"
                             >
-                                <option value="">Workspace…</option>
+                                <option value="">{t("team.access.workspace")}</option>
                                 {tenants.map((t) => <option key={t.id} value={t.id}>{t.business_name}</option>)}
                             </select>
                             <select
@@ -118,7 +120,7 @@ export function AccessRequestsCard() {
                                 onChange={(e) => setReq(r.id, { role: e.target.value })}
                                 className="h-9 rounded-lg border border-(--card-border) bg-background px-2 text-sm text-foreground capitalize focus:outline-none focus:ring-2 focus:ring-(--pastel-pink)"
                             >
-                                {ROLES.map((ro) => <option key={ro} value={ro} className="capitalize">{ro}</option>)}
+                                {ROLES.map((ro) => <option key={ro} value={ro} className="capitalize">{t(`team.role.${ro}`)}</option>)}
                             </select>
                             <div className="flex items-center gap-1.5">
                                 <button
@@ -126,13 +128,13 @@ export function AccessRequestsCard() {
                                     disabled={busyId === r.id}
                                     className="h-9 px-3 rounded-lg text-sm font-semibold text-white bg-[var(--button-success)] hover:bg-[var(--button-success-hover)] disabled:opacity-50 flex items-center gap-1.5 transition-colors"
                                 >
-                                    <Check className="w-4 h-4" /> Approve
+                                    <Check className="w-4 h-4" /> {t("team.access.approve")}
                                 </button>
                                 <button
                                     onClick={() => reject(r.id)}
                                     disabled={busyId === r.id}
                                     className="h-9 w-9 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-50 disabled:opacity-50 flex items-center justify-center transition-colors"
-                                    title="Reject"
+                                    title={t("team.access.reject")}
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
