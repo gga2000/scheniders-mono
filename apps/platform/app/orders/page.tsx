@@ -156,7 +156,6 @@ export default function OrdersPage() {
         getBlacklistEntry,
         addToBlacklist,
         removeFromBlacklist,
-        stats,
         availableCities,
         availableProducts,
         filters,
@@ -1444,11 +1443,8 @@ export default function OrdersPage() {
 
                                                             {/* Stats Toggle */}
                                                             <button
-                                                                onClick={() => {
-                                                                    const newLevel = ((analyticsLevel + 1) % 3) as 0 | 1 | 2;
-                                                                    setAnalyticsLevel(newLevel);
-                                                                    localStorage.setItem("ordersAnalyticsLevel", String(newLevel));
-                                                                }}
+                                                                onClick={() => setAnalyticsLevel(analyticsLevel > 0 ? 0 : 1)}
+                                                                aria-pressed={analyticsLevel > 0}
                                                                 className={cn(
                                                                     "p-2.5 rounded-xl transition-all duration-300",
                                                                     analyticsLevel > 0
@@ -1568,14 +1564,7 @@ export default function OrdersPage() {
 
                                             {/* Collapsible Analytics Panel */}
                                             <OrdersAnalyticsPanel
-                                                // At the merchant's own level even over the preview:
-                                                // collapsing it there and animating it open when the
-                                                // window lands moved every row below. Its figures are
-                                                // taken over the loaded rows, so they wait instead.
-                                                analyticsLevel={analyticsLevel}
-                                                statsHidden={previewing}
-                                                stats={stats}
-                                                statusCounts={statusCounts}
+                                                open={analyticsLevel > 0}
                                                 filters={filters}
                                                 setFilters={setFilters}
                                                 flaggedCount={flaggedCount}
