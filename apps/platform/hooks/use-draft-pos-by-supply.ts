@@ -54,9 +54,12 @@ export function useDraftPosBySupply() {
     });
 }
 
-/** Supplier names compare the way the one-draft-per-supplier index does. */
+/**
+ * Supplier names compare the way the one-draft-per-supplier index does:
+ * lower(btrim(name)). btrim strips only plain spaces, unlike String.trim.
+ */
 export function supplierKey(name: string): string {
-    return name.trim().toLowerCase();
+    return name.replace(/^ +| +$/g, "").toLowerCase();
 }
 
 /**

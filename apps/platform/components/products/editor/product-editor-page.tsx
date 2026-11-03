@@ -3,6 +3,7 @@
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { useProductEditor } from "@/hooks/use-product-editor";
+import { useSupplyRecipeUses } from "@/hooks/use-supply-recipe-uses";
 import type { Product } from "@/types/product";
 import { ProductEditorHeader } from "./product-editor-header";
 import { ProductEditorSidebar } from "./product-editor-sidebar";
@@ -58,6 +59,8 @@ interface ProductEditorPageProps {
 
 export function ProductEditorPage({ product, mode, defaultIsSupply = false }: ProductEditorPageProps) {
     const editor = useProductEditor({ product, mode, defaultIsSupply });
+    // A supply used in recipes cannot be unticked (the database refuses it).
+    const { data: recipeUses = 0 } = useSupplyRecipeUses(product?.id, mode === "edit" && !!product?.is_supply);
     const { t } = useLanguage();
     // Product cost and margin are for admins only; a supply's cost is its
     // price, so whoever adds supplies keeps seeing it (useProductEditor).
@@ -429,6 +432,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 updateField={editor.updateField}
                                 mode={mode}
                                 canReclassifySupply={editor.canReclassifySupply}
+                                recipeUses={recipeUses}
                                 timesSold={product?.times_sold}
                                 totalRevenue={product?.total_revenue}
                                 profitMargin={showCost ? editor.profitMargin : null}

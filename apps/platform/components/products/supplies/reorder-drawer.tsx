@@ -442,7 +442,7 @@ export function ReorderDrawer({
                                                                 </button>
                                                             );
                                                         })()}
-                                                        {/* Supplies the draft does not list still need a PO of their own. */}
+                                                        {/* Supplies the draft does not list yet: the button adds them to it (or starts one). */}
                                                         {!noSupplier && group.items.some((i) => !draftBySupply?.has(i.supply.id)) && (
                                                             <button
                                                                 onClick={(e) => {
