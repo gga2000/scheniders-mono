@@ -226,7 +226,6 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
     );
     const attentionCounts = useMemo(() => ({
         urgent: urgentCount,
-        noResponse: statusCounts.no_response,
         returnPending: countView.filter((o) => o.status === "return_pending").length,
     }), [urgentCount, statusCounts, countView]);
 

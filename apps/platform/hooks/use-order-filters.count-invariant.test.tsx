@@ -112,7 +112,6 @@ describe.each(VARIANTS)("count invariant with %s", (_label, base) => {
 
     it("Needs Attention counts equal the lists their clicks open", () => {
         expect(v.attentionCounts.urgent).toBe(filterOrders(BOOK, { ...base, priority: "urgent" }).length);
-        expect(v.attentionCounts.noResponse).toBe(filterOrders(BOOK, { ...base, status: "no_response" }).length);
         expect(v.attentionCounts.returnPending).toBe(filterOrders(BOOK, { ...base, status: "return_pending" }).length);
     });
 

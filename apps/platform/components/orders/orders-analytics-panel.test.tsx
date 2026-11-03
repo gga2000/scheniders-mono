@@ -63,7 +63,7 @@ function renderPanel(props: Partial<Props> = {}) {
                 filters={{}}
                 setFilters={() => {}}
                 flaggedCount={3}
-                attentionCounts={{ urgent: 11, noResponse: 12, returnPending: 0 }}
+                attentionCounts={{ urgent: 11, returnPending: 0 }}
                 {...props}
             />
         </LanguageProvider>,
@@ -166,7 +166,6 @@ describe("OrdersAnalyticsPanel attention pills", () => {
         renderPanel();
         expect(attention("flagged")).toBe("3");
         expect(attention("urgent")).toBe("11");
-        expect(attention("no_response")).toBe("12");
         expect(attention("return_pending")).toBeUndefined();
     });
 
@@ -181,8 +180,8 @@ describe("OrdersAnalyticsPanel attention pills", () => {
         setHook();
         const setFilters = vi.fn();
         renderPanel({ setFilters, filters: { city: "x" } as Props["filters"] });
-        fireEvent.click(document.querySelector("[data-attention=\"no_response\"]")?.parentElement as HTMLElement);
-        expect(setFilters).toHaveBeenCalledWith({ city: "x", status: "no_response" });
+        fireEvent.click(document.querySelector("[data-attention=\"urgent\"]")?.parentElement as HTMLElement);
+        expect(setFilters).toHaveBeenCalledWith({ city: "x", priority: "urgent" });
     });
 });
 
@@ -190,17 +189,17 @@ describe("OrdersAnalyticsPanel attention pills as switches", () => {
     it("lifts the filter on a second click", () => {
         setHook();
         const setFilters = vi.fn();
-        renderPanel({ setFilters, filters: { status: "no_response" } as Props["filters"] });
-        const pill = document.querySelector("[data-attention=\"no_response\"]")?.parentElement as HTMLElement;
+        renderPanel({ setFilters, filters: { priority: "urgent" } as Props["filters"] });
+        const pill = document.querySelector("[data-attention=\"urgent\"]")?.parentElement as HTMLElement;
         expect(pill.getAttribute("aria-pressed")).toBe("true");
         fireEvent.click(pill);
-        expect(setFilters).toHaveBeenCalledWith({ status: "all" });
+        expect(setFilters).toHaveBeenCalledWith({ priority: undefined });
     });
 
     it("keeps an active pill on screen when its count is hidden or zero", () => {
         setHook();
-        renderPanel({ countsHidden: true, attentionCounts: { urgent: 0, noResponse: 0, returnPending: 0 }, filters: { priority: "urgent" } as Props["filters"] });
+        renderPanel({ countsHidden: true, attentionCounts: { urgent: 0, returnPending: 0 }, filters: { priority: "urgent" } as Props["filters"] });
         expect(attention("urgent")).toBe("×");
-        expect(attention("no_response")).toBeUndefined();
+        expect(attention("return_pending")).toBeUndefined();
     });
 });
