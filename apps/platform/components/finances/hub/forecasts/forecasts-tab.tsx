@@ -39,7 +39,7 @@ export function ForecastsTab({ orders, expenses, period }: Props) {
 
     const chart = useMemo(() => forecast.chart.map((p) => ({
         label: shortDay(p.day),
-        historical: p.historical,
+        historical: p.avg7,
         best: p.best,
         likely: p.likely,
         worst: p.worst,

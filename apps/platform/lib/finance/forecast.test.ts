@@ -61,6 +61,23 @@ describe("buildForecast", () => {
     });
 });
 
+describe("buildForecast chart smoothing", () => {
+    it("adds a trailing 7-day average so a one-day delivery batch does not read as a spike", () => {
+        const f = buildForecast([delivered("a", 70_000, "2026-10-30T10:00:00.000Z")], NOW);
+        const day = (d: string) => f.chart.find((p) => p.day === d);
+        expect(day("2026-10-30")?.historical).toBe(70_000);
+        expect(day("2026-10-30")?.avg7).toBe(10_000);
+        expect(day("2026-10-26")?.avg7).toBe(0);
+        // Past the 7-day window the batch drops out again.
+        expect(day("2026-11-06")?.avg7 ?? 0).toBe(0);
+    });
+
+    it("has no average on projected days", () => {
+        const f = buildForecast([delivered("a", 70_000, "2026-10-30T10:00:00.000Z")], NOW);
+        expect(f.chart.filter((p) => p.historical === null).every((p) => p.avg7 === null)).toBe(true);
+    });
+});
+
 describe("coverDays", () => {
     it("divides the period's expenses by the period's own length", () => {
         expect(coverDays(700_000, 700_000, 7)).toEqual({ dailyBurn: 100_000, days: 7 });
