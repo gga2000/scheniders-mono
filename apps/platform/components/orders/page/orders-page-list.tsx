@@ -2,10 +2,9 @@
 
 import { useOrderStore } from "@/store/use-order-store";
 import { OrderListPreviewStrip } from "@/components/orders/order-list-preview-strip";
-import { SwipeableOrderCard } from "@/components/orders/swipeable-order-card";
 import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { EmptyState } from "@/components/ui/empty-states";
-import { StaggerContainer, StaggerItem, EASE_CHROME } from "@/components/layout/page-transition";
+import { EASE_CHROME } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { canOfferSelectAll } from "@/lib/order-bulk-scope";
@@ -14,7 +13,7 @@ import type { OrdersPageModel } from "./use-orders-page-model";
 
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageList({ m }: { m: OrdersPageModel }) {
-    const { recordContact, isRefreshing, ordersPending, orderSearch, isBlacklisted, getBlacklistEntry, addToBlacklist, removeFromBlacklist, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, getCustomerHistory, getCustomerOrderCount, togglePin, toggleReviewed, cloneOrder, getCustomerArchivedCount, ordersAreComplete, t, canUnblock, canBlock, viewMode, compactView, compactGrid, actionDock, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, setScreenshotOrder, selectedOrders, setSelectedOrders, showArchived, loadingId, handleViewDetails, setSelectedOrderWithFetch, emptyStateHasFilters, isFirstRun, workflowTemplates, filteredOrders, previewing, handleStatusUpdate, openCancelDialog, openRejectDialog, openTemplatePanel, showDuplicates, mergeWithPrevious, openSplitDialog, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, getReturnOrderInfo, getOriginalOrderInfo, cardListProps } = m;
+    const { recordContact, isRefreshing, ordersPending, orderSearch, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, togglePin, ordersAreComplete, t, viewMode, compactView, compactGrid, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, selectedOrders, setSelectedOrders, showArchived, setSelectedOrderWithFetch, emptyStateHasFilters, isFirstRun, filteredOrders, previewing, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, cardListProps } = m;
     return (
         <>
             {/* Section 2: Order Cards — stagger child */}
@@ -138,58 +137,13 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                                                     : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
                                             )}
                                         />
-                                    ) : listOrders.length >= 10 ? (
-                                        /* Use virtualized list for 50+ orders */
-                                        <VirtualizedOrderList {...cardListProps} />
                                     ) : (
-                                        /* Use animated list for <50 orders */
-                                        <StaggerContainer key="orders-list" className="space-y-3">
-                                            {listOrders.map((order) => {
-                                                const customerOrders = getCustomerHistory(order.phone);
-                                                const orderCount = getCustomerOrderCount(order.phone, order.order_id);
-                                                const previousOrder = !order.is_return ? (customerOrders.find(o => o.id !== order.id) || null) : null;
-
-                                                return (
-                                                    <StaggerItem key={order.id}>
-                                                        <SwipeableOrderCard
-                                                            order={order}
-                                                            loadingId={loadingId}
-                                                            onStatusUpdate={handleStatusUpdate}
-                                                            onViewDetails={handleViewDetails}
-                                                            onSplit={openSplitDialog}
-                                                            isBlacklisted={isBlacklisted(order.phone)}
-                                                            blacklistEntry={getBlacklistEntry(order.phone)}
-                                                            onAddToBlacklist={canBlock ? addToBlacklist : undefined}
-                                                            onRemoveFromBlacklist={canUnblock ? removeFromBlacklist : undefined}
-                                                            riskLevel={(order.risk_data?.level || "low") as "low" | "medium" | "high" | "blocked"}
-                                                            riskAssessment={order.risk_data}
-                                                            customerOrderCount={orderCount}
-                                                            archivedOrderCount={getCustomerArchivedCount(order.phone)}
-                                                            previousOrder={previousOrder}
-                                                            onMergeWithPrevious={mergeWithPrevious}
-                                                            onShowDuplicates={showDuplicates}
-                                                            duplicateAlert={getDuplicateWindowAlert(order.id)}
-                                                            onContactRecorded={recordContact}
-                                                            onTogglePin={togglePin}
-                                                            onCloneOrder={cloneOrder}
-                                                            onScreenshot={setScreenshotOrder}
-                                                            onCancelWithReason={openCancelDialog}
-                                                            onRejectWithReason={openRejectDialog}
-                                                            onToggleReviewed={toggleReviewed}
-                                                            returnOrderInfo={getReturnOrderInfo(order.id)}
-                                                            originalOrderInfo={getOriginalOrderInfo(order.original_order_id)}
-                                                            compact={compactView}
-                                                            actionDock={actionDock}
-                                                            isVirtualized={false}
-                                                            onOpenTemplatePanel={openTemplatePanel}
-                                                            messageTemplates={workflowTemplates}
-                                                            isSelected={selectedOrders.has(order.id)}
-                                                            onToggleSelection={toggleOrderSelection}
-                                                            />
-                                                    </StaggerItem>
-                                                );
-                                            })}
-                                        </StaggerContainer>
+                                        /* One renderer at every list size. A small-list branch used to
+                                           swap in at under 10 rows, so a filter or search crossing
+                                           that line remounted every card and closed any menu open
+                                           on one (seen live: the status menu shut under the click
+                                           as a search's results landed). */
+                                        <VirtualizedOrderList {...cardListProps} />
                                     )}
                                 </>
                             )}
