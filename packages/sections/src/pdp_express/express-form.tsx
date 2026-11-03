@@ -399,7 +399,7 @@ export function ExpressForm({
           aria-expanded={!hideRest}
           onClick={() => setFolded((f) => !f)}
           className={cn(
-            "mt-1 inline-flex min-h-11 items-center gap-1.5 font-bk-body text-sm font-bold text-bk-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus",
+            "mt-1 flex min-h-11 w-full items-center gap-1.5 font-bk-body text-sm font-bold text-bk-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus",
             rtl && "flex-row-reverse",
           )}
         >
