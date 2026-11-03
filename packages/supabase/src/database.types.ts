@@ -4094,6 +4094,7 @@ export type Database = {
           delivery_slot: string | null
           discount_amount: number | null
           entered_by: string | null
+          created_via: string | null
           governorate_code: string | null
           id: string
           idempotency_key: string | null
@@ -4188,6 +4189,7 @@ export type Database = {
           delivery_slot?: string | null
           discount_amount?: number | null
           entered_by?: string | null
+          created_via?: string | null
           governorate_code?: string | null
           id?: string
           idempotency_key?: string | null
@@ -4282,6 +4284,7 @@ export type Database = {
           delivery_slot?: string | null
           discount_amount?: number | null
           entered_by?: string | null
+          created_via?: string | null
           governorate_code?: string | null
           id?: string
           idempotency_key?: string | null

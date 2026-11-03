@@ -79,7 +79,7 @@ export async function createOrderAction(
     }
 
     // Who typed it is the verified caller, never a value from the browser.
-    return createOrderForTenant({ ...orderData, entered_by: resolved.caller.userId }, tenantId);
+    return createOrderForTenant({ ...orderData, entered_by: resolved.caller.userId, created_via: null }, tenantId);
 }
 
 // =============================================

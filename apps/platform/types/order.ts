@@ -137,6 +137,8 @@ export interface Order {
     source?: OrderSource;
     /** Staff member (user_profiles.id) who typed the order in; null when it arrived on its own. Set by the server only. */
     entered_by?: string | null;
+    /** "claude" when made through the merchant MCP connector; null otherwise. Set by the server only. */
+    created_via?: "claude" | null;
     /** Which ad the customer clicked — `source` only says which system sent the order. */
     attribution?: AdAttribution | null;
     /** Denormalized `attribution.channel` (facebook | instagram | tiktok | …) so the list can filter without unpacking jsonb. */
