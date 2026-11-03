@@ -17,7 +17,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@/hooks/use-language";
 import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
-import { formatCount } from "@/lib/utils";
+import { formatCount, formatIQD } from "@/lib/utils";
 
 interface ActivityLogEntry {
     id?: string;
@@ -139,7 +139,7 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
     const formatValue = (field: string, value: unknown): string => {
         if (value === null || value === undefined || value === "") return "\u2014";
         if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
-        if (MONEY_FIELDS.has(field) && typeof value === "number") return `${formatCount(value)} IQD`;
+        if (MONEY_FIELDS.has(field) && typeof value === "number") return formatIQD(value);
         if (field === "status" && typeof value === "string") return t(`products.activity.status.${value}`);
         if (field === "category_id" && typeof value === "string") {
             return categories?.find((c) => c.id === value)?.name ?? t("products.activity.otherCategory");
