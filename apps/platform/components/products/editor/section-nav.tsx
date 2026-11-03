@@ -110,7 +110,7 @@ export function SectionNav({ visibleSections }: SectionNavProps) {
                                 className={cn(
                                     "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors text-left",
                                     isActive
-                                        ? "bg-[var(--pastel-yellow)] text-amber-900 font-semibold"
+                                        ? "bg-[var(--pastel-yellow)] text-amber-900 font-semibold dark:text-amber-300"
                                         : "text-muted hover:text-foreground hover:bg-[var(--background)]"
                                 )}
                             >
@@ -118,7 +118,7 @@ export function SectionNav({ visibleSections }: SectionNavProps) {
                                     className={cn(
                                         "w-4 h-4 shrink-0",
                                         isActive
-                                            ? "text-amber-700"
+                                            ? "text-amber-700 dark:text-amber-300"
                                             : "text-muted"
                                     )}
                                 />
@@ -145,7 +145,7 @@ export function SectionNav({ visibleSections }: SectionNavProps) {
                                 className={cn(
                                     "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors shrink-0 min-h-[44px]",
                                     isActive
-                                        ? "bg-[var(--pastel-yellow)] text-amber-900"
+                                        ? "bg-[var(--pastel-yellow)] text-amber-900 dark:text-amber-300"
                                         : "text-muted hover:text-foreground hover:bg-[var(--background)]"
                                 )}
                             >

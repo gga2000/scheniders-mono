@@ -21,7 +21,6 @@ interface CategoryHeaderKpisProps {
   uncategorizedCount?: number;
   totalProducts?: number;
   revenueSeries?: Record<string, number[]>;
-  onDrill?: (target: "uncategorized" | "scheduled" | "empty") => void;
 }
 
 export function CategoryHeaderKpis({
@@ -29,7 +28,6 @@ export function CategoryHeaderKpis({
   productCategoryCounts,
   uncategorizedCount = 0,
   totalProducts = 0,
-  onDrill,
 }: CategoryHeaderKpisProps) {
   const { t } = useLanguage();
 
@@ -95,7 +93,6 @@ export function CategoryHeaderKpis({
     value: React.ReactNode;
     label: string;
     sub: React.ReactNode;
-    onClick?: () => void;
     spark?: number[];
     sparkColor?: string;
   }> = [
@@ -103,7 +100,7 @@ export function CategoryHeaderKpis({
       key: "total",
       tone: "pastel-card pastel-card-yellow",
       icon: FolderTree,
-      iconTone: "text-amber-600",
+      iconTone: "text-amber-600 dark:text-amber-300",
       value: categories.filter((c) => c.status !== "archived").length,
       label: t("categories.kpi.total") || "Categories",
       sub: `${stats.topLevel} ${t("categories.kpi.topLevel") || "top-level"} · ${stats.published} ${t("categories.kpi.published") || "published"}`,
@@ -112,7 +109,7 @@ export function CategoryHeaderKpis({
       key: "scope",
       tone: "pastel-card pastel-card-blue",
       icon: Globe,
-      iconTone: "text-sky-600",
+      iconTone: "text-sky-600 dark:text-sky-300",
       value: stats.websiteCats,
       label: t("categories.kpi.onWebsite") || "On the website",
       sub: `${stats.storeCats} ${t("categories.kpi.inStore") || "for the store"}`,
@@ -121,7 +118,7 @@ export function CategoryHeaderKpis({
       key: "coverage",
       tone: "pastel-card pastel-card-green",
       icon: Layers,
-      iconTone: "text-emerald-600",
+      iconTone: "text-emerald-600 dark:text-emerald-300",
       value: `${stats.coverage}%`,
       label: t("categories.kpi.coverage") || "Coverage",
       sub: `${totalProducts - uncategorizedCount}/${totalProducts} ${t("categories.kpi.assigned") || "assigned"}`,
@@ -130,17 +127,16 @@ export function CategoryHeaderKpis({
       key: "uncategorized",
       tone: "pastel-card pastel-card-pink",
       icon: AlertCircle,
-      iconTone: "text-rose-600",
+      iconTone: "text-rose-600 dark:text-rose-300",
       value: uncategorizedCount,
       label: t("categories.kpi.uncategorized") || "Uncategorized",
       sub: t("categories.kpi.needsTriage") || "needs triage",
-      onClick: onDrill ? () => onDrill("uncategorized") : undefined,
     },
     {
       key: "hidden",
       tone: "pastel-card pastel-card-blue",
       icon: EyeOff,
-      iconTone: "text-blue-600",
+      iconTone: "text-blue-600 dark:text-blue-300",
       value: stats.hiddenFromNav,
       label: t("categories.kpi.hiddenFromNav") || "Hidden from nav",
       sub: `${stats.draft} ${t("categories.kpi.drafts") || "drafts"}`,
@@ -149,21 +145,19 @@ export function CategoryHeaderKpis({
       key: "scheduled",
       tone: "pastel-card pastel-card-mint",
       icon: CalendarClock,
-      iconTone: "text-teal-600",
+      iconTone: "text-teal-600 dark:text-teal-300",
       value: stats.scheduled,
       label: t("categories.kpi.scheduled") || "Scheduled",
       sub: t("categories.kpi.upcoming") || "upcoming",
-      onClick: onDrill ? () => onDrill("scheduled") : undefined,
     },
     {
       key: "empty",
       tone: "pastel-card pastel-card-purple",
       icon: Sparkles,
-      iconTone: "text-violet-600",
+      iconTone: "text-violet-600 dark:text-violet-300",
       value: stats.emptyCats,
       label: t("categories.kpi.empty") || "Empty categories",
       sub: t("categories.kpi.noProducts") || "no products assigned",
-      onClick: onDrill ? () => onDrill("empty") : undefined,
     },
   ];
 
@@ -187,18 +181,8 @@ export function CategoryHeaderKpis({
             <p className="text-[11px] text-muted mt-0.5 truncate">{c.sub}</p>
           </>
         );
-        const tileClass = cn(c.tone, "p-3 text-left min-w-0");
-        return c.onClick ? (
-          <button
-            key={c.key}
-            type="button"
-            onClick={c.onClick}
-            className={cn(tileClass, "hover:shadow-md transition-shadow cursor-pointer")}
-          >
-            {body}
-          </button>
-        ) : (
-          <div key={c.key} className={tileClass}>
+        return (
+          <div key={c.key} className={cn(c.tone, "p-3 text-start min-w-0")}>
             {body}
           </div>
         );

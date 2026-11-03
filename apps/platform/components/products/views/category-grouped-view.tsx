@@ -361,7 +361,7 @@ export function CategoryGroupedView({
                         <button
                             onClick={submitNewCategory}
                             disabled={!newCategoryName.trim() || addCategory.isPending}
-                            className="p-1 rounded-md hover:bg-[var(--background)] disabled:opacity-40 disabled:cursor-not-allowed text-emerald-600"
+                            className="p-1 rounded-md hover:bg-[var(--background)] disabled:opacity-40 disabled:cursor-not-allowed text-emerald-600 dark:text-emerald-300"
                             aria-label={t("common.save")}
                         >
                             {addCategory.isPending ? (
@@ -741,7 +741,7 @@ function MiniProductCard({
             ? "text-red-500"
             : stockStatus === "low_stock"
               ? "text-amber-500"
-              : "text-green-600";
+              : "text-green-600 dark:text-green-300";
 
     const {
         setNodeRef,

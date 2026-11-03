@@ -25,15 +25,15 @@ const SCOPE_CHIPS: {
   fallback: string;
   tone: string;
 }[] = [
-  { value: "website", icon: Globe, labelKey: "categories.scope.website", fallback: "Website", tone: "bg-sky-50 text-sky-700 border-sky-200" },
-  { value: "internal", icon: Store, labelKey: "categories.scope.internal", fallback: "Store", tone: "bg-violet-50 text-violet-700 border-violet-200" },
-  { value: "both", icon: Layers, labelKey: "categories.scope.both", fallback: "Both", tone: "bg-slate-100 text-slate-700 border-slate-300" },
+  { value: "website", icon: Globe, labelKey: "categories.scope.website", fallback: "Website", tone: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30" },
+  { value: "internal", icon: Store, labelKey: "categories.scope.internal", fallback: "Store", tone: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30" },
+  { value: "both", icon: Layers, labelKey: "categories.scope.both", fallback: "Both", tone: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-500/15 dark:text-slate-300" },
 ];
 
 const STATUS_CHIPS: { value: CategoryStatus; label: string; tone: string }[] = [
-  { value: "published", label: "Published", tone: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  { value: "draft", label: "Draft", tone: "bg-amber-50 text-amber-700 border-amber-200" },
-  { value: "archived", label: "Archived", tone: "bg-gray-100 text-gray-600 border-gray-300" },
+  { value: "published", label: "Published", tone: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30" },
+  { value: "draft", label: "Draft", tone: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30" },
+  { value: "archived", label: "Archived", tone: "bg-gray-100 text-gray-600 border-gray-300 dark:bg-gray-500/15 dark:text-gray-300" },
 ];
 
 export function CategoryFiltersBar({
@@ -145,7 +145,7 @@ export function CategoryFiltersBar({
           className={cn(
             "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
             filters.navOnly
-              ? "bg-blue-50 text-blue-700 border-blue-200"
+              ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30"
               : "bg-transparent text-muted border-[var(--card-border)] hover:text-foreground",
           )}
         >

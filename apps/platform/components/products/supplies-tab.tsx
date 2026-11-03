@@ -5,7 +5,7 @@ import { refreshProductRows } from "@/hooks/use-products-query";
 import { useAuth } from "@/components/auth/auth-provider";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
-import { cn } from "@/lib/utils";
+import { cn, formatCount } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { productWriteErrorKey } from "@/lib/product-write-error";
@@ -356,7 +356,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className={cn(
                                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                                 section === "supplies"
-                                    ? "bg-white text-teal-700 shadow-sm ring-1 ring-[var(--card-border)]"
+                                    ? "bg-white text-teal-700 shadow-sm ring-1 ring-[var(--card-border)] dark:text-teal-300"
                                     : "text-muted hover:text-foreground"
                             )}
                             aria-pressed={section === "supplies"}
@@ -373,7 +373,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className={cn(
                                 "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                                 section === "suppliers"
-                                    ? "bg-white text-teal-700 shadow-sm ring-1 ring-[var(--card-border)]"
+                                    ? "bg-white text-teal-700 shadow-sm ring-1 ring-[var(--card-border)] dark:text-teal-300"
                                     : "text-muted hover:text-foreground"
                             )}
                             aria-pressed={section === "suppliers"}
@@ -427,7 +427,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className={cn(
                                 "p-1.5 rounded-lg transition-all",
                                 viewMode === "grid"
-                                    ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)]"
+                                    ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)] dark:text-teal-300"
                                     : "text-muted hover:text-foreground"
                             )}
                             title={t("supplies.view.grid")}
@@ -441,7 +441,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             className={cn(
                                 "p-1.5 rounded-lg transition-all",
                                 viewMode === "list"
-                                    ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)]"
+                                    ? "bg-white shadow-sm text-teal-600 ring-1 ring-[var(--card-border)] dark:text-teal-300"
                                     : "text-muted hover:text-foreground"
                             )}
                             title={t("supplies.view.list")}
@@ -458,7 +458,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                         className={cn(
                             "inline-flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-sm transition-all border",
                             reorderCandidateCount > 0
-                                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/15 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/15"
                                 : "bg-[var(--card-bg)] border-[var(--card-border)] text-muted hover:text-foreground"
                         )}
                         title={t("supplies.reorder.title")}
@@ -587,8 +587,10 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
             {supplies.length > 0 && (
                 <p className="text-xs text-muted -mt-1">
                     {searchQuery || selectedCategoryId
-                        ? `${filteredSupplies.length} of ${supplies.length} supplies`
-                        : `${supplies.length} ${supplies.length === 1 ? "supply" : "supplies"}`}
+                        ? t("supplies.count.filtered", { shown: formatCount(filteredSupplies.length), total: formatCount(supplies.length) })
+                        : supplies.length === 1
+                          ? t("supplies.count.one")
+                          : t("supplies.count.many", { count: formatCount(supplies.length) })}
                 </p>
             )}
 

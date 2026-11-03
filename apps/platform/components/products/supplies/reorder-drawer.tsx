@@ -335,7 +335,7 @@ export function ReorderDrawer({
                         <div className="px-5 py-4 border-b border-[var(--card-border)] flex items-start justify-between gap-3">
                             <div>
                                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                                    <ShoppingCart className="w-5 h-5 text-teal-600" />
+                                    <ShoppingCart className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                                     {t("supplies.ro.title")}
                                 </h3>
                                 <p className="text-xs text-muted mt-0.5">
@@ -367,7 +367,7 @@ export function ReorderDrawer({
                                 </span>
                                 <button
                                     onClick={() => setShowSnoozed((v) => !v)}
-                                    className="font-medium text-teal-600 hover:text-teal-700"
+                                    className="font-medium text-teal-600 hover:text-teal-700 dark:text-teal-300 dark:hover:text-teal-300"
                                 >
                                     {showSnoozed ? t("supplies.ro.hideSnoozed") : t("supplies.ro.showSnoozed")}
                                 </button>
@@ -411,8 +411,8 @@ export function ReorderDrawer({
                                                             className={cn(
                                                                 "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
                                                                 hasCritical
-                                                                    ? "bg-rose-100 text-rose-600"
-                                                                    : "bg-teal-50 text-teal-600"
+                                                                    ? "bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300"
+                                                                    : "bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300"
                                                             )}
                                                         >
                                                             <Truck className="w-4 h-4" />
@@ -436,7 +436,7 @@ export function ReorderDrawer({
                                                                 {hasCritical && (
                                                                     <>
                                                                         <span>·</span>
-                                                                        <span className="inline-flex items-center gap-1 text-rose-600 font-medium">
+                                                                        <span className="inline-flex items-center gap-1 text-rose-600 font-medium dark:text-rose-300">
                                                                             <AlertTriangle className="w-3 h-3" />
                                                                             {t("supplies.ro.critical")}
                                                                         </span>
@@ -530,7 +530,7 @@ function EmptyState({ snoozedCount }: { snoozedCount: number }) {
     const { t } = useLanguage();
     return (
         <div className="flex flex-col items-center justify-center text-center px-6 py-16">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 dark:bg-emerald-500/15 dark:text-emerald-300">
                 <Package className="w-6 h-6" />
             </div>
             <p className="font-semibold">{t("supplies.ro.healthy")}</p>
@@ -581,7 +581,7 @@ function ReorderItemRow({
                             loading="lazy"
                         />
                     ) : (
-                        <Box className="w-5 h-5 text-teal-600" />
+                        <Box className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                     )}
                 </div>
 
@@ -688,7 +688,7 @@ function Stat({
             <div
                 className={cn(
                     "text-sm font-semibold tabular-nums",
-                    tone === "critical" ? "text-rose-600" : "text-foreground"
+                    tone === "critical" ? "text-rose-600 dark:text-rose-300" : "text-foreground"
                 )}
             >
                 {value}
@@ -707,7 +707,7 @@ function UrgencyChip({
     const { t } = useLanguage();
     if (urgency === "critical") {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-100 px-2 py-0.5 text-[10px] font-medium">
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-100 px-2 py-0.5 text-[10px] font-medium dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30">
                 <AlertTriangle className="w-3 h-3" />
                 {days !== null
                     ? days <= 0
@@ -719,14 +719,14 @@ function UrgencyChip({
     }
     if (urgency === "warning") {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-100 px-2 py-0.5 text-[10px] font-medium">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-100 px-2 py-0.5 text-[10px] font-medium dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30">
                 <Clock className="w-3 h-3" />
                 {days !== null ? t("supplies.ro.daysLeft", { days }) : t("supplies.ro.atRisk")}
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 px-2 py-0.5 text-[10px] font-medium">
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 px-2 py-0.5 text-[10px] font-medium dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30">
             {t("supplies.ro.belowReorder")}
         </span>
     );

@@ -88,7 +88,7 @@ export function ProductDetailModal({
                                 <div className="flex items-center gap-2 mt-1">
                                     <StockIndicator status={stockStatus} quantity={product.stock_quantity} />
                                     {product.is_archived && (
-                                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">
+                                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium dark:bg-gray-500/15 dark:text-gray-300">
                                             {t("products.detail.archived")}
                                         </span>
                                     )}
@@ -126,40 +126,40 @@ export function ProductDetailModal({
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="pastel-card pastel-card-mint p-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <DollarSign className="w-4 h-4 text-teal-700" />
-                                    <span className="text-xs text-teal-700">{t("products.detail.price")}</span>
+                                    <DollarSign className="w-4 h-4 text-teal-700 dark:text-teal-300" />
+                                    <span className="text-xs text-teal-700 dark:text-teal-300">{t("products.detail.price")}</span>
                                 </div>
-                                <p className="text-xl font-bold text-teal-900">
+                                <p className="text-xl font-bold text-teal-900 dark:text-teal-300">
                                     {formatIQD(product.price)}
                                 </p>
                             </div>
 
                             <div className="pastel-card pastel-card-yellow p-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <ShoppingCart className="w-4 h-4 text-amber-700" />
-                                    <span className="text-xs text-amber-700">{t("products.detail.unitsSold")}</span>
+                                    <ShoppingCart className="w-4 h-4 text-amber-700 dark:text-amber-300" />
+                                    <span className="text-xs text-amber-700 dark:text-amber-300">{t("products.detail.unitsSold")}</span>
                                 </div>
-                                <p className="text-xl font-bold text-amber-900">
+                                <p className="text-xl font-bold text-amber-900 dark:text-amber-300">
                                     {product.times_sold || 0}
                                 </p>
                             </div>
 
                             <div className="pastel-card pastel-card-green p-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <TrendingUp className="w-4 h-4 text-green-700" />
-                                    <span className="text-xs text-green-700">{t("products.totalRevenue")}</span>
+                                    <TrendingUp className="w-4 h-4 text-green-700 dark:text-green-300" />
+                                    <span className="text-xs text-green-700 dark:text-green-300">{t("products.totalRevenue")}</span>
                                 </div>
-                                <p className="text-xl font-bold text-green-900">
+                                <p className="text-xl font-bold text-green-900 dark:text-green-300">
                                     {maskIQD(product.total_revenue || 0, revealed)}
                                 </p>
                             </div>
 
                             <div className="pastel-card pastel-card-pink p-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <BarChart3 className="w-4 h-4 text-rose-700" />
-                                    <span className="text-xs text-rose-700">{t("products.detail.aov")}</span>
+                                    <BarChart3 className="w-4 h-4 text-rose-700 dark:text-rose-300" />
+                                    <span className="text-xs text-rose-700 dark:text-rose-300">{t("products.detail.aov")}</span>
                                 </div>
-                                <p className="text-xl font-bold text-rose-900">
+                                <p className="text-xl font-bold text-rose-900 dark:text-rose-300">
                                     {maskIQD(product.average_order_value || 0, revealed)}
                                 </p>
                             </div>
@@ -185,7 +185,7 @@ export function ProductDetailModal({
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted">{t("products.detail.margin")}</p>
-                                    <p className="text-lg font-bold text-green-600">
+                                    <p className="text-lg font-bold text-green-600 dark:text-green-300">
                                         {!profitMargin ? "—" : costRevealed ? `${profitMargin}%` : FINANCIAL_MASK}
                                     </p>
                                 </div>
@@ -276,14 +276,14 @@ export function ProductDetailModal({
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted">{t("products.detail.reserved")}</p>
-                                    <p className="text-lg font-bold text-amber-600">
+                                    <p className="text-lg font-bold text-amber-600 dark:text-amber-300">
                                         {t("products.detail.units", { count: product.reserved_quantity || 0 })}
                                     </p>
                                     <p className="text-xs text-muted mt-1">{t("products.detail.reservedHint")}</p>
                                 </div>
                                 <div className="border-l border-[var(--card-border)] pl-4">
                                     <p className="text-sm text-muted">{t("products.detail.available")}</p>
-                                    <p className="text-lg font-bold text-green-600">
+                                    <p className="text-lg font-bold text-green-600 dark:text-green-300">
                                         {t("products.detail.units", { count: Math.max(0, product.stock_quantity - (product.reserved_quantity || 0)) })}
                                     </p>
                                     <p className="text-xs text-muted mt-1">{t("products.detail.availableHint")}</p>

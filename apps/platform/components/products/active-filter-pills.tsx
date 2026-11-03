@@ -118,7 +118,7 @@ export function ActiveFilterPills({ filters, onChange }: ActiveFilterPillsProps)
                 <button
                     key={pill.key}
                     onClick={pill.onRemove}
-                    className="group inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[var(--pastel-yellow)] text-amber-900 rounded-lg border border-amber-200 hover:opacity-90 transition-opacity"
+                    className="group inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[var(--pastel-yellow)] text-amber-900 rounded-lg border border-amber-200 hover:opacity-90 transition-opacity dark:text-amber-300 dark:border-amber-500/30"
                 >
                     <span>{pill.label}</span>
                     <X className="w-3 h-3 opacity-70 group-hover:opacity-100" />

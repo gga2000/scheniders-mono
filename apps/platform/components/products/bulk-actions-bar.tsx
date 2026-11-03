@@ -16,7 +16,7 @@ import {
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
-import { parseWholeNumber } from "@/lib/utils";
+import { cn, parseWholeNumber } from "@/lib/utils";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 
 interface BulkActionsBarProps {
@@ -126,10 +126,9 @@ export function BulkActionsBar({
             setLoadingAction(action);
             try {
                 await fn();
-                toast.success(successMsg);
-                if (showUndo && onUndo) {
-                    startUndoCountdown(successMsg);
-                }
+                // With undo, the undo bar carries the message: one notice, not two.
+                if (showUndo && onUndo) startUndoCountdown(successMsg);
+                else toast.success(successMsg);
                 return true;
             } catch (err) {
                 toast.error(t(productWriteErrorKey(err)));
@@ -149,13 +148,22 @@ export function BulkActionsBar({
         if (belowCost > 0) parts.push(t("products.bulk.priceBelowCost", { count: belowCost }));
         if (clearsCompareAt > 0) parts.push(t("products.bulk.priceClearsCompare", { count: clearsCompareAt }));
         if (keepsStorePrice > 0) parts.push(t("products.bulk.priceKeepsStore", { count: keepsStorePrice }));
-        return parts.length > 0 ? parts.join(" ") : null;
+        return { text: parts.length > 0 ? parts.join(" ") : null, belowCost };
     }, [newPrice, describePrice, t]);
+
+    // A price under cost needs a second, deliberate press ("Apply anyway").
+    // Typing a new price asks again.
+    const [belowCostPrice, setBelowCostPrice] = useState<string | null>(null);
+    const needsBelowCostConfirm = (priceImpact?.belowCost ?? 0) > 0 && belowCostPrice !== newPrice;
 
     const handlePriceSubmit = useCallback(async () => {
         // Whole IQD only: the price columns reject fractions.
         const price = parseWholeNumber(newPrice);
         if (!onUpdatePrice || price === null || price <= 0) return;
+        if (needsBelowCostConfirm) {
+            setBelowCostPrice(newPrice);
+            return;
+        }
 
         const ok = await runAction(
             "price",
@@ -169,7 +177,7 @@ export function BulkActionsBar({
         if (!ok) return;
         setShowPriceInput(false);
         setNewPrice("");
-    }, [newPrice, onUpdatePrice, selectedCount, runAction, t]);
+    }, [newPrice, onUpdatePrice, selectedCount, runAction, t, needsBelowCostConfirm]);
 
     const handleConfirmArchive = useCallback(async () => {
         setConfirmAction(null);
@@ -247,7 +255,7 @@ export function BulkActionsBar({
                         </span>
                         <button
                             onClick={handleUndo}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--pastel-yellow)] text-amber-900 rounded-lg text-xs font-bold hover:opacity-90 transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--pastel-yellow)] text-amber-900 rounded-lg text-xs font-bold hover:opacity-90 transition-colors dark:text-amber-300"
                         >
                             <Undo2 className="w-3.5 h-3.5" />
                             {t("products.bulk.undo")}
@@ -283,14 +291,16 @@ export function BulkActionsBar({
                             </span>
                             <span className="text-white/70 text-sm">
                                 {t("products.bulk.selected")}
-                                {totalCount && (
-                                    <span className="text-white/40 ml-1">
+                                {/* A real space: a margin sits on the wrong side once Arabic text is reordered. */}
+                                {totalCount ? " " : null}
+                                {totalCount ? (
+                                    <span className="text-white/40">
                                         {t("products.bulk.totalProducts").replace(
                                             "{total}",
                                             String(totalCount)
                                         )}
                                     </span>
-                                )}
+                                ) : null}
                             </span>
                         </div>
 
@@ -353,12 +363,19 @@ export function BulkActionsBar({
                                 <button
                                     onClick={handlePriceSubmit}
                                     disabled={isLoading}
-                                    className="flex items-center gap-1.5 px-3 py-2 bg-white text-neutral-900 rounded-lg text-sm font-medium hover:bg-white/90 transition-colors disabled:opacity-50"
+                                    className={cn(
+                                        "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50",
+                                        belowCostPrice === newPrice && (priceImpact?.belowCost ?? 0) > 0
+                                            ? "bg-amber-400 text-neutral-900 hover:bg-amber-300"
+                                            : "bg-white text-neutral-900 hover:bg-white/90",
+                                    )}
                                 >
                                     {loadingAction === "price" ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                     ) : null}
-                                    {t("products.bulk.apply")}
+                                    {belowCostPrice === newPrice && (priceImpact?.belowCost ?? 0) > 0
+                                        ? t("products.bulk.applyAnyway")
+                                        : t("products.bulk.apply")}
                                 </button>
                                 <button
                                     onClick={() => {
@@ -370,8 +387,11 @@ export function BulkActionsBar({
                                 >
                                     <X className="w-4 h-4 text-white/70" />
                                 </button>
-                                {priceImpact && (
-                                    <p className="basis-full text-xs text-white/70">{priceImpact}</p>
+                                {priceImpact?.text && (
+                                    <p className={cn("basis-full text-xs", priceImpact.belowCost > 0 ? "text-amber-300" : "text-white/70")}>
+                                        {priceImpact.text}
+                                        {belowCostPrice === newPrice && priceImpact.belowCost > 0 && ` ${t("products.bulk.belowCostConfirm")}`}
+                                    </p>
                                 )}
                             </div>
                         ) : (

@@ -57,7 +57,7 @@ export function AutoSaveIndicator({
         saved: {
             icon: CheckCircle,
             text: t("products.editor.allSaved"),
-            color: "text-green-600",
+            color: "text-green-600 dark:text-green-300",
         },
         unsaved: {
             icon: Circle,

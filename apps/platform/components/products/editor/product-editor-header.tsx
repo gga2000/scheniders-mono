@@ -32,9 +32,9 @@ export function ProductEditorHeader({
     const { t } = useLanguage();
 
     const statusColors = {
-        draft: "bg-amber-100 text-amber-800",
-        active: "bg-emerald-100 text-emerald-800",
-        archived: "bg-gray-100 text-gray-600",
+        draft: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300",
+        active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300",
+        archived: "bg-gray-100 text-gray-600 dark:bg-gray-500/15 dark:text-gray-300",
     };
 
     return (
@@ -68,7 +68,7 @@ export function ProductEditorHeader({
                         <motion.div
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="flex items-center gap-1.5 text-amber-600 shrink-0"
+                            className="flex items-center gap-1.5 text-amber-600 shrink-0 dark:text-amber-300"
                         >
                             <Circle className="w-2 h-2 fill-current" />
                             <span className="text-xs font-medium">{t("products.ed.unsaved")}</span>

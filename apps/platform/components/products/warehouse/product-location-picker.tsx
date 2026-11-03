@@ -278,7 +278,7 @@ export function ProductLocationPicker({
                                     onClick={() => removeMutation.mutate(assignment.location_id)}
                                     disabled={disabled || removeMutation.isPending}
                                     className={cn(
-                                        "p-1.5 text-muted hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50",
+                                        "p-1.5 text-muted hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50 dark:hover:text-rose-300 dark:hover:bg-rose-500/15",
                                         disabled && "opacity-50 cursor-not-allowed"
                                     )}
                                 >
@@ -325,7 +325,7 @@ export function ProductLocationPicker({
                         onClick={handleAdd}
                         disabled={!newLocationId || !newQuantity || assignMutation.isPending}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-xl text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0",
+                            "flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-xl text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors shrink-0 dark:text-teal-300",
                             (!newLocationId || !newQuantity || assignMutation.isPending) &&
                                 "opacity-50 cursor-not-allowed"
                         )}
@@ -342,7 +342,7 @@ export function ProductLocationPicker({
 
             {/* Error display */}
             {(assignMutation.isError || removeMutation.isError) && (
-                <div className="flex items-center gap-2 text-sm text-rose-600">
+                <div className="flex items-center gap-2 text-sm text-rose-600 dark:text-rose-300">
                     <AlertTriangle className="w-4 h-4" />
                     {"Failed to update storage locations. Please try again."}
                 </div>

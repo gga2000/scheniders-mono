@@ -377,7 +377,7 @@ export function TagInput({ productId, disabled = false }: TagInputProps) {
                                             disabled={createMutation.isPending}
                                             className={cn(
                                                 "w-full py-2 rounded-lg text-sm font-medium transition-colors",
-                                                "bg-[var(--pastel-mint)] text-teal-700",
+                                                "bg-[var(--pastel-mint)] text-teal-700 dark:text-teal-300",
                                                 "disabled:opacity-50"
                                             )}
                                         >

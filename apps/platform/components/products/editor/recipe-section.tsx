@@ -258,7 +258,7 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
         <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
             <div className="px-5 py-4 border-b border-[var(--card-border)] flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center dark:bg-teal-500/15 dark:text-teal-300">
                         <ChefHat className="w-4 h-4" />
                     </div>
                     <div>
@@ -312,7 +312,7 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
                 )}
 
                 {activeDrafts.length > 0 && (
-                    <div className="rounded-xl bg-teal-50/60 border border-teal-100 px-3 py-2 text-[12px] text-teal-800 flex items-start gap-2">
+                    <div className="rounded-xl bg-teal-50/60 border border-teal-100 px-3 py-2 text-[12px] text-teal-800 flex items-start gap-2 dark:bg-teal-500/15 dark:border-teal-500/30 dark:text-teal-300">
                         <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                         <p>{t("recipe.note")}</p>
                     </div>
@@ -356,7 +356,7 @@ function EmptyRecipe({ onAdd }: { onAdd: () => void }) {
     const { t } = useLanguage();
     return (
         <div className="rounded-xl border border-dashed border-[var(--card-border)] py-8 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto mb-3 dark:bg-teal-500/15 dark:text-teal-300">
                 <Box className="w-5 h-5" />
             </div>
             <p className="font-medium text-sm">{t("recipe.empty")}</p>
@@ -444,7 +444,7 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                 <button
                     type="button"
                     onClick={onRemove}
-                    className="p-2 rounded-lg hover:bg-rose-50 hover:text-rose-600 text-muted transition-colors justify-self-end"
+                    className="p-2 rounded-lg hover:bg-rose-50 hover:text-rose-600 text-muted transition-colors justify-self-end dark:hover:bg-rose-500/15 dark:hover:text-rose-300"
                     title={t("products.recipe.removeRule")}
                 >
                     <Trash2 className="w-4 h-4" />

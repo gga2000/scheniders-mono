@@ -146,7 +146,7 @@ export function BarcodeGenerator({
                     type="button"
                     onClick={handleAutoGenerate}
                     disabled={disabled}
-                    className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap dark:text-teal-300"
                 >
                     <Sparkles className="w-4 h-4" />
                     {t("products.barcode.generate")}
@@ -159,10 +159,10 @@ export function BarcodeGenerator({
                     {/* Barcode preview */}
                     {barcode && (
                         <div className="flex-1 flex flex-col items-center gap-1">
-                            <div className="bg-white rounded-lg p-3 border border-gray-100 inline-flex items-center justify-center">
+                            <div className="bg-white rounded-lg p-3 border border-gray-100 inline-flex items-center justify-center dark:border-gray-500/30">
                                 <svg
                                     ref={barcodeSvgRef}
-                                    className="text-gray-900"
+                                    className="text-gray-900 dark:text-gray-300"
                                     style={{ maxWidth: "100%" }}
                                 />
                             </div>
@@ -177,7 +177,7 @@ export function BarcodeGenerator({
                     {/* QR code preview */}
                     {productSlug && qrDataUrl && (
                         <div className="flex flex-col items-center gap-1">
-                            <div className="bg-white rounded-lg p-2 border border-gray-100 inline-flex">
+                            <div className="bg-white rounded-lg p-2 border border-gray-100 inline-flex dark:border-gray-500/30">
                                 <img
                                     src={qrDataUrl}
                                     alt="QR Code"

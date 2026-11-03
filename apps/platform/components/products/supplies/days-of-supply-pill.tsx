@@ -25,15 +25,15 @@ function tone(days: number | null): {
             ring: "ring-[var(--card-border)]/60",
         };
     }
-    if (days <= 3) return { text: "text-rose-600", bg: "bg-rose-50", ring: "ring-rose-100" };
-    if (days <= 7) return { text: "text-amber-600", bg: "bg-amber-50", ring: "ring-amber-100" };
-    if (days <= 30) return { text: "text-teal-600", bg: "bg-teal-50", ring: "ring-teal-100" };
-    return { text: "text-sky-600", bg: "bg-sky-50", ring: "ring-sky-100" };
+    if (days <= 3) return { text: "text-rose-600 dark:text-rose-300", bg: "bg-rose-50 dark:bg-rose-500/15", ring: "ring-rose-100 dark:ring-rose-500/30" };
+    if (days <= 7) return { text: "text-amber-600 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-500/15", ring: "ring-amber-100 dark:ring-amber-500/30" };
+    if (days <= 30) return { text: "text-teal-600 dark:text-teal-300", bg: "bg-teal-50 dark:bg-teal-500/15", ring: "ring-teal-100 dark:ring-teal-500/30" };
+    return { text: "text-sky-600 dark:text-sky-300", bg: "bg-sky-50 dark:bg-sky-500/15", ring: "ring-sky-100 dark:ring-sky-500/30" };
 }
 
 function TrendGlyph({ direction }: { direction: "up" | "down" | "flat" }) {
-    if (direction === "up") return <span className="text-emerald-600 text-[10px] leading-none">▲</span>;
-    if (direction === "down") return <span className="text-rose-600 text-[10px] leading-none">▼</span>;
+    if (direction === "up") return <span className="text-emerald-600 text-[10px] leading-none dark:text-emerald-300">▲</span>;
+    if (direction === "down") return <span className="text-rose-600 text-[10px] leading-none dark:text-rose-300">▼</span>;
     return <span className="text-muted text-[10px] leading-none">─</span>;
 }
 
@@ -59,7 +59,7 @@ export function DaysOfSupplyPill({
         >
             <span
                 className={cn(
-                    "font-bold tabular-nums leading-none",
+                    "font-bold tabular-nums leading-none whitespace-nowrap",
                     big ? "text-[22px]" : "text-sm",
                     t.text
                 )}

@@ -46,7 +46,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Write your prod
             Link.configure({
                 openOnClick: false,
                 HTMLAttributes: {
-                    class: "text-blue-600 underline cursor-pointer",
+                    class: "text-blue-600 underline cursor-pointer dark:text-blue-300",
                 },
             }),
             Placeholder.configure({
@@ -247,7 +247,7 @@ function ToolbarButton({
             className={cn(
                 "p-1.5 rounded-lg transition-colors",
                 active
-                    ? "bg-[var(--pastel-yellow)] text-amber-900"
+                    ? "bg-[var(--pastel-yellow)] text-amber-900 dark:text-amber-300"
                     : "text-muted hover:text-foreground hover:bg-[var(--background)]"
             )}
         >

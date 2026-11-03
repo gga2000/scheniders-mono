@@ -113,7 +113,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                 <button
                     type="button"
                     onClick={() => setShowSearch(!showSearch)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors dark:text-teal-300"
                 >
                     <Plus className="w-4 h-4" />
                     {t("products.bundle.addProduct")}
@@ -224,7 +224,7 @@ export function BundleBuilderSection({ formData, updateField, currentProductId }
                             <button
                                 type="button"
                                 onClick={() => removeItem(index)}
-                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0 dark:hover:bg-rose-500/15"
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>

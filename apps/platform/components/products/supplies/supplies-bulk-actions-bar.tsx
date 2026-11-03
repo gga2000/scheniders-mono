@@ -216,7 +216,7 @@ export function SuppliesBulkActionsBar({
                             className={cn(
                                 "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all",
                                 "bg-[var(--background)] border border-[var(--card-border)] text-foreground",
-                                "hover:bg-white hover:border-teal-200 hover:text-teal-700",
+                                "hover:bg-white hover:border-teal-200 hover:text-teal-700 dark:hover:border-teal-500/30 dark:hover:text-teal-300",
                                 "disabled:opacity-50 disabled:cursor-not-allowed",
                             )}
                             title={t("supplies.bulk.export")}
@@ -234,7 +234,7 @@ export function SuppliesBulkActionsBar({
                             className={cn(
                                 "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all",
                                 "bg-[var(--background)] border border-[var(--card-border)] text-foreground",
-                                "hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700",
+                                "hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 dark:hover:bg-rose-500/15 dark:hover:border-rose-500/30 dark:hover:text-rose-300",
                                 "disabled:opacity-50 disabled:cursor-not-allowed",
                             )}
                             title={t("supplies.bulk.archiveSelected")}
@@ -271,7 +271,7 @@ function PopoverButton({ icon, label, open, onToggle, children }: PopoverButtonP
                     "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all",
                     open
                         ? "bg-teal-500 text-white border border-teal-500"
-                        : "bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-white hover:border-teal-200 hover:text-teal-700",
+                        : "bg-[var(--background)] border border-[var(--card-border)] text-foreground hover:bg-white hover:border-teal-200 hover:text-teal-700 dark:hover:border-teal-500/30 dark:hover:text-teal-300",
                 )}
             >
                 {icon}
@@ -429,7 +429,7 @@ function AdjustStockForm({
                         const next = Number.isFinite(current) ? current - 1 : -1;
                         setRaw(String(next));
                     }}
-                    className="p-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--background)] hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600"
+                    className="p-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--background)] hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:border-rose-500/30 dark:hover:text-rose-300"
                     title={t("supplies.bulk.stepMinus")}
                 >
                     <Minus className="w-3.5 h-3.5" />
@@ -450,7 +450,7 @@ function AdjustStockForm({
                         const next = Number.isFinite(current) ? current + 1 : 1;
                         setRaw(String(next));
                     }}
-                    className="p-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--background)] hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-600"
+                    className="p-1.5 rounded-lg border border-[var(--card-border)] bg-[var(--background)] hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-600 dark:hover:bg-emerald-500/15 dark:hover:border-emerald-500/30 dark:hover:text-emerald-300"
                     title={t("supplies.bulk.stepPlus")}
                 >
                     <Plus className="w-3.5 h-3.5" />

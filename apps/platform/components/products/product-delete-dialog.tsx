@@ -156,7 +156,7 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                     </div>
                 ) : isError ? (
                     <div className="flex items-center justify-between gap-3 py-3 text-sm">
-                        <p className="text-rose-600">{t(many ? "products.delete.checkFailedMany" : "products.delete.checkFailed")}</p>
+                        <p className="text-rose-600 dark:text-rose-300">{t(many ? "products.delete.checkFailedMany" : "products.delete.checkFailed")}</p>
                         <button
                             type="button"
                             onClick={() => {
@@ -175,7 +175,7 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                         {(impact?.reviews ?? 0) > 0 && <li>{t("products.delete.reviews", { count: impact?.reviews ?? 0 })}</li>}
                         <li>{t(many ? "products.delete.historyMany" : "products.delete.history")}</li>
                         {blocked && (
-                            <li className="font-medium text-rose-600">
+                            <li className="font-medium text-rose-600 dark:text-rose-300">
                                 {many ? (
                                     <>
                                         {t("products.delete.blockedSome", { count: blockedProducts.length })}{" "}
@@ -202,7 +202,7 @@ export function ProductDeleteDialog({ products, onOpenChange, onArchive, onDelet
                             onOpenChange(false);
                             onDelete(deletable);
                         }}
-                        className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-40 disabled:hover:bg-transparent dark:hover:bg-rose-950/30"
+                        className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-40 disabled:hover:bg-transparent dark:hover:bg-rose-950/30 dark:text-rose-300"
                     >
                         <Trash2 className="h-4 w-4" />
                         {many && blocked

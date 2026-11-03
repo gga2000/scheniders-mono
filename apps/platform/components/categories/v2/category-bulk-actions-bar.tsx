@@ -274,8 +274,8 @@ function BulkBtn({
       className={cn(
         "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors",
         "hover:bg-[var(--background)]",
-        tone === "amber" && "text-amber-700",
-        tone === "rose" && "text-rose-700",
+        tone === "amber" && "text-amber-700 dark:text-amber-300",
+        tone === "rose" && "text-rose-700 dark:text-rose-300",
         disabled && "opacity-60 cursor-not-allowed",
       )}
     >

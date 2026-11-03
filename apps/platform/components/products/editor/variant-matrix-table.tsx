@@ -65,11 +65,11 @@ interface VariantMatrixTableProps {
 // ---------------------------------------------------------------------------
 
 const OPTION_BADGE_STYLES = [
-    "bg-[var(--pastel-blue)] text-blue-800",
-    "bg-[var(--pastel-pink)] text-pink-800",
-    "bg-[var(--pastel-mint)] text-teal-800",
-    "bg-[var(--pastel-yellow)] text-yellow-800",
-    "bg-[var(--pastel-green)] text-green-800",
+    "bg-[var(--pastel-blue)] text-blue-800 dark:text-blue-300",
+    "bg-[var(--pastel-pink)] text-pink-800 dark:text-pink-300",
+    "bg-[var(--pastel-mint)] text-teal-800 dark:text-teal-300",
+    "bg-[var(--pastel-yellow)] text-yellow-800 dark:text-yellow-300",
+    "bg-[var(--pastel-green)] text-green-800 dark:text-green-300",
 ];
 
 const EDITABLE_COLUMNS = ["price", "cost", "stock_quantity", "sku", "barcode"] as const;
@@ -531,13 +531,13 @@ export function VariantMatrixTable({
                         {t("products.vm.variantMatrix")}
                     </h2>
                     {variants.length > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--pastel-blue)] text-blue-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--pastel-blue)] text-blue-800 dark:text-blue-300">
                             {variants.length}{" "}
                             {variants.length !== 1
                                 ? t("products.vm.variants")
                                 : t("products.vm.variant")}
                             {filterQuery && visibleIndices.length !== variants.length && (
-                                <span className="ml-1 text-blue-600">
+                                <span className="ml-1 text-blue-600 dark:text-blue-300">
                                     ({visibleIndices.length} shown)
                                 </span>
                             )}
@@ -563,7 +563,7 @@ export function VariantMatrixTable({
                             type="button"
                             onClick={() => setShowApplyAll(!showApplyAll)}
                             disabled={disabled}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 dark:text-teal-300"
                         >
                             {t("products.vm.applyToAll")}
                             <ChevronDown
@@ -614,7 +614,7 @@ export function VariantMatrixTable({
                                                 }
                                                 setShowApplyAll(false);
                                             }}
-                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
+                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity dark:text-green-300"
                                         >
                                             {t("products.vm.apply")}
                                         </button>
@@ -645,7 +645,7 @@ export function VariantMatrixTable({
                                                 }
                                                 setShowApplyAll(false);
                                             }}
-                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
+                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity dark:text-green-300"
                                         >
                                             {t("products.vm.apply")}
                                         </button>
@@ -677,7 +677,7 @@ export function VariantMatrixTable({
                                                 }
                                                 setShowApplyAll(false);
                                             }}
-                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity"
+                                            className="px-2.5 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity dark:text-green-300"
                                         >
                                             {t("products.vm.apply")}
                                         </button>
@@ -699,8 +699,8 @@ export function VariantMatrixTable({
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                     >
-                        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-[var(--pastel-blue)]/40 border border-blue-200 rounded-xl text-sm">
-                            <span className="font-medium text-blue-800 mr-1">
+                        <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-[var(--pastel-blue)]/40 border border-blue-200 rounded-xl text-sm dark:border-blue-500/30">
+                            <span className="font-medium text-blue-800 mr-1 dark:text-blue-300">
                                 {selectedIndices.size} {t("products.vm.selected")}
                             </span>
 
@@ -741,7 +741,7 @@ export function VariantMatrixTable({
                                                     setBulkPopover(null);
                                                     setBulkValue(0);
                                                 }}
-                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
+                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 dark:text-green-300"
                                             >
                                                 {t("products.vm.apply")}
                                             </button>
@@ -788,7 +788,7 @@ export function VariantMatrixTable({
                                                     setBulkPopover(null);
                                                     setBulkValue(0);
                                                 }}
-                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
+                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 dark:text-green-300"
                                             >
                                                 {t("products.vm.apply")}
                                             </button>
@@ -842,7 +842,7 @@ export function VariantMatrixTable({
                                                     setBulkPopover(null);
                                                     setBulkValue(0);
                                                 }}
-                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80"
+                                                className="px-2 py-1.5 bg-[var(--pastel-green)] text-green-800 rounded-lg text-xs font-medium hover:opacity-80 dark:text-green-300"
                                             >
                                                 {t("products.vm.apply")}
                                             </button>
@@ -857,14 +857,14 @@ export function VariantMatrixTable({
                             <button
                                 type="button"
                                 onClick={() => bulkSetEnabled(true)}
-                                className="px-2.5 py-1 bg-emerald-100 rounded-lg text-xs font-medium text-emerald-700 hover:bg-emerald-200 transition-colors"
+                                className="px-2.5 py-1 bg-emerald-100 rounded-lg text-xs font-medium text-emerald-700 hover:bg-emerald-200 transition-colors dark:bg-emerald-500/15 dark:text-emerald-300"
                             >
                                 {t("products.vm.enableAll")}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => bulkSetEnabled(false)}
-                                className="px-2.5 py-1 bg-gray-100 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors"
+                                className="px-2.5 py-1 bg-gray-100 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-200 transition-colors dark:bg-gray-500/15 dark:text-gray-300"
                             >
                                 {t("products.vm.disableAll")}
                             </button>
@@ -886,7 +886,7 @@ export function VariantMatrixTable({
                                 <button
                                     type="button"
                                     onClick={bulkDelete}
-                                    className="px-2.5 py-1 bg-red-100 rounded-lg text-xs font-medium text-red-700 hover:bg-red-200 transition-colors inline-flex items-center gap-1 ml-auto"
+                                    className="px-2.5 py-1 bg-red-100 rounded-lg text-xs font-medium text-red-700 hover:bg-red-200 transition-colors inline-flex items-center gap-1 ml-auto dark:bg-red-500/15 dark:text-red-300"
                                 >
                                     <Trash2 className="w-3 h-3" />
                                     {t("products.vm.deleteSelected")}
@@ -1015,7 +1015,7 @@ export function VariantMatrixTable({
                                                         className="text-muted hover:text-foreground transition-colors"
                                                     >
                                                         {isSelected ? (
-                                                            <CheckSquare className="w-4 h-4 text-blue-600" />
+                                                            <CheckSquare className="w-4 h-4 text-blue-600 dark:text-blue-300" />
                                                         ) : (
                                                             <Square className="w-4 h-4" />
                                                         )}
@@ -1335,12 +1335,12 @@ export function VariantMatrixTable({
                                                             className={cn(
                                                                 "text-xs font-medium px-2 py-0.5 rounded-full",
                                                                 margin >= 50
-                                                                    ? "bg-emerald-100 text-emerald-700"
+                                                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                                                                     : margin >= 20
-                                                                      ? "bg-amber-100 text-amber-700"
+                                                                      ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
                                                                       : margin >= 0
-                                                                        ? "bg-orange-100 text-orange-700"
-                                                                        : "bg-red-100 text-red-700",
+                                                                        ? "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300"
+                                                                        : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
                                                             )}
                                                         >
                                                             {margin.toFixed(1)}%
@@ -1409,7 +1409,7 @@ export function VariantMatrixTable({
                             <span className="text-muted">
                                 {t("products.vm.enabled")}:
                             </span>
-                            <span className="font-medium text-emerald-600">
+                            <span className="font-medium text-emerald-600 dark:text-emerald-300">
                                 {enabledVariants.length}
                             </span>
                         </div>
@@ -1439,7 +1439,7 @@ export function VariantMatrixTable({
                             <span
                                 className={cn(
                                     "font-medium",
-                                    outOfStock > 0 ? "text-red-600" : "text-foreground",
+                                    outOfStock > 0 ? "text-red-600 dark:text-red-300" : "text-foreground",
                                 )}
                             >
                                 {outOfStock}

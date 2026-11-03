@@ -87,7 +87,7 @@ function SupplierCard({ supplier, onSelect }: SupplierCardProps) {
             onClick={handleClick}
             className={cn(
                 "group relative text-left overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-sm transition-all duration-200",
-                "hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-lg hover:shadow-teal-500/5"
+                "hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-lg hover:shadow-teal-500/5 dark:hover:border-teal-500/30"
             )}
         >
             <div
@@ -115,7 +115,7 @@ function SupplierCard({ supplier, onSelect }: SupplierCardProps) {
                     </div>
                 </div>
                 {supplier.openPoCount > 0 && (
-                    <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 ring-1 ring-sky-200 text-[10px] font-medium">
+                    <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 ring-1 ring-sky-200 text-[10px] font-medium dark:bg-sky-500/15 dark:text-sky-300 dark:ring-sky-500/30">
                         <Truck className="w-2.5 h-2.5" />
                         {t("supplies.suppliers.openCount", { count: supplier.openPoCount })}
                     </span>
@@ -163,7 +163,7 @@ function Stat({
 }) {
     return (
         <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 shrink-0 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+            <div className="w-7 h-7 shrink-0 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center dark:bg-teal-500/15 dark:text-teal-300">
                 <Icon className="w-3.5 h-3.5" />
             </div>
             <div className="min-w-0">
