@@ -33,6 +33,7 @@ import { DeliverySlotChip } from "./card/delivery-slot-chip";
 import { GiftChip } from "./card/gift-chip";
 import { PaymentCheckButton } from "./card/payment-check-button";
 import { EnteredByMark } from "./card/entered-by-mark";
+import { ClaudeChip } from "./card/claude-chip";
 import { CardStatusMenu } from "./card/status-menu";
 import { RefundOrderChip, RefundOfLink, OriginalRefundChip } from "./refund-chips";
 
@@ -488,6 +489,7 @@ function FullOrderCard(props: OrderCardProps) {
 
                             {/* Source Badge - hidden in semi-compact */}
                             {compact === 0 && <SourceBadge source={order.source} />}
+                            {compact === 0 && <ClaudeChip createdVia={order.created_via} />}
                             {compact === 0 && <EnteredByMark enteredBy={order.entered_by} source={order.source} />}
 
                             {/* 7-Day Guarantee Countdown - hidden in semi-compact */}
