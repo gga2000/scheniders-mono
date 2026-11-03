@@ -167,32 +167,40 @@ export function CategoryHeaderKpis({
     },
   ];
 
+  // One row of seven compact tiles on desktop, so no tile sits alone on a
+  // second row and the category list starts higher.
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
       {cards.map((c) => {
-        const Wrap: any = c.onClick ? "button" : "div";
-        return (
-          <Wrap
-            key={c.key}
-            {...(c.onClick ? { type: "button", onClick: c.onClick } : {})}
-            className={cn(
-              c.tone,
-              "p-4 text-left",
-              c.onClick && "hover:shadow-md transition-shadow cursor-pointer",
-            )}
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center">
-                <c.icon className={cn("w-5 h-5", c.iconTone)} />
+        const body = (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <div className="w-8 h-8 shrink-0 rounded-lg bg-white/50 dark:bg-white/10 flex items-center justify-center">
+                <c.icon className={cn("w-4 h-4", c.iconTone)} />
               </div>
               {c.spark && c.spark.length > 1 && (
                 <MiniSparkline data={c.spark} color={c.sparkColor} />
               )}
             </div>
-            <p className="text-2xl font-bold mt-3">{c.value}</p>
-            <p className="text-xs text-muted">{c.label}</p>
-            <p className="text-xs text-muted mt-1">{c.sub}</p>
-          </Wrap>
+            <p className="text-xl font-bold mt-2 tabular-nums">{c.value}</p>
+            <p className="text-xs text-muted truncate">{c.label}</p>
+            <p className="text-[11px] text-muted mt-0.5 truncate">{c.sub}</p>
+          </>
+        );
+        const tileClass = cn(c.tone, "p-3 text-left min-w-0");
+        return c.onClick ? (
+          <button
+            key={c.key}
+            type="button"
+            onClick={c.onClick}
+            className={cn(tileClass, "hover:shadow-md transition-shadow cursor-pointer")}
+          >
+            {body}
+          </button>
+        ) : (
+          <div key={c.key} className={tileClass}>
+            {body}
+          </div>
         );
       })}
     </div>
