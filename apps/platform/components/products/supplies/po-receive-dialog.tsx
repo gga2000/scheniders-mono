@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import {
@@ -35,6 +35,8 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
     const canSetCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS);
     const [entered, setEntered] = useState<Record<string, string>>({});
     const [costs, setCosts] = useState<Record<string, string>>({});
+    // One id per attempt: a retry after a lost response is ignored by the database if the first call landed.
+    const requestId = useRef(crypto.randomUUID());
 
     const { data: lines, isLoading } = useQuery({
         queryKey: ["po-lines", poId],
@@ -117,7 +119,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
             return;
         }
         receive.mutate(
-            { poId, lines: quantities },
+            { poId, lines: quantities, requestId: requestId.current },
             {
                 onSuccess: (status) => {
                     toast.success(
@@ -127,6 +129,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     );
                     setEntered({});
                     setCosts({});
+                    requestId.current = crypto.randomUUID();
                     onOpenChange(false);
                 },
                 onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),

@@ -30,8 +30,8 @@ export function usePurchaseOrderActions() {
     });
 
     const receive = useMutation({
-        mutationFn: (args: { poId: string; lines: ReceivedLine[] }) =>
-            receivePurchaseOrder(args.poId, args.lines),
+        mutationFn: (args: { poId: string; lines: ReceivedLine[]; requestId: string }) =>
+            receivePurchaseOrder(args.poId, args.lines, args.requestId),
         onSuccess: async () => {
             await Promise.all([
                 refreshPurchaseOrders(),
