@@ -82,7 +82,6 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
         for (const [id, o] of freshById) {
             if (!previousOrders.some(p => p.id === id)) previousOrders.push(o);
         }
-        const previousById = new Map(previousOrders.map(o => [o.id, o]));
         const expectedVersions: { [key: string]: number } = {};
         previousOrders.forEach(o => {
             if (typeof o.version === "number") expectedVersions[o.id] = o.version;
@@ -120,24 +119,6 @@ export function createBulkActions({ orders, tenantId, session, authRef, tRef, qu
                     };
                 })
             );
-
-            // Reserved/stock math handled by the DB trigger. Only supplies + QC-queue side-effects here.
-            if (tenantId) import("@/lib/orders/status-side-effects").then(async effects => {
-                const results = await Promise.all(succeeded.map(({ id }) => {
-                    const previousOrder = previousById.get(id);
-                    if (!previousOrder) return { success: true };
-                    return effects.applyStatusSideEffect(supabase, {
-                        tenantId,
-                        items: previousOrder.items || [],
-                        from: previousOrder.status,
-                        to: status,
-                    });
-                }));
-                const failed = results.filter(r => !r.success).length;
-                if (failed > 0) {
-                    toast.error(tRef.current("orders.toast.sideEffectFailedBulk", { count: failed }));
-                }
-            }).catch(console.error);
         };
 
         const { successfulOperations, failedOperations } = await orderRepository.bulkUpdateStatus(

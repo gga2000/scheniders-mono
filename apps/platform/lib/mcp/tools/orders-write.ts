@@ -15,7 +15,6 @@ import {
 import { iqd, itemsText, orderLine, statusText } from "@/lib/mcp/format";
 import { buildStatusUpdate } from "@/lib/repositories/order-repository";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
-import { applyStatusSideEffect } from "@/lib/orders/status-side-effects";
 import { classifyTransition, resolveStatusForOrder } from "@/lib/order-status-machine";
 import { createOrderForTenant } from "@/lib/order-service";
 import { DeliverySlotSchema, type DeliverySlot } from "@/lib/orders/delivery-slot";
@@ -164,27 +163,16 @@ async function changeOrderStatus(
         throw new McpToolError(`Order #${order.order_id} changed while Claude was working on it. Open it again and retry.`);
     }
 
-    const effect = await applyStatusSideEffect(caller.db, {
-        tenantId: caller.tenantId,
-        items: order.items ?? [],
-        from: order.status,
-        to: status,
-    });
-
     const logWarning = await logOrderActivity(caller, "order.status_change", order, {
         from_status: order.status,
         to_status: status,
         reason: reason ?? null,
     });
 
-    const warnings = [
-        effect.success ? null : `supplies/QC update failed (${effect.error})`,
-        logWarning,
-    ].filter(Boolean);
     return {
         order: data as unknown as Order,
         result: "changed",
-        warning: warnings.length > 0 ? warnings.join("; ") : undefined,
+        warning: logWarning ?? undefined,
     };
 }
 

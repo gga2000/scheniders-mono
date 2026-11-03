@@ -6,10 +6,6 @@ import type { McpCaller } from "@/lib/mcp/caller";
 const resolveMcpCaller = vi.fn();
 vi.mock("@/lib/mcp/caller", () => ({ resolveMcpCaller: (...a: unknown[]) => resolveMcpCaller(...a) }));
 
-const applyStatusSideEffect = vi.fn();
-vi.mock("@/lib/orders/status-side-effects", () => ({
-    applyStatusSideEffect: (...a: unknown[]) => applyStatusSideEffect(...a),
-}));
 
 const createOrderForTenant = vi.fn();
 vi.mock("@/lib/order-service", () => ({ createOrderForTenant: (...a: unknown[]) => createOrderForTenant(...a) }));
@@ -78,7 +74,6 @@ const call = async (name: string, args: Record<string, unknown>) => {
 
 beforeEach(() => {
     vi.clearAllMocks();
-    applyStatusSideEffect.mockResolvedValue({ success: true });
     env = fakeDb({
         orders: [order("o1", "1001", STORE), order("o2", "1002", STORE, "new"), order("x1", "1001-B", OTHER)],
         order_status_history: [],
@@ -89,7 +84,7 @@ beforeEach(() => {
 });
 
 describe("update_order_status", () => {
-    it("changes one order like the orders page: guarded patch, history, side effects, activity log", async () => {
+    it("changes one order like the orders page: guarded patch, history, activity log", async () => {
         const res = await call("update_order_status", { orders: ["1001"], status: "in_transit", confirm: false });
 
         expect(res.isError).toBe(false);
@@ -101,7 +96,6 @@ describe("update_order_status", () => {
 
         // The history row is the database trigger's (trg_log_order_status_change), not the tool's.
         expect(env.tables.order_status_history).toEqual([]);
-        expect(applyStatusSideEffect).toHaveBeenCalledWith(env.db, expect.objectContaining({ tenantId: STORE, from: "confirmed", to: "in_transit" }));
         const actions = env.tables.activity_logs.map((r) => r.action);
         expect(actions).toEqual(["order.status_change", "mcp.tool_call"]);
     });

@@ -31,7 +31,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
         title: "Change price or visibility",
         kind: "write",
         description:
-            "Change a product's (or one variant's) price and compare-at price, or show/hide the product in the store. " +
+            "Change a product's (or one variant's) price and compare-at price, the website's own price, or show/hide the product in the store. " +
             "A price that drops below half or more than doubles returns a preview first; call again with confirm: true.",
         input: z
             .object({
@@ -46,11 +46,23 @@ export function registerCatalogWriteTools(server: McpServer): void {
                     .nullable()
                     .optional()
                     .describe("The struck-through 'was' price; null removes it"),
+                website_price: z
+                    .number()
+                    .int()
+                    .min(1)
+                    .max(100_000_000)
+                    .nullable()
+                    .optional()
+                    .describe("The price the website charges when it differs from `price`; null makes the website charge `price`. Not per variant"),
                 visible: z.boolean().optional().describe("Show (true) or hide (false) the product in the store; not per variant"),
                 confirm: z.boolean().default(false),
             })
-            .refine((v) => v.price !== undefined || v.compare_at_price !== undefined || v.visible !== undefined, "Give a price, compare_at_price or visible")
-            .refine((v) => !(v.variant && v.visible !== undefined), "Visibility is set on the product, not a variant"),
+            .refine(
+                (v) => v.price !== undefined || v.compare_at_price !== undefined || v.website_price !== undefined || v.visible !== undefined,
+                "Give a price, compare_at_price, website_price or visible",
+            )
+            .refine((v) => !(v.variant && v.visible !== undefined), "Visibility is set on the product, not a variant")
+            .refine((v) => !(v.variant && v.website_price !== undefined), "The website price is set on the product, not a variant"),
         async run(caller, input) {
             requireWriter(caller);
             const { product, variants } = await findProduct(caller, input.product);
@@ -69,6 +81,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
             };
             if (input.price !== undefined) set("price", oldPrice, input.price);
             if (input.compare_at_price !== undefined) set("compare_at_price", current.compare_at_price, input.compare_at_price);
+            if (input.website_price !== undefined) set("website_price", product.website_price, input.website_price);
             if (input.visible !== undefined) set("is_visible", product.is_visible, input.visible);
             if (Object.keys(patch).length === 0) return `${label(product, variant)} already has those values; nothing changed.`;
 
@@ -105,7 +118,14 @@ export function registerCatalogWriteTools(server: McpServer): void {
             // The database records the price history and the product's activity log
             // with the update itself, for a variant price too.
 
-            return [`Updated ${label(product, variant)}:`, ...summary].join("\n");
+            // The website charges its own price over `price` when one is set.
+            const websitePrice = "website_price" in patch ? (patch.website_price as number | null) : product.website_price;
+            const websiteNote =
+                !variant && "price" in patch && websitePrice !== null
+                    ? `⚠ The website still charges its own price, ${iqd(websitePrice)}. To charge ${iqd(newPrice ?? 0)} online too, call again with website_price: null.`
+                    : null;
+
+            return [`Updated ${label(product, variant)}:`, ...summary, ...(websiteNote ? [websiteNote] : [])].join("\n");
         },
     });
 

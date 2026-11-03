@@ -41,7 +41,7 @@ const call = async (name: string, args: Record<string, unknown>) => {
 
 const product = (id: string, tenant: string, name: string, extra: Record<string, unknown> = {}) => ({
     id, tenant_id: tenant, name, sku: null, price: 25000, compare_at_price: null, stock_quantity: 10, reserved_quantity: 2, open_box_quantity: 4,
-    is_visible: true, is_archived: false, is_supply: false, ...extra,
+    website_price: null, is_visible: true, is_archived: false, is_supply: false, ...extra,
 });
 
 beforeEach(() => {
@@ -96,6 +96,16 @@ describe("update_product", () => {
         expect(env.tables.products[0].price).toBe(25000);
         await call("update_product", { product: "SR-1", price: 9000, confirm: true });
         expect(env.tables.products[0].price).toBe(9000);
+    });
+
+    it("says when the website keeps charging its own price, and can clear it", async () => {
+        env.tables.products[0].website_price = 29000;
+        const res = await call("update_product", { product: "SR-1", price: 30000, confirm: false });
+        expect(res.text).toContain("website still charges its own price, 29,000 IQD");
+        const cleared = await call("update_product", { product: "SR-1", website_price: null, confirm: false });
+        expect(cleared.isError).toBe(false);
+        expect(env.tables.products[0].website_price).toBeNull();
+        expect(cleared.text).not.toContain("website still charges");
     });
 
     it("refuses a compare-at price that is not above the price", async () => {
