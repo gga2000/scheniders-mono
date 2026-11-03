@@ -190,6 +190,26 @@ describe("facts", () => {
     expect(c?.meters[0]?.value).toBe(4.7);
   });
 
+  it("feel bars: the knob sits at the stored value and names the end it leans to", () => {
+    const withBars: ScentCardConfig = {
+      ...CONFIG,
+      feel_bars: [
+        { key: "longevity", low_i18n: { ar: "ناعم" }, high_i18n: { ar: "قوي" } },
+        // No product value for this key: no bar.
+        { key: "warmth", low_i18n: { ar: "منعش" }, high_i18n: { ar: "دافي" } },
+      ],
+    };
+    expect(card(scentProduct, withBars)?.feelBars).toEqual([
+      { key: "longevity", low: "ناعم", high: "قوي", value: 4, max: 5, at: 0.75, lean: "high" },
+    ]);
+    const mid = (scentProduct.attributes ?? []).map((a) =>
+      a.def.key === "longevity" && a.kind === "range" ? { ...a, value: 3.2 } : a,
+    );
+    expect(card({ ...scentProduct, attributes: mid }, withBars)?.feelBars[0]).toMatchObject({ at: 0.55, lean: "mid" });
+    // Not configured: no bars.
+    expect(card(scentProduct)?.feelBars).toEqual([]);
+  });
+
   it("Wayfarer today: no meters, no chips, no note, no source tag", () => {
     const c = card(wayferProduct);
     expect(c?.meters).toEqual([]);

@@ -226,6 +226,12 @@ const schema = z.object({
    *  phone, to fold name and address away and keep only the number showing
    *  (and open them again). Absent/false = no button, byte-identical. */
   collapsible_fields: z.boolean().optional().catch(undefined),
+  /** Express receipt: an «الوصول المتوقع» row — the Baghdad day an order
+   *  placed now arrives, from the shipping config's ETA. No ETA, no row. */
+  show_arrival_day: z.boolean().optional().catch(undefined),
+  /** Express receipt: a gift that ships with every order («تيستر هدية × 1»),
+   *  as one row marked free. Only for a gift the store really sends. */
+  receipt_gift_i18n: i18nStringOptional.catch(undefined),
   /** Express: "band" replaces the reassurance line, the contact line and
    *  the trust chips with one espresso promise band under the order
    *  status messages (try before you pay, delivery, who calls + save our
@@ -261,6 +267,20 @@ const schema = z.object({
       note_key: z.string().min(1).optional(),
       /** range attributes drawn as segment meters (longevity, sillage). */
       meter_keys: z.array(z.string().min(1)).max(3).optional(),
+      /** range attributes drawn as two-ended feel bars («منعش ↔ دافي»).
+       *  The ends are the merchant's words; the knob sits at the product's
+       *  stored value. A product without the value draws no bar. */
+      feel_bars: z
+        .array(
+          z.object({
+            key: z.string().min(1),
+            low_i18n: i18nStringSchema,
+            high_i18n: i18nStringSchema,
+          }),
+        )
+        .max(4)
+        .optional()
+        .catch(undefined),
       /** text attribute holding the one-line lead. */
       lead_key: z.string().min(1).optional(),
       /** Words that make a review clause a staying-power quote (folded

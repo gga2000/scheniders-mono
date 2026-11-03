@@ -154,6 +154,26 @@ describe("scent_layout card — facts when the product has them", () => {
     expect(count(card, "data-note-chip")).toBe(6);
   });
 
+  it("feel bars: the ends, the leaning end in full ink, the knob on the reading side", () => {
+    const props: Props = {
+      ...CARD_PROPS,
+      scent_card: {
+        ...SCENT_CARD,
+        feel_bars: [{ key: "longevity", low_i18n: { ar: "ناعم" }, high_i18n: { ar: "قوي" } }],
+      },
+    };
+    const card = cardOf(render(props, scentProduct));
+    expect(count(card, "data-feel-bar=")).toBe(1);
+    expect(card).toContain('data-lean="high"');
+    expect(card).toContain('aria-label="بين ناعم وقوي: 4 من 5"');
+    expect(card).toContain("شلون تحسّه");
+    expect(card).toContain("right:calc(0.75 * (100% - 1.5rem))");
+    expect(card).toMatch(/font-black text-bk-ink">قوي</);
+    expect(card).not.toContain('dir="');
+    // Without the config there is no panel.
+    expect(cardOf(render(CARD_PROPS, scentProduct))).not.toContain("data-feel-bars");
+  });
+
   it("draws the pyramid as an always-open timeline, every note visible", () => {
     const card = cardOf(render(CARD_PROPS, scentProduct));
     expect(card).toContain("data-scent-timeline");

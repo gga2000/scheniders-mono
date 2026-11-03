@@ -88,6 +88,11 @@ export const EXPRESS_STRINGS = {
     ku: "بەخۆڕایی بۆ هەموو پارێزگاکان",
   },
   deliveryFree: { en: "Free", ar: "مجاني", ku: "بەخۆڕایی" },
+  // show_arrival_day: the receipt's expected-arrival row ({date}: weekday,
+  // day and month, Baghdad time).
+  arrivalRow: { en: "Expected arrival", ar: "الوصول المتوقع", ku: "گەیشتنی چاوەڕوانکراو" },
+  arrivalToday: { en: "Today, {date}", ar: "اليوم، {date}", ku: "ئەمڕۆ، {date}" },
+  arrivalTomorrow: { en: "Tomorrow, {date}", ar: "باچر، {date}", ku: "سبەی، {date}" },
   deliveryPending: { en: "Choose governorate", ar: "اختر المحافظة", ku: "پارێزگا هەڵبژێرە" },
   savingsRow: { en: "Your saving", ar: "توفيرك", ku: "پاشەکەوتەکەت" },
   referralRow: { en: "Friend's code", ar: "خصم رمز صديقك", ku: "داشکاندنی کۆدی هاوڕێ" },
@@ -163,6 +168,14 @@ export const EXPRESS_STRINGS = {
   },
   scentStory: { en: "The scent’s story", ar: "قصة العطر", ku: "چیرۆکی بۆنەکە" },
   meterValue: { en: "{value} of {max}", ar: "{value} من {max}", ku: "{value} لە {max}" },
+  // Feel bars: the heading over the two-ended bars, and each bar's spoken
+  // form ({low}/{high}: the ends, {value}/{max}: where it sits).
+  feelTitle: { en: "How it feels", ar: "شلون تحسّه", ku: "چۆن هەستی پێدەکەیت" },
+  feelBarLabel: {
+    en: "Between {low} and {high}: {value} of {max}",
+    ar: "بين {low} و{high}: {value} من {max}",
+    ku: "لە نێوان {low} و {high}: {value} لە {max}",
+  },
   closeSheet: { en: "Close", ar: "إغلاق", ku: "داخستن" },
   // add_to_cart (slice 1g): the cart tile beside the submit, and the line
   // under the order buttons once a tap has put the perfume in the cart.
