@@ -25,7 +25,6 @@ import { StockIndicator } from "./stock-indicator";
 import { StockQuickAdjust } from "./stock-quick-adjust";
 import { PriceQuickEdit } from "./price-quick-edit";
 import { QuickActionsMenu } from "./quick-actions-menu";
-import { BundleStockIndicator } from "./bundle-stock-indicator";
 import { HealthScoreBadge } from "./health-score-badge";
 import { FillerBadge } from "./filler-badge";
 import { StockStatusBadges } from "./stock-status-badges";
@@ -425,14 +424,6 @@ export const ProductGridCard = React.memo(function ProductGridCard({
                         )}
                     </div>
                 </div>
-
-                {/* Bundle stock indicator */}
-                {product.product_type === "bundle" && (product as any).bundle_items?.length > 0 && (
-                    <BundleStockIndicator
-                        bundleItems={(product as any).bundle_items}
-                        size="sm"
-                    />
-                )}
 
                 {/* Nearest batch expiry */}
                 <div className="flex items-center gap-1 flex-wrap">
