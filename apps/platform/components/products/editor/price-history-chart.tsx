@@ -22,7 +22,7 @@ const formatPrice = (price: number): string => formatIQD(price);
 
 
 // Axis ticks in IQD, short: "60K", "1.2M".
-const COMPACT_IQD = new Intl.NumberFormat("en-IQ", { notation: "compact", maximumFractionDigits: 1 });
+const COMPACT_IQD = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
 const CHART_WIDTH = 600;
 const CHART_HEIGHT = 200;

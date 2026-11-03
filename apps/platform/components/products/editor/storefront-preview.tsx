@@ -1,6 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/hooks/use-language";
+import { formatIQD } from "@/lib/utils";
 import { useMemo, useState } from "react";
 import DOMPurify from "dompurify";
 import {
@@ -24,14 +25,6 @@ interface StorefrontPreviewProps {
     imageUrl: string;
     slug: string;
     variantOptions: { name: string; values: string[] }[];
-}
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function formatIQD(value: number): string {
-    return new Intl.NumberFormat("en-IQ").format(value) + " IQD";
 }
 
 /* ------------------------------------------------------------------ */

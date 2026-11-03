@@ -76,7 +76,7 @@ async function fetchTableData(tableName: string, tenantId: string, orderBy: stri
 /** Products with the cost this member may see (product_costs), for the active store. */
 async function fetchProductsWithCost(tenantId: string) {
     const products = await fetchTableData("products", tenantId, "id", PRODUCT_READ_COLUMNS);
-    const costs = await productRepository.getProductCosts(tenantId);
+    const costs = await productRepository.getProductCosts(tenantId, products.map((p) => String(p.id)));
     return products.map((p) => ({ ...p, cost: costs.get(String(p.id)) ?? null }));
 }
 

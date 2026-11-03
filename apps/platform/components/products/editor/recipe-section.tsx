@@ -63,18 +63,16 @@ export function RecipeSection({ productId, productName }: RecipeSectionProps) {
         staleTime: 60_000,
         queryFn: async () => {
             if (!tenantId) return [] as Product[];
-            const [{ data, error }, costs] = await Promise.all([
-                supabase
-                    .from("products")
-                    .select("id, name, sku, stock_quantity, image_url")
-                    .eq("tenant_id", tenantId)
-                    .eq("is_supply", true)
-                    .or("is_archived.is.null,is_archived.eq.false")
-                    .order("name", { ascending: true }),
-                // Cost is not a readable column; product_costs returns supply costs.
-                productRepository.getProductCosts(tenantId),
-            ]);
+            const { data, error } = await supabase
+                .from("products")
+                .select("id, name, sku, stock_quantity, image_url")
+                .eq("tenant_id", tenantId)
+                .eq("is_supply", true)
+                .or("is_archived.is.null,is_archived.eq.false")
+                .order("name", { ascending: true });
             if (error) throw error;
+            // Cost is not a readable column; product_costs_for returns supply costs.
+            const costs = await productRepository.getProductCosts(tenantId, (data ?? []).map((s) => s.id));
             return (data ?? []).map((supply) => ({ ...supply, cost: costs.get(supply.id) ?? null })) as Product[];
         },
     });

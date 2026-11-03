@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+
 import { Eye, EyeOff, Tag } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
 import { CategoryCombobox } from "@/components/products/category-combobox";
@@ -10,6 +12,8 @@ interface ProductEditorSidebarProps {
     formData: ProductEditorFormData;
     updateField: <K extends keyof ProductEditorFormData>(field: K, value: ProductEditorFormData[K]) => void;
     mode: "create" | "edit";
+    /** Only cost viewers may tick or untick "supply" on an existing product. */
+    canReclassifySupply: boolean;
     timesSold?: number;
     totalRevenue?: number;
     profitMargin?: number | null;
@@ -27,7 +31,7 @@ const TAG_COLORS = [
     { color: '#ef4444', name: 'Red' },
 ];
 
-export function ProductEditorSidebar({ formData, updateField, mode, timesSold, totalRevenue, profitMargin, averageOrderValue }: ProductEditorSidebarProps) {
+export function ProductEditorSidebar({ formData, updateField, mode, canReclassifySupply, timesSold, totalRevenue, profitMargin, averageOrderValue }: ProductEditorSidebarProps) {
     const { t } = useLanguage();
     return (
         <div className="space-y-6">
@@ -48,16 +52,19 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
 
                 {/* Supply toggle */}
                 <div className="p-3 bg-[var(--background)] rounded-xl">
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    <label className={cn("flex items-center gap-3", canReclassifySupply ? "cursor-pointer" : "cursor-not-allowed opacity-70")}>
                         <input
                             type="checkbox"
                             checked={formData.is_supply}
+                            disabled={!canReclassifySupply}
                             onChange={(e) => updateField("is_supply", e.target.checked)}
-                            className="w-4 h-4 rounded border-2 border-[var(--muted)] text-[var(--pastel-yellow)] focus:ring-[var(--pastel-yellow)] focus:ring-offset-0 bg-transparent cursor-pointer"
+                            className="w-4 h-4 rounded border-2 border-[var(--muted)] text-[var(--pastel-yellow)] focus:ring-[var(--pastel-yellow)] focus:ring-offset-0 bg-transparent cursor-pointer disabled:cursor-not-allowed"
                         />
                         <div>
                             <p className="text-sm font-medium text-foreground">{t("products.ed.supply")}</p>
-                            <p className="text-xs text-muted">{t("products.ed.supplyHint")}</p>
+                            <p className="text-xs text-muted">
+                                {canReclassifySupply ? t("products.ed.supplyHint") : t("products.ed.supplyLocked")}
+                            </p>
                         </div>
                     </label>
                 </div>

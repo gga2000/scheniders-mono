@@ -106,6 +106,8 @@ function withCosts(rows: Product[], costs: ProductCostRow[]): Product[] {
 
 /** Rows of per-product history the editor loads (newest first). */
 const HISTORY_LIMIT = 300;
+/** Ids per product_costs_for call: products plus their variant rows stay under the 1,000-row cap. */
+const COST_ID_BATCH = 200;
 
 /**
  * Bulk archive / restore / show / hide / move in one database statement, so a
@@ -228,13 +230,21 @@ export const productRepository = {
     },
 
     /**
-     * Product cost by product id for the products of `tenantId` this member may
-     * see cost of (all for admins, supplies for other editors). Missing = hidden.
+     * Cost of these products of `tenantId`, for those this member may see cost
+     * of (all for admins, supplies for other editors). Missing = hidden. Read
+     * per id batch: one whole-store call stops at the API's 1,000-row cap.
      */
-    async getProductCosts(tenantId: string): Promise<Map<string, number | null>> {
-        const { data, error } = await supabase.rpc("product_costs", { p_tenant_id: tenantId });
-        if (error) throw error;
-        return new Map([...costMaps(data ?? []).productCost].map(([id, c]) => [id, c.cost]));
+    async getProductCosts(tenantId: string, ids: string[]): Promise<Map<string, number | null>> {
+        const out = new Map<string, number | null>();
+        for (let i = 0; i < ids.length; i += COST_ID_BATCH) {
+            const { data, error } = await supabase.rpc("product_costs_for", {
+                p_tenant_id: tenantId,
+                p_product_ids: ids.slice(i, i + COST_ID_BATCH),
+            });
+            if (error) throw error;
+            for (const [id, c] of costMaps(data ?? []).productCost) out.set(id, c.cost);
+        }
+        return out;
     },
 
     /**
