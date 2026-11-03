@@ -314,14 +314,22 @@ function FinancesContent() {
                     {activeTab === "revenue" && (
                         <div className="space-y-5">
                             <RevenueDecomposition data={revenue.decomposition} />
-                            <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-                                <div className="xl:col-span-3">
+                            {/* One channel makes a short Channel P&L; beside Refunds it left a blank column, so it stacks. */}
+                            {revenue.channels.length <= 1 ? (
+                                <>
                                     <ChannelPnL rows={revenue.channels} />
-                                </div>
-                                <div className="xl:col-span-2">
                                     <RevenueRefundsImpact data={revenue.refunds} />
+                                </>
+                            ) : (
+                                <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
+                                    <div className="xl:col-span-3">
+                                        <ChannelPnL rows={revenue.channels} />
+                                    </div>
+                                    <div className="xl:col-span-2">
+                                        <RevenueRefundsImpact data={revenue.refunds} />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                             <MarginHeatmap data={revenue.heatmap} />
                         </div>
                     )}
