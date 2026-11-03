@@ -12,7 +12,7 @@ import type { OrderCardModel } from "./use-order-card-model";
 
 /** One section of the full order card; see FullOrderCard in ../order-card.tsx. */
 export function FullCardDetails({ m }: { m: OrderCardModel }) {
-    const { actualInternalNotes, actualNotes, compact, editable, fullAddress, governorateCode, hasDuplicates, isNew, isVerifiedCustomer, items, localSearchQuery, markImageFailed, order, orderReasonInfo, primaryIsWhatsApp, riskLevel, secondaryIsWhatsApp, t, thumbnailUrl } = m;
+    const { failedImageUrls, actualInternalNotes, actualNotes, compact, editable, fullAddress, governorateCode, hasDuplicates, isNew, isVerifiedCustomer, items, localSearchQuery, markImageFailed, order, orderReasonInfo, primaryIsWhatsApp, riskLevel, secondaryIsWhatsApp, t, thumbnailUrl } = m;
     return (
         <>
             {/* CENTER SECTION: Product, Phone, Address */}
@@ -20,7 +20,29 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                 {/* Product Row */}
                 <div className="flex items-center gap-3">
                     {/* Product Thumbnail - hidden in semi-compact */}
-                    {compact === 0 && (thumbnailUrl ? (
+                    {compact === 0 && items.length > 1 && (
+                        <div className="relative h-12 w-14 flex-shrink-0" data-multi-item-stack="true">
+                            {items.slice(0, 3).map((item, idx, shown) => {
+                                const url = item.image_url && !failedImageUrls.has(item.image_url) ? item.image_url : null;
+                                const behind = shown.length - 1 - idx;
+                                return (
+                                    <div
+                                        key={idx}
+                                        className="absolute h-11 w-11 overflow-hidden rounded-xl border border-[var(--card-border)] bg-[var(--background)] shadow-sm dark:border-white/10"
+                                        style={{ left: idx * 6, top: behind === 0 ? 0 : 5, zIndex: idx + 1, transform: behind === 0 ? undefined : `rotate(${-8 * behind}deg)` }}
+                                    >
+                                        {url ? (
+                                            <img src={url} alt={item.name} onError={() => markImageFailed(url)} className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="flex h-full w-full items-center justify-center"><Package className="h-4 w-4 text-muted dark:text-white/40" /></div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            <span className="absolute -bottom-1 right-0 z-10 rounded-full bg-foreground px-1.5 text-[11px] font-extrabold leading-4 text-background">{items.length}</span>
+                        </div>
+                    )}
+                    {compact === 0 && items.length <= 1 && (thumbnailUrl ? (
                         <img
                             src={thumbnailUrl}
                             alt={items[0].name}
@@ -64,12 +86,12 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                                         )}
                                         <span
                                             className={cn(
-                                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground border-l-[3px]",
-                                                items.length > 1 ? "bg-transparent" : "bg-[var(--background)] dark:bg-gradient-to-r dark:from-white/5 dark:to-transparent"
+                                                "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-medium text-foreground",
+                                                items.length > 1
+                                                    ? "bg-white/80 dark:bg-white/5"
+                                                    : "bg-[var(--background)] border-l-[3px] dark:bg-gradient-to-r dark:from-white/5 dark:to-transparent"
                                             )}
-                                            style={{
-                                                borderLeftColor: item.tag_color || '#22c55e'
-                                            }}
+                                            style={items.length > 1 ? undefined : { borderLeftColor: item.tag_color || '#22c55e' }}
                                         >
                                             {item.name}
                                             <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${quantityColor}`}>
