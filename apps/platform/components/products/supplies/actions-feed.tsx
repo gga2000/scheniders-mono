@@ -16,13 +16,13 @@ import type { Product } from "@/lib/supabase";
 import type { ProductSupplier } from "@/types/product";
 import { cn } from "@/lib/utils";
 import {
-    daysUntilStockout,
     deadStockScore,
     detectConsumptionAnomaly,
     splitOutMovements,
     type HistoryEntry,
 } from "@/lib/utils/supply-forecasting";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
+import { stockoutEtaFrom } from "./stockout-eta-badge";
 import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 
@@ -168,19 +168,22 @@ export function ActionsFeed({
             out.push(a);
         };
 
-        // 1. Reorder now (or critical stockout < lead time)
-        for (const s of supplies) {
-            if (!needsOrderIds.has(s.id)) continue;
-            const stock = s.stock_quantity ?? 0;
-            const reserved = s.reserved_quantity ?? 0;
-            const available = Math.max(0, stock - reserved);
+        // 1. Reorder, soonest stockout first. Same days rule as the supply
+        // cards (stockoutEtaFrom), so the feed and the card show one number.
+        const etaOf = (s: Product) =>
+            stockoutEtaFrom({ stock: s.stock_quantity ?? 0, reserved: s.reserved_quantity ?? 0, timesSold30d: s.times_sold_30d ?? 0 });
+        const toOrder = supplies
+            .filter((s) => needsOrderIds.has(s.id))
+            .sort((a, b) => (etaOf(a) ?? Infinity) - (etaOf(b) ?? Infinity));
+        for (const s of toOrder) {
             const rp = s.reorder_point ?? s.low_stock_threshold ?? 5;
-            // Same 30-day usage the supply cards use, so both show one number.
-            const rate = (s.times_sold_30d ?? 0) / 30;
-            const eta = daysUntilStockout(available, rate);
+            const eta = etaOf(s);
             const leadTime = leadTimeOf(s);
             const isCritical =
                 leadTime != null && eta != null && eta < leadTime;
+            // Runs out within two lead times; otherwise it is here only for
+            // sitting at its reorder point, and the title says so.
+            const atRisk = eta != null && eta <= (leadTime ?? 7) * 2;
             const detail = isCritical
                 ? t("supplies.af.stockoutDetail", { eta: t("supplies.sp.leadDays", { count: eta ?? 0 }), lead: t("supplies.sp.leadDays", { count: leadTime ?? 0 }) })
                 : eta != null
@@ -203,7 +206,11 @@ export function ActionsFeed({
                     id: `${isCritical ? "crit" : "reorder"}:${s.id}`,
                     supply: s,
                     kind: isCritical ? "critical" : "reorder",
-                    title: isCritical ? t("supplies.af.stockoutBeforeLead") : t("supplies.af.reorderNow"),
+                    title: isCritical
+                        ? t("supplies.af.stockoutBeforeLead")
+                        : atRisk
+                        ? t("supplies.af.reorderNow")
+                        : t("supplies.af.atReorderPoint", { rp }),
                     detail,
                     // Red only for a stockout before the next delivery can land.
                     tone: isCritical ? "rose" : "amber",
@@ -347,15 +354,17 @@ export function ActionsFeed({
 
             {!collapsed && (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-                    {actions.map((a) => {
+                    {actions.map((a, index) => {
                         const tone = TONE_CLASSES[a.tone];
+                        // Only the most urgent card is filled; the rest stay quiet.
+                        const lead = index === 0;
                         const Icon = a.icon;
                         return (
                             <div
                                 key={a.id}
                                 className={cn(
                                     "rounded-2xl border p-3.5 relative flex flex-col gap-2 shadow-sm",
-                                    tone.card
+                                    lead ? tone.card : "bg-[var(--card-bg)] border-[var(--card-border)]"
                                 )}
                             >
                                 <button
@@ -395,8 +404,10 @@ export function ActionsFeed({
                                         type="button"
                                         onClick={() => handleCta(a)}
                                         className={cn(
-                                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium shadow-sm transition-all active:scale-[0.98]",
-                                            tone.cta
+                                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98]",
+                                            lead
+                                                ? cn("shadow-sm", tone.cta)
+                                                : "ring-1 ring-[var(--card-border)] text-foreground hover:bg-[var(--background)]"
                                         )}
                                     >
                                         <Icon className="w-3.5 h-3.5" />

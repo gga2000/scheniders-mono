@@ -24,6 +24,8 @@ import { useSupplyHistory, type InventoryHistoryEntry } from "@/hooks/use-supply
 import { useSupplyRecipeUsage, type RecipeUsageRow } from "@/hooks/use-supply-recipe-usage";
 import type { HistoryEntry } from "@/lib/utils/supply-forecasting";
 import { useLanguage } from "@/hooks/use-language";
+import { supplyReorderState, supplyTone } from "@/lib/utils/supply-reorder";
+import { useDraftPosBySupply } from "@/hooks/use-draft-pos-by-supply";
 import { StockFillBar } from "./stock-fill-bar";
 import { DaysOfSupplyPill, daysOfSupplyFrom } from "./days-of-supply-pill";
 import { StockoutEtaBadge, stockoutEtaFrom } from "./stockout-eta-badge";
@@ -129,7 +131,7 @@ export function SupplyDetailDrawer({
                         />
                         <Tabs tab={tab} onChange={setTab} />
                         <div className="flex-1 overflow-y-auto px-5 py-4">
-                            {tab === "overview" && <OverviewTab supply={supply} />}
+                            {tab === "overview" && <OverviewTab supply={supply} openPo={openPo ?? null} />}
                             {tab === "suppliers" && <SuppliersTab supply={supply} />}
                             {tab === "history" && (
                                 <HistoryTab supplyId={supply.id} preloaded={history} />
@@ -272,8 +274,13 @@ function Tabs({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void })
     );
 }
 
-function OverviewTab({ supply }: { supply: Product }) {
+function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo | null }) {
     const { t } = useLanguage();
+    const { data: draftBySupply } = useDraftPosBySupply();
+    const draft = draftBySupply?.get(supply.id);
+    const onOrder = openPo?.quantity ?? 0;
+    const status = supplyTone(supply, onOrder);
+    const reorder = supplyReorderState(supply, onOrder);
     const stock = supply.stock_quantity ?? 0;
     const reserved = supply.reserved_quantity ?? 0;
     const available = Math.max(0, stock - reserved);
@@ -291,8 +298,8 @@ function OverviewTab({ supply }: { supply: Product }) {
                         {t("supplies.sp.stockOnHand")}
                     </p>
                     <div className="flex items-center gap-1.5">
-                        <DaysOfSupplyPill days={days} size="md" />
-                        <StockoutEtaBadge daysUntilStockout={eta} />
+                        <DaysOfSupplyPill days={days} size="md" status={status} />
+                        <StockoutEtaBadge daysUntilStockout={eta} leadTimeDays={reorder.leadTimeDays} status={status} />
                     </div>
                 </div>
                 <p className="text-3xl font-bold tabular-nums leading-none">{stock}</p>
@@ -301,6 +308,7 @@ function OverviewTab({ supply }: { supply: Product }) {
                         stock={stock}
                         reorderPoint={supply.reorder_point}
                         lowStockThreshold={supply.low_stock_threshold}
+                        status={status}
                     />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
@@ -308,7 +316,38 @@ function OverviewTab({ supply }: { supply: Product }) {
                     <StatCell label={t("supplies.sp.available")} value={available.toString()} />
                     <StatCell
                         label={t("supplies.sp.reorderPoint")}
-                        value={supply.reorder_point?.toString() ?? "—"}
+                        value={
+                            supply.reorder_point != null
+                                ? supply.reorder_point.toString()
+                                : t("supplies.sp.reorderDefault", { n: reorder.reorderPoint })
+                        }
+                    />
+                </div>
+            </div>
+
+            {/* Reordering: what is coming, and the numbers the reorder rule uses. */}
+            <div className="pastel-card p-4">
+                <p className="text-[11px] uppercase tracking-wide text-muted font-medium mb-2">
+                    {t("supplies.sp.reorderBlock")}
+                </p>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                    <StatCell
+                        label={t("supplies.sp.onOrder")}
+                        value={
+                            openPo
+                                ? t("supplies.sp.onOrderPo", { number: openPo.poNumber, count: openPo.quantity })
+                                : draft
+                                ? t("supplies.sp.onOrderDraft", { number: draft.number, count: draft.quantity })
+                                : "—"
+                        }
+                    />
+                    <StatCell
+                        label={t("supplies.sp.leadTime")}
+                        value={t("supplies.sp.leadDays", { count: reorder.leadTimeDays })}
+                    />
+                    <StatCell
+                        label={t("supplies.sp.usesPerDay")}
+                        value={reorder.dailyRate > 0 ? reorder.dailyRate.toFixed(1) : "—"}
                     />
                 </div>
             </div>

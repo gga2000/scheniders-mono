@@ -10,6 +10,7 @@ import { PoStatusChip, type PoStatusInfo } from "./po-status-chip";
 import { SupplierInitialsStack } from "./supplier-initials-badge";
 import { ProductThumb } from "@/components/products/product-thumb";
 import { useLanguage } from "@/hooks/use-language";
+import { supplyTone } from "@/lib/utils/supply-reorder";
 
 interface SupplyListRowProps {
     supply: Product;
@@ -47,6 +48,7 @@ export function SupplyListRow({
     const timesSold = supply.times_sold_30d ?? 0;
     const days = daysOfSupplyFrom({ stock, reserved, timesSold30d: timesSold });
     const stockoutEta = stockoutEtaFrom({ stock, reserved, timesSold30d: timesSold });
+    const status = supplyTone(supply, openPo?.quantity ?? 0);
     const onHandValue = stock * (supply.cost ?? 0);
 
     return (
@@ -123,14 +125,15 @@ export function SupplyListRow({
                 )}
             </td>
             <td className="px-3 py-3 text-right tabular-nums text-sm">
-                {supply.reorder_point ?? <span className="text-muted">—</span>}
+                {supply.reorder_point ?? <span className="text-muted">{t("supplies.sp.reorderDefault", { n: supply.low_stock_threshold ?? 5 })}</span>}
             </td>
             <td className="px-3 py-3">
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
-                    <DaysOfSupplyPill days={days} size="sm" />
+                    <DaysOfSupplyPill days={days} size="sm" status={status} />
                     <StockoutEtaBadge
                         daysUntilStockout={stockoutEta}
                         leadTimeDays={leadTimeDays}
+                        status={status}
                     />
                     {openPo && <PoStatusChip info={openPo} size="sm" />}
                 </div>

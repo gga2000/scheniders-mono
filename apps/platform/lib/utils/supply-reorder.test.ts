@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calcSuggestedQty, reorderShortfall, urgencyFor, supplyReorderState } from "./supply-reorder";
+import { calcSuggestedQty, reorderShortfall, urgencyFor, supplyReorderState, supplyTone } from "./supply-reorder";
 
 describe("calcSuggestedQty", () => {
     it("covers lead time with a 1.3 safety factor plus the gap to the reorder point", () => {
@@ -66,5 +66,31 @@ describe("supplyReorderState", () => {
     it("is fine when well stocked with no usage", () => {
         const s = supplyReorderState({ stock_quantity: 50, reorder_point: 10 }, 0);
         expect(s).toMatchObject({ low: false, needsOrder: false, daysUntilStockout: null, leadTimeDays: 7, moq: 1 });
+    });
+});
+
+describe("supplyTone", () => {
+    const supplier = [{ is_primary: true, lead_time_days: 5 }];
+
+    it("is critical when it runs out before a new order could land", () => {
+        // 3 left at 1/day: 3 days, lead time 5.
+        expect(supplyTone({ stock_quantity: 3, reorder_point: 10, times_sold_30d: 30, suppliers: supplier }, 0)).toBe("critical");
+    });
+
+    it("is low when it needs ordering but lasts past the lead time", () => {
+        // Below its point, but 8 days at 1/day against a 5-day lead time.
+        expect(supplyTone({ stock_quantity: 8, reorder_point: 10, times_sold_30d: 30, suppliers: supplier }, 0)).toBe("low");
+    });
+
+    it("is ok once an open order covers it, even with little on hand", () => {
+        expect(supplyTone({ stock_quantity: 3, reorder_point: 10, times_sold_30d: 30, suppliers: supplier }, 20)).toBe("ok");
+    });
+
+    it("is out with nothing on hand and nothing coming", () => {
+        expect(supplyTone({ stock_quantity: 0, reorder_point: 10, suppliers: supplier }, 0)).toBe("out");
+    });
+
+    it("is ok when well stocked", () => {
+        expect(supplyTone({ stock_quantity: 50, reorder_point: 10, times_sold_30d: 30, suppliers: supplier }, 0)).toBe("ok");
     });
 });

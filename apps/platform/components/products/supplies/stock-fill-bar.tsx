@@ -2,11 +2,14 @@
 
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import type { SupplyTone } from "@/lib/utils/supply-reorder";
 
 interface StockFillBarProps {
     stock: number;
     reorderPoint?: number | null;
     lowStockThreshold?: number | null;
+    /** The supply's shared status, so the bar never disagrees with the days pill. */
+    status?: SupplyTone;
     className?: string;
 }
 
@@ -57,16 +60,19 @@ export function StockFillBar({
     stock,
     reorderPoint,
     lowStockThreshold,
+    status: shared,
     className,
 }: StockFillBarProps) {
     const { t } = useLanguage();
     const rp = reorderPoint ?? lowStockThreshold ?? 5;
     const lt = lowStockThreshold ?? 5;
-    const status = statusFor({
+    const own = statusFor({
         stock,
         reorderPoint: rp,
         lowStockThreshold: lt,
     });
+    // Overstock is the bar's own extra; otherwise the shared status decides.
+    const status: Status = !shared || (own === "overstock" && shared === "ok") ? own : shared === "ok" ? "healthy" : shared;
 
     // Fill target: aim to hit 100% at 2× reorder point; overstock clamps at 100% with stripe overlay.
     const fullAt = Math.max(rp * 2, lt * 3, 1);

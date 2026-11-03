@@ -65,6 +65,8 @@ interface ReorderDrawerProps {
     snoozedIds: Set<string>;
     onSnooze: (supplyId: string) => void;
     onUnsnooze: (supplyId: string) => void;
+    /** Opens the supply so a supplier can be added; a supply without one cannot be ordered. */
+    onAssignSupplier?: (supply: Product) => void;
 }
 
 export function ReorderDrawer({
@@ -75,6 +77,7 @@ export function ReorderDrawer({
     snoozedIds,
     onSnooze,
     onUnsnooze,
+    onAssignSupplier,
     supplierLinksReady = true,
 }: ReorderDrawerProps) {
     const { t } = useLanguage();
@@ -485,6 +488,7 @@ export function ReorderDrawer({
                                                                 // A draft already holds this group's quantities:
                                                                 // editing here would change nothing that is sent.
                                                                 draftQty={draftBySupply?.get(item.supply.id)?.quantity ?? null}
+                                                                onAssignSupplier={noSupplier && onAssignSupplier ? () => onAssignSupplier(item.supply) : undefined}
                                                                 snoozed={snoozedIds.has(
                                                                     item.supply.id
                                                                 )}
@@ -566,6 +570,8 @@ interface ReorderItemRowProps {
     onQtyChange: (qty: number) => void;
     /** What the draft this supply is on orders; null when it is on no draft. */
     draftQty: number | null;
+    /** Set for a supply with no supplier: it shows this instead of a quantity. */
+    onAssignSupplier?: () => void;
     onSnooze: () => void;
     onUnsnooze: () => void;
 }
@@ -576,6 +582,7 @@ function ReorderItemRow({
     snoozed,
     onQtyChange,
     draftQty,
+    onAssignSupplier,
     onSnooze,
     onUnsnooze,
 }: ReorderItemRowProps) {
@@ -637,7 +644,7 @@ function ReorderItemRow({
                         />
                         <Stat
                             label={t("supplies.ro.leadTime")}
-                            value={t("supplies.ro.leadDaysShort", { count: item.leadTimeDays })}
+                            value={item.primarySupplier ? t("supplies.ro.leadDaysShort", { count: item.leadTimeDays }) : "—"}
                             tone="muted"
                         />
                     </div>
@@ -654,8 +661,20 @@ function ReorderItemRow({
                             )}
                         </div>
                     )}
+                    {onAssignSupplier && (
+                        <div className="mt-2.5 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={onAssignSupplier}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ring-1 ring-[var(--card-border)] hover:bg-[var(--background)]"
+                            >
+                                <Truck className="w-3.5 h-3.5" />
+                                {t("supplies.ro.addSupplier")}
+                            </button>
+                        </div>
+                    )}
                     {/* Qty editor + actions */}
-                    {draftQty === null && (
+                    {draftQty === null && !onAssignSupplier && (
                     <div className="mt-2.5 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                 <label className="text-[11px] text-muted uppercase tracking-wide">

@@ -105,6 +105,12 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
             )
         );
 
+    // Offered only once a line was edited below what is still outstanding.
+    const canFillAll = (lines ?? []).some((l) => {
+        const max = outstanding.get(l.id) ?? 0;
+        return max > 0 && entered[l.id] !== String(max);
+    });
+
     // A typed cost that is not a whole number of dinars would be dropped silently
     // and the PO price used instead: refuse it so the merchant fixes it.
     const badCost = canSetCost && Object.values(costs).some((raw) => {
@@ -182,9 +188,9 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                 ) : (
                     <div className="space-y-2 max-h-[50vh] overflow-y-auto">
                         <div className={`grid ${gridCols} items-center gap-3 px-3 text-[11px] font-medium uppercase tracking-wide text-muted`}>
-                            <span>{t("supplies.po.colItem")}</span>
-                            {canSetCost && <span>{t("supplies.po.colCost")}</span>}
-                            <span>{t("supplies.po.colQty")}</span>
+                            <span className="truncate">{t("supplies.po.colItem")}</span>
+                            {canSetCost && <span className="truncate whitespace-nowrap">{t("supplies.po.colCost")}</span>}
+                            <span className="truncate whitespace-nowrap">{t("supplies.po.colQty")}</span>
                         </div>
                         {lines.map((line) => {
                             const max = outstanding.get(line.id) ?? 0;
@@ -203,7 +209,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                     className={`grid ${gridCols} items-center gap-3 rounded-xl border border-[var(--card-border)] px-3 py-2`}
                                 >
                                     <div className="min-w-0">
-                                        <p className="text-sm font-medium truncate">
+                                        <p dir="auto" className="text-left text-sm font-medium truncate">
                                             {line.productName}
                                             {line.variantName ? ` · ${line.variantName}` : ""}
                                         </p>
@@ -223,7 +229,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                             placeholder={poCost != null && poCost > 0 ? formatCount(poCost) : t("supplies.po.sameAsPo")}
                                             aria-label={t("supplies.po.invoiceCost")}
                                             onChange={(e) => setCosts((prev) => ({ ...prev, [line.id]: e.target.value }))}
-                                            className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 ${costBad ? errorBorder : "border-[var(--card-border)]"}`}
+                                            className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${costBad ? errorBorder : "border-[var(--card-border)]"}`}
                                         />
                                     )}
                                     <input
@@ -234,16 +240,17 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                         value={entered[line.id] ?? ""}
                                         placeholder={String(max)}
                                         onChange={(e) => setEntered((prev) => ({ ...prev, [line.id]: e.target.value }))}
-                                        className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 ${qtyOver ? errorBorder : "border-[var(--card-border)]"}`}
+                                        className={`w-full rounded-lg border bg-[var(--background)] px-2 py-1.5 text-sm tabular-nums disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${qtyOver ? errorBorder : "border-[var(--card-border)]"}`}
                                     />
-                                    {qtyOver && (
-                                        <p role="alert" className="col-span-full text-xs text-rose-600 dark:text-rose-300">
-                                            {t("supplies.po.overOrdered")}
+                                    {/* Errors in field order: cost, then quantity. */}
+                                    {costBad && (
+                                        <p role="alert" dir={textDir} className="col-span-full text-left text-xs text-rose-600 dark:text-rose-300">
+                                            {t("supplies.po.badCost")}
                                         </p>
                                     )}
-                                    {costBad && (
-                                        <p role="alert" className="col-span-full text-xs text-rose-600 dark:text-rose-300">
-                                            {t("supplies.po.badCost")}
+                                    {qtyOver && (
+                                        <p role="alert" dir={textDir} className="col-span-full text-left text-xs text-rose-600 dark:text-rose-300">
+                                            {t("supplies.po.overOrdered")}
                                         </p>
                                     )}
                                 </div>
@@ -253,6 +260,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                 )}
 
                 <DialogFooter className="gap-2">
+                    {canFillAll && (
                     <button
                         type="button"
                         onClick={fillAll}
@@ -260,6 +268,7 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                     >
                         {t("supplies.po.receiveAll")}
                     </button>
+                    )}
                     <button
                         type="button"
                         onClick={submit}

@@ -452,13 +452,13 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
             {/* Cost preview */}
             {selected && (
                 <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
-                    <span>
+                    <span dir="auto" className="min-w-0 truncate text-left">
                         {rule.quantity} × {selected.name} @{" "}
                         <span className="tabular-nums">
                             {selected.cost == null ? "—" : formatIQD(selected.cost)}
                         </span>
                     </span>
-                    <span className="font-semibold text-foreground tabular-nums">
+                    <span className="shrink-0 font-semibold text-foreground tabular-nums">
                         {lineCost == null ? t("recipe.costHidden") : `${formatIQD(lineCost)} ${t(UNIT_COPY[rule.unit].short)}`}
                     </span>
                 </div>
