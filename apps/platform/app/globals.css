@@ -3360,13 +3360,11 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
   [data-menu-drawer], [data-menu-drawer] * { animation-duration: 1ms !important; }
 }
 
-/* Orders page: experimental mouse-follow backdrop. The resting dot grid is pure CSS; the canvas inside only paints the lens under the cursor. */
-.orders-mouse-bg {
-  background-image: radial-gradient(circle, rgba(100, 116, 139, 0.22) 1px, transparent 1.4px);
-  background-size: 24px 24px;
-  background-position: 12px 12px;
+/* Orders page: experimental sonar backdrop dot colour (components/ui/sonar-grid). */
+:root {
+  --orders-sonar-dot: rgb(99, 102, 241);
 }
 
-.dark .orders-mouse-bg {
-  background-image: radial-gradient(circle, rgba(150, 165, 205, 0.18) 1px, transparent 1.4px);
+.dark {
+  --orders-sonar-dot: rgb(165, 180, 252);
 }

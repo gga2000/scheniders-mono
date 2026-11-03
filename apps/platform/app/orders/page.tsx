@@ -5,7 +5,7 @@ import { StockTodayDialog } from "@/components/orders/stock-today-dialog";
 import { StockShortfallDialog } from "@/components/orders/stock-shortfall-dialog";
 import { OrderDialogs } from "@/components/orders/order-dialogs";
 import { OrderBulkDialogs } from "@/components/orders/order-bulk-dialogs";
-import { OrdersMouseBackground } from "@/components/orders/orders-mouse-background";
+import { SonarGrid } from "@/components/ui/sonar-grid";
 import { EASE_PANEL, EASE_CROSSFADE } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScrollToTopButton, BackupPrompt, IraqMap } from "@/components/orders/page/lazy";
@@ -57,7 +57,18 @@ export default function OrdersPage() {
                     }}
                 >
                     <div className="min-h-screen p-4 md:p-6 lg:p-8 orders-page relative">
-                        {showFunBg && <OrdersMouseBackground />}
+                        {/* Experimental sonar backdrop (sparkle switch in the tools bar, off by default). Clicks anywhere send a ring. */}
+                        {showFunBg && (
+                            <SonarGrid
+                                aria-hidden="true"
+                                pingOnWindow
+                                color="var(--orders-sonar-dot)"
+                                baseOpacity={0.22}
+                                spacing={26}
+                                pingEvery={5}
+                                className="pointer-events-none fixed inset-0 z-0"
+                            />
+                        )}
                         <div className="space-y-4 md:space-y-6">
                             <OrdersPageToolbar m={m} />
 
