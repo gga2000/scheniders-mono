@@ -5,7 +5,7 @@ import {
   formatClock,
   parseStoreContact,
   resolveContactLine,
-  storeContactNameSchema,
+  parseContactName,
 } from "./contact-line";
 import type { StoreCallHours, StoreContactConfig } from "./types/store-config-v2";
 
@@ -213,8 +213,24 @@ describe("commerce.contact.name_i18n", () => {
     }
   });
 
-  it("the exported name schema is the one the contact schema uses", () => {
-    expect(storeContactNameSchema.safeParse({ ku: "شنایدەر" }).success).toBe(true);
-    expect(storeContactNameSchema.safeParse("شنايدر").success).toBe(false);
+  it("parseContactName accepts a partial name and rejects a non-object or a non-string part", () => {
+    expect(parseContactName({ ku: "شنایدەر" })).toEqual({ ku: "شنایدەر" });
+    expect(parseContactName("شنايدر")).toBeNull();
+    expect(parseContactName({ ar: 5 })).toBeNull();
+  });
+
+  it("parseStoreContact rejects bad hours without costing the number", () => {
+    const bad = [
+      { ...HOURS, days: [] },
+      { ...HOURS, days: ["xyz"] },
+      { ...HOURS, from: "9:00" },
+      { ...HOURS, from: "18:00", to: "09:00" },
+      { ...HOURS, tz: "Not/AZone" },
+    ];
+    for (const call_hours of bad) {
+      const parsed = parseStoreContact({ call_number: NUMBER, call_hours });
+      expect(parsed?.call_number).toBe(NUMBER);
+      expect(parsed?.call_hours).toBeUndefined();
+    }
   });
 });

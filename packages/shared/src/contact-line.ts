@@ -15,7 +15,6 @@
 //   • WhatsApp is announced only when the store has said it sends one.
 // =====================================================================
 
-import { z } from "zod";
 import { formatIraqiPhoneDisplay, normalizeIraqiMobile } from "./phone";
 import { utcISOToZonedWallTime } from "./schedule-time";
 import { resolveI18n } from "./types/store-config-v2";
@@ -61,41 +60,40 @@ function isTimeZone(tz: string): boolean {
   }
 }
 
-const clockSchema = z.string().regex(CLOCK_RE);
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
 
-export const callHoursSchema = z
-  .object({
-    days: z.array(z.enum(CONTACT_WEEKDAYS)).min(1),
-    from: clockSchema,
-    to: clockSchema,
-    tz: z.string().refine(isTimeZone).default(DEFAULT_CONTACT_TIMEZONE),
-  })
-  .refine((h) => clockMinutes(h.from) < clockMinutes(h.to));
+function isClock(v: unknown): v is string {
+  return typeof v === "string" && CLOCK_RE.test(v);
+}
 
-/** `commerce.contact.name_i18n`: the store name the confirmation chrome
- *  uses («رد {store}», the saved vCard contact). Written inline because
- *  this package cannot import the sections' `i18nStringSchema`; the
- *  sections' `storeDisplayName` parses the raw field with this same
- *  object, so the two can never disagree. */
-export const storeContactNameSchema = z.object({
-  ar: z.string().optional(),
-  en: z.string().optional(),
-  ku: z.string().optional(),
-});
+function parseCallHours(raw: unknown): Required<StoreCallHours> | null {
+  if (!isRecord(raw)) return null;
+  const { days, from, to } = raw;
+  const tz = raw.tz === undefined ? DEFAULT_CONTACT_TIMEZONE : raw.tz;
+  if (!Array.isArray(days) || days.length === 0) return null;
+  if (!days.every((d): d is ContactWeekday => CONTACT_WEEKDAYS.some((w) => w === d))) return null;
+  if (!isClock(from) || !isClock(to) || clockMinutes(from) >= clockMinutes(to)) return null;
+  if (typeof tz !== "string" || !isTimeZone(tz)) return null;
+  return { days, from, to, tz };
+}
 
-/** Parses the stored `commerce.contact` jsonb. `call_number` comes out
- *  normalized to `07XXXXXXXXX`; a malformed `call_hours`,
- *  `whatsapp_confirm` or `name_i18n` degrades to absent instead of failing
- *  the parse. */
-export const storeContactConfigSchema = z.object({
-  call_number: z
-    .string()
-    .transform((v) => normalizeIraqiMobile(v))
-    .pipe(z.string()),
-  call_hours: callHoursSchema.optional().catch(undefined),
-  whatsapp_confirm: z.boolean().optional().catch(undefined),
-  name_i18n: storeContactNameSchema.optional().catch(undefined),
-});
+/** `commerce.contact.name_i18n`: an object whose ar / en / ku are each
+ *  absent or a string; anything else is no name. Read by hand (not zod)
+ *  because this module ships to every shopper's browser. Unknown keys are
+ *  dropped. */
+export function parseContactName(raw: unknown): I18nString | null {
+  if (!isRecord(raw)) return null;
+  const name: I18nString = {};
+  for (const key of ["ar", "en", "ku"] as const) {
+    const v = raw[key];
+    if (v === undefined) continue;
+    if (typeof v !== "string") return null;
+    name[key] = v;
+  }
+  return name;
+}
 
 type ParsedCallHours = Required<StoreCallHours>;
 type ParsedStoreContact = Required<Pick<StoreContactConfig, "call_number">> & {
@@ -108,8 +106,16 @@ type ParsedStoreContact = Required<Pick<StoreContactConfig, "call_number">> & {
  *  call number. The return type is the stored type, so the schema and
  *  `StoreContactConfig` cannot drift apart without a type error. */
 export function parseStoreContact(raw: unknown): ParsedStoreContact | null {
-  const parsed = storeContactConfigSchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
+  if (!isRecord(raw) || typeof raw.call_number !== "string") return null;
+  const call_number = normalizeIraqiMobile(raw.call_number);
+  if (call_number === null) return null;
+  const contact: ParsedStoreContact = { call_number };
+  const call_hours = parseCallHours(raw.call_hours);
+  if (call_hours) contact.call_hours = call_hours;
+  if (typeof raw.whatsapp_confirm === "boolean") contact.whatsapp_confirm = raw.whatsapp_confirm;
+  const name_i18n = parseContactName(raw.name_i18n);
+  if (name_i18n) contact.name_i18n = name_i18n;
+  return contact;
 }
 
 /** Chrome strings. Every entry carries ar, en and ku. */

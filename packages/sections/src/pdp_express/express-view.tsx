@@ -17,7 +17,7 @@ import { EXPRESS_VARIANTS_ID, useFormWatched } from "../helpers/express-order-st
 import { formatPrice } from "../helpers/format";
 import { MaterialIcon } from "../helpers/primitives";
 import { stockLeftFor } from "../helpers/variant-store";
-import { DEFAULT_DECK_ROTATE_MS } from "../pdp_direct_order";
+import { DEFAULT_DECK_ROTATE_MS } from "../pdp_constants";
 import { DIRECT_ORDER_FORM_ID } from "../pdp_direct_order.client";
 import { CheckoutRow } from "./checkout-row";
 import { DescriptionBlock } from "./description-block";

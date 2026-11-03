@@ -29,12 +29,11 @@ import { i18nStringSchema, i18nStringOptional } from "./_schema";
 import { registerSection } from "./_registry";
 import type { SectionDefinition } from "./_types";
 import { PdpDirectOrderRender } from "./pdp_direct_order.client";
-import { countdownModeSchema } from "./helpers/countdown";
+import { COUNTDOWN_MODES } from "./helpers/countdown";
 
-export const DEFAULT_URGENCY_MAX_STOCK = 10;
+import { DEFAULT_DECK_ROTATE_MS, DEFAULT_URGENCY_MAX_STOCK } from "./pdp_constants";
+export { DEFAULT_DECK_ROTATE_MS, DEFAULT_URGENCY_MAX_STOCK };
 const DEFAULT_MAX_QTY = 10;
-/** Express hero: how long each extra photo leads the thumbnail deck. */
-export const DEFAULT_DECK_ROTATE_MS = 4000;
 
 /** Payment methods a merchant can announce as "coming soon" in the express
  *  layout. Shown as non-selectable chips — the order still posts
@@ -117,7 +116,7 @@ const schema = z.object({
    *  while the product is genuinely discounted. */
   offer_clock: z
     .object({
-      mode: countdownModeSchema,
+      mode: z.enum(COUNTDOWN_MODES),
       ends_at: z.string().describe("datetime").optional(),
       duration_minutes: z.number().int().min(1).max(1440).optional(),
       label_i18n: i18nStringSchema,

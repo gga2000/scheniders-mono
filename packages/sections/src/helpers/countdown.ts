@@ -4,17 +4,11 @@
 // on the same second. Server-safe: no hooks, no browser APIs.
 // =====================================================================
 
-import { z } from "zod";
-
 /** daily_reset — counts to the next local midnight (evergreen).
  *  fixed_end — counts to an explicit ISO datetime, clamped at zero.
  *  evergreen_minutes — loops on a fixed, epoch-aligned wall-clock cycle. */
-export const countdownModeSchema = z.enum([
-  "daily_reset",
-  "fixed_end",
-  "evergreen_minutes",
-]);
-export type CountdownMode = z.infer<typeof countdownModeSchema>;
+export const COUNTDOWN_MODES = ["daily_reset", "fixed_end", "evergreen_minutes"] as const;
+export type CountdownMode = (typeof COUNTDOWN_MODES)[number];
 
 export interface CountdownTick {
   hours: number;
