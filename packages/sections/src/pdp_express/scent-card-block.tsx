@@ -46,6 +46,17 @@ const STAGE_BADGE = [
   "bg-bk-ink text-bk-surface",
 ] as const;
 
+/** The meter's vivid orange → red ramp (owner's pick, 3 Nov 2026), spread
+ *  over the whole bar: segment `i` runs from its share of the ramp to the
+ *  next one's, so the segments read as one continuous gradient. Kept off the
+ *  buy-yellow on purpose. */
+const METER_FROM = "#fb923c";
+const METER_TO = "#ef4444";
+function meterFill(i: number, segments: number, rtl: boolean): string {
+  const at = (k: number) => `color-mix(in oklab, ${METER_FROM}, ${METER_TO} ${Math.round((k / segments) * 100)}%)`;
+  return `linear-gradient(to ${rtl ? "left" : "right"}, ${at(i)}, ${at(i + 1)})`;
+}
+
 export function ScentCardBlock({
   card,
   product,
@@ -212,8 +223,8 @@ export function ScentCardBlock({
                             {f > 0 && (
                               <span
                                 data-fill={f}
-                                className={cn("absolute inset-y-0 bg-bk-ink", rtl ? "right-0" : "left-0")}
-                                style={{ width: `${f * 100}%` }}
+                                className={cn("absolute inset-y-0", rtl ? "right-0" : "left-0")}
+                                style={{ width: `${f * 100}%`, background: meterFill(i, m.segments, rtl) }}
                               />
                             )}
                           </span>
