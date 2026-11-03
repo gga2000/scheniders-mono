@@ -229,6 +229,24 @@ describe("update_order source, items and price", () => {
     });
 });
 
+describe("update_order scheduling", () => {
+    it("schedules an order, sets slot and gift, and clears the schedule with an empty string", async () => {
+        const res = await call("update_order", { order: "1001", scheduled_date: "2026-11-05", delivery_slot: "16:30", is_gift: true });
+        expect(res.isError).toBe(false);
+        expect(env.tables.orders[0]).toMatchObject({ scheduled_date: "2026-11-05", delivery_slot: "16:30", is_gift: true });
+
+        await call("update_order", { order: "1001", scheduled_date: "" });
+        expect(env.tables.orders[0].scheduled_date).toBeNull();
+    });
+
+    it("refuses to schedule an order the courier already has", async () => {
+        env.tables.orders[0].status = "in_transit";
+        const res = await call("update_order", { order: "1001", scheduled_date: "2026-11-05" });
+        expect(res.isError).toBe(true);
+        expect(res.text).toContain("can no longer be scheduled");
+    });
+});
+
 describe("update_order validation", () => {
     it("refuses a phone the courier cannot call", async () => {
         const res = await call("update_order", { order: "1001", phone: "call me later" });
@@ -291,6 +309,16 @@ describe("create_order", () => {
             expect.objectContaining({ phone: "07801234567", city: "النجف", price: 45000, discount_amount: 5000, delivery_fee: 5000, status: "confirmed" }),
             STORE,
         );
+    });
+
+    it("schedules the new order and passes the slot through", async () => {
+        const created = { ...order("o9", "1009", STORE), price: 25000, delivery_fee: 0 };
+        env.tables.orders.push(created);
+        createOrderForTenant.mockResolvedValue({ success: true, data: created });
+        const res = await call("create_order", { ...base, scheduled_date: "2026-11-05", delivery_slot: "morning", items: [{ product_id: "11111111-1111-4111-8111-111111111111", quantity: 1 }], confirm: true });
+        expect(res.isError).toBe(false);
+        expect(createOrderForTenant).toHaveBeenCalledWith(expect.objectContaining({ delivery_slot: "morning" }), STORE);
+        expect(env.tables.orders.find((o) => o.id === "o9")?.scheduled_date).toBe("2026-11-05");
     });
 
     it("refuses a discount larger than the items", async () => {
