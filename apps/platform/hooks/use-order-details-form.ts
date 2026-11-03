@@ -278,10 +278,15 @@ export function useOrderIdEdit({ order, setOrder, onUpdate, checkOrderIdExists, 
 
         const timer = setTimeout(async () => {
             setIsCheckingId(true);
-            const exists = await checkOrderIdExists(tempOrderId, order?.id);
-            setIsCheckingId(false);
-            if (exists) {
-                setIdError(t("orderDetail.idExists"));
+            try {
+                if (await checkOrderIdExists(tempOrderId, order?.id)) {
+                    setIdError(t("orderDetail.idExists"));
+                }
+            } catch {
+                // Could not check (expired session, network): show no verdict.
+                // The rename itself still runs the server's uniqueness check.
+            } finally {
+                setIsCheckingId(false);
             }
         }, 500);
 

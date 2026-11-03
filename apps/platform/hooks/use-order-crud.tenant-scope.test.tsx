@@ -19,7 +19,10 @@ import {
  */
 
 const TENANT = "22222222-2222-4222-8222-222222222222";
-const H = vi.hoisted(() => ({ tenantId: "22222222-2222-4222-8222-222222222222" as string | null }));
+const H = vi.hoisted(() => ({
+    tenantId: "22222222-2222-4222-8222-222222222222" as string | null,
+    checkOrderIdExists: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase", async () =>
     (await import("@/lib/__fixtures__/recording-supabase")).recordingSupabaseModule());
@@ -36,6 +39,7 @@ vi.mock("@/app/actions/orders", () => ({
     createOrderAction: vi.fn(),
     splitOrderAction: vi.fn(),
     unsplitOrderAction: vi.fn(),
+    checkOrderIdExists: H.checkOrderIdExists,
 }));
 vi.mock("@/lib/activity-logger", () => ({ activityLogger: { log: vi.fn() } }));
 vi.mock("@/hooks/use-toast", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }) }));
@@ -65,6 +69,7 @@ function setup() {
 beforeEach(() => {
     resetRecording();
     H.tenantId = TENANT;
+    H.checkOrderIdExists.mockReset();
 });
 
 describe("useOrderCrud tenant scope", () => {
@@ -120,5 +125,28 @@ describe("useOrderCrud tenant scope", () => {
             expect(q.ops.find((o) => o.op === "select")?.args[0]).not.toBe("*");
         }
         expect(client.getQueryData<Order[]>(orderKeys.archived())?.map((o) => o.id)).toEqual(["a1"]);
+    });
+
+    it("checkOrderIdExists asks the server, which sees every store's numbers", async () => {
+        // Order numbers are unique across tenants; the browser under RLS sees
+        // only its own store, so a number another store took looked free.
+        H.checkOrderIdExists.mockResolvedValue(true);
+        const { result } = setup();
+
+        let taken: boolean | undefined;
+        await act(async () => {
+            taken = await result.current.checkOrderIdExists("7309", "o1");
+        });
+
+        expect(taken).toBe(true);
+        expect(H.checkOrderIdExists).toHaveBeenCalledWith("7309", "o1", "t");
+        expect(queriesOn("orders")).toEqual([]);
+    });
+
+    it("checkOrderIdExists rejects when the server cannot check, never answering free", async () => {
+        H.checkOrderIdExists.mockRejectedValue(new Error("Unauthorized"));
+        const { result } = setup();
+
+        await expect(result.current.checkOrderIdExists("7309")).rejects.toThrow("Unauthorized");
     });
 });

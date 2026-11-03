@@ -18,7 +18,7 @@ import { calculateTotal } from "@/lib/order-utils";
 import type { CreateOrderInput, CreateOrderResult } from "@/types/order";
 import { activityLogger } from "@/lib/activity-logger";
 import { OrderSchema } from "@/lib/schemas";
-import { renameOrderNumberAction, splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
+import { checkOrderIdExists as checkOrderIdExistsAction, renameOrderNumberAction, splitOrderAction, unsplitOrderAction } from "@/app/actions/orders";
 import { getIdempotencyGuard, generateIdempotencyKey } from "@/lib/idempotency";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -1242,12 +1242,6 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         // Timeline
         getOrderTimeline: orderRecords.getOrderTimeline,
 
-        // Reminders
-        setFollowUpReminder: (orderId: string, reminderDate: Date, note?: string) =>
-            orderRecords.setFollowUpReminder(tenantId, orderId, reminderDate, note),
-        getActiveReminders: orderRecords.getActiveReminders,
-        completeReminder: orderRecords.completeReminder,
-
         // Duplicate management
         dismissDuplicate,
 
@@ -1255,7 +1249,13 @@ export function useOrderCrud({ orders = [] }: UseOrderCrudOptions = {}) {
         undoLastAction,
         getLastUndoAction,
         clearUndoStack,
-        checkOrderIdExists: orderRecords.checkOrderIdExists,
+        // Order numbers are unique across every tenant (orders_order_id_key),
+        // so the check runs on the server where it can see them all. Under RLS
+        // the browser saw only its own tenant's numbers and called a number
+        // another store had taken "available"; the save then failed. It throws
+        // when it cannot check, so no caller shows "available" by mistake.
+        checkOrderIdExists: (orderId: string, excludeUuid?: string) =>
+            checkOrderIdExistsAction(orderId, excludeUuid, authRef.current.session?.access_token ?? ""),
     };
 
     const apiRef = useRef(latestFn);
