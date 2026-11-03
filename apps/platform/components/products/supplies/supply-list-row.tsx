@@ -115,6 +115,7 @@ export function SupplyListRow({
                         stock={stock}
                         reorderPoint={supply.reorder_point}
                         lowStockThreshold={supply.low_stock_threshold}
+                        status={status}
                         className="flex-1 min-w-[40px]"
                     />
                 </div>

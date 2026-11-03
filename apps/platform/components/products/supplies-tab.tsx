@@ -7,7 +7,7 @@ import { productRepository } from "@/lib/repositories/product-repository";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { cn, formatCount } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { productWriteErrorKey } from "@/lib/product-write-error";
 import {
     Box,
@@ -75,6 +75,7 @@ const SECTION_KEY = "supplies.section";
 export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     const { products, loading } = useProductsCrud({ withSales: true });
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const queryClient = useQueryClient();
     const { tenantId } = useAuth();
     const { data: categories = [] } = useCategoriesQuery();
@@ -356,7 +357,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                             <Box className="w-6 h-6 text-teal-500" />
                             {t("supplies.title")}
                         </h2>
-                        <p className="text-muted text-sm mt-1">
+                        <p dir={textDir} className="text-left text-muted text-sm mt-1">
                             {t("supplies.subtitle")}
                         </p>
                     </div>

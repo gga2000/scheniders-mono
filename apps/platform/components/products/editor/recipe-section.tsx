@@ -392,7 +392,8 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
                     onChange={(e) =>
                         onChange({ supply_id: e.target.value || null })
                     }
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                    title={selected ? `${selected.name}${selected.sku ? ` · ${selected.sku}` : ""}` : undefined}
+                    className="w-full min-w-0 text-ellipsis px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
                 >
                     <option value="">{t("products.recipe.chooseSupply")}</option>
                     {supplies.map((s) => (
@@ -452,8 +453,9 @@ function RuleRow({ rule, supplies, onChange, onRemove }: RuleRowProps) {
             {/* Cost preview */}
             {selected && (
                 <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
-                    <span dir="auto" className="min-w-0 truncate text-left">
-                        {rule.quantity} × {selected.name} @{" "}
+                    <span dir="ltr" className="min-w-0 truncate text-left">
+                        {/* bdi: an Arabic name stays one piece inside the Latin line. */}
+                        {rule.quantity} × <bdi>{selected.name}</bdi> @{" "}
                         <span className="tabular-nums">
                             {selected.cost == null ? "—" : formatIQD(selected.cost)}
                         </span>

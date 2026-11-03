@@ -332,12 +332,12 @@ function OverviewTab({ supply, openPo }: { supply: Product; openPo: PoStatusInfo
                 </p>
                 <div className="grid grid-cols-3 gap-3 text-xs">
                     <StatCell
-                        label={t("supplies.sp.onOrder")}
+                        label={!openPo && draft ? t("supplies.sp.inDraft") : t("supplies.sp.onOrder")}
                         value={
                             openPo
                                 ? t("supplies.sp.onOrderPo", { number: openPo.poNumber, count: openPo.quantity })
                                 : draft
-                                ? t("supplies.sp.onOrderDraft", { number: draft.number, count: draft.quantity })
+                                ? t("supplies.sp.onOrderPo", { number: draft.number, count: draft.quantity })
                                 : "—"
                         }
                     />
@@ -388,7 +388,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
     return (
         <div>
             <p className="text-[10px] text-muted uppercase tracking-wide">{label}</p>
-            <p className="font-semibold text-sm tabular-nums mt-0.5">{value}</p>
+            <p className="font-semibold text-sm tabular-nums mt-0.5 truncate whitespace-nowrap" title={value}>{value}</p>
         </div>
     );
 }

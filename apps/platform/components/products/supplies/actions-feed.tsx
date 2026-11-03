@@ -170,6 +170,8 @@ export function ActionsFeed({
         const toOrder = supplies
             .filter((s) => needsOrderIds.has(s.id))
             .sort((a, b) => (etaOf(a) ?? Infinity) - (etaOf(b) ?? Infinity));
+        // One card per draft PO: its supplies are reviewed and sent together.
+        const draftsShown = new Set<string>();
         for (const s of toOrder) {
             // The supply card's own rule (lead time defaults to 7 days), so the
             // feed and the card never disagree on red.
@@ -186,7 +188,10 @@ export function ActionsFeed({
                 : eta != null
                 ? t("supplies.af.supplyLeft", { eta: t("supplies.sp.leadDays", { count: eta }) })
                 : t("supplies.af.atReorderPoint", { rp });
-            const draftNumber = draftBySupply?.get(s.id)?.number;
+            const draftRef = draftBySupply?.get(s.id);
+            const draftNumber = draftRef?.number;
+            if (draftRef && draftsShown.has(draftRef.id)) continue;
+            if (draftRef) draftsShown.add(draftRef.id);
             if (draftNumber) {
                 push({
                     id: `draft:${s.id}`,

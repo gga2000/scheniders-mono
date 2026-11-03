@@ -1,6 +1,6 @@
 "use client";
 
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { parseWholeNumber } from "@/lib/utils";
 import { RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
 import type { ProductEditorFormData } from "@/hooks/use-product-editor";
@@ -12,6 +12,7 @@ interface ReorderAlertsSectionProps {
 
 export function ReorderAlertsSection({ formData, updateField }: ReorderAlertsSectionProps) {
     const { t } = useLanguage();
+    const textDir = useTextDir();
     const reorderPoint = formData.reorder_point;
     const hasReorderPoint = reorderPoint !== null && reorderPoint > 0;
     const isAtOrBelowReorder = hasReorderPoint && formData.stock_quantity <= reorderPoint;
@@ -40,7 +41,7 @@ export function ReorderAlertsSection({ formData, updateField }: ReorderAlertsSec
                     min={0}
                     className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
                 />
-                <p className="text-xs text-muted mt-1.5">
+                <p dir={textDir} className="text-left text-xs text-muted mt-1.5">
                     {t("products.ed.reorder.hint")} {t("products.ed.reorder.fallback", { n: formData.low_stock_threshold })}
                 </p>
             </div>
