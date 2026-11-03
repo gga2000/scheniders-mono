@@ -3,6 +3,8 @@
 import Image from "next/image";
 import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "./utils";
+import { IconFontFallback } from "./icon-font-fallback.client";
+import { isListedIcon } from "./icon-names";
 import { readingAlignClass } from "./reading";
 import type {
   CSSProperties,
@@ -467,9 +469,12 @@ export function MaterialIcon({
   className?: string;
 }) {
   return (
-    <span className={cn("material-symbols-outlined", className)} aria-hidden="true">
-      {name}
-    </span>
+    <>
+      <span className={cn("material-symbols-outlined", className)} aria-hidden="true">
+        {name}
+      </span>
+      {isListedIcon(name) ? null : <IconFontFallback />}
+    </>
   );
 }
 
