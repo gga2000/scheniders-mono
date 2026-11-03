@@ -325,7 +325,7 @@ export function TeamSettings() {
             </AnimatePresence>
 
             {isAdmin && (
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 2xl:grid-cols-2">
                     <GoogleInvitesCard onMembersChanged={fetchUsers} />
                     <LinkMemberGoogleCard />
                 </div>
@@ -413,6 +413,7 @@ export function TeamSettings() {
                                         <td className="p-4">
                                             <button
                                                 onClick={() => toggleUserStatus(user.id, user.is_active)}
+                                                title={user.is_active ? "Click to deactivate this account" : "Click to reactivate this account"}
                                                 className={cn(
                                                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
                                                     user.is_active
