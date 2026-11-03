@@ -10,18 +10,18 @@ import { OrdersAnalyticsPanel } from "./orders-analytics-panel";
 const reveal = vi.hoisted(() => ({ value: { revealed: true, canReveal: true, toggle: () => {} } }));
 vi.mock("@/components/providers/financial-visibility-provider", () => ({ useFinancialVisibility: () => reveal.value }));
 
-const periods = vi.hoisted(() => ({ asked: [] as string[] }));
+const asked = vi.hoisted(() => ({ filters: [] as unknown[] }));
 const hookResult = vi.hoisted(() => ({ value: null as unknown }));
 vi.mock("@/hooks/use-orders-panel-stats", () => ({
-    useOrdersPanelStats: (period: string) => {
-        periods.asked.push(period);
+    useOrdersPanelStats: (filters: unknown) => {
+        asked.filters.push(filters);
         return hookResult.value;
     },
 }));
 
 afterEach(() => {
     cleanup();
-    periods.asked.length = 0;
+    asked.filters.length = 0;
     reveal.value = { revealed: true, canReveal: true, toggle: () => {} };
 });
 
@@ -35,21 +35,18 @@ const stats = (over: Partial<PanelStats> = {}): PanelStats => ({
     cohort_rejected: 1,
     confirm_n: 30,
     confirm_median_min: 5,
-    daily: [
-        { day: "2026-11-01", orders: 10, revenue: 100 },
-        { day: "2026-11-02", orders: 12, revenue: 200 },
-    ],
     ...over,
 });
 
 function setHook(over: Record<string, unknown> = {}) {
     hookResult.value = {
-        windows: { qualityIsWider: false },
+        salesView: true,
+        windows: { qualityIsWider: false, previous: {} },
         current: query(stats()),
         previous: query(stats({ orders: 20, revenue: 1_000_000 })),
         qualityCurrent: query(stats()),
         qualityPrevious: query(stats({ cohort_realized: 8, cohort_rejected: 2, confirm_median_min: 10 })),
-        store: { figures: null, hasTraffic: false },
+        store: { figures: null, show: false },
         ads: null,
         ...over,
     };
@@ -122,12 +119,23 @@ describe("OrdersAnalyticsPanel strip", () => {
         expect(current.refetch).toHaveBeenCalled();
     });
 
-    it("asks for the period the merchant picks", () => {
+    it("reads the filters the page has applied", () => {
         setHook();
+        renderPanel({ filters: { dateFrom: "2026-11-01", dateTo: "2026-11-03", city: "Basra" } as Props["filters"] });
+        expect(asked.filters.at(-1)).toEqual({ dateFrom: "2026-11-01", dateTo: "2026-11-03", city: "Basra" });
+    });
+
+    it("says so instead of showing zeros while a refund or replacement view is open", () => {
+        setHook({ salesView: false });
         renderPanel();
-        expect(periods.asked.at(-1)).toBe("today");
-        fireEvent.click(document.querySelector("[data-period=\"30\"]") as HTMLElement);
-        expect(periods.asked.at(-1)).toBe("30");
+        expect(stat("orders")).toBeUndefined();
+        expect(document.querySelector("[data-testid=\"orders-analytics-strip\"]")?.textContent).toContain("المبيعات");
+    });
+
+    it("shows no change arrows when there is no earlier period to compare with", () => {
+        setHook({ windows: { qualityIsWider: false, previous: null } });
+        renderPanel();
+        expect(document.querySelector("[data-cell=\"orders\"] svg")).toBeNull();
     });
 
     it("only draws the Meta and store cells when they apply", () => {
@@ -138,7 +146,7 @@ describe("OrdersAnalyticsPanel strip", () => {
         cleanup();
         setHook({
             ads: { spend: query(500_000) },
-            store: { figures: { current: { visitors: 300, conversion: 2.5 }, previous: { visitors: 200, conversion: 2 } }, hasTraffic: true },
+            store: { figures: { current: { visitors: 300, conversion: 2.5 }, previous: { visitors: 200, conversion: 2 } }, show: true },
         });
         renderPanel();
         expect(stat("ad_spend")).toContain("500,000");

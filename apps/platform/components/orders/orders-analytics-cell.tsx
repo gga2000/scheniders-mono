@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { AnalyticsSparkline } from "./analytics-sparkline";
 
 export type ChangeUnit = "%" | "pt";
 
@@ -15,11 +14,8 @@ interface CellProps {
     changeUnit?: ChangeUnit;
     /** Whether a drop is the good direction (confirm speed): flips the colours. */
     lowerIsBetter?: boolean;
-    /** Small text under the figure: what the change is against, or a second figure. */
-    caption?: ReactNode;
-    series?: readonly number[];
-    /** A small badge beside the label, e.g. the wider window the figure looks at. */
-    tag?: string | null;
+    /** Quiet text beside the figure when there is no change to show: a second figure or the window it covers. */
+    note?: ReactNode;
     testId: string;
 }
 
@@ -28,7 +24,7 @@ function formatChange(value: number, unit: ChangeUnit): string {
     const abs = Math.abs(value);
     if (unit === "%" && value >= 1000) return `${Math.round(1 + value / 100)}×`;
     const text = abs >= 10 ? String(Math.round(abs)) : abs.toFixed(1).replace(/\.0$/, "");
-    return unit === "%" ? `${text}%` : text;
+    return unit === "%" ? `${text}%` : `${text}pt`;
 }
 
 function Change({ value, unit, lowerIsBetter }: { value: number; unit: ChangeUnit; lowerIsBetter: boolean }) {
@@ -36,38 +32,32 @@ function Change({ value, unit, lowerIsBetter }: { value: number; unit: ChangeUni
     const up = value > 0;
     const good = up !== lowerIsBetter;
     return (
-        <span className={cn("inline-flex items-center gap-[3px] font-semibold tabular-nums", good ? "text-[var(--bento-up)]" : "text-[var(--bento-down)]")}>
-            <svg viewBox="0 0 12 12" className={cn("size-[10px]", !up && "rotate-180")} aria-hidden="true">
+        <span className={cn("inline-flex items-center gap-[2px] text-[11px] font-semibold tabular-nums", good ? "text-emerald-400" : "text-rose-400")}>
+            <svg viewBox="0 0 12 12" className={cn("size-[9px]", !up && "rotate-180")} aria-hidden="true">
                 <path d="M6 10.5V1.5M2 5.5l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             {formatChange(value, unit)}
-            {unit === "pt" ? <span className="font-medium opacity-80">pt</span> : null}
         </span>
     );
 }
 
-/** One figure of the orders analytics strip: label, number, sparkline, and what changed. */
-export function OrdersAnalyticsCell({ label, hint, value, change = null, changeUnit = "%", lowerIsBetter = false, caption, series, tag = null, testId }: CellProps) {
+/** One figure of the orders analytics bar: a small label, the number, and what changed (or a quiet note). */
+export function OrdersAnalyticsCell({ label, hint, value, change = null, changeUnit = "%", lowerIsBetter = false, note, testId }: CellProps) {
+    const showChange = value !== null && change !== null && Math.abs(change) >= 0.05;
     return (
-        <div className="flex min-w-0 flex-col gap-1 px-4 py-3" title={hint} data-cell={testId}>
-            <div className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate text-[12px] font-medium text-[var(--foreground-muted)]">{label}</span>
-                    {tag ? <span className="shrink-0 rounded bg-[var(--background-soft)] px-1.5 py-px text-[10px] font-semibold text-[var(--foreground-muted)]">{tag}</span> : null}
-                </span>
-                {value !== null && series ? <AnalyticsSparkline series={series} /> : null}
+        <div className="flex-auto border-s border-white/10 px-3.5 py-1 first:border-s-0" title={hint} data-cell={testId}>
+            <div className="whitespace-nowrap text-[11px] text-stone-400">{label}</div>
+            <div className="flex items-baseline gap-2">
+                {value === null ? (
+                    <span className="my-0.5 h-5 w-14 animate-pulse rounded bg-white/15" aria-hidden="true" />
+                ) : (
+                    <span className="whitespace-nowrap text-[21px] font-semibold leading-tight tracking-[-0.02em] tabular-nums text-stone-50" data-stat={testId}>
+                        {value}
+                    </span>
+                )}
+                {showChange ? <Change value={change} unit={changeUnit} lowerIsBetter={lowerIsBetter} /> : null}
+                {value !== null && note ? <span className="whitespace-nowrap text-[11px] text-stone-400">{note}</span> : null}
             </div>
-            {value === null ? (
-                <span className="h-6 w-16 animate-pulse rounded-md bg-[var(--foreground-muted)]/15" aria-hidden="true" />
-            ) : (
-                <span className="whitespace-nowrap text-[22px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-foreground" data-stat={testId}>
-                    {value}
-                </span>
-            )}
-            <p className="m-0 flex min-h-[16px] items-center gap-1.5 truncate text-[11px] text-[var(--foreground-muted)]">
-                {value !== null && change !== null ? <Change value={change} unit={changeUnit} lowerIsBetter={lowerIsBetter} /> : null}
-                {value !== null ? caption : null}
-            </p>
         </div>
     );
 }

@@ -9008,7 +9008,18 @@ export type Database = {
         }[]
       }
       get_orders_panel_stats: {
-        Args: { _from: string; _tenant_id: string; _to: string; _until_time?: string }
+        Args: {
+          _city?: string
+          _from?: string
+          _is_return?: boolean
+          _order_type?: string
+          _payment_status?: string
+          _priority?: string
+          _product?: string
+          _tenant_id: string
+          _to?: string
+          _until_time?: string
+        }
         Returns: Json
       }
       get_store_overview: {
