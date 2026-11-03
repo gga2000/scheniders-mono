@@ -22,7 +22,7 @@ const ROLES = ["employee", "viewer", "admin"] as const;
  * Creates a pending allowlist entry — when they "Continue with Google" the auth
  * callback auto-provisions them into this workspace. No password needed.
  */
-export function GoogleInvitesCard() {
+export function GoogleInvitesCard({ onMembersChanged }: { onMembersChanged?: () => void }) {
     const { tenantId } = useAuth();
     const [invites, setInvites] = useState<Invite[]>([]);
     const [email, setEmail] = useState("");
@@ -59,6 +59,10 @@ export function GoogleInvitesCard() {
             const json = await res.json().catch(() => ({}));
             if (!res.ok) {
                 toast.error("Couldn't send invite", json.error || "Please try again.");
+            } else if (json.reactivated) {
+                toast.success("Member restored", `${email} is back on the team with the ${role} role.`);
+                setEmail("");
+                onMembersChanged?.();
             } else {
                 toast.success("Invite created", `${email} can now sign in with Google to join.`);
                 setEmail("");

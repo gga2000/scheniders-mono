@@ -65,6 +65,19 @@ export async function POST(request: Request) {
                 .eq("user_id", existingProfile.id)
                 .eq("tenant_id", tenantId)
                 .maybeSingle();
+            if (existingMember?.status === "suspended") {
+                // Removed earlier: bringing them back is the invite. Their
+                // account and history are still here.
+                const { error: reactivateError } = await admin
+                    .from("tenant_members")
+                    .update({ status: "active", role })
+                    .eq("user_id", existingProfile.id)
+                    .eq("tenant_id", tenantId);
+                if (reactivateError) {
+                    return NextResponse.json({ error: reactivateError.message }, { status: 400 });
+                }
+                return NextResponse.json({ success: true, reactivated: true });
+            }
             if (existingMember) {
                 return NextResponse.json(
                     { error: "That email already belongs to a member of this workspace." },

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import {
     Settings,
     Store,
@@ -187,7 +188,18 @@ const SECTIONS = [
 ];
 
 export default function SettingsPage() {
-    const [activeSection, setActiveSection] = useState("business");
+    return (
+        <Suspense fallback={null}>
+            <SettingsPageContent />
+        </Suspense>
+    );
+}
+
+function SettingsPageContent() {
+    const requested = useSearchParams().get("section");
+    const [activeSection, setActiveSection] = useState(
+        SECTIONS.some((s) => s.id === requested) ? (requested as string) : "business",
+    );
     const [search, setSearch] = useState("");
 
     const filtered = useMemo(() => {

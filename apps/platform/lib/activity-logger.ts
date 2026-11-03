@@ -189,6 +189,8 @@ class ActivityLogger {
      * Fetch activity logs with filtering
      */
     async getActivityLogs(options: {
+        /** Only this store's logs (RLS already limits to the caller's stores). */
+        tenantId?: string;
         limit?: number;
         offset?: number;
         action?: ActivityAction;
@@ -204,6 +206,9 @@ class ActivityLogger {
                 .select("*", { count: "exact" })
                 .order("created_at", { ascending: false });
 
+            if (options.tenantId) {
+                query = query.eq("tenant_id", options.tenantId);
+            }
             if (options.action) {
                 query = query.eq("action", options.action);
             }
