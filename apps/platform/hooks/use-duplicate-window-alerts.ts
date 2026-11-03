@@ -8,6 +8,7 @@ import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { duplicateCandidateKeys, duplicateCandidateMeta } from "@/hooks/use-orders-query";
+import { useOrdersListSettledOnce } from "@/hooks/orders-list-coverage";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import {
     buildDuplicateWindowIndex,
@@ -41,6 +42,10 @@ export function useDuplicateWindowAlerts(
 } {
     const { session, clientReady, tenantId } = useAuth();
     const candidateWindow = duplicateCandidateWindow(window);
+    // The margin (about 5 days of orders) used to start beside the list and
+    // slow it; it now starts once the list is in. Until then the index holds
+    // the loaded rows only, as it did while the margin was in flight.
+    const listSettled = useOrdersListSettledOnce();
 
     // Only a windowed view needs the margin; with the complete set loaded the
     // query never runs. Keyed under `orderKeys.lists()` so list mutations
@@ -57,7 +62,7 @@ export function useDuplicateWindowAlerts(
             // `customer_trust` requests, racing the list's on every page load.
             return orderRepository.findWindow(tenantId, candidateWindow, { withRisk: false });
         },
-        enabled: candidateWindow !== null && !!session && clientReady && !!tenantId,
+        enabled: candidateWindow !== null && !!session && clientReady && !!tenantId && listSettled,
         staleTime: 60_000,
         meta: duplicateCandidateMeta(candidateWindow),
     });
