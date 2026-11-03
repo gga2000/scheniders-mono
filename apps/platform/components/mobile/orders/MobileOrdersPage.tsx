@@ -37,8 +37,6 @@ export function MobileOrdersPage() {
         fetchOrders,
         updateOrderStatus,
         updateOrder,
-        getOrderTimeline,
-        getOrderNotes,
         addOrderNote,
         deleteOrder,
         checkOrderIdExists,
@@ -410,8 +408,6 @@ export function MobileOrdersPage() {
                     onClose={() => setSelectedOrder(null)}
                     onUpdate={updateOrder}
                     onStatusUpdate={guardedStatusUpdate}
-                    onGetTimeline={getOrderTimeline}
-                    onGetNotes={getOrderNotes}
                     onDelete={deleteOrder}
                     checkOrderIdExists={checkOrderIdExists}
                     messageTemplates={messageTemplates}
