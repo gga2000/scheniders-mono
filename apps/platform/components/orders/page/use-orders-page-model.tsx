@@ -29,7 +29,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { useRecordContact } from "@/hooks/use-record-contact";
-import { VirtualizedOrderList } from "@/components/orders/page/lazy";
+import { VirtualizedOrderList, preloadOrdersView } from "@/components/orders/page/lazy";
 
 /** All state, data and handlers of the orders page; app/orders/page.tsx and its sections render from this. */
 export function useOrdersPageModel() {
@@ -277,6 +277,11 @@ export function useOrdersPageModel() {
             setNotificationsEnabled: s.setNotificationsEnabled,
         })),
     );
+
+    // The list's code downloads while its rows load, not after (see preloadOrdersView).
+    useEffect(() => {
+        preloadOrdersView(viewMode);
+    }, [viewMode]);
 
     // Sync local search input when filters.searchQuery is cleared externally (e.g. "clear filters" button)
     useEffect(() => {
