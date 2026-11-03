@@ -1,7 +1,8 @@
 import { useProductsCrud } from "@/hooks/use-products-crud";
 import { useSupplierLinks } from "@/hooks/use-supplier-links";
 import { useQueryClient } from "@tanstack/react-query";
-import { productKeys } from "@/hooks/use-products-query";
+import { refreshProductRows } from "@/hooks/use-products-query";
+import { useAuth } from "@/components/auth/auth-provider";
 import { productRepository } from "@/lib/repositories/product-repository";
 import { useCategoriesQuery } from "@/hooks/use-categories-query";
 import { cn } from "@/lib/utils";
@@ -70,9 +71,10 @@ const VIEW_MODE_KEY = "supplies.viewMode";
 const SECTION_KEY = "supplies.section";
 
 export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
-    const { products, loading, updateProduct } = useProductsCrud({ withSales: true });
+    const { products, loading } = useProductsCrud({ withSales: true });
     const { t } = useLanguage();
     const queryClient = useQueryClient();
+    const { tenantId } = useAuth();
     const { data: categories = [] } = useCategoriesQuery();
     const { data: openPoBySupply } = useOpenPosBySupply();
     const { data: supplierPos = [] } = useSupplierPos();
@@ -320,7 +322,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         if (delta === 0) return;
         try {
             const next = await adjustSupplyStock(product.id, delta);
-            await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+            await refreshProductRows(queryClient, tenantId, [product.id]);
             toast.success(`${product.name}: ${next - delta} → ${next}`);
         } catch (err) {
             toast.error(t(productWriteErrorKey(err)));
@@ -725,10 +727,13 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     selected={selectedSupplies}
                     categories={categories}
                     onClear={clearSelection}
-                    updateProduct={async (id, patch) => { await updateProduct(id, patch); }}
+                    setFields={async (ids, patch) => {
+                        await productRepository.bulkUpdateFields(ids, patch);
+                        await refreshProductRows(queryClient, tenantId, ids);
+                    }}
                     adjustStock={async (id, delta) => {
                         await adjustSupplyStock(id, delta);
-                        await queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+                        await refreshProductRows(queryClient, tenantId, [id]);
                     }}
                 />
             )}

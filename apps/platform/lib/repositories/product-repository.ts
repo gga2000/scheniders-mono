@@ -112,10 +112,17 @@ const HISTORY_LIMIT = 300;
  * failure never leaves half the selection changed. The ids travel in the POST
  * body, not the URL, so a large selection needs no chunking.
  */
+export type BulkProductFields = {
+    is_archived?: boolean;
+    is_visible?: boolean;
+    category_id?: string | null;
+    reorder_point?: number | null;
+};
+
 async function setProductFields(
     op: string,
     ids: string[],
-    fields: { is_archived?: boolean; is_visible?: boolean; category_id?: string | null },
+    fields: BulkProductFields,
 ): Promise<void> {
     const { error } = await supabase.rpc("bulk_set_product_fields", { p_ids: ids, p_fields: fields });
     if (error?.code === INSUFFICIENT_PRIVILEGE) throw new ProductWriteDeniedError(op);
@@ -493,6 +500,13 @@ export const productRepository = {
     async bulkUpdateCategory(ids: string[], categoryId: string | null): Promise<void> {
         return withRetry('productRepository.bulkUpdateCategory', async () => {
             await setProductFields("productRepository.bulkUpdateCategory", ids, { category_id: categoryId });
+        });
+    },
+
+    /** Set the same fields on every selected product (or supply). All or nothing. */
+    async bulkUpdateFields(ids: string[], fields: BulkProductFields): Promise<void> {
+        return withRetry('productRepository.bulkUpdateFields', async () => {
+            await setProductFields("productRepository.bulkUpdateFields", ids, fields);
         });
     },
 
