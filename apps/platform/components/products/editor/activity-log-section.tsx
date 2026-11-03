@@ -97,7 +97,7 @@ const ACTION_CONFIG: Record<
     archived: {
         icon: Archive,
         bgClass: "bg-[var(--muted)]/20",
-        textClass: "text-[var(--muted)]",
+        textClass: "text-muted",
     },
 };
 

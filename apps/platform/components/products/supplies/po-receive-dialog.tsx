@@ -220,7 +220,9 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                                     />
                                     {(qtyOver || costBad) && (
                                         <p role="alert" className="col-span-full text-xs text-rose-600 dark:text-rose-300">
-                                            {qtyOver ? t("supplies.po.overOrdered") : t("supplies.po.badCost")}
+                                            {[qtyOver && t("supplies.po.overOrdered"), costBad && t("supplies.po.badCost")]
+                                                .filter(Boolean)
+                                                .join(" ")}
                                         </p>
                                     )}
                                 </div>
@@ -228,8 +230,6 @@ export function PoReceiveDialog({ open, onOpenChange, poId, poNumber }: PoReceiv
                         })}
                     </div>
                 )}
-
-
 
                 <DialogFooter className="gap-2">
                     <button

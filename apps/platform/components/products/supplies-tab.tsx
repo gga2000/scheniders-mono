@@ -589,8 +589,8 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                     {searchQuery || selectedCategoryId
                         ? t("supplies.count.filtered", { shown: formatCount(filteredSupplies.length), total: formatCount(supplies.length) })
                         : supplies.length === 1
-                          ? t("supplies.count.one")
-                          : t("supplies.count.many", { count: formatCount(supplies.length) })}
+                          ? t("supplies.countOne")
+                          : t("supplies.countMany", { count: formatCount(supplies.length) })}
                 </p>
             )}
 

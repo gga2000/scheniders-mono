@@ -11,6 +11,7 @@ import {
     Clock,
     Loader2,
     Package,
+    Send,
     ShoppingCart,
     Truck,
     X,
@@ -28,6 +29,7 @@ import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
+import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import type { PoStatusInfo } from "./po-status-chip";
 
 interface ReorderItem {
@@ -88,11 +90,12 @@ export function ReorderDrawer({
     // A draft is not "on order" so its lines are still listed here; a second
     // Create PO would double the draft. Newest first, so the first match wins.
     const { data: supplierPos = [] } = useSupplierPos();
+    const { changeStatus } = usePurchaseOrderActions();
     const draftBySupplier = useMemo(() => {
-        const map = new Map<string, string>();
+        const map = new Map<string, { id: string; number: string }>();
         for (const po of supplierPos) {
             const key = (po.supplier_name ?? "").trim().toLowerCase();
-            if (po.status === "draft" && key && !map.has(key)) map.set(key, po.po_number);
+            if (po.status === "draft" && key && !map.has(key)) map.set(key, { id: po.id, number: po.po_number });
         }
         return map;
     }, [supplierPos]);
@@ -278,7 +281,7 @@ export function ReorderDrawer({
             }
             const existingDraft = draftBySupplier.get(group.supplierName.trim().toLowerCase());
             if (existingDraft) {
-                toast.error(t("supplies.ro.draftExists", { number: existingDraft }));
+                toast.error(t("supplies.ro.draftExists", { number: existingDraft.number }));
                 return;
             }
             const uncosted = group.items.filter((i) => i.unitCost <= 0);
@@ -428,11 +431,13 @@ export function ReorderDrawer({
                                                                         : t("supplies.ro.items", { count: group.items.length })}
                                                                 </span>
                                                                 <span>·</span>
-                                                                <span className="font-medium tabular-nums">
-                                                                    {formatIQD(
-                                                                        group.totalCost
-                                                                    )}
-                                                                </span>
+                                                                {noSupplier ? (
+                                                                    <span>{t("supplies.ro.noSupplierHint")}</span>
+                                                                ) : (
+                                                                    <span className="font-medium tabular-nums">
+                                                                        {formatIQD(group.totalCost)}
+                                                                    </span>
+                                                                )}
                                                                 {hasCritical && (
                                                                     <>
                                                                         <span>·</span>
@@ -446,11 +451,31 @@ export function ReorderDrawer({
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
-                                                        {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
-                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
-                                                                {t("supplies.ro.draftExists", { number: draftBySupplier.get(group.supplierName.trim().toLowerCase()) ?? "" })}
-                                                            </span>
-                                                        )}
+                                                        {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (() => {
+                                                            const draft = draftBySupplier.get(group.supplierName.trim().toLowerCase());
+                                                            if (!draft) return null;
+                                                            // The draft already holds this order: the next step is sending it.
+                                                            return (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        changeStatus.mutate(
+                                                                            { poId: draft.id, status: "sent" },
+                                                                            {
+                                                                                onSuccess: () => toast.success(t("supplies.po.sentToast", { number: draft.number })),
+                                                                                onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
+                                                                            },
+                                                                        );
+                                                                    }}
+                                                                    disabled={changeStatus.isPending}
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white"
+                                                                >
+                                                                    {changeStatus.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                                                    {t("supplies.ro.sendDraft", { number: draft.number })}
+                                                                </button>
+                                                            );
+                                                        })()}
                                                         {!noSupplier && !draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
                                                             <button
                                                                 onClick={(e) => {

@@ -20,6 +20,9 @@ const formatPrice = (price: number): string =>
     new Intl.NumberFormat("en-IQ").format(price) + " IQD";
 
 
+// Axis ticks in IQD, short: "60K", "1.2M".
+const COMPACT_IQD = new Intl.NumberFormat("en-IQ", { notation: "compact", maximumFractionDigits: 1 });
+
 const CHART_WIDTH = 600;
 const CHART_HEIGHT = 200;
 const PADDING_X = 50;
@@ -89,7 +92,7 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
         for (let i = 0; i <= 3; i++) {
             const val = min + (i / 3) * (max - min);
             const y = PADDING_Y + PLOT_H - (i / 3) * PLOT_H;
-            yl.push({ y, label: new Intl.NumberFormat("en-IQ", { notation: "compact" }).format(val) });
+            yl.push({ y, label: COMPACT_IQD.format(Math.round(val)) });
         }
 
         return { minPrice: min, maxPrice: max, points: pts, polylineStr: polyline, areaStr: area, xLabels: xl, yLabels: yl };
@@ -111,8 +114,8 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
                     >
                         <defs>
                             <linearGradient id="priceAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="var(--ink)" stopOpacity="0.2" />
-                                <stop offset="100%" stopColor="var(--ink)" stopOpacity="0" />
+                                <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.2" />
+                                <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0" />
                             </linearGradient>
                         </defs>
 
@@ -132,13 +135,17 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
                                     x={PADDING_X - 8}
                                     y={yl.y + 4}
                                     textAnchor="end"
-                                    className="fill-[var(--muted)]"
+                                    fill="var(--foreground-muted)"
                                     fontSize="10"
                                 >
                                     {yl.label}
                                 </text>
                             </g>
                         ))}
+
+                        <text x={PADDING_X - 8} y={PADDING_Y - 12} textAnchor="end" fill="var(--foreground-muted)" fontSize="10">
+                            IQD
+                        </text>
 
                         {/* X-axis labels */}
                         {xLabels.map((xl, i) => (
@@ -147,7 +154,7 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
                                 x={xl.x}
                                 y={CHART_HEIGHT - 6}
                                 textAnchor="middle"
-                                className="fill-[var(--muted)]"
+                                fill="var(--foreground-muted)"
                                 fontSize="10"
                             >
                                 {xl.label}
@@ -161,7 +168,7 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
                         <polyline
                             points={polylineStr}
                             fill="none"
-                            stroke="var(--ink)"
+                            stroke="var(--foreground)"
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -175,7 +182,7 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
                                 cy={p.y}
                                 r={hoveredIdx === i ? 5 : 3.5}
                                 fill="var(--card-bg)"
-                                stroke="var(--ink)"
+                                stroke="var(--foreground)"
                                 strokeWidth="2"
                                 className="cursor-pointer transition-all"
                                 onMouseEnter={() => setHoveredIdx(i)}
@@ -194,7 +201,11 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
                                 transform: "translate(-50%, -120%)",
                             }}
                         >
-                            <p className="font-semibold">{formatPrice(points[hoveredIdx].price)}</p>
+                            <p className="font-semibold whitespace-nowrap">
+                                {hoveredIdx > 0 && points[hoveredIdx - 1].price !== points[hoveredIdx].price
+                                    ? `${formatPrice(points[hoveredIdx - 1].price)} → ${formatPrice(points[hoveredIdx].price)}`
+                                    : formatPrice(points[hoveredIdx].price)}
+                            </p>
                             <p className="opacity-70">{formatBaghdadShortDate(points[hoveredIdx].date, language)}</p>
                             {points[hoveredIdx].changed_by && (
                                 <p className="opacity-70">{t("products.ed.priceBy", { name: points[hoveredIdx].changed_by })}</p>

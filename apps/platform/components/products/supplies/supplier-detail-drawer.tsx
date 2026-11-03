@@ -184,7 +184,11 @@ function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
                 <KpiTile
                     icon={Truck}
                     label={t("supplies.sd.kpiOpenPos")}
-                    value={supplier.openPoCount.toString()}
+                    value={
+                        supplier.draftPoCount > 0
+                            ? t("supplies.sd.openWithDrafts", { open: supplier.openPoCount, drafts: supplier.draftPoCount })
+                            : supplier.openPoCount.toString()
+                    }
                     tone={supplier.openPoCount > 0 ? "sky" : "slate"}
                 />
                 <KpiTile
