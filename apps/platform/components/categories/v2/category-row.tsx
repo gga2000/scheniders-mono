@@ -46,11 +46,11 @@ export interface CategoryRowProps {
 }
 
 const GRADE_TONE: Record<"A" | "B" | "C" | "D" | "F", string> = {
-  A: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  B: "bg-blue-100 text-blue-700 border-blue-200",
-  C: "bg-amber-100 text-amber-700 border-amber-200",
-  D: "bg-orange-100 text-orange-700 border-orange-200",
-  F: "bg-rose-100 text-rose-700 border-rose-200",
+  A: "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
+  B: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30",
+  C: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
+  D: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30",
+  F: "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30",
 };
 
 export function CategoryRow({
@@ -163,18 +163,18 @@ export function CategoryRow({
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-medium truncate">{category.name}</span>
           {category.status === "draft" && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
               {t("categories.status.draft") || "Draft"}
             </span>
           )}
           {category.status === "archived" && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-200 text-gray-700">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-200 text-gray-700 dark:text-gray-300">
               {t("categories.status.archived") || "Archived"}
             </span>
           )}
           {scheduled && (
             <span
-              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-teal-100 text-teal-700"
+              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300"
               title={
                 category.published_at
                   ? t("categories.publishesOn", { date: formatBaghdadDate(category.published_at, language) })
@@ -186,7 +186,7 @@ export function CategoryRow({
           )}
           {category.scope === "internal" && (
             <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
               title={t("categories.scope.internalHint") || undefined}
             >
               <Store className="w-2.5 h-2.5" />
@@ -195,7 +195,7 @@ export function CategoryRow({
           )}
           {category.scope === "website" && (
             <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-100 text-sky-700"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300"
               title={t("categories.scope.websiteHint") || undefined}
             >
               <Globe className="w-2.5 h-2.5" />
@@ -204,7 +204,7 @@ export function CategoryRow({
           )}
           {missingSeo && category.status === "published" && (
             <AlertCircle
-              className="w-3.5 h-3.5 text-amber-600 shrink-0"
+              className="w-3.5 h-3.5 text-amber-600 shrink-0 dark:text-amber-300"
               aria-label="Missing SEO metadata"
             />
           )}
@@ -353,7 +353,7 @@ function MenuItem({
       onClick={onClick}
       className={cn(
         "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--background)] transition-colors text-start",
-        tone === "rose" && "text-rose-700",
+        tone === "rose" && "text-rose-700 dark:text-rose-300",
       )}
     >
       <Icon className="w-4 h-4" />

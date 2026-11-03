@@ -89,7 +89,7 @@ const COLUMNS: ColumnDef[] = [
         accentClass: "bg-emerald-500",
         headerBg: "bg-emerald-500/10",
         badgeBg: "bg-emerald-500/15",
-        badgeText: "text-emerald-700",
+        badgeText: "text-emerald-700 dark:text-emerald-300",
         borderColor: "border-emerald-500/20",
     },
     {
@@ -99,7 +99,7 @@ const COLUMNS: ColumnDef[] = [
         accentClass: "bg-amber-500",
         headerBg: "bg-amber-500/10",
         badgeBg: "bg-amber-500/15",
-        badgeText: "text-amber-700",
+        badgeText: "text-amber-700 dark:text-amber-300",
         borderColor: "border-amber-500/20",
     },
     {
@@ -109,7 +109,7 @@ const COLUMNS: ColumnDef[] = [
         accentClass: "bg-rose-500",
         headerBg: "bg-rose-500/10",
         badgeBg: "bg-rose-500/15",
-        badgeText: "text-rose-700",
+        badgeText: "text-rose-700 dark:text-rose-300",
         borderColor: "border-rose-500/20",
     },
     {
@@ -119,7 +119,7 @@ const COLUMNS: ColumnDef[] = [
         accentClass: "bg-blue-500",
         headerBg: "bg-blue-500/10",
         badgeBg: "bg-blue-500/15",
-        badgeText: "text-blue-700",
+        badgeText: "text-blue-700 dark:text-blue-300",
         borderColor: "border-blue-500/20",
     },
 ];

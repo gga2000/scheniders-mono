@@ -34,8 +34,8 @@ export function StockoutEtaBadge({
 
     const big = size === "md";
     const tone = isCritical
-        ? "bg-rose-50 text-rose-700 ring-rose-100"
-        : "bg-amber-50 text-amber-700 ring-amber-100";
+        ? "bg-rose-50 text-rose-700 ring-rose-100 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30"
+        : "bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30";
     const Icon = isCritical ? AlertTriangle : Clock;
 
     const label =

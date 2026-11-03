@@ -49,8 +49,8 @@ export function SupplyListRow({
     return (
         <tr
             className={cn(
-                "group border-b border-[var(--card-border)] last:border-b-0 hover:bg-teal-50/30 transition-colors",
-                selected && "bg-teal-50/40",
+                "group border-b border-[var(--card-border)] last:border-b-0 hover:bg-teal-50/30 transition-colors dark:hover:bg-teal-500/15",
+                selected && "bg-teal-50/40 dark:bg-teal-500/15",
             )}
         >
             {onSelectToggle && (
@@ -79,14 +79,14 @@ export function SupplyListRow({
                     {supply.image_url ? (
                         <ProductThumb src={supply.image_url} alt={supply.name} sizes="40px" />
                     ) : (
-                        <Box className="w-5 h-5 text-teal-600" />
+                        <Box className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                     )}
                 </div>
             </td>
             <td className="px-3 py-3 min-w-[180px]">
                 <div className="font-medium text-sm text-foreground truncate">{supply.name}</div>
                 <div className="text-[11px] text-muted font-mono mt-0.5 flex items-center gap-1.5">
-                    <span className="truncate">{supply.sku || "No SKU"}</span>
+                    <span className="truncate">{supply.sku || t("supplies.sp.noSku")}</span>
                     {supplierNames && supplierNames.length > 0 && (
                         <SupplierInitialsStack names={supplierNames} max={2} size="xs" />
                     )}
@@ -94,7 +94,7 @@ export function SupplyListRow({
             </td>
             <td className="px-3 py-3">
                 {categoryName ? (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[11px] font-medium ring-1 ring-teal-100">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 text-[11px] font-medium ring-1 ring-teal-100 dark:bg-teal-500/15 dark:text-teal-300 dark:ring-teal-500/30">
                         {categoryName}
                     </span>
                 ) : (
@@ -148,7 +148,7 @@ export function SupplyListRow({
                             <button
                                 type="button"
                                 onClick={() => onAdjustStock(supply, -1)}
-                                className="p-1.5 rounded-lg hover:bg-rose-50 hover:text-rose-600 text-muted transition-colors"
+                                className="p-1.5 rounded-lg hover:bg-rose-50 hover:text-rose-600 text-muted transition-colors dark:hover:bg-rose-500/15 dark:hover:text-rose-300"
                                 title={t("supplies.adjustMinus")}
                             >
                                 <Minus className="w-3.5 h-3.5" />
@@ -156,7 +156,7 @@ export function SupplyListRow({
                             <button
                                 type="button"
                                 onClick={() => onAdjustStock(supply, 1)}
-                                className="p-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 text-muted transition-colors"
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 text-muted transition-colors dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
                                 title={t("supplies.adjustPlus")}
                             >
                                 <Plus className="w-3.5 h-3.5" />
@@ -167,7 +167,7 @@ export function SupplyListRow({
                         <button
                             type="button"
                             onClick={() => onReorder(supply)}
-                            className="p-1.5 rounded-lg hover:bg-teal-50 hover:text-teal-600 text-muted transition-colors"
+                            className="p-1.5 rounded-lg hover:bg-teal-50 hover:text-teal-600 text-muted transition-colors dark:hover:bg-teal-500/15 dark:hover:text-teal-300"
                             title={t("supplies.reorder")}
                         >
                             <ShoppingCart className="w-3.5 h-3.5" />
@@ -177,7 +177,7 @@ export function SupplyListRow({
                         <button
                             type="button"
                             onClick={() => onEdit(supply)}
-                            className="p-1.5 rounded-lg hover:bg-sky-50 hover:text-sky-600 text-muted transition-colors"
+                            className="p-1.5 rounded-lg hover:bg-sky-50 hover:text-sky-600 text-muted transition-colors dark:hover:bg-sky-500/15 dark:hover:text-sky-300"
                             title={t("supplies.editShort")}
                         >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -187,7 +187,7 @@ export function SupplyListRow({
                         <button
                             type="button"
                             onClick={() => onMore(supply)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 hover:text-foreground text-muted transition-colors"
+                            className="p-1.5 rounded-lg hover:bg-slate-100 hover:text-foreground text-muted transition-colors dark:hover:bg-slate-500/15"
                             title={t("supplies.details")}
                         >
                             <Info className="w-3.5 h-3.5" />

@@ -98,13 +98,13 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                         className="max-w-7xl mx-auto px-6"
                     >
                         <div className="mt-4 p-4 bg-[var(--pastel-blue)] rounded-xl flex items-center justify-between">
-                            <p className="text-sm text-blue-800">
+                            <p className="text-sm text-blue-800 dark:text-blue-300">
                                 {t("products.ed.draftFound")}
                             </p>
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={editor.dismissDraft}
-                                    className="px-3 py-1.5 text-sm text-blue-700 hover:text-blue-900 transition-colors"
+                                    className="px-3 py-1.5 text-sm text-blue-700 hover:text-blue-900 transition-colors dark:text-blue-300 dark:hover:text-blue-300"
                                 >
                                     {t("products.ed.dismiss")}
                                 </button>

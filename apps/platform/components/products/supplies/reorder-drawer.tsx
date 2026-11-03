@@ -11,6 +11,7 @@ import {
     Clock,
     Loader2,
     Package,
+    Send,
     ShoppingCart,
     Truck,
     X,
@@ -28,6 +29,7 @@ import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
+import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import type { PoStatusInfo } from "./po-status-chip";
 
 interface ReorderItem {
@@ -88,11 +90,12 @@ export function ReorderDrawer({
     // A draft is not "on order" so its lines are still listed here; a second
     // Create PO would double the draft. Newest first, so the first match wins.
     const { data: supplierPos = [] } = useSupplierPos();
+    const { changeStatus } = usePurchaseOrderActions();
     const draftBySupplier = useMemo(() => {
-        const map = new Map<string, string>();
+        const map = new Map<string, { id: string; number: string }>();
         for (const po of supplierPos) {
             const key = (po.supplier_name ?? "").trim().toLowerCase();
-            if (po.status === "draft" && key && !map.has(key)) map.set(key, po.po_number);
+            if (po.status === "draft" && key && !map.has(key)) map.set(key, { id: po.id, number: po.po_number });
         }
         return map;
     }, [supplierPos]);
@@ -278,7 +281,7 @@ export function ReorderDrawer({
             }
             const existingDraft = draftBySupplier.get(group.supplierName.trim().toLowerCase());
             if (existingDraft) {
-                toast.error(t("supplies.ro.draftExists", { number: existingDraft }));
+                toast.error(t("supplies.ro.draftExists", { number: existingDraft.number }));
                 return;
             }
             const uncosted = group.items.filter((i) => i.unitCost <= 0);
@@ -335,7 +338,7 @@ export function ReorderDrawer({
                         <div className="px-5 py-4 border-b border-[var(--card-border)] flex items-start justify-between gap-3">
                             <div>
                                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                                    <ShoppingCart className="w-5 h-5 text-teal-600" />
+                                    <ShoppingCart className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                                     {t("supplies.ro.title")}
                                 </h3>
                                 <p className="text-xs text-muted mt-0.5">
@@ -367,7 +370,7 @@ export function ReorderDrawer({
                                 </span>
                                 <button
                                     onClick={() => setShowSnoozed((v) => !v)}
-                                    className="font-medium text-teal-600 hover:text-teal-700"
+                                    className="font-medium text-teal-600 hover:text-teal-700 dark:text-teal-300 dark:hover:text-teal-300"
                                 >
                                     {showSnoozed ? t("supplies.ro.hideSnoozed") : t("supplies.ro.showSnoozed")}
                                 </button>
@@ -411,8 +414,8 @@ export function ReorderDrawer({
                                                             className={cn(
                                                                 "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
                                                                 hasCritical
-                                                                    ? "bg-rose-100 text-rose-600"
-                                                                    : "bg-teal-50 text-teal-600"
+                                                                    ? "bg-rose-100 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300"
+                                                                    : "bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-300"
                                                             )}
                                                         >
                                                             <Truck className="w-4 h-4" />
@@ -428,15 +431,17 @@ export function ReorderDrawer({
                                                                         : t("supplies.ro.items", { count: group.items.length })}
                                                                 </span>
                                                                 <span>·</span>
-                                                                <span className="font-medium tabular-nums">
-                                                                    {formatIQD(
-                                                                        group.totalCost
-                                                                    )}
-                                                                </span>
+                                                                {noSupplier ? (
+                                                                    <span>{t("supplies.ro.noSupplierHint")}</span>
+                                                                ) : (
+                                                                    <span className="font-medium tabular-nums">
+                                                                        {formatIQD(group.totalCost)}
+                                                                    </span>
+                                                                )}
                                                                 {hasCritical && (
                                                                     <>
                                                                         <span>·</span>
-                                                                        <span className="inline-flex items-center gap-1 text-rose-600 font-medium">
+                                                                        <span className="inline-flex items-center gap-1 text-rose-600 font-medium dark:text-rose-300">
                                                                             <AlertTriangle className="w-3 h-3" />
                                                                             {t("supplies.ro.critical")}
                                                                         </span>
@@ -446,11 +451,31 @@ export function ReorderDrawer({
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
-                                                        {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
-                                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 bg-slate-100 text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-700">
-                                                                {t("supplies.ro.draftExists", { number: draftBySupplier.get(group.supplierName.trim().toLowerCase()) ?? "" })}
-                                                            </span>
-                                                        )}
+                                                        {!noSupplier && draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (() => {
+                                                            const draft = draftBySupplier.get(group.supplierName.trim().toLowerCase());
+                                                            if (!draft) return null;
+                                                            // The draft already holds this order: the next step is sending it.
+                                                            return (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        changeStatus.mutate(
+                                                                            { poId: draft.id, status: "sent" },
+                                                                            {
+                                                                                onSuccess: () => toast.success(t("supplies.po.sentToast", { number: draft.number })),
+                                                                                onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
+                                                                            },
+                                                                        );
+                                                                    }}
+                                                                    disabled={changeStatus.isPending}
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white"
+                                                                >
+                                                                    {changeStatus.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                                                    {t("supplies.ro.sendDraft", { number: draft.number })}
+                                                                </button>
+                                                            );
+                                                        })()}
                                                         {!noSupplier && !draftBySupplier.has(group.supplierName.trim().toLowerCase()) && (
                                                             <button
                                                                 onClick={(e) => {
@@ -530,7 +555,7 @@ function EmptyState({ snoozedCount }: { snoozedCount: number }) {
     const { t } = useLanguage();
     return (
         <div className="flex flex-col items-center justify-center text-center px-6 py-16">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3 dark:bg-emerald-500/15 dark:text-emerald-300">
                 <Package className="w-6 h-6" />
             </div>
             <p className="font-semibold">{t("supplies.ro.healthy")}</p>
@@ -581,7 +606,7 @@ function ReorderItemRow({
                             loading="lazy"
                         />
                     ) : (
-                        <Box className="w-5 h-5 text-teal-600" />
+                        <Box className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                     )}
                 </div>
 
@@ -688,7 +713,7 @@ function Stat({
             <div
                 className={cn(
                     "text-sm font-semibold tabular-nums",
-                    tone === "critical" ? "text-rose-600" : "text-foreground"
+                    tone === "critical" ? "text-rose-600 dark:text-rose-300" : "text-foreground"
                 )}
             >
                 {value}
@@ -707,7 +732,7 @@ function UrgencyChip({
     const { t } = useLanguage();
     if (urgency === "critical") {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-100 px-2 py-0.5 text-[10px] font-medium">
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 text-rose-700 ring-1 ring-rose-100 px-2 py-0.5 text-[10px] font-medium dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/30">
                 <AlertTriangle className="w-3 h-3" />
                 {days !== null
                     ? days <= 0
@@ -719,14 +744,14 @@ function UrgencyChip({
     }
     if (urgency === "warning") {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-100 px-2 py-0.5 text-[10px] font-medium">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-100 px-2 py-0.5 text-[10px] font-medium dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30">
                 <Clock className="w-3 h-3" />
                 {days !== null ? t("supplies.ro.daysLeft", { days }) : t("supplies.ro.atRisk")}
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 px-2 py-0.5 text-[10px] font-medium">
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100 px-2 py-0.5 text-[10px] font-medium dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30">
             {t("supplies.ro.belowReorder")}
         </span>
     );

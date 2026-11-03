@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import {
@@ -37,6 +37,9 @@ const SECTIONS: SectionDef[] = [
     { id: "advanced", labelKey: "products.editor.nav.advanced", icon: Settings },
 ];
 
+/** Distance from the top of the window, below the sticky page and editor headers. */
+const ACTIVE_LINE_PX = 160;
+
 interface SectionNavProps {
     visibleSections?: string[];
 }
@@ -44,45 +47,36 @@ interface SectionNavProps {
 export function SectionNav({ visibleSections }: SectionNavProps) {
     const { t } = useLanguage();
     const [activeSection, setActiveSection] = useState(SECTIONS[0].id);
-    const observerRef = useRef<IntersectionObserver | null>(null);
 
-    const filteredSections = visibleSections
-        ? SECTIONS.filter((s) => visibleSections.includes(s.id))
-        : SECTIONS;
+    const visibleKey = visibleSections?.join(",") ?? "";
+    const filteredSections = useMemo(
+        () => (visibleKey ? SECTIONS.filter((s) => visibleKey.split(",").includes(s.id)) : SECTIONS),
+        [visibleKey],
+    );
 
-    // Track which section is in view using IntersectionObserver
+    // The active section is the last one whose top has passed the line under
+    // the sticky headers. An IntersectionObserver only reports sections whose
+    // state just changed, so picking from its entries lagged a section behind.
     useEffect(() => {
-        const elements = filteredSections
-            .map((s) => document.getElementById(`section-${s.id}`))
-            .filter(Boolean) as HTMLElement[];
-
-        if (elements.length === 0) return;
-
-        observerRef.current = new IntersectionObserver(
-            (entries) => {
-                // Find the topmost visible section
-                const visible = entries
-                    .filter((e) => e.isIntersecting)
-                    .sort(
-                        (a, b) =>
-                            a.boundingClientRect.top - b.boundingClientRect.top
-                    );
-
-                if (visible.length > 0) {
-                    const id = visible[0].target.id.replace("section-", "");
-                    setActiveSection(id);
-                }
-            },
-            {
-                rootMargin: "0px 0px -80% 0px",
-                threshold: 0,
+        let frame = 0;
+        const update = () => {
+            frame = 0;
+            let current = filteredSections[0]?.id;
+            for (const section of filteredSections) {
+                const el = document.getElementById(`section-${section.id}`);
+                if (el && el.getBoundingClientRect().top <= ACTIVE_LINE_PX) current = section.id;
             }
-        );
-
-        elements.forEach((el) => observerRef.current?.observe(el));
-
+            if (current) setActiveSection(current);
+        };
+        const onScroll = () => {
+            if (!frame) frame = requestAnimationFrame(update);
+        };
+        update();
+        // Capture: the editor may scroll inside the app shell, not the window.
+        document.addEventListener("scroll", onScroll, { passive: true, capture: true });
         return () => {
-            observerRef.current?.disconnect();
+            document.removeEventListener("scroll", onScroll, { capture: true });
+            if (frame) cancelAnimationFrame(frame);
         };
     }, [filteredSections]);
 
@@ -110,7 +104,7 @@ export function SectionNav({ visibleSections }: SectionNavProps) {
                                 className={cn(
                                     "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors text-left",
                                     isActive
-                                        ? "bg-[var(--pastel-yellow)] text-amber-900 font-semibold"
+                                        ? "bg-[var(--pastel-yellow)] text-amber-900 font-semibold dark:text-amber-300"
                                         : "text-muted hover:text-foreground hover:bg-[var(--background)]"
                                 )}
                             >
@@ -118,7 +112,7 @@ export function SectionNav({ visibleSections }: SectionNavProps) {
                                     className={cn(
                                         "w-4 h-4 shrink-0",
                                         isActive
-                                            ? "text-amber-700"
+                                            ? "text-amber-700 dark:text-amber-300"
                                             : "text-muted"
                                     )}
                                 />
@@ -145,7 +139,7 @@ export function SectionNav({ visibleSections }: SectionNavProps) {
                                 className={cn(
                                     "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors shrink-0 min-h-[44px]",
                                     isActive
-                                        ? "bg-[var(--pastel-yellow)] text-amber-900"
+                                        ? "bg-[var(--pastel-yellow)] text-amber-900 dark:text-amber-300"
                                         : "text-muted hover:text-foreground hover:bg-[var(--background)]"
                                 )}
                             >

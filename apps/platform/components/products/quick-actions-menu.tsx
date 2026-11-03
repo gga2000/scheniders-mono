@@ -177,7 +177,7 @@ export function QuickActionsMenu({
                     {/* Archive / Restore with inline confirmation */}
                     {!canEdit ? null : product.is_archived && onRestore ? (
                         <DropdownMenu.Item
-                            className={cn(itemClasses, "text-green-600")}
+                            className={cn(itemClasses, "text-green-600 dark:text-green-300")}
                             onSelect={onRestore}
                         >
                             <ArchiveRestore className="w-4 h-4" />
@@ -187,7 +187,7 @@ export function QuickActionsMenu({
                         <DropdownMenu.Item
                             className={cn(
                                 itemClasses,
-                                "text-amber-600 bg-amber-50 dark:bg-amber-950/30 data-[highlighted]:bg-amber-100 dark:data-[highlighted]:bg-amber-950/50"
+                                "text-amber-600 bg-amber-50 dark:bg-amber-950/30 data-[highlighted]:bg-amber-100 dark:data-[highlighted]:bg-amber-950/50 dark:text-amber-300"
                             )}
                             onSelect={(e) => {
                                 e.preventDefault();
@@ -200,7 +200,7 @@ export function QuickActionsMenu({
                         </DropdownMenu.Item>
                     ) : (
                         <DropdownMenu.Item
-                            className={cn(itemClasses, "text-amber-600")}
+                            className={cn(itemClasses, "text-amber-600 dark:text-amber-300")}
                             onSelect={(e) => {
                                 e.preventDefault();
                                 setConfirmingArchive(true);
@@ -214,7 +214,7 @@ export function QuickActionsMenu({
                     {/* Delete opens the impact dialog, which offers Archive instead. */}
                     {onDelete && (
                         <DropdownMenu.Item
-                            className={cn(itemClasses, "text-rose-600")}
+                            className={cn(itemClasses, "text-rose-600 dark:text-rose-300")}
                             onSelect={() => onDelete()}
                         >
                             <Trash2 className="w-4 h-4" />

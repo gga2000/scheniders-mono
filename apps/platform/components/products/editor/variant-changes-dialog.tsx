@@ -16,13 +16,13 @@ interface VariantChangesDialogProps {
 
 function VariantChip({ variant, type }: { variant: VariantFormData; type: "added" | "removed" | "unchanged" }) {
     const colorMap = {
-        added: "bg-emerald-50 border-emerald-200 text-emerald-800",
-        removed: "bg-rose-50 border-rose-200 text-rose-800",
+        added: "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300",
+        removed: "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300",
         unchanged: "bg-[var(--background)] border-[var(--card-border)] text-muted",
     };
     const iconMap = {
-        added: <Plus className="w-3 h-3 text-emerald-600" />,
-        removed: <Minus className="w-3 h-3 text-rose-600" />,
+        added: <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />,
+        removed: <Minus className="w-3 h-3 text-rose-600 dark:text-rose-300" />,
         unchanged: <Check className="w-3 h-3 text-muted" />,
     };
 
@@ -31,7 +31,7 @@ function VariantChip({ variant, type }: { variant: VariantFormData; type: "added
             {iconMap[type]}
             <span>{variant.name}</span>
             {type === "removed" && variant.stock_quantity > 0 && (
-                <span className="text-[10px] bg-rose-200 text-rose-700 px-1 py-0.5 rounded ml-1">
+                <span className="text-[10px] bg-rose-200 text-rose-700 px-1 py-0.5 rounded ml-1 dark:text-rose-300">
                     stock: {variant.stock_quantity}
                 </span>
             )}
@@ -93,10 +93,10 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                         {diff.added.length > 0 && (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center">
-                                        <Plus className="w-3 h-3 text-emerald-600" />
+                                    <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center dark:bg-emerald-500/15">
+                                        <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
                                     </div>
-                                    <p className="text-sm font-medium text-emerald-700">
+                                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         {(t("products.variants.willBeAdded") || "{count} variants will be added").replace("{count}", String(diff.added.length))}
                                     </p>
                                 </div>
@@ -112,10 +112,10 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                         {diff.removed.length > 0 && (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center">
-                                        <Minus className="w-3 h-3 text-rose-600" />
+                                    <div className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center dark:bg-rose-500/15">
+                                        <Minus className="w-3 h-3 text-rose-600 dark:text-rose-300" />
                                     </div>
-                                    <p className="text-sm font-medium text-rose-700">
+                                    <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
                                         {(t("products.variants.willBeRemoved") || "{count} variants will be removed").replace("{count}", String(diff.removed.length))}
                                     </p>
                                 </div>
@@ -143,13 +143,13 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
 
                         {/* Stock at risk warning */}
                         {diff.hasStockAtRisk && (
-                            <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl dark:bg-amber-500/15 dark:border-amber-500/30">
+                                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5 dark:text-amber-300" />
                                 <div>
-                                    <p className="text-sm font-medium text-amber-800">
+                                    <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
                                         {diff.stockAtRiskCount} {t("products.variants.stockWarning") || "variants with stock will be removed. Stock will be lost."}
                                     </p>
-                                    <p className="text-xs text-amber-600 mt-1">
+                                    <p className="text-xs text-amber-600 mt-1 dark:text-amber-300">
                                         {diff.removed
                                             .filter(v => v.stock_quantity > 0)
                                             .map(v => `${v.name} (${v.stock_quantity})`)

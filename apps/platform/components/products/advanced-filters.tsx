@@ -153,7 +153,7 @@ export function AdvancedFilters({ value, onApply, onReset, embedded = false }: A
                     className={cn(
                         "flex items-center gap-2 px-4 py-3 rounded-xl border transition-all",
                         activeCount > 0
-                            ? "bg-[var(--pastel-yellow)] border-amber-200 text-amber-900"
+                            ? "bg-[var(--pastel-yellow)] border-amber-200 text-amber-900 dark:border-amber-500/30 dark:text-amber-300"
                             : "bg-[var(--background)] border-[var(--card-border)] text-foreground hover:border-[var(--ink)]"
                     )}
                 >
@@ -214,7 +214,7 @@ export function AdvancedFilters({ value, onApply, onReset, embedded = false }: A
                                                 className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-[var(--pastel-pink)] rounded transition-all"
                                                 title={t("products.filters.deletePreset")}
                                             >
-                                                <X className="w-3 h-3 text-rose-600" />
+                                                <X className="w-3 h-3 text-rose-600 dark:text-rose-300" />
                                             </button>
                                         </div>
                                     ))}

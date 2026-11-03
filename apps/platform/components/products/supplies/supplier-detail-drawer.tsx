@@ -184,7 +184,11 @@ function OverviewTab({ supplier }: { supplier: AggregatedSupplier }) {
                 <KpiTile
                     icon={Truck}
                     label={t("supplies.sd.kpiOpenPos")}
-                    value={supplier.openPoCount.toString()}
+                    value={
+                        supplier.draftPoCount > 0
+                            ? t("supplies.sd.openWithDrafts", { open: supplier.openPoCount, drafts: supplier.draftPoCount })
+                            : supplier.openPoCount.toString()
+                    }
                     tone={supplier.openPoCount > 0 ? "sky" : "slate"}
                 />
                 <KpiTile
@@ -305,7 +309,7 @@ function SuppliesTab({
                         }
                         className={cn(
                             "w-full text-left rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-3 transition-all",
-                            "hover:border-teal-200 hover:shadow-sm"
+                            "hover:border-teal-200 hover:shadow-sm dark:hover:border-teal-500/30"
                         )}
                     >
                         <div className="flex items-start gap-3">
@@ -318,14 +322,14 @@ function SuppliesTab({
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <Box className="w-5 h-5 text-teal-600" />
+                                    <Box className="w-5 h-5 text-teal-600 dark:text-teal-300" />
                                 )}
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-1.5">
                                     <p className="font-medium text-sm truncate">{product.name}</p>
                                     {isPrimary && (
-                                        <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide">
+                                        <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold uppercase tracking-wide dark:bg-amber-500/15 dark:text-amber-300">
                                             {t("supplies.sd.primary")}
                                         </span>
                                     )}

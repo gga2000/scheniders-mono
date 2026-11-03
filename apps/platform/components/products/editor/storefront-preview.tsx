@@ -102,7 +102,7 @@ export function StorefrontPreview({
 
                 {/* URL bar */}
                 <div className="flex-1 flex items-center gap-2 px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg text-xs text-muted overflow-hidden">
-                    <Lock className="w-3 h-3 text-green-600 shrink-0" />
+                    <Lock className="w-3 h-3 text-green-600 shrink-0 dark:text-green-300" />
                     <span className="truncate">
                         yourstore.com/products/{slug || "product-slug"}
                     </span>
@@ -160,7 +160,7 @@ export function StorefrontPreview({
                                     <span className="text-base text-muted line-through">
                                         {formatIQD(compareAtPrice)}
                                     </span>
-                                    <span className="px-2 py-0.5 bg-[var(--pastel-pink)] text-rose-700 text-xs font-semibold rounded-lg">
+                                    <span className="px-2 py-0.5 bg-[var(--pastel-pink)] text-rose-700 text-xs font-semibold rounded-lg dark:text-rose-300">
                                         -{discountPercentage}%
                                     </span>
                                 </>

@@ -32,6 +32,8 @@ export interface AggregatedSupplier {
     avgLeadTimeDays: number | null;
     lastOrderAt: string | null;
     openPoCount: number;
+    /** Drafts are not on order yet, so they are counted apart from open POs. */
+    draftPoCount: number;
     ytdSpend: number;
 }
 
@@ -94,6 +96,7 @@ export function aggregateSuppliers({
                 avgLeadTimeDays: null,
                 lastOrderAt: null,
                 openPoCount: 0,
+                draftPoCount: 0,
                 ytdSpend: 0,
             };
             map.set(key, agg);
@@ -149,6 +152,7 @@ export function aggregateSuppliers({
 
         let lastMs = -Infinity;
         let openCount = 0;
+        let draftCount = 0;
         let ytdSpend = 0;
         for (const p of agg.pos) {
             const ts = p.createdAt ? new Date(p.createdAt).getTime() : NaN;
@@ -157,6 +161,7 @@ export function aggregateSuppliers({
                 agg.lastOrderAt = p.createdAt;
             }
             if (OPEN_STATUSES.has(p.status)) openCount += 1;
+            else if (p.status === "draft") draftCount += 1;
             // Spend is what was actually ordered: not a draft, not a cancelled PO.
             if (p.createdAt && p.status !== "draft" && p.status !== "cancelled") {
                 const year = new Date(p.createdAt).getFullYear();
@@ -164,6 +169,7 @@ export function aggregateSuppliers({
             }
         }
         agg.openPoCount = openCount;
+        agg.draftPoCount = draftCount;
         agg.ytdSpend = ytdSpend;
 
         agg.pos.sort((a, b) => {

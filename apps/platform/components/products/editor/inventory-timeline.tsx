@@ -49,67 +49,67 @@ const TYPE_CONFIG: Record<
     received: {
         icon: PackagePlus,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700",
+        textClass: "text-green-700 dark:text-green-300",
         badgeBg: "bg-[var(--pastel-green)]",
-        badgeText: "text-green-700",
+        badgeText: "text-green-700 dark:text-green-300",
     },
     sold: {
         icon: ShoppingCart,
         bgClass: "bg-[var(--pastel-blue)]",
-        textClass: "text-blue-700",
+        textClass: "text-blue-700 dark:text-blue-300",
         badgeBg: "bg-[var(--pastel-blue)]",
-        badgeText: "text-blue-700",
+        badgeText: "text-blue-700 dark:text-blue-300",
     },
     returned: {
         icon: RotateCcw,
         bgClass: "bg-[var(--pastel-yellow)]",
-        textClass: "text-yellow-700",
+        textClass: "text-yellow-700 dark:text-yellow-300",
         badgeBg: "bg-[var(--pastel-yellow)]",
-        badgeText: "text-yellow-700",
+        badgeText: "text-yellow-700 dark:text-yellow-300",
     },
     adjusted: {
         icon: SlidersHorizontal,
         bgClass: "bg-[var(--pastel-pink)]",
-        textClass: "text-pink-700",
+        textClass: "text-pink-700 dark:text-pink-300",
         badgeBg: "bg-[var(--pastel-pink)]",
-        badgeText: "text-pink-700",
+        badgeText: "text-pink-700 dark:text-pink-300",
     },
     reserved: {
         icon: Lock,
         bgClass: "bg-[var(--pastel-mint)]",
-        textClass: "text-teal-700",
+        textClass: "text-teal-700 dark:text-teal-300",
         badgeBg: "bg-[var(--pastel-mint)]",
-        badgeText: "text-teal-700",
+        badgeText: "text-teal-700 dark:text-teal-300",
     },
     quarantined: {
         icon: AlertTriangle,
-        bgClass: "bg-rose-100",
-        textClass: "text-rose-700",
-        badgeBg: "bg-rose-100",
-        badgeText: "text-rose-700",
+        bgClass: "bg-rose-100 dark:bg-rose-500/15",
+        textClass: "text-rose-700 dark:text-rose-300",
+        badgeBg: "bg-rose-100 dark:bg-rose-500/15",
+        badgeText: "text-rose-700 dark:text-rose-300",
     },
     count: {
         icon: ClipboardCheck,
         bgClass: "bg-[var(--pastel-blue)]",
-        textClass: "text-blue-700",
+        textClass: "text-blue-700 dark:text-blue-300",
         badgeBg: "bg-[var(--pastel-blue)]",
-        badgeText: "text-blue-700",
+        badgeText: "text-blue-700 dark:text-blue-300",
     },
     open_box_count: {
         icon: PackageOpen,
         bgClass: "bg-[var(--pastel-yellow)]",
-        textClass: "text-yellow-700",
+        textClass: "text-yellow-700 dark:text-yellow-300",
         badgeBg: "bg-[var(--pastel-yellow)]",
-        badgeText: "text-yellow-700",
+        badgeText: "text-yellow-700 dark:text-yellow-300",
     },
 };
 
 
 function formatQuantityChange(value: number): { text: string; colorClass: string } {
     if (value >= 0) {
-        return { text: `+${value}`, colorClass: "text-green-600" };
+        return { text: `+${value}`, colorClass: "text-green-600 dark:text-green-300" };
     }
-    return { text: `${value}`, colorClass: "text-red-600" };
+    return { text: `${value}`, colorClass: "text-red-600 dark:text-red-300" };
 }
 
 export function InventoryTimeline({ entries }: InventoryTimelineProps) {
@@ -214,7 +214,7 @@ export function InventoryTimeline({ entries }: InventoryTimelineProps) {
                                                     </span>
                                                 )}
                                                 {entry.reference_id && (
-                                                    <span className="text-xs text-blue-600 underline underline-offset-2 cursor-pointer">
+                                                    <span className="text-xs text-blue-600 underline underline-offset-2 cursor-pointer dark:text-blue-300">
                                                         {entry.reference_id}
                                                     </span>
                                                 )}

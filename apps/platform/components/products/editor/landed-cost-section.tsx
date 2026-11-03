@@ -69,9 +69,9 @@ export function LandedCostSection({
 
     const marginColor = useMemo(() => {
         if (!trueMargin) return "";
-        if (trueMargin.margin >= 30) return "text-green-700 bg-[var(--pastel-green)]";
-        if (trueMargin.margin >= 15) return "text-amber-700 bg-amber-100";
-        return "text-rose-700 bg-rose-100";
+        if (trueMargin.margin >= 30) return "text-green-700 bg-[var(--pastel-green)] dark:text-green-300";
+        if (trueMargin.margin >= 15) return "text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-500/15";
+        return "text-rose-700 bg-rose-100 dark:text-rose-300 dark:bg-rose-500/15";
     }, [trueMargin]);
 
     const handleFieldChange = useCallback(
@@ -103,7 +103,7 @@ export function LandedCostSection({
                     }}
                     disabled={disabled}
                     className={cn(
-                        "flex items-center gap-2 text-sm font-medium text-teal-700 hover:text-teal-900 transition-colors",
+                        "flex items-center gap-2 text-sm font-medium text-teal-700 hover:text-teal-900 transition-colors dark:text-teal-300 dark:hover:text-teal-300",
                         disabled && "opacity-50 cursor-not-allowed"
                     )}
                 >

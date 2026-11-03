@@ -415,6 +415,34 @@ body {
   color: #FF8899 !important;
 }
 
+/* Blue / mint / purple tiles had no dark rule: light pastel under white text. */
+.dark .pastel-card-blue {
+  background: linear-gradient(135deg, rgba(90, 160, 255, 0.10) 0%, rgba(90, 160, 255, 0.04) 100%) !important;
+  border: 1px solid rgba(90, 160, 255, 0.18) !important;
+}
+
+.dark .pastel-card-blue svg {
+  color: #8CC4FF !important;
+}
+
+.dark .pastel-card-mint {
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.10) 0%, rgba(45, 212, 191, 0.04) 100%) !important;
+  border: 1px solid rgba(45, 212, 191, 0.18) !important;
+}
+
+.dark .pastel-card-mint svg {
+  color: #6EE7D6 !important;
+}
+
+.dark .pastel-card-purple {
+  background: linear-gradient(135deg, rgba(170, 120, 255, 0.10) 0%, rgba(170, 120, 255, 0.04) 100%) !important;
+  border: 1px solid rgba(170, 120, 255, 0.18) !important;
+}
+
+.dark .pastel-card-purple svg {
+  color: #C4A8FF !important;
+}
+
 /* StatsCard — bg-white overrides */
 .dark div[class*="bg-white"][class*="rounded-[24px]"] {
   background: #2A2A2A !important;

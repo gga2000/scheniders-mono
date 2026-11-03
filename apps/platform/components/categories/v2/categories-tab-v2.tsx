@@ -125,10 +125,13 @@ export function CategoriesTabV2() {
     return map;
   }, [products, memberships]);
 
+  // Coverage is about what customers can be shown: supplies (boxes, labels)
+  // and archived products never need a category.
+  const sellable = useMemo(() => products.filter((p) => !p.is_supply && !p.is_archived), [products]);
   const uncategorizedCount = useMemo(() => {
     const curated = new Set(memberships.map((m) => m.product_id));
-    return products.filter((p) => !p.category_id && !curated.has(p.id) && !p.is_archived).length;
-  }, [products, memberships]);
+    return sellable.filter((p) => !p.category_id && !curated.has(p.id)).length;
+  }, [sellable, memberships]);
 
   const fuse = useMemo(
     () =>
@@ -431,12 +434,7 @@ export function CategoriesTabV2() {
           categories={categories}
           productCategoryCounts={productCountMap}
           uncategorizedCount={uncategorizedCount}
-          totalProducts={products.length}
-          onDrill={(target) => {
-            if (target === "scheduled") {
-              // no-op placeholder — detail drawer in P6
-            }
-          }}
+          totalProducts={sellable.length}
         />
 
         <CategoryFiltersBar onNewCategory={canEditCategories ? openNew : undefined} />

@@ -103,7 +103,7 @@ export function registerCatalogWriteTools(server: McpServer): void {
             if (!changed || changed.length === 0) throw new McpToolError("Your role in this store cannot edit products.");
 
             // The database records the price history and the product's activity log
-            // with the update itself; a variant's price has no history.
+            // with the update itself, for a variant price too.
 
             return [`Updated ${label(product, variant)}:`, ...summary].join("\n");
         },

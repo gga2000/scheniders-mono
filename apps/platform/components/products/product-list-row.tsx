@@ -382,7 +382,7 @@ export const ProductListRow = React.memo(function ProductListRow({
                         className={cn(
                             "p-1.5 rounded-lg transition-colors border",
                             product.is_visible
-                                ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20"
+                                ? "bg-blue-500/10 text-blue-600 border-blue-500/20 hover:bg-blue-500/20 dark:text-blue-300"
                                 : "bg-[var(--background)] text-muted border-[var(--card-border)] hover:bg-[var(--card-bg)]"
                         )}
                         title={product.is_visible ? t("products.visibleInStore") : t("products.hiddenInStore")}

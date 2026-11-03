@@ -96,17 +96,17 @@ export function ProductPricingSection({
                             </div>
                         ) : (
                             <div className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--pastel-green)] rounded-xl">
-                                <TrendingUp className="w-3.5 h-3.5 text-green-700" />
-                                <span className="text-sm font-bold text-green-900">{profitMargin.toFixed(1)}%</span>
-                                <span className="text-xs text-green-700">{t("products.ed.perUnit").replace("{amount}", formatCount(profitAmount))}</span>
+                                <TrendingUp className="w-3.5 h-3.5 text-green-700 dark:text-green-300" />
+                                <span className="text-sm font-bold text-green-900 dark:text-green-300">{profitMargin.toFixed(1)}%</span>
+                                <span className="text-xs text-green-700 dark:text-green-300">{t("products.ed.perUnit").replace("{amount}", formatCount(profitAmount))}</span>
                             </div>
                         )
                     )}
                     {discountPercentage !== null && (
                         <div className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--pastel-pink)] rounded-xl">
-                            <Percent className="w-3.5 h-3.5 text-rose-700" />
-                            <span className="text-sm font-bold text-rose-900">{discountPercentage}%</span>
-                            <span className="text-xs text-rose-700">
+                            <Percent className="w-3.5 h-3.5 text-rose-700 dark:text-rose-300" />
+                            <span className="text-sm font-bold text-rose-900 dark:text-rose-300">{discountPercentage}%</span>
+                            <span className="text-xs text-rose-700 dark:text-rose-300">
                                 {t("products.ed.saveAmount").replace("{amount}", formatCount(formData.compare_at_price - formData.price))}
                             </span>
                         </div>

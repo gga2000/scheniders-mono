@@ -27,7 +27,7 @@ export function FillerBadge({ isFiller, size = "sm", className }: FillerBadgePro
             title={t("products.filler.hint")}
             className={cn(
                 "inline-flex items-center gap-1 rounded-full font-semibold",
-                "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+                "bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:ring-slate-500/30",
                 size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs",
                 className
             )}

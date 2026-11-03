@@ -52,52 +52,52 @@ const ACTION_CONFIG: Record<
     created: {
         icon: Zap,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700",
+        textClass: "text-green-700 dark:text-green-300",
     },
     updated: {
         icon: Edit,
         bgClass: "bg-[var(--pastel-blue)]",
-        textClass: "text-blue-700",
+        textClass: "text-blue-700 dark:text-blue-300",
     },
     status_changed: {
         icon: Archive,
         bgClass: "bg-[var(--pastel-yellow)]",
-        textClass: "text-yellow-700",
+        textClass: "text-yellow-700 dark:text-yellow-300",
     },
     price_changed: {
         icon: DollarSign,
         bgClass: "bg-[var(--pastel-pink)]",
-        textClass: "text-pink-700",
+        textClass: "text-pink-700 dark:text-pink-300",
     },
     image_added: {
         icon: Image,
         bgClass: "bg-[var(--pastel-mint)]",
-        textClass: "text-teal-700",
+        textClass: "text-teal-700 dark:text-teal-300",
     },
     variant_added: {
         icon: Package,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700",
+        textClass: "text-green-700 dark:text-green-300",
     },
     variant_removed: {
         icon: Package,
         bgClass: "bg-[var(--pastel-pink)]",
-        textClass: "text-pink-700",
+        textClass: "text-pink-700 dark:text-pink-300",
     },
     inventory_adjusted: {
         icon: Box,
         bgClass: "bg-[var(--pastel-blue)]",
-        textClass: "text-blue-700",
+        textClass: "text-blue-700 dark:text-blue-300",
     },
     published: {
         icon: Zap,
         bgClass: "bg-[var(--pastel-green)]",
-        textClass: "text-green-700",
+        textClass: "text-green-700 dark:text-green-300",
     },
     archived: {
         icon: Archive,
         bgClass: "bg-[var(--muted)]/20",
-        textClass: "text-[var(--muted)]",
+        textClass: "text-muted",
     },
 };
 
@@ -247,11 +247,11 @@ export function ActivityLogSection({ entries }: ActivityLogSectionProps) {
                                                                     <span className="font-medium text-foreground min-w-[80px] shrink-0">
                                                                         {t(`products.activity.field.${field}`)}
                                                                     </span>
-                                                                    <span className="text-rose-600 line-through">
+                                                                    <span className="text-rose-600 line-through dark:text-rose-300">
                                                                         {formatValue(field, change.before)}
                                                                     </span>
                                                                     <span className="text-muted">&rarr;</span>
-                                                                    <span className="text-green-700 font-medium">
+                                                                    <span className="text-green-700 font-medium dark:text-green-300">
                                                                         {formatValue(field, change.after)}
                                                                     </span>
                                                                 </div>
