@@ -6,11 +6,14 @@ type Call = { table: string; op: "select" | "update"; payload?: Record<string, u
 
 /**
  * A stand-in for the service client: records every query and answers selects
- * from `tracked` and order updates with `orderUpdateRows` (0 = a person changed
- * the order meanwhile, so the version guard matched nothing).
+ * on prime_shipments with `tracked` (open orders) first and `closed` (orders a
+ * person closed while still flagged) second, and order updates with
+ * `orderUpdateRows` (0 = a person changed the order meanwhile, so the version
+ * guard matched nothing).
  */
-function fakeDb(tracked: unknown[], orderUpdateRows = 1) {
+function fakeDb(tracked: unknown[], orderUpdateRows = 1, closed: unknown[] = []) {
     const calls: Call[] = [];
+    let shipmentSelects = 0;
     const from = (table: string) => {
         const call: Call = { table, op: "select", filters: [] };
         calls.push(call);
@@ -23,9 +26,14 @@ function fakeDb(tracked: unknown[], orderUpdateRows = 1) {
             },
             eq: (col: string, v: unknown) => (call.filters.push(["eq", col, v]), builder),
             in: (col: string, v: unknown) => (call.filters.push(["in", col, v]), builder),
+            not: (col: string, op: string, v: unknown) => (call.filters.push([`not.${op}`, col, v]), builder),
+            overlaps: (col: string, v: unknown) => (call.filters.push(["overlaps", col, v]), builder),
             gte: (col: string, v: unknown) => (call.filters.push(["gte", col, v]), builder),
             then: (resolve: (r: { data: unknown; error: null }) => void) => {
-                if (call.op === "select" && table === "prime_shipments") return resolve({ data: tracked, error: null });
+                if (call.op === "select" && table === "prime_shipments") {
+                    shipmentSelects += 1;
+                    return resolve({ data: shipmentSelects === 1 ? tracked : closed, error: null });
+                }
                 if (call.op === "update" && table === "orders")
                     return resolve({ data: Array.from({ length: orderUpdateRows }, () => ({ id: "o" })), error: null });
                 return resolve({ data: null, error: null });
@@ -52,11 +60,16 @@ const steps = new Map([["DLEIVERD", "شحنات سلمت بنجاح"], ["RTN_WIT
 const updatesOf = (calls: Call[], table: string) => calls.filter((c) => c.op === "update" && c.table === table);
 
 describe("syncPrimeTenant", () => {
-    it("delivers the order, pinned to the version it read, then stores Prime's status", async () => {
+    it("delivers the order, pinned to the version it read, then stores Prime's status and amount", async () => {
         const { db, calls } = fakeDb([row({ attention_reasons: ["delivery_returning"] })]);
-        const outcome = await syncPrimeTenant(db, client([{ caseid: 52176640, shipmentStatus: "DELIVERED", stepCode: "DLEIVERD", shipmentCharge: 6000 }]), "t1", steps);
+        const outcome = await syncPrimeTenant(
+            db,
+            client([{ caseid: 52176640, shipmentStatus: "DELIVERED", stepCode: "DLEIVERD", shipmentCharge: 6000, receiptAmtIqd: 55000 }]),
+            "t1",
+            steps,
+        );
 
-        expect(outcome).toEqual({ checked: 1, delivered: 1, flagged: 0, conflicts: 0 });
+        expect(outcome).toEqual({ checked: 1, delivered: 1, flagged: 0, conflicts: 0, cleared: 0 });
         const [orderUpdate] = updatesOf(calls, "orders");
         expect(orderUpdate.payload).toMatchObject({
             status: "delivered",
@@ -64,9 +77,15 @@ describe("syncPrimeTenant", () => {
             needs_attention: false,
             attention_reasons: [],
         });
+        expect(orderUpdate.payload).toHaveProperty("delivered_at");
         expect(orderUpdate.filters).toEqual(expect.arrayContaining([["eq", "tenant_id", "t1"], ["eq", "id", "order-1"], ["eq", "version", 7]]));
         const shipmentUpdates = updatesOf(calls, "prime_shipments");
-        expect(shipmentUpdates[0].payload).toMatchObject({ shipment_status: "DELIVERED", step_name: "شحنات سلمت بنجاح", shipment_charge: 6000 });
+        expect(shipmentUpdates[0].payload).toMatchObject({
+            shipment_status: "DELIVERED",
+            step_name: "شحنات سلمت بنجاح",
+            shipment_charge: 6000,
+            receipt_amount_iqd: 55000,
+        });
         expect(shipmentUpdates[1].payload).toHaveProperty("checked_at");
     });
 
@@ -107,5 +126,24 @@ describe("syncPrimeTenant", () => {
             ["eq", "orders.tenant_id", "t1"],
             ["in", "orders.status", ["confirmed", "in_transit"]],
         ]));
+    });
+
+    it("drops its own flag once a person closed the order (the returns desk scanned the parcel in), keeping other flags", async () => {
+        const closed = {
+            id: "ps2",
+            orders: { id: "order-2", status: "rejected", version: 3, attention_reasons: ["delivery_returning", "cod_risk_new_customer"] },
+        };
+        const { db, calls } = fakeDb([], 1, [closed]);
+        const outcome = await syncPrimeTenant(db, client([]), "t1", steps);
+
+        expect(outcome.cleared).toBe(1);
+        const settleSelect = calls.filter((c) => c.op === "select" && c.table === "prime_shipments")[1];
+        expect(settleSelect.filters).toEqual(expect.arrayContaining([
+            ["not.in", "orders.status", "(confirmed,in_transit)"],
+            ["overlaps", "orders.attention_reasons", expect.arrayContaining(["delivery_returning"])],
+        ]));
+        const [orderUpdate] = updatesOf(calls, "orders");
+        expect(orderUpdate.payload).toEqual({ needs_attention: true, attention_reasons: ["cod_risk_new_customer"] });
+        expect(orderUpdate.filters).toEqual(expect.arrayContaining([["eq", "id", "order-2"], ["eq", "version", 3]]));
     });
 });

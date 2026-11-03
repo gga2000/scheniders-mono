@@ -3,7 +3,7 @@ import type { Order } from "@/types/order";
 import { buildStatusUpdate } from "@/lib/orders/status-update";
 import { resolveStatusForOrder } from "@/lib/order-status-machine";
 import { PRIME_INFO_BATCH, type PrimeClient, type PrimeShipmentInfo } from "@/lib/prime/client";
-import { clearPrimeAttention, primeStatusAction, withPrimeAttention } from "@/lib/prime/status-map";
+import { clearPrimeAttention, PRIME_ATTENTION_REASONS, primeStatusAction, withPrimeAttention } from "@/lib/prime/status-map";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -22,12 +22,19 @@ type TrackedRow = {
     orders: Pick<Order, "id" | "status" | "version" | "is_return" | "attention_reasons">;
 };
 
+type SettledRow = {
+    id: string;
+    orders: Pick<Order, "id" | "status" | "version" | "attention_reasons">;
+};
+
 export interface PrimeSyncOutcome {
     checked: number;
     delivered: number;
     flagged: number;
     /** Orders a person changed meanwhile; retried on the next run. */
     conflicts: number;
+    /** Prime flags dropped from orders a person has since closed (a returned parcel the returns desk scanned in, say). */
+    cleared: number;
 }
 
 /**
@@ -53,7 +60,7 @@ export async function syncPrimeTenant(
 
     const rows = data as unknown as TrackedRow[];
     const byCase = new Map(rows.map((r) => [Number(r.case_id), r]));
-    const outcome: PrimeSyncOutcome = { checked: 0, delivered: 0, flagged: 0, conflicts: 0 };
+    const outcome: PrimeSyncOutcome = { checked: 0, delivered: 0, flagged: 0, conflicts: 0, cleared: 0 };
     const now = new Date().toISOString();
 
     for (let i = 0; i < rows.length; i += PRIME_INFO_BATCH) {
@@ -77,6 +84,8 @@ export async function syncPrimeTenant(
             .in("case_id", caseIds);
         if (checkedError) throw new Error(checkedError.message);
     }
+
+    outcome.cleared = await settleClosedOrders(db, tenantId, since);
     return outcome;
 }
 
@@ -128,9 +137,45 @@ async function applyInfo(
             step_code: step,
             step_name: step ? (stepNames.get(step) ?? step) : null,
             shipment_charge: info.shipmentCharge ?? null,
+            receipt_amount_iqd: info.receiptAmtIqd ?? null,
             status_changed_at: now,
         })
         .eq("id", row.id);
     if (error) throw new Error(error.message);
     return result;
+}
+
+/**
+ * A Prime flag has done its job once a person closed the order: the returns
+ * desk scanned the returned parcel in (rejected), or staff cancelled or
+ * completed the order. Those flags are dropped here so the order does not
+ * stay marked as needing attention forever. Version-guarded like every other
+ * write; a lost race is simply retried next run.
+ */
+async function settleClosedOrders(db: ServiceDb, tenantId: string, since: string): Promise<number> {
+    const { data, error } = await db
+        .from("prime_shipments")
+        .select("id, orders!inner(id, status, version, attention_reasons)")
+        .eq("tenant_id", tenantId)
+        .eq("orders.tenant_id", tenantId)
+        .not("orders.status", "in", `(${OPEN_STATUSES.join(",")})`)
+        .overlaps("orders.attention_reasons", [...PRIME_ATTENTION_REASONS])
+        .gte("sent_at", since);
+    if (error) throw new Error(error.message);
+
+    let cleared = 0;
+    for (const row of data as unknown as SettledRow[]) {
+        const patch = clearPrimeAttention(row.orders.attention_reasons);
+        if (!patch) continue;
+        const { data: written, error: writeError } = await db
+            .from("orders")
+            .update(patch)
+            .eq("tenant_id", tenantId)
+            .eq("id", row.orders.id)
+            .eq("version", row.orders.version)
+            .select("id");
+        if (writeError) throw new Error(writeError.message);
+        if (written && written.length > 0) cleared += 1;
+    }
+    return cleared;
 }

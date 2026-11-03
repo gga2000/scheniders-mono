@@ -8,28 +8,51 @@ import { useAuth } from "@/components/auth/auth-provider";
 const connectionSchema = z.object({ success: z.literal(true), connected: z.boolean() });
 
 const failureReason = z.enum([
-    "after_sale",
     "no_governorate",
     "bad_phone",
     "no_value",
+    "bad_receipt",
+    "amount_out_of_range",
     "not_found",
     "not_confirmed",
     "duplicate_receipt",
+    "prime_closed",
     "prime_rejected",
     "prime_unreachable",
 ]);
 export type PrimeFailureReason = z.infer<typeof failureReason>;
 
-const sendSchema = z.discriminatedUnion("connected", [
+const chunkSchema = z.discriminatedUnion("connected", [
     z.object({ success: z.literal(true), connected: z.literal(false) }),
     z.object({
         success: z.literal(true),
         connected: z.literal(true),
         sent: z.array(z.object({ orderId: z.string(), caseId: z.number() })),
+        skipped: z.array(z.object({ orderId: z.string(), reason: z.literal("after_sale") })),
         failed: z.array(z.object({ orderId: z.string(), reason: failureReason, message: z.string().optional() })),
     }),
 ]);
-export type PrimeSendResult = z.infer<typeof sendSchema>;
+type ChunkResult = z.infer<typeof chunkSchema>;
+type LinkedResult = Extract<ChunkResult, { connected: true }>;
+
+export type PrimeSendResult = { connected: false } | Pick<LinkedResult, "connected" | "sent" | "skipped" | "failed">;
+
+/** Orders per request: a few seconds of Prime calls each, well inside the route's time budget. */
+const CHUNK = 40;
+const RETRY_DELAY_MS = 1000;
+
+async function postChunk(orderIds: string[], token: string): Promise<ChunkResult> {
+    const res = await fetch("/api/prime/send", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds }),
+    });
+    if (!res.ok) throw new Error(`Sending to Prime failed: ${res.status}`);
+    return chunkSchema.parse(await res.json());
+}
+
+const allUnreachable = (chunk: LinkedResult) =>
+    chunk.sent.length === 0 && chunk.failed.length > 0 && chunk.failed.every((f) => f.reason === "prime_unreachable");
 
 /**
  * The tenant's Prime API link: whether the dispatch desk sends orders to Prime
@@ -51,16 +74,51 @@ export function usePrimeLink() {
         },
     });
 
-    /** Sends the orders; throws when the server or Prime could not be reached at all. */
+    /**
+     * Sends the orders in chunks. A dropped request is asked once more: the
+     * server reports orders it already sent as sent, so nothing is doubled.
+     * Once Prime stops answering, the remaining orders are reported
+     * unreachable without more waiting. Never throws: every order ends up in
+     * `sent`, `skipped` or `failed`.
+     */
     const send = useCallback(
         async (orderIds: string[]): Promise<PrimeSendResult> => {
-            const res = await fetch("/api/prime/send", {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ orderIds }),
-            });
-            if (!res.ok) throw new Error(`Sending to Prime failed: ${res.status}`);
-            return sendSchema.parse(await res.json());
+            const result: Extract<PrimeSendResult, { connected: true }> = { connected: true, sent: [], skipped: [], failed: [] };
+            let primeDown = false;
+            for (let i = 0; i < orderIds.length; i += CHUNK) {
+                const ids = orderIds.slice(i, i + CHUNK);
+                if (primeDown) {
+                    for (const orderId of ids) result.failed.push({ orderId, reason: "prime_unreachable" });
+                    continue;
+                }
+                let chunk: ChunkResult;
+                try {
+                    chunk = await postChunk(ids, token);
+                } catch (first) {
+                    console.error("Prime send request failed, asking once more:", first);
+                    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+                    try {
+                        chunk = await postChunk(ids, token);
+                    } catch (second) {
+                        console.error("Prime send request failed again:", second);
+                        primeDown = true;
+                        for (const orderId of ids) result.failed.push({ orderId, reason: "prime_unreachable" });
+                        continue;
+                    }
+                }
+                // The link is off: for the first chunk the whole run goes to the Excel file as before;
+                // later (switched off mid-run) the rest is reported, never silently dropped.
+                if (!chunk.connected) {
+                    if (i === 0) return { connected: false };
+                    for (const orderId of ids) result.failed.push({ orderId, reason: "prime_unreachable", message: "The Prime link was switched off" });
+                    continue;
+                }
+                result.sent.push(...chunk.sent);
+                result.skipped.push(...chunk.skipped);
+                result.failed.push(...chunk.failed);
+                if (allUnreachable(chunk)) primeDown = true;
+            }
+            return result;
         },
         [token],
     );

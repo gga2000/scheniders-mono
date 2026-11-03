@@ -8,10 +8,12 @@ import { loadPrimeMerchant } from "@/lib/prime/connection";
 import { sendOrdersToPrime } from "@/lib/prime/send";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// The desk sends 40 orders per request (use-prime-link); a slow Prime with
+// retries stays well inside this, and the per-request cap keeps it bounded.
+export const maxDuration = 120;
 
-/** A dispatch run: ~40-85 orders a day today. */
-const bodySchema = z.object({ orderIds: z.array(z.string().uuid()).min(1).max(300) });
+/** One request of a dispatch run (the desk splits a run into chunks of 40). */
+const bodySchema = z.object({ orderIds: z.array(z.string().uuid()).min(1).max(100) });
 
 /**
  * POST /api/prime/send — hand a dispatch run's orders to Prime.

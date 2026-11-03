@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildPrimeShipment, primePhone } from "./shipment-payload";
+import { buildPrimeShipment, primeAddress, primePhone } from "./shipment-payload";
+import { PRIME_LIMITS } from "./client";
 import type { CourierSheetOrder } from "@/lib/shipping/courier-sheets";
 
 const merchant = { merchantLoginId: "kut_store", shopId: 5510 };
@@ -45,6 +46,7 @@ describe("buildPrimeShipment", () => {
                 senderId: 5510,
                 custReceiptNoOri: "12603020",
                 senderSystemCaseIdWithCharacters: "12603020",
+                senderSystemCaseId: 12603020,
                 receiverName: "Zahraa",
                 receiverHp1: "07701234567",
                 state: "BAS",
@@ -62,6 +64,33 @@ describe("buildPrimeShipment", () => {
         const result = buildPrimeShipment(order({ order_id: "CHK-4261102017" }), merchant);
         expect(result.ok && result.payload.custReceiptNoOri).toBe("4261102017");
         expect(result.ok && result.payload.senderSystemCaseIdWithCharacters).toBe("CHK-4261102017");
+        // Prime's numeric id column only takes a plain number.
+        expect(result.ok && "senderSystemCaseId" in result.payload).toBe(false);
+    });
+
+    it("gives the driver the city with the street details, unless the details already name it", () => {
+        expect(primeAddress({ city: "بابل", address_details: "الحله - نادر الاولى" })).toBe("بابل - الحله - نادر الاولى");
+        expect(primeAddress({ city: "كربلاء", address_details: "كربلاء / الحر / مجمع اللؤلؤة" })).toBe("كربلاء / الحر / مجمع اللؤلؤة");
+        expect(primeAddress({ city: "بغداد", address_details: "" })).toBe("بغداد");
+        expect(primeAddress({ city: "", address_details: "حي الجامعة" })).toBe("حي الجامعة");
+        const result = buildPrimeShipment(order({ city: "البصرة" }), merchant);
+        expect(result.ok && result.payload.locationDetails).toBe("البصرة - Ashar, near the corniche");
+    });
+
+    it("cuts text to what Prime's columns hold, since a longer value is refused without a message", () => {
+        const result = buildPrimeShipment(
+            order({ customer_name: "ن".repeat(140), address_details: "ع".repeat(700), notes: "م".repeat(700), items: [{ name: "ع".repeat(700), quantity: 1, price: 1 }] as CourierSheetOrder["items"] }),
+            merchant,
+        );
+        expect(result.ok && result.payload.receiverName).toHaveLength(PRIME_LIMITS.receiverName);
+        expect(result.ok && result.payload.locationDetails).toHaveLength(PRIME_LIMITS.locationDetails);
+        expect(result.ok && result.payload.rmk).toHaveLength(PRIME_LIMITS.rmk);
+        expect(result.ok && result.payload.productInfo.length).toBeLessThanOrEqual(PRIME_LIMITS.productInfo);
+    });
+
+    it("a receipt number Prime cannot store, or an amount outside its range, stays on the Excel file", () => {
+        expect(buildPrimeShipment(order({ order_id: "9".repeat(41) }), merchant)).toEqual({ ok: false, reason: "bad_receipt" });
+        expect(buildPrimeShipment(order({ price: 6_000_000 }), merchant)).toEqual({ ok: false, reason: "amount_out_of_range" });
     });
 
     it("prepaid: collects nothing, declares the goods value and tells the courier", () => {

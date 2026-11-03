@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createPrimeClient, jwtExpiryMs, PrimeApiError } from "./client";
+import { createPrimeClient, isPrimeUnreachable, jwtExpiryMs, PrimeApiError } from "./client";
 
 const config = { baseUrl: "https://prime.test/myp/webapi", systemCode: "SYS", password: "pw", initialToken: "init" };
 
@@ -99,5 +99,102 @@ describe("createPrimeClient", () => {
         expect(await client.shipmentsInfo([])).toEqual([]);
         await expect(client.shipmentsInfo(Array.from({ length: 51 }, (_, i) => i + 1))).rejects.toThrow();
         expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it("reads the status whether Prime calls it shipmentStatus (live) or status (its guide)", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(json(200, [{ caseid: 1, status: "DELIVERED", stepCode: "DLEIVERD" }, { caseid: 2, shipmentStatus: "ONWAY" }, { caseid: 3 }]));
+        const infos = await createPrimeClient(config, fetchImpl).shipmentsInfo([1, 2, 3]);
+        expect(infos.map((i) => i.shipmentStatus)).toEqual(["DELIVERED", "ONWAY", null]);
+    });
+
+    it("a 2xx with no body is Prime refusing the write, reported with that status", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(new Response(null, { status: 204 }));
+        const err = await createPrimeClient(config, fetchImpl).createShipment(payload).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(PrimeApiError);
+        expect(err).toMatchObject({ status: 204 });
+        expect(isPrimeUnreachable(err)).toBe(false);
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it("asks once more after a server fault, then finds the case by its receipt", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockRejectedValueOnce(new TypeError("fetch failed"))
+            .mockResolvedValueOnce(json(502, undefined))
+            .mockResolvedValueOnce(json(200, [{ caseid: 4242, custReceiptNoOri: "1001", stepCode: "READYTOPICKUP" }]));
+        const client = createPrimeClient(config, fetchImpl, { retryDelayMs: 0 });
+
+        expect(await client.createShipment(payload)).toBe(4242);
+        expect(fetchImpl).toHaveBeenCalledTimes(4);
+        const [searchUrl, searchInit] = fetchImpl.mock.calls[3];
+        expect(searchUrl).toBe("https://prime.test/myp/webapi/external/search-shipments?page=1");
+        expect(JSON.parse(String(searchInit?.body))).toEqual({ receiptNoOri: "1001", shop: 1 });
+    });
+
+    it("gives up as unreachable when the retry and the lookup both fail, without retrying a refusal", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockRejectedValueOnce(new TypeError("fetch failed"))
+            .mockRejectedValueOnce(new TypeError("fetch failed"))
+            .mockRejectedValueOnce(new TypeError("fetch failed"))
+            .mockResolvedValueOnce(json(422, { errorCode: 21, errorMessage: "المبلغ المدخل خارج الحدود المسموح بها.", errorType: "VALIDATION" }));
+        const client = createPrimeClient(config, fetchImpl, { retryDelayMs: 0 });
+
+        const down = await client.createShipment(payload).catch((e: unknown) => e);
+        expect(isPrimeUnreachable(down)).toBe(true);
+        expect(fetchImpl).toHaveBeenCalledTimes(4);
+
+        const refused = await client.createShipment(payload).catch((e: unknown) => e);
+        expect(refused).toMatchObject({ status: 422, code: 21 });
+        expect(fetchImpl).toHaveBeenCalledTimes(5);
+    });
+
+    it("parallel calls on a cold instance share one sign-in", async () => {
+        const fetchImpl = vi.fn<typeof fetch>(async (url) => {
+            if (String(url).endsWith("/auth/external-system-login")) return json(200, { accessToken: jwt(future()) });
+            return json(200, { "1001": 1 });
+        });
+        const client = createPrimeClient(config, fetchImpl);
+        await Promise.all([client.createShipment(payload), client.createShipment(payload), client.createShipment(payload)]);
+        const logins = fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/auth/external-system-login"));
+        expect(logins).toHaveLength(1);
+    });
+
+    it("re-signs in a short-lived token before it expires instead of on every call", async () => {
+        const fetchImpl = vi.fn<typeof fetch>(async (url) => {
+            if (String(url).endsWith("/auth/external-system-login")) return json(200, { accessToken: jwt(Math.floor(Date.now() / 1000) + 600) });
+            return json(200, { "1001": 1 });
+        });
+        const client = createPrimeClient(config, fetchImpl);
+        await client.createShipment(payload);
+        await client.createShipment(payload);
+        const logins = fetchImpl.mock.calls.filter(([url]) => String(url).endsWith("/auth/external-system-login"));
+        expect(logins).toHaveLength(1);
+    });
+
+    it("reads the step names once per day", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(json(200, [{ code: "ONWAY", name: "عند مندوب التوصيل" }]));
+        const client = createPrimeClient(config, fetchImpl);
+        expect((await client.stepNames()).get("ONWAY")).toBe("عند مندوب التوصيل");
+        expect((await client.stepNames()).get("ONWAY")).toBe("عند مندوب التوصيل");
+        expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it("identifies itself and asks for Arabic on every call", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(json(200, []));
+        await createPrimeClient(config, fetchImpl).stepNames();
+        for (const [, init] of fetchImpl.mock.calls) {
+            const headers = init?.headers as Record<string, string>;
+            expect(headers["User-Agent"]).toMatch(/^Scheniders\//);
+            expect(headers["Accept-Language"]).toBe("ar");
+        }
     });
 });
