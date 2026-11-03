@@ -11,7 +11,6 @@ import {
   Archive,
   Trash2,
   MoreHorizontal,
-  Sparkles,
   AlertCircle,
   GripVertical,
   Store,
@@ -243,7 +242,8 @@ export function CategoryRow({
       </div>
 
       {/* Actions */}
-      <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+      {/* Always shown: hover-only actions were invisible until the pointer found them. */}
+      <div className="shrink-0 flex items-center gap-1">
         {onScopeChange && (
           <CategoryScopeControl
             value={category.scope ?? "both"}
@@ -256,7 +256,8 @@ export function CategoryRow({
             type="button"
             onClick={() => onToggleVisibility(category)}
             className="p-1.5 rounded-lg hover:bg-[var(--background)] text-muted hover:text-foreground"
-            title={visible ? "Hide" : "Show"}
+            title={visible ? t("categories.action.hide") : t("categories.action.show")}
+            aria-label={visible ? t("categories.action.hide") : t("categories.action.show")}
           >
             {visible ? (
               <Eye className="w-4 h-4" />
@@ -270,7 +271,8 @@ export function CategoryRow({
             type="button"
             onClick={() => onEdit(category)}
             className="p-1.5 rounded-lg hover:bg-[var(--background)] text-muted hover:text-foreground"
-            title="Edit"
+            title={t("common.edit")}
+            aria-label={t("common.edit")}
           >
             <Pencil className="w-4 h-4" />
           </button>
@@ -281,6 +283,9 @@ export function CategoryRow({
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             className="p-1.5 rounded-lg hover:bg-[var(--background)] text-muted hover:text-foreground"
+            title={t("categories.action.more")}
+            aria-label={t("categories.action.more")}
+            aria-expanded={menuOpen}
           >
             <MoreHorizontal className="w-4 h-4" />
           </button>
