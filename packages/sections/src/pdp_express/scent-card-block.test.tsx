@@ -158,7 +158,7 @@ describe("scent_layout card — facts when the product has them", () => {
     const card = cardOf(render(CARD_PROPS, scentProduct));
     expect(card).toContain("data-scent-timeline");
     expect(card).not.toContain('hidden=""');
-    for (const dot of ["bg-bk-ink/30", "bg-bk-ink/60"]) expect(card).toContain(dot);
+    for (const badge of ["bg-bk-ink/15", "bg-bk-ink/55"]) expect(card).toContain(badge);
   });
 
   it("english", () => {

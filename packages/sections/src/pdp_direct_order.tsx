@@ -222,6 +222,10 @@ const schema = z.object({
    *  («الدفع: كاش عند الاستلام») with no menu, and `payment_soon` is not
    *  shown. Absent/"menu" = today's tag that opens the methods panel. */
   payment_tag: z.enum(["menu", "statement"]).optional().catch(undefined),
+  /** Express: true adds a small button once the form has opened past the
+   *  phone, to fold name and address away and keep only the number showing
+   *  (and open them again). Absent/false = no button, byte-identical. */
+  collapsible_fields: z.boolean().optional().catch(undefined),
   /** Express: "band" replaces the reassurance line, the contact line and
    *  the trust chips with one espresso promise band under the order
    *  status messages (try before you pay, delivery, who calls + save our

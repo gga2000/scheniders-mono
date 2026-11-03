@@ -176,24 +176,32 @@ export function FaqProductView({
                 {title}
               </h2>
             ))}
-          <div className="divide-y divide-bk-divider border-y border-bk-divider">
+          <div className="space-y-2">
             {rows.map(({ question, answer }, i) => (
-              <details key={`${i}-${question}`} name={groupName} open={i === 0} data-faq-item="" className="group">
+              <details
+                key={`${i}-${question}`}
+                name={groupName}
+                open={i === 0}
+                data-faq-item=""
+                className="group rounded-bk-card border-bk border-transparent bg-bk-surface-alt transition-colors duration-bk-base open:border-bk-ink/20 open:bg-bk-surface motion-reduce:transition-none"
+              >
                 <summary
                   className={cn(
-                    "flex min-h-14 w-full cursor-pointer list-none items-center gap-3 py-4 text-bk-ink transition-opacity duration-bk-fast active:opacity-70 motion-reduce:transition-none [&::-webkit-details-marker]:hidden",
+                    "flex min-h-14 w-full cursor-pointer list-none items-center gap-3 px-4 py-3 text-bk-ink transition-opacity duration-bk-fast active:opacity-70 motion-reduce:transition-none [&::-webkit-details-marker]:hidden",
                     rtl && "flex-row-reverse",
                   )}
                 >
-                  <span className={cn("flex-1 font-bk-display text-base font-bold leading-snug text-balance", textSide)}>
+                  <span className={cn("flex-1 font-bk-display text-base font-black leading-snug text-balance", textSide)}>
                     {question}
                   </span>
-                  <MaterialIcon
-                    name="expand_more"
-                    className="shrink-0 text-xl text-bk-ink transition-transform duration-bk-base ease-out group-open:rotate-180 motion-reduce:transition-none"
-                  />
+                  <span
+                    aria-hidden="true"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-bk-pill bg-bk-ink/10 text-bk-ink transition-[transform,background-color,color] duration-bk-base ease-out group-open:rotate-45 group-open:bg-bk-ink group-open:text-bk-surface motion-reduce:transition-none"
+                  >
+                    <MaterialIcon name="add" className="text-xl" />
+                  </span>
                 </summary>
-                <div className={cn("pb-4", textSide)}>
+                <div className={cn("px-4 pb-4", textSide)}>
                   <p className="whitespace-pre-line font-bk-body text-[15px] leading-loose text-bk-ink-soft text-pretty">
                     {answer}
                   </p>
@@ -201,7 +209,7 @@ export function FaqProductView({
                     href={ORDER_FORM_HREF}
                     data-faq-order=""
                     className={cn(
-                      "mt-1 inline-flex min-h-11 items-center gap-1 font-bk-body text-sm font-black text-bk-ink underline underline-offset-4",
+                      "mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-bk-pill bg-bk-ink/10 px-4 font-bk-body text-sm font-black text-bk-ink transition-opacity duration-bk-fast active:opacity-70 motion-reduce:transition-none",
                       rtl && "flex-row-reverse",
                     )}
                   >
