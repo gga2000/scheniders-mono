@@ -247,7 +247,7 @@ function ToolbarButton({
             className={cn(
                 "p-1.5 rounded-lg transition-colors",
                 active
-                    ? "bg-[var(--pastel-yellow)] text-amber-900 dark:text-amber-300"
+                    ? "bg-[var(--pastel-yellow)] text-amber-900"
                     : "text-muted hover:text-foreground hover:bg-[var(--background)]"
             )}
         >

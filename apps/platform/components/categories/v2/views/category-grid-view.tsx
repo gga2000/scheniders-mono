@@ -169,7 +169,8 @@ export function CategoryGridView({
                 type="button"
                 onClick={() => onEdit(c)}
                 className="p-1.5 rounded-lg bg-[var(--card-bg)] border border-[var(--card-border)] text-muted hover:text-foreground"
-                title="Edit"
+                title={t("common.edit")}
+                aria-label={t("common.edit")}
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>

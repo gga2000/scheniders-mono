@@ -93,7 +93,8 @@ export function ProductPerformanceCard({
                                 className="w-8 h-8 rounded-full flex items-center justify-center"
                                 style={{ backgroundColor: stat.color }}
                             >
-                                <Icon className="w-4 h-4 text-foreground" />
+                                {/* Pastel stays light in dark mode, so the icon stays dark. */}
+                                <Icon className="w-4 h-4 text-slate-900" />
                             </div>
                             <span className="text-xs text-muted">{t(stat.label)}</span>
                             <span className="text-sm font-bold text-foreground leading-tight">

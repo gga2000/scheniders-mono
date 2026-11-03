@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useLanguage } from "@/hooks/use-language";
 import { formatBaghdadShortDate } from "@/lib/customer-format";
 import { formatIQD } from "@/lib/utils";
+import { useTenantMembers } from "@/hooks/chat/use-tenant-members";
 
 interface PriceHistoryEntry {
     date: string; // ISO date
@@ -33,10 +34,16 @@ const PLOT_H = CHART_HEIGHT - PADDING_Y * 2;
 export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartProps) {
     const { t, language } = useLanguage();
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+    const { data: members } = useTenantMembers();
+    // Older rows stored the user id; newer ones the name.
+    const changedByName = (value: string) =>
+        members?.find((m) => m.user_id === value)?.display_name ?? value;
 
     const dataPoints = useMemo(() => {
         if (entries.length === 0) return [];
-        const pts = entries.map((e) => ({
+        // The history arrives newest first; the line runs left (oldest) to right.
+        const sorted = [...entries].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+        const pts = sorted.map((e) => ({
             date: e.date,
             price: e.price,
             changed_by: e.changed_by,
@@ -63,8 +70,11 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
         const min = Math.max(0, rawMin - pricePadding);
         const max = rawMax + pricePadding;
 
-        const pts = dataPoints.map((d, i) => {
-            const x = PADDING_X + (dataPoints.length === 1 ? PLOT_W / 2 : (i / (dataPoints.length - 1)) * PLOT_W);
+        // Points sit at their real dates, so a long quiet stretch looks long.
+        const first = Date.parse(dataPoints[0].date);
+        const span = Date.parse(dataPoints[dataPoints.length - 1].date) - first;
+        const pts = dataPoints.map((d) => {
+            const x = PADDING_X + (span <= 0 ? PLOT_W / 2 : ((Date.parse(d.date) - first) / span) * PLOT_W);
             const y = PADDING_Y + PLOT_H - ((d.price - min) / (max - min)) * PLOT_H;
             return { x, y, ...d };
         });
@@ -75,17 +85,17 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
             pts.map((p) => `L ${p.x},${p.y}`).join(" ") +
             ` L ${pts[pts.length - 1].x},${PADDING_Y + PLOT_H} Z`;
 
-        // X-axis labels: show up to 6 evenly-spaced
-        const maxLabels = 6;
-        const step = Math.max(1, Math.floor(dataPoints.length / maxLabels));
+        // X-axis labels: first and last always, others only where they do not crowd.
+        const MIN_LABEL_GAP = 70;
         const xl: { x: number; label: string }[] = [];
-        for (let i = 0; i < dataPoints.length; i += step) {
-            xl.push({ x: pts[i].x, label: formatBaghdadShortDate(dataPoints[i].date, language) });
+        const label = (i: number) => ({ x: pts[i].x, label: formatBaghdadShortDate(dataPoints[i].date, language) });
+        for (let i = 0; i < pts.length - 1; i++) {
+            const prev = xl[xl.length - 1];
+            if (!prev || pts[i].x - prev.x >= MIN_LABEL_GAP) xl.push(label(i));
         }
-        // Always include the last point
-        if (xl.length > 0 && xl[xl.length - 1].x !== pts[pts.length - 1].x) {
-            xl.push({ x: pts[pts.length - 1].x, label: formatBaghdadShortDate(dataPoints[dataPoints.length - 1].date, language) });
-        }
+        // The last date (today) always shows; drop a crowding neighbour instead.
+        if (xl.length > 1 && pts[pts.length - 1].x - xl[xl.length - 1].x < MIN_LABEL_GAP) xl.pop();
+        xl.push(label(pts.length - 1));
 
         // Y-axis labels: 4 ticks
         const yl: { y: number; label: string }[] = [];
@@ -96,7 +106,7 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
         }
 
         return { minPrice: min, maxPrice: max, points: pts, polylineStr: polyline, areaStr: area, xLabels: xl, yLabels: yl };
-    }, [dataPoints]);
+    }, [dataPoints, language]);
 
     return (
         <div className="space-y-5">
@@ -198,7 +208,8 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
                             style={{
                                 left: `${(points[hoveredIdx].x / CHART_WIDTH) * 100}%`,
                                 top: `${(points[hoveredIdx].y / CHART_HEIGHT) * 100}%`,
-                                transform: "translate(-50%, -120%)",
+                                // Near the top the tooltip opens below the point, so it is not cut off.
+                                transform: points[hoveredIdx].y < CHART_HEIGHT / 2 ? "translate(-50%, 16px)" : "translate(-50%, -120%)",
                             }}
                         >
                             <p className="font-semibold whitespace-nowrap">
@@ -208,7 +219,7 @@ export function PriceHistoryChart({ entries, currentPrice }: PriceHistoryChartPr
                             </p>
                             <p className="opacity-70">{formatBaghdadShortDate(points[hoveredIdx].date, language)}</p>
                             {points[hoveredIdx].changed_by && (
-                                <p className="opacity-70">{t("products.ed.priceBy", { name: points[hoveredIdx].changed_by })}</p>
+                                <p className="opacity-70">{t("products.ed.priceBy", { name: changedByName(points[hoveredIdx].changed_by) })}</p>
                             )}
                             {points[hoveredIdx].reason && (
                                 <p className="opacity-70">{t("products.ed.priceReason", { reason: points[hoveredIdx].reason })}</p>

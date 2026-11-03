@@ -153,7 +153,7 @@ export function AdvancedFilters({ value, onApply, onReset, embedded = false }: A
                     className={cn(
                         "flex items-center gap-2 px-4 py-3 rounded-xl border transition-all",
                         activeCount > 0
-                            ? "bg-[var(--pastel-yellow)] border-amber-200 text-amber-900 dark:border-amber-500/30 dark:text-amber-300"
+                            ? "bg-[var(--pastel-yellow)] border-amber-200 text-amber-900 dark:border-amber-500/30"
                             : "bg-[var(--background)] border-[var(--card-border)] text-foreground hover:border-[var(--ink)]"
                     )}
                 >

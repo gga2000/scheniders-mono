@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Package,
     Plus,
     Trash2,
     Calendar,
@@ -216,19 +215,15 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
     };
 
     return (
-        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    {t("products.batch.title")}
-                </h2>
+        <div className="space-y-5">
+            {/* The editor's collapsible section carries the title. */}
+            <div className="flex items-center justify-end">
                 <button
                     type="button"
                     onClick={handleOpenForm}
                     disabled={disabled}
                     className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium transition-colors hover:opacity-90 dark:text-teal-300",
+                        "flex items-center gap-1.5 px-3 py-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium transition-colors hover:opacity-90",
                         disabled && "opacity-50 cursor-not-allowed"
                     )}
                 >
@@ -386,7 +381,7 @@ export function BatchManager({ productId, productName, disabled }: BatchManagerP
                                 <button
                                     type="submit"
                                     disabled={insertMutation.isPending}
-                                    className="flex items-center gap-1.5 px-4 py-2 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50 dark:text-teal-300"
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium transition-colors hover:opacity-90 disabled:opacity-50"
                                 >
                                     {insertMutation.isPending && (
                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />

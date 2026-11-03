@@ -51,7 +51,7 @@ export function ProductStorefrontSection({ formData, updateField, autoGenerateSl
                         type="button"
                         onClick={autoGenerateSlug}
                         disabled={!formData.name}
-                        className="px-4 py-3 bg-[var(--pastel-yellow)] text-amber-900 rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap dark:text-amber-300"
+                        className="px-4 py-3 bg-[var(--pastel-yellow)] text-amber-900 rounded-xl text-sm font-medium hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                     >
                         {t("products.ed.autoGenerate")}
                     </button>

@@ -69,7 +69,7 @@ export function LandedCostSection({
 
     const marginColor = useMemo(() => {
         if (!trueMargin) return "";
-        if (trueMargin.margin >= 30) return "text-green-700 bg-[var(--pastel-green)] dark:text-green-300";
+        if (trueMargin.margin >= 30) return "text-green-700 bg-[var(--pastel-green)]";
         if (trueMargin.margin >= 15) return "text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-500/15";
         return "text-rose-700 bg-rose-100 dark:text-rose-300 dark:bg-rose-500/15";
     }, [trueMargin]);

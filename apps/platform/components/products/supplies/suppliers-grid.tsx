@@ -133,7 +133,7 @@ function SupplierCard({ supplier, onSelect }: SupplierCardProps) {
                     label={t("supplies.suppliers.stat.leadTime")}
                     value={
                         supplier.avgLeadTimeDays != null
-                            ? t("supplies.sp.leadDays", { n: supplier.avgLeadTimeDays })
+                            ? t("supplies.sp.leadDays", { count: supplier.avgLeadTimeDays })
                             : "—"
                     }
                 />

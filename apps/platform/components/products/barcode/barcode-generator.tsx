@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-    Barcode,
     QrCode,
     Copy,
     Check,
@@ -106,12 +105,7 @@ export function BarcodeGenerator({
     }, [barcode]);
 
     return (
-        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-4">
-            {/* Header */}
-            <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-                <Barcode className="w-4 h-4" />
-                {t("products.barcode.title")}
-            </h2>
+        <div className="space-y-4">
 
             {/* Barcode input row */}
             <div className="flex items-center gap-2">
@@ -146,7 +140,7 @@ export function BarcodeGenerator({
                     type="button"
                     onClick={handleAutoGenerate}
                     disabled={disabled}
-                    className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap dark:text-teal-300"
+                    className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-mint)] text-teal-700 rounded-lg text-sm font-medium hover:bg-[var(--pastel-green)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                     <Sparkles className="w-4 h-4" />
                     {t("products.barcode.generate")}

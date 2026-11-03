@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     AlertTriangle,
@@ -16,7 +16,6 @@ import {
     Truck,
     X,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import type { Product } from "@/lib/supabase";
 import type { ProductSupplier } from "@/types/product";
 import { cn, formatIQD } from "@/lib/utils";
@@ -25,7 +24,7 @@ import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
-import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
+import { calcSuggestedQty, reorderShortfall, urgencyFor } from "@/lib/utils/supply-reorder";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
 import { PoSendConfirmDialog } from "./po-send-confirm-dialog";
@@ -103,24 +102,6 @@ export function ReorderDrawer({
         return map;
     }, [supplierPos]);
 
-    // 30-day sales data for velocity.
-    const { data: salesMap = new Map<string, number>() } = useQuery({
-        queryKey: ["supplies-reorder-sales", tenantId],
-        enabled: !!tenantId && open,
-        staleTime: 60_000,
-        queryFn: async () => {
-            if (!tenantId) return new Map<string, number>();
-            // Grouped in the database: reading raw history rows stops silently at
-            // the API row cap and makes busy stores look slower than they are.
-            const { data, error } = await supabase.rpc("supply_usage_30d", { p_tenant_id: tenantId });
-            if (error) throw error;
-            const m = new Map<string, number>();
-            for (const row of (data ?? []) as { product_id: string; used: number | string }[]) {
-                m.set(row.product_id, Number(row.used));
-            }
-            return m;
-        },
-    });
 
     // Derive reorder items grouped by supplier.
     const { supplierGroups, totalItems, snoozedCount, coveredCount } = useMemo(() => {
@@ -135,7 +116,8 @@ export function ReorderDrawer({
             const available = Math.max(0, stock - reserved);
 
             // Skip if well-stocked and sales velocity is low/zero.
-            const sold30 = salesMap.get(s.id) ?? s.times_sold_30d ?? 0;
+            // The supplies tab fills this with 30-day usage (one rate everywhere).
+            const sold30 = s.times_sold_30d ?? 0;
             const dailyRate = sold30 / 30;
             const daysUntilStockout =
                 dailyRate > 0 ? Math.round(available / dailyRate) : null;
@@ -162,6 +144,16 @@ export function ReorderDrawer({
 
             // Stock already ordered counts: a second PO for it would double-buy.
             const onOrder = openPoBySupply?.get(s.id)?.quantity ?? 0;
+            // Covered once what is arriving reaches the reorder point and lasts
+            // through the lead time; then a new PO would only double-buy.
+            if (
+                onOrder > 0 &&
+                stock + onOrder > reorderPoint &&
+                reorderShortfall({ leadTimeDays, dailyRate, reorderPoint, stock: stock + onOrder }) <= 0
+            ) {
+                covered += 1;
+                continue;
+            }
             const suggested = calcSuggestedQty({
                 leadTimeDays,
                 dailyRate,
@@ -169,10 +161,6 @@ export function ReorderDrawer({
                 stock: stock + onOrder,
                 moq,
             });
-            if (onOrder > 0 && stock + onOrder > reorderPoint && !atRisk) {
-                covered += 1;
-                continue;
-            }
 
             items.push({
                 supply: s,
@@ -224,7 +212,7 @@ export function ReorderDrawer({
             snoozedCount: snoozed,
             coveredCount: covered,
         };
-    }, [supplies, salesMap, openPoBySupply, snoozedIds, editedQty, showSnoozed]);
+    }, [supplies, openPoBySupply, snoozedIds, editedQty, showSnoozed]);
 
     const toggleGroup = useCallback((name: string) => {
         setExpandedGroups((prev) => {
@@ -265,7 +253,7 @@ export function ReorderDrawer({
         onSuccess: (result) => {
             toast.success(t("supplies.ro.poCreated", { number: result.poNumber, count: result.itemCount }));
             return Promise.all([
-                queryClient.invalidateQueries({ queryKey: ["supplies-reorder-sales"] }),
+                queryClient.invalidateQueries({ queryKey: ["supply-usage-30d"] }),
                 queryClient.invalidateQueries({ queryKey: ["open-pos-by-supply"] }),
                 queryClient.invalidateQueries({ queryKey: ["supplies-open-pos"] }),
                 queryClient.invalidateQueries({ queryKey: ["supplier-pos"] }),
@@ -662,7 +650,7 @@ function ReorderItemRow({
                         />
                         <Stat
                             label={t("supplies.ro.leadTime")}
-                            value={t("supplies.ro.leadDaysShort", { n: item.leadTimeDays })}
+                            value={t("supplies.ro.leadDaysShort", { count: item.leadTimeDays })}
                             tone="muted"
                         />
                     </div>

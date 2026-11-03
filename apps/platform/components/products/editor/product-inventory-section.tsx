@@ -105,7 +105,7 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
             )}
 
             {reservedQuantity > 0 && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-blue)] rounded-xl text-sm text-blue-700 tabular-nums dark:text-blue-300">
+                <div className="flex items-center gap-2 px-4 py-3 bg-[var(--pastel-blue)] rounded-xl text-sm text-blue-700 tabular-nums">
                     <span className="font-medium">{t("products.ed.available").replace("{n}", String(available))}</span>
                     <span aria-hidden>·</span>
                     <span>{t("products.ed.reserved").replace("{n}", String(reservedQuantity))}</span>

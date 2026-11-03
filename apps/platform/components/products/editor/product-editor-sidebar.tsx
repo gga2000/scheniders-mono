@@ -92,7 +92,7 @@ export function ProductEditorSidebar({ formData, updateField, mode, timesSold, t
                         onClick={() => updateField("is_visible", !formData.is_visible)}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                             formData.is_visible
-                                ? "bg-[var(--pastel-mint)] text-teal-700 dark:text-teal-300"
+                                ? "bg-[var(--pastel-mint)] text-teal-700"
                                 : "bg-[var(--background)] text-muted"
                         }`}
                     >

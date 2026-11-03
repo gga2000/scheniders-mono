@@ -427,7 +427,7 @@ function SortableOptionGroup({
                                                     onClick={() => handleTypeSelect(type)}
                                                     className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--background)] transition-colors ${
                                                         optionType === type
-                                                            ? "bg-[var(--pastel-blue)] text-blue-800 dark:text-blue-300"
+                                                            ? "bg-[var(--pastel-blue)] text-blue-800"
                                                             : "text-foreground"
                                                     }`}
                                                 >
@@ -506,7 +506,7 @@ function SortableOptionGroup({
                                             <button
                                                 type="button"
                                                 onClick={() => onAddValue(valueInput)}
-                                                className="p-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg hover:bg-[var(--pastel-green)] transition-colors dark:text-teal-300"
+                                                className="p-1.5 bg-[var(--pastel-mint)] text-teal-700 rounded-lg hover:bg-[var(--pastel-green)] transition-colors"
                                                 title={t("products.variants.addValue")}
                                             >
                                                 <Plus className="w-3.5 h-3.5" />
@@ -751,7 +751,7 @@ export function VariantOptionsBuilder({
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                                 atMaxGroups
                                     ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-500/15"
-                                    : "bg-[var(--pastel-mint)] text-teal-700 hover:bg-[var(--pastel-green)] dark:text-teal-300"
+                                    : "bg-[var(--pastel-mint)] text-teal-700 hover:bg-[var(--pastel-green)]"
                             }`}
                         >
                             <Plus className="w-4 h-4" />

@@ -34,6 +34,7 @@ import { ActionsFeed } from "@/components/products/supplies/actions-feed";
 import { SuppliesBulkActionsBar } from "@/components/products/supplies/supplies-bulk-actions-bar";
 import { useOpenPosBySupply } from "@/hooks/use-open-pos-by-supply";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
+import { useSupplyUsage30d } from "@/hooks/use-supply-usage";
 import { useTenantSupplyHistory } from "@/hooks/use-tenant-supply-history";
 import { aggregateSuppliers } from "@/lib/utils/suppliers-aggregate";
 import { Users } from "lucide-react";
@@ -128,12 +129,19 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
     const { data: supplierLinks, isError: supplierLinksFailed } = useSupplierLinks();
     // Until the links are in, every supply would read as "no supplier" with default lead time.
     const supplierLinksReady = supplierLinks !== undefined && !supplierLinksFailed;
+    const { data: usage30d } = useSupplyUsage30d();
+    // A supply is used up, not sold: its 30-day rate is what was used, the
+    // same number for every card, row, drawer and action below.
     const supplies = useMemo(
         () =>
             products
                 .filter((p) => p.is_supply && !p.is_archived)
-                .map((p) => ({ ...p, suppliers: supplierLinks?.get(p.id) ?? [] })),
-        [products, supplierLinks]
+                .map((p) => ({
+                    ...p,
+                    suppliers: supplierLinks?.get(p.id) ?? [],
+                    times_sold_30d: usage30d?.get(p.id) ?? 0,
+                })),
+        [products, supplierLinks, usage30d]
     );
 
     const supplyIds = useMemo(() => supplies.map((s) => s.id), [supplies]);
@@ -203,6 +211,8 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
         });
         return sorted;
     }, [supplies, searchQuery, sortKey, selectedCategoryId]);
+    // The category column only earns its space when some supply has one.
+    const anyCategorized = useMemo(() => filteredSupplies.some((s) => !!s.category_id), [filteredSupplies]);
 
     const toggleSelect = useCallback((supply: Product) => {
         setSelectedIds((prev) => {
@@ -636,13 +646,15 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                 </div>
             ) : (
                 <div className="overflow-x-auto rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-sm">
-                    <table className="w-full text-sm">
-                        <thead className="bg-[var(--background)] border-b border-[var(--card-border)] text-[11px] uppercase tracking-wide text-muted font-semibold">
+                    {/* min-w-max: columns keep their width and the table scrolls
+                        sideways instead of sliding values under the actions. */}
+                    <table className="w-full min-w-max text-sm">
+                        <thead className="bg-[var(--background)] border-b border-[var(--card-border)] text-[11px] uppercase tracking-wide text-muted font-semibold whitespace-nowrap">
                             <tr>
                                 <th className="px-3 py-2 text-left w-10"></th>
                                 <th className="px-3 py-2 text-left"></th>
                                 <th className="px-3 py-2 text-left">{t("supplies.col.name")}</th>
-                                <th className="px-3 py-2 text-left">{t("supplies.col.category")}</th>
+                                {anyCategorized && <th className="px-3 py-2 text-left">{t("supplies.col.category")}</th>}
                                 <th className="px-3 py-2 text-left">{t("supplies.col.stock")}</th>
                                 <th className="px-3 py-2 text-right">{t("supplies.col.reorderPoint")}</th>
                                 <th className="px-3 py-2 text-left">{t("supplies.col.daysSupply")}</th>
@@ -657,6 +669,7 @@ export function SuppliesTab({ onEdit, onAdd }: SuppliesTabProps) {
                                     key={supply.id}
                                     supply={supply}
                                     categoryName={supply.category_id ? categoryNameById.get(supply.category_id) : undefined}
+                                    showCategory={anyCategorized}
                                     leadTimeDays={leadTimeBySupplyId.get(supply.id)}
                                     supplierNames={supplierNamesBySupplyId.get(supply.id)}
                                     openPo={openPoBySupply?.get(supply.id) ?? null}
