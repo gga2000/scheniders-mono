@@ -28,6 +28,7 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { calcSuggestedQty, urgencyFor } from "@/lib/utils/supply-reorder";
 import { purchaseOrderErrorKey } from "@/lib/po-error-message";
 import { createPurchaseOrder } from "@/lib/repositories/purchase-orders";
+import { PoSendConfirmDialog } from "./po-send-confirm-dialog";
 import { useSupplierPos } from "@/hooks/use-supplier-pos";
 import { usePurchaseOrderActions } from "@/hooks/use-purchase-order-actions";
 import type { PoStatusInfo } from "./po-status-chip";
@@ -83,6 +84,8 @@ export function ReorderDrawer({
     const canSeeCost = can(PERMISSIONS.MANAGE_PRODUCTS) || can(PERMISSIONS.VIEW_FINANCIALS);
     const queryClient = useQueryClient();
     const [editedQty, setEditedQty] = useState<Record<string, number>>({});
+    // The draft whose lines are shown before it is marked sent.
+    const [confirmDraft, setConfirmDraft] = useState<{ id: string; number: string } | null>(null);
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["__all__"]));
     const [generating, setGenerating] = useState<Set<string>>(new Set());
     const [showSnoozed, setShowSnoozed] = useState(false);
@@ -460,13 +463,7 @@ export function ReorderDrawer({
                                                                     type="button"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        changeStatus.mutate(
-                                                                            { poId: draft.id, status: "sent" },
-                                                                            {
-                                                                                onSuccess: () => toast.success(t("supplies.po.sentToast", { number: draft.number })),
-                                                                                onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
-                                                                            },
-                                                                        );
+                                                                        setConfirmDraft(draft);
                                                                     }}
                                                                     disabled={changeStatus.isPending}
                                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-60 dark:bg-slate-200 dark:text-slate-900 dark:hover:bg-white"
@@ -545,6 +542,29 @@ export function ReorderDrawer({
                             )}
                         </div>
                     </motion.aside>
+                    {confirmDraft && (
+                        <PoSendConfirmDialog
+                            open
+                            onOpenChange={(next) => {
+                                if (!next) setConfirmDraft(null);
+                            }}
+                            poId={confirmDraft.id}
+                            poNumber={confirmDraft.number}
+                            sending={changeStatus.isPending}
+                            onSend={() =>
+                                changeStatus.mutate(
+                                    { poId: confirmDraft.id, status: "sent" },
+                                    {
+                                        onSuccess: () => {
+                                            toast.success(t("supplies.po.sentToast", { number: confirmDraft.number }));
+                                            setConfirmDraft(null);
+                                        },
+                                        onError: (err: unknown) => toast.error(t("supplies.po.failed", { message: t(purchaseOrderErrorKey(err)) })),
+                                    },
+                                )
+                            }
+                        />
+                    )}
                 </>
             )}
         </AnimatePresence>

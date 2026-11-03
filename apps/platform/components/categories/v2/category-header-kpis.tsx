@@ -102,8 +102,8 @@ export function CategoryHeaderKpis({
       icon: FolderTree,
       iconTone: "text-amber-600 dark:text-amber-300",
       value: categories.filter((c) => c.status !== "archived").length,
-      label: t("categories.kpi.total") || "Categories",
-      sub: `${stats.topLevel} ${t("categories.kpi.topLevel") || "top-level"} · ${stats.published} ${t("categories.kpi.published") || "published"}`,
+      label: t("categories.kpi.total"),
+      sub: `${stats.topLevel} ${t("categories.kpi.topLevel")} · ${stats.published} ${t("categories.kpi.published")}`,
     },
     {
       key: "scope",
@@ -111,8 +111,8 @@ export function CategoryHeaderKpis({
       icon: Globe,
       iconTone: "text-sky-600 dark:text-sky-300",
       value: stats.websiteCats,
-      label: t("categories.kpi.onWebsite") || "On the website",
-      sub: `${stats.storeCats} ${t("categories.kpi.inStore") || "for the store"}`,
+      label: t("categories.kpi.onWebsite"),
+      sub: `${stats.storeCats} ${t("categories.kpi.inStore")}`,
     },
     {
       key: "coverage",
@@ -120,8 +120,8 @@ export function CategoryHeaderKpis({
       icon: Layers,
       iconTone: "text-emerald-600 dark:text-emerald-300",
       value: `${stats.coverage}%`,
-      label: t("categories.kpi.coverage") || "Coverage",
-      sub: `${totalProducts - uncategorizedCount}/${totalProducts} ${t("categories.kpi.assigned") || "assigned"}`,
+      label: t("categories.kpi.coverage"),
+      sub: `${totalProducts - uncategorizedCount}/${totalProducts} ${t("categories.kpi.assigned")}`,
     },
     {
       key: "uncategorized",
@@ -129,8 +129,8 @@ export function CategoryHeaderKpis({
       icon: AlertCircle,
       iconTone: "text-rose-600 dark:text-rose-300",
       value: uncategorizedCount,
-      label: t("categories.kpi.uncategorized") || "Uncategorized",
-      sub: t("categories.kpi.needsTriage") || "needs triage",
+      label: t("categories.kpi.uncategorized"),
+      sub: t("categories.kpi.needsTriage"),
     },
     {
       key: "hidden",
@@ -138,8 +138,8 @@ export function CategoryHeaderKpis({
       icon: EyeOff,
       iconTone: "text-blue-600 dark:text-blue-300",
       value: stats.hiddenFromNav,
-      label: t("categories.kpi.hiddenFromNav") || "Hidden from nav",
-      sub: `${stats.draft} ${t("categories.kpi.drafts") || "drafts"}`,
+      label: t("categories.kpi.hiddenFromNav"),
+      sub: `${stats.draft} ${t("categories.kpi.drafts")}`,
     },
     {
       key: "scheduled",
@@ -147,8 +147,8 @@ export function CategoryHeaderKpis({
       icon: CalendarClock,
       iconTone: "text-teal-600 dark:text-teal-300",
       value: stats.scheduled,
-      label: t("categories.kpi.scheduled") || "Scheduled",
-      sub: t("categories.kpi.upcoming") || "upcoming",
+      label: t("categories.kpi.scheduled"),
+      sub: t("categories.kpi.upcoming"),
     },
     {
       key: "empty",
@@ -156,8 +156,8 @@ export function CategoryHeaderKpis({
       icon: Sparkles,
       iconTone: "text-violet-600 dark:text-violet-300",
       value: stats.emptyCats,
-      label: t("categories.kpi.empty") || "Empty categories",
-      sub: t("categories.kpi.noProducts") || "no products assigned",
+      label: t("categories.kpi.empty"),
+      sub: t("categories.kpi.noProducts"),
     },
   ];
 

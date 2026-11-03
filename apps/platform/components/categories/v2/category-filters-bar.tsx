@@ -75,8 +75,7 @@ export function CategoryFiltersBar({
           value={filters.searchQuery}
           onChange={(e) => setFilter("searchQuery", e.target.value)}
           placeholder={
-            t("categories.search.placeholder") ||
-            "Search categories, slugs, SKUs…"
+            t("categories.search.placeholder")
           }
           className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-[var(--background)] border border-[var(--card-border)] focus:outline-none focus:border-[var(--ink)] transition-colors text-sm"
         />
@@ -85,7 +84,7 @@ export function CategoryFiltersBar({
             type="button"
             onClick={() => setFilter("searchQuery", "")}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
-            aria-label="Clear search"
+            aria-label={t("products.clearSearch")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -149,7 +148,7 @@ export function CategoryFiltersBar({
               : "bg-transparent text-muted border-[var(--card-border)] hover:text-foreground",
           )}
         >
-          {t("categories.filter.navOnly") || "In main nav"}
+          {t("categories.filter.navOnly")}
         </button>
 
         {hasActiveFilters && (
@@ -158,7 +157,7 @@ export function CategoryFiltersBar({
             onClick={resetFilters}
             className="px-2 py-1.5 rounded-full text-xs text-muted hover:text-foreground transition-colors"
           >
-            {t("common.reset") || "Reset"}
+            {t("common.reset")}
           </button>
         )}
       </div>
@@ -168,7 +167,7 @@ export function CategoryFiltersBar({
           <button
             type="button"
             onClick={onOpenShortcuts}
-            title={t("common.shortcuts") || "Keyboard shortcuts"}
+            title={t("common.shortcuts")}
             className="p-2 rounded-xl border border-[var(--card-border)] text-muted hover:text-foreground transition-colors"
           >
             <Keyboard className="w-4 h-4" />
@@ -177,8 +176,8 @@ export function CategoryFiltersBar({
 
         <ViewSwitcher<CategoryViewMode>
           options={[
-            { mode: "tree", icon: ListTree, label: t("categories.view.tree") || "Tree" },
-            { mode: "grid", icon: Grid3X3, label: t("categories.view.grid") || "Grid" },
+            { mode: "tree", icon: ListTree, label: t("categories.view.tree") },
+            { mode: "grid", icon: Grid3X3, label: t("categories.view.grid") },
           ]}
           value={viewMode}
           onChange={setViewMode}
@@ -190,7 +189,7 @@ export function CategoryFiltersBar({
           onClick={onNewCategory}
           className="px-4 py-2.5 rounded-xl bg-[var(--ink)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          + {t("categories.new") || "New category"}
+          + {t("categories.new")}
         </button>
         )}
       </div>

@@ -22,7 +22,7 @@ export interface Product {
      *  marketing title on the storefront. Falls back to `name` when empty. */
     short_name?: string | null;
     description?: string;
-    sku?: string;
+    sku?: string | null;
     lightfunnels_aliases?: string[];
     price: number;
     compare_at_price?: number | null;
@@ -45,7 +45,7 @@ export interface Product {
     product_type: 'physical' | 'digital' | 'service' | 'bundle';
     // Physical product fields
     weight?: number | null;
-    dimensions_json?: { length?: number; width?: number; height?: number } | null;
+    dimensions_json?: { length?: number | null; width?: number | null; height?: number | null } | null;
     // Digital product fields
     download_url?: string | null;
     file_size?: string | null;

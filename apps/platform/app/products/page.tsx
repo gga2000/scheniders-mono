@@ -61,11 +61,9 @@ type ProductsTab = (typeof PRODUCTS_TABS)[number];
 // grouped/kanban/heatmap views: tens of thousands of lines).
 const tabFallback = () => <TableSkeleton rows={6} cols={4} />;
 const SuppliesTab = dynamic(() => import("@/components/products/supplies-tab").then((m) => m.SuppliesTab), { loading: tabFallback });
-const CategoriesTab = dynamic(() => import("@/components/products/categories-tab").then((m) => m.CategoriesTab), { loading: tabFallback });
 const AttributesTab = dynamic(() => import("@/components/products/attributes-tab").then((m) => m.AttributesTab), { loading: tabFallback });
 const CategoriesTabV2 = dynamic(() => import("@/components/categories/v2/categories-tab-v2").then((m) => m.CategoriesTabV2), { loading: tabFallback });
 
-const CATEGORIES_V2_ENABLED = process.env.NEXT_PUBLIC_CATEGORIES_V2 !== "0";
 import { useCategoriesQuery, useCategoryMembershipsQuery } from "@/hooks/use-categories-query";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -959,7 +957,7 @@ function ProductsContent() {
                         ))}
                     </div>
 
-                    {activeTab === "categories" && (CATEGORIES_V2_ENABLED ? <CategoriesTabV2 /> : <CategoriesTab />)}
+                    {activeTab === "categories" && <CategoriesTabV2 />}
                     {activeTab === "attributes" && <AttributesTab />}
                     {activeTab === "supplies" && <SuppliesTab onEdit={handleEditProduct} onAdd={handleAddSupply} />}
 

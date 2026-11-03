@@ -136,7 +136,7 @@ export function BulkCategoryConfirmDialog({
                                 disabled={isSubmitting}
                                 className="px-4 py-2 text-sm font-medium rounded-xl border border-[var(--card-border)] text-[var(--foreground)] hover:bg-[var(--background)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {t("common.cancel") || "Cancel"}
+                                {t("common.cancel")}
                             </button>
                             <button
                                 type="button"

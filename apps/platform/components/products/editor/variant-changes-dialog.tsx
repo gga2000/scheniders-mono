@@ -63,7 +63,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
             exit={{ opacity: 0 }}
             role="dialog"
             aria-modal="true"
-            aria-label={t("products.variants.changes") || "Variant Changes"}
+            aria-label={t("products.variants.changes")}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
             onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
         >
@@ -77,7 +77,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--card-border)]">
                         <h3 className="text-lg font-bold text-foreground">
-                            {t("products.variants.changes") || "Variant Changes"}
+                            {t("products.variants.changes")}
                         </h3>
                         <button
                             onClick={onCancel}
@@ -97,7 +97,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                                         <Plus className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
                                     </div>
                                     <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                                        {(t("products.variants.willBeAdded") || "{count} variants will be added").replace("{count}", String(diff.added.length))}
+                                        {(t("products.variants.willBeAdded")).replace("{count}", String(diff.added.length))}
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 pl-7">
@@ -116,7 +116,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                                         <Minus className="w-3 h-3 text-rose-600 dark:text-rose-300" />
                                     </div>
                                     <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
-                                        {(t("products.variants.willBeRemoved") || "{count} variants will be removed").replace("{count}", String(diff.removed.length))}
+                                        {(t("products.variants.willBeRemoved")).replace("{count}", String(diff.removed.length))}
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5 pl-7">
@@ -135,7 +135,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                                         <Check className="w-3 h-3 text-muted" />
                                     </div>
                                     <p className="text-sm text-muted">
-                                        {(t("products.variants.unchanged") || "{count} variants unchanged").replace("{count}", String(diff.unchanged.length))}
+                                        {(t("products.variants.unchanged")).replace("{count}", String(diff.unchanged.length))}
                                     </p>
                                 </div>
                             </div>
@@ -147,7 +147,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                                 <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5 dark:text-amber-300" />
                                 <div>
                                     <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                                        {diff.stockAtRiskCount} {t("products.variants.stockWarning") || "variants with stock will be removed. Stock will be lost."}
+                                        {diff.stockAtRiskCount} {t("products.variants.stockWarning")}
                                     </p>
                                     <p className="text-xs text-amber-600 mt-1 dark:text-amber-300">
                                         {diff.removed
@@ -166,7 +166,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                             onClick={onCancel}
                             className="px-4 py-2 text-sm font-medium text-muted hover:text-foreground transition-colors rounded-lg hover:bg-[var(--card-bg)]"
                         >
-                            {t("products.variants.cancel") || "Cancel"}
+                            {t("products.variants.cancel")}
                         </button>
                         <button
                             onClick={onConfirm}
@@ -177,7 +177,7 @@ export function VariantChangesDialog({ diff, onConfirm, onCancel }: VariantChang
                                     : "bg-[var(--foreground)] text-[var(--background)] hover:opacity-90"
                             )}
                         >
-                            {t("products.variants.applyChanges") || "Apply Changes"}
+                            {t("products.variants.applyChanges")}
                         </button>
                     </div>
                 </motion.div>
