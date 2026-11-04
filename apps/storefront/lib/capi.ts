@@ -113,12 +113,16 @@ interface MetaEvent {
   test_event_code?: string;
 }
 
-export function buildMetaPurchaseEvent(input: CapiPurchaseInput): MetaEvent {
-  const ctx = input.context ?? {};
-  const phone = pixelPhoneDigits(input.customer.phone);
-  const em = input.customer.email?.trim().toLowerCase();
-  const { fn, ln } = splitName(input.customer.name);
-  const ct = cityToken(input.customer.governorate);
+/** Who the event is about, as Meta matches it (contact data SHA-256 hashed). */
+function metaUserData(
+  tenantId: string,
+  customer: CapiPurchaseInput["customer"] | null,
+  ctx: CapiRequestContext,
+): Record<string, string | string[]> {
+  const phone = customer ? pixelPhoneDigits(customer.phone) : null;
+  const em = customer?.email?.trim().toLowerCase();
+  const { fn, ln } = splitName(customer?.name);
+  const ct = cityToken(customer?.governorate);
 
   const user_data: Record<string, string | string[]> = { country: [sha256("iq")] };
   // Both ids go out: the phone one joins repeat buyers, the visitor one joins
@@ -126,7 +130,7 @@ export function buildMetaPurchaseEvent(input: CapiPurchaseInput): MetaEvent {
   const externalIds: string[] = [];
   if (phone) {
     user_data.ph = [sha256(phone)];
-    externalIds.push(sha256(pixelExternalIdSource(input.tenantId, phone)));
+    externalIds.push(sha256(pixelExternalIdSource(tenantId, phone)));
   }
   if (ctx.visitorExternalId) externalIds.push(ctx.visitorExternalId);
   if (externalIds.length > 0) user_data.external_id = externalIds;
@@ -146,6 +150,12 @@ export function buildMetaPurchaseEvent(input: CapiPurchaseInput): MetaEvent {
   if (fbp) user_data.fbp = fbp;
   const fbc = metaCookie(ctx.fbc);
   if (fbc) user_data.fbc = fbc;
+  return user_data;
+}
+
+export function buildMetaPurchaseEvent(input: CapiPurchaseInput): MetaEvent {
+  const ctx = input.context ?? {};
+  const user_data = metaUserData(input.tenantId, input.customer, ctx);
 
   const event: Record<string, unknown> = {
     event_name: "Purchase",
@@ -173,6 +183,52 @@ export function buildMetaPurchaseEvent(input: CapiPurchaseInput): MetaEvent {
   if (input.analytics.capi_test_event_code) {
     payload.test_event_code = input.analytics.capi_test_event_code;
   }
+  return payload;
+}
+
+/** The funnel events the browser pixel fires before an order. */
+export const META_BROWSE_EVENTS = ["ViewContent", "AddToCart", "InitiateCheckout"] as const;
+export type MetaBrowseEventName = (typeof META_BROWSE_EVENTS)[number];
+
+export interface CapiBrowseInput {
+  analytics: AnalyticsConfig;
+  tenantId: string;
+  eventName: MetaBrowseEventName;
+  /** The browser event's eventID: Meta keeps one of the pair. */
+  eventId: string;
+  value: number;
+  contents: ReadonlyArray<{ id: string; quantity: number; item_price: number }>;
+  context: CapiRequestContext;
+  eventTime?: number;
+}
+
+/**
+ * The server copy of a browser funnel event. The shopper is anonymous here
+ * (no phone or name yet), so it matches on the browser facts: IP, user agent,
+ * the Meta cookies, the visitor id and the country.
+ */
+export function buildMetaBrowseEvent(input: CapiBrowseInput): MetaEvent {
+  const event: Record<string, unknown> = {
+    event_name: input.eventName,
+    event_time: input.eventTime ?? Math.floor(Date.now() / 1000),
+    event_id: input.eventId,
+    action_source: "website",
+    user_data: metaUserData(input.tenantId, null, input.context),
+    custom_data: {
+      currency: "IQD",
+      value: input.value,
+      content_type: "product",
+      content_ids: input.contents.map((c) => c.id),
+      contents: input.contents.map((c) => ({ id: c.id, quantity: c.quantity, item_price: c.item_price })),
+      ...(input.eventName === "InitiateCheckout"
+        ? { num_items: input.contents.reduce((s, c) => s + c.quantity, 0) }
+        : {}),
+    },
+  };
+  const url = nonEmpty(input.context.url, 1024);
+  if (url) event.event_source_url = url;
+  const payload: MetaEvent = { data: [event] };
+  if (input.analytics.capi_test_event_code) payload.test_event_code = input.analytics.capi_test_event_code;
   return payload;
 }
 
@@ -254,11 +310,23 @@ async function post(label: string, url: string, headers: Record<string, string>,
       return;
     }
     // Meta answers {events_received, messages, fbtrace_id}: no secrets, and the
-    // only proof an accepted event reached the dataset.
-    console.info(`[capi] ${label} accepted: ${(await res.text()).slice(0, 300)}`);
+    // only proof an accepted event reached the dataset. Logged for orders
+    // only: funnel events are many per visitor and a failure is still logged.
+    if (label === "meta") console.info(`[capi] ${label} accepted: ${(await res.text()).slice(0, 300)}`);
   } catch (e) {
     console.error(`[capi] ${label} unreachable:`, e);
   }
+}
+
+function metaEventsUrl(a: AnalyticsConfig): string | null {
+  if (!a.meta_pixel_id || !a.meta_capi_token) return null;
+  return `${META_API}/${encodeURIComponent(a.meta_pixel_id.trim())}/events?access_token=${encodeURIComponent(a.meta_capi_token)}`;
+}
+
+/** Send one funnel event's server copy to Meta. Best-effort, never throws. */
+export async function sendMetaBrowseCapi(input: CapiBrowseInput): Promise<void> {
+  const url = metaEventsUrl(input.analytics);
+  if (url) await post(`meta ${input.eventName}`, url, {}, buildMetaBrowseEvent(input));
 }
 
 /** Fire Purchase to whichever Conversions APIs are configured. Best-effort. */
@@ -266,10 +334,8 @@ export async function sendPurchaseCapi(input: CapiPurchaseInput): Promise<void> 
   const a = input.analytics;
   const tasks: Promise<void>[] = [];
 
-  if (a.meta_pixel_id && a.meta_capi_token) {
-    const url = `${META_API}/${encodeURIComponent(a.meta_pixel_id.trim())}/events?access_token=${encodeURIComponent(a.meta_capi_token)}`;
-    tasks.push(post("meta", url, {}, buildMetaPurchaseEvent(input)));
-  }
+  const metaUrl = metaEventsUrl(a);
+  if (metaUrl) tasks.push(post("meta", metaUrl, {}, buildMetaPurchaseEvent(input)));
 
   if (a.tiktok_capi_token) {
     for (const body of buildTikTokPurchaseEvents(input)) {

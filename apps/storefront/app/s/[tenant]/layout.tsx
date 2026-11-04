@@ -244,6 +244,7 @@ export default async function TenantLayout({ params, children }: Props) {
               | Record<string, string | undefined>
               | undefined) ?? {}),
           }}
+          tenantId={tenant.id}
           visitorExternalId={visitorExternalId}
         />
       )}

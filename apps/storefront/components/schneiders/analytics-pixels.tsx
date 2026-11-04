@@ -3,6 +3,7 @@ import type { AnalyticsConfig } from "@scheniders/shared";
 import { PENDING_PURCHASE_KEY } from "@scheniders/shared";
 import { PixelRouteChange } from "./pixel-route-change";
 import { PendingPurchasePixel } from "./pending-purchase-pixel";
+import { MetaServerEvents } from "./meta-server-events";
 
 /**
  * Injects Meta / TikTok / Google Analytics / Snapchat / GTM pixels.
@@ -50,9 +51,12 @@ function isPlausiblePixelId(
 
 export function SchneidersAnalyticsPixels({
   analytics,
+  tenantId,
   visitorExternalId,
 }: {
   analytics?: AnalyticsConfig | null;
+  /** Set to send Meta funnel events' server copies (see MetaServerEvents). */
+  tenantId?: string;
   /** SHA-256 of the store-scoped visitor id; the server sends the same one. */
   visitorExternalId?: string | null;
 }) {
@@ -173,6 +177,8 @@ snaptr('track', 'PAGE_VIEW');`,
           }}
         />
       )}
+
+      {meta && tenantId && <MetaServerEvents tenantId={tenantId} />}
 
       {/* Last, so its effect runs after the pixel scripts above have set up
           fbq / ttq. */}
