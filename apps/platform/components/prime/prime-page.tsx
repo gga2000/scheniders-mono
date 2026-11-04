@@ -13,18 +13,19 @@ import { readPrimeBoardList, type PrimeBoardList } from "@/lib/prime/board";
 import { cn } from "@/lib/utils";
 import { PrimePipeline } from "./prime-pipeline";
 import { PrimeParcelList } from "./prime-parcel-list";
+import { PrimeReturnsTab } from "./prime-returns-tab";
 import { PrimeStatementCard } from "./prime-statement-card";
 import { PrimeStatementsTab } from "./prime-statements-tab";
 import { PrimeTicketsCard } from "./prime-tickets-card";
 import { PrimeTicketsTab } from "./prime-tickets-tab";
 
-const PRIME_TABS = ["now", "statements", "tickets"] as const;
+const PRIME_TABS = ["now", "statements", "returns", "tickets"] as const;
 export type PrimeTab = (typeof PRIME_TABS)[number];
 
 /**
  * The one small Prime page: where today's parcels are along the way, the
- * ones that need a decision, what Prime paid (administrators), and the
- * tickets with Prime. Everything else about Prime lives on the orders page
+ * ones that need a decision, what Prime paid (administrators), why parcels
+ * come back, and the tickets with Prime. Everything else about Prime lives on the orders page
  * and the dispatch desk. Hidden for a tenant without a switched-on link.
  */
 export function PrimePage() {
@@ -61,6 +62,7 @@ export function PrimePage() {
     const tabs: { id: PrimeTab; label: string; count?: number }[] = [
         { id: "now", label: t("prime.page.tabNow") },
         ...(admin ? [{ id: "statements" as const, label: t("prime.page.tabStatements") }] : []),
+        { id: "returns", label: t("prime.returns.tab") },
         { id: "tickets", label: t("prime.page.tabTickets"), count: openTickets },
     ];
     const askPrime = (orderId: string, draft?: string, label?: string) => {
@@ -133,6 +135,7 @@ export function PrimePage() {
                         </>
                     ))}
                 {tab === "statements" && admin && <PrimeStatementsTab selected={statementId} onSelect={setStatementId} onAskPrime={askPrime} />}
+                {tab === "returns" && <PrimeReturnsTab />}
                 {tab === "tickets" && (
                     <PrimeTicketsTab
                         tickets={tickets}
