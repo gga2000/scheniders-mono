@@ -208,6 +208,36 @@ const resendAnswer = z.object({
 });
 export type PrimeResendAnswer = z.infer<typeof resendAnswer>;
 
+const pullBackAnswer = z.object({
+    success: z.literal(true),
+    ok: z.boolean(),
+    reason: z.string().optional(),
+    message: z.string().optional(),
+});
+export type PrimePullBackAnswer = z.infer<typeof pullBackAnswer>;
+
+/** Take a parcel back from Prime before pickup (POST /api/prime/pull-back); refreshes the chips after. */
+export function usePrimePullBack() {
+    const { session, tenantId } = useAuth();
+    const token = session?.access_token;
+    const queryClient = useQueryClient();
+    return useCallback(
+        async (orderId: string): Promise<PrimePullBackAnswer> => {
+            if (!token) throw new Error("Not signed in");
+            const res = await fetch("/api/prime/pull-back", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId }),
+            });
+            if (!res.ok) throw new Error(`Pull back failed: ${res.status}`);
+            const answer = pullBackAnswer.parse(await res.json());
+            await queryClient.invalidateQueries({ queryKey: primeShipmentsKey(tenantId) });
+            return answer;
+        },
+        [token, tenantId, queryClient],
+    );
+}
+
 /** Ask Prime to deliver a returned parcel again (POST /api/prime/resend); refreshes the chips after. */
 export function usePrimeResend() {
     const { session, tenantId } = useAuth();

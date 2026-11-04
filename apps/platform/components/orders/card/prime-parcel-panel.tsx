@@ -9,12 +9,13 @@ import { computeCodAmount } from "@/lib/order-money";
 import { cn } from "@/lib/utils";
 import type { Order } from "@/types/order";
 import { PrimeJourneyList } from "./prime-journey-list";
+import { PrimePullBackButton } from "./prime-pull-back-button";
 import { PrimeResendForm, type PrimeResendOrder } from "./prime-resend-form";
 
 /** Which part of the panel the band opened it for. */
 export type PrimePanelFocus = "journey" | "resend";
 
-type PanelOrder = PrimeResendOrder & Pick<Order, "order_id">;
+type PanelOrder = PrimeResendOrder & Pick<Order, "order_id"> & { status: string };
 
 const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
@@ -23,6 +24,7 @@ const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
  * money in the parcel (what Prime collects, its fee, what reaches the store),
  * the customer's record with Prime, and — for a parcel coming back — the form
  * that asks Prime for one more attempt with a fixed phone, address or amount.
+ * A parcel still on its way out can be pulled back to the dispatch desk.
  */
 export function PrimeParcelPanel({
     order,
@@ -79,6 +81,7 @@ export function PrimeParcelPanel({
                 {canResend && <PrimeResendForm order={order} autoFocus={focus === "resend"} />}
 
                 <div className="flex flex-wrap gap-2">
+                    {order.status === "in_transit" && !returning && view.cancelledAt === null && <PrimePullBackButton orderId={order.id} caseId={view.caseId} />}
                     <a
                         href={primeMessageLink(t, view.caseId, order.order_id)}
                         target="_blank"
