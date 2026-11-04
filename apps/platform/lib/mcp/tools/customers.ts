@@ -7,6 +7,7 @@ import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { storedPhoneVariants } from "@/lib/order-server-search";
 import { parseRecovery } from "@/lib/orders/abandoned-cart-recovery";
 import { isValidIraqiMobile } from "@scheniders/shared";
+import { ownDeliveryRate, riskyOpenOrderSchema, riskyOrderBand, shieldImpactSchema, storeScoreSchema } from "@/lib/shield/home";
 
 /** Open carts listed at most; the Abandoned column holds a few dozen at its busiest. */
 const MAX_CARTS = 100;
@@ -80,6 +81,54 @@ export function registerCustomerTools(server: McpServer): void {
                     const national = normalizePhoneForSearch(o.phone);
                     return `  ${orderLine(o, true)} | left ${baghdadTime(o.abandoned_cart_at ?? o.created_at)} | WhatsApp https://wa.me/964${national}`;
                 }),
+            ].join("\n");
+        },
+    });
+
+    registerTool(server, {
+        name: "shield_overview",
+        title: "Shield: risky orders and results",
+        kind: "read",
+        description:
+            "Shield, the cross-store fake-order check: open orders from the last 14 days whose customer refused or did not answer " +
+            "before (here or in other stores) and should get a call before confirming, red first; what Shield stopped in the last " +
+            "`days`; and this store's delivery rate against other stores. Other stores are never named.",
+        input: z.object({ days: z.number().int().min(7).max(90).default(30) }),
+        async run(caller, input) {
+            const to = new Date();
+            const from = new Date(to.getTime() - input.days * 86_400_000);
+            // Read-only functions: GET keeps them inside the guard's read path.
+            const [risky, impact, score] = await Promise.all([
+                caller.db.rpc("shield_risky_open_orders", { p_limit: 30 }, { get: true }),
+                caller.db.rpc("shield_impact", { p_from: from.toISOString(), p_to: to.toISOString() }, { get: true }),
+                caller.db.rpc("shield_store_score", { p_days: input.days }, { get: true }),
+            ]);
+            if (risky.error) throw risky.error;
+            if (impact.error) throw impact.error;
+            if (score.error) throw score.error;
+
+            const rows = z.array(riskyOpenOrderSchema).parse(risky.data ?? []);
+            const im = shieldImpactSchema.parse((impact.data as unknown[] | null)?.[0] ?? { flagged_decided: 0, stopped: 0, stopped_value: 0, shipped: 0, shipped_delivered: 0, shipped_refused: 0 });
+            const sc = storeScoreSchema.parse((score.data as unknown[] | null)?.[0] ?? { own_finished: 0, own_delivered: 0, network_rate: null, network_stores: null });
+            const rate = ownDeliveryRate(sc);
+
+            const reason = (r: (typeof rows)[number]) =>
+                r.network_band === "red" || r.network_band === "yellow"
+                    ? `${r.network_band} record in other stores`
+                    : `rated ${r.own_tier ?? "unknown"} here`;
+            return [
+                rows.length === 0
+                    ? "No risky open orders from the last 14 days."
+                    : `${rows.length} open order(s) to call before confirming:`,
+                ...rows.map((r) => `  #${r.order_id} ${r.customer_name ?? "customer"} | ${r.status} | ${riskyOrderBand(r) === "red" ? "HIGH RISK" : "call first"} | ${reason(r)} | ${baghdadTime(r.created_at)}`),
+                "",
+                `Last ${input.days} days: ${im.flagged_decided} flagged order(s) decided; ${im.stopped} stopped before shipping` +
+                    (canSeeMoney(caller) && im.stopped_value > 0 ? ` (${iqd(im.stopped_value)} of goods kept back)` : "") +
+                    `; ${im.shipped} shipped anyway: ${im.shipped_delivered} delivered, ${im.shipped_refused} refused.`,
+                rate === null
+                    ? "Delivery rate: too few finished orders yet."
+                    : `Delivery rate ${rate}% (${sc.own_delivered} of ${sc.own_finished})` +
+                      (sc.network_rate !== null ? `; other stores ${sc.network_rate}% (average of ${sc.network_stores}).` : "; other stores' average shows once 3 stores take part."),
             ].join("\n");
         },
     });

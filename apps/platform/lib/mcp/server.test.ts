@@ -55,6 +55,7 @@ describe("MCP server", () => {
             "sales_summary",
             "search_orders",
             "set_stock_count",
+            "shield_overview",
             "ship_orders",
             "tag_customer",
             "update_expense",

@@ -24,6 +24,7 @@ import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PrimeHomeRow } from "@/components/dashboard/prime/prime-home-row";
+import { ShieldHomeRow } from "@/components/dashboard/shield/shield-home-row";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 import { useAnnouncements } from "@/hooks/use-announcements";
@@ -271,6 +272,9 @@ export default function Home() {
 
         {/* Prime: what Prime holds, its delivery rate, where the parcels are (stores with the Prime link only) */}
         <WidgetBoundary label="prime-home"><PrimeHomeRow /></WidgetBoundary>
+
+        {/* Shield: open orders to call first, and what Shield stopped in the last 30 days */}
+        <WidgetBoundary label="shield-home"><ShieldHomeRow /></WidgetBoundary>
 
         {/* Order Pipeline */}
         <WidgetBoundary label="order-pipeline">
