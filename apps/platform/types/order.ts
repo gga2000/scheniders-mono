@@ -156,6 +156,12 @@ export interface Order {
     print_count?: number;
     last_batch_id?: string;
     is_gift?: boolean;
+    /**
+     * The Prime district picked on the new-order form, from Prime's own list for
+     * the governorate; `state` is the Prime state code it belongs to. Sent to
+     * Prime only while that is still the order's governorate.
+     */
+    prime_district?: { id: number; name: string; state: string } | null;
     is_shop_order?: boolean;
     needs_attention?: boolean;
     attention_reasons?: string[];

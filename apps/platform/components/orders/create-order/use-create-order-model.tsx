@@ -15,6 +15,7 @@ import { findStockShortfalls, type StockShortfall } from "@/lib/orders/stock-sho
 import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { routeCreateOrderDate } from "@/lib/order-date-guard";
 import { useLanguage } from "@/hooks/use-language";
+import { primeDistrictOfOrder, type PrimeDistrict } from "@/lib/prime/district";
 
 // TikTok icon component
 export const TikTokIcon = ({ className }: { className?: string }) => (
@@ -223,10 +224,15 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     }, [formData.order_id, checkOrderIdExists]);
 
     const updateField = (field: string, value: string | number | boolean | undefined | string[]) => {
-        setFormData((prev) => ({ ...prev, [field]: value }));
+        // A Prime district belongs to one governorate: changing it drops the pick.
+        setFormData((prev) => ({ ...prev, [field]: value, ...(field === "city" && value !== prev.city ? { prime_district: null } : {}) }));
         if (errors[field]) {
             setErrors((prev) => ({ ...prev, [field]: undefined }));
         }
+    };
+
+    const setPrimeDistrict = (district: PrimeDistrict | null) => {
+        setFormData((prev) => ({ ...prev, prime_district: district }));
     };
 
     // Inputs show 4-3-4 grouping; formData keeps the un-spaced value normalized on blur/submit.
@@ -332,6 +338,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
                         secondary_phone: result.data.secondary_phone || prev.secondary_phone,
                         city: result.data.city || prev.city,
                         address_details: result.data.address || prev.address_details,
+                        prime_district: result.data.city && result.data.city !== prev.city ? null : prev.prime_district,
                     }));
 
                 } else {
@@ -441,6 +448,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
                 delivery_fee: actualDeliveryFee,
                 is_shop_order: orderType === "shop",
                 is_gift: orderType === "delivery" && Boolean(formData.is_gift),
+                prime_district: orderType === "delivery" ? primeDistrictOfOrder(formData) : null,
                 status: orderType === "shop" ? "completed" : "confirmed",
                 notes: orderType === "shop" ? `[طلب محل] ${formData.notes || ''}`.trim() : formData.notes,
                 internal_notes: formData.internal_notes || "",
@@ -552,6 +560,7 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
         handleClose,
         handleOrderIdChange,
         updateField,
+        setPrimeDistrict,
         phoneInput,
         secondaryPhoneInput,
         updateItem,

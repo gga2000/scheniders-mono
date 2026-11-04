@@ -12,6 +12,7 @@ import { ORDER_READ_COLUMNS, RESTORE_ORDERS_BATCH_SIZE, pickOrderWriteColumns } 
 import { VAULT_ADMIN_ROLES } from "@/lib/vault-paths";
 import { z } from "zod";
 import { ORDER_STATUSES } from "@/lib/order-status-labels";
+import { primeDistrictSchema } from "@/lib/prime/district";
 
 // =============================================
 // CHECK LIMITS (called from UI before showing create modal)
@@ -50,6 +51,7 @@ const createOrderInputSchema = z
         priority: z.enum(["normal", "high", "urgent"]).optional(),
         payment_status: z.enum(["pending", "cod", "prepaid", "partial", "paid"]).optional(),
         items: z.array(z.object({ quantity: z.number().finite().min(0) }).passthrough()).optional(),
+        prime_district: primeDistrictSchema.nullish(),
     })
     .passthrough();
 

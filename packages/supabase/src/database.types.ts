@@ -4133,6 +4133,7 @@ export type Database = {
           payment_status: string | null
           phone: string
           price: number
+          prime_district: Json | null
           print_count: number | null
           printed_at: string | null
           priority: string | null
@@ -4228,6 +4229,7 @@ export type Database = {
           payment_status?: string | null
           phone: string
           price: number
+          prime_district?: Json | null
           print_count?: number | null
           printed_at?: string | null
           priority?: string | null
@@ -4323,6 +4325,7 @@ export type Database = {
           payment_status?: string | null
           phone?: string
           price?: number
+          prime_district?: Json | null
           print_count?: number | null
           printed_at?: string | null
           priority?: string | null

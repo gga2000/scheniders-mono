@@ -33,12 +33,13 @@ export type CourierSheetOrder = Pick<
     | "payment_status"
     | "is_return"
     | "is_replacement"
+    | "prime_district"
 >;
 
 /** The columns the sheets read, for a select. */
 export const COURIER_SHEET_COLUMNS =
     "id, order_id, customer_name, phone, secondary_phone, city, governorate_code, validated_governorate_code, " +
-    "address_details, items, notes, price, delivery_fee, discount_amount, payment_status, is_return, is_replacement";
+    "address_details, items, notes, price, delivery_fee, discount_amount, payment_status, is_return, is_replacement, prime_district";
 
 export type CourierSheet = {
     sheetName: string;
@@ -86,7 +87,9 @@ export function courierNotes(order: CourierSheetOrder): string {
 }
 
 /** The order's governorate code (BGD, BAS…), read from the city text when the order has none. */
-export function courierGovernorateCode(order: CourierSheetOrder): string {
+export function courierGovernorateCode(
+    order: Pick<CourierSheetOrder, "validated_governorate_code" | "governorate_code" | "city" | "address_details">,
+): string {
     const stored = order.validated_governorate_code || order.governorate_code;
     if (stored) return stored;
     if (!order.city) return "";

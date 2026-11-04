@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearPrimeFeeCache, previewPrimeRun } from "./desk-preview";
+import { clearPrimeFeeCache, previewPrimeRun, primeFeeQuote } from "./desk-preview";
 import { PrimeApiError, type PrimeClient } from "./client";
 
 type Row = Record<string, unknown>;
@@ -66,8 +66,24 @@ describe("previewPrimeRun", () => {
             { orderId: "o3", kind: "ready", fee: 6000, caseId: null },
         ]);
         expect(charge).toHaveBeenCalledTimes(2);
-        expect(charge).toHaveBeenCalledWith("kut_store", "BAS", 55000);
+        expect(charge).toHaveBeenCalledWith("kut_store", "BAS", 55000, undefined);
         expect(filters).toEqual(expect.arrayContaining(["orders.tenant_id=t1", "prime_shipments.tenant_id=t1", "orders.deleted_at is null"]));
+    });
+
+    it("asks per picked district, and leaves out a district of another governorate", async () => {
+        const { db } = fakeDb([
+            order("o1", { prime_district: { id: 41, name: "العشار", state: "BAS" } }),
+            order("o2"),
+            order("o3", { prime_district: { id: 7, name: "المنصور", state: "BGD" } }),
+        ]);
+        const charge = vi.fn(async (_m: string, _s: string, _a: number, district?: number) => (district ? 7000 : 6000));
+
+        const rows = await previewPrimeRun(db, clientWith(charge), "t1", merchant, ["o1", "o2", "o3"]);
+
+        expect(rows.map((r) => (r.kind === "ready" ? r.fee : null))).toEqual([7000, 6000, 6000]);
+        expect(charge).toHaveBeenCalledTimes(2);
+        expect(charge).toHaveBeenCalledWith("kut_store", "BAS", 55000, 41);
+        expect(charge).toHaveBeenCalledWith("kut_store", "BAS", 55000, undefined);
     });
 
     it("says what to fix, leaves refunds to the Excel file, and asks Prime nothing for either", async () => {
@@ -116,5 +132,31 @@ describe("previewPrimeRun", () => {
         expect(charge.mock.calls.map((c) => c[1])).toEqual(["KOT", "BAS", "BAS"]);
         expect(errors).toHaveBeenCalledTimes(2);
         errors.mockRestore();
+    });
+});
+
+describe("primeFeeQuote", () => {
+    it("asks Prime once for the same governorate, district and amount, then answers from the cache", async () => {
+        const charge = vi.fn(async () => 5000);
+        const client = clientWith(charge);
+
+        await expect(primeFeeQuote(client, "kut_store", "BGD", 36750, 12)).resolves.toBe(5000);
+        await expect(primeFeeQuote(client, "kut_store", "BGD", 36750, 12)).resolves.toBe(5000);
+        await expect(primeFeeQuote(client, "kut_store", "BGD", 36750)).resolves.toBe(5000);
+
+        expect(charge).toHaveBeenCalledTimes(2);
+        expect(charge).toHaveBeenNthCalledWith(1, "kut_store", "BGD", 36750, 12);
+        expect(charge).toHaveBeenNthCalledWith(2, "kut_store", "BGD", 36750, undefined);
+    });
+
+    it("throws when Prime does not answer, and asks again next time", async () => {
+        const charge = vi.fn(async (): Promise<number | null> => {
+            throw new PrimeApiError("down", 500);
+        });
+        const client = clientWith(charge);
+        await expect(primeFeeQuote(client, "kut_store", "BGD", 1000)).rejects.toBeInstanceOf(PrimeApiError);
+        charge.mockResolvedValueOnce(null);
+        await expect(primeFeeQuote(client, "kut_store", "BGD", 1000)).resolves.toBeNull();
+        expect(charge).toHaveBeenCalledTimes(2);
     });
 });

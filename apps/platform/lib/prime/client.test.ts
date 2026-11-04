@@ -313,6 +313,29 @@ describe("case history and charges", () => {
         expect(url).toBe("https://prime.test/myp/webapi/external/calculate-shipment-charges");
         expect(JSON.parse(String(init?.body))).toEqual({ merchantLoginId: "m", state: "BAS", receiptAmtIqd: 36_750 });
     });
+
+    it("sends the district with the charge look-up only when one is picked", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(json(200, { shipmentCharge: 5000 }));
+        const client = createPrimeClient(config, fetchImpl);
+
+        expect(await client.shipmentCharge("m", "BGD", 36_750, 212)).toBe(5000);
+        expect(JSON.parse(String(fetchImpl.mock.calls[1][1]?.body))).toEqual({ merchantLoginId: "m", state: "BGD", receiptAmtIqd: 36_750, district: 212 });
+    });
+
+    it("lists a state's districts", async () => {
+        const fetchImpl = vi.fn<typeof fetch>()
+            .mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }))
+            .mockResolvedValueOnce(json(200, [{ districtId: 212, districtName: "المنصور" }, { districtId: 213, districtName: "الكرادة" }]))
+            .mockResolvedValueOnce(json(200, []));
+        const client = createPrimeClient(config, fetchImpl);
+
+        expect(await client.stateDistricts("BGD")).toEqual([{ districtId: 212, districtName: "المنصور" }, { districtId: 213, districtName: "الكرادة" }]);
+        expect(await client.stateDistricts("XXX")).toEqual([]);
+        expect(fetchImpl.mock.calls[1][0]).toBe("https://prime.test/myp/webapi/general/state-districts/BGD");
+        expect(fetchImpl.mock.calls[1][1]?.method).toBe("GET");
+    });
 });
 
 describe("statements and tickets", () => {

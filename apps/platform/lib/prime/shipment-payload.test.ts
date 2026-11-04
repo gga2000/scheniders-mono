@@ -127,6 +127,18 @@ describe("buildPrimeShipment", () => {
         expect(fromCity.ok && fromCity.payload.state).toBe("NJF");
     });
 
+    it("sends the picked district only while it belongs to the parcel's governorate", () => {
+        const picked = buildPrimeShipment(order({ prime_district: { id: 41, name: "العشار", state: "BAS" } }), merchant);
+        expect(picked.ok && picked.payload.district).toBe(41);
+        expect(picked.ok && primeUpdateFields(picked.payload).district).toBe(41);
+
+        const otherState = buildPrimeShipment(order({ prime_district: { id: 7, name: "المنصور", state: "BGD" } }), merchant);
+        expect(otherState.ok && "district" in otherState.payload).toBe(false);
+        const none = buildPrimeShipment(order({ prime_district: null }), merchant);
+        expect(none.ok && "district" in none.payload).toBe(false);
+        expect(none.ok && "district" in primeUpdateFields(none.payload)).toBe(false);
+    });
+
     it.each<[string, Partial<CourierSheetOrder>, string]>([
         ["refunds", { is_return: true }, "after_sale"],
         ["replacements", { is_replacement: true }, "after_sale"],

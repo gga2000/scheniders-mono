@@ -120,7 +120,8 @@ export const ORDER_READ_COLUMNS = `
   abandoned_cart_resolved_by_name,
   abandoned_cart_order_id,
   entered_by,
-  created_via
+  created_via,
+  prime_district
 `;
 
 /** ORDER_READ_COLUMNS as names, for projecting a row before it is written back. */
@@ -234,6 +235,7 @@ export const LIST_COLUMNS = `
   created_via,
   delivery_slot,
   is_gift,
+  prime_district,
   is_reviewed,
   reviewed_at,
   reviewed_by
