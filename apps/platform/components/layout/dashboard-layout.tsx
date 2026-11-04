@@ -63,7 +63,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     // toolbar and back-navigation. Billing banners stay: they gate
     // whether the store can operate at all. `children` still carries
     // everything the root layout mounts beside the page (ChatRuntime).
-    const isImmersivePage = pathname?.startsWith("/store/edit");
+    // The shop till is the same: a full-screen selling console.
+    const isImmersivePage = pathname?.startsWith("/store/edit") || pathname === "/till";
     if (isImmersivePage) {
         return (
             <PageGuard>
