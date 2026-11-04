@@ -22,9 +22,21 @@ export interface ChanceReason {
     effect: "risk" | "good";
 }
 
+/** One signal's move on the way from the typical order to this one, in whole percent. */
+export interface ChanceStep {
+    key: string;
+    effect: "risk" | "good";
+    from: number;
+    to: number;
+}
+
 export interface DeliveryChance {
     /** 0-100: chance this order is delivered and paid. */
     chance: number;
+    /** 0-100: where every order starts (the typical first-order delivery rate). */
+    base: number;
+    /** Each signal in the order it was applied, so the review can draw the path from base to chance. */
+    steps: ChanceStep[];
     /** 0-100: what the ring shows (100 - chance). */
     risk: number;
     band: ShieldBand;
@@ -52,7 +64,8 @@ export interface ChanceInput {
 /** Statuses where the warning still helps: the parcel has not left for good. */
 export const SHIELD_OPEN_STATUSES = new Set(["new", "contacted", "confirmed", "suspended"]);
 
-const BASE_LOGIT = Math.log(0.72 / 0.28);
+const BASE_RATE = 0.72;
+const BASE_LOGIT = Math.log(BASE_RATE / (1 - BASE_RATE));
 
 const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
@@ -69,16 +82,24 @@ export function bandFor(risk: number): ShieldBand {
 
 export function deliveryChance(input: ChanceInput): DeliveryChance {
     const reasons: ChanceReason[] = [];
+    const steps: ChanceStep[] = [];
+    const base = Math.round(BASE_RATE * 100);
+    let logit = BASE_LOGIT;
     const push = (key: string, delta: number) => {
-        reasons.push({ key, effect: delta < 0 ? "risk" : "good" });
+        const effect = delta < 0 ? "risk" : "good";
+        reasons.push({ key, effect });
+        steps.push({ key, effect, from: Math.round(sigmoid(logit) * 100), to: Math.round(sigmoid(logit + delta) * 100) });
         return delta;
     };
 
     if (!isValidIraqiMobile(input.phone)) {
-        return { chance: 5, risk: 95, band: "red", reasons: [{ key: "invalidPhone", effect: "risk" }] };
+        return {
+            chance: 5, base, risk: 95, band: "red",
+            reasons: [{ key: "invalidPhone", effect: "risk" }],
+            steps: [{ key: "invalidPhone", effect: "risk", from: base, to: 5 }],
+        };
     }
 
-    let logit = BASE_LOGIT;
     const net = input.network;
     if (net && net.band !== "none") {
         if (net.band === "red") logit += push("networkRed", -1.4);
@@ -121,5 +142,5 @@ export function deliveryChance(input: ChanceInput): DeliveryChance {
     const risk = 100 - chance;
     // Strongest risks first, then the good signals.
     reasons.sort((a, b) => (a.effect === b.effect ? 0 : a.effect === "risk" ? -1 : 1));
-    return { chance, risk, band: bandFor(risk), reasons };
+    return { chance, base, steps, risk, band: bandFor(risk), reasons };
 }
