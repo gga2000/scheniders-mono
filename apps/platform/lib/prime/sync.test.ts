@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { syncPrimeTenant } from "./sync";
+import { announcePrimeDeliveries, syncPrimeCases, syncPrimeTenant } from "./sync";
 import type { PrimeClient, PrimeShipmentInfo } from "./client";
 
 type Call = { table: string; op: "select" | "update" | "insert"; payload?: Record<string, unknown>; rows?: Record<string, unknown>[]; filters: [string, string, unknown][] };
@@ -124,23 +124,19 @@ describe("syncPrimeTenant", () => {
         expect(orderUpdate.payload).not.toHaveProperty("status");
     });
 
-    it("tells the store what Prime delivered, in one line per read", async () => {
+    it("marks what Prime delivered to be announced, and writes no line itself", async () => {
         const { db, calls } = fakeDb([row()]);
         await syncPrimeTenant(db, client([{ caseid: 52176640, shipmentStatus: "DELIVERED", stepCode: "DLEIVERD" }]), "t1", steps);
 
-        expect(noticesOf(calls)).toEqual([
-            expect.objectContaining({
-                tenant_id: "t1",
-                type: "prime.delivered",
-                category: "delivery",
-                audience: "tenant",
-                actor_name: "Prime",
-                entity_type: "order",
-                entity_id: "order-1",
-                entity_label: "#4261103016",
-                payload: { count: 1, city: "البصرة", customer: "مريم سعد" },
-            }),
-        ]);
+        expect(updatesOf(calls, "prime_shipments")[0].payload).toMatchObject({ shipment_status: "DELIVERED", delivery_unannounced: true });
+        expect(noticesOf(calls)).toEqual([]);
+    });
+
+    it("a parcel that only moved along the way is not marked to be announced", async () => {
+        const { db, calls } = fakeDb([row({ step_code: "READYTOPICKUP" })]);
+        await syncPrimeTenant(db, client([{ caseid: 52176640, shipmentStatus: "ONWAY", stepCode: "ONWAY" }]), "t1", steps);
+
+        expect(updatesOf(calls, "prime_shipments")[0].payload).not.toHaveProperty("delivery_unannounced");
     });
 
     it("a parcel coming back is its own notice, about its order", async () => {
@@ -272,5 +268,69 @@ describe("syncPrimeTenant", () => {
         expect(outcome.cancelsSettled).toBe(1);
         expect(prime.shipmentsInfo).not.toHaveBeenCalled();
         expect(updatesOf(calls, "orders")[0].payload).toEqual({ needs_attention: false, attention_reasons: [] });
+    });
+});
+
+describe("syncPrimeCases", () => {
+    it("reads only the cases Prime named, with the same open-orders rule", async () => {
+        const { db, calls } = fakeDb([row()]);
+        const read = client([{ caseid: 52176640, shipmentStatus: "DELIVERED", stepCode: "DLEIVERD" }]);
+        const counts = await syncPrimeCases(db, read, "t1", [52176640], steps);
+
+        expect(counts).toEqual({ checked: 1, delivered: 1, flagged: 0, conflicts: 0 });
+        expect(read.shipmentsInfo).toHaveBeenCalledWith([52176640]);
+        const [select] = calls.filter((c) => c.table === "prime_shipments" && c.op === "select");
+        expect(select.filters).toEqual(
+            expect.arrayContaining([["eq", "tenant_id", "t1"], ["in", "orders.status", ["confirmed", "in_transit"]], ["in", "case_id", [52176640]]]),
+        );
+    });
+
+    it("asks Prime nothing when no case is named", async () => {
+        const { db, calls } = fakeDb([row()]);
+        const read = client([]);
+        expect(await syncPrimeCases(db, read, "t1", [], steps)).toEqual({ checked: 0, delivered: 0, flagged: 0, conflicts: 0 });
+        expect(read.shipmentsInfo).not.toHaveBeenCalled();
+        expect(calls).toEqual([]);
+    });
+});
+
+describe("announcePrimeDeliveries", () => {
+    const waiting = (id: string, orderNumber: string, city: string | null) => ({
+        id,
+        orders: { id: `order-${id}`, order_id: orderNumber, customer_name: `Customer ${id}`, city },
+    });
+
+    it("writes one line for everything delivered since the last one, then clears it", async () => {
+        const { db, calls } = fakeDb([waiting("ps1", "4261103016", "البصرة"), waiting("ps2", "4261103017", "البصرة")]);
+        expect(await announcePrimeDeliveries(db, "t1", "batch-1")).toBe(2);
+
+        expect(noticesOf(calls)).toEqual([
+            expect.objectContaining({
+                tenant_id: "t1",
+                type: "prime.delivered",
+                entity_id: null,
+                payload: { count: 2, city: "البصرة", customer: null },
+                group_key: "prime.delivered:batch-1",
+            }),
+        ]);
+        const [clear] = updatesOf(calls, "prime_shipments");
+        expect(clear.payload).toEqual({ delivery_unannounced: false });
+        expect(clear.filters).toEqual(expect.arrayContaining([["eq", "tenant_id", "t1"], ["in", "id", ["ps1", "ps2"]]]));
+    });
+
+    it("names the order when only one was delivered", async () => {
+        const { db, calls } = fakeDb([waiting("ps1", "4261103016", "البصرة")]);
+        await announcePrimeDeliveries(db, "t1", "batch-2");
+
+        expect(noticesOf(calls)).toEqual([
+            expect.objectContaining({ entity_type: "order", entity_id: "order-ps1", entity_label: "#4261103016", payload: { count: 1, city: "البصرة", customer: "Customer ps1" } }),
+        ]);
+    });
+
+    it("writes nothing when nothing is waiting", async () => {
+        const { db, calls } = fakeDb([]);
+        expect(await announcePrimeDeliveries(db, "t1", "batch-3")).toBe(0);
+        expect(noticesOf(calls)).toEqual([]);
+        expect(updatesOf(calls, "prime_shipments")).toEqual([]);
     });
 });

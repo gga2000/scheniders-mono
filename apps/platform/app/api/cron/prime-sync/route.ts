@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import * as Sentry from "@sentry/nextjs";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireCronAuth } from "@/lib/cron-auth";
-import { getPrimeClient } from "@/lib/prime/client";
+import { env } from "@/lib/env";
+import { getPrimeClient, primeConfigFromEnv, type PrimeClient } from "@/lib/prime/client";
 import { pushPrimeChanges, type PrimePushOutcome } from "@/lib/prime/push";
-import { syncPrimeTenant, type PrimeSyncOutcome } from "@/lib/prime/sync";
+import { announcePrimeDeliveries, syncPrimeTenant, type PrimeSyncOutcome } from "@/lib/prime/sync";
+import { ensurePrimeWebhook } from "@/lib/prime/webhook";
 import { sendPrimeDaily, watchPrimePayments, type PrimePaymentsOutcome } from "@/lib/prime/money-watch";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +16,19 @@ export const maxDuration = 60;
 const STATUS_EVERY_MS = 15 * 60 * 1000;
 /** Slack for cron start jitter, so a 15-minute rhythm does not slip to 20. */
 const STATUS_JITTER_MS = 60 * 1000;
+/** Prime's webhook setting is checked this often per warm instance (one read; a save only when it differs). */
+const WEBHOOK_CHECK_EVERY_MS = 60 * 60 * 1000;
+let webhookCheckedAt = 0;
 
-type TenantResult = { push?: PrimePushOutcome; sync?: PrimeSyncOutcome; payments?: PrimePaymentsOutcome; daily?: boolean; error?: string };
+type TenantResult = {
+    push?: PrimePushOutcome;
+    sync?: PrimeSyncOutcome;
+    announced?: number;
+    payments?: PrimePaymentsOutcome;
+    daily?: boolean;
+    error?: string;
+};
+type WebhookResult = "unchanged" | "saved" | "not_production" | "not_due" | "failed";
 
 /**
  * GET /api/cron/prime-sync — every 5 minutes (vercel.json).
@@ -25,8 +38,11 @@ type TenantResult = { push?: PrimePushOutcome; sync?: PrimeSyncOutcome; payments
  * status of its open shipments and applies it (lib/prime/sync), so Prime
  * gets no more status reads than before. With the status read it also
  * looks for new Prime payments and, from 21:00 Baghdad, sends the evening
- * summary (lib/prime/money-watch). One tenant failing does not stop the
- * others; its error is kept on its prime_connections row.
+ * summary (lib/prime/money-watch). Every run announces what was delivered
+ * since the last run, through the read or Prime's webhook, as one line. On
+ * Production it also keeps Prime's webhook pointed at us (lib/prime/webhook),
+ * once a store's link is on. One tenant failing does not stop the others;
+ * its error is kept on its prime_connections row.
  */
 export async function GET(request: NextRequest) {
     const denied = requireCronAuth(request);
@@ -42,6 +58,7 @@ export async function GET(request: NextRequest) {
         .eq("is_active", true);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     if (connections.length === 0) return NextResponse.json({ success: true, tenants: 0 });
+    const webhook = await keepWebhook(client);
 
     // Step names only label the stored step; a failed read must not stop the delivery sync.
     let stepNames = new Map<string, string>();
@@ -83,6 +100,11 @@ export async function GET(request: NextRequest) {
                 errors.push(report(err, tenantId, "daily"));
             }
         }
+        try {
+            result.announced = await announcePrimeDeliveries(db, tenantId, new Date().toISOString());
+        } catch (err) {
+            errors.push(report(err, tenantId, "announce"));
+        }
         if (errors.length > 0) result.error = errors.join("; ");
         if (statusDue || result.error) {
             await stamp(db, tenantId, {
@@ -91,10 +113,30 @@ export async function GET(request: NextRequest) {
             });
         }
     }
-    return NextResponse.json({ success: true, tenants: connections.length, results });
+    return NextResponse.json({ success: true, tenants: connections.length, webhook, results });
 }
 
-function report(err: unknown, tenantId: string, step: "push" | "sync" | "payments" | "daily"): string {
+/**
+ * Points Prime's status webhook at this deployment's production domain. Only
+ * Production does it, so a preview or a laptop never takes Prime's calls
+ * away from the live app. A failure is reported and tried again next run;
+ * the 15-minute read keeps orders moving meanwhile.
+ */
+async function keepWebhook(client: PrimeClient): Promise<WebhookResult> {
+    const config = primeConfigFromEnv();
+    if (!config || env.VERCEL_ENV !== "production" || !env.VERCEL_PROJECT_PRODUCTION_URL) return "not_production";
+    if (Date.now() - webhookCheckedAt < WEBHOOK_CHECK_EVERY_MS) return "not_due";
+    try {
+        const outcome = await ensurePrimeWebhook(client, config, `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`);
+        webhookCheckedAt = Date.now();
+        return outcome;
+    } catch (err) {
+        Sentry.captureException(err, { extra: { job: "prime-sync", step: "webhook" } });
+        return "failed";
+    }
+}
+
+function report(err: unknown, tenantId: string, step: "push" | "sync" | "announce" | "payments" | "daily"): string {
     Sentry.captureException(err, { extra: { tenantId, job: "prime-sync", step } });
     return `${step}: ${err instanceof Error ? err.message : String(err)}`;
 }
