@@ -2,7 +2,9 @@
 // the order request itself (see lib/capi.ts). Must be called while the
 // request is in scope — before handing the send to `after()`.
 
+import { createHash } from "crypto";
 import { cookies, headers } from "next/headers";
+import { pixelVisitorExternalIdSource } from "@scheniders/shared";
 import { AD_ATTRIBUTION_COOKIE, deserializeAdAttribution } from "@scheniders/shared/ad-attribution";
 import type { CapiRequestContext } from "./capi";
 import { clientIp } from "./rate-limit";
@@ -16,7 +18,10 @@ export function fbcFromClickId(fbclid: string, nowMs: number): string {
   return `fb.1.${nowMs}.${fbclid}`;
 }
 
-export async function capiRequestContext(nowMs: number = Date.now()): Promise<CapiRequestContext> {
+export async function capiRequestContext(
+  tenantId: string,
+  nowMs: number = Date.now(),
+): Promise<CapiRequestContext> {
   const h = await headers();
   const c = await cookies();
   // The last ad click the storefront recorded (proxy, 30 days). It backs up
@@ -33,5 +38,15 @@ export async function capiRequestContext(nowMs: number = Date.now()): Promise<Ca
     fbc: fbcCookie ?? (click?.fbclid ? fbcFromClickId(click.fbclid, nowMs) : null),
     ttp: c.get("_ttp")?.value ?? null,
     ttclid: click?.ttclid ?? null,
+    visitorExternalId: await visitorExternalIdHash(tenantId),
   };
+}
+
+/** The hashed per-store visitor id the browser pixel sends as `external_id`. */
+export async function visitorExternalIdHash(tenantId: string): Promise<string | null> {
+  const visitorId = (await cookies()).get("sb_vid")?.value;
+  if (!visitorId) return null;
+  return createHash("sha256")
+    .update(pixelVisitorExternalIdSource(tenantId, visitorId))
+    .digest("hex");
 }

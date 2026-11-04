@@ -8,6 +8,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({ get: (k: string) => (jar.has(k) ? { value: jar.get(k) } : undefined) }),
 }));
 
+import { createHash } from "crypto";
 import { capiRequestContext } from "./capi-context";
 
 describe("capiRequestContext", () => {
@@ -17,7 +18,7 @@ describe("capiRequestContext", () => {
     jar.set("_fbp", "fb.1.1.2");
     jar.set("_fbc", "fb.1.1.IwAR");
     jar.set("_ttp", "ttp1");
-    const ctx = await capiRequestContext(1_700_000_000_000);
+    const ctx = await capiRequestContext("t1", 1_700_000_000_000);
     expect(ctx).toMatchObject({
       ip: "203.0.113.7",
       userAgent: "UA",
@@ -34,7 +35,7 @@ describe("capiRequestContext", () => {
       AD_ATTRIBUTION_COOKIE,
       serializeAdAttribution({ channel: "facebook", fbclid: "IwAR0abc", ttclid: "E.C.P.x" }),
     );
-    const ctx = await capiRequestContext(1_700_000_000_000);
+    const ctx = await capiRequestContext("t1", 1_700_000_000_000);
     expect(ctx.fbc).toBe("fb.1.1700000000000.IwAR0abc");
     expect(ctx.ttclid).toBe("E.C.P.x");
   });
@@ -42,6 +43,13 @@ describe("capiRequestContext", () => {
   it("keeps the pixel's own _fbc over the recorded click", async () => {
     jar.set("_fbc", "fb.1.5.own");
     jar.set(AD_ATTRIBUTION_COOKIE, serializeAdAttribution({ channel: "facebook", fbclid: "other" }));
-    expect((await capiRequestContext()).fbc).toBe("fb.1.5.own");
+    expect((await capiRequestContext("t1")).fbc).toBe("fb.1.5.own");
+  });
+
+  it("hashes the store-scoped visitor id, and sends none without the cookie", async () => {
+    expect((await capiRequestContext("t1")).visitorExternalId).toBeNull();
+    jar.set("sb_vid", "vid-1");
+    const want = createHash("sha256").update("t1:v:vid-1").digest("hex");
+    expect((await capiRequestContext("t1")).visitorExternalId).toBe(want);
   });
 });

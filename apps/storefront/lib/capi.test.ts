@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import {
+  buildMetaBrowseEvent,
   buildMetaPurchaseEvent,
   buildTikTokPurchaseEvents,
   sendPurchaseCapi,
@@ -49,6 +50,7 @@ describe("buildMetaPurchaseEvent", () => {
     expect(ud.fn).toEqual([sha("ali")]);
     expect(ud.ln).toEqual([sha("kareem")]);
     expect(ud.ct).toEqual([sha("baghdad")]);
+    expect(ud.st).toEqual([sha("baghdad")]);
     expect(ud.country).toEqual([sha("iq")]);
     expect(JSON.stringify(ud)).not.toContain("7701234567");
     const cd = ev.custom_data as Record<string, unknown>;
@@ -75,10 +77,19 @@ describe("buildMetaPurchaseEvent", () => {
       context: { ip: "unknown", fbp: "garbage", fbc: "" },
     }).data[0]!;
     const ud = ev.user_data as Record<string, unknown>;
-    for (const k of ["ph", "external_id", "ct", "fbp", "fbc", "client_ip_address", "fn"]) {
+    for (const k of ["ph", "external_id", "ct", "st", "fbp", "fbc", "client_ip_address", "fn"]) {
       expect(ud[k], k).toBeUndefined();
     }
     expect(ev.event_source_url).toBeUndefined();
+  });
+
+  it("sends the visitor's browser external id next to the phone one", () => {
+    const ev = buildMetaPurchaseEvent({
+      ...base,
+      context: { ...base.context, visitorExternalId: sha("vid") },
+    }).data[0]!;
+    const ud = ev.user_data as Record<string, unknown>;
+    expect(ud.external_id).toEqual([sha(`${TENANT}:9647701234567`), sha("vid")]);
   });
 
   it("includes test_event_code when configured", () => {
@@ -132,5 +143,45 @@ describe("sendPurchaseCapi", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
     await sendPurchaseCapi({ ...base, analytics: { meta_pixel_id: "123456789012345", tiktok_pixel_id: "D6K0A2BC77U5VG9U2BRG" } });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildMetaBrowseEvent", () => {
+  const browse = {
+    analytics: base.analytics,
+    tenantId: TENANT,
+    eventName: "ViewContent" as const,
+    eventId: "evt-view-1",
+    value: 5000,
+    contents: [{ id: "a", quantity: 1, item_price: 5000 }],
+    context: { ...base.context, visitorExternalId: sha("vid") },
+    eventTime: 1_700_000_000,
+  };
+
+  it("matches an anonymous shopper on browser facts, visitor id and country", () => {
+    const ev = buildMetaBrowseEvent(browse).data[0]!;
+    expect(ev).toMatchObject({
+      event_name: "ViewContent",
+      event_id: "evt-view-1",
+      action_source: "website",
+      event_source_url: "https://scheniders.example/products/x",
+    });
+    const ud = ev.user_data as Record<string, unknown>;
+    expect(ud).toEqual({
+      country: [sha("iq")],
+      external_id: [sha("vid")],
+      client_ip_address: "203.0.113.7",
+      client_user_agent: "Mozilla/5.0 (iPhone)",
+      fbp: "fb.1.1700000000000.123456789",
+      fbc: "fb.1.1700000000000.IwAR0abc",
+    });
+    const cd = ev.custom_data as Record<string, unknown>;
+    expect(cd).toMatchObject({ currency: "IQD", value: 5000, content_ids: ["a"], content_type: "product" });
+    expect(cd.num_items).toBeUndefined();
+  });
+
+  it("adds num_items on InitiateCheckout only", () => {
+    const ev = buildMetaBrowseEvent({ ...browse, eventName: "InitiateCheckout" }).data[0]!;
+    expect((ev.custom_data as Record<string, unknown>).num_items).toBe(1);
   });
 });

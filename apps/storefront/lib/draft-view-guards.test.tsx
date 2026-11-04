@@ -34,6 +34,7 @@ vi.mock("@/lib/capi", () => ({
 }));
 vi.mock("@/lib/capi-context", () => ({
   capiRequestContext: vi.fn(async () => ({})),
+  visitorExternalIdHash: vi.fn(async () => null),
 }));
 // The CAPI send runs after the response; run it inline so the count holds.
 vi.mock("next/server", async (orig) => ({

@@ -880,7 +880,7 @@ export async function submitCheckout(
         quantity: i.quantity,
         item_price: i.price,
       })),
-      context: await capiRequestContext(),
+      context: await capiRequestContext(payload.tenantId),
     };
     after(() => sendPurchaseCapi(capiInput));
   } else if (!draftView && (analytics?.meta_capi_token || analytics?.tiktok_capi_token)) {
