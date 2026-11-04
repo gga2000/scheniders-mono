@@ -23,6 +23,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { PERMISSIONS } from "@/lib/permissions";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { useRecordContact } from "@/hooks/use-record-contact";
+import { usePrimeEditReview } from "./use-prime-edit-review";
 
 export interface OrderDetailsModalProps {
     order: Order | null;
@@ -90,6 +91,8 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
         onUpdate,
         t
     });
+
+    const primeEdit = usePrimeEditReview({ order, formData, isEditing, handleSave });
 
     const {
         isEditingId,
@@ -326,6 +329,7 @@ export function useOrderDetailsModel(props: OrderDetailsModalProps) {
         handleEdit,
         handleCancel,
         handleSave,
+        primeEdit,
         displayValue,
         updateFormData,
         handleRemoveItem,

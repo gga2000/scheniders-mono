@@ -31,7 +31,7 @@ export function OrderDetailsModal(props: OrderDetailsModalProps) {
         );
     }
     const m: OrderDetailsView = { ...base, ...buildOrderDetailsActions(base, order), order };
-    const { open, onStatusUpdate, checkOrderIdExists, isMobile, t, PromptComponent, recordContact, isEditing, formData, handleEdit, updateFormData, handleRemoveItem, handleUpdateItemQuantity, handleAddItem, handleProductSelect, showProductPicker, setShowProductPicker, orderDateError, getBlacklistEntry, addToBlacklist, removeFromBlacklist, blacklistDialogOpen, setBlacklistDialogOpen, blacklistDialogMode, activeTab, isUpdatingStatus, showSplitDialog, setShowSplitDialog, handleSplitOrder, handleStatusChange, showCreateOrderModal, setShowCreateOrderModal, orderInitialData, setOrderInitialData, createOrder, ContentWrapper } = m;
+    const { open, onStatusUpdate, checkOrderIdExists, isMobile, t, PromptComponent, recordContact, isEditing, formData, handleEdit, updateFormData, handleRemoveItem, handleUpdateItemQuantity, handleAddItem, handleProductSelect, showProductPicker, setShowProductPicker, orderDateError, getBlacklistEntry, addToBlacklist, removeFromBlacklist, blacklistDialogOpen, setBlacklistDialogOpen, blacklistDialogMode, activeTab, isUpdatingStatus, showSplitDialog, setShowSplitDialog, handleSplitOrder, handleStatusChange, showCreateOrderModal, setShowCreateOrderModal, orderInitialData, setOrderInitialData, createOrder, ContentWrapper, primeEdit } = m;
 
     return (
         <>
@@ -60,7 +60,8 @@ export function OrderDetailsModal(props: OrderDetailsModalProps) {
                     )}
 
                     {/* Details Content (default) */}
-                    {activeTab === "details" && (
+                    {/* While an edit's Prime review is open it takes the body's place, above the footer */}
+                    {activeTab === "details" && !primeEdit.review && (
                         <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
 
                             {/* Customer Info Card - Compact & Organized */}

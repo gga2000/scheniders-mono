@@ -15,7 +15,8 @@ import {
  * Checked-in copy of `public.orders`' columns on the NEW project
  * (sduvpgqwhxragxtxztur), pulled 2026-10-12 (plus confirmation_dispatched_at,
  * 20261021130000, live 2026-10-22, and the abandoned_cart_* columns,
- * 20261027230000, live 2026-10-27) with:
+ * 20261027230000, live 2026-10-27, and prime_district, 20261104003155, live
+ * 2026-11-04) with:
  *
  *   select column_name from information_schema.columns
  *   where table_schema = 'public' and table_name = 'orders'
@@ -47,7 +48,7 @@ const ORDERS_TABLE_COLUMNS = new Set([
     "last_followup_type", "attribution", "ad_channel", "confirmation_dispatched_at",
     "abandoned_cart_at", "abandoned_cart_outcome", "abandoned_cart_resolved_at",
     "abandoned_cart_resolved_by_name", "abandoned_cart_order_id", "entered_by", "created_via", "take_kind", "taken_by",
-    "reviewed_at", "reviewed_by",
+    "reviewed_at", "reviewed_by", "prime_district",
 ]);
 
 /** Masked by `v_orders_with_risk` for non-admins; the table does not mask them. */

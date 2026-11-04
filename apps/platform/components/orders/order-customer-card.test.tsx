@@ -6,6 +6,9 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 import type { Order } from "@/types/order";
 import { OrderCustomerCard } from "./order-customer-card";
 
+// A store without the Prime link: the card's Prime area picker stays out.
+vi.mock("@/hooks/use-prime-link", () => ({ usePrimeConnection: () => ({ connected: false, branchName: null, checked: true }) }));
+
 afterEach(cleanup);
 
 // 12:00 Baghdad on 7 Sep 2026 — still 7 Sep on the local calendar of any
@@ -235,5 +238,17 @@ describe("OrderCustomerCard WhatsApp contact designation", () => {
         cleanup();
         renderView({ secondary_phone: "07811262261" });
         expect(screen.queryByText("تحديد رقم الواتساب")).toBeNull();
+    });
+});
+
+describe("OrderCustomerCard Prime area", () => {
+    it("shows the stored Prime area under the address", () => {
+        renderCard({ prime_district: { id: 344, name: "المنصور", state: "BGD" } });
+        expect(screen.getByText("منطقة برايم: المنصور")).toBeTruthy();
+    });
+
+    it("shows nothing for an order without one", () => {
+        renderCard();
+        expect(screen.queryByText(/منطقة برايم/)).toBeNull();
     });
 });

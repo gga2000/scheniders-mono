@@ -3,12 +3,10 @@ import type { Order } from "@/types/order";
 import { COURIER_SHEET_COLUMNS, type CourierSheetOrder } from "@/lib/shipping/courier-sheets";
 import { isPrimeUnreachable, PRIME_ERROR, PrimeApiError, type PrimeClient } from "@/lib/prime/client";
 import { buildPrimeShipment, primeShipmentHash, primeUpdateFields, type PrimeMerchant } from "@/lib/prime/shipment-payload";
-import { PRIME_CANCEL_BY_HAND, PRIME_EDIT_REFUSED, primeStatusAction, withAttention, withoutAttention } from "@/lib/prime/status-map";
+import { PRIME_CANCEL_BY_HAND, PRIME_EDIT_REFUSED, primeTakesEdits, withAttention, withoutAttention } from "@/lib/prime/status-map";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
-/** Orders Prime still delivers: the only ones whose edits it should get. */
-const OPEN_STATUSES = new Set<string>(["confirmed", "in_transit"]);
 /** Queue entries handled per tenant per run; the rest wait for the next run (5 minutes). */
 const PUSH_BATCH = 100;
 /** This many unreachable answers in a row and the rest of the queue waits for the next run. */
@@ -109,7 +107,7 @@ async function pushOne(db: ServiceDb, client: PrimeClient, tenantId: string, mer
     if (!row.push_needed_at) return "unchanged";
 
     // A closed order, or a parcel Prime has finished with (delivered, returned…), takes no edits.
-    if (closedByStaff || !OPEN_STATUSES.has(order.status) || primeStatusAction(row.shipment_status).kind !== "none") {
+    if (closedByStaff || !primeTakesEdits(order.status, row.shipment_status)) {
         await saveRow(db, row, { push_needed_at: null }, "push_needed_at");
         return "unchanged";
     }

@@ -6,6 +6,7 @@ import { toWholeIqd } from "@/lib/order-money";
 import { Package, Trash2, Truck, Pencil } from "lucide-react";
 import { DiscountPresetSelector } from "../discount-preset-selector";
 import type { CreateOrderModel } from "./use-create-order-model";
+import { PrimeFeeLine } from "./prime-fee-line";
 
 /** One section of CreateOrderModal. */
 export function CreateOrderProductsSection({ m }: { m: CreateOrderModel }) {
@@ -214,6 +215,8 @@ export function CreateOrderProductsSection({ m }: { m: CreateOrderModel }) {
                                     <span className="text-[11px] text-muted">IQD</span>
                                 </div>
                             </div>
+
+                            <PrimeFeeLine m={m} />
                         </div>
                     </div>
                 )}

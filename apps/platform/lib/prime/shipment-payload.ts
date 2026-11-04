@@ -11,6 +11,7 @@ import {
 } from "@/lib/shipping/courier-sheets";
 import { PRIME_LIMITS, type PrimeShipmentPayload, type PrimeShipmentUpdate } from "@/lib/prime/client";
 import { primePhone } from "@/lib/prime/phone";
+import { primeDistrictIdFor } from "@/lib/prime/district";
 
 /** The Prime merchant + shop a tenant ships as (prime_connections). */
 export interface PrimeMerchant {
@@ -82,6 +83,7 @@ export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerc
 
     const secondPhone = primePhone(order.secondary_phone);
     const numericId = numericCaseId(order.order_id);
+    const district = primeDistrictIdFor(order.prime_district, state);
     return {
         ok: true,
         payload: {
@@ -94,6 +96,7 @@ export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerc
             receiverHp1: phone,
             ...(secondPhone && secondPhone !== phone ? { receiverHp2: secondPhone } : {}),
             state,
+            ...(district ? { district } : {}),
             locationDetails: clip(primeAddress(order), PRIME_LIMITS.locationDetails),
             receiptAmtIqd: cod,
             ...(cod === 0 ? { undeclaredShipmentValue: goodsValue } : {}),
@@ -117,6 +120,7 @@ export function primeUpdateFields(payload: PrimeShipmentPayload): PrimeShipmentU
         receiverHp1: payload.receiverHp1,
         ...(payload.receiverHp2 ? { receiverHp2: payload.receiverHp2 } : {}),
         state: payload.state,
+        ...(payload.district ? { district: payload.district } : {}),
         locationDetails: payload.locationDetails,
         receiptAmtIqd: payload.receiptAmtIqd,
         ...(payload.undeclaredShipmentValue !== undefined ? { undeclaredShipmentValue: payload.undeclaredShipmentValue } : {}),

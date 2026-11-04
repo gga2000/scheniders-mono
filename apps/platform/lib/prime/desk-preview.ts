@@ -53,7 +53,7 @@ export async function previewPrimeRun(
         sentRes.data.filter((r) => r.cancelled_at == null).map((r) => [r.order_id as string, Number(r.case_id)]),
     );
 
-    const ready: { orderId: string; key: string; state: string; amount: number }[] = [];
+    const ready: { orderId: string; key: string; state: string; amount: number; district?: number }[] = [];
     const rows = new Map<string, PrimeDeskRow>();
     for (const order of ordersRes.data as unknown as DeskOrder[]) {
         const caseId = caseOf.get(order.id) ?? null;
@@ -65,8 +65,8 @@ export async function previewPrimeRun(
             );
             continue;
         }
-        const { state, receiptAmtIqd } = built.payload;
-        ready.push({ orderId: order.id, key: `${merchant.merchantLoginId}|${state}|${receiptAmtIqd}`, state, amount: receiptAmtIqd });
+        const { state, district, receiptAmtIqd } = built.payload;
+        ready.push({ orderId: order.id, key: primeFeeKey(merchant.merchantLoginId, state, receiptAmtIqd, district), state, amount: receiptAmtIqd, district });
     }
 
     const fees = await lookUpFees(client, merchant.merchantLoginId, ready);
@@ -76,26 +76,51 @@ export async function previewPrimeRun(
     return orderIds.flatMap((id) => rows.get(id) ?? []);
 }
 
+function primeFeeKey(merchantLoginId: string, state: string, amount: number, district?: number): string {
+    return `${merchantLoginId}|${state}|${district ?? 0}|${amount}`;
+}
+
+/**
+ * Prime's charge for one parcel of this amount to this state (and district),
+ * from the same six-hour cache the desk uses; null when Prime has no price
+ * for it. For the new-order form's live fee. Throws when Prime does not
+ * answer, so the form says so instead of showing no price.
+ */
+export async function primeFeeQuote(
+    client: PrimeClient,
+    merchantLoginId: string,
+    state: string,
+    amount: number,
+    district?: number,
+): Promise<number | null> {
+    const key = primeFeeKey(merchantLoginId, state, amount, district);
+    const cached = feeCache.get(key);
+    if (cached && Date.now() - cached.at < FEE_TTL_MS) return cached.fee;
+    const fee = await client.shipmentCharge(merchantLoginId, state, amount, district);
+    remember(key, fee);
+    return fee;
+}
+
 async function lookUpFees(
     client: PrimeClient,
     merchantLoginId: string,
-    wanted: { key: string; state: string; amount: number }[],
+    wanted: { key: string; state: string; amount: number; district?: number }[],
 ): Promise<Map<string, number | null>> {
     const now = Date.now();
     const fees = new Map<string, number | null>();
-    const missing = new Map<string, { state: string; amount: number }>();
+    const missing = new Map<string, { state: string; amount: number; district?: number }>();
     for (const w of wanted) {
         const cached = feeCache.get(w.key);
         if (cached && now - cached.at < FEE_TTL_MS) fees.set(w.key, cached.fee);
-        else missing.set(w.key, { state: w.state, amount: w.amount });
+        else missing.set(w.key, { state: w.state, amount: w.amount, district: w.district });
     }
 
     const queue = [...missing];
     for (let i = 0; i < queue.length; i += CONCURRENCY) {
         await Promise.all(
-            queue.slice(i, i + CONCURRENCY).map(async ([key, { state, amount }]) => {
+            queue.slice(i, i + CONCURRENCY).map(async ([key, { state, amount, district }]) => {
                 try {
-                    const fee = await client.shipmentCharge(merchantLoginId, state, amount);
+                    const fee = await client.shipmentCharge(merchantLoginId, state, amount, district);
                     fees.set(key, fee);
                     remember(key, fee);
                 } catch (err) {

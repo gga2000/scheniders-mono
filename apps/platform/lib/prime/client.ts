@@ -68,6 +68,8 @@ export interface PrimeShipmentPayload {
     receiverHp1: string;
     receiverHp2?: string;
     state: string;
+    /** Prime's district id within `state`, from /general/state-districts (Prime writes 0 when it is left out). */
+    district?: number;
     locationDetails: string;
     receiptAmtIqd: number;
     undeclaredShipmentValue?: number;
@@ -155,6 +157,8 @@ export type PrimeCaseMovement = z.infer<typeof historyRowSchema>;
 
 /** calculate-shipment-charges: a large object; only the charge is read. Null when Prime has no price for the state. */
 const chargeSchema = z.object({ shipmentCharge: z.number().nonnegative().nullish() });
+const districtSchema = z.object({ districtId: z.number().int().positive(), districtName: z.string() });
+export type PrimeStateDistrict = z.infer<typeof districtSchema>;
 
 /** One payment movement (merchant-payment-receipts): what Prime paid the merchant, and whether it was confirmed. */
 const paymentReceiptSchema = z.object({
@@ -233,7 +237,19 @@ const resendSchema = z.object({ success: z.literal(true), caseid: z.number().nul
  */
 export type PrimeShipmentUpdate = Pick<
     PrimeShipmentPayload,
-    "senderId" | "receiverName" | "receiverHp1" | "receiverHp2" | "state" | "locationDetails" | "receiptAmtIqd" | "undeclaredShipmentValue" | "qty" | "productInfo" | "rmk" | "haveReturnItems"
+    | "senderId"
+    | "receiverName"
+    | "receiverHp1"
+    | "receiverHp2"
+    | "state"
+    | "district"
+    | "locationDetails"
+    | "receiptAmtIqd"
+    | "undeclaredShipmentValue"
+    | "qty"
+    | "productInfo"
+    | "rmk"
+    | "haveReturnItems"
 >;
 
 /** A column a resend request may change (update-case-status allowlist), with its new value. */
@@ -457,9 +473,15 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
          * this state, in whole IQD, or null when Prime has no price for it (it
          * answers 200 with a null charge for a state it does not serve).
          */
-        async shipmentCharge(merchantLoginId: string, state: string, receiptAmtIqd: number): Promise<number | null> {
-            const answer = await call("POST", "/external/calculate-shipment-charges", { merchantLoginId, state, receiptAmtIqd }, chargeSchema);
+        async shipmentCharge(merchantLoginId: string, state: string, receiptAmtIqd: number, district?: number): Promise<number | null> {
+            const body = { merchantLoginId, state, receiptAmtIqd, ...(district ? { district } : {}) };
+            const answer = await call("POST", "/external/calculate-shipment-charges", body, chargeSchema);
             return answer.shipmentCharge ?? null;
+        },
+
+        /** Prime's districts of one state, in Arabic (parent districts only). An unknown state answers an empty list. */
+        async stateDistricts(state: string): Promise<PrimeStateDistrict[]> {
+            return call("GET", `/general/state-districts/${encodeURIComponent(state)}`, undefined, z.array(districtSchema));
         },
 
         /** The merchant's payment movements, newest first as Prime lists them; `start` rows skipped, `count` returned. */

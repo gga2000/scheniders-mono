@@ -11,10 +11,12 @@ import { User, Phone, MapPin, Banknote, CreditCard, Clock, Ban } from "lucide-re
 import { OrderCustomerRiskPanel } from "../order-customer-risk-panel";
 import { GovernorateOptions } from "../governorate-options";
 import type { CreateOrderModel } from "./use-create-order-model";
+import { PrimeDistrictField } from "../prime-district-field";
+import { PrimePhoneHint } from "./prime-phone-hint";
 
 /** One section of CreateOrderModal. */
 export function CreateOrderCustomerSection({ m }: { m: CreateOrderModel }) {
-    const { getBlacklistEntry, t, orderType, formData, errors, updateField, phoneInput, secondaryPhoneInput } = m;
+    const { getBlacklistEntry, t, orderType, formData, errors, updateField, setPrimeDistrict, phoneInput, secondaryPhoneInput } = m;
     return (
         <>
             {/* Customer Information — Card */}
@@ -66,7 +68,7 @@ export function CreateOrderCustomerSection({ m }: { m: CreateOrderModel }) {
                                 )}
                                 data-error={!!errors.phone}
                             />
-                            {errors.phone && <p className="field-error-text">{errors.phone}</p>}
+                            {errors.phone ? <p className="field-error-text">{errors.phone}</p> : <PrimePhoneHint phone={formData.phone} delivery={orderType === "delivery"} />}
                             {/* Blacklist warning */}
                             {(() => {
                                 const normalizedPhone = normalizeIraqiPhone(formData.phone);
@@ -157,6 +159,15 @@ export function CreateOrderCustomerSection({ m }: { m: CreateOrderModel }) {
                             />
                             {errors.address_details && <p className="field-error-text">{errors.address_details}</p>}
                         </div>
+                    )}
+
+                    {orderType === "delivery" && (
+                        <PrimeDistrictField
+                            city={formData.city ?? ""}
+                            address={formData.address_details ?? ""}
+                            value={formData.prime_district}
+                            onChange={setPrimeDistrict}
+                        />
                     )}
 
                     {/* Payment Status + Delivery Slot Row */}

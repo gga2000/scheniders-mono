@@ -4,10 +4,11 @@ import { DialogFooter } from "@scheniders/ui/dialog";
 import { cn } from "@/lib/utils";
 import { MessageCircle, Save, X, Trash2, AlertTriangle, Scissors, Send } from "lucide-react";
 import type { OrderDetailsView } from "./use-order-details-model";
+import { PrimeEditReview } from "./prime-edit-review";
 
 /** One section of OrderDetailsModal. */
 export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
-    const { onClose, onDelete, order, isSendingTemplate, t, isEditing, isSaving, handleCancel, handleSave, showDeleteConfirm, deleteCountdown, isDeleting, handleDeleteClick, handleDeleteConfirm, handleCancelDelete, setShowSplitDialog, handleWhatsApp, handleSendTemplate } = m;
+    const { onClose, onDelete, order, isSendingTemplate, t, isEditing, isSaving, handleCancel, primeEdit, formData, showDeleteConfirm, deleteCountdown, isDeleting, handleDeleteClick, handleDeleteConfirm, handleCancelDelete, setShowSplitDialog, handleWhatsApp, handleSendTemplate } = m;
     return (
         <>
             <DialogFooter>
@@ -50,8 +51,20 @@ export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
                         </div>
                     )}
 
+                    {/* Saving an edit Prime will get: what changes at Prime first */}
+                    {!showDeleteConfirm && primeEdit.review && primeEdit.view && (
+                        <PrimeEditReview
+                            review={primeEdit.review}
+                            view={primeEdit.view}
+                            city={(formData.city ?? order.city ?? "") as string}
+                            isSaving={isSaving}
+                            onSave={primeEdit.confirm}
+                            onBack={primeEdit.back}
+                        />
+                    )}
+
                     {/* Normal Footer Buttons */}
-                    {!showDeleteConfirm && (
+                    {!showDeleteConfirm && !primeEdit.review && (
                         <div className="flex gap-2 w-full">
                             {isEditing ? (
                                 <>
@@ -64,7 +77,7 @@ export function OrderDetailsFooterSection({ m }: { m: OrderDetailsView }) {
                                         {t("orderDetail.cancel")}
                                     </button>
                                     <button
-                                        onClick={handleSave}
+                                        onClick={primeEdit.requestSave}
                                         disabled={isSaving}
                                         className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[var(--button-success)] text-white hover:bg-[var(--button-success-hover)] transition-all font-semibold shadow-md shadow-green-500/20 disabled:opacity-50 ml-auto"
                                     >

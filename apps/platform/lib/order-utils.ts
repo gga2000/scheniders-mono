@@ -1,5 +1,6 @@
 import type { OrderItem } from "./supabase";
 import type { DeliverySlot } from "./orders/delivery-slot";
+import type { Order } from "@/types/order";
 
 /**
  * Generate a unique order ID in the format LF-XXX-YYYY
@@ -281,6 +282,8 @@ export interface OrderFormData {
     delivery_slot?: DeliverySlot;
     is_gift?: boolean;
     payment_status?: 'cod' | 'prepaid' | 'partial';
+    /** The Prime district picked under the governorate (Prime-linked stores only). */
+    prime_district?: Order["prime_district"];
 }
 
 /**
