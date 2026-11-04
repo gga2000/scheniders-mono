@@ -47,6 +47,19 @@ export function primeStatusAction(status: string | null | undefined): PrimeOrder
     }
 }
 
+/** Order statuses Prime still delivers: the only ones whose edits go to Prime. */
+const EDITABLE_ORDER_STATUSES: ReadonlySet<string> = new Set(["confirmed", "in_transit"]);
+
+/**
+ * Whether staff edits of an order still reach its Prime parcel: the order is
+ * open (confirmed or in transit) and Prime has not finished with the parcel
+ * (delivered, coming back, cancelled). The edit queue and the edit review
+ * read the same rule.
+ */
+export function primeTakesEdits(orderStatus: string, shipmentStatus: string | null | undefined): boolean {
+    return EDITABLE_ORDER_STATUSES.has(orderStatus) && primeStatusAction(shipmentStatus).kind === "none";
+}
+
 /**
  * The order's attention reasons after a Prime flag: the new reason replaces
  * any earlier Prime reason and keeps everyone else's.

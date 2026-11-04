@@ -46,6 +46,7 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
             payment_status: order.payment_status || "cod",
             delivery_slot: order.delivery_slot || undefined,
             is_gift: order.is_gift ?? false,
+            prime_district: order.prime_district ?? null,
             delivery_order_id: order.delivery_order_id || "",
             items: order.items ? [...order.items] : [],
             created_at: order.created_at,
@@ -153,7 +154,8 @@ export function useOrderDetailsForm({ order, setOrder, onUpdate, t }: UseOrderDe
 
     const updateFormData = (key: string, value: unknown) => {
         if (key === "created_at") setOrderDateError(null);
-        setFormData((prev) => ({ ...prev, [key]: value }));
+        // A Prime area belongs to one governorate: changing it drops the pick.
+        setFormData((prev) => ({ ...prev, [key]: value, ...(key === "city" && value !== prev.city ? { prime_district: null } : {}) }));
     };
 
     const handleRemoveItem = (indexToRemove: number) => {

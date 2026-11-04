@@ -1,36 +1,45 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Check, Search } from "lucide-react";
 import { matchesAllTokens, searchTokens } from "@scheniders/shared";
 import { Label } from "@scheniders/ui/label";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { usePrimeDistricts } from "@/hooks/use-prime-new-order";
-import { primeDistrictsInAddress, readPrimeDistrict } from "@/lib/prime/district";
+import { primeDistrictsInAddress, readPrimeDistrict, type PrimeDistrict } from "@/lib/prime/district";
 import { cn } from "@/lib/utils";
-import type { CreateOrderModel } from "./use-create-order-model";
 
 /**
- * The new-order form's Prime area: Prime's districts of the chosen governorate
- * to search and pick from, with the ones named in the typed address offered
- * first. Optional; the pick goes with the parcel to Prime. Shown only for a
- * Prime-linked store's delivery orders, once a governorate is chosen, and
- * only where Prime lists districts for it.
+ * A Prime area under an order's governorate (new-order form and order edit):
+ * Prime's districts of that governorate to search and pick from, with the
+ * ones named in the address offered first. Optional; the pick goes with the
+ * parcel to Prime. Shown only for a Prime-linked store, once a governorate
+ * is chosen, and only where Prime lists districts for it.
  */
-export function PrimeDistrictField({ m }: { m: CreateOrderModel }) {
+export function PrimeDistrictField(props: PrimeDistrictFieldProps) {
     const { connected } = usePrimeConnection();
-    if (!connected || m.orderType !== "delivery" || !m.formData.city) return null;
-    return <PrimeDistrictPicker m={m} city={m.formData.city} />;
+    if (!connected || !props.city) return null;
+    return <PrimeDistrictPicker {...props} />;
 }
 
-function PrimeDistrictPicker({ m, city }: { m: CreateOrderModel; city: string }) {
+interface PrimeDistrictFieldProps {
+    /** The order's governorate (orders.city). */
+    city: string;
+    address: string;
+    /** The stored orders.prime_district. */
+    value: unknown;
+    onChange: (district: PrimeDistrict | null) => void;
+    className?: string;
+}
+
+function PrimeDistrictPicker({ city, address, value, onChange, className }: PrimeDistrictFieldProps) {
     const { t } = useLanguage();
     const dir = useTextDir();
-    const { formData, setPrimeDistrict } = m;
     const districts = usePrimeDistricts(city, true);
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
+    const listId = useId();
 
     const answer = districts.data?.connected ? districts.data : null;
     const list = useMemo(() => answer?.districts ?? [], [answer]);
@@ -39,23 +48,23 @@ function PrimeDistrictPicker({ m, city }: { m: CreateOrderModel; city: string })
         const tokens = searchTokens(query);
         return list.filter((d) => matchesAllTokens(d.name, tokens));
     }, [list, query]);
-    const fromAddress = useMemo(() => primeDistrictsInAddress(formData.address_details ?? "", list), [formData.address_details, list]);
+    const fromAddress = useMemo(() => primeDistrictsInAddress(address, list), [address, list]);
 
     // Prime lists no districts for this governorate (or the store is not linked after all).
     if (districts.data && (!answer || !answer.state || list.length === 0)) return null;
 
     const state = answer?.state ?? null;
-    const stored = readPrimeDistrict(formData.prime_district);
+    const stored = readPrimeDistrict(value);
     const picked = stored && stored.state === state ? stored : null;
     const pick = (d: { id: number; name: string }) => {
         if (!state) return;
-        setPrimeDistrict({ id: d.id, name: d.name, state });
+        onChange({ id: d.id, name: d.name, state });
         setQuery("");
         setOpen(false);
     };
 
     return (
-        <div className="space-y-1.5 md:col-span-2" data-prime-district>
+        <div className={cn("space-y-1.5", className)} data-prime-district>
             <Label className="flex items-center gap-1.5 text-[11px] text-muted">
                 <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded bg-[#315EA8]">
                     <span className="h-1.5 w-3 bg-white [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat]" />
@@ -74,7 +83,7 @@ function PrimeDistrictPicker({ m, city }: { m: CreateOrderModel; city: string })
                     </span>
                     <button
                         type="button"
-                        onClick={() => setPrimeDistrict(null)}
+                        onClick={() => onChange(null)}
                         className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold text-[#315EA8] hover:bg-white dark:text-sky-300 dark:hover:bg-white/10"
                     >
                         {t("orders.prime.newOrder.change")}
@@ -118,12 +127,12 @@ function PrimeDistrictPicker({ m, city }: { m: CreateOrderModel; city: string })
                             dir={dir}
                             role="combobox"
                             aria-expanded={open}
-                            aria-controls="prime-district-options"
+                            aria-controls={listId}
                             className="h-9 w-full rounded-lg border border-[var(--card-border)] bg-[var(--background)] pl-8 pr-3 text-left text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--card-border)]"
                         />
                         {open && (
                             <ul
-                                id="prime-district-options"
+                                id={listId}
                                 role="listbox"
                                 className="absolute inset-x-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-[var(--card-border)] bg-white py-1 shadow-lg dark:bg-[#1E1E1E]"
                             >

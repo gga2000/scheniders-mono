@@ -1,10 +1,12 @@
 "use client";
 
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
 import { formatPhoneGrouped, validatePhoneDetailed } from "@/lib/order-utils";
 import { useGroupedPhoneInput } from "@/hooks/use-grouped-phone-input";
 import { GovernorateOptions } from "./governorate-options";
+import { PrimeDistrictField } from "./prime-district-field";
+import { readPrimeDistrict } from "@/lib/prime/district";
 import { extractGovernorate, getAllGovernorateCodes } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
 import { Banknote, Calendar, CalendarClock, Clock, Globe, MapPin, MessageCircle, Phone, Truck, User, CheckCircle, XCircle, X, ArrowUpDown, BadgeCheck } from "lucide-react";
@@ -103,7 +105,9 @@ export function OrderCustomerCard({
     onContactRecorded,
 }: OrderCustomerCardProps) {
     const { t, language } = useLanguage();
+    const dir = useTextDir();
     const governorates = getAllGovernorateCodes();
+    const storedArea = readPrimeDistrict(order.prime_district);
 
     // Postponing is `scheduled_date`, never a forward-dated `created_at` — the
     // database rejects that (trg_orders_created_at_not_future).
@@ -315,6 +319,27 @@ export function OrderCustomerCard({
                         </p>
                     )}
                 </div>
+
+                {/* Prime area: picked while editing; its name stays readable otherwise */}
+                {isEditing ? (
+                    <PrimeDistrictField
+                        city={(displayValue("city") || "") as string}
+                        address={(displayValue("address_details") || "") as string}
+                        value={displayValue("prime_district")}
+                        onChange={(district) => updateFormData("prime_district", district)}
+                    />
+                ) : (
+                    storedArea && (
+                        <p className="flex items-center gap-1.5 text-xs text-muted">
+                            <span aria-hidden="true" className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-[#315EA8]">
+                                <span className="h-1.5 w-3 bg-white [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat]" />
+                            </span>
+                            <span dir={dir} className="text-left">
+                                {t("orders.prime.newOrder.areaLine", { area: storedArea.name })}
+                            </span>
+                        </p>
+                    )
+                )}
 
                 {/* Row 3: Phone Numbers */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
