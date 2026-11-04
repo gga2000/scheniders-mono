@@ -9399,6 +9399,23 @@ export type Database = {
         Returns: boolean
       }
       send_notification_digests: { Args: { p_mode: string }; Returns: number }
+      shield_lookup: {
+        Args: { p_phones: string[] }
+        Returns: {
+          bad: Json
+          band: string
+          confidence: string
+          delivered: number
+          delivered_stores: number
+          last_bad_orders_ago: number
+          outcomes: number
+          phone: string
+          score: number
+          sequence: string[]
+          stores: number
+          trend: string
+        }[]
+      }
       set_team_member_active: {
         Args: { p_is_active: boolean; p_user_id: string }
         Returns: undefined

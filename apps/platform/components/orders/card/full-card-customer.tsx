@@ -2,6 +2,7 @@
 
 import { AbandonedCartBadge } from "@/components/orders/abandoned-cart-badge";
 import { RiskBadge } from "@/components/orders/risk-badge";
+import { OrderShield } from "@/components/orders/shield/order-shield";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
 import { getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -58,6 +59,8 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                             <AlertTriangle className="w-3 h-3" />
                         </span>
                     )}
+
+                    <OrderShield order={order} riskAssessment={riskAssessment} />
                 </motion.div>
 
                 {/* Order ID with Return indicator + Sequence Tag */}
