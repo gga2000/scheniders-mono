@@ -121,6 +121,8 @@ export const ORDER_READ_COLUMNS = `
   abandoned_cart_order_id,
   entered_by,
   created_via,
+  take_kind,
+  taken_by,
   prime_district
 `;
 
@@ -233,6 +235,8 @@ export const LIST_COLUMNS = `
   abandoned_cart_order_id,
   entered_by,
   created_via,
+  take_kind,
+  taken_by,
   delivery_slot,
   is_gift,
   prime_district,

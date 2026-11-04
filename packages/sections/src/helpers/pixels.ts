@@ -94,10 +94,27 @@ const FUNNEL_OF: Partial<Record<PixelEvent, FunnelEventType>> = {
   // Purchase is recorded by the checkout server with its own total.
 };
 
+/* ── Server copies (Meta Conversions API) ───────────────────────────── */
+
+/** A funnel event the storefront also sends from its server, same event id. */
+export interface ServerPixelEvent {
+  event: Exclude<PixelEvent, "Purchase">;
+  eventId: string;
+  data: PixelEventData;
+}
+
+// Installed by the storefront's pixel layer only where the Meta pixel runs;
+// sections stay app-agnostic. Purchase is not forwarded: the checkout server
+// sends its own, with the buyer's details and the server-checked total.
+let serverEventSink: ((e: ServerPixelEvent) => void) | null = null;
+export function setServerEventSink(sink: ((e: ServerPixelEvent) => void) | null): void {
+  serverEventSink = sink;
+}
+
 export function trackPixel(
   event: PixelEvent,
   data: PixelEventData,
-  eventId?: string,
+  givenEventId?: string,
 ): void {
   if (typeof window === "undefined") return;
 
@@ -107,6 +124,13 @@ export function trackPixel(
   }
 
   const fbq = getFbq();
+  // A funnel event with a server copy needs an id both copies share, so
+  // Meta counts it once.
+  const eventId =
+    givenEventId ?? (fbq && serverEventSink && event !== "Purchase" ? newPixelEventId() : undefined);
+  if (fbq && serverEventSink && event !== "Purchase" && eventId) {
+    serverEventSink({ event, eventId, data });
+  }
   if (fbq) {
     fbq(
       "track",

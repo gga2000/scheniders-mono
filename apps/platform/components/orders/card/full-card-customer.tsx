@@ -14,6 +14,7 @@ import { StuckTransitBadge } from "./stuck-transit-badge";
 import { PrimeChip } from "./prime-chip";
 import { DeliverySlotChip } from "./delivery-slot-chip";
 import { GiftChip } from "./gift-chip";
+import { TakeChip } from "./take-chip";
 import { PaymentCheckButton } from "./payment-check-button";
 import { EnteredByMark } from "./entered-by-mark";
 import { ClaudeChip } from "./claude-chip";
@@ -234,6 +235,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
 
                         <DeliverySlotChip slot={order.delivery_slot} />
                         <GiftChip isGift={order.is_gift} />
+                        <TakeChip kind={order.take_kind} />
                     </div>
                 )}
 

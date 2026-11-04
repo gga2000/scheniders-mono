@@ -17,6 +17,7 @@ import { resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { CartHydrator } from "@/components/cart-hydrator";
 import { HtmlLang } from "@/components/html-lang";
 import { SchneidersAnalyticsPixels } from "@/components/schneiders/analytics-pixels";
+import { visitorExternalIdHash } from "@/lib/capi-context";
 import { SchneidersNewsletterPopup } from "@/components/schneiders/newsletter-popup";
 import type { Tenant } from "@/lib/types";
 
@@ -209,6 +210,9 @@ export default async function TenantLayout({ params, children }: Props) {
     ["--schn-accent-secondary" as string]: accentSecondary,
   };
 
+  // The pixel's per-visitor external id; the order's server event sends it too.
+  const visitorExternalId = tenant.is_draft_view ? null : await visitorExternalIdHash(tenant.id);
+
   return (
     <StoreBaseProvider base={storeBase}>
       <CartHydrator />
@@ -240,6 +244,8 @@ export default async function TenantLayout({ params, children }: Props) {
               | Record<string, string | undefined>
               | undefined) ?? {}),
           }}
+          tenantId={tenant.id}
+          visitorExternalId={visitorExternalId}
         />
       )}
       <div

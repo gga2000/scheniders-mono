@@ -5,6 +5,13 @@ import {
   serializeAdAttribution,
 } from "@scheniders/shared/ad-attribution";
 import { extractSlug, storefrontRootDomain } from "@/lib/store-host";
+import {
+  FBC_COOKIE,
+  FBP_COOKIE,
+  META_COOKIE_MAX_AGE,
+  metaCookieUpdates,
+  randomFbpId,
+} from "@/lib/meta-cookies";
 
 const VISITOR_COOKIE = "sb_vid";
 /** 1 year in seconds */
@@ -115,6 +122,30 @@ function recordAdAttributionCookie(
   });
 }
 
+/**
+ * Meta's `_fbc` / `_fbp` as first-party server cookies (see lib/meta-cookies).
+ * Written onto the request too, so this same render and a checkout in it
+ * already see them.
+ */
+function ensureMetaCookies(request: NextRequest, response: NextResponse): void {
+  const updates = metaCookieUpdates({
+    fbclid: request.nextUrl.searchParams.get("fbclid"),
+    fbc: request.cookies.get(FBC_COOKIE)?.value,
+    fbp: request.cookies.get(FBP_COOKIE)?.value,
+    nowMs: Date.now(),
+    random: randomFbpId(),
+  });
+  for (const { name, value } of updates) {
+    response.cookies.set(name, value, {
+      maxAge: META_COOKIE_MAX_AGE,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+    request.cookies.set(name, value);
+  }
+}
+
 const ROOT_DOMAIN = storefrontRootDomain();
 
 /**
@@ -171,6 +202,7 @@ export function proxy(request: NextRequest) {
         ensureFirstSeenCookie(request, response);
         ensureTrafficSourceCookie(request, response);
         recordAdAttributionCookie(request, response);
+        ensureMetaCookies(request, response);
         return response;
       }
     }
@@ -189,6 +221,7 @@ export function proxy(request: NextRequest) {
   ensureFirstSeenCookie(request, response);
   ensureTrafficSourceCookie(request, response);
   recordAdAttributionCookie(request, response);
+  ensureMetaCookies(request, response);
   return response;
 }
 

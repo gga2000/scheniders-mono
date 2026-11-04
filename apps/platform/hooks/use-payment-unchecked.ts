@@ -17,6 +17,7 @@ async function fetchPaymentUnchecked(tenantId: string): Promise<readonly string[
         .eq("tenant_id", tenantId)
         .in("status", [...PAYMENT_CHECK_STATUSES])
         .eq("is_reviewed", false)
+        .is("take_kind", null)
         .is("deleted_at", null)
         .eq("is_archived", false)
         .or(`delivered_at.gte.${since},and(delivered_at.is.null,updated_at.gte.${since})`)

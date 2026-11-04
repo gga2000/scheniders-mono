@@ -48,6 +48,14 @@ export function filterOrders(rows: readonly Order[], f: OrderFilters): Order[] {
             }
         }
 
+        // Stock taken in person is not a sale: it shows only under its own
+        // filter, and no chip or count includes it.
+        if (orderType === "take") {
+            if (!order.take_kind) return false;
+        } else if (order.take_kind) {
+            return false;
+        }
+
         // Order-type sub-filter (refund / replacement / from a cart) — narrows the
         // Confirmed & All tabs to return or replacement orders.
         if (orderType === "refund") {
