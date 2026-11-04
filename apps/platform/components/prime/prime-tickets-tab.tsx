@@ -36,11 +36,14 @@ function useExplain() {
  */
 export function PrimeTicketsTab({
     tickets,
+    linkedTicket = null,
     newFor,
     onNew,
     onNewDone,
 }: {
     tickets: TicketsQuery;
+    /** The ticket a notice linked to (a reply from Prime): opened first, under its open or closed list. */
+    linkedTicket?: number | null;
     /** A new ticket on this order's parcel, its first message drafted when it comes from a payment's difference. */
     newFor: { orderId: string; order: PrimeBoardOrder | null; draft?: string; label?: string } | null;
     /** Starts a new ticket on the order found by its number. */
@@ -51,9 +54,11 @@ export function PrimeTicketsTab({
     const dir = useTextDir();
     const list = tickets.data?.connected ? tickets.data.tickets : [];
     const subjects = tickets.data?.connected ? tickets.data.subjects : [];
-    const [filter, setFilter] = useState<TicketFilter>("open");
+    const linkedClosed = linkedTicket !== null && list.some((ticket) => ticket.ticketId === linkedTicket && !ticket.open);
+    const [filterPick, setFilter] = useState<TicketFilter | null>(null);
+    const filter: TicketFilter = filterPick ?? (linkedClosed ? "closed" : "open");
     const [finding, setFinding] = useState(false);
-    const [selected, setSelected] = useState<number | null>(null);
+    const [selected, setSelected] = useState<number | null>(linkedTicket);
     const shown = list.filter((ticket) => ticket.open === (filter === "open"));
     const current = newFor ? null : (shown.find((ticket) => ticket.ticketId === selected) ?? shown[0] ?? null);
     const counts = { open: list.filter((ticket) => ticket.open).length, closed: list.filter((ticket) => !ticket.open).length };

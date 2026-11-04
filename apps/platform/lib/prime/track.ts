@@ -167,3 +167,23 @@ export function primeHistoryTime(value: string): string | null {
     const at = Date.parse(`${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${minute}:${second}+03:00`);
     return Number.isFinite(at) ? new Date(at).toISOString() : null;
 }
+
+/** What Prime said about the parcel's current state, from its webhook: why it is coming back or held, and for a postponed one the day it was put off to. */
+export interface PrimeReasonNote {
+    reason: string | null;
+    until: string | null;
+}
+
+/** Prime's own reason for the state the parcel is in now; null when Prime said nothing that fits it. */
+export function primeReasonNote(view: PrimeShipmentView): PrimeReasonNote | null {
+    const { state } = primeTrack(view);
+    if (state === "returning" || state === "needs_you") {
+        const reason = view.returnReason ?? view.postponeReason;
+        return reason ? { reason, until: null } : null;
+    }
+    if (state === "postponed") {
+        const until = view.postponedTo ? (/^\d{4}-\d{2}-\d{2}/.exec(view.postponedTo)?.[0] ?? view.postponedTo) : null;
+        return view.postponeReason || until ? { reason: view.postponeReason, until } : null;
+    }
+    return null;
+}

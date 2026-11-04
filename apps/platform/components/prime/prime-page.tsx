@@ -38,8 +38,15 @@ export function PrimePage() {
     // The home page's Prime cards and the Prime notifications link straight to a list or a tab.
     const params = useSearchParams();
     const linkedList = readPrimeBoardList(params.get("list"));
+    const linkedTicket = Number(params.get("ticket")) || null;
     const linkedTab = PRIME_TABS.find((id) => id === params.get("tab") && (id !== "statements" || admin)) ?? "now";
     const [tab, setTab] = useState<PrimeTab>(linkedTab);
+    // A notice clicked while the page is open (a reply from Prime, say) moves it to the linked tab.
+    const [seenLink, setSeenLink] = useState(params.toString());
+    if (seenLink !== params.toString()) {
+        setSeenLink(params.toString());
+        setTab(linkedTab);
+    }
     const [list, setList] = useState<PrimeBoardList>(linkedList ?? "needs");
     const [statementId, setStatementId] = useState<number | null>(null);
     const [ticketFor, setTicketFor] = useState<{ orderId: string; draft?: string; label?: string } | null>(null);
@@ -138,7 +145,9 @@ export function PrimePage() {
                 {tab === "returns" && <PrimeReturnsTab />}
                 {tab === "tickets" && (
                     <PrimeTicketsTab
+                        key={linkedTicket ?? "tickets"}
                         tickets={tickets}
+                        linkedTicket={linkedTicket}
                         newFor={ticketFor ? { ...ticketFor, order: data?.orders.get(ticketFor.orderId) ?? null } : null}
                         onNew={(orderId, label) => setTicketFor({ orderId, label })}
                         onNewDone={() => setTicketFor(null)}

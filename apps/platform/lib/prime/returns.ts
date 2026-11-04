@@ -10,7 +10,7 @@ export interface PrimeReturnsGroup {
     resent: boolean;
     /** The order's governorate code (BGD, BAS…), or null when it has none. */
     governorate: string | null;
-    /** The reason the store's team recorded when it rejected the order; null when none. */
+    /** The reason the store's team recorded when it rejected the order, else Prime's return reason; null when neither. */
     reason: string | null;
     /** Baghdad day Prime last moved it, YYYY-MM-DD. */
     changedDay: string;
@@ -18,7 +18,7 @@ export interface PrimeReturnsGroup {
 }
 
 export interface PrimeReturnsReason {
-    /** As the team wrote it; null for parcels coming back with no reason recorded yet. */
+    /** As the team (or else Prime) wrote it; null for parcels coming back with no reason recorded yet. */
     reason: string | null;
     parcels: number;
 }

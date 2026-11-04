@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useId } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -48,10 +48,34 @@ export type PrimeTicketWriteAnswer = z.infer<typeof writeAnswer>;
 const ticketsKey = (tenantId: string | null | undefined) => ["prime-tickets", tenantId] as const;
 const REFRESH_MS = 2 * 60_000;
 
-/** The store's tickets with Prime, and the subjects a new ticket can take. */
+/**
+ * Refreshes the tickets (and an open chat) the moment Prime replies: Prime's
+ * webhook writes a prime.ticket_reply notice (lib/prime/ticket-reply), and
+ * RLS lets through only the store's own.
+ */
+function usePrimeTicketReplies(enabled: boolean) {
+    const { tenantId } = useAuth();
+    const queryClient = useQueryClient();
+    const instanceId = useId();
+    useEffect(() => {
+        if (!enabled || !tenantId) return;
+        const channel = supabase
+            .channel(`prime-ticket-replies:${tenantId}:${instanceId}`)
+            .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: "type=eq.prime.ticket_reply" }, () => {
+                void queryClient.invalidateQueries({ queryKey: ticketsKey(tenantId) });
+            })
+            .subscribe();
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [enabled, tenantId, instanceId, queryClient]);
+}
+
+/** The store's tickets with Prime, and the subjects a new ticket can take; live on Prime's replies. */
 export function usePrimeTickets(enabled: boolean) {
     const { session, tenantId } = useAuth();
     const token = session?.access_token;
+    usePrimeTicketReplies(enabled);
     return useQuery({
         queryKey: ticketsKey(tenantId),
         enabled: enabled && !!token,

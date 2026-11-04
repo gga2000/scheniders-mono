@@ -14,7 +14,8 @@ export type PrimeNoticeType =
     | "prime.price_changed"
     | "prime.partial"
     | "prime.payment"
-    | "prime.daily";
+    | "prime.daily"
+    | "prime.ticket_reply";
 
 /** The order a parcel notice is about. */
 export interface PrimeNoticeOrder {
@@ -133,4 +134,37 @@ export async function noticeForAdmins(
             group_key: groupKey,
         })),
     );
+}
+
+/** A reply from Prime's support in a ticket. */
+export interface PrimeTicketReplyNotice {
+    ticketId: number;
+    /** Prime's message id, else when Prime wrote it: one notice per message. */
+    messageKey: string;
+    preview: string | null;
+}
+
+/** Prime answered in a ticket: one line for the store, unless this message was already announced. Returns whether it wrote one. */
+export async function noticeTicketReply(db: ServiceDb, tenantId: string, order: PrimeNoticeOrder, reply: PrimeTicketReplyNotice): Promise<boolean> {
+    const groupKey = `prime.ticket_reply:${reply.ticketId}:${reply.messageKey}`;
+    const { data, error } = await db.from("notifications").select("id").eq("tenant_id", tenantId).eq("group_key", groupKey).limit(1);
+    if (error) throw new Error(error.message);
+    if ((data ?? []).length > 0) return false;
+    await insert(db, [
+        {
+            tenant_id: tenantId,
+            type: "prime.ticket_reply",
+            category: "delivery",
+            audience: "tenant",
+            recipient_id: null,
+            actor_name: PRIME_NOTICE_ACTOR,
+            entity_type: "order",
+            entity_id: order.id,
+            entity_label: `#${order.orderNumber}`,
+            payload: { customer: order.customerName, ticket: reply.ticketId, preview: reply.preview },
+            priority: "high",
+            group_key: groupKey,
+        },
+    ]);
+    return true;
 }

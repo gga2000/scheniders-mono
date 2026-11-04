@@ -6,8 +6,8 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import type { PrimeBoardData } from "@/hooks/use-prime-board";
 import type { PrimeBoardList, PrimeNeedReason } from "@/lib/prime/board";
 import { primeChipState } from "@/lib/prime/chip-state";
-import { primeTrack } from "@/lib/prime/track";
-import { primeWhen } from "@/lib/prime/when";
+import { primeReasonNote, primeTrack } from "@/lib/prime/track";
+import { primeReasonText, primeWhen } from "@/lib/prime/when";
 import { cn } from "@/lib/utils";
 import { PrimeParcelPanel, type PrimePanelFocus } from "@/components/orders/card/prime-parcel-panel";
 
@@ -76,7 +76,8 @@ export function PrimeParcelList({
                         const track = primeTrack(view);
                         const since = view.statusChangedAt ?? view.sentAt;
                         const days = Math.floor((data.readAt - Date.parse(since)) / DAY_MS);
-                        const detail = reason === "stuck" ? t("prime.page.stuckFor", { days }) : (view.stepName ?? primeWhen(since, t));
+                        const primeSays = primeReasonText(primeReasonNote(view), t);
+                        const detail = reason === "stuck" ? t("prime.page.stuckFor", { days }) : (primeSays ?? view.stepName ?? primeWhen(since, t));
                         const isOpen = open?.orderId === orderId;
                         return (
                             <li key={orderId} data-prime-parcel={orderId} className="border-t border-[#F0EDE7] first:border-t-0 dark:border-white/10">

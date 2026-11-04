@@ -285,7 +285,8 @@ export interface PrimeWebhookSetting {
     authenticationMode: "CUSTOM_HEADER";
     headerName: string;
     secret: string;
-    fields: PrimeWebhookField[];
+    /** UPDATE_STATUS only: the ticket event's payload is fixed by Prime. */
+    fields?: PrimeWebhookField[];
 }
 
 const webhookConfigSchema = z.object({

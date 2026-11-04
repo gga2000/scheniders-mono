@@ -3,6 +3,7 @@ import type { PrimeWebhookConfig } from "./client";
 import {
     ensurePrimeWebhook,
     isPrimeWebhookCall,
+    parsePrimeTicketBody,
     parsePrimeWebhookBody,
     PRIME_WEBHOOK_FIELDS,
     PRIME_WEBHOOK_HEADER,
@@ -130,6 +131,25 @@ describe("ensurePrimeWebhook", () => {
         }
     });
 
+    it("points the ticket event at its own route, without fields", async () => {
+        const ticketUrl = primeWebhookUrl(origin, primeWebhookSecret(config), "TICKET_NEW_CHAT_MESSAGE");
+        expect(ticketUrl).toMatch(/^https:\/\/schenidersapp\.xyz\/api\/prime\/ticket-webhook\?v=[0-9a-f]{12}$/);
+
+        const empty = fakeClient({ configured: false });
+        expect(await ensurePrimeWebhook(empty, config, origin, "TICKET_NEW_CHAT_MESSAGE")).toBe("saved");
+        expect(empty.webhookConfig).toHaveBeenCalledWith("TICKET_NEW_CHAT_MESSAGE");
+        expect(empty.saveWebhookConfig).toHaveBeenCalledWith("TICKET_NEW_CHAT_MESSAGE", {
+            url: ticketUrl,
+            authenticationMode: "CUSTOM_HEADER",
+            headerName: PRIME_WEBHOOK_HEADER,
+            secret: primeWebhookSecret(config),
+        });
+
+        // Prime keeps the ticket payload fixed, so the saved fields never matter.
+        const saved = fakeClient(savedSetting({ url: ticketUrl, fields: null }));
+        expect(await ensurePrimeWebhook(saved, config, origin, "TICKET_NEW_CHAT_MESSAGE")).toBe("unchanged");
+    });
+
     it("never touches Prime's shared test system", async () => {
         const client = fakeClient({ configured: false });
         await expect(ensurePrimeWebhook(client, { ...config, baseUrl: "https://devtest.prime-iq.com/myp/webapi" }, origin)).rejects.toThrow(
@@ -137,5 +157,18 @@ describe("ensurePrimeWebhook", () => {
         );
         expect(client.webhookConfig).not.toHaveBeenCalled();
         expect(client.saveWebhookConfig).not.toHaveBeenCalled();
+    });
+});
+
+describe("parsePrimeTicketBody", () => {
+    it("reads Prime's fixed ticket payload, one or many", () => {
+        const one = { ticketId: "901", caseId: 52402395, messageType: "TEXT", message: "  تم التواصل مع الزبون  ", createdAt: "2026-11-04 8:10:00 PM" };
+        expect(parsePrimeTicketBody(one)).toEqual([{ ticketId: 901, caseId: 52402395, messageType: "TEXT", message: "تم التواصل مع الزبون", createdAt: "2026-11-04 8:10:00 PM" }]);
+        expect(parsePrimeTicketBody([one, { ...one, message: "" }])?.[1].message).toBeNull();
+    });
+
+    it("refuses a body that is not Prime's", () => {
+        expect(parsePrimeTicketBody({ caseId: 1 })).toBeNull();
+        expect(parsePrimeTicketBody("hello")).toBeNull();
     });
 });

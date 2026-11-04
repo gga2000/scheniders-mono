@@ -117,7 +117,8 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Points Prime's status webhook at this deployment's production domain. Only
+ * Points Prime's webhooks (status changes, and new messages in tickets) at
+ * this deployment's production domain. Only
  * Production does it, so a preview or a laptop never takes Prime's calls
  * away from the live app. A failure is reported and tried again next run;
  * the 15-minute read keeps orders moving meanwhile.
@@ -127,9 +128,11 @@ async function keepWebhook(client: PrimeClient): Promise<WebhookResult> {
     if (!config || env.VERCEL_ENV !== "production" || !env.VERCEL_PROJECT_PRODUCTION_URL) return "not_production";
     if (Date.now() - webhookCheckedAt < WEBHOOK_CHECK_EVERY_MS) return "not_due";
     try {
-        const outcome = await ensurePrimeWebhook(client, config, `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`);
+        const origin = `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`;
+        const status = await ensurePrimeWebhook(client, config, origin, "UPDATE_STATUS");
+        const tickets = await ensurePrimeWebhook(client, config, origin, "TICKET_NEW_CHAT_MESSAGE");
         webhookCheckedAt = Date.now();
-        return outcome;
+        return status === "saved" || tickets === "saved" ? "saved" : "unchanged";
     } catch (err) {
         Sentry.captureException(err, { extra: { job: "prime-sync", step: "webhook" } });
         return "failed";

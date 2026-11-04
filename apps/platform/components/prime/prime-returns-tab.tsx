@@ -25,8 +25,8 @@ function rateTone(rate: number) {
 /**
  * «لماذا يُرجع الزبائن»: the share of Prime parcels that come back over the
  * last 30 days, the parcels a resend saved, the reasons the store's team
- * recorded, and the governorates where most come back. Prime's own reason
- * per parcel is not shown: Prime does not send one yet.
+ * recorded (Prime's own words for parcels the team has not filed yet), and
+ * the governorates where most come back.
  */
 export function PrimeReturnsTab() {
     const { t, language } = useLanguage();
