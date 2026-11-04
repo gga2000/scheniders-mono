@@ -3,7 +3,7 @@
 import { Input } from "@scheniders/ui/input";
 import { Label } from "@scheniders/ui/label";
 import { cn } from "@/lib/utils";
-import { Package, X, Hash, AlertTriangle, Check, Store, Truck, Loader2, Sparkles, CalendarClock } from "lucide-react";
+import { Package, X, Hash, AlertTriangle, Check, Store, Truck, Gift, Loader2, Sparkles, CalendarClock } from "lucide-react";
 import { DateTimePicker } from "@scheniders/ui/datetime-picker";
 import { formatScheduledDate } from "@/lib/order-format-utils";
 import { ORDER_SOURCES } from "./use-create-order-model";
@@ -43,6 +43,19 @@ export function CreateOrderDetailsSection({ m }: { m: CreateOrderModel }) {
                         <Store className="h-3.5 w-3.5" />
                         {t("orders.create.typeShop")}
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => handleOrderTypeChange("take")}
+                        className={cn(
+                            "flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-semibold transition-all",
+                            orderType === "take"
+                                ? "border-slate-400 bg-slate-100 text-slate-700 shadow-sm"
+                                : "border-dashed border-gray-200 bg-white text-gray-400 hover:border-gray-300 hover:text-gray-500"
+                        )}
+                    >
+                        <Gift className="h-3.5 w-3.5" />
+                        {t("orders.create.typeTake")}
+                    </button>
                 </div>
                 <DateTimePicker
                     value={customCreatedAt}
@@ -64,6 +77,8 @@ export function CreateOrderDetailsSection({ m }: { m: CreateOrderModel }) {
                 </p>
             )}
 
+            {orderType !== "take" && (
+            <>
             {/* Row 2: Order ID + Source */}
             <div className="grid grid-cols-2 gap-3">
                 {/* Order ID */}
@@ -193,6 +208,8 @@ export function CreateOrderDetailsSection({ m }: { m: CreateOrderModel }) {
                     {t("orders.create.bulkUpload")}
                 </button>
             </div>
+            </>
+            )}
         </>
     );
 }

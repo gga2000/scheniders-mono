@@ -10,6 +10,7 @@ import { useCreateOrderModel, type CreateOrderModalProps } from "./create-order/
 import { CreateOrderDetailsSection } from "./create-order/create-order-details-section";
 import { CreateOrderCustomerSection } from "./create-order/create-order-customer-section";
 import { CreateOrderProductsSection } from "./create-order/create-order-products-section";
+import { CreateOrderTakeSection } from "./create-order/create-order-take-section";
 export type { CreateOrderModalInitialData } from "./create-order/use-create-order-model";
 
 export function CreateOrderModal(props: CreateOrderModalProps) {
@@ -88,7 +89,7 @@ export function CreateOrderModal(props: CreateOrderModalProps) {
                         )}
                         <CreateOrderDetailsSection m={m} />
 
-                        <CreateOrderCustomerSection m={m} />
+                        {m.orderType === "take" ? <CreateOrderTakeSection m={m} /> : <CreateOrderCustomerSection m={m} />}
 
                         <CreateOrderProductsSection m={m} />
 
@@ -185,7 +186,7 @@ export function CreateOrderModal(props: CreateOrderModalProps) {
                                 ) : (
                                     <Save className="h-4 w-4" />
                                 )}
-                                {t("orders.create.create")}
+                                {m.orderType === "take" ? t("orders.create.takeCreate") : t("orders.create.create")}
                             </button>
                         </div>
                     </DialogFooter>
