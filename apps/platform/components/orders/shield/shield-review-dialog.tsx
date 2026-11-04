@@ -7,6 +7,7 @@ import { formatIraqiPhoneDisplay } from "@scheniders/shared";
 import type { DeliveryChance, OwnHistory } from "@/lib/shield/delivery-chance";
 import { SHIELD_BAD_CATEGORIES, type ShieldNetwork } from "@/lib/shield/types";
 import { SEQ_TONE, SHIELD_TONE } from "./shield-tone";
+import { ShieldReportForm } from "./shield-report-form";
 
 interface Props {
     open: boolean;
@@ -95,6 +96,7 @@ export function ShieldReviewDialog({ open, onOpenChange, customerName, phone, re
                                         ))}
                                     </div>
                                 )}
+                                <ShieldReportForm phone={phone} />
                             </div>
                         )}
                     </section>

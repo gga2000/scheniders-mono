@@ -4,14 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import { supabase } from "@/lib/supabase";
-import { riskyOpenOrderSchema, shieldImpactSchema } from "@/lib/shield/home";
+import { riskyOpenOrderSchema, shieldImpactSchema, storeScoreSchema } from "@/lib/shield/home";
 
 const IMPACT_DAYS = 30;
 
 /**
  * The home page's Shield cards: today's open orders whose customer has a bad
  * record (here or in other stores), and what Shield changed in the last 30
- * days. Both are computed in the database for the active store only.
+ * days, with this store's delivery rate against other stores. All are
+ * computed in the database for the active store only.
  */
 export function useShieldHome() {
     const { session, clientReady, tenantId } = useAuth();
@@ -42,5 +43,16 @@ export function useShieldHome() {
         },
     });
 
-    return { risky, impact, impactDays: IMPACT_DAYS };
+    const score = useQuery({
+        queryKey: ["shield", "home", tenantId, "score", IMPACT_DAYS],
+        enabled,
+        staleTime: 30 * 60_000,
+        queryFn: async () => {
+            const { data, error } = await supabase.rpc("shield_store_score", { p_days: IMPACT_DAYS });
+            if (error) throw error;
+            return storeScoreSchema.parse(data?.[0] ?? { own_finished: 0, own_delivered: 0, network_rate: null, network_stores: null });
+        },
+    });
+
+    return { risky, impact, score, impactDays: IMPACT_DAYS };
 }

@@ -43,3 +43,17 @@ export function shippedRefusedRate(impact: ShieldImpact): number | null {
     const ended = impact.shipped_delivered + impact.shipped_refused;
     return ended > 0 ? Math.round((impact.shipped_refused / ended) * 100) : null;
 }
+
+/** shield_store_score: this store's finished/delivered orders and the other stores' average (null below 3 stores). */
+export const storeScoreSchema = z.object({
+    own_finished: z.coerce.number(),
+    own_delivered: z.coerce.number(),
+    network_rate: z.coerce.number().nullable(),
+    network_stores: z.coerce.number().nullable(),
+});
+export type StoreScore = z.infer<typeof storeScoreSchema>;
+
+/** This store's delivery rate, 0-100; null before 10 finished orders (too few to mean anything). */
+export function ownDeliveryRate(score: StoreScore): number | null {
+    return score.own_finished >= 10 ? Math.round((score.own_delivered / score.own_finished) * 100) : null;
+}

@@ -7,7 +7,7 @@ import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-qu
 import { SHIELD_TONE } from "@/components/orders/shield/shield-tone";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useShieldHome } from "@/hooks/use-shield-home";
-import { riskyOrderBand, riskyOrderReason, shippedRefusedRate, type RiskyOpenOrder, type ShieldImpact } from "@/lib/shield/home";
+import { ownDeliveryRate, riskyOrderBand, riskyOrderReason, shippedRefusedRate, type RiskyOpenOrder, type ShieldImpact, type StoreScore } from "@/lib/shield/home";
 import { cn } from "@/lib/utils";
 
 const SHOWN = 6;
@@ -19,16 +19,17 @@ const CARD = "flex h-full flex-col gap-3 rounded-[22px] border border-[var(--car
  * changed in the last 30 days.
  */
 export function ShieldHomeRow() {
-    const { risky, impact, impactDays } = useShieldHome();
+    const { risky, impact, score, impactDays } = useShieldHome();
 
-    if (risky.isError || impact.isError) {
+    if (risky.isError || impact.isError || score.isError) {
         const retry = () => {
             void risky.refetch();
             void impact.refetch();
+            void score.refetch();
         };
         return <WidgetLoadError onRetry={retry} className="min-h-[200px]" />;
     }
-    if (!risky.data || !impact.data) return <WidgetPending className="min-h-[200px]" />;
+    if (!risky.data || !impact.data || !score.data) return <WidgetPending className="min-h-[200px]" />;
 
     return (
         <div data-shield-home className="grid grid-cols-1 gap-6 xl:grid-cols-12">
@@ -36,7 +37,7 @@ export function ShieldHomeRow() {
                 <ShieldCallFirstCard rows={risky.data} asOf={risky.dataUpdatedAt} />
             </div>
             <div className="xl:col-span-5">
-                <ShieldImpactCard impact={impact.data} days={impactDays} />
+                <ShieldImpactCard impact={impact.data} score={score.data} days={impactDays} />
             </div>
         </div>
     );
@@ -56,7 +57,7 @@ function ShieldCallFirstCard({ rows, asOf }: { rows: RiskyOpenOrder[]; asOf: num
     return (
         <section data-shield-call-first className={CARD}>
             <header className="flex items-center gap-3">
-                <span aria-hidden="true" className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", rows.length ? SHIELD_TONE.red.pill : SHIELD_TONE.green.pill)}>
+                <span aria-hidden="true" className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", !rows.length ? SHIELD_TONE.green.pill : red ? SHIELD_TONE.red.pill : SHIELD_TONE.yellow.pill)}>
                     <ShieldAlert className="h-[18px] w-[18px]" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -64,7 +65,7 @@ function ShieldCallFirstCard({ rows, asOf }: { rows: RiskyOpenOrder[]; asOf: num
                         {rows.length ? t("shield.home.callTitle", { count: rows.length }) : t("shield.home.callNoneTitle")}
                     </p>
                     <p dir={dir} className="text-left text-xs text-muted">
-                        {rows.length ? t("shield.home.callSub", { red }) : t("shield.home.callNoneSub")}
+                        {!rows.length ? t("shield.home.callNoneSub") : red ? t("shield.home.callSub", { red }) : t("shield.home.callSubNoRed")}
                     </p>
                 </div>
             </header>
@@ -84,8 +85,8 @@ function ShieldCallFirstCard({ rows, asOf }: { rows: RiskyOpenOrder[]; asOf: num
                                     <span className={cn("hidden shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold sm:inline", tone.pill)}>
                                         {t(`shield.reason.${riskyOrderReason(r)}`)}
                                     </span>
-                                    <span className="w-14 shrink-0 text-right font-mono text-xs text-muted tabular-nums">#{r.order_id}</span>
-                                    <span className="w-10 shrink-0 text-right text-xs text-muted tabular-nums">{t(age.key, { n: age.n })}</span>
+                                    <span className="shrink-0 text-right font-mono text-xs text-muted tabular-nums">#{r.order_id}</span>
+                                    <span className="w-11 shrink-0 whitespace-nowrap text-right text-xs text-muted tabular-nums">{t(age.key, { n: age.n })}</span>
                                 </Link>
                             </li>
                         );
@@ -101,10 +102,11 @@ function ShieldCallFirstCard({ rows, asOf }: { rows: RiskyOpenOrder[]; asOf: num
     );
 }
 
-function ShieldImpactCard({ impact, days }: { impact: ShieldImpact; days: number }) {
+function ShieldImpactCard({ impact, score, days }: { impact: ShieldImpact; score: StoreScore; days: number }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const refusedRate = shippedRefusedRate(impact);
+    const ownRate = ownDeliveryRate(score);
 
     return (
         <section data-shield-impact className={CARD}>
@@ -128,11 +130,20 @@ function ShieldImpactCard({ impact, days }: { impact: ShieldImpact; days: number
                             {t("shield.home.stoppedValue")} <FinancialValue amount={impact.stopped_value} hideToggle className="font-semibold" />
                         </p>
                     )}
-                    <p dir={dir} className="mt-auto text-left text-xs text-muted">
+                    <p dir={dir} className="text-left text-xs text-muted">
                         {t("shield.home.shipped", { shipped: impact.shipped, delivered: impact.shipped_delivered, refused: impact.shipped_refused })}
                         {refusedRate !== null && <> · <span className={cn("font-semibold", refusedRate >= 30 && SHIELD_TONE.red.text)}>{t("shield.home.refusedRate", { rate: refusedRate })}</span></>}
                     </p>
                 </>
+            )}
+            {ownRate !== null && (
+                <p dir={dir} className="border-t border-[var(--card-border)] pt-3 text-left text-xs text-muted">
+                    <span className="font-semibold text-foreground">{t("shield.home.ownRate", { rate: ownRate })}</span>
+                    {" · "}
+                    {score.network_rate !== null
+                        ? t("shield.home.networkRate", { rate: score.network_rate, stores: score.network_stores ?? 0 })
+                        : t("shield.home.networkRateSoon")}
+                </p>
             )}
         </section>
     );
