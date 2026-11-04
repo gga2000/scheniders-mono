@@ -70,4 +70,13 @@ describe("deliveryChance", () => {
         expect(bandFor(35)).toBe("yellow");
         expect(bandFor(60)).toBe("red");
     });
+
+    it("steps walk from the typical order to this order's chance", () => {
+        const r = deliveryChance({ ...base, addressDetails: "بغداد", adChannel: "facebook" });
+        expect(r.base).toBe(72);
+        expect(r.steps[0].from).toBe(72);
+        expect(r.steps.at(-1)?.to).toBe(r.chance);
+        for (let i = 1; i < r.steps.length; i++) expect(r.steps[i].from).toBe(r.steps[i - 1].to);
+        expect(r.steps.every((s) => (s.effect === "risk" ? s.to <= s.from : s.to >= s.from))).toBe(true);
+    });
 });

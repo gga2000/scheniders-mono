@@ -80,6 +80,8 @@ export function OrderShield({ order, riskAssessment }: { order: Order; riskAsses
                     onOpenChange={setOpen}
                     customerName={order.customer_name}
                     phone={order.phone}
+                    orderId={order.order_id}
+                    orderedAt={order.created_at}
                     result={result}
                     network={shield.data ?? null}
                     networkFailed={shield.isError}
