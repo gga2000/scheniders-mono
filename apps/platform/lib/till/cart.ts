@@ -32,6 +32,7 @@ export interface CartLine {
     variant_id: string | null;
     name: string;
     variant_name: string | null;
+    image_url: string | null;
     price: number;
     quantity: number;
 }
@@ -55,6 +56,7 @@ export function addToCart(cart: CartLine[], product: TillProduct, variant: TillV
             variant_id: variant?.id ?? null,
             name: product.name,
             variant_name: variant?.name ?? null,
+            image_url: product.image_url,
             price: variant ? variant.price : product.price,
             quantity: 1,
         },

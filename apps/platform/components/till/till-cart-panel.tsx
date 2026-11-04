@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Plus, Trash2, UserRound } from "lucide-react";
+import { Minus, Package, Plus, ScanBarcode, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { formatIqd, itemCount, maxDiscount, parseDinars, setQuantity, subtotalOf } from "@/lib/till/cart";
@@ -113,10 +113,18 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
 
             <ul className="min-h-0 flex-1 overflow-y-auto">
                 {ticket.cart.length === 0 ? (
-                    <li className="px-6 py-12 text-center text-sm text-muted">{t("till.cart.empty")}</li>
+                    <li className="flex h-full flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+                        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--card-border)]/40 text-muted">
+                            <ScanBarcode className="h-7 w-7" aria-hidden="true" />
+                        </span>
+                        <span className="text-sm text-muted" dir="auto">{t("till.cart.empty")}</span>
+                    </li>
                 ) : (
                     ticket.cart.map((l) => (
                         <li key={l.key} className="flex items-center gap-3 border-b border-[var(--card-border)] px-4 py-3">
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--card-border)]/25 text-muted">
+                                {l.image_url ? <img src={l.image_url} alt="" className="h-full w-full object-cover" /> : <Package className="h-5 w-5" aria-hidden="true" />}
+                            </span>
                             <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm font-semibold text-foreground" dir="auto">
                                     {l.name}
@@ -195,7 +203,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     type="button"
                     onClick={onPay}
                     disabled={ticket.cart.length === 0 || phoneBad || discountTooBig}
-                    className={cn("h-16 rounded-2xl text-xl font-bold disabled:opacity-40", INK_BUTTON)}
+                    className={cn("h-16 rounded-2xl text-xl font-bold transition-colors", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-muted dark:disabled:bg-white/10 dark:disabled:text-white/40")}
                 >
                     {t("till.cart.pay", { total: formatIqd(total) })}
                 </button>
