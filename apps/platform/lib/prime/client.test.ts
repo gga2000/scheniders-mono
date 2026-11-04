@@ -314,3 +314,46 @@ describe("case history and charges", () => {
         expect(JSON.parse(String(init?.body))).toEqual({ merchantLoginId: "m", state: "BAS", receiptAmtIqd: 36_750 });
     });
 });
+
+describe("statements and tickets", () => {
+    const signedIn = () => vi.fn<typeof fetch>().mockResolvedValueOnce(json(200, { accessToken: jwt(future()) }));
+
+    it("lists payments and one manifest's parcels for the merchant", async () => {
+        const fetchImpl = signedIn()
+            .mockResolvedValueOnce(json(200, [{ id: 88001, medium: "TO_CUSTOMER_DIRECTLY", transactionAmountIqd: 250000, createdDateTime: "2026-01-14 10:22:31", confirmedReception: false, confirmationDate: null }]))
+            .mockResolvedValueOnce(json(200, [{ caseid: 123456, custReceiptNoOri: "1001", receiptAmtIqd: 25000, shipmentCharge: 5000, state: "BGD" }]));
+        const client = createPrimeClient(config, fetchImpl);
+
+        expect((await client.paymentReceipts("m 1", 0, 20))[0]).toMatchObject({ id: 88001, transactionAmountIqd: 250000, confirmedReception: false });
+        expect(await client.paymentCases("m 1", 88001)).toEqual([{ caseid: 123456, custReceiptNoOri: "1001", receiptAmtIqd: 25000, shipmentCharge: 5000, state: "BGD" }]);
+        expect(fetchImpl.mock.calls[1][0]).toBe("https://prime.test/myp/webapi/external/merchant-payment-receipts/m%201/0/20");
+        expect(fetchImpl.mock.calls[2][0]).toBe("https://prime.test/myp/webapi/external/merchant-cases-in-payment-receipt/m%201/88001");
+    });
+
+    it("lists the merchant's tickets latest first and reads a chat", async () => {
+        const fetchImpl = signedIn()
+            .mockResolvedValueOnce(json(200, [{ ticketId: 4100, caseId: 123456, receiptNo: "1001", subject: "استفسار", status: "OPEN", createdAt: "2026-1-14 10:22:31 AM", latestMessage: null, latestMessageAt: null }]))
+            .mockResolvedValueOnce(json(200, { ticketId: 4100, chatId: 9100, caseId: 123456, status: "OPEN", messages: [{ messageId: 1, message: "hi", fromSupport: true, type: "TEXT" }] }))
+            .mockResolvedValueOnce(json(200, { ticketId: 4101, chatId: 1, caseId: 2 }));
+        const client = createPrimeClient(config, fetchImpl);
+
+        expect((await client.tickets("m", 0, 50))[0].ticketId).toBe(4100);
+        expect(fetchImpl.mock.calls[1][0]).toBe("https://prime.test/myp/webapi/external/list-tickets/ALL/0/50?merchant-login-id=m&sort-type=desc");
+        expect((await client.ticketChat(4100)).messages).toHaveLength(1);
+        // A chat Prime answers without messages still reads as an empty list.
+        expect((await client.ticketChat(4101)).messages).toEqual([]);
+    });
+
+    it("opens a ticket on a case and writes into a chat", async () => {
+        const fetchImpl = signedIn()
+            .mockResolvedValueOnce(json(200, { ticketId: 4100, caseId: 123456, chatId: 9100, messageId: 55001 }))
+            .mockResolvedValueOnce(json(200, 9100));
+        const client = createPrimeClient(config, fetchImpl);
+
+        expect(await client.openTicket(123456, "DLV_DELAYED", "متى يصل؟")).toBe(4100);
+        expect(JSON.parse(String(fetchImpl.mock.calls[1][1]?.body))).toEqual({ caseId: 123456, ticket: { subjectCode: "DLV_DELAYED" }, message: "متى يصل؟" });
+        await client.writeTicketMessage(4100, "شكراً");
+        expect(fetchImpl.mock.calls[2][0]).toBe("https://prime.test/myp/webapi/external/ticket-chat/write-msg/4100");
+        expect(JSON.parse(String(fetchImpl.mock.calls[2][1]?.body))).toEqual({ msg: "شكراً" });
+    });
+});

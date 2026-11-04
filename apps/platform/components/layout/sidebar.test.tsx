@@ -24,6 +24,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/hooks/use-auth", () => ({ useAuth: () => auth.current }));
 vi.mock("@/hooks/use-products-query", () => ({ usePrefetchProducts: () => () => {} }));
+vi.mock("@/hooks/use-prime-link", () => ({ usePrimeConnection: () => ({ connected: false, branchName: null, checked: true }) }));
 vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) => k }) }));
 vi.mock("@/components/ui/notification-center", () => ({ NotificationCenter: () => null }));
 vi.mock("./transition-link", () => ({

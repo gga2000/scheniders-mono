@@ -8,11 +8,13 @@ import {
     X,
     LogOut,
     Megaphone,
+    Truck,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
+import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { usePrefetchProducts } from "@/hooks/use-products-query";
 import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState, type ComponentType } from "react";
@@ -70,6 +72,8 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
                 ],
             },
             { key: "nav.printing", icon: AnimatedPrintingIcon, href: "/printing" },
+            // Shown only while the tenant ships through the Prime API (see Sidebar).
+            { key: "nav.prime", icon: Truck, href: "/prime" },
         ],
     },
     {
@@ -137,7 +141,15 @@ export function Sidebar({
         (pathname.startsWith("/finances") ? "overview" : "products");
     const { user, profile, role, permissions, profileLoaded, signOut, isLoading: authLoading } = useAuth();
     // Only the links this user may open: the same rules PageGuard enforces.
-    const navSections = useMemo(() => filterNavSections(NAV_SECTIONS, role, permissions), [role, permissions]);
+    const prime = usePrimeConnection();
+    const navSections = useMemo(
+        () =>
+            filterNavSections(NAV_SECTIONS, role, permissions).map((section) => ({
+                ...section,
+                items: section.items.filter((item) => item.href !== "/prime" || prime.connected),
+            })),
+        [role, permissions, prime.connected],
+    );
     // Until the role is known, filtering keeps only the ungated links, which
     // then jump to the full list. Hold placeholder rows in their place instead.
     const navPlaceholder = (
