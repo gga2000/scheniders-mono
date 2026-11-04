@@ -32,6 +32,9 @@ type TrackedRow = {
     orders: Pick<Order, "id" | "order_id" | "customer_name" | "city" | "status" | "version" | "is_return" | "attention_reasons">;
 };
 
+/** The order a Prime notice is about, as the notice reads it. */
+type NoticeSource = { orders: Pick<Order, "id" | "order_id" | "customer_name" | "city"> };
+
 /** What one parcel's read did: the order it moved (delivered, or flagged for a person and why). */
 type Applied =
     | { kind: "delivered" }
@@ -57,10 +60,18 @@ export interface PrimeSyncOutcome {
     cancelsSettled: number;
 }
 
+/** The columns a status read needs of a tracked shipment and its order. */
+const TRACKED_SELECT =
+    "id, case_id, shipment_status, step_code, orders!inner(id, order_id, customer_name, city, status, version, is_return, attention_reasons)";
+
+/** What a status read did to the parcels it read. */
+type ReadCounts = Pick<PrimeSyncOutcome, "checked" | "delivered" | "flagged" | "conflicts">;
+
 /**
  * Read Prime's status for a tenant's open shipments and apply it to the orders.
  * The new status is stored only after the order change landed, so a change
- * that lost a race with a person is tried again on the next run.
+ * that lost a race with a person is tried again on the next run. Deliveries
+ * are announced by announcePrimeDeliveries, not here.
  */
 export async function syncPrimeTenant(
     db: ServiceDb,
@@ -69,39 +80,101 @@ export async function syncPrimeTenant(
     stepNames: Map<string, string>,
 ): Promise<PrimeSyncOutcome> {
     const since = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString();
+    const rows = await trackedRows(db, tenantId, since);
+    const now = new Date().toISOString();
+    const read = await readAndApply(db, client, tenantId, rows, stepNames, now);
+    const cleared = await settleClosedOrders(db, tenantId, since);
+    const cancelsSettled = await settleRefusedCancels(db, client, tenantId, stepNames, now);
+    return { ...read, cleared, cancelsSettled };
+}
+
+/**
+ * The same read for the cases Prime just told us about (its webhook), with
+ * the same rules: only this tenant's open orders sent in the last 60 days.
+ */
+export async function syncPrimeCases(
+    db: ServiceDb,
+    client: PrimeClient,
+    tenantId: string,
+    caseIds: readonly number[],
+    stepNames: Map<string, string>,
+): Promise<ReadCounts> {
+    if (caseIds.length === 0) return { checked: 0, delivered: 0, flagged: 0, conflicts: 0 };
+    const since = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString();
+    const rows = await trackedRows(db, tenantId, since, caseIds);
+    return readAndApply(db, client, tenantId, rows, stepNames, new Date().toISOString());
+}
+
+/**
+ * One "delivered" line for every parcel delivered since the last one went
+ * out: through the 15-minute read or one by one through Prime's webhook.
+ * Run every 5 minutes, so a busy afternoon reads "12 orders delivered", not
+ * twelve pushes. The rows are cleared after the line is written; a failed
+ * write keeps them for the next run.
+ */
+export async function announcePrimeDeliveries(db: ServiceDb, tenantId: string, batchKey: string): Promise<number> {
     const { data, error } = await db
         .from("prime_shipments")
-        .select("id, case_id, shipment_status, step_code, orders!inner(id, order_id, customer_name, city, status, version, is_return, attention_reasons)")
+        .select("id, orders!inner(id, order_id, customer_name, city)")
+        .eq("tenant_id", tenantId)
+        .eq("orders.tenant_id", tenantId)
+        .eq("delivery_unannounced", true);
+    if (error) throw new Error(error.message);
+    const rows = data as unknown as ({ id: string } & NoticeSource)[];
+    if (rows.length === 0) return 0;
+
+    await noticeDelivered(db, tenantId, rows.map((r) => noticeOrder(r)), batchKey);
+    const { error: clearError } = await db
+        .from("prime_shipments")
+        .update({ delivery_unannounced: false })
+        .eq("tenant_id", tenantId)
+        .in("id", rows.map((r) => r.id));
+    if (clearError) throw new Error(clearError.message);
+    return rows.length;
+}
+
+/** A tenant's shipments whose orders are still out with Prime, optionally only some cases. */
+async function trackedRows(db: ServiceDb, tenantId: string, since: string, caseIds?: readonly number[]): Promise<TrackedRow[]> {
+    let query = db
+        .from("prime_shipments")
+        .select(TRACKED_SELECT)
         .eq("tenant_id", tenantId)
         .eq("orders.tenant_id", tenantId)
         .in("orders.status", OPEN_STATUSES)
         .gte("sent_at", since);
+    if (caseIds) query = query.in("case_id", [...caseIds]);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
+    return data as unknown as TrackedRow[];
+}
 
-    const rows = data as unknown as TrackedRow[];
+/** Reads Prime's status for the rows, applies it, and tells the store about each parcel Prime flagged. */
+async function readAndApply(
+    db: ServiceDb,
+    client: PrimeClient,
+    tenantId: string,
+    rows: TrackedRow[],
+    stepNames: Map<string, string>,
+    now: string,
+): Promise<ReadCounts> {
     const byCase = new Map(rows.map((r) => [Number(r.case_id), r]));
-    const outcome: PrimeSyncOutcome = { checked: 0, delivered: 0, flagged: 0, conflicts: 0, cleared: 0, cancelsSettled: 0 };
-    const now = new Date().toISOString();
+    const counts: ReadCounts = { checked: 0, delivered: 0, flagged: 0, conflicts: 0 };
 
     for (let i = 0; i < rows.length; i += PRIME_INFO_BATCH) {
         const caseIds = rows.slice(i, i + PRIME_INFO_BATCH).map((r) => Number(r.case_id));
         const infos = await client.shipmentsInfo(caseIds);
-        outcome.checked += infos.length;
-        const delivered: PrimeNoticeOrder[] = [];
+        counts.checked += infos.length;
 
         for (const info of infos) {
             const row = byCase.get(info.caseid);
             if (!row) continue;
             const applied = await applyInfo(db, tenantId, row, info, stepNames, now);
-            if (applied.kind === "delivered") {
-                outcome.delivered += 1;
-                delivered.push(noticeOrder(row));
-            } else if (applied.kind === "flagged") {
-                outcome.flagged += 1;
+            if (applied.kind === "delivered") counts.delivered += 1;
+            else if (applied.kind === "flagged") {
+                counts.flagged += 1;
                 await noticeParcelFlag(db, tenantId, noticeOrder(row), applied.reason);
-            } else if (applied.kind === "conflict") outcome.conflicts += 1;
+            } else if (applied.kind === "conflict") counts.conflicts += 1;
         }
-        await noticeDelivered(db, tenantId, delivered, `${now}:${i}`);
 
         const { error: checkedError } = await db
             .from("prime_shipments")
@@ -110,10 +183,7 @@ export async function syncPrimeTenant(
             .in("case_id", caseIds);
         if (checkedError) throw new Error(checkedError.message);
     }
-
-    outcome.cleared = await settleClosedOrders(db, tenantId, since);
-    outcome.cancelsSettled = await settleRefusedCancels(db, client, tenantId, stepNames, now);
-    return outcome;
+    return counts;
 }
 
 async function applyInfo(
@@ -167,13 +237,15 @@ async function applyInfo(
             // What we sent stays until Prime reports its own amount.
             ...(typeof info.receiptAmtIqd === "number" ? { receipt_amount_iqd: info.receiptAmtIqd } : {}),
             status_changed_at: now,
+            // Announced with the next "delivered" line (announcePrimeDeliveries).
+            ...(result.kind === "delivered" ? { delivery_unannounced: true } : {}),
         })
         .eq("id", row.id);
     if (error) throw new Error(error.message);
     return result;
 }
 
-function noticeOrder(row: TrackedRow): PrimeNoticeOrder {
+function noticeOrder(row: NoticeSource): PrimeNoticeOrder {
     return { id: row.orders.id, orderNumber: String(row.orders.order_id), customerName: row.orders.customer_name ?? null, city: row.orders.city ?? null };
 }
 

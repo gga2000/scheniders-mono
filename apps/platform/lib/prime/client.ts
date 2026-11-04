@@ -7,9 +7,9 @@ import { env } from "@/lib/env";
  * tenant is a Prime merchant + shop under it (prime_connections).
  *
  * Only the calls the link uses are here: create, update and delete shipments,
- * find one by its receipt, read their status and the step names, and ask
- * for a returned parcel to be resent. Server-only: the credentials come from
- * server env.
+ * find one by its receipt, read their status and the step names, ask
+ * for a returned parcel to be resent, and keep our webhook setting. Server-only:
+ * the credentials come from server env.
  */
 
 export interface PrimeConfig {
@@ -270,6 +270,34 @@ export const PRIME_ERROR = {
     alreadyResent: 7000,
 } as const;
 
+/** The events Prime can call us for. */
+export type PrimeWebhookEvent = "UPDATE_STATUS" | "TICKET_NEW_CHAT_MESSAGE";
+
+/** One value Prime puts in an UPDATE_STATUS call, and the JSON key it goes under. */
+export interface PrimeWebhookField {
+    field: string;
+    jsonKey: string;
+}
+
+/** What we ask Prime to save: where to call, the header that proves the call is Prime's, and the fields it carries. */
+export interface PrimeWebhookSetting {
+    url: string;
+    authenticationMode: "CUSTOM_HEADER";
+    headerName: string;
+    secret: string;
+    fields: PrimeWebhookField[];
+}
+
+const webhookConfigSchema = z.object({
+    configured: z.boolean(),
+    url: z.string().nullish(),
+    authenticationMode: z.string().nullish(),
+    headerName: z.string().nullish(),
+    secretConfigured: z.boolean().nullish(),
+    fields: z.array(z.object({ field: z.string(), jsonKey: z.string() })).nullish(),
+});
+export type PrimeWebhookConfig = z.infer<typeof webhookConfigSchema>;
+
 /** Case ids per shipments-info call. */
 export const PRIME_INFO_BATCH = 50;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -519,6 +547,17 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
         async openTicket(caseId: number, subjectCode: string, message: string): Promise<number> {
             const opened = await call("POST", "/external/open-ticket", { caseId, ticket: { subjectCode }, message }, openedTicketSchema);
             return opened.ticketId;
+        },
+
+        /** Our webhook setting at Prime for one event (the secret is never sent back, only whether one is set). */
+        async webhookConfig(eventType: PrimeWebhookEvent): Promise<PrimeWebhookConfig> {
+            return call("GET", `/external/webhook-config?eventType=${eventType}`, undefined, webhookConfigSchema);
+        },
+
+        /** Saves where Prime calls us for one event, how it proves it is Prime, and what the call carries. */
+        async saveWebhookConfig(eventType: PrimeWebhookEvent, setting: PrimeWebhookSetting): Promise<void> {
+            const saved = await call("PUT", `/external/webhook-config?eventType=${eventType}`, setting, webhookConfigSchema);
+            if (!saved.configured) throw new PrimeApiError("Prime did not save the webhook setting", 200);
         },
 
         /** Step code → Arabic step name (falls back to the English name, then the code). Cached for a day. */

@@ -86,6 +86,10 @@ const serverSchema = z.object({
     PRIME_SYSTEM_CODE: z.string().min(1).optional(),
     PRIME_PASSWORD: z.string().min(1).optional(),
     PRIME_INITIAL_TOKEN: z.string().min(1).optional(),
+    // Set by Vercel on every deployment. The Prime webhook is registered only
+    // from Production, at the project's production domain (lib/prime/webhook).
+    VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
+    VERCEL_PROJECT_PRODUCTION_URL: z.string().min(1).optional(),
     GEMINI_API_KEY: z.string().min(1).optional(),
     TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
     TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -146,6 +150,8 @@ function validateEnv() {
             PRIME_SYSTEM_CODE: orUndef(process.env.PRIME_SYSTEM_CODE),
             PRIME_PASSWORD: orUndef(process.env.PRIME_PASSWORD),
             PRIME_INITIAL_TOKEN: orUndef(process.env.PRIME_INITIAL_TOKEN),
+            VERCEL_ENV: orUndef(process.env.VERCEL_ENV),
+            VERCEL_PROJECT_PRODUCTION_URL: orUndef(process.env.VERCEL_PROJECT_PRODUCTION_URL),
             GEMINI_API_KEY: orUndef(process.env.GEMINI_API_KEY),
             TELEGRAM_BOT_TOKEN: orUndef(process.env.TELEGRAM_BOT_TOKEN),
             TELEGRAM_WEBHOOK_SECRET: orUndef(process.env.TELEGRAM_WEBHOOK_SECRET),
