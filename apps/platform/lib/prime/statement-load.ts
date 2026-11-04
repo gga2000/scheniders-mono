@@ -91,6 +91,12 @@ async function loadOurs(db: ServiceDb, tenantId: string, cases: readonly PrimeMa
     return { byCase, byReceipt };
 }
 
+/** A manifest's parcels laid against the tenant's orders. */
+export async function matchPrimeCases(db: ServiceDb, tenantId: string, cases: readonly PrimeManifestCase[]): Promise<PrimeStatement> {
+    const { byCase, byReceipt } = await loadOurs(db, tenantId, cases);
+    return matchPrimeStatement(cases, byCase, byReceipt);
+}
+
 /** One payment manifest laid against our orders. */
 export async function loadPrimeStatement(
     db: ServiceDb,
@@ -100,6 +106,5 @@ export async function loadPrimeStatement(
     paymentId: number,
 ): Promise<PrimeStatement> {
     const cases = await client.paymentCases(connection.merchantLoginId, paymentId);
-    const { byCase, byReceipt } = await loadOurs(db, tenantId, cases);
-    return matchPrimeStatement(cases, byCase, byReceipt);
+    return matchPrimeCases(db, tenantId, cases);
 }

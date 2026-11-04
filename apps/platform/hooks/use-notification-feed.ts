@@ -35,7 +35,8 @@ export type NotificationCategory =
     | "team"
     | "system";
 
-export type NotificationFilter = "all" | "unread" | "mentions";
+/** "prime": what the Prime link wrote (type prime.*), shown as a chip to stores with the link. */
+export type NotificationFilter = "all" | "unread" | "mentions" | "prime";
 
 export interface FeedNotification {
     id: string;

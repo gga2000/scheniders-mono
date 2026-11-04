@@ -23,6 +23,7 @@ import { NotificationFeedList } from "./notification-feed-list";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/components/providers/language-provider";
+import { usePrimeConnection } from "@/hooks/use-prime-link";
 
 interface NotificationsDropdownProps {
     onOpenChange?: (open: boolean) => void;
@@ -62,6 +63,7 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
     const router = useRouter();
     const pathname = usePathname();
     const [openingId, setOpeningId] = useState<string | null>(null);
+    const prime = usePrimeConnection();
 
     useTitleBadge(ownsTitleBadge ? unreadCount : 0);
 
@@ -83,6 +85,12 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
 
         if (n.category === "chat") {
             if (n.entity_id) openChat(n.entity_id);
+            return;
+        }
+
+        // A Prime line about no single order (a delivered batch, a payment, the day) opens the Prime page.
+        if (n.type.startsWith("prime.") && n.entity_type !== "order") {
+            router.push(n.type === "prime.payment" ? "/prime?tab=statements" : "/prime");
             return;
         }
 
@@ -207,10 +215,11 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
                         ["all", t("notifications.filterAll", "All")],
                         ["unread", t("notifications.filterUnread", "Unread")],
                         ["mentions", t("notifications.mentions")],
-                    ] as const).map(([key, label]) => (
+                        ...(prime.connected || filter === "prime" ? [["prime", t("notifications.prime.filter")] as const] : []),
+                    ] satisfies (readonly [NotificationFilter, string])[]).map(([key, label]) => (
                         <button
                             key={key}
-                            onClick={() => setFilter(key as NotificationFilter)}
+                            onClick={() => setFilter(key)}
                             aria-pressed={filter === key}
                             className={cn(
                                 "px-2.5 py-1 rounded-full text-xs font-semibold transition-colors",

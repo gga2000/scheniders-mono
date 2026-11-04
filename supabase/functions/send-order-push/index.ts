@@ -92,6 +92,16 @@ const COPY = {
         fallback: "New activity",
         open: "Open", confirm: "Confirm", review_: "Review", restock: "Restock",
         retry: "Retry", topUp: "Top up", read: "Read", reply: "Reply",
+        prime: "Prime",
+        primeDelivered: (c: number, city: string) => city ? `${c} orders delivered in ${city}` : `${c} orders delivered`,
+        primeDeliveredOne: (n: string) => `${n}'s order delivered`,
+        primeReturning: (n: string) => `${n}'s parcel is coming back`,
+        primeCancelled: (n: string) => `Prime cancelled ${n}'s parcel`,
+        primePriceChanged: (n: string) => `${n}'s order delivered at a new price · check it`,
+        primePartial: (n: string) => `${n}'s order partly delivered · check it`,
+        primePayment: "Prime payment arrived", primePaymentBody: (n: number) => `${n.toLocaleString("en-US")} IQD`,
+        primeDaily: "Your day with Prime",
+        primeDailyBody: (d: number, r: number, c: number) => `${d} delivered · ${r} coming back · ${c.toLocaleString("en-US")} IQD collected`,
     },
     ar: {
         newOrder: "🛒 طلب جديد", urgentOrder: "🔥 طلب عاجل",
@@ -120,6 +130,16 @@ const COPY = {
         fallback: "نشاط جديد",
         open: "فتح", confirm: "تأكيد", review_: "مراجعة", restock: "تجديد المخزون",
         retry: "إعادة المحاولة", topUp: "تعبئة", read: "قراءة", reply: "رد",
+        prime: "برايم",
+        primeDelivered: (c: number, city: string) => city ? `سُلّمت ${c} طلبات في ${city}` : `سُلّمت ${c} طلبات`,
+        primeDeliveredOne: (n: string) => `سُلّم طلب ${n}`,
+        primeReturning: (n: string) => `طرد ${n} راجع`,
+        primeCancelled: (n: string) => `برايم ألغت طرد ${n}`,
+        primePriceChanged: (n: string) => `سُلّم طلب ${n} بسعر جديد · راجعه`,
+        primePartial: (n: string) => `سُلّم جزء من طلب ${n} · راجعه`,
+        primePayment: "وصلت دفعة من برايم", primePaymentBody: (n: number) => `${n.toLocaleString("en-US")} د.ع`,
+        primeDaily: "يومك مع برايم",
+        primeDailyBody: (d: number, r: number, c: number) => `سُلّم ${d} · راجع ${r} · حُصّل ${c.toLocaleString("en-US")} د.ع`,
     },
 } as const;
 
@@ -252,6 +272,41 @@ function compose(n: DispatchPayload, locale: Locale = "ar"): Composed {
                 body: str(p.preview).slice(0, 140) || t.wereMentioned,
                 url: "/",
                 actions: [{ action: "open", title: t.reply }],
+            };
+        case "prime.delivered": {
+            const count = num(p.count);
+            const name = str(p.customer) || ref;
+            return {
+                title: t.prime,
+                body: count === 1 ? t.primeDeliveredOne(name) : t.primeDelivered(count, str(p.city)),
+                url: count === 1 ? "/orders" : "/prime",
+                actions: [{ action: "open", title: t.open }],
+            };
+        }
+        case "prime.returning":
+        case "prime.cancelled":
+        case "prime.price_changed":
+        case "prime.partial": {
+            const name = str(p.customer) || ref;
+            const body = n.type === "prime.returning" ? t.primeReturning(name)
+                : n.type === "prime.cancelled" ? t.primeCancelled(name)
+                : n.type === "prime.price_changed" ? t.primePriceChanged(name)
+                : t.primePartial(name);
+            return { title: t.prime, body, url: "/orders", actions: [{ action: "open", title: t.open }] };
+        }
+        case "prime.payment":
+            return {
+                title: t.primePayment,
+                body: t.primePaymentBody(num(p.amount)),
+                url: "/prime?tab=statements",
+                actions: [{ action: "open", title: t.open }],
+            };
+        case "prime.daily":
+            return {
+                title: t.primeDaily,
+                body: t.primeDailyBody(num(p.delivered), num(p.returning), num(p.collected)),
+                url: "/prime",
+                actions: [],
             };
         case "digest":
             return {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { syncPrimeTenant } from "./sync";
 import type { PrimeClient, PrimeShipmentInfo } from "./client";
 
-type Call = { table: string; op: "select" | "update"; payload?: Record<string, unknown>; filters: [string, string, unknown][] };
+type Call = { table: string; op: "select" | "update" | "insert"; payload?: Record<string, unknown>; rows?: Record<string, unknown>[]; filters: [string, string, unknown][] };
 
 /**
  * A stand-in for the service client: records every query and answers selects
@@ -23,6 +23,11 @@ function fakeDb(tracked: unknown[], orderUpdateRows = 1, closed: unknown[] = [],
             update: (payload: Record<string, unknown>) => {
                 call.op = "update";
                 call.payload = payload;
+                return builder;
+            },
+            insert: (rows: Record<string, unknown>[]) => {
+                call.op = "insert";
+                call.rows = rows;
                 return builder;
             },
             eq: (col: string, v: unknown) => (call.filters.push(["eq", col, v]), builder),
@@ -62,12 +67,22 @@ const row = (over: Partial<{ shipment_status: string; step_code: string; attenti
     case_id: 52176640,
     shipment_status: over.shipment_status ?? "ONWAY",
     step_code: over.step_code ?? "ONWAY",
-    orders: { id: "order-1", status: "in_transit", version: 7, is_return: false, attention_reasons: over.attention_reasons ?? null },
+    orders: {
+        id: "order-1",
+        order_id: "4261103016",
+        customer_name: "مريم سعد",
+        city: "البصرة",
+        status: "in_transit",
+        version: 7,
+        is_return: false,
+        attention_reasons: over.attention_reasons ?? null,
+    },
 });
 
 const steps = new Map([["DLEIVERD", "شحنات سلمت بنجاح"], ["RTN_WITHAGENT", "تعذر التوصيل"]]);
 
 const updatesOf = (calls: Call[], table: string) => calls.filter((c) => c.op === "update" && c.table === table);
+const noticesOf = (calls: Call[]) => calls.filter((c) => c.op === "insert" && c.table === "notifications").flatMap((c) => c.rows ?? []);
 
 describe("syncPrimeTenant", () => {
     it("delivers the order, pinned to the version it read, then stores Prime's status and amount", async () => {
@@ -107,6 +122,56 @@ describe("syncPrimeTenant", () => {
         const [orderUpdate] = updatesOf(calls, "orders");
         expect(orderUpdate.payload).toEqual({ needs_attention: true, attention_reasons: ["cod_risk_new_customer", "delivery_returning"] });
         expect(orderUpdate.payload).not.toHaveProperty("status");
+    });
+
+    it("tells the store what Prime delivered, in one line per read", async () => {
+        const { db, calls } = fakeDb([row()]);
+        await syncPrimeTenant(db, client([{ caseid: 52176640, shipmentStatus: "DELIVERED", stepCode: "DLEIVERD" }]), "t1", steps);
+
+        expect(noticesOf(calls)).toEqual([
+            expect.objectContaining({
+                tenant_id: "t1",
+                type: "prime.delivered",
+                category: "delivery",
+                audience: "tenant",
+                actor_name: "Prime",
+                entity_type: "order",
+                entity_id: "order-1",
+                entity_label: "#4261103016",
+                payload: { count: 1, city: "البصرة", customer: "مريم سعد" },
+            }),
+        ]);
+    });
+
+    it("a parcel coming back is its own notice, about its order", async () => {
+        const { db, calls } = fakeDb([row()]);
+        await syncPrimeTenant(db, client([{ caseid: 52176640, shipmentStatus: "FAILED_DELIVER_RETURNED_TO_SENDER", stepCode: "RTN_WITHAGENT" }]), "t1", steps);
+
+        expect(noticesOf(calls)).toEqual([
+            expect.objectContaining({
+                type: "prime.returning",
+                priority: "high",
+                entity_id: "order-1",
+                entity_label: "#4261103016",
+                payload: { customer: "مريم سعد", city: "البصرة" },
+            }),
+        ]);
+    });
+
+    it("a move along the way, or a read a person beat, tells no one", async () => {
+        const moved = fakeDb([row({ step_code: "READYTOPICKUP" })]);
+        await syncPrimeTenant(moved.db, client([{ caseid: 52176640, shipmentStatus: "ONWAY", stepCode: "ONWAY" }]), "t1", steps);
+        expect(noticesOf(moved.calls)).toEqual([]);
+
+        const beaten = fakeDb([row()], 0);
+        await syncPrimeTenant(beaten.db, client([{ caseid: 52176640, shipmentStatus: "DELIVERED", stepCode: "DLEIVERD" }]), "t1", steps);
+        expect(noticesOf(beaten.calls)).toEqual([]);
+    });
+
+    it("keeps the amount we sent when Prime reports none", async () => {
+        const { db, calls } = fakeDb([row({ step_code: "READYTOPICKUP" })]);
+        await syncPrimeTenant(db, client([{ caseid: 52176640, shipmentStatus: "ONWAY", stepCode: "ONWAY" }]), "t1", steps);
+        expect(updatesOf(calls, "prime_shipments")[0].payload).not.toHaveProperty("receipt_amount_iqd");
     });
 
     it("when a person changed the order meanwhile, Prime's status is not stored, so the next run tries again", async () => {

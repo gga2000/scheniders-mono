@@ -75,7 +75,7 @@ export async function resendPrimeShipment(
 
     const { error: rowError } = await db
         .from("prime_shipments")
-        .update({ resent_at: new Date().toISOString(), push_error: null })
+        .update({ resent_at: new Date().toISOString(), push_error: null, receipt_amount_iqd: p.receiptAmtIqd })
         .eq("id", row.id);
     if (rowError) throw new Error(rowError.message);
     await dropReturningFlags(db, tenantId, order);

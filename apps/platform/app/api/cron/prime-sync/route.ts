@@ -5,6 +5,7 @@ import { requireCronAuth } from "@/lib/cron-auth";
 import { getPrimeClient } from "@/lib/prime/client";
 import { pushPrimeChanges, type PrimePushOutcome } from "@/lib/prime/push";
 import { syncPrimeTenant, type PrimeSyncOutcome } from "@/lib/prime/sync";
+import { sendPrimeDaily, watchPrimePayments, type PrimePaymentsOutcome } from "@/lib/prime/money-watch";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -14,7 +15,7 @@ const STATUS_EVERY_MS = 15 * 60 * 1000;
 /** Slack for cron start jitter, so a 15-minute rhythm does not slip to 20. */
 const STATUS_JITTER_MS = 60 * 1000;
 
-type TenantResult = { push?: PrimePushOutcome; sync?: PrimeSyncOutcome; error?: string };
+type TenantResult = { push?: PrimePushOutcome; sync?: PrimeSyncOutcome; payments?: PrimePaymentsOutcome; daily?: boolean; error?: string };
 
 /**
  * GET /api/cron/prime-sync — every 5 minutes (vercel.json).
@@ -22,8 +23,10 @@ type TenantResult = { push?: PrimePushOutcome; sync?: PrimeSyncOutcome; error?: 
  * For each tenant with an active Prime link: sends staff edits and
  * cancellations to Prime (lib/prime/push), and every 15 minutes reads the
  * status of its open shipments and applies it (lib/prime/sync), so Prime
- * gets no more status reads than before. One tenant failing does not stop
- * the others; its error is kept on its prime_connections row.
+ * gets no more status reads than before. With the status read it also
+ * looks for new Prime payments and, from 21:00 Baghdad, sends the evening
+ * summary (lib/prime/money-watch). One tenant failing does not stop the
+ * others; its error is kept on its prime_connections row.
  */
 export async function GET(request: NextRequest) {
     const denied = requireCronAuth(request);
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
     const db = createSupabaseServiceClient();
     const { data: connections, error } = await db
         .from("prime_connections")
-        .select("tenant_id, merchant_login_id, shop_id, last_synced_at")
+        .select("tenant_id, merchant_login_id, shop_id, branch_name, last_synced_at, last_payment_id, daily_sent_on")
         .eq("is_active", true);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     if (connections.length === 0) return NextResponse.json({ success: true, tenants: 0 });
@@ -68,6 +71,17 @@ export async function GET(request: NextRequest) {
             } catch (err) {
                 errors.push(report(err, tenantId, "sync"));
             }
+            try {
+                const lastPaymentId = connection.last_payment_id === null ? null : Number(connection.last_payment_id);
+                result.payments = await watchPrimePayments(db, client, tenantId, { ...merchant, branchName: (connection.branch_name as string | null) ?? null }, lastPaymentId);
+            } catch (err) {
+                errors.push(report(err, tenantId, "payments"));
+            }
+            try {
+                result.daily = await sendPrimeDaily(db, tenantId, (connection.daily_sent_on as string | null) ?? null, Date.now());
+            } catch (err) {
+                errors.push(report(err, tenantId, "daily"));
+            }
         }
         if (errors.length > 0) result.error = errors.join("; ");
         if (statusDue || result.error) {
@@ -80,7 +94,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, tenants: connections.length, results });
 }
 
-function report(err: unknown, tenantId: string, step: "push" | "sync"): string {
+function report(err: unknown, tenantId: string, step: "push" | "sync" | "payments" | "daily"): string {
     Sentry.captureException(err, { extra: { tenantId, job: "prime-sync", step } });
     return `${step}: ${err instanceof Error ? err.message : String(err)}`;
 }

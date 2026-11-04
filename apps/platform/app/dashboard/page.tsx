@@ -23,6 +23,7 @@ import { StoreOverviewRow } from "@/components/dashboard/bento/store-overview-ro
 import { TodayStrip } from "@/components/dashboard/widgets/today-strip";
 import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
+import { PrimeHomeRow } from "@/components/dashboard/prime/prime-home-row";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 import { useAnnouncements } from "@/hooks/use-announcements";
@@ -267,6 +268,9 @@ export default function Home() {
             <WidgetPending className="min-h-[140px]" />
           )}
         </WidgetBoundary>
+
+        {/* Prime: what Prime holds, its delivery rate, where the parcels are (stores with the Prime link only) */}
+        <WidgetBoundary label="prime-home"><PrimeHomeRow /></WidgetBoundary>
 
         {/* Order Pipeline */}
         <WidgetBoundary label="order-pipeline">

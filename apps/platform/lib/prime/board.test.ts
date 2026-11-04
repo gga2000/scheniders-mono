@@ -60,8 +60,9 @@ describe("primeBoard", () => {
         expect(board.lists.on_road).toEqual(["road", "driver", "later"]);
         expect(board.lists.postponed).toEqual(["later"]);
         expect(board.lists.returning).toEqual(["back"]);
-        // Coming back is not cash on the road.
+        // Coming back is not cash on the road, nor a parcel still out.
         expect(board.cash.on_road).toBe(100_000);
+        expect(board.out).toBe(4);
     });
 
     it("counts only today's deliveries", () => {
