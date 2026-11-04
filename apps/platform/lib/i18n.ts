@@ -8,6 +8,7 @@ import { orderStatusTranslations } from "@/lib/order-status-labels";
 import { teamTranslations } from "@/lib/i18n-team";
 import { orderHistoryTranslations } from "@/lib/i18n-order-history";
 import { shieldTranslations } from "@/lib/i18n-shield";
+import { tillTranslations } from "@/lib/i18n-till";
 
 export type Locale = "en" | "ar";
 
@@ -17,6 +18,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         ...teamTranslations("en"),
         ...orderHistoryTranslations("en"),
         ...shieldTranslations("en"),
+        ...tillTranslations("en"),
         // ── Navigation ──
         "nav.dashboard": "Dashboard",
         "nav.orders": "Orders",
@@ -29,6 +31,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "nav.reports": "Reports",
         "nav.printing": "Print Queue",
         "nav.prime": "Prime",
+        "nav.till": "Till",
+        "nav.shops": "Shops",
         "nav.team": "Team",
         "nav.settings": "Settings",
         "nav.vault": "Data Vault",
@@ -6758,6 +6762,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         ...teamTranslations("ar"),
         ...orderHistoryTranslations("ar"),
         ...shieldTranslations("ar"),
+        ...tillTranslations("ar"),
         // ── Navigation ──
         "nav.dashboard": "لوحة التحكم",
         "nav.orders": "الطلبات",
@@ -6770,6 +6775,8 @@ export const translations: Record<Locale, Record<string, string>> = {
         "nav.reports": "التقارير",
         "nav.printing": "قائمة الطباعة",
         "nav.prime": "برايم",
+        "nav.till": "الكاشير",
+        "nav.shops": "المحلات",
         "nav.team": "الفريق",
         "nav.settings": "الإعدادات",
         "nav.vault": "خزينة البيانات",

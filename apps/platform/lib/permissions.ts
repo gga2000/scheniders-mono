@@ -94,6 +94,13 @@ export const PERMISSIONS = {
     VIEW_ANALYTICS: "system.analytics.view",
     VIEW_FINANCIALS: "system.financials.view", // PROPOSAL: New permission for cost/profit data
     ACCESS_SETTINGS: "system.settings.access",
+
+    // Shop till (in-store selling)
+    MANAGE_SHOPS: "shops.manage", // add shops, staff per shop, till rules, clear PINs
+    TILL_SELL: "till.sell",
+    TILL_DISCOUNT: "till.discount", // up to the store's cashier limit
+    TILL_REFUND: "till.refund", // returns and refunds at the till; also approves with a PIN
+    TILL_SHIFT: "till.shift", // open and close a shift
 } as const;
 
 export type PermissionKey = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -117,6 +124,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionKey[]> = {
         PERMISSIONS.EDIT_CUSTOMERS,
         PERMISSIONS.BLOCK_CUSTOMERS,
         PERMISSIONS.EDIT_PRODUCTS,
+        PERMISSIONS.TILL_SELL,
+        PERMISSIONS.TILL_DISCOUNT,
+        PERMISSIONS.TILL_SHIFT,
         // No Analytics, No Financials, No Settings
     ],
     viewer: [
@@ -169,6 +179,16 @@ export const PERMISSION_CATEGORIES = [
         items: [
             { key: PERMISSIONS.EDIT_PRODUCTS, label: "Add and Edit Products and Stock" },
             { key: PERMISSIONS.MANAGE_PRODUCTS, label: "Delete Products, Bulk Prices, Inventory Tools" },
+        ]
+    },
+    {
+        category: "Shop till",
+        items: [
+            { key: PERMISSIONS.TILL_SELL, label: "Sell at the Till" },
+            { key: PERMISSIONS.TILL_DISCOUNT, label: "Give Discounts (up to the store limit)" },
+            { key: PERMISSIONS.TILL_SHIFT, label: "Open and Close a Shift" },
+            { key: PERMISSIONS.TILL_REFUND, label: "Returns and Refunds at the Till" },
+            { key: PERMISSIONS.MANAGE_SHOPS, label: "Manage Shops and Till Rules" },
         ]
     },
     {
