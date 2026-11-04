@@ -4146,6 +4146,7 @@ export type Database = {
           scheduled_date: string | null
           secondary_phone: string | null
           sequence_number: number | null
+          shield_snapshot: Json | null
           source: string | null
           status: string
           tag_color: string | null
@@ -4242,6 +4243,7 @@ export type Database = {
           scheduled_date?: string | null
           secondary_phone?: string | null
           sequence_number?: number | null
+          shield_snapshot?: Json | null
           source?: string | null
           status?: string
           tag_color?: string | null
@@ -4338,6 +4340,7 @@ export type Database = {
           scheduled_date?: string | null
           secondary_phone?: string | null
           sequence_number?: number | null
+          shield_snapshot?: Json | null
           source?: string | null
           status?: string
           tag_color?: string | null
@@ -9399,6 +9402,17 @@ export type Database = {
         Returns: boolean
       }
       send_notification_digests: { Args: { p_mode: string }; Returns: number }
+      shield_impact: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          flagged_decided: number
+          shipped: number
+          shipped_delivered: number
+          shipped_refused: number
+          stopped: number
+          stopped_value: number
+        }[]
+      }
       shield_lookup: {
         Args: { p_phones: string[] }
         Returns: {
@@ -9414,6 +9428,18 @@ export type Database = {
           sequence: string[]
           stores: number
           trend: string
+        }[]
+      }
+      shield_risky_open_orders: {
+        Args: { p_limit?: number }
+        Returns: {
+          created_at: string
+          customer_name: string
+          id: string
+          network_band: string
+          order_id: string
+          own_tier: string
+          status: string
         }[]
       }
       set_team_member_active: {
