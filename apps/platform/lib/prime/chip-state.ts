@@ -27,6 +27,11 @@ export interface PrimeShipmentView {
     cancelledAt: string | null;
     cancelRefusedAt: string | null;
     resentAt: string | null;
+    /** Prime's words for why the parcel is coming back, from its webhook; null when Prime said none. */
+    returnReason: string | null;
+    /** Prime's words for why delivery was put off, and the day it was put off to (as Prime wrote it). */
+    postponeReason: string | null;
+    postponedTo: string | null;
 }
 
 export type PrimeChipTone = "progress" | "warn" | "problem" | "muted";

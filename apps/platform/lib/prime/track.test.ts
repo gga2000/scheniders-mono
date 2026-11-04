@@ -6,6 +6,7 @@ import {
     primeHistoryTime,
     primeIsStuck,
     primeLastChecked,
+    primeReasonNote,
     primeTrack,
     PRIME_STUCK_MS,
 } from "./track";
@@ -25,6 +26,9 @@ const view = (over: Partial<PrimeShipmentView> = {}): PrimeShipmentView => ({
     cancelledAt: null,
     cancelRefusedAt: null,
     resentAt: null,
+    returnReason: null,
+    postponeReason: null,
+    postponedTo: null,
     ...over,
 });
 
@@ -162,5 +166,21 @@ describe("primeHistoryTime", () => {
     it("null for anything else", () => {
         expect(primeHistoryTime("")).toBeNull();
         expect(primeHistoryTime("yesterday")).toBeNull();
+    });
+});
+
+describe("primeReasonNote", () => {
+    it("gives Prime's reason for a parcel coming back", () => {
+        expect(primeReasonNote(view({ status: "FAILED_DELIVER_RETURNED_TO_SENDER", returnReason: "الزبون لا يرد" }))).toEqual({ reason: "الزبون لا يرد", until: null });
+    });
+
+    it("gives the reason and the day for a postponed parcel", () => {
+        expect(primeReasonNote(view({ status: "POSTPONED", postponeReason: "مسافر", postponedTo: "2026-11-06T00:00:00" }))).toEqual({ reason: "مسافر", until: "2026-11-06" });
+        expect(primeReasonNote(view({ status: "POSTPONED", postponedTo: "الخميس" }))).toEqual({ reason: null, until: "الخميس" });
+    });
+
+    it("says nothing for a parcel on its way, or when Prime gave no reason", () => {
+        expect(primeReasonNote(view({ returnReason: "قديم" }))).toBeNull();
+        expect(primeReasonNote(view({ status: "FAILED_DELIVER_RETURNED_TO_SENDER" }))).toBeNull();
     });
 });

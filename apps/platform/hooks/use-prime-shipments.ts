@@ -19,7 +19,7 @@ const REFRESH_MS = 60_000;
 
 /** The prime_shipments columns a Prime view is read from. */
 export const PRIME_VIEW_COLUMNS =
-    "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at";
+    "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at, return_reason, postpone_reason, postponed_to";
 
 export const primeShipmentRowSchema = z.object({
     order_id: z.string(),
@@ -38,6 +38,9 @@ export const primeShipmentRowSchema = z.object({
     cancelled_at: z.string().nullable(),
     cancel_refused_at: z.string().nullable(),
     resent_at: z.string().nullable(),
+    return_reason: z.string().nullable(),
+    postpone_reason: z.string().nullable(),
+    postponed_to: z.string().nullable(),
 });
 
 const EMPTY: ReadonlyMap<string, PrimeShipmentView> = new Map();
@@ -73,6 +76,9 @@ export function primeViewFromRow(r: z.infer<typeof primeShipmentRowSchema>): Pri
         cancelledAt: r.cancelled_at,
         cancelRefusedAt: r.cancel_refused_at,
         resentAt: r.resent_at,
+        returnReason: r.return_reason,
+        postponeReason: r.postpone_reason,
+        postponedTo: r.postponed_to,
     };
 }
 

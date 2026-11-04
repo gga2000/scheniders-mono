@@ -5,8 +5,8 @@ import { BellRing, ChevronDown, Check, MessageSquareText, RotateCw, Route } from
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
 import { primeChipState } from "@/lib/prime/chip-state";
-import { primeBandAction, primeTrack, type PrimeTrackState } from "@/lib/prime/track";
-import { primeWhen } from "@/lib/prime/when";
+import { primeBandAction, primeReasonNote, primeTrack, type PrimeTrackState } from "@/lib/prime/track";
+import { primeReasonText, primeWhen } from "@/lib/prime/when";
 import { formatTime } from "@/lib/order-format-utils";
 import { cn } from "@/lib/utils";
 import type { OrderCardModel } from "./use-order-card-model";
@@ -57,6 +57,7 @@ function PrimeBandFor({ m }: { m: OrderCardModel }) {
     const title = view.stepName ?? t("orders.prime.band.sentTitle");
     const note =
         view.pushError !== null ? t("orders.prime.band.editRefused") : view.cancelRefusedAt !== null ? t("orders.prime.cancelRefused") : null;
+    const primeSays = primeReasonText(primeReasonNote(view), t);
     const togglePanel = (focus: PrimePanelFocus) => setPanel((open) => (open === focus ? null : focus));
 
     const remind = () =>
@@ -90,6 +91,18 @@ function PrimeBandFor({ m }: { m: OrderCardModel }) {
                                 {t("orders.prime.band.caseLabel")} <span className="font-mono tabular-nums">#{view.caseId}</span>
                             </span>
                             {note && <span className="mt-0.5 block truncate text-xs font-semibold text-[#8A4B00] dark:text-amber-300">{note}</span>}
+                            {primeSays && (
+                                <span
+                                    data-prime-reason
+                                    title={primeSays}
+                                    className={cn(
+                                        "mt-0.5 block truncate text-xs font-semibold",
+                                        track.state === "returning" ? "text-[#8F1D13] dark:text-rose-300" : "text-[#8A4B00] dark:text-amber-300",
+                                    )}
+                                >
+                                    {primeSays}
+                                </span>
+                            )}
                         </span>
                         <ChevronDown
                             aria-hidden="true"
