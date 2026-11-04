@@ -127,7 +127,7 @@ async function pushOne(db: ServiceDb, client: PrimeClient, tenantId: string, mer
             if (isPrimeUnreachable(err)) return "unreachable";
             return refuse(db, tenantId, row, PRIME_EDIT_REFUSED, errorText(err), { push_needed_at: null }, "push_needed_at");
         }
-        await saveRow(db, row, { pushed_hash: hash, pushed_at: new Date().toISOString(), push_error: null }, null);
+        await saveRow(db, row, { pushed_hash: hash, pushed_at: new Date().toISOString(), push_error: null, receipt_amount_iqd: fields.receiptAmtIqd }, null);
     }
 
     // Prime holds the order's current details: an earlier refusal no longer applies.
@@ -176,7 +176,7 @@ async function refuse(
     row: QueuedRow,
     reason: string,
     message: string,
-    patch: Record<string, string | null>,
+    patch: Record<string, string | number | null>,
     guard: "push_needed_at" | "cancel_needed_at",
 ): Promise<OneResult> {
     const flagged = await writeAttention(db, tenantId, row.orders, withAttention(row.orders.attention_reasons, reason));
@@ -211,7 +211,7 @@ async function writeAttention(
 async function saveRow(
     db: ServiceDb,
     row: QueuedRow,
-    patch: Record<string, string | null>,
+    patch: Record<string, string | number | null>,
     guard: "push_needed_at" | "cancel_needed_at" | null,
 ): Promise<void> {
     let query = db.from("prime_shipments").update(patch).eq("id", row.id);

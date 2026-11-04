@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { useStatusLabel } from "@/hooks/use-status-label";
 import { getStatusBadgeStyle, isSystemActor } from "@/lib/order-format-utils";
 import { useLanguage } from "@/components/providers/language-provider";
+import { useFinancialVisibility } from "@/components/providers/financial-visibility-provider";
+import { FINANCIAL_MASK, formatIQD } from "@/lib/utils";
 import type { Order } from "@/lib/supabase";
 
 /** Read a string field out of a notification's structured payload. */
@@ -25,6 +27,14 @@ function payloadText(n: FeedNotification, key: string): string | null {
     const v = n.payload[key];
     return typeof v === "string" && v.length > 0 ? v : null;
 }
+
+/** Read a number field out of a notification's structured payload (0 when absent). */
+function payloadNumber(n: FeedNotification, key: string): number {
+    const v = n.payload[key];
+    return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+
+const isPrime = (n: FeedNotification) => n.type.startsWith("prime.");
 
 export interface NotificationFeedListProps {
     sections: FeedSection[];
@@ -48,6 +58,8 @@ export function NotificationFeedList({
     onMute,
 }: NotificationFeedListProps) {
     const { t, language } = useLanguage();
+    const { revealed } = useFinancialVisibility();
+    const money = (n: number) => (revealed ? formatIQD(n) : FINANCIAL_MASK);
     const orderStatusLabel = useStatusLabel();
     const dateLocale = language === "ar" ? arLocale : enLocale;
     // Strict, not the fuzzy form: "منذ 13 ساعة" instead of "منذ 13 ساعة تقريباً".
@@ -70,6 +82,9 @@ export function NotificationFeedList({
      * the viewer's language — the old `message` column was English prose, which is
      * why the feed used to read English inside an Arabic UI.
      */
+    /** Who a Prime parcel line is about: the customer, else the order number. */
+    const customerOf = (n: FeedNotification) => payloadText(n, "customer") ?? (n.entity_label || t("notifications.prime.customer"));
+
     const describe = (n: FeedNotification): string => {
         const ref = n.entity_label ?? "";
         switch (n.type) {
@@ -134,16 +149,52 @@ export function NotificationFeedList({
             case "chat.mention":
             case "chat.message":
                 return payloadText(n, "preview") ?? t("notifications.mentions");
+            case "prime.delivered": {
+                const count = payloadNumber(n, "count");
+                const city = payloadText(n, "city");
+                if (count === 1) return t("notifications.prime.deliveredOne", { name: payloadText(n, "customer") ?? ref });
+                return city ? t("notifications.prime.deliveredIn", { count, city }) : t("notifications.prime.delivered", { count });
+            }
+            case "prime.returning":
+                return t("notifications.prime.returning", { name: customerOf(n) });
+            case "prime.cancelled":
+                return t("notifications.prime.cancelled", { name: customerOf(n) });
+            case "prime.price_changed":
+                return t("notifications.prime.priceChanged", { name: customerOf(n) });
+            case "prime.partial":
+                return t("notifications.prime.partial", { name: customerOf(n) });
+            case "prime.payment": {
+                const line = t("notifications.prime.payment", { amount: money(payloadNumber(n, "amount")) });
+                const parcels = payloadNumber(n, "parcels");
+                if (parcels === 0) return line;
+                return `${line} · ${t("notifications.prime.paymentMatch", { matched: payloadNumber(n, "matched"), different: payloadNumber(n, "different") })}`;
+            }
+            case "prime.daily":
+                return t("notifications.prime.daily", {
+                    delivered: payloadNumber(n, "delivered"),
+                    returning: payloadNumber(n, "returning"),
+                    cash: money(payloadNumber(n, "collected")),
+                });
             default:
                 return payloadText(n, "preview") ?? n.type;
         }
     };
 
-    const getActorName = (name: string | null) =>
-        name === "Automation" || isSystemActor(name) ? t("notifications.actorAutomation", "Automation") : name ?? "";
+    const getActorName = (n: FeedNotification) => {
+        if (isPrime(n)) return t("prime.page.title");
+        const name = n.actor_name;
+        return name === "Automation" || isSystemActor(name) ? t("notifications.actorAutomation", "Automation") : name ?? "";
+    };
 
     const getIcon = (n: FeedNotification) => {
         if (n.category === "chat") return <AtSign className="w-4 h-4 text-blue-500" />;
+        if (isPrime(n)) {
+            return (
+                <span aria-hidden="true" className="flex h-4 w-4 items-center justify-center rounded bg-[#315EA8]">
+                    <span className="h-1.5 w-3 bg-white [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat]" />
+                </span>
+            );
+        }
         switch (n.category) {
             case "inventory":
                 return <PackageX className="w-4 h-4 text-rose-500" />;
@@ -228,9 +279,11 @@ export function NotificationFeedList({
                                         </div>
 
                                         <div className="flex-1 min-w-0 pr-20 sm:pr-0">
-                                            <p className={cn(
+                                            {/* A Prime line mixes words, names and money: it reads in its own direction, still left-aligned. */}
+                                            <p dir={isPrime(n) ? "auto" : undefined} className={cn(
                                                 "text-sm text-foreground font-medium",
                                                 n.category === "chat" && "line-clamp-2",
+                                                isPrime(n) && "text-left",
                                             )}>
                                                 {describe(n)}
                                             </p>
@@ -261,7 +314,7 @@ export function NotificationFeedList({
                                                     </div>
                                                 )}
                                                 <span className="text-xs text-muted-foreground font-medium truncate">
-                                                    {getActorName(n.actor_name)}
+                                                    {getActorName(n)}
                                                 </span>
                                                 <span className="text-xs text-muted-foreground shrink-0">•</span>
                                                 <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap shrink-0">

@@ -136,6 +136,8 @@ async function sendOne(
         receipt_no: built.payload.custReceiptNoOri,
         case_id: caseId,
         shipment_status: "ONWAY",
+        // What Prime collects, until its first status read reports its own amount.
+        receipt_amount_iqd: built.payload.receiptAmtIqd,
         // What Prime now holds, so a later edit that changes nothing Prime sees is not sent.
         pushed_hash: primeShipmentHash(primeUpdateFields(built.payload)),
     });

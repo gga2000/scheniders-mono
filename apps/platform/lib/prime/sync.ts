@@ -3,11 +3,13 @@ import type { Order } from "@/types/order";
 import { buildStatusUpdate } from "@/lib/orders/status-update";
 import { resolveStatusForOrder } from "@/lib/order-status-machine";
 import { PRIME_INFO_BATCH, type PrimeClient, type PrimeShipmentInfo } from "@/lib/prime/client";
+import { noticeDelivered, noticeParcelFlag, type PrimeNoticeOrder } from "@/lib/prime/notify";
 import {
     clearPrimeAttention,
     PRIME_CANCEL_BY_HAND,
     PRIME_SETTLED_REASONS,
     primeStatusAction,
+    type PrimeAttentionReason,
     withAttention,
     withoutAttention,
     withPrimeAttention,
@@ -27,8 +29,14 @@ type TrackedRow = {
     case_id: number;
     shipment_status: string | null;
     step_code: string | null;
-    orders: Pick<Order, "id" | "status" | "version" | "is_return" | "attention_reasons">;
+    orders: Pick<Order, "id" | "order_id" | "customer_name" | "city" | "status" | "version" | "is_return" | "attention_reasons">;
 };
+
+/** What one parcel's read did: the order it moved (delivered, or flagged for a person and why). */
+type Applied =
+    | { kind: "delivered" }
+    | { kind: "flagged"; reason: PrimeAttentionReason }
+    | { kind: "conflict" | "unchanged" | "moved" };
 
 type SettledRow = {
     id: string;
@@ -63,7 +71,7 @@ export async function syncPrimeTenant(
     const since = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString();
     const { data, error } = await db
         .from("prime_shipments")
-        .select("id, case_id, shipment_status, step_code, orders!inner(id, status, version, is_return, attention_reasons)")
+        .select("id, case_id, shipment_status, step_code, orders!inner(id, order_id, customer_name, city, status, version, is_return, attention_reasons)")
         .eq("tenant_id", tenantId)
         .eq("orders.tenant_id", tenantId)
         .in("orders.status", OPEN_STATUSES)
@@ -79,15 +87,21 @@ export async function syncPrimeTenant(
         const caseIds = rows.slice(i, i + PRIME_INFO_BATCH).map((r) => Number(r.case_id));
         const infos = await client.shipmentsInfo(caseIds);
         outcome.checked += infos.length;
+        const delivered: PrimeNoticeOrder[] = [];
 
         for (const info of infos) {
             const row = byCase.get(info.caseid);
             if (!row) continue;
-            const result = await applyInfo(db, tenantId, row, info, stepNames, now);
-            if (result === "delivered") outcome.delivered += 1;
-            else if (result === "flagged") outcome.flagged += 1;
-            else if (result === "conflict") outcome.conflicts += 1;
+            const applied = await applyInfo(db, tenantId, row, info, stepNames, now);
+            if (applied.kind === "delivered") {
+                outcome.delivered += 1;
+                delivered.push(noticeOrder(row));
+            } else if (applied.kind === "flagged") {
+                outcome.flagged += 1;
+                await noticeParcelFlag(db, tenantId, noticeOrder(row), applied.reason);
+            } else if (applied.kind === "conflict") outcome.conflicts += 1;
         }
+        await noticeDelivered(db, tenantId, delivered, `${now}:${i}`);
 
         const { error: checkedError } = await db
             .from("prime_shipments")
@@ -109,12 +123,12 @@ async function applyInfo(
     info: PrimeShipmentInfo,
     stepNames: Map<string, string>,
     now: string,
-): Promise<"delivered" | "flagged" | "conflict" | "unchanged" | "moved"> {
+): Promise<Applied> {
     const status = info.shipmentStatus ?? null;
     const step = info.stepCode ?? null;
-    if (status === row.shipment_status && step === row.step_code) return "unchanged";
+    if (status === row.shipment_status && step === row.step_code) return { kind: "unchanged" };
 
-    let result: "delivered" | "flagged" | "moved" = "moved";
+    let result: Applied = { kind: "moved" };
     if (status !== row.shipment_status) {
         const action = primeStatusAction(status);
         const order = row.orders;
@@ -124,10 +138,10 @@ async function applyInfo(
                 ...buildStatusUpdate(resolveStatusForOrder(order, "delivered"), { changedByName: PRIME_ACTOR }),
                 ...clearPrimeAttention(order.attention_reasons),
             };
-            result = "delivered";
+            result = { kind: "delivered" };
         } else if (action.kind === "flag") {
             patch = { needs_attention: true, attention_reasons: withPrimeAttention(order.attention_reasons, action.reason) };
-            result = "flagged";
+            result = { kind: "flagged", reason: action.reason };
         }
         if (patch) {
             const { data: written, error } = await db
@@ -139,7 +153,7 @@ async function applyInfo(
                 .in("status", OPEN_STATUSES)
                 .select("id");
             if (error) throw new Error(error.message);
-            if (!written || written.length === 0) return "conflict";
+            if (!written || written.length === 0) return { kind: "conflict" };
         }
     }
 
@@ -150,12 +164,17 @@ async function applyInfo(
             step_code: step,
             step_name: step ? (stepNames.get(step) ?? step) : null,
             shipment_charge: info.shipmentCharge ?? null,
-            receipt_amount_iqd: info.receiptAmtIqd ?? null,
+            // What we sent stays until Prime reports its own amount.
+            ...(typeof info.receiptAmtIqd === "number" ? { receipt_amount_iqd: info.receiptAmtIqd } : {}),
             status_changed_at: now,
         })
         .eq("id", row.id);
     if (error) throw new Error(error.message);
     return result;
+}
+
+function noticeOrder(row: TrackedRow): PrimeNoticeOrder {
+    return { id: row.orders.id, orderNumber: String(row.orders.order_id), customerName: row.orders.customer_name ?? null, city: row.orders.city ?? null };
 }
 
 /**

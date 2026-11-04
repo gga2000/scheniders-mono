@@ -41,6 +41,7 @@ vi.mock("@/hooks/use-notification-settings", () => ({
     useNotificationMute: () => ({ mute: vi.fn() }),
 }));
 vi.mock("@/hooks/use-title-badge", () => ({ useTitleBadge: () => {} }));
+vi.mock("@/hooks/use-prime-link", () => ({ usePrimeConnection: () => ({ checked: true, connected: false, branchName: null }) }));
 vi.mock("@/store/use-chat-store", () => ({ useChatStore: () => ({ open: vi.fn() }) }));
 vi.mock("@/store/use-order-store", () => ({ useOrderStore: () => ({ openOrderDetails: vi.fn() }) }));
 vi.mock("@/lib/repositories/order-repository", () => ({ orderRepository: { findById: vi.fn() } }));

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
@@ -8,7 +9,7 @@ import { usePrimeBoard } from "@/hooks/use-prime-board";
 import { usePrimeTickets } from "@/hooks/use-prime-tickets";
 import { isAdminRole } from "@/lib/permissions";
 import { primeLastChecked } from "@/lib/prime/track";
-import type { PrimeBoardList } from "@/lib/prime/board";
+import { readPrimeBoardList, type PrimeBoardList } from "@/lib/prime/board";
 import { cn } from "@/lib/utils";
 import { PrimePipeline } from "./prime-pipeline";
 import { PrimeParcelList } from "./prime-parcel-list";
@@ -17,7 +18,8 @@ import { PrimeStatementsTab } from "./prime-statements-tab";
 import { PrimeTicketsCard } from "./prime-tickets-card";
 import { PrimeTicketsTab } from "./prime-tickets-tab";
 
-export type PrimeTab = "now" | "statements" | "tickets";
+const PRIME_TABS = ["now", "statements", "tickets"] as const;
+export type PrimeTab = (typeof PRIME_TABS)[number];
 
 /**
  * The one small Prime page: where today's parcels are along the way, the
@@ -32,8 +34,12 @@ export function PrimePage() {
     const connection = usePrimeConnection();
     const { data, isPending, isError } = usePrimeBoard(connection.connected);
     const tickets = usePrimeTickets(connection.connected);
-    const [tab, setTab] = useState<PrimeTab>("now");
-    const [list, setList] = useState<PrimeBoardList>("needs");
+    // The home page's Prime cards and the Prime notifications link straight to a list or a tab.
+    const params = useSearchParams();
+    const linkedList = readPrimeBoardList(params.get("list"));
+    const linkedTab = PRIME_TABS.find((id) => id === params.get("tab") && (id !== "statements" || admin)) ?? "now";
+    const [tab, setTab] = useState<PrimeTab>(linkedTab);
+    const [list, setList] = useState<PrimeBoardList>(linkedList ?? "needs");
     const [statementId, setStatementId] = useState<number | null>(null);
     const [ticketOrder, setTicketOrder] = useState<string | null>(null);
 

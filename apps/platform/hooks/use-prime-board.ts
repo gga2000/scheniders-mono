@@ -46,6 +46,8 @@ export interface PrimeBoardData {
     board: PrimeBoard;
     views: ReadonlyMap<string, PrimeShipmentView>;
     orders: ReadonlyMap<string, PrimeBoardOrder>;
+    /** What Prime collects for each parcel (what we sent, else the order's COD amount). */
+    cash: ReadonlyMap<string, number>;
     /** When the shipments were read (ms). */
     readAt: number;
 }
@@ -89,16 +91,19 @@ export function usePrimeBoard(enabled: boolean) {
         if (!query.data) return null;
         const views = new Map<string, PrimeShipmentView>();
         const orders = new Map<string, PrimeBoardOrder>();
+        const cash = new Map<string, number>();
         const parcels: PrimeBoardParcel[] = [];
         for (const row of query.data) {
             const view = primeViewFromRow(row);
             const order = row.orders;
+            const collect = view.receiptAmountIqd ?? computeCodAmount(order);
             views.set(row.order_id, view);
             orders.set(row.order_id, order);
-            parcels.push({ orderId: row.order_id, orderStatus: order.status, view, cash: view.receiptAmountIqd ?? computeCodAmount(order) });
+            cash.set(row.order_id, collect);
+            parcels.push({ orderId: row.order_id, orderStatus: order.status, view, cash: collect });
         }
-        return { board: primeBoard(parcels, query.dataUpdatedAt), views, orders, readAt: query.dataUpdatedAt };
+        return { board: primeBoard(parcels, query.dataUpdatedAt), views, orders, cash, readAt: query.dataUpdatedAt };
     }, [query.data, query.dataUpdatedAt]);
 
-    return { data, isPending: query.isPending, isError: query.isError };
+    return { data, isPending: query.isPending, isError: query.isError, refetch: query.refetch };
 }

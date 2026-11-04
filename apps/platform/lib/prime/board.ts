@@ -12,7 +12,13 @@ export interface PrimeBoardParcel {
 }
 
 /** The lists a number on the Prime page opens. */
-export type PrimeBoardList = "handed_today" | "at_branch" | "on_road" | "delivered_today" | "postponed" | "returning" | "needs";
+export const PRIME_BOARD_LISTS = ["handed_today", "at_branch", "on_road", "delivered_today", "postponed", "returning", "needs"] as const;
+export type PrimeBoardList = (typeof PRIME_BOARD_LISTS)[number];
+
+/** A list named in a link (`/prime?list=returning`), or null when it names none. */
+export function readPrimeBoardList(value: string | null | undefined): PrimeBoardList | null {
+    return PRIME_BOARD_LISTS.find((list) => list === value) ?? null;
+}
 
 /** Why a parcel is on the "needs your decision" list. */
 export type PrimeNeedReason = "cancelled_by_prime" | "returning" | "needs_you" | "stuck";
@@ -21,6 +27,8 @@ export interface PrimeBoard {
     lists: Record<PrimeBoardList, string[]>;
     /** Cash in the parcels each list holds (all open parcels for on_road). */
     cash: Record<"handed_today" | "on_road" | "delivered_today", number>;
+    /** Open parcels still on their way (every stop, postponed and waiting on the store too; not the ones coming back). */
+    out: number;
     reasons: ReadonlyMap<string, PrimeNeedReason>;
 }
 
@@ -50,6 +58,7 @@ export function primeBoard(parcels: readonly PrimeBoardParcel[], now: number): P
         needs: [],
     };
     const cash = { handed_today: 0, on_road: 0, delivered_today: 0 };
+    let out = 0;
     const reasons = new Map<string, PrimeNeedReason>();
     const needs: PrimeBoardParcel[] = [];
 
@@ -83,6 +92,7 @@ export function primeBoard(parcels: readonly PrimeBoardParcel[], now: number): P
             continue;
         }
         cash.on_road += p.cash;
+        out += 1;
         if (track.stop === 1) lists.at_branch.push(p.orderId);
         if (track.stop === 2 || track.stop === 3) lists.on_road.push(p.orderId);
         if (bucket === "postponed") lists.postponed.push(p.orderId);
@@ -96,5 +106,5 @@ export function primeBoard(parcels: readonly PrimeBoardParcel[], now: number): P
     }
 
     lists.needs = needs.sort((a, b) => since(a.view) - since(b.view)).map((p) => p.orderId);
-    return { lists, cash, reasons };
+    return { lists, cash, out, reasons };
 }

@@ -66,7 +66,15 @@ describe("sendOrdersToPrime", () => {
 
         expect(outcome).toEqual({ sent: [{ orderId: "o1", caseId: 101 }], skipped: [{ orderId: "o2", reason: "after_sale" }], failed: [] });
         expect(inserts).toEqual([
-            { tenant_id: "t1", order_id: "o1", receipt_no: "10001", case_id: 101, shipment_status: "ONWAY", pushed_hash: expect.stringMatching(/^[0-9a-f]{32}$/) },
+            {
+                tenant_id: "t1",
+                order_id: "o1",
+                receipt_no: "10001",
+                case_id: 101,
+                shipment_status: "ONWAY",
+                receipt_amount_iqd: 55000,
+                pushed_hash: expect.stringMatching(/^[0-9a-f]{32}$/),
+            },
         ]);
     });
 
