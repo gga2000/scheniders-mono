@@ -169,6 +169,12 @@ export function NotificationFeedList({
                 if (parcels === 0) return line;
                 return `${line} · ${t("notifications.prime.paymentMatch", { matched: payloadNumber(n, "matched"), different: payloadNumber(n, "different") })}`;
             }
+            case "prime.ticket_reply": {
+                const preview = payloadText(n, "preview");
+                return preview
+                    ? t("notifications.prime.ticketReply", { name: customerOf(n), preview })
+                    : t("notifications.prime.ticketReplyNoText", { name: customerOf(n) });
+            }
             case "prime.daily":
                 return t("notifications.prime.daily", {
                     delivered: payloadNumber(n, "delivered"),

@@ -88,6 +88,13 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
             return;
         }
 
+        // Prime answered a ticket: open that ticket's chat on the Prime page.
+        if (n.type === "prime.ticket_reply") {
+            const ticket = typeof n.payload.ticket === "number" ? n.payload.ticket : null;
+            router.push(ticket === null ? "/prime?tab=tickets" : `/prime?tab=tickets&ticket=${ticket}`);
+            return;
+        }
+
         // A Prime line about no single order (a delivered batch, a payment, the day) opens the Prime page.
         if (n.type.startsWith("prime.") && n.entity_type !== "order") {
             router.push(n.type === "prime.payment" ? "/prime?tab=statements" : "/prime");

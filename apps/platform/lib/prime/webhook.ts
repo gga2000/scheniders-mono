@@ -1,6 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import type { PrimeClient, PrimeConfig, PrimeWebhookConfig, PrimeWebhookField, PrimeWebhookSetting } from "@/lib/prime/client";
+import type { PrimeClient, PrimeConfig, PrimeWebhookConfig, PrimeWebhookEvent, PrimeWebhookField, PrimeWebhookSetting } from "@/lib/prime/client";
 
 /**
  * Prime calls POST /api/prime/webhook when a parcel's status changes, so the
@@ -39,14 +39,21 @@ export function primeWebhookSecret(config: Pick<PrimeConfig, "password" | "syste
     return createHmac("sha256", config.password).update(`scheniders:prime-webhook:v1:${config.systemCode}`).digest("base64url");
 }
 
+/** Our route for each event Prime calls us for. */
+const WEBHOOK_PATH: Readonly<Record<PrimeWebhookEvent, string>> = {
+    UPDATE_STATUS: "/api/prime/webhook",
+    TICKET_NEW_CHAT_MESSAGE: "/api/prime/ticket-webhook",
+};
+
 /**
- * Where Prime calls us. The query names which secret the setting was saved
- * with (a hash, not the secret), so a new password shows up as a different
- * address and the setting is saved again with the new secret.
+ * Where Prime calls us for an event. The query names which secret the
+ * setting was saved with (a hash, not the secret), so a new password shows
+ * up as a different address and the setting is saved again with the new
+ * secret.
  */
-export function primeWebhookUrl(origin: string, secret: string): string {
+export function primeWebhookUrl(origin: string, secret: string, event: PrimeWebhookEvent = "UPDATE_STATUS"): string {
     const version = createHash("sha256").update(secret).digest("hex").slice(0, 12);
-    return `${origin.replace(/\/+$/, "")}/api/prime/webhook?v=${version}`;
+    return `${origin.replace(/\/+$/, "")}${WEBHOOK_PATH[event]}?v=${version}`;
 }
 
 /** Whether a call carries our secret. Compared in constant time. */
@@ -97,7 +104,8 @@ function sameFields(saved: PrimeWebhookConfig["fields"]): boolean {
 }
 
 /**
- * Makes Prime's UPDATE_STATUS setting point at us with our secret and fields.
+ * Makes Prime's setting for one event (status changes, or a new message in
+ * a ticket) point at us with our secret, and for status changes our fields.
  * Reads the setting first and saves only when something differs, so it can
  * run on every sync. Refuses Prime's shared test system outright.
  */
@@ -105,20 +113,22 @@ export async function ensurePrimeWebhook(
     client: Pick<PrimeClient, "webhookConfig" | "saveWebhookConfig">,
     config: Pick<PrimeConfig, "baseUrl" | "password" | "systemCode">,
     origin: string,
+    event: PrimeWebhookEvent = "UPDATE_STATUS",
 ): Promise<"unchanged" | "saved"> {
     if (new URL(config.baseUrl).hostname === PRIME_SHARED_TEST_HOST) {
         throw new Error("The webhook is never set on Prime's shared test system");
     }
     const secret = primeWebhookSecret(config);
-    const url = primeWebhookUrl(origin, secret);
-    const current = await client.webhookConfig("UPDATE_STATUS");
+    const url = primeWebhookUrl(origin, secret, event);
+    const withFields = event === "UPDATE_STATUS";
+    const current = await client.webhookConfig(event);
     const upToDate =
         current.configured &&
         current.url === url &&
         current.authenticationMode === "CUSTOM_HEADER" &&
         current.headerName === PRIME_WEBHOOK_HEADER &&
         current.secretConfigured === true &&
-        sameFields(current.fields);
+        (!withFields || sameFields(current.fields));
     if (upToDate) return "unchanged";
 
     const setting: PrimeWebhookSetting = {
@@ -126,8 +136,24 @@ export async function ensurePrimeWebhook(
         authenticationMode: "CUSTOM_HEADER",
         headerName: PRIME_WEBHOOK_HEADER,
         secret,
-        fields: [...PRIME_WEBHOOK_FIELDS],
+        ...(withFields ? { fields: [...PRIME_WEBHOOK_FIELDS] } : {}),
     };
-    await client.saveWebhookConfig("UPDATE_STATUS", setting);
+    await client.saveWebhookConfig(event, setting);
     return "saved";
+}
+
+/** What Prime sends when a message is written in a ticket (its payload is fixed). */
+const ticketEventSchema = z.object({
+    ticketId: z.coerce.number().int().positive(),
+    caseId: z.coerce.number().int().positive(),
+    messageType: z.string().nullish(),
+    message: text(REASON_MAX),
+    createdAt: z.string().nullish(),
+});
+export type PrimeTicketEvent = z.infer<typeof ticketEventSchema>;
+
+/** One ticket message or a list of them; null when the body is not Prime's shape. */
+export function parsePrimeTicketBody(body: unknown): PrimeTicketEvent[] | null {
+    const parsed = z.union([ticketEventSchema.transform((e) => [e]), z.array(ticketEventSchema)]).safeParse(body);
+    return parsed.success ? parsed.data : null;
 }

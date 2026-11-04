@@ -80,6 +80,15 @@ describe("Prime lines in the feed", () => {
         expect(screen.getAllByText("برايم")).toHaveLength(3);
     });
 
+    it("quotes Prime's reply on a ticket", () => {
+        show([
+            notice("prime.ticket_reply", { customer: "حيدر", ticket: 901, preview: "الزبون لا يرد" }, { entity_type: "order", entity_id: "o1", entity_label: "#1261103001" }),
+            notice("prime.ticket_reply", { customer: null, ticket: 902, preview: null }, { entity_type: "order", entity_id: "o2", entity_label: "#1261103002" }),
+        ]);
+        expect(screen.getByText("برايم ردّت على تذكرة حيدر: الزبون لا يرد")).toBeTruthy();
+        expect(screen.getByText("برايم ردّت على تذكرة #1261103002")).toBeTruthy();
+    });
+
     it("shows a payment and the day's money only when money is revealed", () => {
         const items = [
             notice("prime.payment", { amount: 1_284_250, parcels: 40, matched: 39, different: 1 }),
