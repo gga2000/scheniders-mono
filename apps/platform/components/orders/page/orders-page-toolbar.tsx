@@ -16,6 +16,7 @@ import { Plus, Download, Package, CheckSquare, MapPin, CalendarDays, BarChart3, 
 import { cn } from "@/lib/utils";
 import { AdsTodayChips } from "@/components/ads/ads-today-chips";
 import { AdsChipsToggle } from "@/components/ads/ads-chips-toggle";
+import { PrimeTrackToggle } from "@/components/orders/prime-track-toggle";
 import { notificationService } from "@/lib/notification-service";
 import { toast } from "@/hooks/use-toast";
 import { DateRangePicker, SavedViewsTabs, StickyFilterBar } from "@/components/orders/page/lazy";
@@ -442,6 +443,9 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
 
                                             {/* Meta chips toggle (off by default) */}
                                             <AdsChipsToggle active={showAdsChips} onToggle={toggleAdsChips} />
+
+                                            {/* Prime strip under the order cards */}
+                                            <PrimeTrackToggle />
 
                                             {/* Map Toggle */}
                                             <button
