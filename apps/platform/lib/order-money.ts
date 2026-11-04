@@ -25,7 +25,7 @@ type OrderMoneyFields = {
 };
 
 /** Payment states where the customer has already paid — courier collects nothing. */
-function isPrepaid(paymentStatus?: string | null): boolean {
+export function isPrepaid(paymentStatus?: string | null): boolean {
     return paymentStatus === "prepaid" || paymentStatus === "paid";
 }
 

@@ -117,6 +117,11 @@ export function exportToCSV(
     i18n: ProductExportI18n,
 ): void {
     const { headers, rows } = productExportTable(products, includeFinancials, i18n);
+    downloadCsv(headers, rows, filename);
+}
+
+/** Download a table as `<filename>.csv`, one quoted cell per value. */
+export function downloadCsv(headers: readonly string[], rows: readonly (readonly (string | number)[])[], filename: string): void {
     const csvContent = [
         headers.map(csvCell).join(","),
         ...rows.map((row) => row.map((cell) => csvCell(String(cell))).join(",")),

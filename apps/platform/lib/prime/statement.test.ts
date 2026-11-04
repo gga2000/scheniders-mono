@@ -7,6 +7,8 @@ const ours = (orderNumber: string, collect: number | null, fee: number | null): 
     customerName: "زبون",
     collect,
     fee,
+    status: "delivered",
+    linked: true,
 });
 
 describe("matchPrimeStatement", () => {

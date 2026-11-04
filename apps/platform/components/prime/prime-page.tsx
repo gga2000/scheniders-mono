@@ -41,7 +41,7 @@ export function PrimePage() {
     const [tab, setTab] = useState<PrimeTab>(linkedTab);
     const [list, setList] = useState<PrimeBoardList>(linkedList ?? "needs");
     const [statementId, setStatementId] = useState<number | null>(null);
-    const [ticketOrder, setTicketOrder] = useState<string | null>(null);
+    const [ticketFor, setTicketFor] = useState<{ orderId: string; draft?: string; label?: string } | null>(null);
 
     if (!connection.checked) return <div className="min-h-screen p-8" aria-busy="true" />;
     if (!connection.connected) {
@@ -63,8 +63,8 @@ export function PrimePage() {
         ...(admin ? [{ id: "statements" as const, label: t("prime.page.tabStatements") }] : []),
         { id: "tickets", label: t("prime.page.tabTickets"), count: openTickets },
     ];
-    const askPrime = (orderId: string) => {
-        setTicketOrder(orderId);
+    const askPrime = (orderId: string, draft?: string, label?: string) => {
+        setTicketFor({ orderId, draft, label });
         setTab("tickets");
     };
 
@@ -132,12 +132,12 @@ export function PrimePage() {
                             </div>
                         </>
                     ))}
-                {tab === "statements" && admin && <PrimeStatementsTab selected={statementId} onSelect={setStatementId} />}
+                {tab === "statements" && admin && <PrimeStatementsTab selected={statementId} onSelect={setStatementId} onAskPrime={askPrime} />}
                 {tab === "tickets" && (
                     <PrimeTicketsTab
                         tickets={tickets}
-                        newFor={ticketOrder && data ? { orderId: ticketOrder, order: data.orders.get(ticketOrder) ?? null } : null}
-                        onNewDone={() => setTicketOrder(null)}
+                        newFor={ticketFor ? { ...ticketFor, order: data?.orders.get(ticketFor.orderId) ?? null } : null}
+                        onNewDone={() => setTicketFor(null)}
                     />
                 )}
             </div>

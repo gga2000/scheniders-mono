@@ -3,6 +3,7 @@ import type { PrimeClient, PrimeManifestCase } from "@/lib/prime/client";
 import type { PrimeConnection } from "@/lib/prime/connection";
 import { baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 import { noticeForAdmins } from "@/lib/prime/notify";
+import { savePrimePaymentCheck } from "@/lib/prime/payment-check";
 import { matchPrimeCases, primeStatementEntry } from "@/lib/prime/statement-load";
 import { primeTrack } from "@/lib/prime/track";
 
@@ -42,8 +43,9 @@ async function remember(db: ServiceDb, tenantId: string, fields: { last_payment_
 
 /**
  * Prime's payments since the last one seen: each one's parcels are marked
- * paid (so the home page knows what Prime still holds) and the payment is
- * told to the administrators with how its parcels match our orders. The
+ * paid (so the home page knows what Prime still holds), how they match
+ * our orders is kept for the Prime page's list, and the payment is told to
+ * the administrators with that match. The
  * first run after the link is switched on only marks the recent payments'
  * parcels, so old payments are not announced as new. Oldest first, and the
  * last one seen is saved after each, so a failure halfway announces nothing
@@ -63,8 +65,9 @@ export async function watchPrimePayments(
     for (const receipt of fresh) {
         const cases = await client.paymentCases(connection.merchantLoginId, receipt.id);
         outcome.parcelsPaid += await markPaid(db, tenantId, cases, receipt.id);
+        const { summary } = await matchPrimeCases(db, tenantId, cases);
+        await savePrimePaymentCheck(db, tenantId, receipt.id, summary);
         if (lastPaymentId !== null) {
-            const { summary } = await matchPrimeCases(db, tenantId, cases);
             const entry = primeStatementEntry(receipt);
             await noticeForAdmins(
                 db,

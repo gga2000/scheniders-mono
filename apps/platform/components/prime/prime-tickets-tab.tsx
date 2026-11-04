@@ -36,7 +36,8 @@ export function PrimeTicketsTab({
     onNewDone,
 }: {
     tickets: TicketsQuery;
-    newFor: { orderId: string; order: PrimeBoardOrder | null } | null;
+    /** A new ticket on this order's parcel, its first message drafted when it comes from a payment's difference. */
+    newFor: { orderId: string; order: PrimeBoardOrder | null; draft?: string; label?: string } | null;
     onNewDone: () => void;
 }) {
     const { t } = useLanguage();
@@ -97,7 +98,7 @@ export function PrimeTicketsTab({
                 )}
             </nav>
             {newFor ? (
-                <PrimeNewTicket orderId={newFor.orderId} order={newFor.order} subjects={subjects} onDone={onNewDone} />
+                <PrimeNewTicket key={newFor.orderId} orderId={newFor.orderId} order={newFor.order} label={newFor.label ?? newFor.orderId} draft={newFor.draft ?? ""} subjects={subjects} onDone={onNewDone} />
             ) : current !== null ? (
                 <PrimeTicketChat ticketId={current} />
             ) : (
@@ -211,11 +212,16 @@ function PrimeTicketChat({ ticketId }: { ticketId: number }) {
 function PrimeNewTicket({
     orderId,
     order,
+    label,
+    draft,
     subjects,
     onDone,
 }: {
     orderId: string;
     order: PrimeBoardOrder | null;
+    /** How the parcel is named when it is not on today's board. */
+    label: string;
+    draft: string;
     subjects: readonly { code: string; name: string }[];
     onDone: () => void;
 }) {
@@ -225,7 +231,7 @@ function PrimeNewTicket({
     const explain = useExplain();
     const ids = { subject: useId(), message: useId() };
     const [subject, setSubject] = useState("");
-    const [text, setText] = useState("");
+    const [text, setText] = useState(draft);
     const [busy, setBusy] = useState(false);
     const [problem, setProblem] = useState<string | null>(null);
 
@@ -251,7 +257,7 @@ function PrimeNewTicket({
             <div>
                 <h2 className="text-[17px] font-bold text-foreground">{t("prime.page.newTicket")}</h2>
                 <p dir={dir} className="mt-1 text-left text-sm text-muted">
-                    {order ? `${order.customer_name || order.order_id} · ${order.city ?? ""} · ${order.order_id}` : orderId}
+                    {order ? `${order.customer_name || order.order_id} · ${order.city ?? ""} · ${order.order_id}` : label}
                 </p>
             </div>
             <label htmlFor={ids.subject} className="flex flex-col gap-1.5 text-xs text-muted">
