@@ -140,6 +140,7 @@ export function PrimePage() {
                     <PrimeTicketsTab
                         tickets={tickets}
                         newFor={ticketFor ? { ...ticketFor, order: data?.orders.get(ticketFor.orderId) ?? null } : null}
+                        onNew={(orderId, label) => setTicketFor({ orderId, label })}
                         onNewDone={() => setTicketFor(null)}
                     />
                 )}

@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
+import { supabase } from "@/lib/supabase";
 
 const ticketSchema = z.object({
     ticketId: z.number(),
@@ -99,5 +100,32 @@ export function usePrimeTicketWrite() {
             return answer;
         },
         [token, tenantId, queryClient],
+    );
+}
+
+const parcelSchema = z.object({
+    order_id: z.string(),
+    orders: z.object({ order_id: z.string().nullable(), customer_name: z.string().nullable() }),
+});
+
+/** The order behind an order number when its parcel went to Prime, for a ticket on a parcel that is not on today's board. */
+export function usePrimeFindParcel() {
+    const { tenantId } = useAuth();
+    return useCallback(
+        async (orderNumber: string): Promise<{ orderId: string; label: string } | null> => {
+            if (!tenantId) throw new Error("No active tenant");
+            const { data, error } = await supabase
+                .from("prime_shipments")
+                .select("order_id, orders!inner(order_id, customer_name)")
+                .eq("tenant_id", tenantId)
+                .eq("orders.order_id", orderNumber)
+                .limit(1);
+            if (error) throw error;
+            const row = z.array(parcelSchema).parse(data ?? [])[0];
+            if (!row) return null;
+            const number = row.orders.order_id ?? orderNumber;
+            return { orderId: row.order_id, label: row.orders.customer_name ? `${row.orders.customer_name} · ${number}` : number };
+        },
+        [tenantId],
     );
 }
