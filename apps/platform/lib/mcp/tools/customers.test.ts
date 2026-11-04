@@ -55,6 +55,12 @@ beforeEach(() => {
             activity_logs: [],
         },
         {
+            shield_risky_open_orders: () => [
+                { id: "o1", order_id: "1003", customer_name: "Ahmed", status: "new", created_at: "2026-11-04T06:00:00Z", own_tier: null, network_band: "red" },
+                { id: "o2", order_id: "1004", customer_name: "Noor", status: "contacted", created_at: "2026-11-04T07:00:00Z", own_tier: "watch", network_band: "none" },
+            ],
+            shield_impact: () => [{ flagged_decided: 5, stopped: 3, stopped_value: 90000, shipped: 2, shipped_delivered: 1, shipped_refused: 1 }],
+            shield_store_score: () => [{ own_finished: 213, own_delivered: 160, network_rate: null, network_stores: null }],
             get_abandoned_cart_recovery: () =>
                 ({ days: 30, recovered: 4, returned: 1, rate: 40, recovered_iqd: 120000, removed: { junk_phone: 2, junk_location: 0, already_ordered: 1, expired: 3 }, by_staff: [{ name: "Sara", recovered: 4 }] }) as never,
         },
@@ -77,6 +83,23 @@ describe("abandoned_carts", () => {
         asCaller("employee");
         const res = await call("abandoned_carts", { days: 30 });
         expect(res.text).not.toContain("IQD recovered");
+    });
+});
+
+describe("shield_overview", () => {
+    it("lists orders to call first, red first, with what Shield stopped and the delivery rate", async () => {
+        const res = await call("shield_overview", { days: 30 });
+        expect(res.text).toContain("2 open order(s) to call before confirming:");
+        expect(res.text).toContain("#1003 Ahmed | new | HIGH RISK | red record in other stores");
+        expect(res.text).toContain("#1004 Noor | contacted | call first | rated watch here");
+        expect(res.text).toContain("3 stopped before shipping (90,000 IQD of goods kept back)");
+        expect(res.text).toContain("Delivery rate 75% (160 of 213); other stores' average shows once 3 stores take part.");
+    });
+
+    it("hides the goods value from staff without money access", async () => {
+        asCaller("employee");
+        const res = await call("shield_overview", { days: 30 });
+        expect(res.text).not.toContain("IQD");
     });
 });
 
