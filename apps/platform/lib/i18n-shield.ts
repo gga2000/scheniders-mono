@@ -69,6 +69,20 @@ const en: Record<string, string> = {
 
     "shield.footer": "Other stores are never named. No products, prices or addresses are shared. Shield only warns; you decide.",
     "shield.loadFailed": "Shield could not load the network record.",
+
+    "shield.home.callTitle": "{count} open orders: call before you confirm",
+    "shield.home.callSub": "{red} high risk. Their customer refused or did not answer here or in other stores.",
+    "shield.home.callNoneTitle": "No risky open orders",
+    "shield.home.callNoneSub": "Shield checks every open order against this store and other stores.",
+    "shield.home.callMore": "{count} more on the orders page",
+    "shield.home.ageHours": "{n}h",
+    "shield.home.ageDays": "{n}d",
+    "shield.home.impactTitle": "Shield · last {days} days",
+    "shield.home.impactNone": "Shield starts counting once a flagged order is confirmed or cancelled.",
+    "shield.home.stopped": "risky orders stopped before shipping",
+    "shield.home.stoppedValue": "Goods kept off risky trips:",
+    "shield.home.shipped": "{shipped} flagged orders shipped anyway: {delivered} delivered, {refused} refused",
+    "shield.home.refusedRate": "{rate}% refused",
 };
 
 const ar: Record<string, string> = {
@@ -138,6 +152,20 @@ const ar: Record<string, string> = {
 
     "shield.footer": "لا تُذكر أسماء المتاجر الأخرى أبداً، ولا تُشارك المنتجات أو الأسعار أو العناوين. الدرع ينبّه فقط، والقرار لك.",
     "shield.loadFailed": "تعذّر تحميل سجل الدرع.",
+
+    "shield.home.callTitle": "{count} طلبات مفتوحة: اتصل قبل التأكيد",
+    "shield.home.callSub": "{red} خطر عالي. زبائنها رفضوا أو لم يردوا هنا أو في متاجر أخرى.",
+    "shield.home.callNoneTitle": "لا توجد طلبات مفتوحة خطرة",
+    "shield.home.callNoneSub": "الدرع يفحص كل طلب مفتوح مقابل سجل متجرك والمتاجر الأخرى.",
+    "shield.home.callMore": "{count} أخرى في صفحة الطلبات",
+    "shield.home.ageHours": "{n} س",
+    "shield.home.ageDays": "{n} ي",
+    "shield.home.impactTitle": "الدرع · آخر {days} يوم",
+    "shield.home.impactNone": "يبدأ الدرع العد عندما يُؤكَّد أو يُلغى طلب عليه تنبيه.",
+    "shield.home.stopped": "طلبات خطرة أُوقفت قبل الشحن",
+    "shield.home.stoppedValue": "بضاعة لم تخرج في رحلات خطرة:",
+    "shield.home.shipped": "{shipped} طلبات عليها تنبيه شُحنت: {delivered} توصيل، {refused} رفض",
+    "shield.home.refusedRate": "{rate}٪ رفض",
 };
 
 export function shieldTranslations(locale: Locale): Record<string, string> {
