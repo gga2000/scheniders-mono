@@ -151,6 +151,14 @@ describe("primeHistoryTime", () => {
         expect(primeHistoryTime("2026-11-04T09:15")).toBe("2026-11-04T06:15:00.000Z");
     });
 
+    it("reads the ticket form: unpadded date, 12-hour clock", () => {
+        expect(primeHistoryTime("2026-1-14 10:22:31 AM")).toBe("2026-01-14T07:22:31.000Z");
+        expect(primeHistoryTime("2026-1-14 12:05:00 AM")).toBe("2026-01-13T21:05:00.000Z");
+        expect(primeHistoryTime("2026-1-14 12:05:00 PM")).toBe("2026-01-14T09:05:00.000Z");
+        expect(primeHistoryTime("2026-1-14 1:05:00 pm")).toBe("2026-01-14T10:05:00.000Z");
+        expect(primeHistoryTime("2026-1-14 13:05:00 PM")).toBeNull();
+    });
+
     it("null for anything else", () => {
         expect(primeHistoryTime("")).toBeNull();
         expect(primeHistoryTime("yesterday")).toBeNull();

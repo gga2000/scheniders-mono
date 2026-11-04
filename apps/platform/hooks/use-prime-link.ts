@@ -12,9 +12,11 @@ export interface PrimeConnectionState {
     connected: boolean;
     /** The Prime branch the parcels go through («فرع الكوت»); null when not set. */
     branchName: string | null;
+    /** False until the server has answered (connected reads false meanwhile). */
+    checked: boolean;
 }
 
-const NOT_CONNECTED: PrimeConnectionState = { connected: false, branchName: null };
+const NOT_CONNECTED: PrimeConnectionState = { connected: false, branchName: null, checked: false };
 
 const failureReason = z.enum([
     "no_governorate",
@@ -95,7 +97,7 @@ export function usePrimeConnection(): PrimeConnectionState {
             const res = await fetch("/api/prime/connection", { headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) throw new Error(`Prime link status failed: ${res.status}`);
             const answer = connectionSchema.parse(await res.json());
-            return { connected: answer.connected, branchName: answer.branchName ?? null };
+            return { connected: answer.connected, branchName: answer.branchName ?? null, checked: true };
         },
     });
     return connection.data ?? NOT_CONNECTED;

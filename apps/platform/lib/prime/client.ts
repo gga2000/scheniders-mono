@@ -156,6 +156,73 @@ export type PrimeCaseMovement = z.infer<typeof historyRowSchema>;
 /** calculate-shipment-charges: a large object; only the charge is read. Null when Prime has no price for the state. */
 const chargeSchema = z.object({ shipmentCharge: z.number().nonnegative().nullish() });
 
+/** One payment movement (merchant-payment-receipts): what Prime paid the merchant, and whether it was confirmed. */
+const paymentReceiptSchema = z.object({
+    id: z.number().int().positive(),
+    medium: z.string().nullish(),
+    transactionAmountIqd: z.number().nullish(),
+    remarks: z.string().nullish(),
+    createdDateTime: z.string().nullish(),
+    confirmedReception: z.boolean().nullish(),
+    confirmationDate: z.string().nullish(),
+});
+export type PrimePaymentReceipt = z.infer<typeof paymentReceiptSchema>;
+
+/** One parcel on a payment or return manifest: what Prime collected and what it charged. */
+const manifestCaseSchema = z.object({
+    caseid: z.number().int().positive().nullish(),
+    custReceiptNoOri: z.string().nullish(),
+    receiptAmtIqd: z.number().nullish(),
+    shipmentCharge: z.number().nullish(),
+    state: z.string().nullish(),
+});
+export type PrimeManifestCase = z.infer<typeof manifestCaseSchema>;
+
+const ticketSubjectSchema = z.object({
+    code: z.string().min(1),
+    description: z.string().nullish(),
+    categoreCode: z.string().nullish(),
+    sequence: z.number().nullish(),
+});
+export type PrimeTicketSubject = z.infer<typeof ticketSubjectSchema>;
+
+/** list-tickets and single-ticket-header rows. Times are Baghdad wall clock, "2026-1-14 10:22:31 AM". */
+const ticketSchema = z.object({
+    ticketId: z.number().int().positive(),
+    caseId: z.number().nullish(),
+    receiptNo: z.string().nullish(),
+    subject: z.string().nullish(),
+    status: z.string().nullish(),
+    createdAt: z.string().nullish(),
+    latestMessage: z.string().nullish(),
+    latestMessageAt: z.string().nullish(),
+});
+export type PrimeTicket = z.infer<typeof ticketSchema>;
+
+const ticketChatSchema = z.object({
+    ticketId: z.number().int().positive(),
+    chatId: z.number().nullish(),
+    caseId: z.number().nullish(),
+    status: z.string().nullish(),
+    messages: z
+        .array(
+            z.object({
+                messageId: z.number().nullish(),
+                message: z.string().nullish(),
+                createdAt: z.string().nullish(),
+                senderName: z.string().nullish(),
+                fromSupport: z.boolean().nullish(),
+                type: z.string().nullish(),
+                mediaUrl: z.string().nullish(),
+            }),
+        )
+        .nullish()
+        .transform((m) => m ?? []),
+});
+export type PrimeTicketChat = z.infer<typeof ticketChatSchema>;
+
+const openedTicketSchema = z.object({ ticketId: z.number().int().positive() });
+
 /** update-case-status answers {success, caseid, custReceiptNoOri}; a refusal is {success:false, errorMessage} with 422. */
 const resendSchema = z.object({ success: z.literal(true), caseid: z.number().nullish() });
 
@@ -393,6 +460,43 @@ export function createPrimeClient(config: PrimeConfig, fetchImpl: FetchLike = fe
         async shipmentCharge(merchantLoginId: string, state: string, receiptAmtIqd: number): Promise<number | null> {
             const answer = await call("POST", "/external/calculate-shipment-charges", { merchantLoginId, state, receiptAmtIqd }, chargeSchema);
             return answer.shipmentCharge ?? null;
+        },
+
+        /** The merchant's payment movements, newest first as Prime lists them; `start` rows skipped, `count` returned. */
+        async paymentReceipts(merchantLoginId: string, start: number, count: number): Promise<PrimePaymentReceipt[]> {
+            return call("GET", `/external/merchant-payment-receipts/${encodeURIComponent(merchantLoginId)}/${start}/${count}`, undefined, z.array(paymentReceiptSchema));
+        },
+
+        /** The parcels on one payment manifest (its id is the payment movement's id). */
+        async paymentCases(merchantLoginId: string, paymentId: number): Promise<PrimeManifestCase[]> {
+            return call("GET", `/external/merchant-cases-in-payment-receipt/${encodeURIComponent(merchantLoginId)}/${paymentId}`, undefined, z.array(manifestCaseSchema));
+        },
+
+        /** The subjects a ticket can be opened under. */
+        async ticketSubjects(): Promise<PrimeTicketSubject[]> {
+            return call("GET", "/external/ticket-subjects", undefined, z.array(ticketSubjectSchema));
+        },
+
+        /** The merchant's tickets from the last 90 days, latest message first. */
+        async tickets(merchantLoginId: string, start: number, count: number): Promise<PrimeTicket[]> {
+            const query = `merchant-login-id=${encodeURIComponent(merchantLoginId)}&sort-type=desc`;
+            return call("GET", `/external/list-tickets/ALL/${start}/${count}?${query}`, undefined, z.array(ticketSchema));
+        },
+
+        /** One ticket's whole chat. Refused with 4005 for a ticket that is not ours. */
+        async ticketChat(ticketId: number): Promise<PrimeTicketChat> {
+            return call("GET", `/external/ticket-chat/${ticketId}`, undefined, ticketChatSchema);
+        },
+
+        /** Writes a message into a ticket's chat. */
+        async writeTicketMessage(ticketId: number, message: string): Promise<void> {
+            await call("POST", `/external/ticket-chat/write-msg/${ticketId}`, { msg: message }, z.number());
+        },
+
+        /** Opens a ticket on one of our shipments with its first message; returns the ticket id. */
+        async openTicket(caseId: number, subjectCode: string, message: string): Promise<number> {
+            const opened = await call("POST", "/external/open-ticket", { caseId, ticket: { subjectCode }, message }, openedTicketSchema);
+            return opened.ticketId;
         },
 
         /** Step code → Arabic step name (falls back to the English name, then the code). Cached for a day. */

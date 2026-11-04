@@ -149,12 +149,21 @@ export function primeLastChecked(views: Iterable<PrimeShipmentView>): number | n
 }
 
 /**
- * Prime's case-history time ("2026-11-04 00:02:24", Baghdad wall clock) as
- * an ISO instant. Iraq has no daylight saving: Baghdad is always UTC+3.
+ * A Prime time (Baghdad wall clock) as an ISO instant. Prime writes it two
+ * ways: case-history "2026-11-04 00:02:24", tickets "2026-1-14 10:22:31 AM".
+ * Iraq has no daylight saving: Baghdad is always UTC+3.
  */
 export function primeHistoryTime(value: string): string | null {
-    const match = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)/.exec(value.trim());
+    const match = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*(AM|PM)?/i.exec(value.trim());
     if (!match) return null;
-    const at = Date.parse(`${match[1]}T${match[2].length === 5 ? `${match[2]}:00` : match[2]}+03:00`);
+    const [, year, month, day, hourText, minute, second = "00", half] = match;
+    let hour = Number(hourText);
+    if (half) {
+        if (hour < 1 || hour > 12) return null;
+        hour = (hour % 12) + (half.toUpperCase() === "PM" ? 12 : 0);
+    }
+    if (hour > 23) return null;
+    const pad = (n: string | number) => String(n).padStart(2, "0");
+    const at = Date.parse(`${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${minute}:${second}+03:00`);
     return Number.isFinite(at) ? new Date(at).toISOString() : null;
 }

@@ -17,7 +17,11 @@ const LOOKBACK_DAYS = 60;
 /** While a tenant ships through the link, chips refresh this often (the sync writes every 5 minutes). */
 const REFRESH_MS = 60_000;
 
-const rowSchema = z.object({
+/** The prime_shipments columns a Prime view is read from. */
+export const PRIME_VIEW_COLUMNS =
+    "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at";
+
+export const primeShipmentRowSchema = z.object({
     order_id: z.string(),
     case_id: z.coerce.number(),
     shipment_status: z.string().nullable(),
@@ -42,39 +46,37 @@ async function fetchPrimeShipments(tenantId: string): Promise<ReadonlyMap<string
     const since = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString();
     const { data, error } = await supabase
         .from("prime_shipments")
-        .select(
-            "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at, orders!inner(status)",
-        )
+        .select(`${PRIME_VIEW_COLUMNS}, orders!inner(status)`)
         .eq("tenant_id", tenantId)
         .in("orders.status", [...CHIP_STATUSES])
         .gte("sent_at", since);
     if (error) throw error;
     if (!data || data.length === 0) return EMPTY;
-    const rows = z.array(rowSchema).parse(data);
-    return new Map(
-        rows.map((r) => [
-            r.order_id,
-            {
-                caseId: r.case_id,
-                status: r.shipment_status,
-                stepCode: r.step_code,
-                stepName: r.step_name,
-                sentAt: r.sent_at,
-                receiptAmountIqd: r.receipt_amount_iqd,
-                shipmentCharge: r.shipment_charge,
-                checkedAt: r.checked_at,
-                statusChangedAt: r.status_changed_at,
-                pending: r.push_needed_at !== null || r.cancel_needed_at !== null,
-                pushError: r.push_error,
-                cancelledAt: r.cancelled_at,
-                cancelRefusedAt: r.cancel_refused_at,
-                resentAt: r.resent_at,
-            },
-        ]),
-    );
+    const rows = z.array(primeShipmentRowSchema).parse(data);
+    return new Map(rows.map((r) => [r.order_id, primeViewFromRow(r)]));
 }
 
-const primeShipmentsKey = (tenantId: string | null | undefined) => [...orderKeys.lists(), "prime-shipments", tenantId] as const;
+/** A prime_shipments row as the cards and the Prime page read it. */
+export function primeViewFromRow(r: z.infer<typeof primeShipmentRowSchema>): PrimeShipmentView {
+    return {
+        caseId: r.case_id,
+        status: r.shipment_status,
+        stepCode: r.step_code,
+        stepName: r.step_name,
+        sentAt: r.sent_at,
+        receiptAmountIqd: r.receipt_amount_iqd,
+        shipmentCharge: r.shipment_charge,
+        checkedAt: r.checked_at,
+        statusChangedAt: r.status_changed_at,
+        pending: r.push_needed_at !== null || r.cancel_needed_at !== null,
+        pushError: r.push_error,
+        cancelledAt: r.cancelled_at,
+        cancelRefusedAt: r.cancel_refused_at,
+        resentAt: r.resent_at,
+    };
+}
+
+export const primeShipmentsKey = (tenantId: string | null | undefined) => [...orderKeys.lists(), "prime-shipments", tenantId] as const;
 
 /**
  * The tenant's Prime shipments by order id, for the order cards' Prime chip.
