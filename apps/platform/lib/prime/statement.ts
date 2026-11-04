@@ -5,10 +5,14 @@ export interface PrimeStatementOurs {
     orderId: string;
     orderNumber: string;
     customerName: string | null;
-    /** What we asked Prime to collect. */
+    /** What our books expect Prime to collect: the order's cash on delivery now. */
     collect: number | null;
     /** Prime's fee as Prime last told us (shipments-info), or null if never read. */
     fee: number | null;
+    /** The order's status in our books. */
+    status: string;
+    /** Sent through the link, so Prime can be asked about it from here. */
+    linked: boolean;
 }
 
 export type PrimeStatementKind = "match" | "different" | "unknown";

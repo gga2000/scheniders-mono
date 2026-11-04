@@ -34,7 +34,9 @@ export function primeStatementEntry(r: PrimePaymentReceipt): PrimeStatementEntry
 /**
  * Our side of a manifest's parcels, in the caller's tenant only: by case id
  * through the shipments we created, then by receipt (our order number) for
- * the parcels sent before the link or by hand.
+ * the parcels sent before the link or by hand. What we expect Prime to
+ * collect is the order's cash on delivery as our books hold it now, so an
+ * accepted new price makes the parcel match.
  */
 async function loadOurs(db: ServiceDb, tenantId: string, cases: readonly PrimeManifestCase[]) {
     const byCase = new Map<number, PrimeStatementOurs>();
@@ -44,7 +46,7 @@ async function loadOurs(db: ServiceDb, tenantId: string, cases: readonly PrimeMa
     if (caseIds.length > 0) {
         const { data, error } = await db
             .from("prime_shipments")
-            .select("case_id, receipt_amount_iqd, shipment_charge, orders!inner(id, order_id, customer_name)")
+            .select("case_id, shipment_charge, orders!inner(id, order_id, customer_name, price, delivery_fee, payment_status, status)")
             .eq("tenant_id", tenantId)
             .in("case_id", caseIds);
         if (error) throw new Error(error.message);
@@ -55,8 +57,10 @@ async function loadOurs(db: ServiceDb, tenantId: string, cases: readonly PrimeMa
                 orderId: order.id,
                 orderNumber: String(order.order_id ?? ""),
                 customerName: order.customer_name ?? null,
-                collect: row.receipt_amount_iqd === null ? null : Number(row.receipt_amount_iqd),
+                collect: computeCodAmount(order),
                 fee: row.shipment_charge === null ? null : Number(row.shipment_charge),
+                status: String(order.status),
+                linked: true,
             });
         }
     }
@@ -72,7 +76,7 @@ async function loadOurs(db: ServiceDb, tenantId: string, cases: readonly PrimeMa
     if (receipts.length > 0) {
         const { data, error } = await db
             .from("orders")
-            .select("id, order_id, customer_name, price, delivery_fee, payment_status")
+            .select("id, order_id, customer_name, price, delivery_fee, payment_status, status")
             .eq("tenant_id", tenantId)
             .is("deleted_at", null)
             // The receipt is the order number without its checkout prefix (labelReceiptNumber).
@@ -85,6 +89,8 @@ async function loadOurs(db: ServiceDb, tenantId: string, cases: readonly PrimeMa
                 customerName: order.customer_name ?? null,
                 collect: computeCodAmount(order),
                 fee: null,
+                status: String(order.status),
+                linked: false,
             });
         }
     }

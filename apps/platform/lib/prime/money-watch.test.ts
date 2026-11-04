@@ -13,7 +13,7 @@ vi.mock("@/lib/prime/statement-load", async (importOriginal) => {
     };
 });
 
-type Call = { table: string; op: "select" | "update" | "insert"; payload?: unknown; filters: [string, string, unknown][] };
+type Call = { table: string; op: "select" | "update" | "insert" | "upsert"; payload?: unknown; filters: [string, string, unknown][] };
 
 /** Records every query; answers selects by table from `answers`, and an update…select with one row per case it names. */
 function fakeDb(answers: Record<string, unknown[]> = {}) {
@@ -25,6 +25,7 @@ function fakeDb(answers: Record<string, unknown[]> = {}) {
             select: () => builder,
             update: (payload: unknown) => ((call.op = "update"), (call.payload = payload), builder),
             insert: (payload: unknown) => ((call.op = "insert"), (call.payload = payload), builder),
+            upsert: (payload: unknown) => ((call.op = "upsert"), (call.payload = payload), builder),
             eq: (col: string, v: unknown) => (call.filters.push(["eq", col, v]), builder),
             in: (col: string, v: unknown) => (call.filters.push(["in", col, v]), builder),
             is: (col: string, v: unknown) => (call.filters.push(["is", col, v]), builder),
@@ -66,6 +67,11 @@ describe("watchPrimePayments", () => {
         expect(marks.map((c) => c.payload)).toEqual([{ payment_id: 11 }, { payment_id: 12 }]);
         expect(marks[0].filters).toEqual(expect.arrayContaining([["eq", "tenant_id", "t1"], ["is", "payment_id", null]]));
         expect(of(calls, "prime_connections", "update").map((c) => c.payload)).toEqual([{ last_payment_id: 11 }, { last_payment_id: 12 }]);
+        // How each payment matched is kept for the Prime page's list, even on the first run.
+        expect(of(calls, "prime_payment_checks", "upsert").map((c) => c.payload)).toEqual([
+            expect.objectContaining({ tenant_id: "t1", payment_id: 11, parcels: 2, matched: 1, different: 1, unknown: 0, diff: -7250 }),
+            expect.objectContaining({ tenant_id: "t1", payment_id: 12, parcels: 1, matched: 0, different: 1 }),
+        ]);
     });
 
     it("tells each administrator about a new payment and how its parcels match", async () => {
