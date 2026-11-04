@@ -45,6 +45,8 @@ export interface CapiRequestContext {
   ttp?: string | null;
   /** TikTok click id from the ad link, when the store kept it. */
   ttclid?: string | null;
+  /** SHA-256 of the visitor's per-store browser external id (what the pixel sent). */
+  visitorExternalId?: string | null;
 }
 
 export interface CapiPurchaseInput {
@@ -119,14 +121,23 @@ export function buildMetaPurchaseEvent(input: CapiPurchaseInput): MetaEvent {
   const ct = cityToken(input.customer.governorate);
 
   const user_data: Record<string, string | string[]> = { country: [sha256("iq")] };
+  // Both ids go out: the phone one joins repeat buyers, the visitor one joins
+  // this order to the browsing the pixel already saw.
+  const externalIds: string[] = [];
   if (phone) {
     user_data.ph = [sha256(phone)];
-    user_data.external_id = [sha256(pixelExternalIdSource(input.tenantId, phone))];
+    externalIds.push(sha256(pixelExternalIdSource(input.tenantId, phone)));
   }
+  if (ctx.visitorExternalId) externalIds.push(ctx.visitorExternalId);
+  if (externalIds.length > 0) user_data.external_id = externalIds;
   if (em) user_data.em = [sha256(em)];
   if (fn) user_data.fn = [sha256(fn)];
   if (ln) user_data.ln = [sha256(ln)];
-  if (ct) user_data.ct = [sha256(ct)];
+  if (ct) {
+    // Iraq's governorates are its states: the same name fills both fields.
+    user_data.ct = [sha256(ct)];
+    user_data.st = [sha256(ct)];
+  }
   const ip = nonEmpty(ctx.ip, 64);
   if (ip && ip !== "unknown") user_data.client_ip_address = ip;
   const ua = nonEmpty(ctx.userAgent);

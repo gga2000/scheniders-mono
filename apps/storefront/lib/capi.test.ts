@@ -49,6 +49,7 @@ describe("buildMetaPurchaseEvent", () => {
     expect(ud.fn).toEqual([sha("ali")]);
     expect(ud.ln).toEqual([sha("kareem")]);
     expect(ud.ct).toEqual([sha("baghdad")]);
+    expect(ud.st).toEqual([sha("baghdad")]);
     expect(ud.country).toEqual([sha("iq")]);
     expect(JSON.stringify(ud)).not.toContain("7701234567");
     const cd = ev.custom_data as Record<string, unknown>;
@@ -75,10 +76,19 @@ describe("buildMetaPurchaseEvent", () => {
       context: { ip: "unknown", fbp: "garbage", fbc: "" },
     }).data[0]!;
     const ud = ev.user_data as Record<string, unknown>;
-    for (const k of ["ph", "external_id", "ct", "fbp", "fbc", "client_ip_address", "fn"]) {
+    for (const k of ["ph", "external_id", "ct", "st", "fbp", "fbc", "client_ip_address", "fn"]) {
       expect(ud[k], k).toBeUndefined();
     }
     expect(ev.event_source_url).toBeUndefined();
+  });
+
+  it("sends the visitor's browser external id next to the phone one", () => {
+    const ev = buildMetaPurchaseEvent({
+      ...base,
+      context: { ...base.context, visitorExternalId: sha("vid") },
+    }).data[0]!;
+    const ud = ev.user_data as Record<string, unknown>;
+    expect(ud.external_id).toEqual([sha(`${TENANT}:9647701234567`), sha("vid")]);
   });
 
   it("includes test_event_code when configured", () => {

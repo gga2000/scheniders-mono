@@ -28,6 +28,16 @@ export function pixelExternalIdSource(tenantId: string, phoneDigits: string): st
   return `${tenantId}:${phoneDigits}`;
 }
 
+/**
+ * The plaintext behind the hashed `external_id` for a visitor who has not
+ * ordered (yet): the store's first-party visitor id. It lets the ad networks
+ * tie a browse session to the order that follows, and gives every event an
+ * external id, not only the ones after checkout.
+ */
+export function pixelVisitorExternalIdSource(tenantId: string, visitorId: string): string {
+  return `${tenantId}:v:${visitorId}`;
+}
+
 /** sessionStorage key: the Purchase the checkout hands to the next page. */
 export const PENDING_PURCHASE_KEY = "schn:pending-purchase";
 

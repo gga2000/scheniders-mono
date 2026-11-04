@@ -48,7 +48,14 @@ function isPlausiblePixelId(
   }
 }
 
-export function SchneidersAnalyticsPixels({ analytics }: { analytics?: AnalyticsConfig | null }) {
+export function SchneidersAnalyticsPixels({
+  analytics,
+  visitorExternalId,
+}: {
+  analytics?: AnalyticsConfig | null;
+  /** SHA-256 of the store-scoped visitor id; the server sends the same one. */
+  visitorExternalId?: string | null;
+}) {
   if (!analytics) return null;
   const gtmRaw = analytics.gtm_container_id?.trim();
   const gtm = gtmRaw && isPlausiblePixelId("gtm", gtmRaw) ? gtmRaw : undefined;
@@ -114,7 +121,7 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window,document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-${metaAdvancedMatchingJs()}
+${metaAdvancedMatchingJs(visitorExternalId)}
 fbq('init', '${escapeJs(meta)}', am);
 fbq('track', 'PageView');`,
           }}
@@ -175,14 +182,16 @@ snaptr('track', 'PAGE_VIEW');`,
 }
 
 /**
- * Meta advanced matching on the page after an order: the order form's
- * Purchase handoff carries the buyer's hashed phone and external id, and
- * `fbq('init')` is the one place Meta takes them for browser events. Only
- * values that are already 64-char SHA-256 hex are passed; any other page
- * inits with no user data, as before.
+ * Meta advanced matching, applied at `fbq('init')` — the one place Meta takes
+ * user data for browser events. Every page sends the country (the store sells
+ * in Iraq only) and the hashed visitor id. On the page after an order, the
+ * order form's Purchase handoff adds the buyer's hashed phone, and its
+ * phone-based external id takes the visitor id's place (the server event
+ * carries both). Only 64-char SHA-256 hex values are passed.
  */
-function metaAdvancedMatchingJs(): string {
-  return `var am={};try{var hp=JSON.parse(sessionStorage.getItem('${escapeJs(PENDING_PURCHASE_KEY)}')||'null');var hx=/^[a-f0-9]{64}$/;if(hp&&hx.test(hp.ph||''))am.ph=hp.ph;if(hp&&hx.test(hp.external_id||''))am.external_id=hp.external_id;}catch(e){}`;
+export function metaAdvancedMatchingJs(visitorExternalId?: string | null): string {
+  const vid = visitorExternalId && /^[a-f0-9]{64}$/.test(visitorExternalId) ? visitorExternalId : null;
+  return `var am={country:'iq'${vid ? `,external_id:'${vid}'` : ""}};try{var hp=JSON.parse(sessionStorage.getItem('${escapeJs(PENDING_PURCHASE_KEY)}')||'null');var hx=/^[a-f0-9]{64}$/;if(hp&&hx.test(hp.ph||''))am.ph=hp.ph;if(hp&&hx.test(hp.external_id||''))am.external_id=hp.external_id;}catch(e){}`;
 }
 
 /** Minimal JS-string escaper for inline-script tag IDs. Pixel IDs are
