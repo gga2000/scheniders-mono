@@ -32,6 +32,10 @@ export interface PrimeShipmentView {
     /** Prime's words for why delivery was put off, and the day it was put off to (as Prime wrote it). */
     postponeReason: string | null;
     postponedTo: string | null;
+    /** Someone marked the parcel's problem handled (Prime page's problems tab): when, who, and their note. */
+    problemCheckedAt: string | null;
+    problemCheckedBy: string | null;
+    problemNote: string | null;
 }
 
 export type PrimeChipTone = "progress" | "warn" | "problem" | "muted";

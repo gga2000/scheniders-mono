@@ -19,7 +19,7 @@ const REFRESH_MS = 60_000;
 
 /** The prime_shipments columns a Prime view is read from. */
 export const PRIME_VIEW_COLUMNS =
-    "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at, return_reason, postpone_reason, postponed_to";
+    "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at, return_reason, postpone_reason, postponed_to, problem_checked_at, problem_checked_by, problem_note";
 
 export const primeShipmentRowSchema = z.object({
     order_id: z.string(),
@@ -41,6 +41,9 @@ export const primeShipmentRowSchema = z.object({
     return_reason: z.string().nullable(),
     postpone_reason: z.string().nullable(),
     postponed_to: z.string().nullable(),
+    problem_checked_at: z.string().nullable(),
+    problem_checked_by: z.string().nullable(),
+    problem_note: z.string().nullable(),
 });
 
 const EMPTY: ReadonlyMap<string, PrimeShipmentView> = new Map();
@@ -79,6 +82,9 @@ export function primeViewFromRow(r: z.infer<typeof primeShipmentRowSchema>): Pri
         returnReason: r.return_reason,
         postponeReason: r.postpone_reason,
         postponedTo: r.postponed_to,
+        problemCheckedAt: r.problem_checked_at,
+        problemCheckedBy: r.problem_checked_by,
+        problemNote: r.problem_note,
     };
 }
 
@@ -261,6 +267,29 @@ export function usePrimeResend() {
             const answer = resendAnswer.parse(await res.json());
             await queryClient.invalidateQueries({ queryKey: primeShipmentsKey(tenantId) });
             return answer;
+        },
+        [token, tenantId, queryClient],
+    );
+}
+
+const problemAnswer = z.object({ success: z.boolean(), error: z.string().optional() });
+
+/** Marks a problem parcel handled (with an optional note) or takes the mark off (POST /api/prime/problem); refreshes the Prime views after. */
+export function usePrimeProblemMark() {
+    const { session, tenantId } = useAuth();
+    const token = session?.access_token;
+    const queryClient = useQueryClient();
+    return useCallback(
+        async (body: { action: "handled"; orderId: string; note?: string } | { action: "reopen"; orderId: string }): Promise<boolean> => {
+            if (!token) throw new Error("Not signed in");
+            const res = await fetch("/api/prime/problem", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            const answer = problemAnswer.parse(await res.json().catch(() => ({ success: false })));
+            await queryClient.invalidateQueries({ queryKey: primeShipmentsKey(tenantId) });
+            return answer.success;
         },
         [token, tenantId, queryClient],
     );

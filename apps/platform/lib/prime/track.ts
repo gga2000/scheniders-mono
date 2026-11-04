@@ -49,6 +49,8 @@ const STEP_STOP: Readonly<Record<string, PrimeStop>> = {
     RTN_WITHAGENT: 3,
     DLV_AGENT_REJECT: 3,
     CHNG_AMT_CFM_REQUIRED: 3,
+    DELIVERY_CONFIRMATION_REQUEST: 3,
+    REQUEST_TO_EXPEDITE: 3,
     CHANGE_SHIPMENT_AMOUNT_APPROVED: 3,
     DLEIVERD: 4,
     SUCCARCHV: 4,
@@ -68,10 +70,15 @@ const RETURNING_STEPS = new Set([
     "RTN_WITH_PICKUPAGENT",
     "RETURNED_TO_CUSTOMER",
     "SNAGS_FAILED_TOHANDLE",
+    "CANCEL_DONT_DELIVER",
 ]);
 
-/** Steps where Prime waits on the store: a failed attempt, a refused pickup, a new amount to confirm. */
-const NEEDS_YOU_STEPS = new Set(["RTN_WITHAGENT", "DLV_AGENT_REJECT", "PICKUP_REJECT", "CHNG_AMT_CFM_REQUIRED"]);
+/** Steps where delivery failed and the customer needs a call before Prime sends the parcel back. */
+export const PRIME_FAILED_STEPS: ReadonlySet<string> = new Set(["RTN_WITHAGENT", "DLV_AGENT_REJECT", "PICKUP_REJECT"]);
+/** Steps where Prime waits on the store to confirm something: a new amount, that the customer got it, a check it is running. */
+export const PRIME_CONFIRM_STEPS: ReadonlySet<string> = new Set(["CHNG_AMT_CFM_REQUIRED", "DELIVERY_CONFIRMATION_REQUEST", "UNDER_REVISION"]);
+/** Steps where Prime waits on the store: a failed attempt, a refused pickup, something to confirm. */
+const NEEDS_YOU_STEPS = new Set([...PRIME_FAILED_STEPS, ...PRIME_CONFIRM_STEPS]);
 
 const DELIVERED_STATUSES = new Set(["DELIVERED", "PART_DELIVERED", "DELIVERED_CHANGE_PRICE"]);
 

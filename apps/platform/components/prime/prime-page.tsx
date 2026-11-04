@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -10,16 +10,18 @@ import { usePrimeTickets } from "@/hooks/use-prime-tickets";
 import { isAdminRole } from "@/lib/permissions";
 import { primeLastChecked } from "@/lib/prime/track";
 import { readPrimeBoardList, type PrimeBoardList } from "@/lib/prime/board";
+import { primeProblemsFrom } from "@/lib/prime/problems";
 import { cn } from "@/lib/utils";
 import { PrimePipeline } from "./prime-pipeline";
 import { PrimeParcelList } from "./prime-parcel-list";
+import { PrimeProblemsTab } from "./prime-problems-tab";
 import { PrimeReturnsTab } from "./prime-returns-tab";
 import { PrimeStatementCard } from "./prime-statement-card";
 import { PrimeStatementsTab } from "./prime-statements-tab";
 import { PrimeTicketsCard } from "./prime-tickets-card";
 import { PrimeTicketsTab } from "./prime-tickets-tab";
 
-const PRIME_TABS = ["now", "statements", "returns", "tickets"] as const;
+const PRIME_TABS = ["now", "problems", "statements", "returns", "tickets"] as const;
 export type PrimeTab = (typeof PRIME_TABS)[number];
 
 /**
@@ -50,6 +52,7 @@ export function PrimePage() {
     const [list, setList] = useState<PrimeBoardList>(linkedList ?? "needs");
     const [statementId, setStatementId] = useState<number | null>(null);
     const [ticketFor, setTicketFor] = useState<{ orderId: string; draft?: string; label?: string } | null>(null);
+    const problemCount = useMemo(() => (data ? primeProblemsFrom(data.views, data.orders, data.readAt).filter((p) => !p.handled).length : 0), [data]);
 
     if (!connection.checked) return <div className="min-h-screen p-8" aria-busy="true" />;
     if (!connection.connected) {
@@ -68,6 +71,7 @@ export function PrimePage() {
     const openTickets = tickets.data?.connected ? tickets.data.tickets.filter((x) => x.open).length : 0;
     const tabs: { id: PrimeTab; label: string; count?: number }[] = [
         { id: "now", label: t("prime.page.tabNow") },
+        { id: "problems", label: t("prime.page.tabProblems"), count: problemCount },
         ...(admin ? [{ id: "statements" as const, label: t("prime.page.tabStatements") }] : []),
         { id: "returns", label: t("prime.returns.tab") },
         { id: "tickets", label: t("prime.page.tabTickets"), count: openTickets },
@@ -140,6 +144,14 @@ export function PrimePage() {
                                 </div>
                             </div>
                         </>
+                    ))}
+                {tab === "problems" &&
+                    (isError ? (
+                        <p className="rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-6 text-sm text-muted">{t("prime.page.loadFailed")}</p>
+                    ) : isPending || !data ? (
+                        <div className="h-64 animate-pulse rounded-[22px] bg-[var(--card-bg)]" aria-busy="true" />
+                    ) : (
+                        <PrimeProblemsTab data={data} onAskPrime={(orderId) => askPrime(orderId)} />
                     ))}
                 {tab === "statements" && admin && <PrimeStatementsTab selected={statementId} onSelect={setStatementId} onAskPrime={askPrime} />}
                 {tab === "returns" && <PrimeReturnsTab />}

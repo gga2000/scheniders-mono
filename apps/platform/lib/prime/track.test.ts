@@ -29,6 +29,9 @@ const view = (over: Partial<PrimeShipmentView> = {}): PrimeShipmentView => ({
     returnReason: null,
     postponeReason: null,
     postponedTo: null,
+    problemCheckedAt: null,
+    problemCheckedBy: null,
+    problemNote: null,
     ...over,
 });
 
