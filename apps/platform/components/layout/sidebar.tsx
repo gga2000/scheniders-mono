@@ -9,6 +9,7 @@ import {
     LogOut,
     Megaphone,
     Truck,
+    MapPinned,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -108,6 +109,7 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
             // Store owns its own sub-navigation in-page (Command Center / Editor /
             // Reviews / Cart Recovery), so the sidebar keeps a single entry.
             { key: "nav.store", icon: AnimatedStoreIcon, href: "/store" },
+            { key: "nav.shops", icon: MapPinned, href: "/shops" },
             { key: "nav.team", icon: AnimatedTeamIcon, href: "/team" },
             { key: "nav.vault", icon: AnimatedVaultIcon, href: "/vault" },
         ],

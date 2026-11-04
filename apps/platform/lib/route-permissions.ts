@@ -30,6 +30,8 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, RouteRule>> = {
     "/vault": FINANCIALS,
     "/printing": { roles: STAFF },
     "/prime": { roles: STAFF },
+    // Staff open it to set their till PIN; owner sections need shops.manage.
+    "/shops": { roles: STAFF },
     "/shipping-export": { roles: STAFF },
     "/products": { roles: EVERYONE },
     "/orders": { roles: EVERYONE },
