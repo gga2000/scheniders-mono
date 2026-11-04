@@ -70,8 +70,9 @@ const en: Record<string, string> = {
     "shield.footer": "Other stores are never named. No products, prices or addresses are shared. Shield only warns; you decide.",
     "shield.loadFailed": "Shield could not load the network record.",
 
-    "shield.home.callTitle": "{count} open orders: call before you confirm",
+    "shield.home.callTitle": "{count} open orders from the last 14 days: call before you confirm",
     "shield.home.callSub": "{red} high risk. Their customer refused or did not answer here or in other stores.",
+    "shield.home.callSubNoRed": "Their customer refused or did not answer here or in other stores before.",
     "shield.home.callNoneTitle": "No risky open orders",
     "shield.home.callNoneSub": "Shield checks every open order against this store and other stores.",
     "shield.home.callMore": "{count} more on the orders page",
@@ -83,6 +84,15 @@ const en: Record<string, string> = {
     "shield.home.stoppedValue": "Goods kept off risky trips:",
     "shield.home.shipped": "{shipped} flagged orders shipped anyway: {delivered} delivered, {refused} refused",
     "shield.home.refusedRate": "{rate}% refused",
+    "shield.home.ownRate": "Your delivery rate {rate}%",
+    "shield.home.networkRate": "other stores {rate}% (average of {stores})",
+    "shield.home.networkRateSoon": "other stores' average shows once 3 stores take part",
+    "shield.report.open": "Report a wrong record",
+    "shield.report.placeholder": "What is wrong? For example: this customer received the order, it was marked wrong.",
+    "shield.report.send": "Send report",
+    "shield.report.cancel": "Cancel",
+    "shield.report.sent": "Report sent. We review it; the record stays until then.",
+    "shield.report.failed": "Could not send the report.",
 };
 
 const ar: Record<string, string> = {
@@ -153,8 +163,9 @@ const ar: Record<string, string> = {
     "shield.footer": "لا تُذكر أسماء المتاجر الأخرى أبداً، ولا تُشارك المنتجات أو الأسعار أو العناوين. الدرع ينبّه فقط، والقرار لك.",
     "shield.loadFailed": "تعذّر تحميل سجل الدرع.",
 
-    "shield.home.callTitle": "{count} طلبات مفتوحة: اتصل قبل التأكيد",
+    "shield.home.callTitle": "{count} طلبات مفتوحة من آخر 14 يوم: اتصل قبل التأكيد",
     "shield.home.callSub": "{red} خطر عالي. زبائنها رفضوا أو لم يردوا هنا أو في متاجر أخرى.",
+    "shield.home.callSubNoRed": "زبائنها رفضوا أو لم يردوا هنا أو في متاجر أخرى سابقاً.",
     "shield.home.callNoneTitle": "لا توجد طلبات مفتوحة خطرة",
     "shield.home.callNoneSub": "الدرع يفحص كل طلب مفتوح مقابل سجل متجرك والمتاجر الأخرى.",
     "shield.home.callMore": "{count} أخرى في صفحة الطلبات",
@@ -166,6 +177,15 @@ const ar: Record<string, string> = {
     "shield.home.stoppedValue": "بضاعة لم تخرج في رحلات خطرة:",
     "shield.home.shipped": "{shipped} طلبات عليها تنبيه شُحنت: {delivered} توصيل، {refused} رفض",
     "shield.home.refusedRate": "{rate}٪ رفض",
+    "shield.home.ownRate": "نسبة التوصيل عندك {rate}٪",
+    "shield.home.networkRate": "المتاجر الأخرى {rate}٪ (معدل {stores} متاجر)",
+    "shield.home.networkRateSoon": "يظهر معدل المتاجر الأخرى عندما تشارك 3 متاجر",
+    "shield.report.open": "الإبلاغ عن سجل خاطئ",
+    "shield.report.placeholder": "ما الخطأ؟ مثلاً: الزبون استلم الطلب لكنه سُجّل بشكل خاطئ.",
+    "shield.report.send": "إرسال البلاغ",
+    "shield.report.cancel": "إلغاء",
+    "shield.report.sent": "تم إرسال البلاغ. سنراجعه، ويبقى السجل كما هو حتى ذلك.",
+    "shield.report.failed": "تعذّر إرسال البلاغ.",
 };
 
 export function shieldTranslations(locale: Locale): Record<string, string> {

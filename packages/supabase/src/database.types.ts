@@ -9430,6 +9430,10 @@ export type Database = {
           trend: string
         }[]
       }
+      shield_report_wrong: {
+        Args: { p_note: string; p_phone: string }
+        Returns: undefined
+      }
       shield_risky_open_orders: {
         Args: { p_limit?: number }
         Returns: {
@@ -9440,6 +9444,15 @@ export type Database = {
           order_id: string
           own_tier: string
           status: string
+        }[]
+      }
+      shield_store_score: {
+        Args: { p_days?: number }
+        Returns: {
+          network_rate: number
+          network_stores: number
+          own_delivered: number
+          own_finished: number
         }[]
       }
       set_team_member_active: {
