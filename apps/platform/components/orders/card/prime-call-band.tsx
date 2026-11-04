@@ -10,6 +10,7 @@ import type { PrimeDeskRow } from "@/lib/prime/desk-preview";
 import { primeWhen } from "@/lib/prime/when";
 import { computeCodAmount } from "@/lib/order-money";
 import { cn } from "@/lib/utils";
+import { useOrderStore } from "@/store/use-order-store";
 import type { OrderCardModel } from "./use-order-card-model";
 
 const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
@@ -41,11 +42,13 @@ const CHIP: Record<Tone, string> = {
  * ended, a warning when the newest came back, and what Prime would charge for
  * this one (or what to fix before Prime takes it). Opens in place for the
  * parcels by month and the money if it is confirmed. Hidden for a tenant
- * without a switched-on Prime link.
+ * without a switched-on Prime link, and when the tools-bar Prime strip switch
+ * is off (it hides every Prime strip under the cards).
  */
 export function PrimeCallBand({ m }: { m: OrderCardModel }) {
+    const stripOn = useOrderStore((s) => s.primeTrackOnCards);
     // Only cards still on their call subscribe to the Prime queries.
-    if (!PRIME_CALL_ORDER_STATUSES.has(m.order.status)) return null;
+    if (!stripOn || !PRIME_CALL_ORDER_STATUSES.has(m.order.status)) return null;
     return <PrimeCallBandFor m={m} />;
 }
 
