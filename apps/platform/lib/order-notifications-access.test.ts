@@ -39,8 +39,14 @@ describe("order notifications access path", () => {
         expect(grep('from("order_notifications")')).toBe("");
         expect(grep("from('order_notifications')")).toBe("");
         // The unified feed is the only read path; `notifications` itself is read
-        // through the notification_feed RPC, never selected directly.
-        expect(grep('from("notifications")')).toBe("");
+        // through the notification_feed RPC, never selected directly. A server
+        // writer may insert rows (the Prime link does, with the service role);
+        // any other use of the table, a read chained on the next line included,
+        // still fails here.
+        const direct = grep('from("notifications")')
+            .split("\n")
+            .filter((line) => line && !line.includes('from("notifications").insert('));
+        expect(direct).toEqual([]);
     });
 
     it("the feed hook never deletes notifications", () => {
