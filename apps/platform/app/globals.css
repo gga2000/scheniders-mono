@@ -2410,6 +2410,12 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
   border-radius: 0.375rem;
 }
 
+/* Till text boxes already darken their own border on focus; the yellow ring
+   drew a second, inset box inside the search field. */
+.till-screen input:focus-visible {
+  outline: none;
+}
+
 /* ============================================
    Typography Helpers
    ============================================ */

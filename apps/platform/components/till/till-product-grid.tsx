@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ScanLine, X } from "lucide-react";
+import { Check, Package, ScanLine, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
 import { findByCode, formatIqd, searchProducts, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { cn } from "@/lib/utils";
-import { productTile } from "./till-colors";
 
 interface Props {
     products: TillProduct[];
@@ -56,12 +55,14 @@ export function TillProductGrid({ products, loading, onAdd }: Props) {
         if (matches.length === 0) setNotice({ kind: "bad", text: t("till.sell.unknownCode", { code }) });
     };
 
-    const shown = searchProducts(products, query);
+    // Sellable products first, so the out-of-stock ones don't crowd the top of the grid.
+    const matches = searchProducts(products, query);
+    const shown = [...matches.filter((p) => p.available > 0), ...matches.filter((p) => p.available <= 0)];
 
     return (
         <div className="flex min-h-0 flex-1 flex-col gap-3 p-5">
             <form onSubmit={submit}>
-                <label className="flex h-14 items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 focus-within:border-[var(--ink)] dark:focus-within:border-[#EFFF00]">
+                <label className="flex h-14 items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 transition-colors focus-within:border-[var(--ink)] dark:focus-within:border-[#EFFF00]">
                     <ScanLine className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                     <input
                         // The till lives on this box: a scanner can type into it at any time.
@@ -102,15 +103,15 @@ export function TillProductGrid({ products, loading, onAdd }: Props) {
 
             <div className="min-h-0 flex-1 overflow-y-auto">
                 {loading ? (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
                         {Array.from({ length: 8 }, (_, i) => (
-                            <div key={i} className="h-[196px] animate-pulse rounded-[20px] bg-[var(--card-border)]/40" />
+                            <div key={i} className="aspect-[4/5] animate-pulse rounded-[20px] bg-[var(--card-border)]/40" />
                         ))}
                     </div>
                 ) : shown.length === 0 ? (
                     <p className="py-10 text-center text-sm text-muted">{products.length ? t("till.sell.noMatch") : t("till.sell.noProducts")}</p>
                 ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 pb-2">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 pb-2">
                         {shown.map((p) => (
                             <ProductCard key={p.id} product={p} onPick={() => choose(p)} />
                         ))}
@@ -136,31 +137,51 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: () => 
     const { t } = useLanguage();
     const sizes = product.variants.length;
     const from = sizes > 1 ? Math.min(...product.variants.map((v) => v.price)) : product.variants[0]?.price ?? product.price;
-    const low = product.available > 0 && product.available <= 3;
+    const out = product.available <= 0;
+    const low = !out && product.available <= 3;
     return (
         <button
             type="button"
             onClick={onPick}
-            className="flex flex-col gap-2 rounded-[20px] border border-[var(--card-border)] bg-[var(--card-bg)] p-2.5 text-left transition-transform active:scale-[0.98]"
+            className="group flex flex-col overflow-hidden rounded-[20px] border border-[var(--card-border)] bg-[var(--card-bg)] text-left transition-[transform,border-color] duration-150 hover:border-[var(--ink)]/25 active:scale-[0.98] dark:hover:border-white/25"
         >
-            <span className="relative flex h-[112px] items-center justify-center overflow-hidden rounded-2xl" style={{ background: productTile(product.id) }}>
-                {product.image_url && (
-                    <img src={product.image_url} alt="" className="h-full w-full object-contain p-2" loading="lazy" />
+            <span className="relative block aspect-square w-full overflow-hidden bg-[var(--card-border)]/25">
+                {product.image_url ? (
+                    <img
+                        src={product.image_url}
+                        alt=""
+                        loading="lazy"
+                        className={cn("h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]", out && "opacity-45 grayscale")}
+                    />
+                ) : (
+                    <span className="flex h-full items-center justify-center text-muted">
+                        <Package className="h-10 w-10" aria-hidden="true" />
+                    </span>
                 )}
                 {sizes > 1 && (
-                    <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-[#1E1E1E]">
+                    <span className="absolute left-2 top-2 rounded-full bg-[#1E1E1E]/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                         {t("till.sell.sizes", { n: sizes })}
                     </span>
                 )}
+                {(out || low) && (
+                    <span
+                        className={cn(
+                            "absolute right-2 top-2 rounded-full px-2.5 py-1 text-xs font-bold",
+                            out ? "bg-[#FDE7EA] text-[#991B1B]" : "bg-[#FEF3C7] text-[#92400E]",
+                        )}
+                    >
+                        {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
+                    </span>
+                )}
             </span>
-            <span className="truncate px-1 text-base font-semibold text-foreground" dir="auto">{product.name}</span>
-            <span className="flex items-baseline justify-between gap-2 px-1 pb-1">
-                <span className={cn("text-xs font-semibold", product.available === 0 ? "text-red-600" : low ? "text-amber-700 dark:text-amber-400" : "text-muted")}>
-                    {product.available === 0 ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
-                </span>
-                <span className="text-lg font-bold tabular-nums text-foreground">
-                    {sizes > 1 && <span className="mr-1 text-xs font-medium text-muted">{t("till.sell.from")}</span>}
-                    {formatIqd(from)}
+            <span className="flex flex-col gap-1 px-3 pb-3 pt-2.5">
+                <span className={cn("truncate text-[15px] font-semibold", out ? "text-muted" : "text-foreground")} dir="auto">{product.name}</span>
+                <span className="flex items-baseline justify-between gap-2">
+                    <span className={cn("text-xl font-bold tabular-nums tracking-tight", out ? "text-muted" : "text-foreground")}>
+                        {sizes > 1 && <span className="mr-1 text-xs font-medium text-muted">{t("till.sell.from")}</span>}
+                        {formatIqd(from)}
+                    </span>
+                    {!out && !low && <span className="text-xs font-medium tabular-nums text-muted">{t("till.sell.left", { n: product.available })}</span>}
                 </span>
             </span>
         </button>

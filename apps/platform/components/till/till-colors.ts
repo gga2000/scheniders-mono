@@ -19,13 +19,4 @@ export const NOTE_TILES: Record<number, string> = {
     250: TILE.mint,
 };
 
-const PRODUCT_TILES = [TILE.pink, TILE.purple, TILE.blue, TILE.yellow, TILE.mint, TILE.green];
-
-/** A steady tile colour for a product, from its id. */
-export function productTile(id: string): string {
-    let h = 0;
-    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-    return PRODUCT_TILES[h % PRODUCT_TILES.length];
-}
-
 export const INK_BUTTON = "bg-[var(--ink)] text-white dark:bg-[#EFFF00] dark:text-[#121212]";

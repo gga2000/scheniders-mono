@@ -318,7 +318,7 @@ function TillFrame({
     const { t } = useLanguage();
     const chip = "inline-flex h-11 items-center gap-2 rounded-full border border-white/15 px-4 text-sm font-semibold text-white";
     return (
-        <div className="flex h-full flex-col bg-background">
+        <div className="till-screen flex h-full flex-col bg-background">
             <header className="grid h-[64px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[#1E1E1E] px-4">
                 <div className="flex items-center gap-2">
                     <Link href="/orders" className={chip} aria-label={t("till.top.exit")}>
