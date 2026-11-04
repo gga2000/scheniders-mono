@@ -120,7 +120,9 @@ export const ORDER_READ_COLUMNS = `
   abandoned_cart_resolved_by_name,
   abandoned_cart_order_id,
   entered_by,
-  created_via
+  created_via,
+  take_kind,
+  taken_by
 `;
 
 /** ORDER_READ_COLUMNS as names, for projecting a row before it is written back. */
@@ -232,6 +234,8 @@ export const LIST_COLUMNS = `
   abandoned_cart_order_id,
   entered_by,
   created_via,
+  take_kind,
+  taken_by,
   delivery_slot,
   is_gift,
   is_reviewed,

@@ -49,12 +49,19 @@ export async function createOrderForTenant(
             throw err;
         }
 
+        // A take (stock handed out in person) is not a sale: no plan limit, no
+        // wallet charge, no staff alert.
+        const isTake = Boolean(orderData.take_kind);
+
         // ── 1. Check plan limits ──
-        const limitCheck = await canCreateOrder(tenantId);
-        if (!limitCheck.allowed) {
-            return { success: false, error: limitCheck.reason };
+        let warning: string | undefined;
+        if (!isTake) {
+            const limitCheck = await canCreateOrder(tenantId);
+            if (!limitCheck.allowed) {
+                return { success: false, error: limitCheck.reason };
+            }
+            warning = limitCheck.warning;
         }
-        const warning = limitCheck.warning;
 
         // ── 1b. Every line's product / variant must be this tenant's (F-001) ──
         const items = Array.isArray(orderData.items) ? orderData.items : [];
@@ -92,7 +99,7 @@ export async function createOrderForTenant(
         }
 
         // ── 3. Post-creation: charge wallet + increment usage (fire-and-forget) ──
-        chargeAndTrack(tenantId, supabase).catch((err) => {
+        if (!isTake) chargeAndTrack(tenantId, supabase).catch((err) => {
             // Fire-and-forget, but a failure here means the order exists and was
             // never billed — silent revenue drift. Report it.
             reportOrderError(err, { operation: "chargeAndTrack", tenantId });
@@ -102,7 +109,7 @@ export async function createOrderForTenant(
         // Reads the tenant's staff_alert_numbers settings and fans out the
         // new-order template to each registered phone. Failures are logged
         // but do not affect the order creation result.
-        if (data) {
+        if (data && !isTake) {
             import("@/lib/staff-alerts").then(({ sendNewOrderAlertToStaff }) => {
                 sendNewOrderAlertToStaff(data as Order, tenantId).catch((err) => {
                     console.error('[createOrderForTenant] Staff alert fanout failed:', err);

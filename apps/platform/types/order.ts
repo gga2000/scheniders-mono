@@ -139,6 +139,10 @@ export interface Order {
     entered_by?: string | null;
     /** "claude" when made through the merchant MCP connector; null otherwise. Set by the server only. */
     created_via?: "claude" | null;
+    /** Stock taken in person (not a sale): who it was for. Set by the server only. */
+    take_kind?: TakeKind | null;
+    /** Name of the person who took the stock; empty for samples. */
+    taken_by?: string | null;
     /** Which ad the customer clicked — `source` only says which system sent the order. */
     attribution?: AdAttribution | null;
     /** Denormalized `attribution.channel` (facebook | instagram | tiktok | …) so the list can filter without unpacking jsonb. */
@@ -270,7 +274,7 @@ export interface OrderFilters {
     searchQuery?: string;
     riskLevel?: RiskLevel;
     /** Sub-filter for the Confirmed / All tabs to narrow to return or replacement orders. */
-    orderType?: 'refund' | 'replacement' | 'abandoned_cart';
+    orderType?: 'refund' | 'replacement' | 'abandoned_cart' | 'take';
     /** Ad channel (`orders.ad_channel`) the list is pinned to; undefined = every channel. */
     adChannel?: string;
     /** Normalized campaign name (lib/ad-campaign-filter) the list is pinned to, or NO_CAMPAIGN; undefined = every campaign. */
@@ -294,6 +298,9 @@ type OrderColumnsWithDbDefaults =
     // Generated server-side by create_order_atomic from the global counter
     // (see INT-7), so a caller neither knows nor should invent it.
     | "order_id";
+
+export const TAKE_KINDS = ["staff", "owner", "friend", "sample", "other"] as const;
+export type TakeKind = (typeof TAKE_KINDS)[number];
 
 export type CreateOrderInput =
     // Columns the database defaults are optional here, so a caller is not made

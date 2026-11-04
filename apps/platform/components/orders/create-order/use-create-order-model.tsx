@@ -4,7 +4,7 @@ import { useState, useEffect, useEffectEvent, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { calculateTotal, normalizeIraqiPhone, type OrderFormData, type ValidationErrors } from "@/lib/order-utils";
 import type { OrderItem } from "@/lib/supabase";
-import type { CreateOrderInput, CreateOrderResult, OrderSource } from "@/types/order";
+import type { CreateOrderInput, CreateOrderResult, OrderSource, TakeKind } from "@/types/order";
 import { useAuth } from "@/components/auth/auth-provider";
 import { checkOrderLimitsAction } from "@/app/actions/orders";
 import { toast } from "@/hooks/use-toast";
@@ -42,7 +42,8 @@ export const ORDER_SOURCES = [
     { id: "shop", labelKey: "orders.create.srcShop", icon: Store, color: "text-amber-600" },
     { id: "other", labelKey: "orders.source.other", icon: MoreHorizontal, color: "text-gray-500" },
 ];
-export type OrderType = "delivery" | "shop";
+export type OrderType = "delivery" | "shop" | "take";
+export type TakePricing = "free" | "set";
 
 /** State, data and handlers of CreateOrderModal; the component and its sections render from this. */
 export function useCreateOrderModel(props: CreateOrderModalProps) {
@@ -60,6 +61,10 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     const [limitWarning, setLimitWarning] = useState<string | null>(null);
     const [limitBlocked, setLimitBlocked] = useState<string | null>(null);
     const [orderType, setOrderType] = useState<OrderType>("delivery");
+    // Stock taken in person: who it is for, who took it, and whether it is free or paid.
+    const [takeKind, setTakeKind] = useState<TakeKind>("staff");
+    const [takenBy, setTakenBy] = useState("");
+    const [takePricing, setTakePricing] = useState<TakePricing>("free");
     const [formData, setFormData] = useState<OrderFormData & { secondary_phone?: string; source?: OrderSource; order_id?: string }>({
         customer_name: initialData?.customer_name || "",
         phone: initialData?.phone || "",
@@ -148,7 +153,11 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     // Handle order type change
     const handleOrderTypeChange = (type: OrderType) => {
         setOrderType(type);
-        if (type === "shop") {
+        if (type === "take") {
+            updateField("source", "shop");
+            setIncludeDeliveryFee(false);
+            setDiscount(0);
+        } else if (type === "shop") {
             // Shop orders: auto-set source, disable delivery fee
             updateField("source", "shop");
             setIncludeDeliveryFee(false);
@@ -162,6 +171,9 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
     const resetForm = () => {
         setStockWarning(null);
         setOrderType("delivery");
+        setTakeKind("staff");
+        setTakenBy("");
+        setTakePricing("free");
         setFormData({
             customer_name: "",
             phone: "",
@@ -364,11 +376,21 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
             newErrors.order_id = t("orders.create.errIdChecking");
         }
 
-        if (!formData.customer_name.trim()) {
+        const isTake = orderType === "take";
+        if (isTake) {
+            if (takeKind !== "sample" && !takenBy.trim()) newErrors.taken_by = t("orders.create.errTakenBy");
+            if (formData.items.length === 0) {
+                newErrors.items = t("orders.create.errNoItems");
+            } else if (formData.items.some(item => !item.product_id)) {
+                newErrors.items = t("orders.create.errItemNotPicked");
+            }
+        } else if (!formData.customer_name.trim()) {
             newErrors.customer_name = t("orders.create.errName");
         }
         // Phone required only for delivery orders
-        if (orderType === "delivery") {
+        if (isTake) {
+            // A take has no customer, phone or address.
+        } else if (orderType === "delivery") {
             if (!normalizedPhone.trim()) {
                 newErrors.phone = t("orders.create.errPhone");
             } else if (!/^07\d{8,9}$/.test(normalizedPhone.trim())) {
@@ -378,9 +400,9 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
             // For shop orders, validate phone only if provided
             newErrors.phone = t("orders.create.errPhoneInvalid");
         }
-        if (formData.items.length === 0) {
+        if (!isTake && formData.items.length === 0) {
             newErrors.items = t("orders.create.errNoItems");
-        } else if (formData.items.some(item => !item.product_id)) {
+        } else if (!isTake && formData.items.some(item => !item.product_id)) {
             newErrors.items = t("orders.create.errItemNotPicked");
         }
 
@@ -430,6 +452,48 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
             // courier export (see lib/order-money). Delivery rides along in
             // `delivery_fee`; the courier collects price + delivery_fee.
             const finalPrice = Math.max(0, itemsTotal - discount);
+
+            if (isTake) {
+                // Free: every line at 0, so the cost shows up as a loss and no
+                // revenue is booked. Set price: the lines keep their prices.
+                const takeItems = formData.items
+                    .filter(item => item.name.trim())
+                    .map(item => takePricing === "free" ? { ...item, price: 0 } : item);
+                const takeTotal = takePricing === "free" ? 0 : takeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                const takeResult = await onCreate({
+                    ...formData,
+                    customer_name: takenBy.trim() || t("orders.create.takeSampleName"),
+                    phone: "",
+                    secondary_phone: undefined,
+                    city: "",
+                    address_details: "",
+                    price: takeTotal,
+                    discount_amount: 0,
+                    delivery_fee: 0,
+                    is_shop_order: true,
+                    is_gift: false,
+                    source: "shop",
+                    status: "completed",
+                    payment_status: takePricing === "free" ? "pending" : "paid",
+                    take_kind: takeKind,
+                    taken_by: takenBy.trim(),
+                    internal_notes: formData.internal_notes || "",
+                    items: takeItems,
+                    custom_created_at: customCreatedAt,
+                });
+                if (takeResult.success) {
+                    toast.success(t("orders.create.takeRecorded"));
+                    if (createAndNew) {
+                        resetForm();
+                        setCreateAndNew(false);
+                    } else {
+                        handleClose();
+                    }
+                } else {
+                    setErrors({ items: takeResult.error || t("orders.create.errGeneric") });
+                }
+                return;
+            }
 
 
             const result = await onCreate({
@@ -512,6 +576,12 @@ export function useCreateOrderModel(props: CreateOrderModalProps) {
         setLimitBlocked,
         orderType,
         setOrderType,
+        takeKind,
+        setTakeKind,
+        takenBy,
+        setTakenBy,
+        takePricing,
+        setTakePricing,
         formData,
         setFormData,
         errors,
