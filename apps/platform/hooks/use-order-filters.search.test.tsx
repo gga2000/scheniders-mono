@@ -30,9 +30,9 @@ function order(id: string, overrides: Partial<Order> = {}): Order {
 const TODAY = "2026-10-12";
 const WINDOW = [order("today-new"), order("today-confirmed", { status: "confirmed" })];
 
-function run(filters: OrderFilters, searchResults: Order[] | null) {
+function run(filters: OrderFilters, searchResults: Order[] | null, resultsAreSearch?: boolean) {
     return renderHook(() =>
-        useOrderFilters({ orders: WINDOW, searchResults, filters, setFilters: vi.fn(), clearFilters: vi.fn() }),
+        useOrderFilters({ orders: WINDOW, searchResults, resultsAreSearch, filters, setFilters: vi.fn(), clearFilters: vi.fn() }),
     ).result.current;
 }
 
@@ -66,5 +66,20 @@ describe("useOrderFilters — search is a lookup, not a filter on the window", (
 
     it("an empty search result is an empty list, not the window", () => {
         expect(run({ status: "all", searchQuery: "nothing" }, []).filteredOrders).toEqual([]);
+    });
+});
+
+describe("useOrderFilters — a Prime queue keeps the window's counts", () => {
+    const QUEUE = [order("queued", { status: "in_transit", created_at: "2026-10-01T10:00:00.000Z" })];
+
+    it("hides counts for a typed search, which a chip click does not leave", () => {
+        expect(run({ status: "all", searchQuery: "0770" }, QUEUE).countViewFacts.ready).toBe(false);
+    });
+
+    it("keeps counts for a queue, which any chip click leaves", () => {
+        const result = run({ status: "all" }, QUEUE, false);
+        expect(result.filteredOrders.map(o => o.id)).toEqual(["queued"]);
+        expect(result.countViewFacts.ready).toBe(true);
+        expect(result.statusCounts.confirmed).toBe(1);
     });
 });

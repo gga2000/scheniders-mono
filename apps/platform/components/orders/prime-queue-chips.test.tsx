@@ -36,9 +36,18 @@ describe("PrimeQueueChips", () => {
         expect(useOrderStore.getState().primeQueue).toBeNull();
     });
 
-    it("hides the numbers when counts are hidden", () => {
-        render(<PrimeQueueChips countsHidden />);
+    it("shows no number until the Prime board has loaded", () => {
+        const loaded = state.value;
+        state.value = { ...loaded, queues: null };
+        render(<PrimeQueueChips />);
         expect(screen.getByRole("button", { name: /orders.primeQueue.fix.label/ }).getAttribute("data-chip-count")).toBeNull();
+        state.value = loaded;
+    });
+
+    it("keeps its number while a queue is open", () => {
+        useOrderStore.getState().setPrimeQueue("fix");
+        render(<PrimeQueueChips />);
+        expect(screen.getByRole("button", { name: /orders.primeQueue.fix.label/ }).getAttribute("data-chip-count")).toBe("2");
     });
 
     it("is not there without a Prime link", () => {
