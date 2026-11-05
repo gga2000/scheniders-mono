@@ -606,3 +606,13 @@ html.dark:has(.orders-page) [data-stock="oversold"] :is(span,b):not(#a){color:#e
 html.dark:has(.orders-page) [data-stock="out"]:not(#a){background:transparent!important;border-style:dashed;border-color:#3a3833}
 html.dark:has(.orders-page) [data-stock="out"] :is(span,b):not(#a){color:#8f8d86!important}
 html.dark:has(.orders-page) [data-stock] span.text-\[11px\]:first-child:not(#a){color:#a8a59e!important}
+
+/* --- build 3: live critic round 33 --- */
+/* Card actions: one shape for every button (40px, 12px corners, hairline);
+   the next step differs only by its tint. */
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button:not(#a):not(#b):not(#c):not(#d):not(#e){width:40px!important;height:40px!important;border-radius:12px!important;border-width:1px!important;border-style:solid!important}
+/* Store source chip: no white icon disc on a dark card. */
+html.dark:has(.orders-page) .orders-card-surface span.grid.h-5.w-5.rounded-full.bg-white:not(#a):not(#b){background:#2d2c29!important;color:#e8e6e1!important}
+/* Returns button: neutral in every view (cards view already was). */
+html.dark:has(.orders-page) button.rounded-xl.bg-orange-500:not(#a):not(#b):not(#c):not(#d){background:#242320!important;color:#f0eee9!important;border:1px solid #3a3833!important;box-shadow:none!important}
+html.dark:has(.orders-page) button.rounded-xl.bg-orange-500 svg:not(#a){color:#a8a59e!important}
