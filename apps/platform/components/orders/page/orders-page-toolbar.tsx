@@ -26,7 +26,7 @@ import type { OrdersPageModel } from "./use-orders-page-model";
 
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
-    const { sidebarExpanded, setIsReturnsOpen, setIsStockTodayOpen, setIsScannerOpen, showSubFilters, toggleSubFilters, showAdChannels, toggleAdChannels, showAdsChips, toggleAdsChips, showPipeline, togglePipeline, filters, setFilters, clearFilters, filterPresets, saveFilterPreset, loadFilterPreset, deleteFilterPreset, archivedOrders, fetchArchivedOrders, undoLastAction, canUndo, statusCounts, attentionCounts, oversoldCount, isMobile, t, datePreset, viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, showSearchBar, setShowSearchBar, analyticsLevel, setAnalyticsLevel, toolbarCollapsed, toggleToolbarCollapse, setSoundEnabled, showFilters, setShowFilters, groupBy, setGroupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, filterDueToday, setFilterDueToday, activePresetId, setActivePresetId, setIsCreateModalOpen, setIsExportModalOpen, showDatePicker, setShowDatePicker, datePickerPos, selectedOrders, showArchived, setShowArchived, isHeaderAnimating, setIsHeaderAnimating, notificationsEnabled, setNotificationsEnabled, dateButtonRef, datePickerRef, toolbarScrollRef, toolbarFade, filteredOrders, flaggedCount, dueTodayCount, totalRiskCount, countVis, previewing, listCountShown, openScanner, openReturns, openCreateModal, selectAll, isBulkProcessing, setShipConfirmCompany, setShipConfirmOpen, setShipConfirmKey, guardedBulkActions, showMapPanel, setShowMapPanel, hasActiveFilters, dangerBandCounts, dangerListTotal } = m;
+    const { sidebarExpanded, setIsReturnsOpen, setIsStockTodayOpen, setIsScannerOpen, showSubFilters, toggleSubFilters, showAdChannels, toggleAdChannels, showAdsChips, toggleAdsChips, showPipeline, togglePipeline, filters, setFilters, clearFilters, filterPresets, saveFilterPreset, loadFilterPreset, deleteFilterPreset, archivedOrders, fetchArchivedOrders, undoLastAction, canUndo, statusCounts, attentionCounts, oversoldCount, isMobile, t, datePreset, viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, showSearchBar, setShowSearchBar, analyticsLevel, setAnalyticsLevel, toolbarCollapsed, toggleToolbarCollapse, setSoundEnabled, showFilters, setShowFilters, groupBy, setGroupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, filterDueToday, setFilterDueToday, activePresetId, setActivePresetId, setIsCreateModalOpen, setIsExportModalOpen, showDatePicker, setShowDatePicker, datePickerPos, selectedOrders, showArchived, setShowArchived, isHeaderAnimating, setIsHeaderAnimating, notificationsEnabled, setNotificationsEnabled, dateButtonRef, datePickerRef, toolbarScrollRef, toolbarFade, filteredOrders, flaggedCount, dueTodayCount, totalRiskCount, countVis, previewing, listCountShown, openScanner, openReturns, openCreateModal, selectAll, isBulkProcessing, setShipConfirmCompany, setShipConfirmOpen, setShipConfirmKey, guardedBulkActions, showMapPanel, setShowMapPanel, hasActiveFilters, dangerBandCounts, dangerListTotal, dangerReady } = m;
     const showDangerPanel = useOrderStore((s) => s.showDangerPanel);
     const setShowDangerPanel = useOrderStore((s) => s.setShowDangerPanel);
     const dangerBand = useOrderStore((s) => s.dangerBand);
@@ -454,7 +454,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                             <PrimeTrackToggle />
 
                                             {/* Shield: danger slider */}
-                                            <ShieldDangerToggle counts={dangerBandCounts} />
+                                            <ShieldDangerToggle counts={dangerBandCounts} ready={dangerReady} />
 
                                             {/* Map Toggle */}
                                             <button
@@ -611,7 +611,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                 active={dangerBand}
                                                 onSelect={setDangerBand}
                                                 onClose={() => setShowDangerPanel(false)}
-                                                countsHidden={!countVis.chips}
+                                                countsHidden={!countVis.chips || !dangerReady}
                                             />
                                         </div>
                                     </motion.div>
