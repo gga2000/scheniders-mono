@@ -90,7 +90,9 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
                 <div>
                     <p className="text-left text-sm font-semibold text-muted" dir="auto">{name ? t("till.pay.whoPays", { name }) : t("till.pay.toPay")}</p>
-                    <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">{formatIqd(rest)}</p>
+                    <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
+                        {formatIqd(rest)} <span className="text-xl font-semibold text-muted">{t("till.iqd")}</span>
+                    </p>
                     {parts.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                             {parts.map((p, i) => (
@@ -158,7 +160,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                             type="button"
                                             onClick={() => untapNote(note)}
                                             aria-label={t("till.pay.takeOne", { note: formatIqd(note) })}
-                                            className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full text-foreground hover:bg-[var(--card-border)]/60"
+                                            className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--card-border)]/60 text-foreground"
                                         >
                                             <Minus className="h-4 w-4" aria-hidden="true" />
                                         </button>
@@ -261,7 +263,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 onChange={(e) => setTyped(e.target.value)}
                                 inputMode="numeric"
                                 placeholder={t("till.pay.allOfIt")}
-                                className="h-12 w-40 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
+                                className="h-12 w-40 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none placeholder:text-foreground focus:border-[var(--ink)]"
                             />
                         </label>
                     </div>
