@@ -96,6 +96,12 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                         {t("till.cart.total")}
                         <span className="tabular-nums">{formatIqd(receipt.total)}</span>
                     </p>
+                    {receipt.payments.map((p, i) => (
+                        <p key={`${p.method}-${i}`} className="flex justify-between text-sm text-muted">
+                            {t(`till.pay.method.${p.method}`)}
+                            <span className="tabular-nums">{formatIqd(p.tendered ?? p.amount)}</span>
+                        </p>
+                    ))}
                 </section>
 
                 <section className="flex flex-col gap-2">

@@ -34,10 +34,12 @@ interface Props {
     /** Bottles kept aside in this shop right now. */
     holdsCount: number;
     onHolds: () => void;
+    /** Cart lines selling more than the system shows in stock (allowed; the count needs fixing). */
+    overSold: ReadonlySet<string>;
 }
 
 /** The right side of the sell screen: held sales as tabs, the customer, the lines, discount, total. */
-export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId, managers, onKeepAside, holdsCount, onHolds }: Props) {
+export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId, managers, onKeepAside, holdsCount, onHolds, overSold }: Props) {
     const { t } = useLanguage();
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     const subtotal = subtotalOf(ticket.cart);
@@ -184,6 +186,11 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                     {l.name}
                                     {l.variant_name && <span className="font-normal text-muted"> · {l.variant_name}</span>}
                                 </span>
+                                {overSold.has(l.key) && (
+                                    <span className="mt-0.5 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" dir="auto">
+                                        {t("till.cart.overSold")}
+                                    </span>
+                                )}
                                 {canDiscount ? (
                                     <button
                                         type="button"
@@ -267,7 +274,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         {ticket.approval && overLimit ? (
                             <span className="flex items-center gap-1.5 rounded-full bg-[#B8E8E0] px-3 py-1.5 text-xs font-semibold text-[#1E1E1E]" dir="auto">
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                                {t("till.manager.allowedBy", { name: ticket.approval.managerName })}
+                                {t("till.manager.allowedFor", { name: ticket.approval.managerName, amount: formatIqd(given) })}
                             </span>
                         ) : discountTooBig ? null : (
                             <span className="text-right text-xs text-muted" dir="auto">
@@ -280,11 +287,22 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         )}
                     </div>
                 )}
-                {overLimit && limit !== null && (
-                    <p className={cn("text-left text-sm font-semibold", discountTooBig ? "text-red-600" : "text-muted")} dir="auto">
-                        {overText}
-                        {overParts && <span className="block text-xs font-normal opacity-80">{overParts}</span>}
-                    </p>
+                {discountTooBig && limit !== null && (
+                    <dl className="grid gap-1 rounded-2xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+                        <div className="flex justify-between gap-3">
+                            <dt dir="auto">{t("till.manager.rowGiven")}</dt>
+                            <dd className="tabular-nums">{formatIqd(given)}</dd>
+                        </div>
+                        {overParts && <p className="text-xs opacity-80" dir="auto">{overParts}</p>}
+                        <div className="flex justify-between gap-3">
+                            <dt dir="auto">{t("till.manager.rowLimit")}</dt>
+                            <dd className="tabular-nums">{formatIqd(limit)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-3 border-t border-red-200 pt-1 font-bold dark:border-red-400/30">
+                            <dt dir="auto">{t("till.manager.rowOver")}</dt>
+                            <dd className="tabular-nums">{formatIqd(given - limit)}</dd>
+                        </div>
+                    </dl>
                 )}
 
                 {ticket.discount > 0 && (
@@ -298,7 +316,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         {t("till.cart.total")}
                         {ticket.cart.length > 0 && <span className="block text-xs font-normal">{t("till.cart.items", { n: itemCount(ticket.cart) })}</span>}
                     </span>
-                    <span className="text-5xl font-bold tabular-nums tracking-tight text-foreground">{formatIqd(total)}</span>
+                    <span className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
+                        {formatIqd(total)} <span className="text-lg font-semibold text-muted">{t("till.iqd")}</span>
+                    </span>
                 </div>
                 <div className="grid grid-cols-[auto_1fr] gap-2">
                 <button

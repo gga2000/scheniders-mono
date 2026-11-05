@@ -109,7 +109,7 @@ export function TillCustomerScreen() {
                         {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
                         <p className="text-xl text-white/60" dir="auto">{t("till.customer.total")}</p>
                         <p className="text-8xl font-bold tabular-nums tracking-tight">{formatIqd(state.total)}</p>
-                        <p className="text-lg text-white/60" dir="auto">{t("till.customer.iqd")}</p>
+                        <p className="text-lg text-white/60" dir="auto">{t("till.iqd")}</p>
                     </div>
                 ) : state.view === "pay" && qrPay ? (
                     <div className="my-auto flex flex-col items-center gap-4 text-center">

@@ -71,23 +71,26 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
     // What each way of paying brought in, so the drawer can be checked against cash alone.
     const byMethod = new Map<PayMethod, number>();
     for (const s of sales.data ?? []) for (const p of s.payments) byMethod.set(p.method as PayMethod, (byMethod.get(p.method as PayMethod) ?? 0) + p.amount);
-    const split = [...byMethod].map(([m, amount]) => `${t(`till.pay.method.${m}`)} ${formatIqd(amount)}`).join(" · ");
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="till-screen flex max-h-[86vh] flex-col md:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="text-left">{past.data ? t("till.history.foundTitle", { code }) : past.isSuccess ? t("till.history.lookupTitle") : t("till.history.title")}</DialogTitle>
-                    <DialogDescription className="text-left tabular-nums" dir="auto">
-                        {past.data
-                            ? t("till.history.foundSub", { cashier: past.data.cashier || "—" })
-                            : past.isSuccess
-                              ? " "
-                              : sales.data
-                              ? split
-                                ? `${t("till.history.summary", { n: sales.data.length, total: formatIqd(total) })} · ${split}`
-                                : t("till.history.summary", { n: sales.data.length, total: formatIqd(total) })
-                              : " "}
+                    <DialogDescription className="flex flex-wrap gap-2 text-left tabular-nums" dir="auto">
+                        {past.data ? (
+                            t("till.history.foundSub", { cashier: past.data.cashier || "—" })
+                        ) : !past.isSuccess && sales.data ? (
+                            <>
+                                <Stat label={t("till.history.count")} value={String(sales.data.length)} />
+                                <Stat label={t("till.cart.total")} value={formatIqd(total)} />
+                                {[...byMethod].map(([m, amount]) => (
+                                    <Stat key={m} label={t(`till.pay.method.${m}`)} value={formatIqd(amount)} />
+                                ))}
+                            </>
+                        ) : (
+                            " "
+                        )}
                     </DialogDescription>
                 </DialogHeader>
                 <label className="flex h-12 items-center gap-2 rounded-2xl border border-[var(--card-border)] px-3 focus-within:border-[var(--ink)]">
@@ -191,5 +194,16 @@ function SaleRow({ sale, receipt, withDay = false }: { sale: TillHistorySale; re
                 )}
             </span>
         </li>
+    );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+    return (
+        <span className="inline-flex h-8 items-center gap-2 rounded-full bg-[var(--card-border)]/50 px-3 text-sm">
+            <span className="text-muted">{label}</span>
+            <bdi dir="ltr" className="font-semibold text-foreground">
+                {value}
+            </bdi>
+        </span>
     );
 }

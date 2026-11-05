@@ -112,6 +112,17 @@ export function TillPage() {
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     // Stock badges and the "left" note count what is already in this sale's cart.
     const shelf = useMemo(() => onShelf(products.data ?? [], ticket.cart), [products.data, ticket.cart]);
+    // Lines that sell past what the system shows in stock: still allowed, but marked on the cart line.
+    const overSold = useMemo(() => {
+        const keys = new Set<string>();
+        for (const l of ticket.cart) {
+            const p = shelf.find((x) => x.id === l.product_id);
+            const v = l.variant_id ? p?.variants.find((x) => x.id === l.variant_id) : null;
+            const left = v ? v.available : p?.available;
+            if (left !== undefined && left < 0) keys.add(l.key);
+        }
+        return keys;
+    }, [shelf, ticket.cart]);
 
     // The customer screen mirrors the sale: idle (logo), the cart, the amount due, then the change.
     const [payShown, setPayShown] = useState<PayShown | null>(null);
@@ -470,6 +481,7 @@ export function TillPage() {
                         isManager={isManager}
                         cashierName={session.cashier.display_name}
                         sessionId={session.id}
+                        overSold={overSold}
                         managers={(members.data ?? []).filter((m) => m.role === "admin" && m.has_pin && m.user_id !== session.cashier.user_id)}
                         onKeepAside={() => setHoldOpen(true)}
                         holdsCount={holds.data?.length ?? 0}
