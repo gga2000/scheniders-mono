@@ -332,7 +332,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                 )}
 
                 {/* Quick Status Actions. The one that moves the order to its next
-                    stage carries data-next-step, so dark mode can keep it in colour
+                    stage carries data-next-step="<target status>", so dark mode can colour it
                     and quiet the rest (orders-dark.css). */}
                 {order.status !== "completed" && order.status !== "rejected" && order.status !== "cancelled" && order.status !== "no_response" && (
                     <>
@@ -343,7 +343,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                                     e.stopPropagation();
                                     onStatusUpdate(order.id, "contacted");
                                 }}
-                                data-next-step
+                                data-next-step="contacted"
                                 disabled={isLoading}
                                 className="w-10 h-10 rounded-xl bg-[var(--pastel-yellow)] text-amber-800 hover:bg-[var(--pastel-yellow-dark)] transition-all flex items-center justify-center disabled:opacity-50"
                                 title={t("orders.tip.markContacted")}
@@ -359,7 +359,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                                     e.stopPropagation();
                                     onStatusUpdate(order.id, "confirmed");
                                 }}
-                                data-next-step={order.status === "contacted" || undefined}
+                                data-next-step={order.status === "contacted" ? "confirmed" : undefined}
                                 disabled={isLoading}
                                 className="w-10 h-10 rounded-xl bg-[var(--pastel-green)] text-green-800 hover:bg-[var(--pastel-green-dark)] transition-all flex items-center justify-center disabled:opacity-50"
                                 title={t("orders.tip.markConfirmed")}
@@ -375,7 +375,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                                     e.stopPropagation();
                                     onStatusUpdate(order.id, "in_transit");
                                 }}
-                                data-next-step
+                                data-next-step="in_transit"
                                 disabled={isLoading}
                                 className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 hover:bg-blue-200 transition-all flex items-center justify-center disabled:opacity-50"
                                 title={t("orders.tip.markInTransit")}
@@ -391,7 +391,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                                     e.stopPropagation();
                                     onStatusUpdate(order.id, "delivered");
                                 }}
-                                data-next-step
+                                data-next-step="delivered"
                                 disabled={isLoading}
                                 className="w-10 h-10 rounded-xl bg-[var(--pastel-mint)] text-teal-800 hover:bg-[var(--pastel-mint-dark)] transition-all flex items-center justify-center disabled:opacity-50"
                                 title={t("orders.tip.markDelivered")}
@@ -426,7 +426,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                                     e.stopPropagation();
                                     onStatusUpdate(order.id, "completed");
                                 }}
-                                data-next-step
+                                data-next-step="completed"
                                 disabled={isLoading}
                                 className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 ring-2 ring-emerald-300/50 transition-all flex items-center justify-center disabled:opacity-50 shadow-[0_0_8px_rgba(16,185,129,0.3)]"
                                 title={t("orders.card.markComplete")}
@@ -476,7 +476,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                                         e.stopPropagation();
                                         onStatusUpdate(order.id, "refund_delivered");
                                     }}
-                                    data-next-step
+                                    data-next-step="refund_delivered"
                                     disabled={isLoading}
                                     className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200 ring-2 ring-emerald-300/50 transition-all flex items-center justify-center disabled:opacity-50"
                                     title={t("orders.card.refundDelivered")}
