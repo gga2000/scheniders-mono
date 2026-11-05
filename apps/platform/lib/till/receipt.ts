@@ -75,7 +75,7 @@ export function receiptDocument(r: ReceiptData): string {
         r.change > 0 ? row("الباقي للزبون", formatIqd(r.change)) : "",
     ].join("");
     // The till reads this code back from a scanner to find the sale for a return or exchange.
-    const code = `<div class="qr">${qrSvg(r.orderNumber, { maxSizeMm: 18 })}<div class="qr-note">امسح الرمز للإرجاع أو التبديل</div></div>`;
+    const code = `<div class="qr">${qrSvg(r.orderNumber, { maxSizeMm: 18 })}<div class="qr-note"><span class="num">${escapeHtml(r.orderNumber)}</span> · امسح الرمز للإرجاع أو التبديل</div></div>`;
     const footer = r.shop.receipt_footer ? `<div class="footer">${escapeHtml(r.shop.receipt_footer)}</div>` : "";
 
     return `<!DOCTYPE html>

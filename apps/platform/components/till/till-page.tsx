@@ -496,6 +496,11 @@ function TillFrame({
                             <span className="text-xs font-medium tabular-nums text-white/60" dir="auto">
                                 {t("till.top.today", { n: today.count })}
                             </span>
+                            {goal ? (
+                                <span className="rounded-full bg-[#EFFF00]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[#EFFF00]">
+                                    {Math.min(999, Math.round((today.total / goal) * 100))}%
+                                </span>
+                            ) : null}
                             {mine && mine.count > 0 && mine.count !== today.count && (
                                 <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium tabular-nums text-white/80" dir="auto">
                                     {t("till.top.mine", { n: mine.count })}
@@ -503,23 +508,48 @@ function TillFrame({
                             )}
                         </button>
                     )}
-                    {commission != null && (
-                        <span className={`${chip} hover:bg-transparent`} title={t("till.top.commission")}>
-                            <span className="text-xs font-medium text-white/60" dir="auto">{t("till.top.commission")}</span>
-                            <span className="tabular-nums">{formatIqd(commission)}</span>
-                        </span>
-                    )}
-                    {onPayout && (
-                        <button type="button" onClick={onPayout} className={`${chip} px-3`} aria-label={t("till.payout.title")} title={t("till.payout.title")}>
-                            <HandCoins className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                    )}
+                    {(commission != null || onPayout) && <MoneyMenu commission={commission ?? null} onPayout={onPayout} chip={chip} />}
                     {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} chip={chip} />}
                 </div>
                 {goal && today ? <GoalBar goal={goal} total={today.total} /> : null}
             </header>
             <main className="flex min-h-0 flex-1 flex-col">{children}</main>
         </div>
+    );
+}
+
+/** One header chip for the cashier's money: their commission today, and paying cash out of the drawer. */
+function MoneyMenu({ commission, onPayout, chip }: { commission: number | null; onPayout?: () => void; chip: string }) {
+    const { t } = useLanguage();
+    const [open, setOpen] = useState(false);
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger className={commission != null ? chip : `${chip} px-3`} aria-label={t("till.top.money")} title={t("till.top.money")}>
+                <HandCoins className="h-4 w-4" aria-hidden="true" />
+                {commission != null && <span className="tabular-nums">{formatIqd(commission)}</span>}
+            </PopoverTrigger>
+            <PopoverContent align="end" className="flex w-72 flex-col gap-3 rounded-2xl border-[var(--card-border)] bg-[var(--card-bg)] p-4">
+                {commission != null && (
+                    <p className="flex items-baseline justify-between gap-3">
+                        <span className="text-sm font-semibold text-muted" dir="auto">{t("till.top.commission")}</span>
+                        <span className="text-2xl font-bold tabular-nums text-foreground">{formatIqd(commission)}</span>
+                    </p>
+                )}
+                {onPayout && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setOpen(false);
+                            onPayout();
+                        }}
+                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--card-border)] text-sm font-semibold text-foreground hover:bg-[var(--card-border)]/40"
+                    >
+                        <HandCoins className="h-4 w-4" aria-hidden="true" />
+                        {t("till.payout.title")}
+                    </button>
+                )}
+            </PopoverContent>
+        </Popover>
     );
 }
 

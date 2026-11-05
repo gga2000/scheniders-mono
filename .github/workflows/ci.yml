@@ -21,6 +21,9 @@ concurrency:
 
 env:
   TURBO_CACHE_DIR: .turbo
+  # The platform type-check needs more than Node's default ~4 GB heap and was
+  # dying out of memory; runners have 16 GB.
+  NODE_OPTIONS: --max-old-space-size=6144
 
 jobs:
   pr:
