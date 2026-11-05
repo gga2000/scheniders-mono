@@ -36,6 +36,11 @@ const view = (over: Partial<PrimeShipmentView> = {}): PrimeShipmentView => ({
 });
 
 describe("primeTrack", () => {
+    it("keeps a delivery Prime closed after it failed as waiting on us, with the driver", () => {
+        expect(primeTrack(view({ status: "CNCL", stepCode: "RTN_WITHAGENT" }))).toEqual({ stop: 3, state: "needs_you" });
+        expect(primeTrack(view({ status: "CNCL", stepCode: null }))).toEqual({ stop: 0, state: "cancelled" });
+    });
+
     it.each([
         ["READYTOPICKUP", 0],
         ["NEWINSTORE", 1],
