@@ -11,6 +11,7 @@ import { ShopDialog } from "./shop-dialog";
 import { TillRulesCard } from "./till-rules-card";
 import { TillPinsCard } from "./till-pins-card";
 import { TillChipsCard } from "./till-chips-card";
+import { TillLogCard } from "./till-log-card";
 
 const CARD = "rounded-[24px] border border-[var(--card-border)] bg-[var(--card-bg)]";
 
@@ -79,6 +80,7 @@ export function ShopsPage() {
                     {manage && <TillRulesCard />}
                     <TillPinsCard members={members.data ?? []} loading={members.isPending} manage={manage} />
                     {manage && <TillChipsCard />}
+                    {manage && <TillLogCard shops={shops.data ?? []} members={members.data ?? []} />}
                 </div>
             </div>
 

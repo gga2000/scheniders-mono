@@ -35,7 +35,10 @@ export interface CartLine {
     name: string;
     variant_name: string | null;
     image_url: string | null;
+    /** What this line sells at; below list_price when the cashier changed it. */
     price: number;
+    /** The catalog price. */
+    list_price: number;
     quantity: number;
 }
 
@@ -60,6 +63,7 @@ export function addToCart(cart: CartLine[], product: TillProduct, variant: TillV
             variant_name: variant?.name ?? null,
             image_url: product.image_url,
             price: variant ? variant.price : product.price,
+            list_price: variant ? variant.price : product.price,
             quantity: 1,
         },
     ];
@@ -93,6 +97,24 @@ export function setQuantity(cart: CartLine[], key: string, quantity: number): Ca
     return cart.map((l) => (l.key === key ? { ...l, quantity: q } : l));
 }
 
+/** Sells a line at a new price, between free and its catalog price. */
+export function setLinePrice(cart: CartLine[], key: string, price: number): CartLine[] {
+    return cart.map((l) => (l.key === key ? { ...l, price: Math.max(0, Math.min(l.list_price, Math.round(price))) } : l));
+}
+
+/** The cart at catalog prices, before any line was cut. */
+export function listSubtotalOf(cart: CartLine[]): number {
+    return cart.reduce((sum, l) => sum + l.list_price * l.quantity, 0);
+}
+
+/**
+ * The whole discount the cashier is giving: line price cuts plus the cart discount.
+ * till_create_sale checks this against the same limit.
+ */
+export function discountGiven(cart: CartLine[], cartDiscount: number): number {
+    return listSubtotalOf(cart) - subtotalOf(cart) + cartDiscount;
+}
+
 export function subtotalOf(cart: CartLine[]): number {
     return cart.reduce((sum, l) => sum + l.price * l.quantity, 0);
 }
@@ -102,7 +124,7 @@ export function itemCount(cart: CartLine[]): number {
 }
 
 /**
- * The biggest discount this cashier may give on a subtotal, or null for any.
+ * The biggest discount this cashier may give on a cart's catalog total, or null for any.
  * Mirrors till_create_sale: managers and a blank limit mean any amount.
  */
 export function maxDiscount(subtotal: number, limitPct: number | null, isManager: boolean): number | null {
@@ -218,6 +240,11 @@ export function parseDinars(text: string): number {
 /** The locale for dates on the till: Iraqi month names in Arabic, with the same Western digits as prices. */
 export function dateLocale(language: string): string {
     return language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB";
+}
+
+/** The cashier's commission on their sales, in whole dinars; null when the store pays none. */
+export function commissionOf(sales: number, pct: number): number | null {
+    return pct > 0 ? Math.floor((sales * pct) / 100) : null;
 }
 
 export function formatIqd(n: number): string {

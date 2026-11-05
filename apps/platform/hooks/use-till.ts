@@ -144,21 +144,25 @@ export type SaleResult = z.infer<typeof saleResultSchema>;
 export interface SaleInput {
     sessionId: string;
     clientSaleId: string;
-    lines: { product_id: string; variant_id: string | null; quantity: number }[];
+    /** price is sent only when the cashier sold the line below its catalog price. */
+    lines: { product_id: string; variant_id: string | null; quantity: number; price?: number }[];
     discount: number;
+    /** A manager's OK from till_approve, for a discount over the cashier's limit. */
+    approvalId: string | null;
     payments: PaymentLine[];
     customerName: string;
     phone: string | null;
 }
 
 /** Why a sale was refused, as a key the till can explain. */
-export type SaleError = "locked" | "discount_over_limit" | "discount_not_allowed" | "mismatch" | "product" | "paused" | "failed";
+export type SaleError = "locked" | "discount_over_limit" | "discount_not_allowed" | "approval_expired" | "mismatch" | "product" | "paused" | "failed";
 
 export function saleErrorOf(err: unknown): SaleError {
     const message = typeof err === "object" && err !== null && "message" in err ? String(err.message) : "";
     if (message.includes("till_locked")) return "locked";
     if (message.includes("discount_over_limit")) return "discount_over_limit";
     if (message.includes("discount_not_allowed")) return "discount_not_allowed";
+    if (message.includes("approval_expired")) return "approval_expired";
     if (message.includes("payments_do_not_match_total")) return "mismatch";
     if (message.includes("product_not_found")) return "product";
     if (message.includes("store_paused")) return "paused";
@@ -179,6 +183,7 @@ export function useTillSale() {
                     payments: s.payments,
                     customer_name: s.customerName,
                     phone: s.phone,
+                    ...(s.approvalId ? { approval_id: s.approvalId } : {}),
                 },
             });
             if (error) throw error;
@@ -189,6 +194,61 @@ export function useTillSale() {
             qc.invalidateQueries({ queryKey: ["till", "overview"] });
             qc.invalidateQueries({ queryKey: ["till", "today"] });
             qc.invalidateQueries({ queryKey: ["orders"] });
+        },
+    });
+}
+
+// ── A manager's OK, the removed-items log, cash paid out ──
+
+const approveSchema = z.object({
+    result: z.enum(["ok", "wrong", "locked", "no_pin", "not_manager"]),
+    approval_id: z.string().optional(),
+});
+export type ApproveResult = z.infer<typeof approveSchema>;
+
+/** A manager types their PIN on the till to allow one sale over the cashier's limit. */
+export function useTillApprove() {
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; managerId: string; pin: string }): Promise<ApproveResult> => {
+            const { data, error } = await supabase.rpc("till_approve", { p_session_id: input.sessionId, p_manager_id: input.managerId, p_pin: input.pin });
+            if (error) throw error;
+            return approveSchema.parse(data);
+        },
+    });
+}
+
+export interface RemovedLine {
+    product_id: string;
+    variant_id: string | null;
+    name: string;
+    variant_name: string | null;
+    quantity: number;
+    price: number;
+}
+
+/** Records items taken out of a cart before payment, for the owner's log. */
+export async function logRemovedLines(sessionId: string, lines: RemovedLine[]): Promise<void> {
+    if (lines.length === 0) return;
+    const { error } = await supabase.rpc("till_log_removed", { p_session_id: sessionId, p_lines: lines });
+    if (error) throw error;
+}
+
+/** Cash taken from the drawer for a shop cost; it lands in Finances as an expense. */
+export function useTillPayout() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; clientId: string; amount: number; note: string }) => {
+            const { error } = await supabase.rpc("till_payout", {
+                p_session_id: input.sessionId,
+                p_client_id: input.clientId,
+                p_amount: input.amount,
+                p_note: input.note,
+            });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["till", "events"] });
+            qc.invalidateQueries({ queryKey: ["expenses"] });
         },
     });
 }

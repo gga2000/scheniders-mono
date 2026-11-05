@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Minus, Package, Plus, ScanBarcode, Trash2, UserRound } from "lucide-react";
+import * as Sentry from "@sentry/nextjs";
+import { AlertTriangle, Minus, Package, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
-import { useTillCustomer } from "@/hooks/use-till";
-import { dateLocale, formatIqd, itemCount, maxDiscount, parseDinars, setQuantity, subtotalOf } from "@/lib/till/cart";
+import { logRemovedLines, useTillCustomer } from "@/hooks/use-till";
+import type { TillMember } from "@/hooks/use-shops";
+import { dateLocale, discountGiven, formatIqd, itemCount, listSubtotalOf, maxDiscount, parseDinars, setLinePrice, setQuantity, subtotalOf, type CartLine } from "@/lib/till/cart";
 import { CART_TARGET_ID } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
+import { TillManagerDialog } from "./till-manager-dialog";
 import type { Ticket } from "./till-ticket";
 
 interface Props {
@@ -24,23 +27,40 @@ interface Props {
     isManager: boolean;
     cashierName: string;
     sessionId: string;
+    /** Managers with a PIN who can allow a discount over the limit here. */
+    managers: TillMember[];
 }
 
 /** The right side of the sell screen: held sales as tabs, the customer, the lines, discount, total. */
-export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId }: Props) {
+export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId, managers }: Props) {
     const { t } = useLanguage();
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     const subtotal = subtotalOf(ticket.cart);
-    const limit = maxDiscount(subtotal, discountLimitPct, isManager);
+    const limit = maxDiscount(listSubtotalOf(ticket.cart), discountLimitPct, isManager);
+    const given = discountGiven(ticket.cart, ticket.discount);
     const total = Math.max(0, subtotal - ticket.discount);
     const [customerOpen, setCustomerOpen] = useState(false);
     const [discountOpen, setDiscountOpen] = useState(false);
     const [discountText, setDiscountText] = useState("");
+    const [editing, setEditing] = useState<string | null>(null);
+    const [askManager, setAskManager] = useState(false);
 
     const normalPhone = ticket.phone.trim() ? normalizeIraqiMobile(ticket.phone) : null;
     const phoneBad = ticket.phone.trim() !== "" && !normalPhone;
     const customer = useTillCustomer(sessionId, normalPhone);
-    const discountTooBig = limit !== null && ticket.discount > limit;
+    const overLimit = limit !== null && given > limit;
+    const discountTooBig = overLimit && !ticket.approval;
+
+    // Items taken out before payment go to the owner's log; the sale never waits on it.
+    const changeQuantity = (l: CartLine, quantity: number) => {
+        const removed = l.quantity - Math.max(0, quantity);
+        if (removed > 0) {
+            void logRemovedLines(sessionId, [
+                { product_id: l.product_id, variant_id: l.variant_id, name: l.name, variant_name: l.variant_name, quantity: removed, price: l.price },
+            ]).catch((err: unknown) => Sentry.captureException(err, { tags: { area: "till", op: "log_removed" } }));
+        }
+        onChange({ ...ticket, cart: setQuantity(ticket.cart, l.key, quantity) });
+    };
 
     const applyDiscount = (text: string) => {
         setDiscountText(text);
@@ -134,7 +154,8 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     </li>
                 ) : (
                     ticket.cart.map((l) => (
-                        <li key={l.key} className="flex items-center gap-3 border-b border-[var(--card-border)] px-4 py-3">
+                        <li key={l.key} className="border-b border-[var(--card-border)]">
+                        <div className="flex items-center gap-3 px-4 py-3">
                             <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--card-border)]/25 text-muted">
                                 {l.image_url ? <img src={l.image_url} alt="" className="h-full w-full object-cover" /> : <Package className="h-5 w-5" aria-hidden="true" />}
                             </span>
@@ -143,12 +164,27 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                     {l.name}
                                     {l.variant_name && <span className="font-normal text-muted"> · {l.variant_name}</span>}
                                 </span>
-                                <span className="text-xs tabular-nums text-muted">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
+                                {canDiscount ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditing(editing === l.key ? null : l.key)}
+                                        aria-expanded={editing === l.key}
+                                        className="flex min-h-7 max-w-full items-center overflow-hidden whitespace-nowrap text-xs tabular-nums text-muted underline decoration-dotted underline-offset-4 hover:text-foreground"
+                                    >
+                                        {l.price < l.list_price ? (
+                                            <span className="font-semibold text-foreground">{formatIqd(l.price)}</span>
+                                        ) : (
+                                            <span dir="auto">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
+                                        )}
+                                    </button>
+                                ) : (
+                                    <span className="text-xs tabular-nums text-muted">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
+                                )}
                             </span>
                             <span className="flex h-12 items-center rounded-2xl border border-[var(--card-border)]">
                                 <button
                                     type="button"
-                                    onClick={() => onChange({ ...ticket, cart: setQuantity(ticket.cart, l.key, l.quantity - 1) })}
+                                    onClick={() => changeQuantity(l, l.quantity - 1)}
                                     aria-label={l.quantity === 1 ? t("till.cart.remove") : t("till.cart.less")}
                                     className="flex h-12 w-11 items-center justify-center text-foreground"
                                 >
@@ -157,14 +193,25 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                 <span className="w-8 text-center text-base font-semibold tabular-nums text-foreground">{l.quantity}</span>
                                 <button
                                     type="button"
-                                    onClick={() => onChange({ ...ticket, cart: setQuantity(ticket.cart, l.key, l.quantity + 1) })}
+                                    onClick={() => changeQuantity(l, l.quantity + 1)}
                                     aria-label={t("till.cart.more")}
                                     className="flex h-12 w-11 items-center justify-center text-foreground"
                                 >
                                     <Plus className="h-4 w-4" aria-hidden="true" />
                                 </button>
                             </span>
-                            <span className="w-[84px] text-right text-base font-bold tabular-nums text-foreground">{formatIqd(l.price * l.quantity)}</span>
+                            <span className="flex w-[84px] flex-col items-end">
+                                <span className="text-base font-bold tabular-nums text-foreground">{formatIqd(l.price * l.quantity)}</span>
+                                {l.price < l.list_price && <span className="text-xs tabular-nums text-muted line-through">{formatIqd(l.list_price * l.quantity)}</span>}
+                            </span>
+                        </div>
+                        {editing === l.key && (
+                            <LinePriceEditor
+                                line={l}
+                                onPrice={(price) => onChange({ ...ticket, cart: setLinePrice(ticket.cart, l.key, price) })}
+                                onDone={() => setEditing(null)}
+                            />
+                        )}
                         </li>
                     ))
                 )}
@@ -197,12 +244,33 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                 {t("till.cart.addDiscount")}
                             </button>
                         )}
-                        <span className={cn("text-right text-xs", discountTooBig ? "font-semibold text-red-600" : "text-muted")} dir="auto">
-                            {limit === null
-                                ? t("till.cart.anyDiscount", { name: cashierName })
-                                : t("till.cart.upTo", { name: cashierName, pct: discountLimitPct ?? 0, amount: formatIqd(limit) })}
-                        </span>
+                        {ticket.approval && overLimit ? (
+                            <span className="flex items-center gap-1.5 rounded-full bg-[#B8E8E0] px-3 py-1.5 text-xs font-semibold text-[#1E1E1E]" dir="auto">
+                                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                                {t("till.manager.allowedBy", { name: ticket.approval.managerName })}
+                            </span>
+                        ) : discountTooBig ? (
+                            <button
+                                type="button"
+                                onClick={() => setAskManager(true)}
+                                className="flex h-11 items-center gap-1.5 rounded-2xl bg-[#FDE7EA] px-3 text-xs font-bold text-[#991B1B] dark:bg-red-500/15 dark:text-red-300"
+                            >
+                                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                                {t("till.manager.ask")}
+                            </button>
+                        ) : (
+                            <span className="text-right text-xs text-muted" dir="auto">
+                                {limit === null
+                                    ? t("till.cart.anyDiscount", { name: cashierName })
+                                    : t("till.cart.upTo", { name: cashierName, pct: discountLimitPct ?? 0, amount: formatIqd(limit) })}
+                            </span>
+                        )}
                     </div>
+                )}
+                {discountTooBig && limit !== null && (
+                    <p className="text-left text-xs font-semibold text-red-600" dir="auto">
+                        {t("till.manager.over", { given: formatIqd(given), limit: formatIqd(limit) })}
+                    </p>
                 )}
 
                 <div className="flex items-end justify-between">
@@ -221,7 +289,76 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     {t("till.cart.pay", { total: formatIqd(total) })}
                 </button>
             </div>
+            {askManager && limit !== null && (
+                <TillManagerDialog
+                    sessionId={sessionId}
+                    managers={managers}
+                    reason={t("till.manager.over", { given: formatIqd(given), limit: formatIqd(limit) })}
+                    onApproved={(approval) => {
+                        setAskManager(false);
+                        onChange({ ...ticket, approval });
+                    }}
+                    onClose={() => setAskManager(false)}
+                />
+            )}
         </aside>
+    );
+}
+
+/** Sell one line for less: quick cuts or a typed price, never above the catalog price. */
+function LinePriceEditor({ line, onPrice, onDone }: { line: CartLine; onPrice: (price: number) => void; onDone: () => void }) {
+    const { t } = useLanguage();
+    const [text, setText] = useState(line.price < line.list_price ? formatIqd(line.price) : "");
+    const cuts = [5, 10, 15];
+    return (
+        <div className="flex flex-wrap items-center gap-2 bg-[var(--card-border)]/20 px-4 py-3">
+            {cuts.map((pct) => {
+                const price = Math.round((line.list_price * (100 - pct)) / 100 / 250) * 250;
+                return (
+                    <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                            onPrice(price);
+                            setText(formatIqd(price));
+                        }}
+                        className={cn(
+                            "h-10 rounded-xl border px-3 text-sm font-semibold tabular-nums",
+                            line.price === price ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] bg-[var(--card-bg)] text-foreground",
+                        )}
+                    >
+                        −{pct}%
+                    </button>
+                );
+            })}
+            <input
+                value={text}
+                onChange={(e) => {
+                    setText(e.target.value);
+                    const n = parseDinars(e.target.value);
+                    if (n > 0) onPrice(n);
+                }}
+                inputMode="numeric"
+                placeholder={formatIqd(line.list_price)}
+                aria-label={t("till.cart.linePrice")}
+                className="h-10 w-28 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 text-right text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
+            />
+            {line.price < line.list_price && (
+                <button
+                    type="button"
+                    onClick={() => {
+                        onPrice(line.list_price);
+                        setText("");
+                    }}
+                    className="h-10 rounded-xl px-2 text-xs font-semibold text-muted underline underline-offset-2"
+                >
+                    {t("till.cart.fullPrice")}
+                </button>
+            )}
+            <button type="button" onClick={onDone} className={cn("ms-auto h-10 rounded-xl px-4 text-sm font-semibold", INK_BUTTON)}>
+                {t("till.cart.done")}
+            </button>
+        </div>
     );
 }
 

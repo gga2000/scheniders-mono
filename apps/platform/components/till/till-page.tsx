@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, Lock, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Download, HandCoins, Lock, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { useShops, useTillMembers, useTillRules, type Shop, type TillMember } from "@/hooks/use-shops";
 import { lockTillSession, pingTillSession, saleErrorOf, useTillOverview, useTillProducts, useTillSale, useTillStoreName } from "@/hooks/use-till";
-import { addToCart, dateLocale, formatIqd, onShelf, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { addToCart, commissionOf, dateLocale, formatIqd, onShelf, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { readPrefs, TEXT_ZOOM, writePrefs, type TextSize, type TillPrefs } from "@/lib/till/prefs";
 import { printReceipt, receiptDocument, type ReceiptData } from "@/lib/till/receipt";
 import { TillLockScreen } from "./till-lock-screen";
@@ -18,6 +18,7 @@ import { TillCartPanel } from "./till-cart-panel";
 import { TillPayView } from "./till-pay-view";
 import { TillDoneView } from "./till-done-view";
 import { TillHistoryDialog } from "./till-history-dialog";
+import { TillPayoutDialog } from "./till-payout-dialog";
 import { newTicket, type Ticket } from "./till-ticket";
 
 type Session = { id: string; cashier: TillMember };
@@ -66,6 +67,7 @@ export function TillPage() {
     const [done, setDone] = useState<Done | null>(null);
     const [print, setPrint] = useState(true);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [payoutOpen, setPayoutOpen] = useState(false);
     // The till renders only after its queries load, never during the server pass, so reading storage here is safe.
     const [prefs, setPrefsState] = useState<TillPrefs>(readPrefs);
     const setPrefs = (next: TillPrefs) => {
@@ -153,8 +155,13 @@ export function TillPage() {
             {
                 sessionId: session.id,
                 clientSaleId: ticket.id,
-                lines: ticket.cart.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id, quantity: l.quantity })),
+                lines: ticket.cart.map((l) =>
+                    l.price < l.list_price
+                        ? { product_id: l.product_id, variant_id: l.variant_id, quantity: l.quantity, price: l.price }
+                        : { product_id: l.product_id, variant_id: l.variant_id, quantity: l.quantity },
+                ),
                 discount: ticket.discount,
+                approvalId: ticket.approval?.id ?? null,
                 payments,
                 customerName: ticket.customerName.trim(),
                 phone,
@@ -186,6 +193,10 @@ export function TillPage() {
                 },
                 onError: (err) => {
                     const why = saleErrorOf(err);
+                    if (why === "approval_expired") {
+                        updateTicket({ ...ticket, approval: null });
+                        setView("sell");
+                    }
                     if (why === "locked") lock(t("till.lock.timedOut"));
                     else toast({ title: t(`till.sale.error.${why}`), variant: "error" });
                 },
@@ -273,6 +284,8 @@ export function TillPage() {
             today={overview.data?.today}
             mine={overview.data?.mine}
             onHistory={() => setHistoryOpen(true)}
+            commission={commissionOf(overview.data?.mine.total ?? 0, rules.data?.commission_pct ?? 0)}
+            onPayout={() => setPayoutOpen(true)}
             prefs={prefs}
             onPrefs={setPrefs}
         >
@@ -319,9 +332,11 @@ export function TillPage() {
                         isManager={isManager}
                         cashierName={session.cashier.display_name}
                         sessionId={session.id}
+                        managers={(members.data ?? []).filter((m) => m.role === "admin" && m.has_pin && m.user_id !== session.cashier.user_id)}
                     />
                 </div>
             )}
+            {payoutOpen && <TillPayoutDialog sessionId={session.id} onClose={() => setPayoutOpen(false)} />}
             {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
         </TillFrame>
     );
@@ -336,6 +351,8 @@ function TillFrame({
     today,
     mine,
     onHistory,
+    commission,
+    onPayout,
     prefs,
     onPrefs,
     children,
@@ -348,6 +365,9 @@ function TillFrame({
     today?: { count: number; total: number };
     mine?: { count: number; total: number };
     onHistory?: () => void;
+    /** The cashier's commission on today's sales, or null when the store pays none. */
+    commission?: number | null;
+    onPayout?: () => void;
     prefs?: TillPrefs;
     onPrefs?: (p: TillPrefs) => void;
     children: React.ReactNode;
@@ -396,6 +416,17 @@ function TillFrame({
                                     {t("till.top.mine", { n: mine.count })}
                                 </span>
                             )}
+                        </button>
+                    )}
+                    {commission != null && (
+                        <span className={`${chip} hover:bg-transparent`} title={t("till.top.commission")}>
+                            <span className="text-xs font-medium text-white/60" dir="auto">{t("till.top.commission")}</span>
+                            <span className="tabular-nums">{formatIqd(commission)}</span>
+                        </span>
+                    )}
+                    {onPayout && (
+                        <button type="button" onClick={onPayout} className={`${chip} px-3`} aria-label={t("till.payout.title")} title={t("till.payout.title")}>
+                            <HandCoins className="h-4 w-4" aria-hidden="true" />
                         </button>
                     )}
                     {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} chip={chip} />}
