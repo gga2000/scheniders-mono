@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
+import { Switch } from "@scheniders/ui/switch";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { DANGER_LIMIT, useShieldDanger } from "@/hooks/use-shield-danger";
@@ -25,10 +26,13 @@ const ZONES = [
  */
 export function ShieldDangerToggle() {
     const { t } = useLanguage();
+    const dir = useTextDir();
     const [open, setOpen] = useState(false);
     const max = useOrderStore((s) => s.dangerMax);
     const setMax = useOrderStore((s) => s.setDangerMax);
     const { count, red, scores } = useShieldDanger();
+    const showPanel = useOrderStore((s) => s.showDangerPanel);
+    const setShowPanel = useOrderStore((s) => s.setShowDangerPanel);
     const on = max < DANGER_OFF;
     const shown = on ? scores.filter((s) => s <= max).length : null;
     const label = t("shield.slider.button");
@@ -69,6 +73,10 @@ export function ShieldDangerToggle() {
                 className="w-[320px] rounded-2xl border-(--card-border) bg-(--card-bg) p-4 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.28)]"
             >
                 <DangerSlider max={max} shown={shown} onChange={setMax} />
+                <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 border-t border-(--card-border) pt-3">
+                    <span dir={dir} className="text-[12px] font-semibold text-foreground">{t("shield.danger.show")}</span>
+                    <Switch checked={showPanel} onCheckedChange={setShowPanel} aria-label={t("shield.danger.show")} />
+                </label>
             </PopoverContent>
         </Popover>
     );

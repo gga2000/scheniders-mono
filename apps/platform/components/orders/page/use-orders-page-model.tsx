@@ -19,7 +19,7 @@ import { countVisibility, listCountVisible } from "@/lib/orders/count-visibility
 import { isScheduleDue } from "@/lib/order-format-utils";
 import { sortDesktopList } from "@/lib/orders/list-sort";
 import { useShieldDanger } from "@/hooks/use-shield-danger";
-import { DANGER_OFF, inDangerRange } from "@/lib/shield/danger";
+import { DANGER_OFF, dangerBandOf, dangerCounts, inDangerRange } from "@/lib/shield/danger";
 import { desktopPreviewRows } from "@/lib/orders/list-preview";
 import { perfTrace } from "@/lib/perf-trace";
 import { orderRepository } from "@/lib/repositories/order-repository";
@@ -475,7 +475,10 @@ export function useOrdersPageModel() {
     const dangerMax = useOrderStore(s => s.dangerMax);
     const { trustById: dangerTrust } = useShieldDanger();
     const defDangerMax = React.useDeferredValue(dangerMax);
-    const defDanger = defDangerMax < DANGER_OFF ? dangerTrust : undefined;
+    const showDangerPanel = useOrderStore(s => s.showDangerPanel);
+    const dangerBand = useOrderStore(s => s.dangerBand);
+    const defDangerBand = React.useDeferredValue(showDangerPanel ? dangerBand : null);
+    const defDanger = defDangerMax < DANGER_OFF || defDangerBand ? dangerTrust : undefined;
 
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
@@ -538,17 +541,24 @@ export function useOrdersPageModel() {
         if (defDangerMax < DANGER_OFF) {
             result = result.filter(o => inDangerRange(o, dangerTrust, defDangerMax));
         }
+        // 1.11. Shield danger section: one band of the open orders.
+        if (defDangerBand) {
+            result = result.filter(o => dangerBandOf(o, dangerTrust) === defDangerBand);
+        }
 
         // 2. Sort: pinned first, parked last, then the column sorts, else
         // newest first (lib/orders/list-sort.ts — shared with the preview's
         // prefix proof).
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
         return sortDesktopList(result, activeSorts, Date.now(), defDanger);
-    }, [defDanger, defDangerMax, dangerTrust, hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
+    }, [defDanger, defDangerMax, defDangerBand, dangerTrust, hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
 
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
     // Counted with the same predicate the filter uses, so the number on the card
     // can never disagree with the list you get after clicking it.
+    // The danger section's band counts, over the same rows as the list.
+    const dangerBandCounts = useMemo(() => dangerCounts(hookFilteredOrders, dangerTrust), [hookFilteredOrders, dangerTrust]);
+
     const flaggedCount = useMemo(() => {
         return hookFilteredOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
     }, [hookFilteredOrders]);
@@ -1038,6 +1048,8 @@ export function useOrdersPageModel() {
         sortConfig,
         sortConfigs,
         toggleSort,
+        dangerBandCounts,
+        dangerListTotal: hookFilteredOrders.length,
         columnFilters,
         setColumnFilters,
         openFilterColumn,
