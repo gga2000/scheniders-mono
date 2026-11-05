@@ -485,3 +485,71 @@ export function useTillHoldEnd() {
         },
     });
 }
+
+const testerSchema = z.object({
+    id: z.string().uuid(),
+    product_id: z.string().uuid(),
+    variant_id: z.string().uuid().nullable(),
+    name: z.string(),
+    variant_name: z.string().nullable(),
+    image_url: z.string().nullable(),
+    opened_by: z.string(),
+    opened_at: z.string(),
+});
+export type TillTester = z.infer<typeof testerSchema>;
+const testersKey = (sessionId: string | null) => ["till", "testers", sessionId] as const;
+
+/** Tester bottles out on this shop's shelf, newest first. */
+export function useTillTesters(sessionId: string | null) {
+    return useQuery({
+        queryKey: testersKey(sessionId),
+        enabled: !!sessionId,
+        staleTime: 60_000,
+        queryFn: async (): Promise<TillTester[]> => {
+            const { data, error } = await supabase.rpc("till_testers_open", { p_session_id: sessionId });
+            if (error) throw error;
+            return z.array(testerSchema).parse(data);
+        },
+    });
+}
+
+const testerOpenSchema = z.union([
+    z.object({ tester_id: z.string().uuid(), replay: z.boolean() }),
+    z.object({ error: z.enum(["not_enough", "needs_manager"]) }),
+]);
+export type TesterOpenResult = z.infer<typeof testerOpenSchema>;
+
+/** Opens one bottle as a tester: it leaves stock and stays on the shop's tester list. */
+export function useTillTesterOpen() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; clientId: string; productId: string; variantId: string | null; approvalId: string | null }): Promise<TesterOpenResult> => {
+            const { data, error } = await supabase.rpc("till_tester_open", {
+                p_session_id: input.sessionId,
+                p_client_id: input.clientId,
+                p_product_id: input.productId,
+                p_variant_id: input.variantId,
+                p_approval_id: input.approvalId,
+            });
+            if (error) throw error;
+            return testerOpenSchema.parse(data);
+        },
+        onSettled: (_d, _e, input) => {
+            qc.invalidateQueries({ queryKey: testersKey(input.sessionId) });
+            qc.invalidateQueries({ queryKey: ["till", "products"] });
+        },
+    });
+}
+
+/** A tester is used up and leaves the shelf list. */
+export function useTillTesterEnd() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; testerId: string }): Promise<boolean> => {
+            const { data, error } = await supabase.rpc("till_tester_end", { p_session_id: input.sessionId, p_tester_id: input.testerId });
+            if (error) throw error;
+            return z.object({ ended: z.boolean() }).parse(data).ended;
+        },
+        onSettled: (_d, _e, input) => qc.invalidateQueries({ queryKey: testersKey(input.sessionId) }),
+    });
+}
