@@ -32,7 +32,7 @@ export const StatusDropdown = memo(function StatusDropdown({
 
     if (isReturn) {
         return (
-            <span className="w-full px-2 py-1 text-[11px] font-bold rounded-lg bg-purple-100 text-purple-700 text-center block">
+            <span data-status="return" className="w-full px-2 py-1 text-[11px] font-bold rounded-lg bg-purple-100 text-purple-700 text-center block">
                 {t("refund.chip")}
             </span>
         );
@@ -43,13 +43,14 @@ export const StatusDropdown = memo(function StatusDropdown({
     return (
         <div ref={ref} className="relative w-full">
             <button
+                data-status={status}
                 onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
                 className={cn(
                     "w-full px-2 py-1 text-[11px] font-bold rounded-lg cursor-pointer text-center transition-all flex items-center justify-center gap-1.5",
                     getStatusBadgeStyle(status)
                 )}
             >
-                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", current?.dot || "bg-gray-400")} />
+                <span data-status-dot={status} className={cn("w-1.5 h-1.5 rounded-full shrink-0", current?.dot || "bg-gray-400")} />
                 {getOrderStatusLabel(status, language)}
                 <ChevronDown className={cn("w-3 h-3 transition-transform shrink-0", open && "rotate-180")} />
             </button>
@@ -71,7 +72,7 @@ export const StatusDropdown = memo(function StatusDropdown({
                                 opt.value === status ? "bg-gray-50 font-bold" : "hover:bg-gray-50"
                             )}
                         >
-                            <span className={cn("w-2 h-2 rounded-full shrink-0", opt.dot)} />
+                            <span data-status-dot={opt.value} className={cn("w-2 h-2 rounded-full shrink-0", opt.dot)} />
                             <span className="flex-1">{getOrderStatusLabel(opt.value, language)}</span>
                             {opt.value === status && <Check className="w-3 h-3 text-primary shrink-0" />}
                         </button>

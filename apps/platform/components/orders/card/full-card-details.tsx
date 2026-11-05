@@ -1,7 +1,7 @@
 "use client";
 
 import { CodRiskChip } from "@/components/orders/cod-risk-chip";
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { GeminiBadge } from "@/components/orders/gemini-badge";
 import { HighlightedText } from "@scheniders/ui/highlighted-text";
 import { HighlightedPhone } from "../highlighted-phone";
@@ -92,7 +92,9 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                                                     ? "bg-white/80 dark:bg-white/5"
                                                     : "bg-[var(--background)] border-l-[3px] dark:bg-gradient-to-r dark:from-white/5 dark:to-transparent"
                                             )}
-                                            style={items.length > 1 ? undefined : { borderLeftColor: item.tag_color || '#22c55e' }}
+                                            data-product-line={items.length > 1 ? undefined : ""}
+                                            // --product-hue lets the dark theme re-tone the product's own colour to the shared lightness step.
+                                            style={items.length > 1 ? undefined : ({ borderLeftColor: item.tag_color || '#22c55e', "--product-hue": item.tag_color || '#22c55e' } as CSSProperties)}
                                         >
                                             {item.name}
                                             <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold border ${quantityColor}`}>
