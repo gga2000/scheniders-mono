@@ -3134,67 +3134,7 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
     color: var(--muted);
 }
 
-/* ============================================
-   Sidebar Nav Icon Shine — subtle left-to-right sweep
-   ============================================ */
-.nav-icon-shine {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    isolation: isolate;
-}
-
-.nav-icon-shine::after {
-    content: "";
-    position: absolute;
-    inset: -4px;
-    pointer-events: none;
-    border-radius: 8px;
-    background: linear-gradient(
-        115deg,
-        transparent 38%,
-        rgba(255, 255, 255, 0.55) 49%,
-        rgba(255, 255, 255, 0.75) 50%,
-        rgba(255, 255, 255, 0.55) 51%,
-        transparent 62%
-    );
-    background-size: 260% 100%;
-    background-position: 150% 0;
-    mix-blend-mode: plus-lighter;
-    opacity: 0;
-    animation: nav-icon-shine-sweep 9s ease-in-out infinite;
-    animation-delay: var(--shine-delay, 0s);
-    will-change: background-position, opacity;
-}
-
-@keyframes nav-icon-shine-sweep {
-    0%, 85% {
-        background-position: 150% 0;
-        opacity: 0;
-    }
-    88% {
-        opacity: 0.85;
-    }
-    93% {
-        opacity: 0.85;
-    }
-    98% {
-        background-position: -30% 0;
-        opacity: 0;
-    }
-    100% {
-        background-position: -50% 0;
-        opacity: 0;
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .nav-icon-shine::after {
-        animation: none;
-        opacity: 0;
-    }
-
     /* Customers page: disable SVG ring animation, bar grows, and stagger delays */
     .customers-page .trust-ring-track,
     .customers-page .trust-stat-card,
