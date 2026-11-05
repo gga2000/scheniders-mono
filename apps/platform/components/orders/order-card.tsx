@@ -19,6 +19,7 @@ import { FullCardActions } from "./card/full-card-actions";
 import { PrimeBand } from "./card/prime-band";
 import { PrimeCallBand } from "./card/prime-call-band";
 import { PrimeQueueBand } from "./card/prime-queue-band";
+import { PrimeQueueStatus } from "./card/prime-queue-status";
 
 export const OrderCard = memo(function OrderCard(props: OrderCardProps) {
     const { compact = 0, gridMode = false } = props;
@@ -169,6 +170,8 @@ function FullOrderCard(props: OrderCardProps) {
                     <div className="w-px h-16 bg-[var(--card-border)] hidden md:block flex-shrink-0 dark:bg-white/5" />
 
                     <FullCardDetails m={m} />
+
+                    <PrimeQueueStatus orderId={order.id} />
 
                     <FullCardPrice m={m} />
 

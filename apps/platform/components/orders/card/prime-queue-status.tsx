@@ -1,10 +1,12 @@
 "use client";
 
-import { Clock, MessageSquareQuote, Truck } from "lucide-react";
-import { useLanguage } from "@/hooks/use-language";
+import type { ReactNode } from "react";
+import { Clock } from "lucide-react";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { usePrimeQueueEntry } from "@/hooks/use-prime-queues";
+import { formatTime } from "@/lib/order-format-utils";
 import { primeReasonNote } from "@/lib/prime/track";
-import { primeReasonText, primeWhen } from "@/lib/prime/when";
+import { primeWhen } from "@/lib/prime/when";
 import { cn } from "@/lib/utils";
 import { useOrderStore } from "@/store/use-order-store";
 import type { PrimeProblemKind } from "@/lib/prime/problems";
@@ -19,12 +21,20 @@ const KIND_CHIP: Record<PrimeProblemKind, string> = {
     stuck: "border-[#F6D9AE] bg-[#FEF3E2] text-[#8A4B00] dark:border-amber-400/25 dark:bg-amber-400/15 dark:text-amber-200",
 };
 
-const CHIP = "inline-flex h-7 max-w-full items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-[13px]";
+function Row({ label, children, field }: { label: string; children: ReactNode; field: string }) {
+    return (
+        <div data-prime-field={field} className="grid min-w-0 grid-cols-[78px_minmax(0,1fr)] items-center gap-2">
+            <dt className="truncate text-[11px] font-semibold text-muted dark:text-white/45">{label}</dt>
+            <dd className="min-w-0 text-[13px]">{children}</dd>
+        </div>
+    );
+}
 
 /**
- * Next to the items on a card in the «معالجة» / «راجع» list (desktop): what
- * Prime says is wrong, as chips — the problem, Prime's step, its reason and
- * when it happened. The fix buttons stay in the band under the card.
+ * On a card in the «معالجة» / «راجع» list (desktop): a small panel beside the
+ * order details, one labelled line each for the order's status at Prime,
+ * Prime's last step and when, Prime's answer (its reason) and the last
+ * comment from the team. The fix buttons stay in the band under the card.
  */
 export function PrimeQueueStatus({ orderId }: { orderId: string }) {
     const queue = useOrderStore((s) => s.primeQueue);
@@ -34,39 +44,57 @@ export function PrimeQueueStatus({ orderId }: { orderId: string }) {
 
 function PrimeQueueStatusFor({ orderId }: { orderId: string }) {
     const { t } = useLanguage();
+    const dir = useTextDir();
     const entry = usePrimeQueueEntry(orderId);
     if (!entry) return null;
     const { problem, view } = entry;
-    const reason = primeReasonText(primeReasonNote(view), t);
+    const note = primeReasonNote(view);
+    const answer = [note?.reason ?? null, note?.until ? t("orders.prime.postponedUntil", { date: note.until }) : null].filter((p): p is string => p !== null).join(" · ");
     const when = primeWhen(problem.since, t);
     const step = view.pushError !== null ? t("orders.prime.band.editRefused") : view.cancelRefusedAt !== null ? t("orders.prime.cancelRefused") : (view.stepName ?? view.status);
+    const none = <span className="text-muted dark:text-white/40">{t("orders.primeQueue.field.none")}</span>;
 
     return (
-        <span data-prime-queue-status={problem.kind} className="contents">
-            <span className={cn(CHIP, "font-bold", KIND_CHIP[problem.kind])}>
-                <span aria-hidden="true" className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] bg-[#315EA8]">
-                    <span className="h-1 w-3 bg-white [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat]" />
+        <dl
+            dir={dir}
+            data-prime-queue-status={problem.kind}
+            onClick={(e) => e.stopPropagation()}
+            className="hidden w-[300px] shrink-0 space-y-1.5 rounded-xl border border-[#EFE6E3] bg-[#FFFBFA] px-3 py-2.5 text-left md:block dark:border-white/10 dark:bg-white/[0.03]"
+        >
+            <Row field="status" label={t("orders.primeQueue.field.status")}>
+                <span className={cn("inline-flex h-6 max-w-full items-center gap-1.5 whitespace-nowrap rounded-md border px-2 text-[12px] font-bold", KIND_CHIP[problem.kind])}>
+                    <span aria-hidden="true" className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] bg-[#315EA8]">
+                        <span className="h-1 w-2.5 bg-white [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat]" />
+                    </span>
+                    <span className="truncate">{t(`prime.problems.kind.${problem.kind}`)}</span>
                 </span>
-                {t(`prime.problems.kind.${problem.kind}`)}
-            </span>
-            {step && (
-                <span data-prime-step className={cn(CHIP, "border-[#E6E1D8] bg-white font-semibold text-foreground dark:border-white/10 dark:bg-white/5")}>
-                    <Truck className="h-3.5 w-3.5 shrink-0 text-[#315EA8] dark:text-blue-300" aria-hidden="true" />
-                    <span className="truncate">{step}</span>
+            </Row>
+            <Row field="step" label={t("orders.primeQueue.field.step")}>
+                <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-semibold text-foreground">{step ?? "—"}</span>
+                    {when && (
+                        <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted dark:text-white/45">
+                            <Clock className="h-3 w-3" aria-hidden="true" />
+                            {when}
+                        </span>
+                    )}
                 </span>
-            )}
-            {reason && (
-                <span data-prime-reason className={cn(CHIP, "border-[#F2C9C4] bg-[#FFF7F6] font-semibold text-[#8F1D13] dark:border-rose-400/20 dark:bg-rose-500/[0.08] dark:text-rose-200")}>
-                    <MessageSquareQuote className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{reason}</span>
-                </span>
-            )}
-            {when && (
-                <span className="inline-flex h-7 items-center gap-1 whitespace-nowrap px-1 text-xs font-medium text-muted dark:text-white/50">
-                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                    {when}
-                </span>
-            )}
-        </span>
+            </Row>
+            <Row field="answer" label={t("orders.primeQueue.field.answer")}>
+                {answer ? <span className="block truncate font-semibold text-[#8F1D13] dark:text-rose-300">{answer}</span> : none}
+            </Row>
+            <Row field="comment" label={t("orders.primeQueue.field.comment")}>
+                {view.problemNote ? (
+                    <span className="block truncate text-foreground">
+                        {view.problemNote}
+                        {view.problemCheckedAt && (
+                            <span className="text-[11px] text-muted dark:text-white/45"> · {view.problemCheckedBy ?? t("prime.problems.someone")} {formatTime(view.problemCheckedAt)}</span>
+                        )}
+                    </span>
+                ) : (
+                    none
+                )}
+            </Row>
+        </dl>
     );
 }
