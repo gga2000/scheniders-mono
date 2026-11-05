@@ -7,12 +7,12 @@ import {
     usePrimeStatement,
     usePrimeStatementAction,
     type PrimeStatementAction,
-    type PrimeStatementActionAnswer,
     type PrimeStatementRowView,
 } from "@/hooks/use-prime-statements";
 import { downloadCsv } from "@/lib/export-utils";
 import { primeWhen } from "@/lib/prime/when";
 import { cn } from "@/lib/utils";
+import { useActionProblem } from "./use-action-problem";
 
 const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
@@ -29,29 +29,6 @@ const dark = "inline-flex h-11 items-center justify-center rounded-full bg-[var(
 const collectDiffers = (row: PrimeStatementRowView) => row.ours?.collect != null && row.primeCollect !== row.ours.collect;
 /** Prime charged another fee than it quoted for this parcel. */
 const feeDiffers = (row: PrimeStatementRowView) => row.ours?.fee != null && row.primeFee !== row.ours.fee;
-
-/** What a failed action means for the person who pressed it. */
-function useActionProblem() {
-    const { t } = useLanguage();
-    return (answer: PrimeStatementActionAnswer): string | null => {
-        if (answer.success) return null;
-        switch (answer.reason) {
-            case "prime_unreachable":
-            case "not_connected":
-                return t("orders.prime.unreachable");
-            case "conflict":
-                return t("prime.cash.error.conflict");
-            case "prepaid":
-                return t("prime.cash.error.prepaid");
-            case "not_on_payment":
-                return t("prime.cash.error.notOnPayment");
-            case "unknown_payment":
-                return t("prime.cash.error.unknownPayment");
-            case "prime_rejected":
-                return t("prime.cash.error.failed");
-        }
-    };
-}
 
 /**
  * One Prime payment against our books: what Prime collected, its fees, what

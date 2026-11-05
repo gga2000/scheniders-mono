@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrimeShipmentView } from "./chip-state";
-import { primeBoard, type PrimeBoardParcel } from "./board";
+import { primeAgeTone, primeBoard, primeOldestAgeDays, type PrimeBoardParcel } from "./board";
 
 /** 2026-11-04 12:00 in Baghdad. */
 const NOW = Date.parse("2026-11-04T09:00:00Z");
@@ -109,5 +109,27 @@ describe("primeBoard", () => {
         const board = primeBoard([parcel("refunded", { stepCode: "ONWAY" }, "rejected")], NOW);
         expect(board.lists.on_road).toEqual([]);
         expect(board.cash.on_road).toBe(0);
+    });
+});
+
+describe("primeOldestAgeDays", () => {
+    it("is the longest wait since Prime last moved a parcel, in whole days", () => {
+        const fresh = view({ statusChangedAt: "2026-11-04T07:00:00Z" });
+        const old = view({ statusChangedAt: "2026-10-30T09:00:00Z" });
+        expect(primeOldestAgeDays([fresh, old], NOW)).toBe(5);
+    });
+
+    it("falls back to the send time when Prime never moved it", () => {
+        expect(primeOldestAgeDays([view({ statusChangedAt: null, sentAt: "2026-11-02T09:00:00Z" })], NOW)).toBe(2);
+    });
+
+    it("is null when there are no parcels", () => {
+        expect(primeOldestAgeDays([], NOW)).toBeNull();
+    });
+});
+
+describe("primeAgeTone", () => {
+    it("turns amber after 3 days and red after 6", () => {
+        expect([0, 3, 4, 6, 7].map(primeAgeTone)).toEqual(["ok", "ok", "amber", "amber", "red"]);
     });
 });

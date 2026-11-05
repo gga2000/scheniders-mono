@@ -92,7 +92,17 @@ describe("PrimeProblemsTab", () => {
         expect([...rows].map((r) => r.getAttribute("data-prime-problem"))).toEqual(["o1", "o2", "o3"]);
         expect(within(rows[0] as HTMLElement).getByText(/Prime: الزبون لا يرد/)).toBeTruthy();
         expect(within(rows[2] as HTMLElement).getByText(/Handled by Noor/).textContent).toContain("Home tomorrow");
-        expect(screen.getByText("Parcels with a problem").parentElement?.textContent).toContain("· 2");
+        expect(screen.getByText("Your work now").parentElement?.textContent).toContain("· 2");
+    });
+
+    it("says all is clear, with the last check and the oldest parcel on the road, when nothing needs anyone", () => {
+        const calm: PrimeBoardData = { ...data(), views: new Map([["o4", view({})]]), orders: new Map([["o4", order("o4", "سارة")]]) };
+        render(<PrimeProblemsTab data={calm} onAskPrime={vi.fn()} calm={{ checkedMinutesAgo: 3, oldest: { orderNumber: "1261103004", days: 2 } }} />);
+        const quiet = document.querySelector("[data-prime-calm]");
+        expect(quiet?.textContent).toContain("All clear");
+        expect(quiet?.textContent).toContain("Last checked 3 min ago");
+        expect(quiet?.textContent).toContain("oldest parcel on the road: 1261103004, 2 days");
+        expect(document.querySelectorAll("[data-prime-problem]")).toHaveLength(0);
     });
 
     it("filters by kind", () => {
