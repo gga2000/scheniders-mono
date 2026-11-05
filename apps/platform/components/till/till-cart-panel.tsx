@@ -282,6 +282,12 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     </p>
                 )}
 
+                {ticket.discount > 0 && (
+                    <p className="flex justify-between text-sm tabular-nums text-muted">
+                        <span>{t("till.cart.subtotal")}</span>
+                        <span>{formatIqd(subtotal)}</span>
+                    </p>
+                )}
                 <div className="flex items-end justify-between">
                     <span className="text-sm font-semibold text-muted">
                         {t("till.cart.total")}

@@ -526,7 +526,12 @@ function MoneyMenu({ commission, onPayout, chip }: { commission: number | null; 
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger className={commission != null ? chip : `${chip} px-3`} aria-label={t("till.top.money")} title={t("till.top.money")}>
                 <HandCoins className="h-4 w-4" aria-hidden="true" />
-                {commission != null && <span className="tabular-nums">{formatIqd(commission)}</span>}
+                {commission != null && (
+                    <>
+                        <span className="text-xs font-medium text-white/60" dir="auto">{t("till.top.commission")}</span>
+                        <span className="tabular-nums">{formatIqd(commission)}</span>
+                    </>
+                )}
             </PopoverTrigger>
             <PopoverContent align="end" className="flex w-72 flex-col gap-3 rounded-2xl border-[var(--card-border)] bg-[var(--card-bg)] p-4">
                 {commission != null && (

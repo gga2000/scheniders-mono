@@ -35,7 +35,7 @@ interface Props {
     onComplete: (payments: PaymentLine[], change: number) => void;
 }
 
-const KEY_NOTES = IQD_NOTES.slice(0, 6);
+const KEY_NOTES = IQD_NOTES;
 
 /** Taking the money: method, note keys, change as the hero, split when asked. */
 export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, payQr, onShown, onBack, onComplete }: Props) {
@@ -129,15 +129,15 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                 </div>
 
                 {method === "cash" ? (
-                    <div className="grid min-h-[320px] flex-1 grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-4">
+                    <div className="grid min-h-[300px] flex-1 grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-4">
                         <div className="flex min-h-0 flex-col gap-2">
-                            <div className="grid flex-1 auto-rows-fr grid-cols-3 gap-2">
+                            <div className="grid flex-1 auto-rows-fr grid-cols-4 gap-2">
                                 {KEY_NOTES.map((note) => (
                                     <div key={note} className="relative min-h-24">
                                         <button
                                             type="button"
                                             onClick={() => tapNote(note)}
-                                            className="flex h-full w-full items-end justify-between rounded-2xl p-4 text-left text-2xl font-bold tabular-nums text-[#1E1E1E] transition-transform active:scale-[0.97]"
+                                            className="flex h-full w-full items-end justify-between gap-1 rounded-2xl p-4 text-left text-xl font-bold tabular-nums text-[#1E1E1E] transition-transform active:scale-[0.97]"
                                             style={{ background: NOTE_TILES[note] }}
                                         >
                                             {formatIqd(note)}
@@ -157,18 +157,18 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                         ) : null}
                                     </div>
                                 ))}
-                            </div>
-                            <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setNotes({});
                                         setTyped(String(rest));
                                     }}
-                                    className="h-14 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] text-base font-semibold text-foreground"
+                                    className="flex min-h-24 items-end rounded-2xl border-2 border-dashed border-[var(--card-border)] bg-[var(--card-bg)] p-4 text-left text-lg font-bold text-foreground transition-transform active:scale-[0.97]"
                                 >
                                     {t("till.pay.exact")}
                                 </button>
+                            </div>
+                            <div className="grid grid-cols-[2fr_1fr] gap-2">
                                 <input
                                     value={typed ?? ""}
                                     onChange={(e) => {
@@ -178,7 +178,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                     placeholder={t("till.pay.typeAmount")}
                                     aria-label={t("till.pay.typeAmount")}
                                     inputMode="numeric"
-                                    className="h-14 min-w-0 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center text-base font-semibold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
+                                    className="h-14 min-w-0 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center text-base font-semibold tabular-nums text-foreground outline-none placeholder:text-foreground focus:border-[var(--ink)]"
                                 />
                                 <button type="button" onClick={clear} className="h-14 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] text-base font-semibold text-foreground">
                                     {t("till.pay.clear")}
