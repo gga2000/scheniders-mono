@@ -317,7 +317,7 @@ export const VirtualizedOrderTable = memo(function VirtualizedOrderTable({
                 ref={parentRef}
                 className="flex-1 overflow-x-auto overflow-y-visible"
             >
-                <div className="w-full relative flex flex-col min-w-[1200px] rounded-xl border border-gray-200/80 shadow-sm bg-white overflow-hidden" role="table">
+                <div data-orders-table className="w-max relative flex flex-col min-w-[max(100%,1200px)] rounded-xl border border-gray-200/80 shadow-sm bg-white overflow-hidden" role="table">
                     <div className="bg-gray-50/80 border-b-2 border-gray-200 sticky top-0 z-30 grid" style={{ gridTemplateColumns: gridTemplate }} role="row">
                             <div role="columnheader" className="px-3 py-3 text-center text-xs font-semibold text-muted cursor-pointer hover:bg-gray-50"
                                 onClick={(e) => toggleSort('order_id', e.shiftKey)}

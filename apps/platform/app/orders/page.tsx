@@ -1,5 +1,6 @@
 "use client";
 
+import "./orders-dark.css";
 import { DuplicateConfirmDialog } from "@/components/orders/duplicate-confirm-dialog";
 import { StockTodayDialog } from "@/components/orders/stock-today-dialog";
 import { StockShortfallDialog } from "@/components/orders/stock-shortfall-dialog";
