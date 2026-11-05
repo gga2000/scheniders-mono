@@ -133,7 +133,7 @@ export function TillManagerDialog({ sessionId, managers, reason, onApproved, onC
                                 disabled={!who || pin.length === 0}
                                 onClick={() => setPin((p) => p.slice(0, -1))}
                                 aria-label={t("till.lock.delete")}
-                                className="flex h-14 items-center justify-center rounded-2xl text-foreground"
+                                className="flex h-14 items-center justify-center rounded-2xl border border-[var(--card-border)] text-foreground disabled:opacity-40"
                             >
                                 <Delete className="h-5 w-5" aria-hidden="true" />
                             </button>
