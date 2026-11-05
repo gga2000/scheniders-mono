@@ -616,3 +616,16 @@ html.dark:has(.orders-page) .orders-card-surface span.grid.h-5.w-5.rounded-full.
 /* Returns button: neutral in every view (cards view already was). */
 html.dark:has(.orders-page) button.rounded-xl.bg-orange-500:not(#a):not(#b):not(#c):not(#d){background:#242320!important;color:#f0eee9!important;border:1px solid #3a3833!important;box-shadow:none!important}
 html.dark:has(.orders-page) button.rounded-xl.bg-orange-500 svg:not(#a){color:#a8a59e!important}
+
+/* --- build 4: live critic round 34 --- */
+/* Bell panel filter tabs: the active one uses the selected recipe. */
+html.dark:has(.orders-page) div.z-50 button.rounded-full.bg-foreground:not(#a):not(#b){background:rgba(239,255,0,.12)!important;color:#efff00!important;border:1px solid rgba(239,255,0,.4)!important;box-shadow:none!important}
+/* Duplicate bar: its cancel is a quiet button, not brand yellow; the
+   abandoned badge is the same neutral as the abandoned filter chip. */
+html.dark:has(.orders-page) button.rounded-lg.border[class*="border-amber-300"][class*="text-amber-800"]:not(#a):not(#b){border-color:#3a3833!important;color:#cfcac2!important;background:transparent!important}
+html.dark:has(.orders-page) button.rounded-lg.border[class*="border-amber-300"][class*="text-amber-800"]:hover:not(#a):not(#b){background:#2d2c29!important;color:#f0eee9!important}
+html.dark:has(.orders-page) span.rounded.bg-amber-500.text-white:not(#a):not(#b){background:#2d2c29!important;color:#a8a59e!important}
+/* Stock window legend dots use the same colours as the summary bar. */
+html.dark:has(.orders-page) [role=dialog] i.bg-red-500:not(#a){background:#b0645d!important}
+html.dark:has(.orders-page) [role=dialog] i.bg-amber-400:not(#a){background:#ad9058!important}
+html.dark:has(.orders-page) [role=dialog] i.bg-emerald-500:not(#a){background:#5f9a6c!important}
