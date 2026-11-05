@@ -496,6 +496,11 @@ function TillFrame({
                             <span className="text-xs font-medium tabular-nums text-white/60" dir="auto">
                                 {t("till.top.today", { n: today.count })}
                             </span>
+                            {goal ? (
+                                <span className="rounded-full bg-[#EFFF00]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[#EFFF00]">
+                                    {Math.min(999, Math.round((today.total / goal) * 100))}%
+                                </span>
+                            ) : null}
                             {mine && mine.count > 0 && mine.count !== today.count && (
                                 <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium tabular-nums text-white/80" dir="auto">
                                     {t("till.top.mine", { n: mine.count })}

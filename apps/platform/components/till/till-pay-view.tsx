@@ -252,7 +252,13 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                         disabled={!result.ok || pending || (method !== "cash" && typed !== null && parseDinars(typed) > 0 && parseDinars(typed) < rest)}
                         className={cn("h-16 flex-1 rounded-2xl text-xl font-bold disabled:opacity-40", INK_BUTTON)}
                     >
-                        {pending ? t("till.pay.saving") : change > 0 ? t("till.pay.completeChange", { change: formatIqd(change) }) : t("till.pay.complete")}
+                        {pending
+                            ? t("till.pay.saving")
+                            : change > 0
+                              ? t("till.pay.completeChange", { change: formatIqd(change) })
+                              : method === "fib" || method === "zaincash"
+                                ? t("till.pay.completeNotice", { method: t(`till.pay.method.${method}`) })
+                                : t("till.pay.complete")}
                     </button>
                 </div>
             </div>

@@ -51,11 +51,17 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
 
     const add = (product: TillProduct, variant: TillVariant | null, from: HTMLElement | null) => {
         onAdd(product, variant);
-        if (sound) beep("ok");
         flyToCart(from, product.image_url);
         const name = variant ? `${product.name} ${variant.name}` : product.name;
-        const left = (variant ? variant.available : product.available) - 1;
-        setNotice({ kind: "ok", text: t("till.sell.added", { name, left: Math.max(0, left) }), at: Date.now() });
+        const had = variant ? variant.available : product.available;
+        if (had > 0 && sound) beep("ok");
+        // Out of stock on the system but in the cashier's hand: sell it, and say the count is off.
+        if (had <= 0) {
+            if (sound) beep("bad");
+            setNotice({ kind: "bad", text: t("till.sell.addedOut", { name }), at: Date.now() });
+            return;
+        }
+        setNotice({ kind: "ok", text: t("till.sell.added", { name, left: had - 1 }), at: Date.now() });
     };
 
     const choose = (product: TillProduct, from: HTMLElement | null) => {
@@ -163,7 +169,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
 
             <div className="min-h-0 flex-1 overflow-y-auto">
                 {loading ? (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3">
                         {Array.from({ length: 8 }, (_, i) => (
                             <div key={i} className="aspect-[4/5] animate-pulse rounded-[20px] bg-[var(--card-border)]/40" />
                         ))}
@@ -188,7 +194,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                         ) : (
                             <section aria-label={t("till.sell.allProducts")} className="flex flex-col gap-2">
                                 {showBestRow && <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.sell.allProducts")}</h2>}
-                                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+                                <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3">
                                     {shown.map((p) => (
                                         <ProductCard key={p.id} product={p} onPick={(el) => choose(p, el)} />
                                     ))}
@@ -292,7 +298,7 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: H
             onClick={() => onPick(photo.current)}
             className="group flex flex-col overflow-hidden rounded-[20px] border border-[var(--card-border)] bg-[var(--card-bg)] text-left transition-[transform,border-color] duration-150 hover:border-[var(--ink)]/25 active:scale-[0.98] dark:hover:border-white/25"
         >
-            <span ref={photo} className="relative block aspect-square w-full overflow-hidden bg-[var(--card-border)]/25">
+            <span ref={photo} className="relative block aspect-[4/3] w-full overflow-hidden bg-[var(--card-border)]/25">
                 {product.image_url ? (
                     <img
                         src={product.image_url}
@@ -310,16 +316,6 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: H
                         {t("till.sell.sizes", { n: sizes })}
                     </span>
                 )}
-                {(out || low) && (
-                    <span
-                        className={cn(
-                            "absolute right-2 top-2 rounded-full px-2.5 py-1 text-xs font-bold",
-                            out ? "bg-[#FDE7EA] text-[#991B1B]" : "bg-[#FEF3C7] text-[#92400E]",
-                        )}
-                    >
-                        {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
-                    </span>
-                )}
             </span>
             <span className="flex flex-col gap-1 px-3 pb-3 pt-2.5">
                 <span className={cn("truncate text-[15px] font-semibold", out ? "text-muted" : "text-foreground")} dir="auto">{product.name}</span>
@@ -328,7 +324,14 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: H
                         {sizes > 1 && <span className="mr-1 text-xs font-medium text-muted">{t("till.sell.from")}</span>}
                         {formatIqd(from)}
                     </span>
-                    {!out && !low && <span className="text-xs font-medium tabular-nums text-muted">{t("till.sell.left", { n: product.available })}</span>}
+                    <span
+                        className={cn(
+                            "shrink-0 rounded-full text-xs tabular-nums",
+                            out ? "bg-[#FDE7EA] px-2 py-0.5 font-bold text-[#991B1B]" : low ? "bg-[#FEF3C7] px-2 py-0.5 font-bold text-[#92400E]" : "font-medium text-muted",
+                        )}
+                    >
+                        {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
+                    </span>
                 </span>
             </span>
         </button>

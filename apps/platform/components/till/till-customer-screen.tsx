@@ -72,10 +72,20 @@ export function TillCustomerScreen() {
                         ))}
                     </ul>
                     <aside className="flex flex-col justify-end gap-4 bg-[#1E1E1E] p-10 text-white">
+                        <div className="mb-auto flex items-center gap-3">
+                            {brand.logoUrl && <img src={brand.logoUrl} alt="" className="h-12 w-12 rounded-xl bg-white object-contain p-1" />}
+                            <span className="min-w-0">
+                                <span className="block truncate text-xl font-semibold" dir="auto">{storeName}</span>
+                                {shopName && <span className="block truncate text-base text-white/60" dir="auto">{shopName}</span>}
+                            </span>
+                        </div>
                         {state.discount > 0 && (
                             <>
                                 <Row label={t("till.customer.subtotal")} value={formatIqd(state.subtotal)} />
                                 <Row label={t("till.customer.discount")} value={`−${formatIqd(state.discount)}`} />
+                                <p className="rounded-2xl bg-[#E3F6DA] px-4 py-2 text-center text-xl font-bold text-[#14532D]" dir="auto">
+                                    {t("till.customer.saved", { amount: formatIqd(state.discount) })}
+                                </p>
                             </>
                         )}
                         <p className="text-xl text-white/60" dir="auto">{t("till.customer.total")}</p>

@@ -7,7 +7,7 @@ import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { RECEIPT_CODE, useTillFindSale, useTillSalesToday, type TillHistorySale } from "@/hooks/use-till";
 import type { Shop } from "@/hooks/use-shops";
-import { formatIqd, type PayMethod } from "@/lib/till/cart";
+import { dateLocale, formatIqd, type PayMethod } from "@/lib/till/cart";
 import { printReceipt, receiptDocument, receiptWhatsAppText, whatsAppReceiptLink, type ReceiptData } from "@/lib/till/receipt";
 
 interface Props {
@@ -20,7 +20,7 @@ interface Props {
 }
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" });
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Baghdad" });
+const day = (iso: string, locale: string) => new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short", timeZone: "Asia/Baghdad" });
 
 function toReceipt(s: TillHistorySale, shop: Shop, storeName: string): ReceiptData {
     const lines = s.items.map((i) => ({ name: i.name, variant_name: i.variant_name, quantity: i.quantity, price: i.price }));
@@ -75,7 +75,11 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
                 <DialogHeader>
                     <DialogTitle className="text-left">{past.data ? t("till.history.foundTitle", { code }) : t("till.history.title")}</DialogTitle>
                     <DialogDescription className="text-left tabular-nums" dir="auto">
-                        {sales.data ? t("till.history.summary", { n: sales.data.length, total: formatIqd(total) }) : " "}
+                        {past.data
+                            ? t("till.history.foundSub", { cashier: past.data.cashier || "—" })
+                            : sales.data
+                              ? t("till.history.summary", { n: sales.data.length, total: formatIqd(total) })
+                              : " "}
                     </DialogDescription>
                 </DialogHeader>
                 <label className="flex h-12 items-center gap-2 rounded-2xl border border-[var(--card-border)] px-3 focus-within:border-[var(--ink)]">
@@ -126,14 +130,14 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
 }
 
 function SaleRow({ sale, receipt, withDay = false }: { sale: TillHistorySale; receipt: ReceiptData; withDay?: boolean }) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const phone = sale.phone ? normalizeIraqiMobile(sale.phone) : null;
     const methods = [...new Set(sale.payments.map((p) => p.method))] as PayMethod[];
     const items = sale.items.reduce((n, i) => n + i.quantity, 0);
     return (
         <li className="flex items-center gap-4 py-3">
             <span className="flex w-14 shrink-0 flex-col text-sm font-semibold tabular-nums text-foreground">
-                {withDay && <span className="text-xs font-semibold text-muted">{day(sale.created_at)}</span>}
+                {withDay && <span className="text-xs font-semibold text-muted">{day(sale.created_at, dateLocale(language))}</span>}
                 {time(sale.created_at)}
             </span>
             <span className="min-w-0 flex-1">
