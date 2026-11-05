@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchPrimeStatement, type PrimeStatementOurs } from "./statement";
+import { matchPrimeStatement, primePaidButNotDelivered, type PrimeStatementOurs } from "./statement";
 
 const ours = (orderNumber: string, collect: number | null, fee: number | null): PrimeStatementOurs => ({
     orderId: `id-${orderNumber}`,
@@ -59,5 +59,20 @@ describe("matchPrimeStatement", () => {
         const { rows, summary } = matchPrimeStatement([{ caseid: 5, custReceiptNoOri: " " }], new Map([[5, ours("D", null, null)]]), new Map());
         expect(rows[0]).toMatchObject({ kind: "unknown", receipt: null, primeCollect: 0, primeFee: 0, diff: null });
         expect(summary.unknown).toBe(1);
+    });
+});
+
+describe("primePaidButNotDelivered", () => {
+    const ours = (status: string) => ({ orderId: "o", orderNumber: "1", customerName: null, collect: 1, fee: null, status, linked: true });
+    it("flags a parcel Prime collected cash for while our order says rejected, returning or cancelled", () => {
+        for (const status of ["rejected", "return_pending", "cancelled"]) {
+            expect(primePaidButNotDelivered({ primeCollect: 12500, ours: ours(status) })).toBe(true);
+        }
+    });
+    it("leaves delivered, in-transit, unplaced and zero-cash parcels alone", () => {
+        expect(primePaidButNotDelivered({ primeCollect: 12500, ours: ours("delivered") })).toBe(false);
+        expect(primePaidButNotDelivered({ primeCollect: 12500, ours: ours("in_transit") })).toBe(false);
+        expect(primePaidButNotDelivered({ primeCollect: 12500, ours: null })).toBe(false);
+        expect(primePaidButNotDelivered({ primeCollect: 0, ours: ours("rejected") })).toBe(false);
     });
 });

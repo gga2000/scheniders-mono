@@ -7,6 +7,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { usePrimeBoard, type PrimeBoardData } from "@/hooks/use-prime-board";
 import { usePrimeTickets } from "@/hooks/use-prime-tickets";
+import { usePrimeRefresh } from "@/hooks/use-prime-refresh";
 import { isAdminRole } from "@/lib/permissions";
 import { primeLastChecked } from "@/lib/prime/track";
 import { usePrimeStatements } from "@/hooks/use-prime-statements";
@@ -70,6 +71,8 @@ export function PrimePage() {
     // «اسأل برايم» on an orders-page card links here with the order to ask about.
     const linkedAsk = params.get("ask");
     const [ticketFor, setTicketFor] = useState<{ orderId: string; draft?: string; label?: string } | null>(linkedAsk ? { orderId: linkedAsk } : null);
+    const refreshPrime = usePrimeRefresh();
+    const [refresh, setRefresh] = useState<"idle" | "busy" | "failed">("idle");
     const statements = usePrimeStatements(admin);
     const unapproved = statements.data?.connected ? statements.data.statements.filter((x) => x.approval === null).length : 0;
     const problemCount = useMemo(() => (data ? primeProblemsFrom(data.views, data.orders, data.readAt).filter((p) => !p.handled).length : 0), [data]);
@@ -103,9 +106,17 @@ export function PrimePage() {
     const tabs: { id: PrimeTab; label: string; count?: number }[] = [
         { id: "now", label: t("prime.page.tabNow"), count: problemCount },
         ...(admin ? [{ id: "statements" as const, label: t("prime.page.tabStatements"), count: unapproved }] : []),
-        { id: "returns", label: t("prime.returns.tab") },
+        { id: "returns", label: t("prime.returns.tab"), count: data?.board.lists.returning.length ?? 0 },
         { id: "tickets", label: t("prime.page.tabTickets"), count: openTickets },
     ];
+    const refreshNow = async () => {
+        setRefresh("busy");
+        try {
+            setRefresh((await refreshPrime()) ? "idle" : "failed");
+        } catch {
+            setRefresh("failed");
+        }
+    };
     const askPrime = (orderId: string, draft?: string, label?: string) => {
         setTicketFor({ orderId, draft, label });
         setTab("tickets");
@@ -124,6 +135,17 @@ export function PrimePage() {
                             <p className="mt-0.5 text-sm text-muted">
                                 {connection.branchName ?? t("orders.prime.stop.branch")} · {t("prime.page.connected")}
                                 {minutesAgo !== null && <> · {t("orders.prime.row.checked", { min: minutesAgo })}</>}
+                                <> · </>
+                                <button
+                                    type="button"
+                                    onClick={refreshNow}
+                                    disabled={refresh === "busy"}
+                                    data-prime-refresh={refresh}
+                                    className="font-semibold text-[#315EA8] hover:underline disabled:opacity-60"
+                                >
+                                    {refresh === "busy" ? t("prime.page.refreshing") : t("prime.page.refresh")}
+                                </button>
+                                {refresh === "failed" && <span role="alert" className="ms-2 text-[#B42318]">{t("prime.page.refreshFailed")}</span>}
                             </p>
                         </div>
                     </div>
