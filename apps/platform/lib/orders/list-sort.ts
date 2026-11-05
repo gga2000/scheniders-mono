@@ -10,7 +10,8 @@ import { getScheduledState } from "@/lib/order-format-utils";
 //
 //   sortPinnedNewestFirst  useOrderFilters: pinned first, then newest first.
 //   sortDesktopList        app/orders/page.tsx: pinned first, parked last, then
-//                          the column sorts, else newest first.
+//                          (with "sort by danger" on) the lowest Shield Trust
+//                          score first, then the column sorts, else newest first.
 //   sortMobileList         MobileOrdersPage: parked last, then newest first.
 //
 // All three sort IN PLACE and return the array. Array.prototype.sort is
@@ -48,7 +49,17 @@ export function sortPinnedNewestFirst(rows: Order[]): Order[] {
     });
 }
 
-export function sortDesktopList(rows: Order[], activeSorts: readonly ListSortKey[], now: number = Date.now()): Order[] {
+/**
+ * `danger` maps an order id to its customer's Shield Trust score (only the
+ * orders under 80 are in it); when given, those orders come first, lowest
+ * score first, and every other order keeps the usual order below them.
+ */
+export function sortDesktopList(
+    rows: Order[],
+    activeSorts: readonly ListSortKey[],
+    now: number = Date.now(),
+    danger?: ReadonlyMap<string, number>,
+): Order[] {
     const createdAt = createdAtIndex(rows);
     // Orders parked for a later day stay in the list of the day they arrived
     // (where the status chips count them) but sink below the live queue.
@@ -61,6 +72,12 @@ export function sortDesktopList(rows: Order[], activeSorts: readonly ListSortKey
         const aParked = parked.has(a.id);
         const bParked = parked.has(b.id);
         if (aParked !== bParked) return aParked ? 1 : -1;
+
+        if (danger) {
+            const aTrust = danger.get(a.id) ?? Infinity;
+            const bTrust = danger.get(b.id) ?? Infinity;
+            if (aTrust !== bTrust) return aTrust < bTrust ? -1 : 1;
+        }
 
         for (const sc of activeSorts) {
             let aVal: unknown = a[sc.key as keyof Order];
