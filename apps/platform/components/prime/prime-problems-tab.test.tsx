@@ -19,6 +19,8 @@ const mark = vi.hoisted(() => vi.fn().mockResolvedValue(true));
 vi.mock("@/hooks/use-prime-shipments", () => ({ usePrimeProblemMark: () => mark }));
 const whatsapp = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/open-whatsapp-chat", () => ({ openWhatsAppChat: whatsapp }));
+const notice = vi.hoisted(() => ({ enabled: false, loaded: true, saving: false, setEnabled: vi.fn().mockResolvedValue(true) }));
+vi.mock("@/hooks/use-prime-failed-notice", () => ({ usePrimeFailedNotice: () => notice }));
 vi.mock("@/components/orders/card/prime-parcel-panel", () => ({ PrimeParcelPanel: () => <div data-testid="panel" /> }));
 
 import { PrimeProblemsTab } from "./prime-problems-tab";
@@ -164,6 +166,14 @@ describe("PrimeProblemsTab", () => {
         expect(document.querySelector("[data-handled-today]")?.textContent).toBe("Handled today: 1");
         expect(document.querySelector('[data-prime-problem="o2"] [data-problem-ticket]')?.textContent).toContain("We will retry");
         expect(document.querySelector('[data-prime-problem="o1"] [data-problem-ticket]')).toBeNull();
+    });
+
+    it("switches the automatic failed-delivery WhatsApp on", () => {
+        render(<PrimeProblemsTab data={data()} onAskPrime={vi.fn()} />);
+        const row = document.querySelector("[data-prime-failed-notice]") as HTMLElement;
+        expect(within(row).getByText("Automatic WhatsApp on failed delivery")).toBeTruthy();
+        fireEvent.click(within(row).getByRole("switch"));
+        expect(notice.setEnabled).toHaveBeenCalledWith(true);
     });
 
     it("opens the parcel in a side drawer", async () => {

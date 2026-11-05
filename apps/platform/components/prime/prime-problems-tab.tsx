@@ -18,6 +18,7 @@ import { formatTime } from "@/lib/order-format-utils";
 import { cn } from "@/lib/utils";
 import { PrimeParcelPanel, type PrimePanelFocus } from "@/components/orders/card/prime-parcel-panel";
 import { PrimeProblemActions, PRIME_PROBLEM_CHIP } from "./prime-problem-actions";
+import { PrimeFailedNoticeSwitch } from "./prime-failed-notice-switch";
 
 
 /** The order id of the parcel a typed number names: Prime's case number, our order number, or the end of the customer's phone; null when none or many match a phone. */
@@ -130,6 +131,8 @@ export function PrimeProblemsTab({
                     {t("prime.problems.hint")}
                 </span>
             </div>
+
+            <PrimeFailedNoticeSwitch />
 
             <form
                 role="search"
