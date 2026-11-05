@@ -33,7 +33,19 @@ const keys = {
     rules: (tenantId: string | null) => ["till", "rules", tenantId] as const,
     members: (tenantId: string | null) => ["till", "members", tenantId] as const,
     chips: (tenantId: string | null) => ["till", "chips", tenantId] as const,
+    events: (tenantId: string | null) => ["till", "events", tenantId] as const,
 };
+
+const tillEventSchema = z.object({
+    id: z.string(),
+    shop_id: z.string(),
+    cashier_id: z.string(),
+    approved_by: z.string().nullable(),
+    kind: z.enum(["line_removed", "price_changed", "discount_approved", "payout"]),
+    data: z.record(z.string(), z.unknown()),
+    created_at: z.string(),
+});
+export type TillEvent = z.infer<typeof tillEventSchema>;
 
 const chipIdsSchema = z.array(z.string().uuid()).nullable();
 
@@ -231,6 +243,25 @@ export function useSaveTillChips() {
         onSuccess: () => {
             void qc.invalidateQueries({ queryKey: keys.chips(tenantId) });
             void qc.invalidateQueries({ queryKey: ["till", "overview"] });
+        },
+    });
+}
+
+/** The till log: removed items, price changes, manager OKs and pay-outs, newest first. */
+export function useTillEvents() {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: keys.events(tenantId),
+        enabled: !!tenantId,
+        queryFn: async (): Promise<TillEvent[]> => {
+            const { data, error } = await supabase
+                .from("till_events")
+                .select("id, shop_id, cashier_id, approved_by, kind, data, created_at")
+                .eq("tenant_id", tenantId)
+                .order("created_at", { ascending: false })
+                .limit(60);
+            if (error) throw error;
+            return z.array(tillEventSchema).parse(data ?? []);
         },
     });
 }

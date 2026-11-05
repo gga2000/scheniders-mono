@@ -7,6 +7,8 @@ import {
     finishPayment,
     leftToPay,
     maxDiscount,
+    discountGiven,
+    setLinePrice,
     onShelf,
     parseDinars,
     setQuantity,
@@ -57,6 +59,21 @@ describe("cart", () => {
         expect(maxDiscount(137_000, 10, false)).toBe(13_700);
         expect(maxDiscount(137_000, 10, true)).toBeNull();
         expect(maxDiscount(137_000, null, false)).toBeNull();
+    });
+});
+
+describe("line price", () => {
+    it("cuts a line within its catalog price and counts the cut as discount", () => {
+        let cart = addToCart(addToCart([], bag, null), bag, null);
+        cart = setLinePrice(cart, "p2", 1_500);
+        expect(cart[0]).toMatchObject({ price: 1_500, list_price: 2_000 });
+        expect(subtotalOf(cart)).toBe(3_000);
+        expect(discountGiven(cart, 500)).toBe(1_500);
+    });
+    it("never sells above the catalog price or below zero", () => {
+        const cart = addToCart([], bag, null);
+        expect(setLinePrice(cart, "p2", 9_000)[0].price).toBe(2_000);
+        expect(setLinePrice(cart, "p2", -5)[0].price).toBe(0);
     });
 });
 
