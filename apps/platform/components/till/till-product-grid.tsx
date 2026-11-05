@@ -94,9 +94,10 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd }: P
         return products.filter((p) => ids.has(p.id));
     }, [filter, products, best, chips]);
 
-    // Sellable products first, so the out-of-stock ones don't crowd the top of the grid.
     const matches = searchProducts(inFilter, query);
-    const shown = [...matches.filter((p) => p.available > 0), ...matches.filter((p) => p.available <= 0)];
+    // Sold-out items go last, judged before this cart so a card never jumps away while it is being tapped.
+    const stocked = (p: TillProduct) => p.available + (p.in_cart ?? 0) > 0;
+    const shown = [...matches.filter(stocked), ...matches.filter((p) => !stocked(p))];
     const showBestRow = filter === "all" && !query.trim() && best.length > 0;
 
     return (

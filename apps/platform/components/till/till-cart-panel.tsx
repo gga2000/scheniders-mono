@@ -259,14 +259,14 @@ function CustomerCard({
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 {c.blacklisted && <span className="text-left text-xs font-bold" dir="auto">{t("till.cart.blacklisted")}</span>}
-                <span className="flex min-w-0 items-baseline gap-2">
+                <span className="flex min-w-0 items-center gap-2">
                     {c.name && (
                         <span className="truncate text-left text-sm font-semibold" dir="auto">
                             {c.name}
                         </span>
                     )}
                     {c.name && nameEmpty && (
-                        <button type="button" onClick={() => onUseName(c.name ?? "")} className="shrink-0 text-xs font-semibold underline underline-offset-2">
+                        <button type="button" onClick={() => onUseName(c.name ?? "")} className="ms-auto h-9 shrink-0 rounded-full bg-[var(--card-bg)] px-3 text-xs font-semibold text-foreground shadow-sm ring-1 ring-[var(--card-border)]">
                             {t("till.cart.useName")}
                         </button>
                     )}

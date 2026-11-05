@@ -9,7 +9,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { useShops, useTillMembers, useTillRules, type Shop, type TillMember } from "@/hooks/use-shops";
 import { lockTillSession, pingTillSession, saleErrorOf, useTillOverview, useTillProducts, useTillSale, useTillStoreName } from "@/hooks/use-till";
-import { addToCart, dateLocale, formatIqd, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { addToCart, dateLocale, formatIqd, onShelf, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { readPrefs, TEXT_ZOOM, writePrefs, type TextSize, type TillPrefs } from "@/lib/till/prefs";
 import { printReceipt, receiptDocument, type ReceiptData } from "@/lib/till/receipt";
 import { TillLockScreen } from "./till-lock-screen";
@@ -75,6 +75,8 @@ export function TillPage() {
     const overview = useTillOverview(session?.id ?? null);
 
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
+    // Stock badges and the "left" note count what is already in this sale's cart.
+    const shelf = useMemo(() => onShelf(products.data ?? [], ticket.cart), [products.data, ticket.cart]);
 
     // Who may switch in here: the shop's staff and the managers.
     const cashiers = useMemo(
@@ -304,7 +306,7 @@ export function TillPage() {
                 />
             ) : (
                 <div className="flex min-h-0 flex-1">
-                    <TillProductGrid products={products.data ?? []} loading={products.isPending} overview={overview.data} sound={prefs.sound} onAdd={add} />
+                    <TillProductGrid products={shelf} loading={products.isPending} overview={overview.data} sound={prefs.sound} onAdd={add} />
                     <TillCartPanel
                         tickets={tickets}
                         activeId={ticket.id}

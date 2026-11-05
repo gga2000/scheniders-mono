@@ -7,6 +7,7 @@ import {
     finishPayment,
     leftToPay,
     maxDiscount,
+    onShelf,
     parseDinars,
     setQuantity,
     subtotalOf,
@@ -56,6 +57,20 @@ describe("cart", () => {
         expect(maxDiscount(137_000, 10, false)).toBe(13_700);
         expect(maxDiscount(137_000, 10, true)).toBeNull();
         expect(maxDiscount(137_000, null, false)).toBeNull();
+    });
+});
+
+describe("onShelf", () => {
+    it("counts the cart's own pieces out of what is left", () => {
+        const cart = addToCart(addToCart(addToCart([], envoy, envoy.variants[0]), envoy, envoy.variants[0]), bag, null);
+        const [e, b] = onShelf([envoy, bag], cart);
+        expect(e.available).toBe(19);
+        expect(e.variants.map((v) => v.available)).toEqual([3, 16]);
+        expect(b.available).toBe(39);
+    });
+    it("returns the same list when the cart is empty", () => {
+        const list = [envoy];
+        expect(onShelf(list, [])).toBe(list);
     });
 });
 

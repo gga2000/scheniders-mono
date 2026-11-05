@@ -24,6 +24,8 @@ export interface TillProduct {
     sku: string | null;
     available: number;
     variants: TillVariant[];
+    /** Pieces of it in the current cart, already taken off `available` (set by onShelf). */
+    in_cart?: number;
 }
 
 export interface CartLine {
@@ -61,6 +63,27 @@ export function addToCart(cart: CartLine[], product: TillProduct, variant: TillV
             quantity: 1,
         },
     ];
+}
+
+/** The catalog as this sale sees it: what is free to sell once the cart's own pieces are counted. */
+export function onShelf(products: TillProduct[], cart: CartLine[]): TillProduct[] {
+    if (cart.length === 0) return products;
+    const byProduct = new Map<string, number>();
+    const byLine = new Map<string, number>();
+    for (const l of cart) {
+        byProduct.set(l.product_id, (byProduct.get(l.product_id) ?? 0) + l.quantity);
+        byLine.set(l.key, l.quantity);
+    }
+    return products.map((p) => {
+        const taken = byProduct.get(p.id);
+        if (!taken) return p;
+        return {
+            ...p,
+            available: p.available - taken,
+            in_cart: taken,
+            variants: p.variants.map((v) => ({ ...v, available: v.available - (byLine.get(lineKey(p.id, v.id)) ?? 0) })),
+        };
+    });
 }
 
 /** Sets a line's quantity; 0 or less takes the line out. */
