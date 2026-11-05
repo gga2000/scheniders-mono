@@ -87,6 +87,9 @@ export function PrimeProblemActions({
     );
 }
 
+/** What the customer said on the call; one tap marks the parcel handled with it as the note. */
+const CALL_RESULTS = ["answered", "noAnswer", "tomorrow"] as const;
+
 /** "Handled" with an optional note (who called, what the customer said); on a handled row, takes the mark off. */
 function HandledButton({ orderId, handled }: { orderId: string; handled: boolean }) {
     const { t } = useLanguage();
@@ -133,6 +136,25 @@ function HandledButton({ orderId, handled }: { orderId: string; handled: boolean
                         void send({ action: "handled", orderId, note: note.trim() || undefined });
                     }}
                 >
+                    <div className="flex flex-col gap-1.5">
+                        <span dir={dir} className="text-left text-xs font-semibold text-foreground">
+                            {t("prime.problems.afterCall")}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                            {CALL_RESULTS.map((key) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    data-call-result={key}
+                                    disabled={busy}
+                                    onClick={() => void send({ action: "handled", orderId, note: t(`prime.problems.result.${key}`) })}
+                                    className="inline-flex h-8 items-center rounded-full border border-[#E7E5E4] px-3 text-xs font-semibold text-foreground transition-colors hover:bg-[#F5F3EF] disabled:opacity-60 dark:border-white/10 dark:hover:bg-white/10"
+                                >
+                                    {t(`prime.problems.result.${key}`)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <label dir={dir} className="flex flex-col gap-1.5 text-left text-xs font-semibold text-foreground">
                         {t("prime.problems.noteLabel")}
                         <textarea
