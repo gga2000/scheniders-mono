@@ -263,10 +263,10 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         )}
                     </div>
                 )}
-                {discountTooBig && limit !== null && (
-                    <p className="text-left text-sm font-semibold text-red-600" dir="auto">
+                {overLimit && limit !== null && (
+                    <p className={cn("text-left text-sm font-semibold", discountTooBig ? "text-red-600" : "text-muted")} dir="auto">
                         {overText}
-                        {overParts && <span className="block text-xs font-normal text-red-600/80">{overParts}</span>}
+                        {overParts && <span className="block text-xs font-normal opacity-80">{overParts}</span>}
                     </p>
                 )}
 
