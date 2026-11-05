@@ -480,7 +480,7 @@ export async function submitCheckout(
     if (!alreadyInOrder) {
       const { data: gift, error: giftErr } = await supabase
         .from("products")
-        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity, storefront_stock, image_url, tag_color")
+        .select("id, name, short_name, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity, storefront_stock, storefront_sold_out, image_url, tag_color")
         .eq("id", giftId)
         .eq("tenant_id", payload.tenantId)
         .maybeSingle();

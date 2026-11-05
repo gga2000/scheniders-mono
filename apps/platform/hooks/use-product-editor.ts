@@ -66,6 +66,7 @@ export interface ProductEditorFormData {
     category_id: string | null;
     website_price: number | null;
     storefront_stock: number | null;
+    storefront_sold_out: boolean;
 
     // Variant options & variants
     variant_options: ProductOptionFormData[];
@@ -255,6 +256,7 @@ const DEFAULT_FORM_DATA: ProductEditorFormData = {
     category_id: null,
     website_price: null,
     storefront_stock: null,
+    storefront_sold_out: false,
     variant_options: [],
     variants: [],
     product_type: "physical",
@@ -456,6 +458,7 @@ function productToFormData(product: Product): ProductEditorFormData {
         category_id: product.category_id ?? null,
         website_price: product.website_price ?? null,
         storefront_stock: product.storefront_stock ?? null,
+        storefront_sold_out: product.storefront_sold_out ?? false,
         variant_options: [], // loaded separately from product_options table
         variants: (product.variants || []).map((v) => ({
             id: v.id,
@@ -1086,6 +1089,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     category_id: formData.category_id,
                     website_price: storeOverride(formData.website_price, formData.price),
                     storefront_stock: formData.storefront_stock,
+                    storefront_sold_out: formData.storefront_sold_out,
                     short_description: formData.short_description || undefined,
                     status: formData.status,
                     product_type: formData.product_type,
@@ -1195,6 +1199,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                     category_id: formData.category_id,
                     website_price: storeOverride(formData.website_price, formData.price),
                     storefront_stock: formData.storefront_stock,
+                    storefront_sold_out: formData.storefront_sold_out,
                     short_description: formData.short_description,
                     status: formData.status,
                     product_type: formData.product_type,
@@ -1357,6 +1362,7 @@ export function useProductEditor({ product, mode, defaultIsSupply = false }: Use
                 website_price: storeOverride(formData.website_price, formData.price),
                 // A copy starts as a draft with no stock; the store follows that until set.
                 storefront_stock: null,
+                storefront_sold_out: false,
                 short_description: formData.short_description || undefined,
                 status: "draft" as const,
                 product_type: formData.product_type,

@@ -9,7 +9,7 @@
  * lists.
  */
 export const PRODUCT_LIST_COLUMNS =
-    "id, created_at, updated_at, name, price, stock_quantity, low_stock_threshold, image_url, is_archived, tag_color, compare_at_price, sku, lightfunnels_aliases, reserved_quantity, is_supply, tenant_id, slug, is_visible, display_order, website_price, storefront_stock, short_description, category_id, barcode, reorder_point, status, product_type, weight, duration_minutes, booking_enabled, download_url, file_size, license_key_pattern, open_box_quantity, short_name, bestseller_rank, is_filler, brand, size_ml, display_name, gender, status_before_archive";
+    "id, created_at, updated_at, name, price, stock_quantity, low_stock_threshold, image_url, is_archived, tag_color, compare_at_price, sku, lightfunnels_aliases, reserved_quantity, is_supply, tenant_id, slug, is_visible, display_order, website_price, storefront_stock, storefront_sold_out, short_description, category_id, barcode, reorder_point, status, product_type, weight, duration_minutes, booking_enabled, download_url, file_size, license_key_pattern, open_box_quantity, short_name, bestseller_rank, is_filler, brand, size_ml, display_name, gender, status_before_archive";
 
 /**
  * The long text and json columns only one product's page needs (about 40% of

@@ -65,6 +65,8 @@ export interface Product {
     website_price?: number | null;
     // Count the public store shows and sells against; null = real stock minus reserved.
     storefront_stock?: number | null;
+    // Merchant switch: true = out of stock on the public store (never set by inventory).
+    storefront_sold_out?: boolean;
     short_description?: string | null;
     // Funnel PDP note-highlight cards (products.feature_cards jsonb).
     // Rendered by the storefront pdp_direct_order section; empty/null = feature off.
