@@ -12,7 +12,7 @@ export const DANGER_LIMIT = 100;
 
 /**
  * The open orders (last 14 days) whose customer's Trust score is under 80, as
- * order id → score, for the orders page's "sort by danger" switch, plus how
+ * order id → score, for the orders page's danger slider, plus how
  * many there are and how many are under 50. Computed in the database for the
  * active store only.
  */
@@ -34,6 +34,7 @@ export function useShieldDanger() {
         const rows = query.data ?? [];
         return {
             trustById: new Map(rows.map((r) => [r.id, r.trust])) as ReadonlyMap<string, number>,
+            scores: rows.map((r) => r.trust),
             count: rows.length,
             red: rows.filter((r) => riskyOrderBand(r) === "red").length,
         };
