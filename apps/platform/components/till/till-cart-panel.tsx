@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { AlertTriangle, Bookmark, Minus, Package, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, Bookmark, FlaskConical, Minus, Package, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { logRemovedLines, useTillCustomer } from "@/hooks/use-till";
@@ -34,12 +34,14 @@ interface Props {
     /** Bottles kept aside in this shop right now. */
     holdsCount: number;
     onHolds: () => void;
+    /** Open the shop's tester bottles (open one, mark one used up). */
+    onTesters: () => void;
     /** Cart lines selling more than the system shows in stock (allowed; the count needs fixing). */
     overSold: ReadonlySet<string>;
 }
 
 /** The right side of the sell screen: held sales as tabs, the customer, the lines, discount, total. */
-export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId, managers, onKeepAside, holdsCount, onHolds, overSold }: Props) {
+export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId, managers, onKeepAside, holdsCount, onHolds, onTesters, overSold }: Props) {
     const { t } = useLanguage();
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     const subtotal = subtotalOf(ticket.cart);
@@ -123,6 +125,14 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         {t("till.holds.tab", { n: holdsCount })}
                     </button>
                 )}
+                <button
+                    type="button"
+                    onClick={onTesters}
+                    className="flex h-12 shrink-0 items-center gap-1.5 rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
+                >
+                    <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                    {t("till.testers.title")}
+                </button>
             </div>
 
             <div className="border-b border-[var(--card-border)] px-4 py-3">

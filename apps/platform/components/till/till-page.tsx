@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as Sentry from "@sentry/nextjs";
-import { ArrowLeft, ClipboardCheck, Tag, Wind, Clock3, Download, FlaskConical, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Tag, Wind, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
@@ -425,7 +425,6 @@ export function TillPage() {
             }
             prefs={prefs}
             onPrefs={setPrefs}
-            onTesters={() => setTestersOpen(true)}
             onCount={isManager ? () => setCountOpen(true) : undefined}
             onLabels={isManager ? () => setLabelsOpen(true) : undefined}
             onScent={isManager ? () => setScentOpen(true) : undefined}
@@ -486,6 +485,7 @@ export function TillPage() {
                         onKeepAside={() => setHoldOpen(true)}
                         holdsCount={holds.data?.length ?? 0}
                         onHolds={() => setHoldsOpen(true)}
+                        onTesters={() => setTestersOpen(true)}
                     />
                 </div>
             )}
@@ -545,7 +545,6 @@ function TillFrame({
     clock,
     prefs,
     onPrefs,
-    onTesters,
     onCount,
     onLabels,
     onScent,
@@ -568,7 +567,6 @@ function TillFrame({
     clock?: { since: string | null; pending: boolean; onSet: (clockIn: boolean) => void };
     prefs?: TillPrefs;
     onPrefs?: (p: TillPrefs) => void;
-    onTesters?: () => void;
     onCount?: () => void;
     onLabels?: () => void;
     onScent?: () => void;
@@ -615,64 +613,35 @@ function TillFrame({
                                 {t("till.top.today", { n: today.count, count: today.count })}
                             </span>
                             {goal ? (
-                                <span className="rounded-full bg-[#EFFF00]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[#EFFF00]" dir="auto">
+                                <span className="whitespace-nowrap rounded-full bg-[#EFFF00]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[#EFFF00]" dir="auto">
                                     {t("till.top.goalPct", { pct: Math.min(999, Math.round((today.total / goal) * 100)) })}
                                 </span>
                             ) : null}
                             {mine && mine.count > 0 && mine.count !== today.count && (
-                                <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium tabular-nums text-white/80" dir="auto">
+                                <span className="whitespace-nowrap rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium tabular-nums text-white/80" dir="auto">
                                     {t("till.top.mine", { n: mine.count })}
                                 </span>
                             )}
                         </button>
                     )}
-                    {(commission != null || onPayout) && <MoneyMenu commission={commission ?? null} onPayout={onPayout} chip={chip} />}
-                    {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} onTesters={onTesters} onCount={onCount} onLabels={onLabels} onScent={onScent} chip={chip} />}
+                    {onPayout && (
+                        <button type="button" onClick={onPayout} className={chip} title={t("till.payout.title")}>
+                            <HandCoins className="h-4 w-4" aria-hidden="true" />
+                            <span className="whitespace-nowrap" dir="auto">{t("till.top.payout")}</span>
+                        </button>
+                    )}
+                    {commission != null && (
+                        <span className={cn(chip, "cursor-default")}>
+                            <span className="whitespace-nowrap text-xs font-medium text-white/60" dir="auto">{t("till.top.commission")}</span>
+                            <span className="tabular-nums">{formatIqd(commission)}</span>
+                        </span>
+                    )}
+                    {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} onCount={onCount} onLabels={onLabels} onScent={onScent} chip={chip} />}
                 </div>
                 {goal && today ? <GoalBar goal={goal} total={today.total} /> : null}
             </header>
             <main className="flex min-h-0 flex-1 flex-col">{children}</main>
         </div>
-    );
-}
-
-/** One header chip for the cashier's money: their commission today, and paying cash out of the drawer. */
-function MoneyMenu({ commission, onPayout, chip }: { commission: number | null; onPayout?: () => void; chip: string }) {
-    const { t } = useLanguage();
-    const [open, setOpen] = useState(false);
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger className={commission != null ? chip : `${chip} px-3`} aria-label={t("till.top.money")} title={t("till.top.money")}>
-                <HandCoins className="h-4 w-4" aria-hidden="true" />
-                {commission != null && (
-                    <>
-                        <span className="text-xs font-medium text-white/60" dir="auto">{t("till.top.commission")}</span>
-                        <span className="tabular-nums">{formatIqd(commission)}</span>
-                    </>
-                )}
-            </PopoverTrigger>
-            <PopoverContent align="end" className="flex w-72 flex-col gap-3 rounded-2xl border-[var(--card-border)] bg-[var(--card-bg)] p-4">
-                {commission != null && (
-                    <p className="flex items-baseline justify-between gap-3">
-                        <span className="text-sm font-semibold text-muted" dir="auto">{t("till.top.commission")}</span>
-                        <span className="text-2xl font-bold tabular-nums text-foreground">{formatIqd(commission)}</span>
-                    </p>
-                )}
-                {onPayout && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setOpen(false);
-                            onPayout();
-                        }}
-                        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-[var(--card-border)] text-sm font-semibold text-foreground hover:bg-[var(--card-border)]/40"
-                    >
-                        <HandCoins className="h-4 w-4" aria-hidden="true" />
-                        {t("till.payout.title")}
-                    </button>
-                )}
-            </PopoverContent>
-        </Popover>
     );
 }
 
@@ -711,7 +680,7 @@ function ClockChip({ clock, chip }: { clock: NonNullable<Parameters<typeof TillF
                 type="button"
                 disabled={clock.pending}
                 onClick={() => clock.onSet(true)}
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EFFF00] px-4 text-sm font-bold text-[#121212] disabled:opacity-60"
+                className="inline-flex h-11 items-center gap-2 whitespace-nowrap rounded-full bg-[#EFFF00] px-4 text-sm font-bold text-[#121212] disabled:opacity-60"
             >
                 <Clock3 className="h-4 w-4" aria-hidden="true" />
                 {t("till.clock.in")}
@@ -747,9 +716,9 @@ function TillClock() {
         return () => window.clearInterval(id);
     }, []);
     return (
-        <p className="flex items-baseline gap-2 text-white">
+        <p className="flex flex-col items-center leading-tight text-white">
             <span className="text-xl font-bold tabular-nums">{now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" })}</span>
-            <span className="text-xs font-medium text-white/60">{now.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Baghdad" })}</span>
+            <span className="whitespace-nowrap text-[11px] font-medium text-white/60">{now.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Baghdad" })}</span>
         </p>
     );
 }
@@ -820,7 +789,6 @@ type InstallPrompt = Event & { prompt: () => Promise<void> };
 function TillSettings({
     prefs,
     onPrefs,
-    onTesters,
     onCount,
     onLabels,
     onScent,
@@ -828,7 +796,6 @@ function TillSettings({
 }: {
     prefs: TillPrefs;
     onPrefs: (p: TillPrefs) => void;
-    onTesters?: () => void;
     onCount?: () => void;
     onLabels?: () => void;
     onScent?: () => void;
@@ -886,16 +853,6 @@ function TillSettings({
                         <span className="h-5 w-5 rounded-full bg-white shadow-sm dark:bg-zinc-900" />
                     </span>
                 </button>
-                {onTesters && (
-                    <button
-                        type="button"
-                        onClick={onTesters}
-                        className="flex h-12 items-center gap-2 rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
-                    >
-                        <FlaskConical className="h-4 w-4" aria-hidden="true" />
-                        {t("till.testers.title")}
-                    </button>
-                )}
                 {onCount && (
                     <button
                         type="button"
