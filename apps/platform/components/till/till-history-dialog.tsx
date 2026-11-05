@@ -73,11 +73,13 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="till-screen flex max-h-[86vh] flex-col md:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle className="text-left">{past.data ? t("till.history.foundTitle", { code }) : t("till.history.title")}</DialogTitle>
+                    <DialogTitle className="text-left">{past.data ? t("till.history.foundTitle", { code }) : past.isSuccess ? t("till.history.lookupTitle") : t("till.history.title")}</DialogTitle>
                     <DialogDescription className="text-left tabular-nums" dir="auto">
                         {past.data
                             ? t("till.history.foundSub", { cashier: past.data.cashier || "—" })
-                            : sales.data
+                            : past.isSuccess
+                              ? " "
+                              : sales.data
                               ? t("till.history.summary", { n: sales.data.length, total: formatIqd(total) })
                               : " "}
                     </DialogDescription>
@@ -136,8 +138,8 @@ function SaleRow({ sale, receipt, withDay = false }: { sale: TillHistorySale; re
     const items = sale.items.reduce((n, i) => n + i.quantity, 0);
     return (
         <li className="flex items-center gap-4 py-3">
-            <span className="flex w-14 shrink-0 flex-col text-sm font-semibold tabular-nums text-foreground">
-                {withDay && <span className="text-xs font-semibold text-muted">{day(sale.created_at, dateLocale(language))}</span>}
+            <span className={`flex shrink-0 flex-col text-sm ${withDay ? "w-20" : "w-14"} font-semibold tabular-nums text-foreground`}>
+                {withDay && <span className="whitespace-nowrap text-xs font-semibold text-muted">{day(sale.created_at, dateLocale(language))}</span>}
                 {time(sale.created_at)}
             </span>
             <span className="min-w-0 flex-1">
