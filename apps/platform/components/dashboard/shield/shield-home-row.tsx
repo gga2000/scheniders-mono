@@ -7,7 +7,7 @@ import { WidgetLoadError, WidgetPending } from "@/components/dashboard/widget-qu
 import { SHIELD_TONE } from "@/components/orders/shield/shield-tone";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { useShieldHome } from "@/hooks/use-shield-home";
-import { ownDeliveryRate, riskyOrderBand, riskyOrderReason, shippedRefusedRate, type RiskyOpenOrder, type ShieldImpact, type StoreScore } from "@/lib/shield/home";
+import { ownDeliveryRate, riskyOrderBand, shippedRefusedRate, type RiskyOpenOrder, type ShieldImpact, type StoreScore } from "@/lib/shield/home";
 import { cn } from "@/lib/utils";
 
 const SHOWN = 6;
@@ -82,9 +82,13 @@ function ShieldCallFirstCard({ rows, asOf }: { rows: RiskyOpenOrder[]; asOf: num
                                 >
                                     <span aria-hidden="true" className={cn("h-2.5 w-2.5 shrink-0 rounded-full border-2", tone.ring)} />
                                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{r.customer_name || "—"}</span>
-                                    <span className={cn("hidden shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold sm:inline", tone.pill)}>
-                                        {t(`shield.reason.${riskyOrderReason(r)}`)}
-                                    </span>
+                                    {r.worst_kind && (
+                                        <span className={cn("hidden shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold sm:inline", tone.pill)}>
+                                            {t(`shield.kind.${r.worst_kind}`)}
+                                            {r.worst_src && <span className="font-medium opacity-90"> · {t(`shield.src.${r.worst_src}`)}</span>}
+                                        </span>
+                                    )}
+                                    <span className={cn("w-7 shrink-0 text-right font-mono text-xs font-bold tabular-nums", tone.text)}>{r.trust}</span>
                                     <span className="shrink-0 text-right font-mono text-xs text-muted tabular-nums">#{r.order_id}</span>
                                     <span className="w-11 shrink-0 whitespace-nowrap text-right text-xs text-muted tabular-nums">{t(age.key, { n: age.n })}</span>
                                 </Link>

@@ -1,4 +1,4 @@
-import type { ShieldBand } from "@/lib/shield/delivery-chance";
+import type { OrderCheck, ShieldBand } from "@/lib/shield/trust";
 
 /** Shield's three colours; semantic (risk), separate from the store's accent. */
 export const SHIELD_TONE: Record<ShieldBand, { ring: string; pill: string; text: string }> = {
@@ -25,4 +25,11 @@ export const SEQ_TONE: Record<string, string> = {
     N: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300",
     C: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300",
     O: "bg-zinc-100 text-zinc-700 dark:bg-zinc-500/20 dark:text-zinc-300",
+};
+
+/** A wrong number or no address is as serious as a red record; an address that is only the governorate needs a call. */
+export const CHECK_TONE: Record<OrderCheck, "red" | "yellow"> = {
+    invalidPhone: "red",
+    noAddress: "red",
+    governorateOnly: "yellow",
 };

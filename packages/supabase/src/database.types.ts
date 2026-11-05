@@ -9428,6 +9428,9 @@ export type Database = {
           sequence: string[]
           stores: number
           trend: string
+          trust: number
+          trust_new: boolean
+          trust_steps: Json
         }[]
       }
       shield_report_wrong: {
@@ -9444,6 +9447,9 @@ export type Database = {
           order_id: string
           own_tier: string
           status: string
+          trust: number
+          worst_kind: string
+          worst_src: string
         }[]
       }
       shield_store_score: {

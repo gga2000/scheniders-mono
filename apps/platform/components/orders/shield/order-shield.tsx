@@ -4,48 +4,37 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useShield } from "@/hooks/use-shield";
-import { deliveryChance, SHIELD_OPEN_STATUSES, type OwnHistory } from "@/lib/shield/delivery-chance";
+import { normalizeShieldPhone } from "@/lib/shield/lookup";
+import { orderChecks, SHIELD_OPEN_STATUSES, trustOf, worstStep } from "@/lib/shield/trust";
 import type { Order } from "@/types/order";
-import type { OrderRiskData } from "@/lib/customer-trust-risk";
-import { SHIELD_TONE } from "./shield-tone";
+import { CHECK_TONE, SHIELD_TONE } from "./shield-tone";
 import { ShieldReviewDialog } from "./shield-review-dialog";
 
-export function ownHistoryOf(assessment?: OrderRiskData): OwnHistory | null {
-    const h = assessment?.historicalData;
-    if (!h) return null;
-    return {
-        delivered: h.deliveredCount ?? 0,
-        refused: (h.rejectedCustomerFaultCount ?? 0) + (h.rejectedAmbiguousCount ?? 0),
-        noAnswer: h.noResponseCount ?? 0,
-    };
-}
-
 /**
- * Shield on the order card (Ali, 2026-11-04): a score ring, plus one short
- * warning line when the order is yellow or red. Clicking either opens the
- * Shield review. Shows only while the order can still be stopped.
+ * Shield on the order card (Ali, 2026-11-04, Trust score 2026-11-05): a ring
+ * with the customer's Trust score out of 100, plus one short warning line when
+ * the score is under 80 or the order itself needs a check. Clicking either
+ * opens the Shield report. Shows only while the order can still be stopped.
  */
-export function OrderShield({ order, riskAssessment }: { order: Order; riskAssessment?: OrderRiskData }) {
+export function OrderShield({ order }: { order: Order }) {
     const { t } = useLanguage();
     const [open, setOpen] = useState(false);
     const active = SHIELD_OPEN_STATUSES.has(order.status) && !order.is_return;
     const shield = useShield(order.phone, active);
+    const loading = shield.isPending && normalizeShieldPhone(order.phone) !== null;
 
-    const own = useMemo(() => ownHistoryOf(riskAssessment), [riskAssessment]);
-    const result = useMemo(() => deliveryChance({
-        phone: order.phone,
-        status: order.status,
-        createdAt: order.created_at,
-        addressDetails: order.address_details,
-        itemLines: Array.isArray(order.items) ? order.items.length : 0,
-        adChannel: order.ad_channel,
-        own,
-        network: shield.data ?? null,
-    }), [order.phone, order.status, order.created_at, order.address_details, order.items, order.ad_channel, own, shield.data]);
+    const trust = useMemo(() => trustOf(shield.data ?? null), [shield.data]);
+    const checks = useMemo(
+        () => orderChecks({ phone: order.phone, addressDetails: order.address_details, city: order.city }),
+        [order.phone, order.address_details, order.city],
+    );
 
     if (!active) return null;
-    const tone = SHIELD_TONE[result.band];
-    const topRisk = result.reasons.find((r) => r.effect === "risk");
+    if (loading) return <span aria-hidden="true" className="inline-block h-7 w-7 animate-pulse rounded-full bg-(--card-border)/60" />;
+
+    const tone = SHIELD_TONE[trust.band];
+    const worst = worstStep(trust.steps);
+    const check = checks[0];
 
     return (
         <>
@@ -53,26 +42,34 @@ export function OrderShield({ order, riskAssessment }: { order: Order; riskAsses
                 <button
                     type="button"
                     onClick={() => setOpen(true)}
-                    aria-label={t("shield.ringLabel", { risk: result.risk })}
-                    title={t("shield.chance", { chance: result.chance })}
+                    aria-label={t("shield.ringLabel", { score: trust.score })}
+                    title={trust.isNew ? t("shield.band.new") : t("shield.trust.label")}
                     className={cn(
-                        "inline-grid place-items-center h-7 w-7 rounded-full border-[2.5px] bg-(--background) font-mono text-[11px] font-bold tabular-nums",
+                        "inline-grid place-items-center h-7 w-7 rounded-full border-[2.5px] bg-(--background) font-mono text-[10px] font-bold tabular-nums",
                         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
-                        tone.ring,
+                        trust.isNew ? "border-(--card-border) text-muted-foreground" : tone.ring,
                     )}
                 >
-                    {result.risk}
+                    {trust.score}
                 </button>
-                {result.band !== "green" && (
+                {trust.band !== "green" ? (
                     <button
                         type="button"
                         onClick={() => setOpen(true)}
                         className={cn("inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11px] font-bold", tone.pill)}
                     >
-                        {t(`shield.band.${result.band}`)}
-                        {topRisk && <span className="font-medium opacity-90">· {t(`shield.reason.${topRisk.key}`)}</span>}
+                        {t(`shield.band.${trust.band}`)}
+                        {worst && <span className="font-medium opacity-90">· {t(`shield.kind.${worst.kind}`)}</span>}
                     </button>
-                )}
+                ) : check ? (
+                    <button
+                        type="button"
+                        onClick={() => setOpen(true)}
+                        className={cn("inline-flex h-6 items-center rounded-md px-2 text-[11px] font-bold", SHIELD_TONE[CHECK_TONE[check]].pill)}
+                    >
+                        {t(`shield.check.${check}`)}
+                    </button>
+                ) : null}
             </span>
             {open && (
                 <ShieldReviewDialog
@@ -82,10 +79,10 @@ export function OrderShield({ order, riskAssessment }: { order: Order; riskAsses
                     phone={order.phone}
                     orderId={order.order_id}
                     orderedAt={order.created_at}
-                    result={result}
+                    trust={trust}
+                    checks={checks}
                     network={shield.data ?? null}
                     networkFailed={shield.isError}
-                    own={own}
                 />
             )}
         </>
