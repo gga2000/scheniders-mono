@@ -10,6 +10,15 @@ import {
     Megaphone,
     Truck,
     MapPinned,
+    LayoutDashboard,
+    Users,
+    ShoppingBag,
+    Printer,
+    Wallet,
+    FileBarChart,
+    Store,
+    UsersRound,
+    Database,
     ScanBarcode,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,28 +32,11 @@ import { useMemo, useState, type ComponentType } from "react";
 import { canAccessRoute, filterNavSections } from "@/lib/route-permissions";
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { TransitionLink } from "./transition-link";
-import {
-    AnimatedDashboardIcon,
-    AnimatedOrdersIcon,
-    AnimatedCustomersIcon,
-    AnimatedProductsIcon,
-    AnimatedFinancesIcon,
-    AnimatedReportsIcon,
-    AnimatedPrintingIcon,
-    AnimatedTeamIcon,
-    AnimatedVaultIcon,
-    AnimatedStoreIcon,
-} from "./animated-nav-icons";
-
-const ANIMATED_ICON_KEYS = new Set([
-    "nav.dashboard", "nav.orders", "nav.customers", "nav.products",
-    "nav.finances", "nav.reports", "nav.printing", "nav.team",
-    "nav.vault", "nav.store",
-]);
+import { NavInkIcon } from "./nav-ink-icon";
 
 type NavItem = {
     key: string;
-    icon: ComponentType<{ className?: string; active?: boolean }>;
+    icon: ComponentType<{ className?: string }>;
     href: string;
     subItems?: { key: string; label: string; href: string; tab: string }[];
 };
@@ -58,12 +50,12 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
     {
         titleKey: "nav.general",
         items: [
-            { key: "nav.dashboard", icon: AnimatedDashboardIcon, href: "/dashboard" },
-            { key: "nav.orders", icon: AnimatedOrdersIcon, href: "/orders" },
-            { key: "nav.customers", icon: AnimatedCustomersIcon, href: "/customers" },
+            { key: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
+            { key: "nav.orders", icon: Package, href: "/orders" },
+            { key: "nav.customers", icon: Users, href: "/customers" },
             {
                 key: "nav.products",
-                icon: AnimatedProductsIcon,
+                icon: ShoppingBag,
                 href: "/products",
                 subItems: [
                     { key: "nav.allProducts", label: "All Products", href: "/products", tab: "products" },
@@ -72,7 +64,7 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
                     { key: "nav.internalSupplies", label: "Internal Supplies", href: "/products?tab=supplies", tab: "supplies" },
                 ],
             },
-            { key: "nav.printing", icon: AnimatedPrintingIcon, href: "/printing" },
+            { key: "nav.printing", icon: Printer, href: "/printing" },
             // Shown only while the tenant ships through the Prime API (see Sidebar).
             { key: "nav.prime", icon: Truck, href: "/prime" },
         ],
@@ -82,7 +74,7 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         items: [
             {
                 key: "nav.finances",
-                icon: AnimatedFinancesIcon,
+                icon: Wallet,
                 href: "/finances",
                 subItems: [
                     // Ordered the way money actually moves: what came in, what is owed, what went out.
@@ -100,7 +92,7 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
                 ],
             },
             { key: "nav.ads", icon: Megaphone, href: "/ads" },
-            { key: "nav.reports", icon: AnimatedReportsIcon, href: "/reports" },
+            { key: "nav.reports", icon: FileBarChart, href: "/reports" },
         ],
     },
     {
@@ -108,16 +100,16 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         items: [
             // Store owns its own sub-navigation in-page (Command Center / Editor /
             // Reviews / Cart Recovery), so the sidebar keeps a single entry.
-            { key: "nav.store", icon: AnimatedStoreIcon, href: "/store" },
+            { key: "nav.store", icon: Store, href: "/store" },
             { key: "nav.till", icon: ScanBarcode, href: "/till" },
             { key: "nav.shops", icon: MapPinned, href: "/shops" },
-            { key: "nav.team", icon: AnimatedTeamIcon, href: "/team" },
-            { key: "nav.vault", icon: AnimatedVaultIcon, href: "/vault" },
+            { key: "nav.team", icon: UsersRound, href: "/team" },
+            { key: "nav.vault", icon: Database, href: "/vault" },
         ],
     },
 ];
 
-// Flat list for the mobile drawer and for stable per-item shine offsets.
+// Flat list for the mobile drawer and the loading placeholder.
 const NAV_ITEMS: NavItem[] = NAV_SECTIONS.flatMap(section => section.items);
 
 
@@ -208,10 +200,8 @@ export function Sidebar({
         ? { duration: 0 }
         : { type: "spring" as const, stiffness: 520, damping: 42, mass: 0.8 };
 
-    const renderNavItem = (item: NavItem, index: number) => {
+    const renderNavItem = (item: NavItem) => {
         const isActive = isItemActive(item);
-        // Stagger shine per item with pseudo-random offsets so they never sweep together
-        const shineDelay = `${((index * 2.137) % 9).toFixed(2)}s`;
         return (
             <div key={item.href} className="flex flex-col">
                 <TransitionLink
@@ -239,42 +229,23 @@ export function Sidebar({
                             transition={activePillTransition}
                             className="pointer-events-none absolute inset-0 -z-10 rounded-2xl bg-white/[0.06]"
                         >
-                            <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[#EFFF00]" />
+                            {/* The neon mark stretches as the pill lands, then settles. */}
+                            <motion.span
+                                initial={reduceMotion ? false : { scaleY: 2.2 }}
+                                animate={{ scaleY: 1 }}
+                                transition={{ duration: 0.36, ease: [0.16, 1, 0.3, 1] }}
+                                className="absolute left-0 top-1/2 -mt-2 h-4 w-[3px] rounded-r-full bg-[#EFFF00]"
+                            />
                         </motion.span>
                     )}
-                    <motion.span
-                        transition={sidebarSpring}
-                        className="nav-icon-shine flex-shrink-0 inline-flex items-center justify-center w-[22px] h-[22px]"
-                        style={{ ['--shine-delay' as string]: shineDelay }}
-                    >
-                        {ANIMATED_ICON_KEYS.has(item.key) ? (
-                            (() => {
-                                const AnimIcon = item.icon as ComponentType<{ className?: string; active?: boolean }>;
-                                return (
-                                    <AnimIcon
-                                        className={cn(
-                                            "w-[22px] h-[22px] transition-colors",
-                                            isActive ? "text-[#EFFF00]" : "text-zinc-500 group-hover:text-white"
-                                        )}
-                                        active={isActive || undefined}
-                                    />
-                                );
-                            })()
-                        ) : (
-                            <motion.span
-                                key={isActive ? `${item.href}-on` : `${item.href}-off`}
-                                initial={isActive ? { scale: 0.55, rotate: -14 } : false}
-                                animate={{ scale: 1, rotate: 0 }}
-                                transition={{ type: "spring", stiffness: 480, damping: 14, mass: 0.7 }}
-                                className="inline-flex"
-                            >
-                                <item.icon className={cn(
-                                    "w-[22px] h-[22px] transition-colors",
-                                    isActive ? "text-[#EFFF00]" : "text-zinc-500 group-hover:text-white"
-                                )} />
-                            </motion.span>
+                    <NavInkIcon
+                        icon={item.icon}
+                        active={isActive}
+                        className={cn(
+                            "transition-colors duration-200",
+                            isActive ? "text-[#EFFF00]" : "text-zinc-500 group-hover:text-white"
                         )}
-                    </motion.span>
+                    />
 
                     <motion.span
                         initial={false}
@@ -415,7 +386,7 @@ export function Sidebar({
                                     >
                                         {t(section.titleKey)}
                                     </motion.div>
-                                    {section.items.map(item => renderNavItem(item, NAV_ITEMS.indexOf(item)))}
+                                    {section.items.map(renderNavItem)}
                                 </div>
                             ))}
                         </>
