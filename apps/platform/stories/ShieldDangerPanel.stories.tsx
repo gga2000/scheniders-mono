@@ -20,7 +20,7 @@ export default meta;
 type Story = StoryObj<typeof Panel>;
 
 /** All orders selected: 162 of 5,349 are still open. */
-export const Mixed: Story = { args: { counts: { red: 3, yellow: 9, green: 150 }, listTotal: 5349, start: null } };
+export const Mixed: Story = { args: { counts: { red: 41, yellow: 1225, green: 4083 }, listTotal: 5349, start: null } };
 
 /** Medium danger picked: only those cards are listed. */
-export const MediumPicked: Story = { args: { counts: { red: 3, yellow: 9, green: 150 }, listTotal: 5349, start: "yellow" } };
+export const MediumPicked: Story = { args: { counts: { red: 41, yellow: 1225, green: 4083 }, listTotal: 5349, start: "yellow" } };
