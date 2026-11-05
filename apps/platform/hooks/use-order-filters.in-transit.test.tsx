@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { Order, OrderFilters } from "@/types/order";
 
@@ -23,20 +23,27 @@ function view(inTransit: Parameters<typeof useOrderFilters>[0]["inTransit"]) {
 }
 
 describe("in-transit tab across dates", () => {
+    afterEach(() => vi.useRealTimers());
     it("follows the date filter when not enabled (mobile)", () => {
         const v = view(null);
         expect(v.filteredOrders.map((o) => o.id)).toEqual(["in-window"]);
         expect(v.statusCounts.in_transit).toBe(1);
+        expect(v.inTransitCounts).toBeNull();
     });
 
     it("lists and counts every in-transit order, and the chip equals the list", () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-11-05T09:00:00Z"));
         const v = view({ extras: OLD, loaded: true, scope: "any" });
         expect(v.filteredOrders.map((o) => o.id).sort()).toEqual(["in-window", "old"]);
         expect(v.statusCounts.in_transit).toBe(v.filteredOrders.length);
         expect(v.statusCounts.new).toBe(1);
+        expect(v.inTransitCounts).toEqual({ any: 2, today: 1 });
     });
 
     it("today scope drops the older one", () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-11-05T09:00:00Z"));
         const v = view({ extras: OLD, loaded: true, scope: "today" });
         expect(v.filteredOrders.map((o) => o.id)).toEqual(["in-window"]);
         expect(v.statusCounts.in_transit).toBe(1);

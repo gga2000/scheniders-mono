@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { CalendarClock, Check } from "lucide-react";
+import { CalendarDays, Truck } from "lucide-react";
 import { Switch } from "@scheniders/ui/switch";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -49,7 +49,7 @@ export function PrimeTransitRow({ filters }: { filters: OrderFilters }) {
     if (!connected) {
         return (
             <div data-in-transit-row className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E8EEF8] bg-[#F7F9FD] px-3 py-2 dark:border-sky-400/15 dark:bg-sky-400/[0.04]">
-                <InTransitTodayToggle />
+                <InTransitDaySwitch />
             </div>
         );
     }
@@ -57,32 +57,52 @@ export function PrimeTransitRow({ filters }: { filters: OrderFilters }) {
 }
 
 /**
- * «اليوم فقط»: the in-transit tab lists every order still on the road, from
- * any day, whatever date is picked; this narrows it to the ones that arrived
- * today (hooks/use-in-transit-orders.ts, lib/orders/filter-orders.ts).
+ * «كل الأيام» / «اليوم»: the in-transit tab lists every order still on the
+ * road, from any day, whatever date is picked; «اليوم» narrows it to the ones
+ * that arrived today (hooks/use-in-transit-orders.ts, lib/orders/filter-orders.ts).
+ * Each side shows the length of the list it opens.
  */
-function InTransitTodayToggle() {
+function InTransitDaySwitch() {
     const { t } = useLanguage();
-    const on = useOrderStore((s) => s.inTransitTodayOnly);
-    const setOn = useOrderStore((s) => s.setInTransitTodayOnly);
+    const { inTransitCounts, countViewFacts } = useOrdersContext();
+    const todayOnly = useOrderStore((s) => s.inTransitTodayOnly);
+    const setTodayOnly = useOrderStore((s) => s.setInTransitTodayOnly);
+    const sides = [
+        { today: false, key: "orders.filter.inTransitAllDays", Icon: Truck, count: inTransitCounts?.any },
+        { today: true, key: "orders.filter.inTransitToday", Icon: CalendarDays, count: inTransitCounts?.today },
+    ] as const;
     return (
-        <button
-            type="button"
-            data-testid="in-transit-today-only"
-            aria-pressed={on}
-            title={t("orders.filter.inTransitTodayOnlyTip")}
-            onClick={() => setOn(!on)}
-            className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-full border-2 px-3.5 text-[13px] font-bold transition-colors",
-                on
-                    ? "border-[#7C3AED] bg-[#7C3AED] text-white"
-                    : "border-[#7C3AED] bg-white text-[#7C3AED] hover:bg-[#F5F0FF] dark:bg-transparent dark:text-violet-200 dark:border-violet-400/60",
-            )}
-        >
-            <CalendarClock className="h-4 w-4" />
-            {t("orders.filter.inTransitTodayOnly")}
-            {on && <Check className="h-4 w-4" />}
-        </button>
+        <div role="group" aria-label={t("orders.filter.inTransitDaysLabel")} className="inline-flex shrink-0 gap-0.5 rounded-full border border-[#D5DEEE] bg-[#E6ECF7] p-[3px] dark:border-white/10 dark:bg-white/[0.06]">
+            {sides.map(({ today, key, Icon, count }) => {
+                const on = todayOnly === today;
+                return (
+                    <button
+                        key={key}
+                        type="button"
+                        data-in-transit-days={today ? "today" : "all"}
+                        aria-pressed={on}
+                        onClick={() => setTodayOnly(today)}
+                        className={cn(
+                            "inline-flex h-[30px] items-center gap-1.5 rounded-full px-3 text-[13px] transition-all",
+                            on
+                                ? "bg-white font-bold text-[#1F3F75] shadow-[0_1px_2px_rgba(31,63,117,0.2),0_0_0_1px_rgba(31,63,117,0.08)] dark:bg-white/15 dark:text-white"
+                                : "font-semibold text-[#5B6B88] hover:text-[#1F3F75] dark:text-white/60 dark:hover:text-white",
+                        )}
+                    >
+                        <Icon className="h-[15px] w-[15px]" aria-hidden="true" />
+                        {t(key)}
+                        {count !== undefined && countViewFacts.ready && (
+                            <span className={cn(
+                                "min-w-5 rounded-full px-1.5 text-center text-[11.5px] font-extrabold tabular-nums",
+                                on ? "bg-[#1F3F75] text-white dark:bg-sky-300 dark:text-[#0f1a2e]" : "bg-[#1F3F75]/[0.08] dark:bg-white/10",
+                            )}>
+                                {count}
+                            </span>
+                        )}
+                    </button>
+                );
+            })}
+        </div>
     );
 }
 
@@ -117,7 +137,8 @@ function PrimeTransitRowFor() {
 
     return (
         <div data-prime-row className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E8EEF8] bg-[#F7F9FD] px-3 py-2 dark:border-sky-400/15 dark:bg-sky-400/[0.04]">
-            <InTransitTodayToggle />
+            <InTransitDaySwitch />
+            <span className="mx-1 h-5 w-px bg-[#DCE4F2] dark:bg-white/10" aria-hidden="true" />
             <span aria-hidden="true" className="h-3 w-[42px] shrink-0 bg-[#1F3F75] [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat] dark:bg-sky-200" />
             <span className="sr-only">Prime</span>
             {CHIPS.map((chip) => {

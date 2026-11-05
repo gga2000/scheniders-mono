@@ -274,6 +274,8 @@ export function useOrders() {
         statusCounts: filterHook.statusCounts,
         /** Needs Attention counts, each the length of the list its click opens. */
         attentionCounts: filterHook.attentionCounts,
+        /** In-transit tab, desktop: the counts for «كل الأيام» and «اليوم» (null on mobile). */
+        inTransitCounts: filterHook.inTransitCounts,
         /**
          * Whether the counts describe the list on screen (not searching, rows
          * loaded for the filter's window), from the list's own deferred render.

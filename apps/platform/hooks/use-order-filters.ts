@@ -221,6 +221,17 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         [transitRows, nonStatusFilters, transitScope],
     );
 
+    // Both sides of the «كل الأيام» / «اليوم» switch, each the length of the
+    // list that side opens (null where the tab follows the date filter).
+    const inTransitCounts = useMemo(() => {
+        if (!transitScope) return null;
+        const f = { ...nonStatusFilters, status: "in_transit" as const };
+        return {
+            any: transitScope === "any" && inTransitView ? inTransitView.length : filterOrders(transitRows, f, { inTransit: "any" }).length,
+            today: transitScope === "today" && inTransitView ? inTransitView.length : filterOrders(transitRows, f, { inTransit: "today" }).length,
+        };
+    }, [transitRows, nonStatusFilters, transitScope, inTransitView]);
+
     const statusCounts = useMemo<OrderChipCounts>(() => {
         const counts = countOrderChips(countView);
         return inTransitView ? { ...counts, in_transit: inTransitView.length } : counts;
@@ -419,6 +430,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         filteredOrders,
         statusCounts,
         attentionCounts,
+        inTransitCounts,
         countViewFacts,
         listPreview,
         availableCities,
