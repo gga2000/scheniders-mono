@@ -568,3 +568,18 @@ export function useTillCountApply() {
         onSettled: () => qc.invalidateQueries({ queryKey: ["till", "products"] }),
     });
 }
+
+/** Barcodes for the stickers to print; items with none get a new in-store code (managers only). */
+export function useTillLabelCodes() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; items: { product_id: string; variant_id: string | null }[] }) => {
+            const { data, error } = await supabase.rpc("till_label_codes", { p_session_id: input.sessionId, p_items: input.items });
+            if (error) throw error;
+            return z
+                .array(z.object({ product_id: z.string(), variant_id: z.string().nullable(), barcode: z.string(), created: z.boolean() }))
+                .parse(data);
+        },
+        onSettled: () => qc.invalidateQueries({ queryKey: ["till", "products"] }),
+    });
+}
