@@ -25,6 +25,7 @@ import { BuildStoreBanner } from "@/components/dashboard/build-store-banner";
 import { OrderPipeline } from "@/components/dashboard/widgets/order-pipeline";
 import { PrimeHomeRow } from "@/components/dashboard/prime/prime-home-row";
 import { ShieldHomeRow } from "@/components/dashboard/shield/shield-home-row";
+import { ShopsLiveRow } from "@/components/dashboard/shops/shops-live-row";
 import { PageSkeleton } from "@scheniders/ui/skeletons";
 import { useLanguage } from "@/hooks/use-language";
 import { useAnnouncements } from "@/hooks/use-announcements";
@@ -272,6 +273,9 @@ export default function Home() {
 
         {/* Prime: what Prime holds, its delivery rate, where the parcels are (stores with the Prime link only) */}
         <WidgetBoundary label="prime-home"><PrimeHomeRow /></WidgetBoundary>
+
+        {/* Shops now: today's sales, cash taken and who is on the till in each shop (managers, stores with a shop) */}
+        <WidgetBoundary label="shops-live"><ShopsLiveRow /></WidgetBoundary>
 
         {/* Shield: open orders to call first, and what Shield stopped in the last 30 days */}
         <WidgetBoundary label="shield-home"><ShieldHomeRow /></WidgetBoundary>
