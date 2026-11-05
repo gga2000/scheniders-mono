@@ -3,6 +3,18 @@
 import type { Locale } from "@/lib/i18n";
 
 const en: Record<string, string> = {
+    "shield.queue.button": "Customers by danger",
+    "shield.queue.title": "Customers by danger",
+    "shield.queue.sub": "Open orders from the last 14 days, lowest Trust score first. Call before you confirm.",
+    "shield.queue.redTitle": "High risk · under 50",
+    "shield.queue.yellowTitle": "Call first · 50 to 79",
+    "shield.queue.foot": "Every other open order is 80 or more, or a new customer.",
+    "shield.queue.failed": "Could not load the list.",
+    "shield.queue.retry": "Try again",
+    "shield.queue.status.new": "New",
+    "shield.queue.status.contacted": "Contacted",
+    "shield.queue.status.confirmed": "Confirmed",
+    "shield.queue.status.suspended": "On hold",
     "shield.name": "Shield",
     "shield.ringLabel": "Trust {score} of 100. Open the report.",
     "shield.band.new": "New customer",
@@ -119,6 +131,18 @@ const en: Record<string, string> = {
 };
 
 const ar: Record<string, string> = {
+    "shield.queue.button": "الزبائن حسب الخطورة",
+    "shield.queue.title": "الزبائن حسب الخطورة",
+    "shield.queue.sub": "الطلبات المفتوحة من آخر 14 يوم، الأقل ثقة أولاً. اتصل قبل التأكيد.",
+    "shield.queue.redTitle": "خطر عالي · أقل من 50",
+    "shield.queue.yellowTitle": "اتصل أولاً · من 50 إلى 79",
+    "shield.queue.foot": "باقي الطلبات المفتوحة ثقتها 80 أو أكثر، أو زبون جديد.",
+    "shield.queue.failed": "تعذر تحميل القائمة.",
+    "shield.queue.retry": "أعد المحاولة",
+    "shield.queue.status.new": "جديد",
+    "shield.queue.status.contacted": "تم التواصل",
+    "shield.queue.status.confirmed": "مؤكد",
+    "shield.queue.status.suspended": "معلق",
     "shield.name": "الدرع",
     "shield.ringLabel": "الثقة {score} من 100. افتح التقرير.",
     "shield.band.new": "زبون جديد",
