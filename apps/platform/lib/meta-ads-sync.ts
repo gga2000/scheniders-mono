@@ -18,8 +18,9 @@ export interface SyncOutcome {
     error?: string;
 }
 
-function isoDay(d: Date): string {
-    return d.toISOString().slice(0, 10);
+/** The ad account reports in Baghdad time, so its days must be named in Baghdad time too (a UTC day lags it by 3 hours every night). */
+export function isoDay(d: Date): string {
+    return d.toLocaleDateString("en-CA", { timeZone: "Asia/Baghdad" });
 }
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
