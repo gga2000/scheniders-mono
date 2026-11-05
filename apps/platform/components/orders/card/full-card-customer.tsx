@@ -212,7 +212,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                         )}
 
                         {/* Order Age Badge with Color Coding */}
-                        <span className={cn(
+                        <span data-age={ageUrgency} className={cn(
                             "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold transition-all",
                             ageUrgency === "fresh" && "bg-green-100 text-green-700",
                             ageUrgency === "normal" && "bg-gray-100 text-gray-600",
@@ -248,6 +248,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                     {/* Status Badge */}
                     <CardStatusMenu order={order} onStatusUpdate={onStatusUpdate} onCancelWithReason={onCancelWithReason} onRejectWithReason={onRejectWithReason}>
                         <motion.span
+                            data-status={isReturn ? "return" : order.status}
                             layoutId={getLayoutId(`order-status-${order.id}-${order.status}`)}
                             className={cn(
                                 "inline-flex h-6 items-center gap-1 px-2 text-[11px] font-bold rounded-full uppercase tracking-wider",
