@@ -51,7 +51,9 @@ export function PrimePage() {
     }
     const [list, setList] = useState<PrimeBoardList>(linkedList ?? "needs");
     const [statementId, setStatementId] = useState<number | null>(null);
-    const [ticketFor, setTicketFor] = useState<{ orderId: string; draft?: string; label?: string } | null>(null);
+    // «اسأل برايم» on an orders-page card links here with the order to ask about.
+    const linkedAsk = params.get("ask");
+    const [ticketFor, setTicketFor] = useState<{ orderId: string; draft?: string; label?: string } | null>(linkedAsk ? { orderId: linkedAsk } : null);
     const problemCount = useMemo(() => (data ? primeProblemsFrom(data.views, data.orders, data.readAt).filter((p) => !p.handled).length : 0), [data]);
 
     if (!connection.checked) return <div className="min-h-screen p-8" aria-busy="true" />;

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { Order } from "@/types/order";
 import type { PrimeRowFilter } from "@/lib/prime/track";
+import type { PrimeQueueId } from "@/lib/prime/queues";
 
 // ---------------------------------------------------------------------------
 // Debounced Storage Adapter
@@ -70,6 +71,10 @@ interface FilterUISlice {
   filterPaymentUnchecked: boolean;
   /** In transit: show only Prime parcels in this bucket, or stuck 3+ days (lib/prime/track.ts). */
   filterPrimeBucket: PrimeRowFilter | null;
+  /** The «معالجة» / «راجع» chip: the list shows that Prime queue across every date (lib/prime/queues.ts). */
+  primeQueue: PrimeQueueId | null;
+  /** An order a card asked the returns desk to take in; the orders page opens the desk with it. */
+  returnIntakeRequest: { orderId: string; at: number } | null;
   sortConfig: { key: string; direction: "asc" | "desc" } | null;
   sortConfigs: Array<{ key: string; direction: "asc" | "desc" }>;
   columnFilters: Record<string, string>;
@@ -88,6 +93,8 @@ interface FilterUISlice {
   setFilterStuckTransit: (val: boolean) => void;
   setFilterPaymentUnchecked: (val: boolean) => void;
   setFilterPrimeBucket: (val: PrimeRowFilter | null) => void;
+  setPrimeQueue: (val: PrimeQueueId | null) => void;
+  requestReturnIntake: (orderId: string | null) => void;
   toggleSort: (key: string, shiftKey?: boolean) => void;
   setColumnFilters: (filters: Record<string, string>) => void;
   setOpenFilterColumn: (val: string | null) => void;
@@ -246,6 +253,8 @@ export const useOrderStore = create<OrderStore>()(
       filterStuckTransit: false,
       filterPaymentUnchecked: false,
       filterPrimeBucket: null,
+      primeQueue: null,
+      returnIntakeRequest: null,
       sortConfig: null,
       sortConfigs: [],
       columnFilters: {},
@@ -264,6 +273,8 @@ export const useOrderStore = create<OrderStore>()(
       setFilterStuckTransit: (val) => set({ filterStuckTransit: val }),
       setFilterPaymentUnchecked: (val) => set({ filterPaymentUnchecked: val }),
       setFilterPrimeBucket: (val) => set({ filterPrimeBucket: val }),
+      setPrimeQueue: (val) => set({ primeQueue: val }),
+      requestReturnIntake: (orderId) => set({ returnIntakeRequest: orderId ? { orderId, at: Date.now() } : null }),
       toggleSort: (key, shiftKey) =>
         set((s) => {
           if (shiftKey) {

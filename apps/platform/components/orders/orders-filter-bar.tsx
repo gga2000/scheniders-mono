@@ -22,6 +22,7 @@ import { useOrdersContext } from "@/components/providers/orders-provider";
 import { EASE_PANEL } from "@/components/layout/page-transition";
 import { GlobalSearchField } from "@/components/orders/global-search-field";
 import { StickyFilterBar } from "@/components/orders/sticky-filter-bar";
+import { PrimeQueueChips } from "@/components/orders/prime-queue-chips";
 import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 import { AdCampaignFilter } from "@/components/orders/ad-campaign-filter";
 import { LeadQualityStrip } from "@/components/orders/lead-quality-strip";
@@ -195,6 +196,7 @@ export function OrdersFilterBar({
                                 filterDuplicatesOnly={filterDuplicatesOnly}
                                 setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                 filterDueToday={filterDueToday}
+                                afterAbandonedChips={<PrimeQueueChips countsHidden={countsHidden} />}
                                 queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /></>}
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}

@@ -18,6 +18,7 @@ import { FullCardMobile } from "./card/full-card-mobile";
 import { FullCardActions } from "./card/full-card-actions";
 import { PrimeBand } from "./card/prime-band";
 import { PrimeCallBand } from "./card/prime-call-band";
+import { PrimeQueueBand } from "./card/prime-queue-band";
 
 export const OrderCard = memo(function OrderCard(props: OrderCardProps) {
     const { compact = 0, gridMode = false } = props;
@@ -180,6 +181,7 @@ function FullOrderCard(props: OrderCardProps) {
                 </div>
                 <PrimeBand m={m} />
                 <PrimeCallBand m={m} />
+                <PrimeQueueBand m={m} />
                 </div>
 
             </motion.div >

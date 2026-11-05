@@ -11,6 +11,7 @@ import {
     DropdownMenuTrigger,
 } from "@scheniders/ui/dropdown-menu";
 import { useLanguage } from "@/hooks/use-language";
+import { useOrderStore } from "@/store/use-order-store";
 
 interface FilterState {
     status?: OrderStatus | "all" | "refunds" | "refunded" | "refund_pending" | "replacements";
@@ -44,6 +45,8 @@ interface StickyFilterBarProps {
     filterDueToday?: boolean;
     /** Extra queue toggles rendered beside due-today (desktop: stuck in transit). */
     queueChips?: ReactNode;
+    /** Chips placed right after «متروكة» (the Prime «معالجة» / «راجع» queues). */
+    afterAbandonedChips?: ReactNode;
     setFilterDueToday?: (val: boolean) => void;
     dueTodayCount?: number;
     /** When false the contextual sub-filter rows (Type, Products) are collapsed. Owned by the parent so the search-bar toggle can drive it. */
@@ -62,7 +65,7 @@ interface StickyFilterBarProps {
     riskCountHidden?: boolean;
 }
 
-import { memo, useState, type ReactNode } from "react";
+import { Fragment, memo, useState, type ReactNode } from "react";
 
 export const StickyFilterBar = memo(function StickyFilterBar({
     filters,
@@ -79,6 +82,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     setFilterDuplicatesOnly,
     filterDueToday = false,
     queueChips,
+    afterAbandonedChips,
     setFilterDueToday,
     dueTodayCount = 0,
     showSubFilters = false,
@@ -90,6 +94,9 @@ export const StickyFilterBar = memo(function StickyFilterBar({
 }: StickyFilterBarProps) {
     const { t } = useLanguage();
     const [useStatusColors, setUseStatusColors] = useState(true);
+    // A Prime queue chip («معالجة» / «راجع») replaces the status chips while on.
+    const primeQueue = useOrderStore((s) => s.primeQueue);
+    const setPrimeQueue = useOrderStore((s) => s.setPrimeQueue);
 
     // Contextual product sub-filters: show the most common products in the
     // current view as chips, with the long tail tucked into a "more" menu.
@@ -140,12 +147,17 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 isMobile ? "min-h-[50px]" : ""
             )}>
                 {/* Status Pills */}
-                {filterOptions.map((option) => (
+                {filterOptions.map((option) => {
+                    const selected = primeQueue === null && (filters.status === option.id || (option.id === "all" && !filters.status));
+                    return (
+                    <Fragment key={option.id}>
                     <button
-                        key={option.id}
                         data-chip={option.id}
                         data-chip-count={countsHidden ? undefined : option.count}
-                        onClick={() => setFilters({ ...filters, status: option.id === "all" ? undefined : option.id as Order["status"] })}
+                        onClick={() => {
+                            setPrimeQueue(null);
+                            setFilters({ ...filters, status: option.id === "all" ? undefined : option.id as Order["status"] });
+                        }}
                         className={cn(
                             "rounded-full whitespace-nowrap transition-all flex items-center gap-2 snap-start shrink-0 border",
                             // Mobile: Larger touch targets (48px min height for better accessibility)
@@ -153,14 +165,14 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                                 ? "min-h-[48px] px-5 py-3 text-sm font-semibold"
                                 : "px-4 py-2 text-sm font-medium",
 
-                            filters.status === option.id || (option.id === "all" && !filters.status)
+                            selected
                                 ? "bg-primary text-(--primary-fg) border-primary font-bold shadow-[0_0_15px_rgba(239,255,0,0.2)] scale-105"
                                 : "bg-background text-muted-foreground border-border/50 hover:bg-muted hover:border-border hover:text-foreground active:scale-95 dark:bg-[#1E1E1E] dark:text-[#A1A1A1] dark:border-[#3F3F3F] dark:hover:border-[rgba(0,255,255,0.4)] dark:hover:text-white dark:hover:bg-[#242424]",
 
                             // Status specific colors when enabled
                             useStatusColors && option.id !== "all" && [
                                 getStatusBadgeStyle(option.id as OrderStatus),
-                                filters.status === option.id
+                                selected
                                     ? "ring-2 ring-current ring-offset-2 border-current! scale-105 font-bold shadow-lg"
                                     : "opacity-85 hover:opacity-100"
                             ]
@@ -169,14 +181,17 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                         <span>{isMobile ? option.label : (option.fullLabel || option.label)}</span>
                         {!countsHidden && <span className={cn(
                             "px-2 py-0.5 rounded-full text-[12px] font-black min-w-[24px] text-center",
-                            filters.status === option.id || (option.id === "all" && !filters.status)
+                            selected
                                 ? "bg-background/20 text-current"
                                 : "bg-muted-foreground/20 text-muted-foreground group-hover/filters:bg-muted-foreground/30"
                         )}>
                             {option.count}
                         </span>}
                     </button>
-                ))}
+                    {option.id === "pending_checkout" && afterAbandonedChips}
+                    </Fragment>
+                    );
+                })}
 
                 {/* Vertical Divider */}
                 <div className="w-px h-8 bg-border shrink-0 mx-1" />

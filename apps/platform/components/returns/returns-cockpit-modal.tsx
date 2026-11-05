@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { X, RotateCcw, Trash2, Layers, ChevronDown, ChevronRight } from "lucide-react";
 import QRCode from "qrcode";
@@ -23,6 +23,9 @@ import { formatIQD, cn } from "@/lib/utils";
 import { getStatusBadgeStyle } from "@/lib/order-format-utils";
 import type { Order } from "@/types/order";
 import { useStatusLabel } from "@/hooks/use-status-label";
+import { usePrimeQueues } from "@/hooks/use-prime-queues";
+import { useOrderStore } from "@/store/use-order-store";
+import { PrimeExpectedReturnsPanel } from "./prime-expected-returns-panel";
 
 const DOT: Record<string, string> = {
     needs_action: "#f0b400",
@@ -53,7 +56,18 @@ export function ReturnsCockpitModal({
     const [summary, setSummary] = useState({ restock: 0, open_box: 0, write_off: 0 });
     const [lastConfirm, setLastConfirm] = useState<{ orderId: string; deltas: { restock: number; open_box: number; write_off: number } } | null>(null);
     const [handledOpen, setHandledOpen] = useState(false);
-    const [tab, setTab] = useState<"parcels" | "after_sale">("parcels");
+    const [tab, setTab] = useState<"parcels" | "prime_back" | "after_sale">("parcels");
+    const prime = usePrimeQueues();
+    const primeBackCount = prime.queues?.back.problems.length ?? 0;
+    // A card's «وصل؟ استلمه» opens the desk with its parcel on the scanned list.
+    const intakeRequest = useOrderStore((s) => s.returnIntakeRequest);
+    const clearIntakeRequest = useOrderStore((s) => s.requestReturnIntake);
+    const { addByOrderId } = session;
+    const arrived = useCallback((orderNumber: string) => {
+        setTab("parcels");
+        setShowPair(false);
+        void addByOrderId(orderNumber);
+    }, [addByOrderId]);
     const { t } = useLanguage();
     const { data: intake } = useAfterSaleIntake(open);
     const intakeCount = intake?.items.length ?? 0;
@@ -77,6 +91,22 @@ export function ReturnsCockpitModal({
     };
 
     useEffect(() => { if (open) primeOnFirstGesture(); }, [open]);
+
+    // A card's request shows the scanned list (adjusted while rendering, not in an effect) …
+    const [seenRequest, setSeenRequest] = useState<number | null>(null);
+    if (open && intakeRequest && intakeRequest.at !== seenRequest) {
+        setSeenRequest(intakeRequest.at);
+        setTab("parcels");
+        setShowPair(false);
+    }
+    // … and puts its parcel on it.
+    useEffect(() => {
+        if (!open || !intakeRequest) return;
+        const number = prime.data?.orders.get(intakeRequest.orderId)?.order_id;
+        clearIntakeRequest(null);
+        if (number) void addByOrderId(number);
+        else void orderRepository.findById(intakeRequest.orderId).then((order) => { if (order) void addByOrderId(order.order_id); });
+    }, [open, intakeRequest, prime.data, addByOrderId, clearIntakeRequest]);
 
     useEffect(() => {
         if (open && session.pairingUrl) {
@@ -231,6 +261,21 @@ export function ReturnsCockpitModal({
                     >
                         {t("intake.tab.parcels")}
                     </button>
+                    {prime.connected && (
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={tab === "prime_back"}
+                            data-tab="prime_back"
+                            onClick={() => setTab("prime_back")}
+                            className={cn("flex min-h-9 items-center gap-1.5 rounded-lg px-3", tab === "prime_back" ? "bg-foreground/5 font-semibold text-foreground" : "text-muted")}
+                        >
+                            {t("intake.tab.primeBack")}
+                            {primeBackCount > 0 && (
+                                <span className="rounded-full bg-rose-600 px-1.5 text-[11px] font-semibold tabular-nums text-white">{primeBackCount}</span>
+                            )}
+                        </button>
+                    )}
                     <button
                         type="button"
                         role="tab"
@@ -250,7 +295,9 @@ export function ReturnsCockpitModal({
                     </button>
                 </div>
 
-                {tab === "after_sale" ? (
+                {tab === "prime_back" ? (
+                    <PrimeExpectedReturnsPanel prime={prime} onArrived={arrived} />
+                ) : tab === "after_sale" ? (
                     <AfterSaleIntakePanel onOpenOrder={(id) => void openOrderById(id)} />
                 ) : (<>
                 <form
