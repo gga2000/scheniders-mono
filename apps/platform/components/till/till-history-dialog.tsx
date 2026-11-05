@@ -77,9 +77,9 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
             <DialogContent className="till-screen flex max-h-[86vh] flex-col md:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="text-left">{past.data ? t("till.history.foundTitle", { code }) : past.isSuccess ? t("till.history.lookupTitle") : t("till.history.title")}</DialogTitle>
-                    <DialogDescription className="flex flex-wrap gap-2 text-left tabular-nums" dir="auto">
+                    <DialogDescription className="flex flex-wrap gap-2 text-left tabular-nums">
                         {past.data ? (
-                            t("till.history.foundSub", { cashier: past.data.cashier || "—" })
+                            <span dir="auto">{t("till.history.foundSub", { cashier: past.data.cashier || "—" })}</span>
                         ) : !past.isSuccess && sales.data ? (
                             <>
                                 <Stat label={t("till.history.count")} value={String(sales.data.length)} />

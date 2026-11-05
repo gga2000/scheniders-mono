@@ -256,16 +256,39 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             </span>
                             <span dir="auto">{t("till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
                         </button>
-                        <label className="flex items-center gap-3 text-sm text-muted">
-                            {t("till.pay.onlyPart")}
-                            <input
-                                value={typed ?? ""}
-                                onChange={(e) => setTyped(e.target.value)}
-                                inputMode="numeric"
-                                placeholder={t("till.pay.allOfIt")}
-                                className="h-12 w-40 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none placeholder:text-foreground focus:border-[var(--ink)]"
-                            />
-                        </label>
+                        <div className="flex items-center gap-3">
+                            <div role="radiogroup" className="flex rounded-2xl border border-[var(--card-border)] p-1">
+                                {[
+                                    { all: true, label: t("till.pay.allOfIt") },
+                                    { all: false, label: t("till.pay.partOnly") },
+                                ].map((o) => {
+                                    const on = o.all === (typed === null);
+                                    return (
+                                        <button
+                                            key={o.label}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={on}
+                                            onClick={() => setTyped(o.all ? null : "")}
+                                            className={cn("h-11 rounded-xl px-5 text-base font-semibold", on ? INK_BUTTON : "text-foreground")}
+                                        >
+                                            {o.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {typed !== null && (
+                                <input
+                                    value={typed}
+                                    onChange={(e) => setTyped(e.target.value)}
+                                    inputMode="numeric"
+                                    autoFocus
+                                    placeholder={t("till.pay.partAmount")}
+                                    aria-label={t("till.pay.partAmount")}
+                                    className="h-12 w-40 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none placeholder:font-normal placeholder:text-muted focus:border-[var(--ink)]"
+                                />
+                            )}
+                        </div>
                     </div>
                 )}
 

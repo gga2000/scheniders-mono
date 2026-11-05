@@ -350,7 +350,7 @@ function QuickKey({ product, onPick }: { product: TillProduct; onPick: (el: HTML
         >
             <span ref={ref} className="block h-[60px] w-[60px] shrink-0 overflow-hidden rounded-xl bg-[var(--card-border)]/25">
                 {product.image_url ? (
-                    <img src={product.image_url} alt="" loading="lazy" className={cn("h-full w-full object-cover", out && "opacity-45 grayscale")} />
+                    <img src={product.image_url} alt="" loading="lazy" className={cn("h-full w-full object-cover")} />
                 ) : (
                     <span className="flex h-full items-center justify-center text-muted">
                         <Package className="h-5 w-5" aria-hidden="true" />
@@ -387,7 +387,7 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: H
                         src={product.image_url}
                         alt=""
                         loading="lazy"
-                        className={cn("h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]", out && "opacity-45 grayscale")}
+                        className={cn("h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]")}
                     />
                 ) : (
                     <span className="flex h-full items-center justify-center text-muted">
