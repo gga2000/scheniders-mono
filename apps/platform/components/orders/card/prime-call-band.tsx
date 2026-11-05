@@ -40,7 +40,9 @@ const CHIP: Record<Tone, string> = {
  * The confirmation call's Prime line under a card still waiting on its call
  * (desktop): the customer's earlier Prime parcels from this store and how each
  * ended, a warning when the newest came back, and what Prime would charge for
- * this one (or what to fix before Prime takes it). Opens in place for the
+ * this one (or what to fix before Prime takes it). Shown only when the
+ * customer returned a Prime parcel before or the order needs a fix first; a
+ * clean new or all-delivered customer gets no line. Opens in place for the
  * parcels by month and the money if it is confirmed. Hidden for a tenant
  * without a switched-on Prime link, and when the tools-bar Prime strip switch
  * is off (it hides every Prime strip under the cards).
@@ -62,6 +64,9 @@ function PrimeCallBandFor({ m }: { m: OrderCardModel }) {
     if (!connected || !check.data) return null;
 
     const { record, send } = check.data;
+    // Only a line worth reading on the call: the customer sent Prime parcels
+    // back before, or something must be fixed before Prime takes this one.
+    if (record.returned === 0 && send?.kind !== "fix") return null;
     const tone = toneOf(record);
     const finished = record.delivered + record.returned;
     const warn = record.returnedInARow > 0;
