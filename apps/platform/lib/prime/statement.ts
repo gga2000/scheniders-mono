@@ -88,3 +88,15 @@ export function matchPrimeStatement(
     });
     return { rows, summary };
 }
+
+/** Order statuses that say the parcel did not reach the customer. */
+const NOT_DELIVERED = new Set(["rejected", "return_pending", "cancelled"]);
+
+/**
+ * Prime paid for a parcel (it collected cash) while our order says it was
+ * rejected, is coming back or was cancelled: someone's books are wrong, and
+ * a statement approval must not close it quietly.
+ */
+export function primePaidButNotDelivered(row: Pick<PrimeStatementRow, "primeCollect" | "ours">): boolean {
+    return row.primeCollect > 0 && row.ours !== null && NOT_DELIVERED.has(row.ours.status);
+}

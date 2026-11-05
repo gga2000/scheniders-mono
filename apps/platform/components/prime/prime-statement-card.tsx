@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { usePrimeStatement, usePrimeStatementAction, usePrimeStatements } from "@/hooks/use-prime-statements";
+import { primePaidButNotDelivered } from "@/lib/prime/statement";
 import { useActionProblem } from "./use-action-problem";
 
 const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
@@ -30,6 +31,8 @@ export function PrimeStatementCard({ onOpen }: { onOpen: (id: number) => void })
     // The rows say how many parcels the approval can still close.
     const payment = usePrimeStatement(entry && latest && entry.approval === null ? entry.id : null);
     const closable = payment.data?.statement.rows.filter((r) => r.kind === "match" && (r.ours?.status === "delivered" || r.ours?.status === "in_transit")).length ?? 0;
+
+    const paidNotDelivered = payment.data?.statement.rows.filter(primePaidButNotDelivered).length ?? 0;
 
     if (answer?.connected && (!entry || entry.approval !== null) && !note) return null;
 
@@ -88,6 +91,11 @@ export function PrimeStatementCard({ onOpen }: { onOpen: (id: number) => void })
                             ? t("prime.page.statementPlainSame", { parcels: latest.summary.parcels, matched: latest.summary.matched })
                             : t("prime.page.statementPlain", { parcels: latest.summary.parcels, matched: latest.summary.matched, amount: amount.format(Math.abs(latest.summary.diff)) })}
                     </p>
+                    {paidNotDelivered > 0 && (
+                        <p data-paid-not-delivered role="alert" dir={dir} className="text-left text-xs font-semibold text-[#F5A59B]">
+                            {t("prime.cash.paidNotDelivered", { count: paidNotDelivered })}
+                        </p>
+                    )}
                     {note && (
                         <p role={note.tone === "bad" ? "alert" : "status"} dir={dir} className={note.tone === "bad" ? "text-left text-xs font-semibold text-[#F5A59B]" : "text-left text-xs font-semibold text-[#BFE3CC]"}>
                             {note.text}

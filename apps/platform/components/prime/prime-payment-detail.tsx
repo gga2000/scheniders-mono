@@ -10,6 +10,7 @@ import {
     type PrimeStatementRowView,
 } from "@/hooks/use-prime-statements";
 import { downloadCsv } from "@/lib/export-utils";
+import { primePaidButNotDelivered } from "@/lib/prime/statement";
 import { primeWhen } from "@/lib/prime/when";
 import { cn } from "@/lib/utils";
 import { useActionProblem } from "./use-action-problem";
@@ -75,6 +76,7 @@ export function PrimePaymentDetail({ paymentId, onAskPrime }: { paymentId: numbe
     const expected = summary.net - summary.diff;
     const off = summary.different + summary.unknown;
     const closable = statement.rows.filter((r) => r.kind === "match" && (r.ours?.status === "delivered" || r.ours?.status === "in_transit")).length;
+    const paidNotDelivered = statement.rows.filter(primePaidButNotDelivered).length;
 
     const exportCsv = () =>
         downloadCsv(
@@ -143,6 +145,13 @@ export function PrimePaymentDetail({ paymentId, onAskPrime }: { paymentId: numbe
                 </p>
             </div>
 
+            {paidNotDelivered > 0 && (
+                <div data-paid-not-delivered-banner role="alert" className="mx-5 mb-4 flex items-center gap-2.5 rounded-[14px] border border-[#F2B8B2] bg-[#FDF2F1] px-4 py-3 text-sm font-semibold text-[#8F1D13] dark:border-rose-400/30 dark:bg-rose-400/[0.06] dark:text-rose-200">
+                    <AlertTriangle className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+                    <p dir={dir} className="text-left">{t("prime.cash.paidNotDelivered", { count: paidNotDelivered })}</p>
+                </div>
+            )}
+
             <table className="w-full text-sm">
                 <thead>
                     <tr className="bg-[#FAF8F5] text-left text-xs text-muted dark:bg-white/[0.03]">
@@ -171,7 +180,9 @@ export function PrimePaymentDetail({ paymentId, onAskPrime }: { paymentId: numbe
                                 <td className={cn("px-3 tabular-nums", priceOff && "font-bold text-[#8A4B00] dark:text-amber-300")}>{amount.format(row.primeCollect)}</td>
                                 <td className={cn("px-3 tabular-nums", feeOff && "font-bold text-[#8A4B00] dark:text-amber-300")}>{amount.format(row.primeFee)}</td>
                                 <td className="px-5">
-                                    {row.kind === "match" ? (
+                                    {primePaidButNotDelivered(row) ? (
+                                        <span data-paid-not-delivered className={cn(chip, "bg-[#FDE8E6] text-[#8F1D13] dark:bg-rose-400/15 dark:text-rose-200")}>{t("prime.cash.paidNotDeliveredChip")}</span>
+                                    ) : row.kind === "match" ? (
                                         <span className={cn(chip, "bg-[#E3F2E9] text-[#165C39] dark:bg-emerald-400/15 dark:text-emerald-200")}>{t("prime.page.kind.match")}</span>
                                     ) : row.kind === "unknown" || !ours ? (
                                         <span className={cn(chip, "bg-[#F1EFEA] text-[#4A4A4A] dark:bg-white/10 dark:text-white/70")}>{t("prime.cash.notOursChip")}</span>

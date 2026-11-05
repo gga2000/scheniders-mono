@@ -5,6 +5,7 @@ import { usePrimeHome } from "@/hooks/use-prime-home";
 import { usePrimeStatements, type PrimeStatementEntryView } from "@/hooks/use-prime-statements";
 import { primeWhen } from "@/lib/prime/when";
 import { cn } from "@/lib/utils";
+import { PrimeMonthReport } from "./prime-month-report";
 import { PrimePaymentDetail } from "./prime-payment-detail";
 
 const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
@@ -110,6 +111,7 @@ export function PrimeStatementsTab({
                         </span>
                     </div>
                 )}
+                <PrimeMonthReport />
             </aside>
             <PrimePaymentDetail paymentId={current} onAskPrime={onAskPrime} />
         </div>
