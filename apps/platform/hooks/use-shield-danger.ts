@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import * as Sentry from "@sentry/nextjs";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import { supabase } from "@/lib/supabase";
@@ -27,7 +28,10 @@ export function useShieldDanger(closedCount: number) {
         refetchInterval: 10 * 60_000,
         queryFn: async () => {
             const { data, error } = await supabase.rpc("shield_customer_trust");
-            if (error) throw error;
+            if (error) {
+                Sentry.captureException(error, { tags: { area: "orders", op: "shield.customer-trust" } });
+                throw error;
+            }
             return z.array(rowSchema).parse(data ?? []);
         },
     });
@@ -36,5 +40,11 @@ export function useShieldDanger(closedCount: number) {
         () => new Map((query.data ?? []).map((r) => [r.phone, r.trust])) as ReadonlyMap<string, number>,
         [query.data],
     );
-    return { trustByPhone, ready: query.data !== undefined };
+        return {
+        trustByPhone,
+        ready: query.data !== undefined,
+        /** The scores never loaded (the RPC failed); the slider offers a retry. */
+        failed: query.data === undefined && query.isError,
+        retry: () => void query.refetch(),
+    };
 }
