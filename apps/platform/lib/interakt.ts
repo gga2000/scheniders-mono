@@ -89,11 +89,29 @@ const RETRY_DELAY_MS = 1000;
 
 export type TemplateType = 'confirmation' | 'reminder' | 'discount';
 
+/** The store's approved Interakt templates (copies of the first three, each with an image header). */
 export const TEMPLATE_NAMES: Record<TemplateType, string> = {
-    confirmation: "cod_order_confirm",
-    reminder: "order_reminder",
-    discount: "order_discount_offer",
+    confirmation: "new_cod_order_confirm",
+    reminder: "v2_order_reminder",
+    discount: "v2order_discount_offer",
 };
+
+/** Each template's header picture, served from apps/platform/public. */
+const TEMPLATE_HEADER_IMAGES: Record<TemplateType, string> = {
+    confirmation: "/whatsapp/order-confirm.png",
+    reminder: "/whatsapp/order-reminder.png",
+    discount: "/whatsapp/order-discount.png",
+};
+
+/**
+ * The public address of a template's header picture. Interakt fetches it
+ * from the live app, so it is always the production domain (Vercel sets it
+ * on every deployment); without one there is nothing Interakt can fetch.
+ */
+export function templateHeaderImageUrl(templateType: TemplateType): string | null {
+    const host = env.VERCEL_PROJECT_PRODUCTION_URL;
+    return host ? `https://${host}${TEMPLATE_HEADER_IMAGES[templateType]}` : null;
+}
 
 // =============================================
 // PHONE FORMATTING
@@ -361,9 +379,16 @@ export async function sendTemplateMessage(
         };
     }
 
+    const headerImage = templateHeaderImageUrl(templateType);
+    if (!headerImage) {
+        console.error("[Interakt] VERCEL_PROJECT_PRODUCTION_URL is not set; the template's header picture has no public address");
+        return { success: false, error: "Template header image has no public address" };
+    }
+
     const templateName = TEMPLATE_NAMES[templateType];
     const body = buildTemplateBody(order, templateType, overridePhone, discountPercent, customPrice);
     body.template.bodyValues = body.template.bodyValues.map(sanitizeTemplateVar);
+    body.template.headerValues = [headerImage];
 
     console.log(
         `[Interakt] Sending template "${templateName}" to +${body.countryCode}${body.phoneNumber} for order ${order.order_id}`

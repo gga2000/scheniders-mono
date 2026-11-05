@@ -14,7 +14,7 @@ import type { Order } from "@/types/order";
 
 // Provide an API key so sendTemplateMessage proceeds to the fetch.
 vi.mock("@/lib/env", () => ({
-    env: { INTERAKT_API_KEY: "test-key" },
+    env: { INTERAKT_API_KEY: "test-key", VERCEL_PROJECT_PRODUCTION_URL: "schenidersapp.xyz" },
     providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
 }));
 
@@ -81,5 +81,19 @@ describe("Interakt template variable sanitization", () => {
         for (const v of values) {
             expect(v.length).toBeGreaterThan(0);
         }
+    });
+});
+
+describe("Interakt template header picture", () => {
+    it.each([
+        ["confirmation", "new_cod_order_confirm", "en", "order-confirm.png"],
+        ["reminder", "v2_order_reminder", "ar", "order-reminder.png"],
+        ["discount", "v2order_discount_offer", "en", "order-discount.png"],
+    ] as const)("sends %s as the approved copy with its picture", async (type, name, language, picture) => {
+        await sendTemplateMessage(makeOrder(), type);
+        const sent = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+        expect(sent.template.name).toBe(name);
+        expect(sent.template.languageCode).toBe(language);
+        expect(sent.template.headerValues).toEqual([`https://schenidersapp.xyz/whatsapp/${picture}`]);
     });
 });

@@ -35,6 +35,9 @@ const TONES: Record<string, Tone> = {
 };
 
 const MONEY_FIELDS = new Set(["price", "delivery_fee", "discount"]);
+/** The confirmation and reminder templates, old names (history) and the current image-header copies. */
+const CONFIRM_TEMPLATES = new Set(["cod_order_confirm", "new_cod_order_confirm"]);
+const REMINDER_TEMPLATES = new Set(["order_reminder", "v2_order_reminder"]);
 
 function StatusPill({ status, isReturn }: { status: string; isReturn: boolean }) {
     const statusLabel = useStatusLabel();
@@ -230,7 +233,7 @@ function EventBody({ e, order, isReturn }: { e: ActivityEvent; order: OrderActiv
                 </div>
             );
         case "whatsapp": {
-            const name = e.template === "cod_order_confirm" ? t("orders.history.wa.confirm") : e.template === "order_reminder" ? t("orders.history.wa.reminder") : t("orders.history.wa");
+            const name = CONFIRM_TEMPLATES.has(e.template ?? "") ? t("orders.history.wa.confirm") : REMINDER_TEMPLATES.has(e.template ?? "") ? t("orders.history.wa.reminder") : t("orders.history.wa");
             const tone = e.state === "failed"
                 ? "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200"
                 : e.state === "read"
