@@ -182,8 +182,9 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                                     <Flame className="h-3.5 w-3.5" aria-hidden="true" />
                                     {t("till.sell.bestHere")}
                                 </h2>
-                                <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
-                                    {best.map((p) => (
+                                {/* One row only, so the full grid starts above the fold; the chip shows them all. */}
+                                <div className="grid grid-cols-4 gap-2">
+                                    {best.slice(0, 4).map((p) => (
                                         <QuickKey key={p.id} product={p} onPick={(el) => choose(p, el)} />
                                     ))}
                                 </div>

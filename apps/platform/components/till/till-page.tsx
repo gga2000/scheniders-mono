@@ -497,8 +497,8 @@ function TillFrame({
                                 {t("till.top.today", { n: today.count })}
                             </span>
                             {goal ? (
-                                <span className="rounded-full bg-[#EFFF00]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[#EFFF00]">
-                                    {Math.min(999, Math.round((today.total / goal) * 100))}%
+                                <span className="rounded-full bg-[#EFFF00]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[#EFFF00]" dir="auto">
+                                    {t("till.top.goalPct", { pct: Math.min(999, Math.round((today.total / goal) * 100)) })}
                                 </span>
                             ) : null}
                             {mine && mine.count > 0 && mine.count !== today.count && (
@@ -526,7 +526,12 @@ function MoneyMenu({ commission, onPayout, chip }: { commission: number | null; 
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger className={commission != null ? chip : `${chip} px-3`} aria-label={t("till.top.money")} title={t("till.top.money")}>
                 <HandCoins className="h-4 w-4" aria-hidden="true" />
-                {commission != null && <span className="tabular-nums">{formatIqd(commission)}</span>}
+                {commission != null && (
+                    <>
+                        <span className="text-xs font-medium text-white/60" dir="auto">{t("till.top.commission")}</span>
+                        <span className="tabular-nums">{formatIqd(commission)}</span>
+                    </>
+                )}
             </PopoverTrigger>
             <PopoverContent align="end" className="flex w-72 flex-col gap-3 rounded-2xl border-[var(--card-border)] bg-[var(--card-bg)] p-4">
                 {commission != null && (

@@ -50,6 +50,10 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const customer = useTillCustomer(sessionId, normalPhone);
     const overLimit = limit !== null && given > limit;
     const discountTooBig = overLimit && !ticket.approval;
+    // Line price cuts count toward the limit too, so spell out where the total comes from.
+    const lineCuts = given - ticket.discount;
+    const overText = limit === null ? "" : t("till.manager.overShort", { given: formatIqd(given), limit: formatIqd(limit), extra: formatIqd(given - limit) });
+    const overParts = lineCuts > 0 && ticket.discount > 0 ? t("till.manager.overParts", { lines: formatIqd(lineCuts), discount: formatIqd(ticket.discount) }) : null;
 
     // Items taken out before payment go to the owner's log; the sale never waits on it.
     const changeQuantity = (l: CartLine, quantity: number) => {
@@ -63,8 +67,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     };
 
     const applyDiscount = (text: string) => {
-        setDiscountText(text);
-        onChange({ ...ticket, discount: Math.min(subtotal, parseDinars(text)) });
+        const amount = parseDinars(text);
+        setDiscountText(amount > 0 ? formatIqd(amount) : "");
+        onChange({ ...ticket, discount: Math.min(subtotal, amount) });
     };
 
     return (
@@ -172,7 +177,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                         className="flex min-h-7 max-w-full items-center overflow-hidden whitespace-nowrap text-xs tabular-nums text-muted underline decoration-dotted underline-offset-4 hover:text-foreground"
                                     >
                                         {l.price < l.list_price ? (
-                                            <span className="font-semibold text-foreground">{formatIqd(l.price)}</span>
+                                            <span className="font-semibold text-foreground" dir="auto">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
                                         ) : (
                                             <span dir="auto">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
                                         )}
@@ -249,16 +254,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                                 {t("till.manager.allowedBy", { name: ticket.approval.managerName })}
                             </span>
-                        ) : discountTooBig ? (
-                            <button
-                                type="button"
-                                onClick={() => setAskManager(true)}
-                                className="flex h-11 items-center gap-1.5 rounded-2xl bg-[#FDE7EA] px-3 text-xs font-bold text-[#991B1B] dark:bg-red-500/15 dark:text-red-300"
-                            >
-                                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                                {t("till.manager.ask")}
-                            </button>
-                        ) : (
+                        ) : discountTooBig ? null : (
                             <span className="text-right text-xs text-muted" dir="auto">
                                 {limit === null
                                     ? t("till.cart.anyDiscount", { name: cashierName })
@@ -268,11 +264,18 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     </div>
                 )}
                 {discountTooBig && limit !== null && (
-                    <p className="text-left text-xs font-semibold text-red-600" dir="auto">
-                        {t("till.manager.over", { given: formatIqd(given), limit: formatIqd(limit) })}
+                    <p className="text-left text-sm font-semibold text-red-600" dir="auto">
+                        {overText}
+                        {overParts && <span className="block text-xs font-normal text-red-600/80">{overParts}</span>}
                     </p>
                 )}
 
+                {ticket.discount > 0 && (
+                    <p className="flex justify-between text-sm tabular-nums text-muted">
+                        <span>{t("till.cart.subtotal")}</span>
+                        <span>{formatIqd(subtotal)}</span>
+                    </p>
+                )}
                 <div className="flex items-end justify-between">
                     <span className="text-sm font-semibold text-muted">
                         {t("till.cart.total")}
@@ -282,18 +285,26 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 </div>
                 <button
                     type="button"
-                    onClick={onPay}
-                    disabled={ticket.cart.length === 0 || phoneBad || discountTooBig}
+                    // Over the limit, the one big button takes the next step: asking a manager.
+                    onClick={discountTooBig ? () => setAskManager(true) : onPay}
+                    disabled={ticket.cart.length === 0 || phoneBad}
                     className={cn("h-16 rounded-2xl text-xl font-bold transition-colors", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-muted dark:disabled:bg-white/10 dark:disabled:text-white/40")}
                 >
-                    {t("till.cart.pay", { total: formatIqd(total) })}
+                    {discountTooBig ? (
+                        <span className="inline-flex items-center gap-2">
+                            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                            {t("till.manager.ask")}
+                        </span>
+                    ) : (
+                        t("till.cart.pay", { total: formatIqd(total) })
+                    )}
                 </button>
             </div>
             {askManager && limit !== null && (
                 <TillManagerDialog
                     sessionId={sessionId}
                     managers={managers}
-                    reason={t("till.manager.over", { given: formatIqd(given), limit: formatIqd(limit) })}
+                    reason={overText}
                     onApproved={(approval) => {
                         setAskManager(false);
                         onChange({ ...ticket, approval });

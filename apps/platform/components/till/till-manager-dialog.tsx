@@ -55,7 +55,8 @@ export function TillManagerDialog({ sessionId, managers, reason, onApproved, onC
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="till-screen flex flex-col gap-5 md:max-w-md">
+            <DialogContent className="till-screen md:max-w-md">
+                <div className="flex flex-col gap-5">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-left">
                         <ShieldCheck className="h-5 w-5" aria-hidden="true" />
@@ -82,10 +83,13 @@ export function TillManagerDialog({ sessionId, managers, reason, onApproved, onC
                                     }}
                                     aria-pressed={who?.user_id === m.user_id}
                                     className={cn(
-                                        "flex h-12 items-center gap-2 rounded-2xl border px-4 text-sm font-semibold",
+                                        "flex h-12 items-center gap-2 rounded-2xl border ps-2 pe-4 text-sm font-semibold",
                                         who?.user_id === m.user_id ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] text-foreground",
                                     )}
                                 >
+                                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E4C1F9] text-xs text-[#1E1E1E]" aria-hidden="true">
+                                        {m.display_name.slice(0, 1).toUpperCase()}
+                                    </span>
                                     <span dir="auto">{m.display_name}</span>
                                 </button>
                             ))}
@@ -136,6 +140,7 @@ export function TillManagerDialog({ sessionId, managers, reason, onApproved, onC
                         </div>
                     </>
                 )}
+                </div>
             </DialogContent>
         </Dialog>
     );
