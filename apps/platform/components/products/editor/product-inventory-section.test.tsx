@@ -9,7 +9,7 @@ vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (k: string) =>
 afterEach(cleanup);
 
 function form(storefront_stock: number | null): ProductEditorFormData {
-    return { stock_quantity: 7, low_stock_threshold: 5, is_supply: false, storefront_stock } as ProductEditorFormData;
+    return { stock_quantity: 7, low_stock_threshold: 5, is_supply: false, storefront_stock, storefront_sold_out: false } as ProductEditorFormData;
 }
 
 describe("ProductInventorySection storefront stock toggle", () => {
@@ -18,7 +18,7 @@ describe("ProductInventorySection storefront stock toggle", () => {
         render(<ProductInventorySection formData={form(null)} updateField={updateField} reservedQuantity={5} />);
         expect(screen.queryByLabelText("products.ed.storefrontStock")).toBeNull();
 
-        fireEvent.click(screen.getByRole("switch"));
+        fireEvent.click(screen.getByLabelText("products.ed.storefrontStockToggle"));
         expect(updateField).toHaveBeenCalledWith("storefront_stock", 2);
     });
 
@@ -27,7 +27,7 @@ describe("ProductInventorySection storefront stock toggle", () => {
         render(<ProductInventorySection formData={form(36)} updateField={updateField} />);
         expect((screen.getByLabelText("products.ed.storefrontStock") as HTMLInputElement).value).toBe("36");
 
-        fireEvent.click(screen.getByRole("switch"));
+        fireEvent.click(screen.getByLabelText("products.ed.storefrontStockToggle"));
         expect(updateField).toHaveBeenCalledWith("storefront_stock", null);
     });
 
@@ -36,5 +36,12 @@ describe("ProductInventorySection storefront stock toggle", () => {
         render(<ProductInventorySection formData={form(36)} updateField={updateField} />);
         fireEvent.change(screen.getByLabelText("products.ed.storefrontStock"), { target: { value: "" } });
         expect(updateField).toHaveBeenCalledWith("storefront_stock", 0);
+    });
+
+    it("marks the product out of stock on the store with its own switch", () => {
+        const updateField = vi.fn();
+        render(<ProductInventorySection formData={form(null)} updateField={updateField} />);
+        fireEvent.click(screen.getByLabelText("products.ed.storefrontSoldOut"));
+        expect(updateField).toHaveBeenCalledWith("storefront_sold_out", true);
     });
 });
