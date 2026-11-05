@@ -73,7 +73,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
         const left = had - 1;
         // At or under the product's own minimum. The owner's restock note comes from the products stock trigger when the sale lands.
         const low = left > 0 && left <= product.low_at;
-        setNotice({ kind: "ok", text: t(low ? "till.sell.addedLow" : "till.sell.added", { name, left }), at: Date.now() });
+        setNotice({ kind: "ok", text: t(left === 0 ? "till.sell.addedLast" : low ? "till.sell.addedLow" : "till.sell.added", { name, left }), at: Date.now() });
     };
 
     const choose = (product: TillProduct, from: HTMLElement | null) => {
@@ -131,7 +131,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
     const showBestRow = filter === "all" && !query.trim() && best.length > 0;
 
     return (
-        <div className="relative flex min-h-0 flex-1 flex-col gap-3 p-5">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-5">
             <form onSubmit={submit}>
                 <label className="flex h-14 items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 transition-colors focus-within:border-[var(--ink)] dark:focus-within:border-[#EFFF00]">
                     <ScanLine className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TillProduct } from "./cart";
-import { countLines, summarizeCount } from "./count";
+import { countLines, isBigDrop, summarizeCount, type CountLine } from "./count";
 
 const sized: TillProduct = {
     id: "p1",
@@ -51,5 +51,18 @@ describe("summarizeCount", () => {
         const s = summarizeCount(lines, new Map([["p1:v100", 16]]), true);
         expect(s.changes.map((c) => [c.line.key, c.counted])).toEqual([["p1:v30", 0], ["p2", 0]]);
         expect(s.missing).toBe(45);
+    });
+});
+
+describe("isBigDrop", () => {
+    const line = (expected: number): CountLine => ({ key: "k", product_id: "p", variant_id: null, name: "n", variant_name: null, image_url: null, expected });
+    it("flags a drop of 10+ that is at least half the stock", () => {
+        expect(isBigDrop({ line: line(53), counted: 1, diff: -52 })).toBe(true);
+        expect(isBigDrop({ line: line(20), counted: 10, diff: -10 })).toBe(true);
+    });
+    it("leaves small or partial losses alone", () => {
+        expect(isBigDrop({ line: line(12), counted: 3, diff: -9 })).toBe(false);
+        expect(isBigDrop({ line: line(50), counted: 30, diff: -20 })).toBe(false);
+        expect(isBigDrop({ line: line(2), counted: 30, diff: 28 })).toBe(false);
     });
 });

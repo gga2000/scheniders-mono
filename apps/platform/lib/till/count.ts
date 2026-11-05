@@ -39,6 +39,14 @@ export interface CountChange {
     diff: number;
 }
 
+/**
+ * A drop big enough to be a half-done count rather than a real loss: at least
+ * 10 pieces, and at least half of what stock says is there.
+ */
+export function isBigDrop(c: CountChange): boolean {
+    return c.diff <= -10 && c.counted * 2 <= c.line.expected;
+}
+
 export interface CountSummary {
     /** Pieces counted so far. */
     scanned: number;
