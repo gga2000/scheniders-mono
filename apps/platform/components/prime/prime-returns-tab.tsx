@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { usePrimeRepeatReturners } from "@/hooks/use-prime-repeat-returners";
 import { usePrimeReturns } from "@/hooks/use-prime-returns";
 import { getGovernorateByCode } from "@/lib/address-validator";
 import { cn } from "@/lib/utils";
@@ -32,6 +34,7 @@ export function PrimeReturnsTab() {
     const { t, language } = useLanguage();
     const dir = useTextDir();
     const { summary, isPending, isError } = usePrimeReturns(true);
+    const repeat = usePrimeRepeatReturners(true);
 
     if (isPending) return <div className="h-64 animate-pulse rounded-[22px] bg-[var(--card-bg)]" aria-busy="true" />;
     if (isError || !summary) return <p className="rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-6 text-sm text-muted">{t("prime.page.loadFailed")}</p>;
@@ -44,6 +47,7 @@ export function PrimeReturnsTab() {
     }
 
     const delta = summary.rate !== null && summary.previousRate !== null ? Math.round((summary.rate - summary.previousRate) * 10) / 10 : null;
+    const showDays = summary.areas.some((a) => a.days !== null);
     const top = Math.max(1, ...summary.reasons.map((r) => r.parcels));
     const areaName = (code: string | null) => {
         const g = code ? getGovernorateByCode(code) : undefined;
@@ -57,7 +61,29 @@ export function PrimeReturnsTab() {
                 <b className="text-base font-bold text-foreground">{t("prime.returns.title")}</b> · {t("prime.returns.window")}
             </p>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div data-prime-scorecard className="grid grid-cols-4 gap-3">
+                <div className={cn(panel, "gap-1")}>
+                    <span dir={dir} className="text-left text-xs text-muted">
+                        {t("prime.returns.deliveredRate")}
+                    </span>
+                    <b className="text-[30px] leading-tight tabular-nums text-foreground">{summary.rate === null ? "—" : pct(Math.round((100 - summary.rate) * 10) / 10)}</b>
+                    {summary.previousRate !== null && (
+                        <span dir={dir} className="text-left text-xs text-muted">
+                            {t("prime.returns.rateBefore", { n: pct(Math.round((100 - summary.previousRate) * 10) / 10) })}
+                        </span>
+                    )}
+                </div>
+                <div className={cn(panel, "gap-1")}>
+                    <span dir={dir} className="text-left text-xs text-muted">
+                        {t("prime.returns.hours")}
+                    </span>
+                    <b className="text-[30px] leading-tight tabular-nums text-foreground">{summary.hoursToDeliver === null ? "—" : count.format(Math.round(summary.hoursToDeliver))}</b>
+                    <span dir={dir} className="text-left text-xs text-muted">
+                        {summary.hoursToDeliver !== null && summary.previousHoursToDeliver !== null
+                            ? t("prime.returns.hoursBefore", { n: count.format(Math.round(summary.previousHoursToDeliver)) })
+                            : t("prime.returns.hoursHint")}
+                    </span>
+                </div>
                 <div className={cn(panel, "gap-1")}>
                     <span dir={dir} className="text-left text-xs text-muted">
                         {t("prime.returns.rate")}
@@ -76,14 +102,8 @@ export function PrimeReturnsTab() {
                             {t("prime.returns.rateBefore", { n: pct(summary.previousRate) })}
                         </span>
                     )}
-                </div>
-                <div className={cn(panel, "gap-1")}>
                     <span dir={dir} className="text-left text-xs text-muted">
-                        {t("prime.returns.returned")}
-                    </span>
-                    <b className="text-[30px] leading-tight tabular-nums text-foreground">{count.format(summary.returned)}</b>
-                    <span dir={dir} className="text-left text-xs text-muted">
-                        {t("prime.returns.ofFinished", { count: count.format(summary.finished) })}
+                        {t("prime.returns.returned")}: {count.format(summary.returned)} · {t("prime.returns.ofFinished", { count: count.format(summary.finished) })}
                     </span>
                 </div>
                 <div className={cn(panel, "gap-1")}>
@@ -133,6 +153,7 @@ export function PrimeReturnsTab() {
                                 <th className="pb-2 font-medium">{t("prime.returns.colArea")}</th>
                                 <th className="pb-2 font-medium">{t("prime.returns.colParcels")}</th>
                                 <th className="pb-2 font-medium">{t("prime.returns.colReturned")}</th>
+                                {showDays && <th className="pb-2 font-medium">{t("prime.returns.colDays")}</th>}
                                 <th className="pb-2 text-right font-medium">{t("prime.returns.colRate")}</th>
                             </tr>
                         </thead>
@@ -142,6 +163,7 @@ export function PrimeReturnsTab() {
                                     <td className="text-foreground">{areaName(a.governorate)}</td>
                                     <td className="tabular-nums">{count.format(a.parcels)}</td>
                                     <td className="tabular-nums">{count.format(a.returned)}</td>
+                                    {showDays && <td className="tabular-nums text-muted">{a.days === null ? "—" : a.days}</td>}
                                     <td className={cn("text-right tabular-nums", rateTone(a.rate))}>{pct(a.rate)}</td>
                                 </tr>
                             ))}
@@ -152,6 +174,31 @@ export function PrimeReturnsTab() {
                     </p>
                 </section>
             </div>
+
+            {repeat.returners.length > 0 && (
+                <section data-prime-repeat className={panel} aria-labelledby="prime-returns-repeat">
+                    <h2 id="prime-returns-repeat" dir={dir} className="text-left text-lg font-bold text-foreground">
+                        {t("prime.returns.repeat")}
+                    </h2>
+                    <ul className="flex flex-col">
+                        {repeat.returners.map((r) => (
+                            <li key={r.phone} className="grid min-h-11 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 border-t border-[#EFECE6] text-sm first:border-t-0 dark:border-white/10">
+                                <span dir="auto" className="truncate text-left text-foreground">
+                                    <b className="font-semibold">{r.name ?? r.phone}</b>
+                                    {r.name && <span className="text-muted"> · {r.phone}</span>}
+                                </span>
+                                <span className="tabular-nums text-[#8F1D13] dark:text-rose-300">{t("prime.returns.repeatCount", { count: r.returned })}</span>
+                                <Link href={`/customers/${encodeURIComponent(r.phone)}`} className="inline-flex h-8 items-center rounded-full border border-[var(--card-border)] px-3 text-xs font-semibold text-foreground hover:bg-black/[0.04] dark:hover:bg-white/10">
+                                    {t("prime.returns.repeatShield")}
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                    <p dir={dir} className="text-left text-xs leading-relaxed text-muted">
+                        {t("prime.returns.repeatNote")}
+                    </p>
+                </section>
+            )}
         </div>
     );
 }

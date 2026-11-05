@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useAuth } from "@/components/auth/auth-provider";
 import { primeShipmentsKey } from "@/hooks/use-prime-shipments";
 import { supabase } from "@/lib/supabase";
+import { addDaysToDayKey, baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 import { primeMonthRange, primeMonthReport, type PrimeMonthParcel, type PrimeMonthReport } from "@/lib/prime/month-report";
 
 const PAGE = 1000;
@@ -22,9 +23,7 @@ const rowSchema = z.object({
     }),
 });
 
-async function fetchMonth(tenantId: string, month: string): Promise<PrimeMonthParcel[]> {
-    const range = primeMonthRange(month);
-    if (!range) throw new Error(`Bad month: ${month}`);
+async function fetchRange(tenantId: string, range: { from: string; to: string }): Promise<PrimeMonthParcel[]> {
     const parcels: PrimeMonthParcel[] = [];
     // Pages, because the API hands out at most 1000 rows at a time.
     for (let from = 0; ; from += PAGE) {
@@ -55,6 +54,23 @@ async function fetchMonth(tenantId: string, month: string): Promise<PrimeMonthPa
     }
 }
 
+/** The parcels handed to Prime in the last `days` Baghdad days (today included), for the day-batches view. */
+export function usePrimeRecentParcels(days: number, enabled: boolean): { parcels: PrimeMonthParcel[]; isPending: boolean; isError: boolean } {
+    const { session, clientReady, tenantId } = useAuth();
+    const query = useQuery({
+        queryKey: [...primeShipmentsKey(tenantId), "recent", days],
+        enabled: enabled && !!session && clientReady && !!tenantId,
+        staleTime: 60_000,
+        queryFn: () => {
+            if (!tenantId) throw new Error("No active tenant");
+            const now = Date.now();
+            const from = new Date(baghdadDayStart(addDaysToDayKey(baghdadDayKey(now), -(days - 1)))).toISOString();
+            return fetchRange(tenantId, { from, to: new Date(now + 86_400_000).toISOString() });
+        },
+    });
+    return { parcels: query.data ?? [], isPending: query.isPending, isError: query.isError };
+}
+
 /** The parcels handed to Prime in a Baghdad month (`YYYY-MM`) and the month's counts. */
 export function usePrimeMonthReport(month: string, enabled: boolean): { parcels: PrimeMonthParcel[]; report: PrimeMonthReport | null; isPending: boolean; isError: boolean } {
     const { session, clientReady, tenantId } = useAuth();
@@ -63,8 +79,10 @@ export function usePrimeMonthReport(month: string, enabled: boolean): { parcels:
         enabled: enabled && !!session && clientReady && !!tenantId,
         staleTime: 5 * 60_000,
         queryFn: () => {
+            const range = primeMonthRange(month);
+            if (!range) throw new Error(`Bad month: ${month}`);
             if (!tenantId) throw new Error("No active tenant");
-            return fetchMonth(tenantId, month);
+            return fetchRange(tenantId, range);
         },
     });
     const parcels = query.data ?? [];

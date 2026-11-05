@@ -25,9 +25,9 @@ export function PrimeMoneyStrip({ onRoad, admin }: { onRoad: number; admin: bool
 
     return (
         <section aria-label={t("prime.page.moneyStrip")} className={admin ? "grid grid-cols-3 gap-3" : "grid grid-cols-1 gap-3"}>
-            <div data-prime-money="on_road" className="flex min-w-0 flex-col gap-0.5 rounded-2xl bg-[#315EA8] px-4 py-3 text-white">
-                <span className="text-xs text-[#D6E1F5]">{t("prime.page.moneyOnRoad")}</span>
-                <b className="text-[26px] leading-tight tabular-nums">{amount.format(onRoad)}</b>
+            <div data-prime-money="on_road" className={tile}>
+                <span className="text-xs text-muted">{t("prime.page.moneyOnRoad")}</span>
+                <b className="text-[26px] leading-tight tabular-nums text-[#315EA8] dark:text-sky-300">{amount.format(onRoad)}</b>
             </div>
             {admin && (
                 <>

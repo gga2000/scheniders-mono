@@ -172,4 +172,16 @@ describe("PrimeProblemsTab", () => {
         await waitFor(() => expect(screen.getByTestId("panel")).toBeTruthy());
         expect(screen.getByText("Parcel 1261103001")).toBeTruthy();
     });
+
+    it("finds a parcel by case number, order number or phone and opens its journey", async () => {
+        render(<PrimeProblemsTab data={data()} onAskPrime={vi.fn()} />);
+        const search = screen.getByLabelText("Case number, phone or order number");
+        fireEvent.change(search, { target: { value: "9999" } });
+        fireEvent.submit(search.closest("form") as HTMLFormElement);
+        expect(screen.getByText("No parcel with this number.")).toBeTruthy();
+
+        fireEvent.change(search, { target: { value: "1261103004" } });
+        fireEvent.submit(search.closest("form") as HTMLFormElement);
+        await waitFor(() => expect(screen.getByText("Parcel 1261103004")).toBeTruthy());
+    });
 });

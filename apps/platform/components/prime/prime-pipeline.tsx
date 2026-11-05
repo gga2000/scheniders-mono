@@ -6,13 +6,13 @@ import { cn } from "@/lib/utils";
 
 const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
-const STAGE_TONE = {
-    gray: "bg-[#F5F3EF] text-foreground dark:bg-white/5",
-    blue: "bg-[#EEF2F9] text-[#1F3F75] dark:bg-sky-400/10 dark:text-sky-200",
-    ink: "bg-[#315EA8] text-white",
-    green: "bg-[#E3F2E9] text-[#165C39] dark:bg-emerald-400/10 dark:text-emerald-200",
+/** One palette: white cards, one Prime blue, and a small dot that says where the stage stands. */
+const STAGE_DOT = {
+    gray: "bg-[#B8B3AA]",
+    blue: "bg-[#315EA8]",
+    ink: "bg-[#315EA8]",
+    green: "bg-[#1F7A4D]",
 } as const;
-
 const SIDE_TONE = {
     amber: "border-[#F1DDBF] bg-[#FFFAF2] text-[#8A4B00] dark:border-amber-400/25 dark:bg-amber-400/[0.06] dark:text-amber-200",
     red: "border-[#F0C9C4] bg-[#FFF6F5] text-[#8F1D13] dark:border-rose-400/25 dark:bg-rose-500/[0.06] dark:text-rose-200",
@@ -50,7 +50,7 @@ export function PrimePipeline({
     const dir = useTextDir();
     const { lists, cash } = board;
 
-    const stage = (list: PrimeBoardList, tone: keyof typeof STAGE_TONE, label: string, foot: string) => {
+    const stage = (list: PrimeBoardList, tone: keyof typeof STAGE_DOT, label: string, foot: string) => {
         const age = ages[list] ?? null;
         return (
             <button
@@ -59,24 +59,24 @@ export function PrimePipeline({
                 aria-pressed={selected === list}
                 data-prime-stage={list}
                 className={cn(
-                    "flex min-w-0 flex-col gap-0.5 rounded-2xl px-4 py-3 text-left transition-shadow hover:shadow-[0_0_0_2px_rgba(49,94,168,0.25)]",
-                    STAGE_TONE[tone],
+                    "flex min-w-0 flex-col gap-0.5 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3 text-left text-foreground transition-shadow hover:shadow-[0_0_0_2px_rgba(49,94,168,0.25)]",
                     selected === list && "shadow-[0_0_0_2px_#315EA8]",
                 )}
             >
-                <span dir={dir} className={cn("text-left text-xs", tone === "ink" ? "text-[#D6E1F5]" : "opacity-80")}>
+                <span dir={dir} className="flex items-center gap-2 text-left text-xs text-muted">
+                    <span aria-hidden="true" data-stage-dot={tone} className={cn("h-2 w-2 shrink-0 rounded-full", STAGE_DOT[tone])} />
                     {label}
                 </span>
                 <span className="flex items-baseline justify-between gap-2">
                     <span className="text-[28px] font-bold leading-tight tabular-nums">{lists[list].length}</span>
                     {age !== null && age > 0 && lists[list].length > 0 && (
-                        <span data-prime-age={primeAgeTone(age)} className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold", AGE_TONE[primeAgeTone(age)], tone === "ink" && primeAgeTone(age) === "ok" && "bg-white/20 text-white")}>
+                        <span data-prime-age={primeAgeTone(age)} className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold", AGE_TONE[primeAgeTone(age)])}>
                             {t("prime.page.oldestAge", { days: age })}
                         </span>
                     )}
                 </span>
                 {foot && (
-                    <span dir={dir} className={cn("truncate text-left text-xs tabular-nums", tone === "ink" ? "text-[#D6E1F5]" : "opacity-80")}>
+                    <span dir={dir} className="truncate text-left text-xs tabular-nums text-muted">
                         {foot}
                     </span>
                 )}

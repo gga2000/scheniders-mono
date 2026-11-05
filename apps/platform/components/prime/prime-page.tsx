@@ -14,6 +14,7 @@ import { usePrimeStatements } from "@/hooks/use-prime-statements";
 import { primeOldestAgeDays, readPrimeBoardList, type PrimeBoardList } from "@/lib/prime/board";
 import { primeProblemsFrom } from "@/lib/prime/problems";
 import { cn } from "@/lib/utils";
+import { PrimeDayBatches } from "./prime-day-batches";
 import { PrimeMoneyStrip } from "./prime-money-strip";
 import { PrimePipeline } from "./prime-pipeline";
 import { PrimeParcelList } from "./prime-parcel-list";
@@ -67,6 +68,8 @@ export function PrimePage() {
         setTab(linkedTab);
     }
     const [list, setList] = useState<PrimeBoardList>(linkedList ?? "needs");
+    // The list of parcels, or the last days as batches with what became of each.
+    const [view, setView] = useState<"list" | "batches">("list");
     const [statementId, setStatementId] = useState<number | null>(null);
     // «اسأل برايم» on an orders-page card links here with the order to ask about.
     const linkedAsk = params.get("ask");
@@ -125,7 +128,7 @@ export function PrimePage() {
     return (
         <div className="min-h-screen p-6 md:p-8">
             <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
-                <header className="flex flex-wrap items-center justify-between gap-4">
+                <header className="sticky top-0 z-30 -mx-6 flex flex-wrap items-center justify-between gap-4 bg-background/95 px-6 py-3 backdrop-blur md:-mx-8 md:px-8">
                     <div className="flex items-center gap-3.5">
                         <span aria-hidden="true" className="flex h-[52px] w-[52px] items-center justify-center rounded-2xl bg-[#315EA8]">
                             <span className="h-3.5 w-[46px] bg-white [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat]" />
@@ -183,8 +186,27 @@ export function PrimePage() {
                             <PrimeMoneyStrip onRoad={data.board.cash.on_road} admin={admin} />
                             <PrimePipeline board={data.board} branchName={connection.branchName} selected={list} onSelect={setList} ages={ages} />
                             <div className="flex items-start gap-[18px]">
-                                <div className="min-w-0 flex-[1.4]">
-                                    {list === "needs" ? (
+                                <div className="flex min-w-0 flex-[1.4] flex-col gap-3">
+                                    <div role="group" aria-label={t("prime.batches.view")} className="flex w-fit rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] p-0.5">
+                                        {(["list", "batches"] as const).map((id) => (
+                                            <button
+                                                key={id}
+                                                type="button"
+                                                data-prime-view={id}
+                                                aria-pressed={view === id}
+                                                onClick={() => setView(id)}
+                                                className={cn(
+                                                    "inline-flex h-8 items-center rounded-full px-3.5 text-[13px] font-semibold transition-colors",
+                                                    view === id ? "bg-[var(--ink)] text-white dark:bg-white dark:text-[var(--ink)]" : "text-muted hover:text-foreground",
+                                                )}
+                                            >
+                                                {t(id === "list" ? "prime.batches.viewList" : "prime.batches.viewBatches")}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {view === "batches" ? (
+                                        <PrimeDayBatches />
+                                    ) : list === "needs" ? (
                                         <PrimeProblemsTab
                                             data={data}
                                             onAskPrime={(orderId) => askPrime(orderId)}
