@@ -78,7 +78,7 @@ export function primeBoard(parcels: readonly PrimeBoardParcel[], now: number): P
         }
         const bucket = primeBucket(view);
         // A parcel Prime cancelled stays on the list until staff close the order.
-        if (view.status === "CNCL" && view.cancelledAt === null && p.orderStatus !== "cancelled") {
+        if (view.status === "CNCL" && view.cancelledAt === null && OPEN_ORDER.has(p.orderStatus)) {
             reasons.set(p.orderId, "cancelled_by_prime");
             needs.push(p);
             continue;

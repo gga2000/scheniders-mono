@@ -593,6 +593,7 @@ export function useOrdersPageModel() {
     // previous list. Hidden counts render "—" (search, archive, a refinement,
     // or rows still loading for the window).
     const defShowArchived = React.useDeferredValue(showArchived);
+    const defPrimeQueue = React.useDeferredValue(useOrderStore((s) => s.primeQueue));
     const countVis = useMemo(() => countVisibility({
         facts: countViewFacts,
         archived: defShowArchived,
@@ -603,7 +604,8 @@ export function useOrdersPageModel() {
         stuckTransit: defFilterStuckTransit,
         paymentUnchecked: defFilterPaymentUnchecked,
         primeBucket: defFilterPrimeBucket !== null,
-    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterPrimeBucket]);
+        primeQueue: defPrimeQueue !== null,
+    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterPrimeBucket, defPrimeQueue]);
 
     // The head of a wide list fetch, while the window loads — rows in under a
     // second instead of a skeleton for the whole book. Only for the plain list:

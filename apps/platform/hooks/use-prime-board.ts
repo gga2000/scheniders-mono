@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { PRIME_VIEW_COLUMNS, primeShipmentRowSchema, primeShipmentsKey, primeViewFromRow } from "@/hooks/use-prime-shipments";
 import { supabase } from "@/lib/supabase";
 import { computeCodAmount } from "@/lib/order-money";
+import { fetchAllPages } from "@/lib/repositories/fetch-all-pages";
 import { baghdadDayKey, baghdadDayStart } from "@/lib/order-window";
 import { primeBoard, type PrimeBoard, type PrimeBoardParcel } from "@/lib/prime/board";
 import type { PrimeShipmentView } from "@/lib/prime/chip-state";
@@ -56,15 +57,21 @@ async function fetchBoardRows(tenantId: string) {
     const since = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString();
     const today = new Date(baghdadDayStart(baghdadDayKey(Date.now()))).toISOString();
     const select = `${PRIME_VIEW_COLUMNS}, orders!inner(${ORDER_COLUMNS})`;
-    // Open parcels (and the ones Prime cancelled), plus whatever moved or was handed over today.
+    // Open parcels (and the ones Prime cancelled), plus whatever moved or was
+    // handed over today. Trashed orders are left out, as the list leaves them
+    // out; every page is read, since the API stops at 1000 rows without an error.
     const [open, todays] = await Promise.all([
-        supabase.from("prime_shipments").select(select).eq("tenant_id", tenantId).in("orders.status", ["confirmed", "in_transit", "cancelled"]).gte("sent_at", since),
-        supabase.from("prime_shipments").select(select).eq("tenant_id", tenantId).or(`sent_at.gte.${today},status_changed_at.gte.${today}`),
+        fetchAllPages<unknown>((from, to) =>
+            supabase.from("prime_shipments").select(select).eq("tenant_id", tenantId).is("orders.deleted_at", null)
+                .in("orders.status", ["confirmed", "in_transit", "cancelled"]).gte("sent_at", since).order("id").range(from, to),
+        ),
+        fetchAllPages<unknown>((from, to) =>
+            supabase.from("prime_shipments").select(select).eq("tenant_id", tenantId).is("orders.deleted_at", null)
+                .or(`sent_at.gte.${today},status_changed_at.gte.${today}`).order("id").range(from, to),
+        ),
     ]);
-    if (open.error) throw open.error;
-    if (todays.error) throw todays.error;
     const byOrder = new Map<string, z.infer<typeof boardRowSchema>>();
-    for (const row of z.array(boardRowSchema).parse([...(open.data ?? []), ...(todays.data ?? [])])) byOrder.set(row.order_id, row);
+    for (const row of z.array(boardRowSchema).parse([...open, ...todays])) byOrder.set(row.order_id, row);
     return [...byOrder.values()];
 }
 
@@ -87,23 +94,40 @@ export function usePrimeBoard(enabled: boolean) {
         },
     });
 
-    const data = useMemo((): PrimeBoardData | null => {
-        if (!query.data) return null;
-        const views = new Map<string, PrimeShipmentView>();
-        const orders = new Map<string, PrimeBoardOrder>();
-        const cash = new Map<string, number>();
-        const parcels: PrimeBoardParcel[] = [];
-        for (const row of query.data) {
-            const view = primeViewFromRow(row);
-            const order = row.orders;
-            const collect = view.receiptAmountIqd ?? computeCodAmount(order);
-            views.set(row.order_id, view);
-            orders.set(row.order_id, order);
-            cash.set(row.order_id, collect);
-            parcels.push({ orderId: row.order_id, orderStatus: order.status, view, cash: collect });
-        }
-        return { board: primeBoard(parcels, query.dataUpdatedAt), views, orders, cash, readAt: query.dataUpdatedAt };
-    }, [query.data, query.dataUpdatedAt]);
+    const data = useMemo(() => (query.data ? boardData(query.data, query.dataUpdatedAt) : null), [query.data, query.dataUpdatedAt]);
 
     return { data, isPending: query.isPending, isError: query.isError, refetch: query.refetch };
+}
+
+type BoardRows = Awaited<ReturnType<typeof fetchBoardRows>>;
+
+/**
+ * Every card and chip that reads the board shares one query result, so the
+ * board is built once per read rather than once per observer.
+ */
+const boardCache = new WeakMap<BoardRows, PrimeBoardData>();
+
+function boardData(rows: BoardRows, readAt: number): PrimeBoardData {
+    const cached = boardCache.get(rows);
+    if (cached && cached.readAt === readAt) return cached;
+    const built = buildBoardData(rows, readAt);
+    boardCache.set(rows, built);
+    return built;
+}
+
+function buildBoardData(rows: BoardRows, readAt: number): PrimeBoardData {
+    const views = new Map<string, PrimeShipmentView>();
+    const orders = new Map<string, PrimeBoardOrder>();
+    const cash = new Map<string, number>();
+    const parcels: PrimeBoardParcel[] = [];
+    for (const row of rows) {
+        const view = primeViewFromRow(row);
+        const order = row.orders;
+        const collect = view.receiptAmountIqd ?? computeCodAmount(order);
+        views.set(row.order_id, view);
+        orders.set(row.order_id, order);
+        cash.set(row.order_id, collect);
+        parcels.push({ orderId: row.order_id, orderStatus: order.status, view, cash: collect });
+    }
+    return { board: primeBoard(parcels, readAt), views, orders, cash, readAt };
 }

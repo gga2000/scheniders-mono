@@ -18,8 +18,14 @@ export interface PrimeQueue {
     problems: PrimeProblem[];
     /** Order ids in list order. */
     orderIds: string[];
-    /** What the chip counts: the ones nobody has handled yet. */
+    /**
+     * What the chip counts. «معالجة»: the ones nobody has handled yet.
+     * «راجع»: every parcel on its way back (a call marked handled does not
+     * take it in; only the returns desk does).
+     */
     waiting: number;
+    /** The queue's problem for each order. */
+    byOrder: ReadonlyMap<string, PrimeProblem>;
 }
 
 export function primeQueueOf(problem: Pick<PrimeProblem, "kind">): PrimeQueueId {
@@ -28,15 +34,18 @@ export function primeQueueOf(problem: Pick<PrimeProblem, "kind">): PrimeQueueId 
 
 /** Splits the problems (already sorted) into the two queues. */
 export function primeQueues(problems: readonly PrimeProblem[]): Record<PrimeQueueId, PrimeQueue> {
+    const byOrder = { fix: new Map<string, PrimeProblem>(), back: new Map<string, PrimeProblem>() };
     const queues: Record<PrimeQueueId, PrimeQueue> = {
-        fix: { problems: [], orderIds: [], waiting: 0 },
-        back: { problems: [], orderIds: [], waiting: 0 },
+        fix: { problems: [], orderIds: [], waiting: 0, byOrder: byOrder.fix },
+        back: { problems: [], orderIds: [], waiting: 0, byOrder: byOrder.back },
     };
     for (const problem of problems) {
-        const queue = queues[primeQueueOf(problem)];
+        const id = primeQueueOf(problem);
+        const queue = queues[id];
         queue.problems.push(problem);
         queue.orderIds.push(problem.orderId);
-        if (!problem.handled) queue.waiting++;
+        byOrder[id].set(problem.orderId, problem);
+        if (id === "back" || !problem.handled) queue.waiting++;
     }
     return queues;
 }
