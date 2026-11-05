@@ -21,6 +21,8 @@ export function OrderDetailsStatusSection({ m }: { m: OrderDetailsView }) {
                                 return (
                                     <button
                                         key={action.status}
+                                        data-status-option={action.status}
+                                        data-current={isCurrentStatus ? "" : undefined}
                                         onClick={() => handleStatusChange(action.status)}
                                         disabled={isUpdatingStatus || isCurrentStatus}
                                         className={cn(
@@ -48,6 +50,8 @@ export function OrderDetailsStatusSection({ m }: { m: OrderDetailsView }) {
                                 return (
                                     <button
                                         key={action.status}
+                                        data-status-option={action.status}
+                                        data-current={isCurrentStatus ? "" : undefined}
                                         onClick={() => handleStatusChange(action.status)}
                                         disabled={isUpdatingStatus || isCurrentStatus}
                                         className={cn(
@@ -75,6 +79,8 @@ export function OrderDetailsStatusSection({ m }: { m: OrderDetailsView }) {
                                 return (
                                     <button
                                         key={action.status}
+                                        data-status-option={action.status}
+                                        data-current={isCurrentStatus ? "" : undefined}
                                         onClick={() => handleStatusChange(action.status)}
                                         disabled={isUpdatingStatus || isCurrentStatus}
                                         className={cn(
@@ -103,6 +109,8 @@ export function OrderDetailsStatusSection({ m }: { m: OrderDetailsView }) {
                                 return (
                                     <button
                                         key={action.status}
+                                        data-status-option={action.status}
+                                        data-current={isCurrentStatus ? "" : undefined}
                                         onClick={() => handleStatusChange(action.status)}
                                         disabled={isUpdatingStatus || isCurrentStatus}
                                         className={cn(
@@ -130,6 +138,8 @@ export function OrderDetailsStatusSection({ m }: { m: OrderDetailsView }) {
                                 return (
                                     <button
                                         key={action.status}
+                                        data-status-option={action.status}
+                                        data-current={isCurrentStatus ? "" : undefined}
                                         onClick={() => handleStatusChange(action.status)}
                                         disabled={isUpdatingStatus || isCurrentStatus}
                                         className={cn(
@@ -157,6 +167,8 @@ export function OrderDetailsStatusSection({ m }: { m: OrderDetailsView }) {
                                 return (
                                     <button
                                         key={action.status}
+                                        data-status-option={action.status}
+                                        data-current={isCurrentStatus ? "" : undefined}
                                         onClick={() => handleStatusChange(action.status)}
                                         disabled={isUpdatingStatus || isCurrentStatus}
                                         className={cn(

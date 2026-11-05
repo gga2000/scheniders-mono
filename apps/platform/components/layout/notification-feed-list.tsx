@@ -331,7 +331,7 @@ export function NotificationFeedList({
 
                                             {oldStatus(n) && newStatus(n) && (
                                                 <div className="flex items-center gap-2 mt-2">
-                                                    <div className={cn(
+                                                    <div data-status={oldStatus(n) as string} className={cn(
                                                         "px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm",
                                                         getStatusBadgeStyle(oldStatus(n) as Order["status"]),
                                                     )}>
@@ -339,7 +339,7 @@ export function NotificationFeedList({
                                                         {orderStatusLabel(oldStatus(n) as string)}
                                                     </div>
                                                     <ArrowRight className="w-3 h-3 text-muted-foreground opacity-50" />
-                                                    <div className={cn(
+                                                    <div data-status={newStatus(n) as string} className={cn(
                                                         "px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-sm",
                                                         getStatusBadgeStyle(newStatus(n) as Order["status"]),
                                                     )}>
