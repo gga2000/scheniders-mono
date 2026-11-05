@@ -9,6 +9,14 @@ import { withOrderModalBoundary } from "@/components/orders/order-modal-boundary
 import { compareTwinsFor } from "@/lib/duplicate-window";
 import { useCustomerOrderHistory } from "@/hooks/use-customer-order-history";
 import type { Order, OrderItem, MessageTemplate } from "@/lib/supabase";
+import { useLanguage } from "@/hooks/use-language";
+import { toast } from "@/hooks/use-toast";
+import { useSetShieldExcused } from "@/hooks/use-shield-excuse";
+
+/** updateOrderStatus resolves { success: false } when the write failed or a newer change replaced it. */
+function statusWriteSucceeded(result: unknown): boolean {
+    return !(typeof result === "object" && result !== null && "success" in result && result.success === false);
+}
 
 const OrderDetailsModal = withOrderModalBoundary(
     "OrderDetailsModal",
@@ -123,6 +131,13 @@ export function OrderDialogs({
         isBlacklisted,
         getBlacklistEntry,
     } = useOrdersContext();
+    const { t } = useLanguage();
+    const setShieldExcused = useSetShieldExcused();
+    // "Our fault" in the cancel / reject dialog: the order costs the customer no Shield points.
+    const markOurFault = (orderId: string) =>
+        setShieldExcused.mutateAsync({ orderId, excused: true }).catch(() => {
+            toast({ title: t("shield.excuse.failed"), variant: "error" });
+        });
 
     const {
         isModalOpen, setIsModalOpen,
@@ -316,9 +331,10 @@ export function OrderDialogs({
                     setCancelDialogOpen(false);
                     setOrderToCancel(null);
                 }}
-                onConfirm={async (reason, reasonId) => {
+                onConfirm={async (reason, reasonId, ourFault) => {
                     if (orderToCancel) {
-                        await onStatusUpdate(orderToCancel.id, "cancelled", reason, reasonId);
+                        const result = await onStatusUpdate(orderToCancel.id, "cancelled", reason, reasonId);
+                        if (ourFault && statusWriteSucceeded(result)) await markOurFault(orderToCancel.id);
                     }
                 }}
                 customerName={orderToCancel?.customer_name}
@@ -333,9 +349,10 @@ export function OrderDialogs({
                     setRejectDialogOpen(false);
                     setOrderToReject(null);
                 }}
-                onConfirm={async (reason, reasonId) => {
+                onConfirm={async (reason, reasonId, ourFault) => {
                     if (orderToReject) {
-                        await onStatusUpdate(orderToReject.id, "rejected", reason, reasonId);
+                        const result = await onStatusUpdate(orderToReject.id, "rejected", reason, reasonId);
+                        if (ourFault && statusWriteSucceeded(result)) await markOurFault(orderToReject.id);
                     }
                 }}
                 customerName={orderToReject?.customer_name}

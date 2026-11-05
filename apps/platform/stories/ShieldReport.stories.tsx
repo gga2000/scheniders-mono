@@ -5,6 +5,14 @@ import { LanguageProvider } from "@/components/providers/language-provider";
 import { ShieldReviewDialog } from "@/components/orders/shield/shield-review-dialog";
 import { orderChecks, trustOf } from "@/lib/shield/trust";
 import type { ShieldNetwork } from "@/lib/shield/types";
+import type { ShieldOwnBadOrder } from "@/hooks/use-shield-excuse";
+
+/** This store's orders behind mixedOwn's minuses; the cancel was the courier's fault. */
+const mixedOwnOrders: ShieldOwnBadOrder[] = [
+    { id: "o3", sequence_number: 4310, created_at: "2026-10-28T12:00:00Z", status: "no_response", reason: null, points: 25, excused: false },
+    { id: "o2", sequence_number: 3982, created_at: "2026-09-14T12:00:00Z", status: "cancelled", reason: "ألغى العميل", points: 10, excused: true },
+    { id: "o1", sequence_number: 3511, created_at: "2026-08-02T12:00:00Z", status: "rejected", reason: "رفض العميل", points: 35, excused: false },
+];
 
 const none = {
     band: "none", score: null, confidence: null, stores: null, outcomes: null, delivered: null, delivered_stores: null,
@@ -55,8 +63,12 @@ const loyal: ShieldNetwork = {
     ],
 };
 
-function Report({ row, address, phone = "07762785320" }: { row: ShieldNetwork | null; address: string; phone?: string }) {
-    const [client] = useState(() => new QueryClient());
+function Report({ row, address, phone = "07762785320", ownOrders = [] }: { row: ShieldNetwork | null; address: string; phone?: string; ownOrders?: ShieldOwnBadOrder[] }) {
+    const [client] = useState(() => {
+        const c = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } });
+        c.setQueryData(["shield", "own-bad", "7762785320"], ownOrders);
+        return c;
+    });
     const [open, setOpen] = useState(true);
     return (
         <QueryClientProvider client={client}>
@@ -91,7 +103,7 @@ export const NewCustomer: Story = { args: { row: null, address: "حي الجام
 export const HighRisk: Story = { args: { row: redNetwork, address: "بغداد" } };
 
 /** Refused and cancelled here before, delivered in between: yellow. */
-export const CallFirst: Story = { args: { row: mixedOwn, address: "الكرادة داخل شارع 62" } };
+export const CallFirst: Story = { args: { row: mixedOwn, address: "الكرادة داخل شارع 62", ownOrders: mixedOwnOrders } };
 
 /** One missed call long ago, healed by deliveries back to 100. */
 export const Trusted: Story = { args: { row: loyal, address: "الكرادة داخل شارع 62 قرب مطعم الفقمة عمارة 4 الطابق الثاني" } };

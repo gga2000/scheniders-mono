@@ -4146,6 +4146,7 @@ export type Database = {
           scheduled_date: string | null
           secondary_phone: string | null
           sequence_number: number | null
+          shield_excused: boolean
           shield_snapshot: Json | null
           source: string | null
           status: string
@@ -4243,6 +4244,7 @@ export type Database = {
           scheduled_date?: string | null
           secondary_phone?: string | null
           sequence_number?: number | null
+          shield_excused?: boolean
           shield_snapshot?: Json | null
           source?: string | null
           status?: string
@@ -4340,6 +4342,7 @@ export type Database = {
           scheduled_date?: string | null
           secondary_phone?: string | null
           sequence_number?: number | null
+          shield_excused?: boolean
           shield_snapshot?: Json | null
           source?: string | null
           status?: string
@@ -9438,6 +9441,22 @@ export type Database = {
       }
       shield_report_wrong: {
         Args: { p_note: string; p_phone: string }
+        Returns: undefined
+      }
+      shield_own_bad_orders: {
+        Args: { p_phone: string }
+        Returns: {
+          created_at: string
+          excused: boolean
+          id: string
+          points: number
+          reason: string | null
+          sequence_number: number | null
+          status: string
+        }[]
+      }
+      shield_set_excused: {
+        Args: { p_excused: boolean; p_order_id: string }
         Returns: undefined
       }
       shield_customer_trust: {
