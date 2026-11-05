@@ -72,11 +72,13 @@ export function TillCustomerScreen() {
                         <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F6F1E9] dark:bg-white/10">
                             {l.image ? <img src={l.image} alt="" className="h-full w-full object-cover" /> : <Package className="h-7 w-7 opacity-40" aria-hidden="true" />}
                         </span>
-                        <span className="min-w-0 flex-1">
-                            <span className="block truncate text-2xl font-semibold" dir="auto">{l.name}</span>
-                            <span className="block text-lg tabular-nums text-[#1E1E1E]/60 dark:text-white/60" dir="auto">
+                        <span className="min-w-0 flex-1" dir="auto">
+                            <span className="block truncate text-2xl font-semibold">{l.name}</span>
+                            <span className="block text-lg tabular-nums text-[#1E1E1E]/60 dark:text-white/60">
                                 {l.variant ? `${l.variant} · ` : ""}
-                                {l.quantity} × {formatIqd(l.price)}
+                                <bdi dir="ltr">
+                                    {l.quantity} × {formatIqd(l.price)}
+                                </bdi>
                             </span>
                         </span>
                         <span className="flex shrink-0 flex-col items-end">
