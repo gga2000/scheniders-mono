@@ -137,4 +137,39 @@ describe("PrimeProblemsTab", () => {
         fireEvent.click(within(done).getByText("Not handled"));
         await waitFor(() => expect(mark).toHaveBeenCalledWith({ action: "reopen", orderId: "o3" }));
     });
+
+    it("marks a parcel handled with one tap on what the customer said on the call", async () => {
+        render(<PrimeProblemsTab data={data()} onAskPrime={vi.fn()} />);
+        const row = document.querySelector('[data-prime-problem="o1"]') as HTMLElement;
+        fireEvent.click(within(row).getByText("Handled"));
+        fireEvent.click(document.querySelector('[data-call-result="noAnswer"]') as HTMLElement);
+        await waitFor(() => expect(mark).toHaveBeenCalledWith({ action: "handled", orderId: "o1", note: "No answer" }));
+    });
+
+    it("marks every picked parcel handled with one note, and handled rows cannot be picked", async () => {
+        render(<PrimeProblemsTab data={data()} onAskPrime={vi.fn()} />);
+        expect(within(document.querySelector('[data-prime-problem="o3"]') as HTMLElement).queryByRole("checkbox")).toBeNull();
+        fireEvent.click(within(document.querySelector('[data-prime-problem="o1"]') as HTMLElement).getByRole("checkbox"));
+        fireEvent.click(within(document.querySelector('[data-prime-problem="o2"]') as HTMLElement).getByRole("checkbox"));
+        fireEvent.change(screen.getByLabelText("What happened? (optional)"), { target: { value: "Called all" } });
+        fireEvent.click(screen.getByText("Handled (2)"));
+        await waitFor(() => expect(mark).toHaveBeenCalledTimes(2));
+        expect(mark).toHaveBeenCalledWith({ action: "handled", orderId: "o1", note: "Called all" });
+        expect(mark).toHaveBeenCalledWith({ action: "handled", orderId: "o2", note: "Called all" });
+    });
+
+    it("counts the parcels handled today and shows a parcel's open ticket on its row", () => {
+        const ticket = { ticketId: 1, caseId: 1, orderId: "o2", orderNumber: "1", customerName: null, subject: null, open: true, latestMessage: "We will retry", at: null };
+        render(<PrimeProblemsTab data={data()} onAskPrime={vi.fn()} tickets={[ticket, { ...ticket, ticketId: 2, orderId: "o1", open: false }]} />);
+        expect(document.querySelector("[data-handled-today]")?.textContent).toBe("Handled today: 1");
+        expect(document.querySelector('[data-prime-problem="o2"] [data-problem-ticket]')?.textContent).toContain("We will retry");
+        expect(document.querySelector('[data-prime-problem="o1"] [data-problem-ticket]')).toBeNull();
+    });
+
+    it("opens the parcel in a side drawer", async () => {
+        render(<PrimeProblemsTab data={data()} onAskPrime={vi.fn()} />);
+        fireEvent.click(within(document.querySelector('[data-prime-problem="o1"]') as HTMLElement).getByText("حيدر"));
+        await waitFor(() => expect(screen.getByTestId("panel")).toBeTruthy());
+        expect(screen.getByText("Parcel 1261103001")).toBeTruthy();
+    });
 });

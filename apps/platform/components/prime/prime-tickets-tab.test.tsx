@@ -100,4 +100,12 @@ describe("PrimeTicketsTab", () => {
         await waitFor(() => expect(onNew).toHaveBeenCalledWith("order-9", "Zainab · 4261103099"));
         expect(screen.queryByLabelText("Order number")).toBeNull();
     });
+
+    it("fills the new ticket's message with a ready text for the store to edit", () => {
+        render(<PrimeTicketsTab tickets={query} newFor={{ orderId: "o1", order: null, label: "Zainab · 4261103099" }} onNew={vi.fn()} onNewDone={vi.fn()} />);
+        fireEvent.click(document.querySelector('[data-ticket-text="postponed"]') as HTMLElement);
+        const message = screen.getByLabelText("Message") as HTMLTextAreaElement;
+        expect(message.value).toContain("Please deliver it tomorrow");
+        expect(message.value).toContain("Zainab · 4261103099");
+    });
 });

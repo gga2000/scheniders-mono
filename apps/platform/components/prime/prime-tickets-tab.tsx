@@ -161,6 +161,9 @@ export function PrimeTicketsTab({
 }
 
 /** A new ticket for a parcel that is not on today's board: found by its order's number. */
+/** Saved first messages for Prime; picking one fills the box and the store edits it before sending. */
+const TICKET_TEXTS = ["address", "noAnswer", "postponed", "price"] as const;
+
 function PrimeFindParcel({ onFound }: { onFound: (orderId: string, label: string) => void }) {
     const { t } = useLanguage();
     const dir = useTextDir();
@@ -416,6 +419,22 @@ function PrimeNewTicket({
                     ))}
                 </select>
             </label>
+            <div className="flex flex-col gap-1.5">
+                <span className="text-xs text-muted">{t("prime.page.ticketTexts")}</span>
+                <div className="flex flex-wrap gap-1.5">
+                    {TICKET_TEXTS.map((key) => (
+                        <button
+                            key={key}
+                            type="button"
+                            data-ticket-text={key}
+                            onClick={() => setText(t(`prime.page.ticketText.${key}`, { order: order?.order_id ?? label }))}
+                            className="inline-flex h-8 items-center rounded-full border border-[#E7E5E4] px-3 text-xs font-semibold text-foreground transition-colors hover:bg-[#F5F3EF] dark:border-white/10 dark:hover:bg-white/10"
+                        >
+                            {t(`prime.page.ticketTextName.${key}`)}
+                        </button>
+                    ))}
+                </div>
+            </div>
             <label htmlFor={ids.message} className="flex flex-col gap-1.5 text-xs text-muted">
                 {t("prime.page.firstMessage")}
                 <textarea id={ids.message} dir="auto" rows={4} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} className={cn(field, "py-2.5")} />

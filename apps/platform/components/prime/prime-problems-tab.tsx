@@ -1,9 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, ChevronDown } from "lucide-react";
+import { CheckCircle2, ChevronRight, X } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
+import { Dialog, DialogClose, DialogTitle, SheetContent } from "@scheniders/ui/dialog";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import type { PrimeBoardData } from "@/hooks/use-prime-board";
+import { usePrimeProblemMark } from "@/hooks/use-prime-shipments";
+import type { PrimeTicketView } from "@/hooks/use-prime-tickets";
+import { toast } from "@/hooks/use-toast";
+import { baghdadDayKey } from "@/lib/order-window";
 import { primeChipState } from "@/lib/prime/chip-state";
 import { PRIME_PROBLEM_KINDS, primeProblemsFrom, type PrimeProblem, type PrimeProblemKind } from "@/lib/prime/problems";
 import { primeReasonNote, primeTrack } from "@/lib/prime/track";
@@ -28,10 +34,13 @@ type Filter = PrimeProblemKind | "all";
 export function PrimeProblemsTab({
     data,
     onAskPrime,
+    tickets,
     calm,
 }: {
     data: PrimeBoardData;
     onAskPrime: (orderId: string) => void;
+    /** The store's tickets with Prime; an open one shows on its parcel's row. */
+    tickets?: readonly PrimeTicketView[];
     /** What the quiet state says when nothing needs anyone: the oldest parcel still on the road and when Prime was last read. */
     calm?: { oldest: { orderNumber: string; days: number } | null; checkedMinutesAgo: number | null };
 }) {
@@ -44,6 +53,41 @@ export function PrimeProblemsTab({
     const waiting = problems.filter((p) => !p.handled).length;
     const shown = problems.filter((p) => filter === "all" || p.kind === filter);
     const toggle = (orderId: string, focus: PrimePanelFocus) => setOpen((now) => (now?.orderId === orderId && now.focus === focus ? null : { orderId, focus }));
+    const openTicketOf = useMemo(() => new Map((tickets ?? []).filter((x) => x.open).map((x) => [x.orderId, x])), [tickets]);
+    // Parcels someone marked handled today (Baghdad day): the team sees work done.
+    const handledToday = useMemo(() => {
+        const today = baghdadDayKey(data.readAt);
+        let count = 0;
+        for (const view of data.views.values()) if (view.problemCheckedAt && baghdadDayKey(Date.parse(view.problemCheckedAt)) === today) count += 1;
+        return count;
+    }, [data]);
+
+    // Several rows picked to be marked handled in one go, with one note.
+    const mark = usePrimeProblemMark();
+    const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+    const [bulkNote, setBulkNote] = useState("");
+    const [bulkBusy, setBulkBusy] = useState(false);
+    const pickable = problems.filter((p) => !p.handled).map((p) => p.orderId);
+    const chosen = pickable.filter((id) => picked.has(id));
+    const pick = (orderId: string) =>
+        setPicked((now) => {
+            const next = new Set(now);
+            if (!next.delete(orderId)) next.add(orderId);
+            return next;
+        });
+    const markChosen = async () => {
+        setBulkBusy(true);
+        try {
+            const note = bulkNote.trim() || undefined;
+            const results = await Promise.allSettled(chosen.map((orderId) => mark({ action: "handled", orderId, note })));
+            const failed = results.filter((r) => r.status === "rejected" || !r.value).length;
+            if (failed > 0) toast.error(t("prime.problems.bulkSaveFailed", { count: failed }));
+            setPicked(new Set());
+            setBulkNote("");
+        } finally {
+            setBulkBusy(false);
+        }
+    };
 
     return (
         <section className="flex min-w-0 flex-col gap-4 rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-5">
@@ -51,8 +95,36 @@ export function PrimeProblemsTab({
                 <h2 className="text-[17px] font-bold text-foreground">
                     {t("prime.page.workTitle")} <span className="text-muted tabular-nums">· {waiting}</span>
                 </h2>
-                <span className="text-xs text-muted">{t("prime.problems.hint")}</span>
+                <span className="text-xs text-muted">
+                    {handledToday > 0 && (
+                        <b data-handled-today className="me-2 font-semibold text-[#165C39] dark:text-emerald-300">
+                            {t("prime.problems.handledToday", { count: handledToday })}
+                        </b>
+                    )}
+                    {t("prime.problems.hint")}
+                </span>
             </div>
+
+            {chosen.length > 0 && (
+                <div data-bulk-bar className="flex flex-wrap items-center gap-3 rounded-2xl bg-[#F1F5FB] px-4 py-3 dark:bg-sky-400/[0.06]">
+                    <b className="text-sm text-foreground">{t("prime.problems.selected", { count: chosen.length })}</b>
+                    <input
+                        dir="auto"
+                        value={bulkNote}
+                        maxLength={300}
+                        onChange={(e) => setBulkNote(e.target.value)}
+                        placeholder={t("prime.problems.notePlaceholder")}
+                        aria-label={t("prime.problems.noteLabel")}
+                        className="h-9 min-w-[220px] flex-1 rounded-lg border border-[var(--card-border)] bg-[var(--background)] px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                    />
+                    <button type="button" disabled={bulkBusy} onClick={() => void markChosen()} className="inline-flex h-9 items-center rounded-full bg-[var(--ink)] px-4 text-[13px] font-bold text-white disabled:opacity-60 dark:bg-white dark:text-[var(--ink)]">
+                        {t("prime.problems.markSelected", { count: chosen.length })}
+                    </button>
+                    <button type="button" onClick={() => setPicked(new Set())} className="text-[13px] font-semibold text-muted hover:text-foreground">
+                        {t("prime.problems.clearSelection")}
+                    </button>
+                </div>
+            )}
 
             {problems.length > 0 && (
                 <div className="flex flex-wrap gap-2" role="group" aria-label={t("prime.page.workTitle")}>
@@ -96,29 +168,70 @@ export function PrimeProblemsTab({
                             key={problem.orderId}
                             problem={problem}
                             data={data}
-                            open={open?.orderId === problem.orderId ? open.focus : null}
                             onToggle={(focus) => toggle(problem.orderId, focus)}
+                            picked={picked.has(problem.orderId)}
+                            onPick={problem.handled ? null : () => pick(problem.orderId)}
+                            ticket={openTicketOf.get(problem.orderId) ?? null}
                             onAskPrime={() => onAskPrime(problem.orderId)}
                         />
                     ))}
                 </ol>
             )}
+            <ParcelDrawer data={data} open={open} onClose={() => setOpen(null)} />
         </section>
+    );
+}
+
+/** The parcel's journey, money and resend form in a side drawer, so the list stays where it was. */
+function ParcelDrawer({ data, open, onClose }: { data: PrimeBoardData; open: { orderId: string; focus: PrimePanelFocus } | null; onClose: () => void }) {
+    const { t } = useLanguage();
+    const view = open ? data.views.get(open.orderId) : undefined;
+    const order = open ? data.orders.get(open.orderId) : undefined;
+    const shown = open && view && order ? { open, view, order } : null;
+    return (
+        <Dialog open={shown !== null} onOpenChange={(next) => { if (!next) onClose(); }}>
+            <AnimatePresence>
+                {shown && (
+                    <SheetContent key={shown.open.orderId} aria-describedby={undefined} data-prime-drawer>
+                        <div className="flex items-center justify-between gap-3 border-b border-[var(--card-border)] px-5 py-4">
+                            <DialogTitle className="text-base font-bold text-foreground">{t("prime.problems.parcelDrawer", { order: shown.order.order_id })}</DialogTitle>
+                            <DialogClose aria-label={t("prime.problems.closeDrawer")} className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10">
+                                <X className="h-4 w-4" aria-hidden="true" />
+                            </DialogClose>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto">
+                            <PrimeParcelPanel
+                                order={shown.order}
+                                view={shown.view}
+                                focus={shown.open.focus}
+                                returning={primeTrack(shown.view).state === "returning"}
+                                canResend={primeChipState(shown.view, shown.order.status).canResend}
+                            />
+                        </div>
+                    </SheetContent>
+                )}
+            </AnimatePresence>
+        </Dialog>
     );
 }
 
 function ProblemRow({
     problem,
     data,
-    open,
     onToggle,
     onAskPrime,
+    picked,
+    onPick,
+    ticket,
 }: {
     problem: PrimeProblem;
     data: PrimeBoardData;
-    open: PrimePanelFocus | null;
     onToggle: (focus: PrimePanelFocus) => void;
     onAskPrime: () => void;
+    picked: boolean;
+    /** Null on a handled row: only unhandled ones can be picked. */
+    onPick: (() => void) | null;
+    ticket: PrimeTicketView | null;
 }) {
     const { t } = useLanguage();
     const dir = useTextDir();
@@ -133,8 +246,20 @@ function ProblemRow({
     return (
         <li data-prime-problem={problem.orderId} data-problem-kind={problem.kind} className={cn("border-t border-[#F0EDE7] first:border-t-0 dark:border-white/10", problem.handled && "opacity-70")}>
             <div className="grid min-h-[64px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3">
-                <button type="button" onClick={() => onToggle("journey")} aria-expanded={open !== null} className="flex min-w-0 items-start gap-2.5 text-left">
-                    <ChevronDown aria-hidden="true" className={cn("mt-1 h-4 w-4 shrink-0 text-[#8A8A8A] transition-transform", open !== null && "rotate-180")} />
+                <div className="flex min-w-0 items-start gap-2.5">
+                {onPick ? (
+                    <input
+                        type="checkbox"
+                        checked={picked}
+                        onChange={onPick}
+                        aria-label={t("prime.problems.select", { name: order.customer_name || order.order_id })}
+                        className="mt-1 h-4 w-4 shrink-0 accent-[#1E1E1E]"
+                    />
+                ) : (
+                    <span aria-hidden="true" className="mt-1 h-4 w-4 shrink-0" />
+                )}
+                <button type="button" onClick={() => onToggle("journey")} aria-haspopup="dialog" className="flex min-w-0 flex-1 items-start gap-2.5 text-left">
+                    <ChevronRight aria-hidden="true" className="mt-1 h-4 w-4 shrink-0 text-[#8A8A8A]" />
                     <span dir={dir} className="min-w-0 flex-1 text-left">
                         <span className="flex min-w-0 items-center gap-2">
                             <span className={cn("inline-flex h-[22px] shrink-0 items-center whitespace-nowrap rounded-full px-2 text-[11px] font-bold", PRIME_PROBLEM_CHIP[problem.kind])}>
@@ -151,6 +276,12 @@ function ProblemRow({
                             {when && <> · {when}</>}
                             {primeSays && <span className="font-semibold text-[#8F1D13] dark:text-rose-300"> · {primeSays}</span>}
                         </span>
+                        {ticket && (
+                            <span data-problem-ticket className="mt-0.5 block truncate text-xs font-semibold text-[#315EA8] dark:text-sky-300">
+                                {t("prime.problems.openTicket")}
+                                {ticket.latestMessage && <span className="font-normal text-[#4A4A4A] dark:text-white/70"> · {ticket.latestMessage}</span>}
+                            </span>
+                        )}
                         {problem.handled && view.problemCheckedAt && (
                             <span data-problem-handled className="mt-0.5 block truncate text-xs font-semibold text-[#165C39] dark:text-emerald-300">
                                 ✓ {t("prime.problems.handledBy", { name: view.problemCheckedBy ?? t("prime.problems.someone"), time: formatTime(view.problemCheckedAt) })}
@@ -159,6 +290,7 @@ function ProblemRow({
                         )}
                     </span>
                 </button>
+                </div>
                 <PrimeProblemActions
                     problem={problem}
                     order={order}
@@ -167,11 +299,6 @@ function ProblemRow({
                     onAskPrime={onAskPrime}
                 />
             </div>
-            {open !== null && (
-                <div className="-mx-5 bg-[#FCFBF9] dark:bg-white/[0.02]">
-                    <PrimeParcelPanel order={order} view={view} focus={open} returning={primeTrack(view).state === "returning"} canResend={chip.canResend} />
-                </div>
-            )}
         </li>
     );
 }

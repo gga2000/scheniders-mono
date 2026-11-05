@@ -188,6 +188,7 @@ export function PrimePage() {
                                         <PrimeProblemsTab
                                             data={data}
                                             onAskPrime={(orderId) => askPrime(orderId)}
+                                            tickets={tickets.data?.connected ? tickets.data.tickets : undefined}
                                             calm={{
                                                 checkedMinutesAgo: minutesAgo,
                                                 oldest: !ages.on_road ? null : { orderNumber: oldestOrderNumber(data, "on_road"), days: ages.on_road },
