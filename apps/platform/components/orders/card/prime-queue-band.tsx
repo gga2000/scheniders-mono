@@ -12,12 +12,13 @@ import { cn } from "@/lib/utils";
 import { useOrderStore } from "@/store/use-order-store";
 import { PrimeProblemActions, primeActionButton } from "@/components/prime/prime-problem-actions";
 import { PrimeParcelPanel } from "./prime-parcel-panel";
+import { PrimeQueueFacts } from "./prime-queue-facts";
 import type { OrderCardModel } from "./use-order-card-model";
 
 /**
- * Under each card of the «معالجة» / «راجع» list (desktop): what to do, or
- * who handled it, and the fix at hand (the problem itself shows as chips
- * next to the items, see prime-queue-status) — call or WhatsApp the
+ * Under each card of the «معالجة» / «راجع» list (desktop): Prime's side of
+ * the problem as four labelled tiles (prime-queue-facts), then what to do
+ * or who handled it, and the fix at hand — call or WhatsApp the
  * customer, send it again or ask Prime, mark it handled. A parcel coming
  * back also gets «وصل؟ استلمه», which opens the returns desk with it.
  * Shown only while that queue's chip is on.
@@ -53,6 +54,9 @@ function PrimeQueueBandFor({ m }: { m: OrderCardModel }) {
                     : "border-[#F2C9C4] bg-[#FFF7F6] dark:border-rose-400/20 dark:bg-rose-500/[0.05]",
             )}
         >
+            <div dir={dir} className="px-4 pb-1 pl-6 pt-3">
+                <PrimeQueueFacts entry={entry} />
+            </div>
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-2.5 pl-6 pr-4">
                 <div dir={dir} className="min-w-0 text-left">
                     {handled ? (
