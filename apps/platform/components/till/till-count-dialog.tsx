@@ -7,7 +7,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { useTillCountApply, type TillOverview } from "@/hooks/use-till";
 import { findByCode, lineKey, MAX_QTY, type TillProduct } from "@/lib/till/cart";
-import { countLines, summarizeCount, type CountLine } from "@/lib/till/count";
+import { countLines, isBigDrop, summarizeCount, type CountLine } from "@/lib/till/count";
 import { beep } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
@@ -42,6 +42,8 @@ export function TillCountDialog({
     const [uncountedIsZero, setUncountedIsZero] = useState(false);
     const [reviewing, setReviewing] = useState(false);
     const [leaving, setLeaving] = useState(false);
+    // Big drops need a second tap, so a half-done count cannot wipe stock by accident.
+    const [sure, setSure] = useState(false);
 
     const allLines = useMemo(() => countLines(products), [products]);
     const scoped = useMemo(() => {
@@ -115,6 +117,8 @@ export function TillCountDialog({
                 onError: () => toast({ title: t("till.count.failed"), variant: "error" }),
             },
         );
+
+    const bigLoss = summary.changes.filter(isBigDrop).reduce((sum, c) => sum - c.diff, 0);
 
     const close = () => (counts.size > 0 && !apply.isSuccess ? setLeaving(true) : onClose());
 
@@ -214,6 +218,7 @@ export function TillCountDialog({
                                     onChange={(e) => {
                                         setUncountedIsZero(e.target.checked);
                                         setReviewing(false);
+                                        setSure(false);
                                     }}
                                     className="h-5 w-5 accent-[var(--ink)]"
                                 />
@@ -221,16 +226,29 @@ export function TillCountDialog({
                             </label>
                             {reviewing ? (
                                 <>
-                                    <button type="button" onClick={() => setReviewing(false)} className="h-12 rounded-2xl border border-[var(--card-border)] px-5 text-sm font-semibold text-foreground">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setReviewing(false);
+                                            setSure(false);
+                                        }}
+                                        className="h-12 rounded-2xl border border-[var(--card-border)] px-5 text-sm font-semibold text-foreground">
                                         {t("till.count.back")}
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={save}
+                                        onClick={() => (bigLoss > 0 && !sure ? setSure(true) : save())}
                                         disabled={apply.isPending}
-                                        className={cn("h-12 rounded-2xl px-6 text-sm font-bold disabled:opacity-60", INK_BUTTON)}
+                                        className={cn(
+                                            "h-12 rounded-2xl px-6 text-sm font-bold disabled:opacity-60",
+                                            sure ? "bg-red-700 text-white hover:bg-red-800" : INK_BUTTON,
+                                        )}
                                     >
-                                        {apply.isPending ? t("till.count.saving") : t("till.count.fix", { n: summary.changes.length })}
+                                        {apply.isPending
+                                            ? t("till.count.saving")
+                                            : sure
+                                              ? t("till.count.fixSure", { n: bigLoss })
+                                              : t("till.count.fix", { n: summary.changes.length })}
                                     </button>
                                 </>
                             ) : (
@@ -322,6 +340,11 @@ function ReviewList({ summary }: { summary: ReturnType<typeof summarizeCount> })
                         <span className="text-sm tabular-nums text-muted">
                             {c.line.expected} → <span className="font-bold text-foreground">{c.counted}</span>
                         </span>
+                        {isBigDrop(c) && (
+                            <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-500/15 dark:text-red-300" dir="auto">
+                                {t("till.count.bigDrop")}
+                            </span>
+                        )}
                         <span className={cn("w-14 text-right text-sm font-bold tabular-nums", c.diff < 0 ? "text-red-700 dark:text-red-300" : "text-emerald-700 dark:text-emerald-300")}>
                             {c.diff > 0 ? `+${c.diff}` : c.diff}
                         </span>

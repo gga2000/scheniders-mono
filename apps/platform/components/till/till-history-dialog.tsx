@@ -68,6 +68,10 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
     }, [sales.data, q]);
 
     const total = (sales.data ?? []).reduce((sum, s) => sum + s.total, 0);
+    // What each way of paying brought in, so the drawer can be checked against cash alone.
+    const byMethod = new Map<PayMethod, number>();
+    for (const s of sales.data ?? []) for (const p of s.payments) byMethod.set(p.method as PayMethod, (byMethod.get(p.method as PayMethod) ?? 0) + p.amount);
+    const split = [...byMethod].map(([m, amount]) => `${t(`till.pay.method.${m}`)} ${formatIqd(amount)}`).join(" · ");
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -80,7 +84,9 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
                             : past.isSuccess
                               ? " "
                               : sales.data
-                              ? t("till.history.summary", { n: sales.data.length, total: formatIqd(total) })
+                              ? split
+                                ? `${t("till.history.summary", { n: sales.data.length, total: formatIqd(total) })} · ${split}`
+                                : t("till.history.summary", { n: sales.data.length, total: formatIqd(total) })
                               : " "}
                     </DialogDescription>
                 </DialogHeader>
