@@ -92,7 +92,11 @@ export function primeTrack(view: PrimeTrackInput): PrimeTrack {
     if (view.cancelledAt !== null) return { stop: stepStop ?? 0, state: "cancelled" };
     if (view.status === PRIME_RETURNING || (step !== null && RETURNING_STEPS.has(step))) return { stop: 4, state: "returning" };
     if ((view.status !== null && DELIVERED_STATUSES.has(view.status)) || stepStop === 4) return { stop: 4, state: "delivered" };
-    if (view.status === "CNCL") return { stop: stepStop ?? 0, state: "cancelled" };
+    // Prime closes a failed delivery as CNCL yet lists it as waiting on the
+    // store («بانتظار اجراء التاجر»): it still needs us, not a closed case.
+    if (view.status === "CNCL") {
+        return step !== null && PRIME_FAILED_STEPS.has(step) ? { stop: stepStop ?? 3, state: "needs_you" } : { stop: stepStop ?? 0, state: "cancelled" };
+    }
 
     // A step Prime added after we read its list: still out with Prime, so "on the way".
     const stop: PrimeStop = stepStop ?? (step === null ? 0 : 2);
