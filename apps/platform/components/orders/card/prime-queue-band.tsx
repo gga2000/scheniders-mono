@@ -2,23 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PackageCheck } from "lucide-react";
+import { CheckCircle2, PackageCheck, PhoneCall } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { usePrimeQueues } from "@/hooks/use-prime-queues";
+import { usePrimeQueueEntry } from "@/hooks/use-prime-queues";
 import { primeChipState } from "@/lib/prime/chip-state";
-import { primeQueueOf } from "@/lib/prime/queues";
-import { primeReasonNote, primeTrack } from "@/lib/prime/track";
-import { primeReasonText, primeWhen } from "@/lib/prime/when";
+import { primeTrack } from "@/lib/prime/track";
 import { formatTime } from "@/lib/order-format-utils";
 import { cn } from "@/lib/utils";
 import { useOrderStore } from "@/store/use-order-store";
-import { PRIME_PROBLEM_CHIP, PrimeProblemActions, primeActionButton } from "@/components/prime/prime-problem-actions";
+import { PrimeProblemActions, primeActionButton } from "@/components/prime/prime-problem-actions";
 import { PrimeParcelPanel } from "./prime-parcel-panel";
 import type { OrderCardModel } from "./use-order-card-model";
 
 /**
- * Under each card of the «معالجة» / «راجع» list (desktop): what Prime says
- * is wrong and since when, and the fix at hand — call or WhatsApp the
+ * Under each card of the «معالجة» / «راجع» list (desktop): what to do, or
+ * who handled it, and the fix at hand (the problem itself shows as chips
+ * next to the items, see prime-queue-status) — call or WhatsApp the
  * customer, send it again or ask Prime, mark it handled. A parcel coming
  * back also gets «وصل؟ استلمه», which opens the returns desk with it.
  * Shown only while that queue's chip is on.
@@ -34,20 +33,13 @@ function PrimeQueueBandFor({ m }: { m: OrderCardModel }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const router = useRouter();
-    const queue = useOrderStore((s) => s.primeQueue);
     const requestReturnIntake = useOrderStore((s) => s.requestReturnIntake);
-    const { queues, data } = usePrimeQueues();
+    const entry = usePrimeQueueEntry(order.id);
     const [resendOpen, setResendOpen] = useState(false);
-    if (!queue || !queues || !data) return null;
-    const problem = queues[queue].problems.find((p) => p.orderId === order.id);
-    const view = data.views.get(order.id);
-    const boardOrder = data.orders.get(order.id);
-    if (!problem || !view || !boardOrder || primeQueueOf(problem) !== queue) return null;
-
+    if (!entry) return null;
+    const { queue, problem, view, order: boardOrder } = entry;
     const chip = primeChipState(view, boardOrder.status);
-    const primeSays = primeReasonText(primeReasonNote(view), t);
-    const when = primeWhen(problem.since, t);
-    const what = view.pushError !== null ? t("orders.prime.band.editRefused") : view.cancelRefusedAt !== null ? t("orders.prime.cancelRefused") : (view.stepName ?? view.status);
+    const handled = problem.handled && view.problemCheckedAt !== null;
 
     return (
         <div
@@ -56,29 +48,25 @@ function PrimeQueueBandFor({ m }: { m: OrderCardModel }) {
             onClick={(e) => e.stopPropagation()}
             className={cn(
                 "hidden border-t border-dashed md:block",
-                queue === "fix" ? "border-[#F2C9C4] bg-[#FFF7F6] dark:border-rose-400/20 dark:bg-rose-500/[0.05]" : "border-[#F2C9C4] bg-[#FDF6F5] dark:border-rose-400/20 dark:bg-rose-500/[0.04]",
-                problem.handled && "opacity-80",
+                handled
+                    ? "border-[#CDE9D8] bg-[#F4FBF7] dark:border-emerald-400/20 dark:bg-emerald-500/[0.05]"
+                    : "border-[#F2C9C4] bg-[#FFF7F6] dark:border-rose-400/20 dark:bg-rose-500/[0.05]",
             )}
         >
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3 pl-6 pr-4">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-2.5 pl-6 pr-4">
                 <div dir={dir} className="min-w-0 text-left">
-                    <span className="flex min-w-0 items-center gap-2">
-                        <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#315EA8]">
-                            <span className="h-1.5 w-[18px] bg-white [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat]" />
+                    {handled ? (
+                        <span data-problem-handled className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-[#165C39] dark:text-emerald-300">
+                            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            <span className="truncate">
+                                {t("prime.problems.handledBy", { name: view.problemCheckedBy ?? t("prime.problems.someone"), time: formatTime(view.problemCheckedAt ?? "") })}
+                                {view.problemNote && <span className="font-medium text-[#4A4A4A] dark:text-white/60"> · {view.problemNote}</span>}
+                            </span>
                         </span>
-                        <span className={cn("inline-flex h-[22px] shrink-0 items-center whitespace-nowrap rounded-full px-2 text-[11px] font-bold", PRIME_PROBLEM_CHIP[problem.kind])}>
-                            {t(`prime.problems.kind.${problem.kind}`)}
-                        </span>
-                        <span className="min-w-0 truncate text-[13px] text-[#4A4A4A] dark:text-white/70">
-                            {what && <b className="font-semibold text-foreground">{what}</b>}
-                            {when && <> · {when}</>}
-                            {primeSays && <span className="font-semibold text-[#8F1D13] dark:text-rose-300"> · {primeSays}</span>}
-                        </span>
-                    </span>
-                    {problem.handled && view.problemCheckedAt && (
-                        <span data-problem-handled className="mt-1 block truncate text-xs font-semibold text-[#165C39] dark:text-emerald-300">
-                            ✓ {t("prime.problems.handledBy", { name: view.problemCheckedBy ?? t("prime.problems.someone"), time: formatTime(view.problemCheckedAt) })}
-                            {view.problemNote && <> · {view.problemNote}</>}
+                    ) : (
+                        <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-[#8F1D13] dark:text-rose-300">
+                            <PhoneCall className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            <span className="truncate">{t(queue === "back" ? "orders.primeQueue.back.hint" : "prime.problems.hint")}</span>
                         </span>
                     )}
                 </div>

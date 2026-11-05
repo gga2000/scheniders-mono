@@ -6,10 +6,12 @@ import { useAuth } from "@/components/auth/auth-provider";
 import { orderKeys } from "@/hooks/use-orders-query";
 import { orderRepository } from "@/lib/repositories/order-repository";
 import type { Order } from "@/types/order";
-import { usePrimeBoard, type PrimeBoardData } from "@/hooks/use-prime-board";
+import { usePrimeBoard, type PrimeBoardData, type PrimeBoardOrder } from "@/hooks/use-prime-board";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
-import { primeProblemsFrom } from "@/lib/prime/problems";
-import { primeQueues, type PrimeQueue, type PrimeQueueId } from "@/lib/prime/queues";
+import { primeProblemsFrom, type PrimeProblem } from "@/lib/prime/problems";
+import { primeQueueOf, primeQueues, type PrimeQueue, type PrimeQueueId } from "@/lib/prime/queues";
+import type { PrimeShipmentView } from "@/lib/prime/chip-state";
+import { useOrderStore } from "@/store/use-order-store";
 
 export interface PrimeQueues {
     connected: boolean;
@@ -28,6 +30,28 @@ export function usePrimeQueues(): PrimeQueues {
     const { data } = usePrimeBoard(connected);
     const queues = useMemo(() => (data ? primeQueues(primeProblemsFrom(data.views, data.orders, data.readAt)) : null), [data]);
     return { connected, queues, data };
+}
+
+export interface PrimeQueueEntry {
+    queue: PrimeQueueId;
+    problem: PrimeProblem;
+    view: PrimeShipmentView;
+    order: PrimeBoardOrder;
+}
+
+/**
+ * The order's place in the Prime queue that is on (its problem, parcel and
+ * board order), or null when no queue is on or the order is not in it.
+ */
+export function usePrimeQueueEntry(orderId: string): PrimeQueueEntry | null {
+    const queue = useOrderStore((s) => s.primeQueue);
+    const { queues, data } = usePrimeQueues();
+    if (!queue || !queues || !data) return null;
+    const problem = queues[queue].problems.find((p) => p.orderId === orderId);
+    const view = data.views.get(orderId);
+    const order = data.orders.get(orderId);
+    if (!problem || !view || !order || primeQueueOf(problem) !== queue) return null;
+    return { queue, problem, view, order };
 }
 
 /**

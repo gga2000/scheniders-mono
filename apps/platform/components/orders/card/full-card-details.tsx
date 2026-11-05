@@ -8,6 +8,7 @@ import { HighlightedPhone } from "../highlighted-phone";
 import { cn } from "@/lib/utils";
 import { validatePhoneDetailed } from "@/lib/order-utils";
 import { MessageCircle, MapPin, Phone, Package, AlertTriangle, FileText, ClipboardCopy } from "lucide-react";
+import { PrimeQueueStatus } from "./prime-queue-status";
 import type { OrderCardModel } from "./use-order-card-model";
 
 /** One section of the full order card; see FullOrderCard in ../order-card.tsx. */
@@ -139,6 +140,7 @@ export function FullCardDetails({ m }: { m: OrderCardModel }) {
                                             {t("orders.ui.reviewRequired")}
                                         </span>
                                     )}
+                                <PrimeQueueStatus orderId={order.id} />
                                 {/* Delivery Attention Flag - prominent, next to items like Review Required */}
                                 {attention.some(r => r.startsWith('delivery_')) && (
                                     <span className="inline-flex h-7 items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-bold bg-amber-100 text-amber-700 animate-pulse border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20">
