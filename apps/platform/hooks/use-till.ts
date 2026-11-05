@@ -233,6 +233,39 @@ export async function logRemovedLines(sessionId: string, lines: RemovedLine[]): 
     if (error) throw error;
 }
 
+const clockSchema = z.object({ clock_in: z.string(), shop_id: z.string() }).nullable();
+export type TillClock = z.infer<typeof clockSchema>;
+
+/** The cashier's open shift (clocked in), or null. */
+export function useTillClock(sessionId: string | null) {
+    return useQuery({
+        queryKey: ["till", "clock", "me", sessionId],
+        enabled: !!sessionId,
+        staleTime: 60_000,
+        queryFn: async (): Promise<TillClock> => {
+            const { data, error } = await supabase.rpc("till_clock_status", { p_session_id: sessionId });
+            if (error) throw error;
+            return clockSchema.parse(data);
+        },
+    });
+}
+
+/** Clocks the cashier in or out at this till. */
+export function useTillClockSet() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; clockIn: boolean }): Promise<TillClock> => {
+            const { data, error } = await supabase.rpc("till_clock_set", { p_session_id: input.sessionId, p_in: input.clockIn });
+            if (error) throw error;
+            return clockSchema.parse(data);
+        },
+        onSuccess: (data, input) => {
+            qc.setQueryData(["till", "clock", "me", input.sessionId], data);
+            qc.invalidateQueries({ queryKey: ["till", "clock"] });
+        },
+    });
+}
+
 /** Cash taken from the drawer for a shop cost; it lands in Finances as an expense. */
 export function useTillPayout() {
     const qc = useQueryClient();
@@ -307,6 +340,23 @@ const historySale = z.object({
     ),
 });
 export type TillHistorySale = z.infer<typeof historySale>;
+
+/** A receipt number: what the QR on a printed receipt holds. */
+export const RECEIPT_CODE = /^\d{10}$/;
+
+/** One past till sale of this store by its receipt number, from any shop and any day; null when there is none. */
+export function useTillFindSale(sessionId: string | null, orderId: string | null) {
+    return useQuery({
+        queryKey: ["till", "find", sessionId, orderId],
+        enabled: !!sessionId && !!orderId && RECEIPT_CODE.test(orderId),
+        staleTime: 30_000,
+        queryFn: async (): Promise<TillHistorySale | null> => {
+            const { data, error } = await supabase.rpc("till_find_sale", { p_session_id: sessionId, p_order_id: orderId });
+            if (error) throw error;
+            return historySale.nullable().parse(data);
+        },
+    });
+}
 
 /** Today's sales at this shop, newest first. */
 export function useTillSalesToday(sessionId: string | null, enabled: boolean) {

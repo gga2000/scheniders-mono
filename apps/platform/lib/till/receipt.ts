@@ -4,6 +4,7 @@
  */
 import { formatIraqiPhoneDisplay } from "@scheniders/shared";
 import { escapeHtml } from "@/lib/html-escape";
+import { qrSvg } from "@/lib/print-codes";
 import { formatIqd, type PayMethod, type PaymentLine } from "@/lib/till/cart";
 
 export interface ReceiptData {
@@ -73,6 +74,8 @@ export function receiptDocument(r: ReceiptData): string {
         cash > 0 ? row(METHOD_AR.cash, formatIqd(cash)) : "",
         r.change > 0 ? row("الباقي للزبون", formatIqd(r.change)) : "",
     ].join("");
+    // The till reads this code back from a scanner to find the sale for a return or exchange.
+    const code = `<div class="qr">${qrSvg(r.orderNumber, { maxSizeMm: 18 })}<div class="qr-note">امسح الرمز للإرجاع أو التبديل</div></div>`;
     const footer = r.shop.receipt_footer ? `<div class="footer">${escapeHtml(r.shop.receipt_footer)}</div>` : "";
 
     return `<!DOCTYPE html>
@@ -91,6 +94,9 @@ export function receiptDocument(r: ReceiptData): string {
   .row.strong { font-weight: 700; font-size: 14px; }
   .num { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
   .footer { text-align: center; font-size: 11px; margin-top: 3mm; }
+  .qr { display: flex; flex-direction: column; align-items: center; margin-top: 3mm; }
+  .qr svg { display: block; }
+  .qr-note { font-size: 10px; margin-top: 1mm; }
 </style>
 </head>
 <body>
@@ -101,6 +107,7 @@ ${meta}
 ${items}
 <div class="sep"></div>
 ${totals}
+${code}
 ${footer}
 </body>
 </html>`;

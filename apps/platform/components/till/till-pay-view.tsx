@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Minus, UserRound, X } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import {
@@ -17,6 +17,7 @@ import {
 } from "@/lib/till/cart";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON, NOTE_TILES } from "./till-colors";
+import type { PayShown } from "@/lib/till/customer-display";
 import type { Ticket } from "./till-ticket";
 
 interface Props {
@@ -26,6 +27,10 @@ interface Props {
     print: boolean;
     onPrint: (v: boolean) => void;
     hasPhone: boolean;
+    /** The shop's FIB / ZainCash QR images, if the owner added them. */
+    payQr: Partial<Record<PayMethod, string>>;
+    /** Mirrors what the customer should see (method, amount due, change) on the customer screen. */
+    onShown: (shown: PayShown) => void;
     onBack: () => void;
     onComplete: (payments: PaymentLine[], change: number) => void;
 }
@@ -33,7 +38,7 @@ interface Props {
 const KEY_NOTES = IQD_NOTES.slice(0, 6);
 
 /** Taking the money: method, note keys, change as the hero, split when asked. */
-export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, onBack, onComplete }: Props) {
+export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, payQr, onShown, onBack, onComplete }: Props) {
     const { t } = useLanguage();
     const [method, setMethod] = useState<PayMethod>("cash");
     const [parts, setParts] = useState<PaymentLine[]>([]);
@@ -66,6 +71,11 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
     // Cash short of the rest, or a typed card amount below it, becomes a part payment.
     const partAmount = method === "cash" ? given : typed !== null ? parseDinars(typed) : 0;
     const canSplit = partAmount > 0 && partAmount < rest;
+
+    const due = method === "cash" ? rest : typed !== null && parseDinars(typed) > 0 ? Math.min(rest, parseDinars(typed)) : rest;
+    useEffect(() => {
+        onShown({ method, due, given: method === "cash" ? given : 0, change });
+    }, [onShown, method, due, given, change]);
 
     const complete = () => {
         if (result.ok) onComplete(result.payments, result.change);
@@ -199,6 +209,15 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     </>
                 ) : (
                     <div className="flex flex-col gap-2 rounded-[20px] bg-[var(--card-border)]/30 p-5">
+                        {payQr[method] && (
+                            <figure className="flex items-center gap-5 pb-2">
+                                <img src={payQr[method]} alt={t("till.pay.qrAlt", { method: t(`till.pay.method.${method}`) })} className="h-56 w-56 shrink-0 rounded-2xl bg-white object-contain p-2" />
+                                <figcaption className="text-left text-base text-muted" dir="auto">
+                                    {t("till.pay.qrScan", { method: t(`till.pay.method.${method}`) })}
+                                    <span className="mt-1 block text-3xl font-bold tabular-nums text-foreground">{formatIqd(due)}</span>
+                                </figcaption>
+                            </figure>
+                        )}
                         <p className="text-left text-base font-semibold text-foreground" dir="auto">{t("till.pay.takeOn", { method: t(`till.pay.method.${method}`), amount: formatIqd(rest) })}</p>
                         <label className="flex items-center gap-3 text-sm text-muted">
                             {t("till.pay.onlyPart")}

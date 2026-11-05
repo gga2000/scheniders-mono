@@ -64,6 +64,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     // whether the store can operate at all. `children` still carries
     // everything the root layout mounts beside the page (ChatRuntime).
     // The shop till is the same: a full-screen selling console.
+    // The till's customer screen faces shoppers: no banners, nothing but the screen.
+    if (pathname === "/till/customer") {
+        return <PageGuard>{children}</PageGuard>;
+    }
     const isImmersivePage = pathname?.startsWith("/store/edit") || pathname === "/till";
     if (isImmersivePage) {
         return (

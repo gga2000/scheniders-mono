@@ -2,14 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, HandCoins, Lock, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import * as Sentry from "@sentry/nextjs";
+import { ArrowLeft, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { useShops, useTillMembers, useTillRules, type Shop, type TillMember } from "@/hooks/use-shops";
-import { lockTillSession, pingTillSession, saleErrorOf, useTillOverview, useTillProducts, useTillSale, useTillStoreName } from "@/hooks/use-till";
+import {
+    lockTillSession,
+    pingTillSession,
+    saleErrorOf,
+    useTillClock,
+    useTillClockSet,
+    useTillOverview,
+    useTillProducts,
+    useTillSale,
+    useTillStoreName,
+} from "@/hooks/use-till";
 import { addToCart, commissionOf, dateLocale, formatIqd, onShelf, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { connectDrawer, drawerSupported, openDrawer } from "@/lib/till/cash-drawer";
+import type { DisplayState, PayShown } from "@/lib/till/customer-display";
 import { readPrefs, TEXT_ZOOM, writePrefs, type TextSize, type TillPrefs } from "@/lib/till/prefs";
 import { printReceipt, receiptDocument, type ReceiptData } from "@/lib/till/receipt";
 import { TillLockScreen } from "./till-lock-screen";
@@ -20,6 +33,8 @@ import { TillDoneView } from "./till-done-view";
 import { TillHistoryDialog } from "./till-history-dialog";
 import { TillPayoutDialog } from "./till-payout-dialog";
 import { newTicket, type Ticket } from "./till-ticket";
+import { useCustomerDisplay } from "./use-customer-display";
+import { cn } from "@/lib/utils";
 
 type Session = { id: string; cashier: TillMember };
 type Done = { receipt: ReceiptData; phone: string | null; printed: boolean; cart: CartLine[] };
@@ -67,6 +82,7 @@ export function TillPage() {
     const [done, setDone] = useState<Done | null>(null);
     const [print, setPrint] = useState(true);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyQuery, setHistoryQuery] = useState("");
     const [payoutOpen, setPayoutOpen] = useState(false);
     // The till renders only after its queries load, never during the server pass, so reading storage here is safe.
     const [prefs, setPrefsState] = useState<TillPrefs>(readPrefs);
@@ -75,10 +91,37 @@ export function TillPage() {
         writePrefs(next);
     };
     const overview = useTillOverview(session?.id ?? null);
+    const clock = useTillClock(session?.id ?? null);
+    const clockSet = useTillClockSet();
 
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     // Stock badges and the "left" note count what is already in this sale's cart.
     const shelf = useMemo(() => onShelf(products.data ?? [], ticket.cart), [products.data, ticket.cart]);
+
+    // The customer screen mirrors the sale: idle (logo), the cart, the amount due, then the change.
+    const [payShown, setPayShown] = useState<PayShown | null>(null);
+    const onPayShown = useCallback((p: PayShown) => setPayShown(p), []);
+    const shopName = shop?.name ?? "";
+    const displayState = useMemo((): DisplayState => {
+        if (!session) return { view: "idle", shopName };
+        if (view === "done" && done) return { view: "done", shopName, total: done.receipt.total, change: done.receipt.change };
+        const subtotal = subtotalOf(ticket.cart);
+        const total = Math.max(0, subtotal - ticket.discount);
+        if (view === "pay" && payShown) {
+            const qr = payShown.method === "fib" ? shop?.fib_qr_url : payShown.method === "zaincash" ? shop?.zaincash_qr_url : null;
+            return { view: "pay", shopName, total, method: payShown.method, due: payShown.due, given: payShown.given, change: payShown.change, qr: qr ?? null };
+        }
+        if (ticket.cart.length === 0) return { view: "idle", shopName };
+        return {
+            view: "cart",
+            shopName,
+            lines: ticket.cart.map((l) => ({ name: l.name, variant: l.variant_name, quantity: l.quantity, price: l.price, image: l.image_url })),
+            subtotal,
+            discount: ticket.discount,
+            total,
+        };
+    }, [session, view, done, ticket.cart, ticket.discount, payShown, shop, shopName]);
+    useCustomerDisplay(displayState);
 
     // Who may switch in here: the shop's staff and the managers.
     const cashiers = useMemo(
@@ -183,6 +226,16 @@ export function TillPage() {
                         customerName: ticket.customerName.trim() || null,
                     };
                     if (print) printReceipt(receiptDocument(receipt));
+                    if (prefs.drawer && payments.some((p) => p.method === "cash")) {
+                        openDrawer()
+                            .then((opened) => {
+                                if (!opened) toast({ title: t("till.drawer.notConnected"), variant: "warning" });
+                            })
+                            .catch((err: unknown) => {
+                                Sentry.captureException(err, { tags: { area: "till", op: "drawer" } });
+                                toast({ title: t("till.drawer.failed"), variant: "error" });
+                            });
+                    }
                     setDone({ receipt, phone, printed: print, cart: ticket.cart });
                     // The sold ticket leaves; held ones stay as tabs.
                     const rest = tickets.filter((x) => x.id !== ticket.id);
@@ -283,9 +336,26 @@ export function TillPage() {
             onLock={() => lock()}
             today={overview.data?.today}
             mine={overview.data?.mine}
-            onHistory={() => setHistoryOpen(true)}
+            onHistory={() => {
+                setHistoryQuery("");
+                setHistoryOpen(true);
+            }}
             commission={commissionOf(overview.data?.mine.total ?? 0, rules.data?.commission_pct ?? 0)}
             onPayout={() => setPayoutOpen(true)}
+            goal={shop.daily_goal}
+            clock={
+                clock.isSuccess
+                    ? {
+                          since: clock.data?.shop_id === shop.id ? clock.data.clock_in : null,
+                          pending: clockSet.isPending,
+                          onSet: (clockIn: boolean) =>
+                              clockSet.mutate(
+                                  { sessionId: session.id, clockIn },
+                                  { onError: () => toast({ title: t("till.clock.failed"), variant: "error" }) },
+                              ),
+                      }
+                    : undefined
+            }
             prefs={prefs}
             onPrefs={setPrefs}
         >
@@ -297,6 +367,8 @@ export function TillPage() {
                     print={print}
                     onPrint={setPrint}
                     hasPhone={!!ticket.phone.trim() && !!normalizeIraqiMobile(ticket.phone)}
+                    payQr={{ fib: shop.fib_qr_url ?? undefined, zaincash: shop.zaincash_qr_url ?? undefined }}
+                    onShown={onPayShown}
                     onBack={() => setView("sell")}
                     onComplete={complete}
                 />
@@ -319,7 +391,13 @@ export function TillPage() {
                 />
             ) : (
                 <div className="flex min-h-0 flex-1">
-                    <TillProductGrid products={shelf} loading={products.isPending} overview={overview.data} sound={prefs.sound} onAdd={add} />
+                    <TillProductGrid products={shelf} loading={products.isPending} overview={overview.data} sound={prefs.sound}
+                        onAdd={add}
+                        onReceiptCode={(code) => {
+                            setHistoryQuery(code);
+                            setHistoryOpen(true);
+                        }}
+                    />
                     <TillCartPanel
                         tickets={tickets}
                         activeId={ticket.id}
@@ -337,7 +415,7 @@ export function TillPage() {
                 </div>
             )}
             {payoutOpen && <TillPayoutDialog sessionId={session.id} onClose={() => setPayoutOpen(false)} />}
-            {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
+            {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} initialQuery={historyQuery} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
         </TillFrame>
     );
 }
@@ -353,6 +431,8 @@ function TillFrame({
     onHistory,
     commission,
     onPayout,
+    goal,
+    clock,
     prefs,
     onPrefs,
     children,
@@ -368,6 +448,10 @@ function TillFrame({
     /** The cashier's commission on today's sales, or null when the store pays none. */
     commission?: number | null;
     onPayout?: () => void;
+    /** The shop's sales target for today; null = none set. */
+    goal?: number | null;
+    /** The cashier's shift: since = clocked in at this shop at that time, or null. */
+    clock?: { since: string | null; pending: boolean; onSet: (clockIn: boolean) => void };
     prefs?: TillPrefs;
     onPrefs?: (p: TillPrefs) => void;
     children: React.ReactNode;
@@ -377,7 +461,7 @@ function TillFrame({
     const zoom = TEXT_ZOOM[prefs?.textSize ?? "normal"];
     return (
         <div className="till-screen flex h-full flex-col bg-background" style={zoom === 1 ? undefined : { zoom }}>
-            <header className="grid h-[64px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[#1E1E1E] px-4">
+            <header className="relative grid h-[64px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[#1E1E1E] px-4">
                 <div className="flex min-w-0 items-center gap-2">
                     <Link href="/orders" className={`${chip} px-3`} aria-label={t("till.top.exit")} title={t("till.top.exit")}>
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -397,10 +481,11 @@ function TillFrame({
                     {cashier && onLock && (
                         <button type="button" onClick={onLock} className={chip} title={t("till.top.lock")}>
                             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E4C1F9] text-xs text-[#1E1E1E]">{cashier.slice(0, 1).toUpperCase()}</span>
-                            <span dir="auto" className="max-w-[140px] truncate">{cashier}</span>
+                            <span dir="auto" className="max-w-[120px] truncate">{cashier}</span>
                             <Lock className="h-3.5 w-3.5 text-white/60" aria-hidden="true" />
                         </button>
                     )}
+                    {clock && <ClockChip clock={clock} chip={chip} />}
                 </div>
                 {title ? <h1 className="text-base font-bold text-white">{title}</h1> : <TillClock />}
                 <div className="flex items-center justify-end gap-2">
@@ -431,9 +516,71 @@ function TillFrame({
                     )}
                     {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} chip={chip} />}
                 </div>
+                {goal && today ? <GoalBar goal={goal} total={today.total} /> : null}
             </header>
             <main className="flex min-h-0 flex-1 flex-col">{children}</main>
         </div>
+    );
+}
+
+/** A thin line along the bottom of the header: today's sales against the shop's goal. */
+function GoalBar({ goal, total }: { goal: number; total: number }) {
+    const { t } = useLanguage();
+    const pct = Math.min(100, Math.round((total / goal) * 100));
+    const label = t("till.top.goal", { pct, goal: formatIqd(goal) });
+    return (
+        <div
+            className="absolute inset-x-0 bottom-0 h-1 bg-white/10"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct}
+            aria-label={label}
+            title={label}
+        >
+            <div className={cn("h-full transition-[width] duration-700", pct >= 100 ? "bg-[#8FE3A8]" : "bg-[#EFFF00]")} style={{ width: `${pct}%` }} />
+        </div>
+    );
+}
+
+/** Clock in when the shift starts; when on, shows since when, and a second tap clocks out. */
+function ClockChip({ clock, chip }: { clock: NonNullable<Parameters<typeof TillFrame>[0]["clock"]>; chip: string }) {
+    const { t } = useLanguage();
+    const [confirming, setConfirming] = useState(false);
+    useEffect(() => {
+        if (!confirming) return;
+        const id = window.setTimeout(() => setConfirming(false), 3000);
+        return () => window.clearTimeout(id);
+    }, [confirming]);
+    if (!clock.since) {
+        return (
+            <button
+                type="button"
+                disabled={clock.pending}
+                onClick={() => clock.onSet(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EFFF00] px-4 text-sm font-bold text-[#121212] disabled:opacity-60"
+            >
+                <Clock3 className="h-4 w-4" aria-hidden="true" />
+                {t("till.clock.in")}
+            </button>
+        );
+    }
+    const since = new Date(clock.since).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" });
+    return (
+        <button
+            type="button"
+            disabled={clock.pending}
+            onClick={() => {
+                if (!confirming) return setConfirming(true);
+                setConfirming(false);
+                clock.onSet(false);
+            }}
+            className={cn(chip, confirming && "border-[#FDE7EA] bg-[#FDE7EA] text-[#991B1B] hover:bg-[#FDE7EA]")}
+            aria-live="polite"
+        >
+            <Clock3 className="h-4 w-4" aria-hidden="true" />
+            <span className="tabular-nums" dir="auto">{confirming ? t("till.clock.confirmOut") : t("till.clock.since", { time: since })}</span>
+        </button>
     );
 }
 
@@ -451,6 +598,66 @@ function TillClock() {
             <span className="text-xl font-bold tabular-nums">{now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" })}</span>
             <span className="text-xs font-medium text-white/60">{now.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Baghdad" })}</span>
         </p>
+    );
+}
+
+/** Opening the cash drawer on cash sales: pick the printer's port once, then test it. */
+function DrawerSetting({ prefs, onPrefs }: { prefs: TillPrefs; onPrefs: (p: TillPrefs) => void }) {
+    const { t } = useLanguage();
+    const [busy, setBusy] = useState(false);
+    if (!drawerSupported()) return <p className="text-left text-xs text-muted" dir="auto">{t("till.drawer.unsupported")}</p>;
+    const run = async (step: () => Promise<boolean>, onDone: (ok: boolean) => void) => {
+        setBusy(true);
+        try {
+            onDone(await step());
+        } catch (err: unknown) {
+            // The cashier closing the port picker is not a failure.
+            if (!(err instanceof DOMException && err.name === "NotFoundError")) {
+                Sentry.captureException(err, { tags: { area: "till", op: "drawer" } });
+                toast({ title: t("till.drawer.failed"), variant: "error" });
+            }
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <div className="flex flex-col gap-2 rounded-2xl border border-[var(--card-border)] p-3">
+            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Inbox className="h-4 w-4" aria-hidden="true" />
+                {t("till.drawer.title")}
+            </span>
+            <span className="text-left text-xs text-muted" dir="auto">{prefs.drawer ? t("till.drawer.on") : t("till.drawer.hint")}</span>
+            <span className="flex gap-2">
+                {prefs.drawer ? (
+                    <>
+                        <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => run(openDrawer, (ok) => !ok && toast({ title: t("till.drawer.notConnected"), variant: "warning" }))}
+                            className="h-10 flex-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-foreground"
+                        >
+                            {t("till.drawer.test")}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onPrefs({ ...prefs, drawer: false })}
+                            className="h-10 flex-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-foreground"
+                        >
+                            {t("till.drawer.turnOff")}
+                        </button>
+                    </>
+                ) : (
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => run(connectDrawer, (ok) => ok && onPrefs({ ...prefs, drawer: true }))}
+                        className="h-10 flex-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-foreground"
+                    >
+                        {t("till.drawer.connect")}
+                    </button>
+                )}
+            </span>
+        </div>
     );
 }
 
@@ -474,7 +681,7 @@ function TillSettings({ prefs, onPrefs, chip }: { prefs: TillPrefs; onPrefs: (p:
             <PopoverTrigger className={`${chip} px-3`} aria-label={t("till.settings.title")} title={t("till.settings.title")}>
                 <Settings2 className="h-4 w-4" aria-hidden="true" />
             </PopoverTrigger>
-            <PopoverContent align="end" className="flex w-72 flex-col gap-4 rounded-2xl p-4">
+            <PopoverContent align="end" className="flex w-80 flex-col gap-4 rounded-2xl border-[var(--card-border)] bg-[var(--card-bg)] p-4">
                 <div className="flex flex-col gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.settings.textSize")}</p>
                     <div className="grid grid-cols-3 gap-1 rounded-2xl bg-[var(--card-border)]/30 p-1">
@@ -504,6 +711,15 @@ function TillSettings({ prefs, onPrefs, chip }: { prefs: TillPrefs; onPrefs: (p:
                     </span>
                     <span className="text-xs text-muted">{prefs.sound ? t("till.settings.on") : t("till.settings.off")}</span>
                 </button>
+                <button
+                    type="button"
+                    onClick={() => window.open("/till/customer", "till-customer", "popup,width=1280,height=800")}
+                    className="flex h-12 items-center gap-2 rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
+                >
+                    <MonitorSmartphone className="h-4 w-4" aria-hidden="true" />
+                    {t("till.settings.customerScreen")}
+                </button>
+                <DrawerSetting prefs={prefs} onPrefs={onPrefs} />
                 {install ? (
                     <button
                         type="button"

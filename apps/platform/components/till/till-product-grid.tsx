@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Flame, Package, ScanLine, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
-import type { TillOverview } from "@/hooks/use-till";
+import { RECEIPT_CODE, type TillOverview } from "@/hooks/use-till";
 import { findByCode, formatIqd, searchProducts, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { beep, flyToCart } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,8 @@ interface Props {
     overview: TillOverview | undefined;
     sound: boolean;
     onAdd: (product: TillProduct, variant: TillVariant | null) => void;
+    /** A scanned receipt QR (a sale number, not a product): open that sale. */
+    onReceiptCode: (code: string) => void;
 }
 
 type Notice = { kind: "ok" | "bad"; text: string; at: number } | null;
@@ -25,7 +27,7 @@ type Filter = string;
 const NOTICE_MS = 2600;
 
 /** The left side of the sell screen: scan or search, chips, best sellers, and one card per product. */
-export function TillProductGrid({ products, loading, overview, sound, onAdd }: Props) {
+export function TillProductGrid({ products, loading, overview, sound, onAdd, onReceiptCode }: Props) {
     const { t } = useLanguage();
     const [query, setQuery] = useState("");
     const [filter, setFilter] = useState<Filter>("all");
@@ -77,6 +79,11 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd }: P
         if (matches.length === 1) {
             setQuery("");
             choose(matches[0], null);
+            return;
+        }
+        if (matches.length === 0 && RECEIPT_CODE.test(code)) {
+            setQuery("");
+            onReceiptCode(code);
             return;
         }
         if (matches.length === 0) {

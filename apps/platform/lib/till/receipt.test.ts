@@ -39,6 +39,12 @@ describe("till receipt", () => {
         expect(html).not.toContain("<b>Bag</b>");
     });
 
+    it("carries a QR of the sale number for returns", () => {
+        const html = receiptDocument(sale);
+        expect(html).toContain('<div class="qr"><svg');
+        expect(html).toContain("امسح الرمز للإرجاع أو التبديل");
+    });
+
     it("builds the WhatsApp text and link", () => {
         const text = receiptWhatsAppText(sale);
         expect(text).toContain("فاتورتك: 4261104026");
