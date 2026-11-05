@@ -239,7 +239,7 @@ export function Sidebar({
                             transition={activePillTransition}
                             className="pointer-events-none absolute inset-0 -z-10 rounded-2xl bg-white/[0.06]"
                         >
-                            <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[#E4B5D1]" />
+                            <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[#EFFF00]" />
                         </motion.span>
                     )}
                     <motion.span
@@ -254,7 +254,7 @@ export function Sidebar({
                                     <AnimIcon
                                         className={cn(
                                             "w-[22px] h-[22px] transition-colors",
-                                            isActive ? "text-[#E4B5D1]" : "text-zinc-500 group-hover:text-white"
+                                            isActive ? "text-[#EFFF00]" : "text-zinc-500 group-hover:text-white"
                                         )}
                                         active={isActive || undefined}
                                     />
@@ -270,7 +270,7 @@ export function Sidebar({
                             >
                                 <item.icon className={cn(
                                     "w-[22px] h-[22px] transition-colors",
-                                    isActive ? "text-[#E4B5D1]" : "text-zinc-500 group-hover:text-white"
+                                    isActive ? "text-[#EFFF00]" : "text-zinc-500 group-hover:text-white"
                                 )} />
                             </motion.span>
                         )}
