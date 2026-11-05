@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Receiver } from "@upstash/qstash";
-import { sendTemplateMessage, type TemplateType } from "@/lib/interakt";
+import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
 import { env } from "@/lib/env";
 import { DISCOUNT_DELAY_HOURS, REMINDER_DELAY_HOURS } from "@/lib/qstash";
 import { scheduleFollowUpInWindow } from "@/lib/follow-up-schedule";
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
         order_id: order.order_id,
         order_uuid: order.id,
         phone: order.phone,
-        template_name: templateType === "reminder" ? "order_reminder" : "order_discount_offer",
+        template_name: TEMPLATE_NAMES[templateType],
         direction: "outbound",
         status: "sent",
         interakt_message_id: result.messageId || null,

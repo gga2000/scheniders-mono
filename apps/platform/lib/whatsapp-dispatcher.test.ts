@@ -44,7 +44,7 @@ vi.mock("@/lib/supabase-server", () => ({
 
 vi.mock("@/lib/interakt", () => ({
     sendTemplateMessage: H.send,
-    TEMPLATE_NAMES: { confirmation: "cod_order_confirm", reminder: "order_reminder", discount: "order_discount_offer" },
+    TEMPLATE_NAMES: { confirmation: "new_cod_order_confirm", reminder: "v2_order_reminder", discount: "v2order_discount_offer" },
 }));
 
 vi.mock("@/lib/whatsapp-error-handler", () => ({
