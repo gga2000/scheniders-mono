@@ -52,6 +52,12 @@ describe("primeChipState", () => {
         expect(primeChipState(back, "rejected").canResend).toBe(false);
     });
 
+    it("a failed try with the driver can be sent again too, not a pickup refusal", () => {
+        expect(primeChipState(view({ stepCode: "RTN_WITHAGENT" }), "in_transit").canResend).toBe(true);
+        expect(primeChipState(view({ stepCode: "DLV_AGENT_REJECT" }), "in_transit").canResend).toBe(true);
+        expect(primeChipState(view({ stepCode: "PICKUP_REJECT" }), "in_transit").canResend).toBe(false);
+    });
+
     it("after a resend, a note replaces the button until Prime moves the parcel", () => {
         const resent = view({ status: "FAILED_DELIVER_RETURNED_TO_SENDER", resentAt: "2026-11-03T16:40:00Z", statusChangedAt: "2026-11-03T12:00:00Z" });
         expect(primeChipState(resent, "in_transit")).toMatchObject({ canResend: false, resendRequested: true });

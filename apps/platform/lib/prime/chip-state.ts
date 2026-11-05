@@ -56,16 +56,28 @@ export interface PrimeChipState {
 export const PRIME_RETURNING = "FAILED_DELIVER_RETURNED_TO_SENDER";
 /** Statuses where Prime stopped delivering as planned: amber. */
 const WARN_STATUSES = new Set([PRIME_RETURNING, "CNCL", "PART_DELIVERED", "DELIVERED_CHANGE_PRICE", "POSTPONED"]);
+/**
+ * Failed attempts the driver still holds: Prime takes a new attempt with a
+ * fix (a new phone, a better address) before it sends the parcel back.
+ */
+export const PRIME_RESENDABLE_STEPS: ReadonlySet<string> = new Set(["RTN_WITHAGENT", "DLV_AGENT_REJECT"]);
+
+/** Prime takes a resend request: the parcel is coming back, or its attempt failed with the driver. */
+export function primeCanBeResent(view: Pick<PrimeShipmentView, "status" | "stepCode">): boolean {
+    return view.status === PRIME_RETURNING || (view.stepCode !== null && PRIME_RESENDABLE_STEPS.has(view.stepCode));
+}
+
 /** Orders still out with Prime. */
 const OPEN_ORDER_STATUSES = new Set(["confirmed", "in_transit"]);
 
 export function primeChipState(view: PrimeShipmentView, orderStatus: string): PrimeChipState {
     const deleted = view.cancelledAt !== null;
+    const resendable = primeCanBeResent(view);
     const resendRequested =
-        view.status === PRIME_RETURNING &&
+        resendable &&
         view.resentAt !== null &&
         (view.statusChangedAt === null || Date.parse(view.resentAt) >= Date.parse(view.statusChangedAt));
-    const canResend = view.status === PRIME_RETURNING && OPEN_ORDER_STATUSES.has(orderStatus) && !resendRequested && !deleted;
+    const canResend = resendable && OPEN_ORDER_STATUSES.has(orderStatus) && !resendRequested && !deleted;
 
     let tone: PrimeChipTone = "progress";
     if (deleted) tone = "muted";
