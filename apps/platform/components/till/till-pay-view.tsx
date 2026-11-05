@@ -263,7 +263,12 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             : change > 0
                               ? t("till.pay.completeChange", { change: formatIqd(change) })
                               : method === "fib" || method === "zaincash"
-                                ? t("till.pay.completeNotice", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })
+                                ? (
+                                      <span className="flex flex-col items-center leading-tight">
+                                          <span>{t("till.pay.completeNotice", { amount: formatIqd(due) })}</span>
+                                          <span className="text-sm font-medium opacity-70" dir="auto">{t("till.pay.completeNoticeSub", { method: t(`till.pay.method.${method}`) })}</span>
+                                      </span>
+                                  )
                                 : t("till.pay.complete")}
                     </button>
                 </div>

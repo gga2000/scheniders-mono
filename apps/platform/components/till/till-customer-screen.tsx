@@ -101,6 +101,11 @@ export function TillCustomerScreen() {
                             <div className="flex flex-col gap-3">
                                 <p className="text-3xl font-semibold" dir="auto">{t("till.customer.scan", { method: t(`till.pay.method.${state.method}`) })}</p>
                                 <p className="text-8xl font-bold tabular-nums tracking-tight">{formatIqd(state.due)}</p>
+                                {(storeName || shopName) && (
+                                    <p className="text-2xl text-[#1E1E1E]/60 dark:text-white/60" dir="auto">
+                                        {t("till.customer.payTo", { name: [storeName, shopName].filter(Boolean).join(" · ") })}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     ) : (
