@@ -8,6 +8,7 @@ import { pushPrimeChanges, type PrimePushOutcome } from "@/lib/prime/push";
 import { announcePrimeDeliveries, syncPrimeTenant, type PrimeSyncOutcome } from "@/lib/prime/sync";
 import { ensurePrimeWebhook } from "@/lib/prime/webhook";
 import { sendPrimeDaily, watchPrimePayments, type PrimePaymentsOutcome } from "@/lib/prime/money-watch";
+import { sendPrimeFailedNotices, type PrimeFailedNoticeOutcome } from "@/lib/prime/failed-notice";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -26,6 +27,7 @@ type TenantResult = {
     announced?: number;
     payments?: PrimePaymentsOutcome;
     daily?: boolean;
+    failedNotices?: PrimeFailedNoticeOutcome;
     error?: string;
 };
 type WebhookResult = "unchanged" | "saved" | "not_production" | "not_due" | "failed";
@@ -105,6 +107,12 @@ export async function GET(request: NextRequest) {
         } catch (err) {
             errors.push(report(err, tenantId, "announce"));
         }
+        // After the status read, so a failure Prime just reported is messaged in the same run.
+        try {
+            result.failedNotices = await sendPrimeFailedNotices(db, tenantId, Date.now());
+        } catch (err) {
+            errors.push(report(err, tenantId, "failed-notice"));
+        }
         if (errors.length > 0) result.error = errors.join("; ");
         if (statusDue || result.error) {
             await stamp(db, tenantId, {
@@ -139,7 +147,7 @@ async function keepWebhook(client: PrimeClient): Promise<WebhookResult> {
     }
 }
 
-function report(err: unknown, tenantId: string, step: "push" | "sync" | "announce" | "payments" | "daily"): string {
+function report(err: unknown, tenantId: string, step: "push" | "sync" | "announce" | "payments" | "daily" | "failed-notice"): string {
     Sentry.captureException(err, { extra: { tenantId, job: "prime-sync", step } });
     return `${step}: ${err instanceof Error ? err.message : String(err)}`;
 }

@@ -229,7 +229,7 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
                             onClick={() => setFilter(key)}
                             aria-pressed={filter === key}
                             className={cn(
-                                "px-2.5 py-1 rounded-full text-xs font-semibold transition-colors",
+                                "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors",
                                 filter === key
                                     ? "bg-foreground text-[var(--card-bg)]"
                                     : "text-muted-foreground hover:bg-muted",
@@ -237,7 +237,7 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
                         >
                             {label}
                             {key === "unread" && unreadCount > 0 && (
-                                <span className="ml-1 opacity-60">{unreadCount}</span>
+                                <span className="opacity-60 tabular-nums">{unreadCount}</span>
                             )}
                         </button>
                     ))}

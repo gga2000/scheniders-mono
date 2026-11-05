@@ -3,7 +3,7 @@
 import { OrderPlacementBadge } from "@/components/orders/order-placement-badge";
 import { CodRiskChip } from "@/components/orders/cod-risk-chip";
 import { type VirtualItem } from '@tanstack/react-virtual';
-import { useRef, memo } from 'react';
+import { useRef, memo, type CSSProperties } from 'react';
 import { cn, formatIQD } from '@/lib/utils';
 import { formatPhoneGrouped, validatePhoneDetailed } from '@/lib/order-utils';
 import { isWhatsAppSlot } from '@/lib/whatsapp-contact';
@@ -305,7 +305,7 @@ export const VirtualTableRow = memo(function VirtualTableRow({
                         const bgColor = item.tag_color ? `${item.tag_color}20` : '#f3f4f6';
                         const textColor = item.tag_color || '#374151';
                         return (
-                            <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-semibold rounded" style={{ backgroundColor: bgColor, color: textColor, border: `1px solid ${item.tag_color || '#e5e7eb'}` }} title={item.name}>
+                            <span key={i} data-product-line="" className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-semibold rounded" style={{ backgroundColor: bgColor, color: textColor, border: `1px solid ${item.tag_color || '#e5e7eb'}`, "--product-hue": item.tag_color || '#9ca3af' } as CSSProperties} title={item.name}>
                                 {item.name} <span style={{ opacity: 0.7 }}>×{item.quantity}</span>
                             </span>
                         );

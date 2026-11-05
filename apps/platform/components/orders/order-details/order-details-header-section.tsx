@@ -53,6 +53,7 @@ export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
                         <div className="relative">
                             <button
                                 onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                                data-status={order.is_return ? "return" : order.status}
                                 className={cn(
                                     "inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full uppercase tracking-wider transition-all cursor-pointer hover:opacity-80",
                                     getStatusBadgeStyle()
@@ -63,7 +64,7 @@ export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
 
                             {/* Status Dropdown Menu */}
                             {showStatusDropdown && onStatusUpdate && (
-                                <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-50 min-w-[240px] max-h-[500px] overflow-y-auto">
+                                <div data-status-menu="" className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-50 min-w-[240px] max-h-[500px] overflow-y-auto">
                                     <div className="space-y-1.5">
                                         {quickActions.map((action) => {
                                             const Icon = action.icon;
@@ -71,6 +72,8 @@ export function OrderDetailsHeaderSection({ m }: { m: OrderDetailsView }) {
                                             return (
                                                 <button
                                                     key={action.status}
+                                                    data-status-option={action.status}
+                                                    data-current={isCurrentStatus ? "" : undefined}
                                                     onClick={() => {
                                                         handleStatusChange(action.status);
                                                         setShowStatusDropdown(false);
