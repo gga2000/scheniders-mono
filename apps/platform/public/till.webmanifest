@@ -1,0 +1,19 @@
+{
+    "name": "Schenider Till",
+    "short_name": "Till",
+    "description": "Shop till: sell, take payment, print the receipt.",
+    "id": "schenider-till",
+    "start_url": "/till",
+    "scope": "/",
+    "display": "fullscreen",
+    "display_override": ["fullscreen", "standalone"],
+    "orientation": "any",
+    "background_color": "#121212",
+    "theme_color": "#1E1E1E",
+    "lang": "ar",
+    "categories": ["business", "productivity"],
+    "icons": [
+        { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+        { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    ]
+}

@@ -48,6 +48,6 @@ export const config = {
     matcher: [
         // Run on page navigations only. Exclude API routes (they authenticate via
         // the Authorization header) and static assets.
-        '/((?!api|_next/static|_next/image|favicon.ico|icons|manifest.json|sw.js).*)',
+        '/((?!api|_next/static|_next/image|favicon.ico|icons|manifest.json|till.webmanifest|sw.js).*)',
     ],
 };

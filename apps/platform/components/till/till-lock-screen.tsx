@@ -99,7 +99,10 @@ export function TillLockScreen({ shopId, cashiers, onUnlocked }: Props) {
                                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E4C1F9] text-sm text-[#1E1E1E]">
                                         {m.display_name.slice(0, 1).toUpperCase()}
                                     </span>
-                                    <span dir="auto">{m.display_name}</span>
+                                    <span className="flex min-w-0 flex-col items-start">
+                                        <span dir="auto" className="truncate">{m.display_name}</span>
+                                        {!m.has_pin && <span className="text-xs font-medium opacity-80">{t("till.lock.noPinYet")}</span>}
+                                    </span>
                                 </button>
                             ))}
                         </div>

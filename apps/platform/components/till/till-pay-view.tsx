@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, Minus, UserRound, X } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import {
     addPartPayment,
@@ -122,35 +122,29 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     <>
                         <div className="grid grid-cols-6 gap-2">
                             {KEY_NOTES.map((note) => (
-                                <button
-                                    key={note}
-                                    type="button"
-                                    onClick={() => tapNote(note)}
-                                    className="relative flex h-24 items-end rounded-2xl p-3 text-left text-xl font-bold tabular-nums text-[#1E1E1E]"
-                                    style={{ background: NOTE_TILES[note] }}
-                                >
-                                    {formatIqd(note)}
+                                <div key={note} className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => tapNote(note)}
+                                        className="flex h-24 w-full items-end justify-between rounded-2xl p-3 text-left text-xl font-bold tabular-nums text-[#1E1E1E] transition-transform active:scale-[0.97]"
+                                        style={{ background: NOTE_TILES[note] }}
+                                    >
+                                        {formatIqd(note)}
+                                        {notes[note] ? (
+                                            <span className="rounded-full bg-[#1E1E1E] px-2.5 py-0.5 text-sm text-white">×{notes[note]}</span>
+                                        ) : null}
+                                    </button>
                                     {notes[note] ? (
-                                        <span
-                                            role="button"
-                                            tabIndex={0}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                untapNote(note);
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (e.key === "Enter" || e.key === " ") {
-                                                    e.stopPropagation();
-                                                    untapNote(note);
-                                                }
-                                            }}
+                                        <button
+                                            type="button"
+                                            onClick={() => untapNote(note)}
                                             aria-label={t("till.pay.takeOne", { note: formatIqd(note) })}
-                                            className="absolute right-2 top-2 flex h-10 min-w-10 items-center justify-center rounded-full bg-[#1E1E1E] px-2 text-sm text-white"
+                                            className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-white/70 text-[#1E1E1E] shadow-sm"
                                         >
-                                            ×{notes[note]} −
-                                        </span>
+                                            <Minus className="h-4 w-4" aria-hidden="true" />
+                                        </button>
                                     ) : null}
-                                </button>
+                                </div>
                             ))}
                         </div>
                         <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
@@ -245,6 +239,13 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
             </div>
 
             <aside className="flex w-[420px] shrink-0 flex-col border-l border-[var(--card-border)] bg-[var(--card-bg)]">
+                {(ticket.customerName.trim() || ticket.phone.trim()) && (
+                    <p className="flex items-center gap-2 border-b border-[var(--card-border)] px-4 py-3 text-sm font-semibold text-foreground">
+                        <UserRound className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+                        {ticket.customerName.trim() && <span className="truncate" dir="auto">{ticket.customerName.trim()}</span>}
+                        {ticket.phone.trim() && <span className="shrink-0 font-normal tabular-nums text-muted">{ticket.phone.trim()}</span>}
+                    </p>
+                )}
                 <div className="flex flex-col gap-1.5 border-b border-[var(--card-border)] p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.cart.items", { n: ticket.cart.reduce((s, l) => s + l.quantity, 0) })}</p>
                     {ticket.cart.map((l) => (

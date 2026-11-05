@@ -10,6 +10,7 @@ import { ShopsTable } from "./shops-table";
 import { ShopDialog } from "./shop-dialog";
 import { TillRulesCard } from "./till-rules-card";
 import { TillPinsCard } from "./till-pins-card";
+import { TillChipsCard } from "./till-chips-card";
 
 const CARD = "rounded-[24px] border border-[var(--card-border)] bg-[var(--card-bg)]";
 
@@ -77,6 +78,7 @@ export function ShopsPage() {
                 <div className={manage ? "grid gap-5 lg:grid-cols-2" : "max-w-xl"}>
                     {manage && <TillRulesCard />}
                     <TillPinsCard members={members.data ?? []} loading={members.isPending} manage={manage} />
+                    {manage && <TillChipsCard />}
                 </div>
             </div>
 

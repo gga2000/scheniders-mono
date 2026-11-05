@@ -2416,6 +2416,14 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
   outline: none;
 }
 
+/* The till's "added" note rises in, then the component removes it. */
+@keyframes till-notice-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.till-notice { animation: till-notice-in 180ms cubic-bezier(0.22, 1, 0.36, 1); }
+@media (prefers-reduced-motion: reduce) { .till-notice { animation: none; } }
+
 /* ============================================
    Typography Helpers
    ============================================ */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -31,7 +32,10 @@ const keys = {
     shops: (tenantId: string | null) => ["till", "shops", tenantId] as const,
     rules: (tenantId: string | null) => ["till", "rules", tenantId] as const,
     members: (tenantId: string | null) => ["till", "members", tenantId] as const,
+    chips: (tenantId: string | null) => ["till", "chips", tenantId] as const,
 };
+
+const chipIdsSchema = z.array(z.string().uuid()).nullable();
 
 /** The store's shops with the people who work in each, oldest first. RLS keeps it to the caller's store. */
 export function useShops() {
@@ -194,6 +198,40 @@ export function useSaveTillRules() {
             if (error) throw error;
         },
         onSuccess: () => invalidate("rules"),
+    });
+}
+
+/**
+ * Which categories show as buttons on the till, in order. null means the till
+ * shows every visible category with products, in the store's own order.
+ */
+export function useTillChips() {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: keys.chips(tenantId),
+        enabled: !!tenantId,
+        queryFn: async (): Promise<string[] | null> => {
+            const { data, error } = await supabase.from("till_settings").select("chip_category_ids").eq("tenant_id", tenantId).maybeSingle();
+            if (error) throw error;
+            return chipIdsSchema.parse(data?.chip_category_ids ?? null);
+        },
+    });
+}
+
+export function useSaveTillChips() {
+    const { tenantId } = useAuth();
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (ids: string[] | null) => {
+            if (!tenantId) throw new Error("no store");
+            const chip_category_ids = chipIdsSchema.parse(ids);
+            const { error } = await supabase.from("till_settings").upsert({ tenant_id: tenantId, chip_category_ids }, { onConflict: "tenant_id" });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            void qc.invalidateQueries({ queryKey: keys.chips(tenantId) });
+            void qc.invalidateQueries({ queryKey: ["till", "overview"] });
+        },
     });
 }
 

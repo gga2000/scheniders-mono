@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Minus, Package, Plus, ScanBarcode, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, Minus, Package, Plus, ScanBarcode, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
-import { formatIqd, itemCount, maxDiscount, parseDinars, setQuantity, subtotalOf } from "@/lib/till/cart";
+import { useTillCustomer } from "@/hooks/use-till";
+import { dateLocale, formatIqd, itemCount, maxDiscount, parseDinars, setQuantity, subtotalOf } from "@/lib/till/cart";
+import { CART_TARGET_ID } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
 import type { Ticket } from "./till-ticket";
@@ -21,10 +23,11 @@ interface Props {
     discountLimitPct: number | null;
     isManager: boolean;
     cashierName: string;
+    sessionId: string;
 }
 
 /** The right side of the sell screen: held sales as tabs, the customer, the lines, discount, total. */
-export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName }: Props) {
+export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId }: Props) {
     const { t } = useLanguage();
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     const subtotal = subtotalOf(ticket.cart);
@@ -34,7 +37,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const [discountOpen, setDiscountOpen] = useState(false);
     const [discountText, setDiscountText] = useState("");
 
-    const phoneBad = ticket.phone.trim() !== "" && !normalizeIraqiMobile(ticket.phone);
+    const normalPhone = ticket.phone.trim() ? normalizeIraqiMobile(ticket.phone) : null;
+    const phoneBad = ticket.phone.trim() !== "" && !normalPhone;
+    const customer = useTillCustomer(sessionId, normalPhone);
     const discountTooBig = limit !== null && ticket.discount > limit;
 
     const applyDiscount = (text: string) => {
@@ -102,6 +107,14 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             )}
                         />
                         {phoneBad && <p className="col-span-2 text-xs text-red-600">{t("till.cart.phoneBad")}</p>}
+                        {customer.data && (
+                            <CustomerCard
+                                c={customer.data}
+                                nameEmpty={!ticket.customerName.trim()}
+                                onUseName={(name) => onChange({ ...ticket, customerName: name })}
+                            />
+                        )}
+                        {customer.data === null && normalPhone && <p className="col-span-2 text-xs text-muted">{t("till.cart.newCustomer")}</p>}
                     </div>
                 ) : (
                     <button type="button" onClick={() => setCustomerOpen(true)} className="flex h-12 items-center gap-2 text-sm font-semibold text-muted hover:text-foreground">
@@ -111,7 +124,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 )}
             </div>
 
-            <ul className="min-h-0 flex-1 overflow-y-auto">
+            <ul id={CART_TARGET_ID} className="min-h-0 flex-1 overflow-y-auto">
                 {ticket.cart.length === 0 ? (
                     <li className="flex h-full flex-col items-center justify-center gap-3 px-6 py-12 text-center">
                         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--card-border)]/40 text-muted">
@@ -209,5 +222,69 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 </button>
             </div>
         </aside>
+    );
+}
+
+function CustomerCard({
+    c,
+    nameEmpty,
+    onUseName,
+}: {
+    c: NonNullable<ReturnType<typeof useTillCustomer>["data"]>;
+    nameEmpty: boolean;
+    onUseName: (name: string) => void;
+}) {
+    const { t, language } = useLanguage();
+    const last = c.last_at ? new Date(c.last_at).toLocaleDateString(dateLocale(language), { day: "numeric", month: "short", timeZone: "Asia/Baghdad" }) : null;
+    const facts = [
+        t("till.cart.custOrders", { n: c.orders }),
+        c.spent > 0 ? t("till.cart.custSpent", { amount: formatIqd(c.spent) }) : null,
+        last ? t("till.cart.custLast", { date: last }) : null,
+    ].filter((f): f is string => f !== null);
+    return (
+        <div
+            className={cn(
+                "col-span-2 flex items-start gap-3 rounded-2xl px-3 py-2.5",
+                c.blacklisted ? "bg-[#FDE7EA] text-[#991B1B] dark:bg-red-500/15 dark:text-red-300" : "bg-[var(--card-border)]/30 text-foreground",
+            )}
+        >
+            <span
+                className={cn(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold",
+                    c.blacklisted ? "bg-[#991B1B] text-white" : "bg-[#B8E8E0] text-[#1E1E1E]",
+                )}
+                aria-hidden="true"
+            >
+                {c.blacklisted ? <AlertTriangle className="h-4 w-4" /> : (c.name ?? "#").slice(0, 1)}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                {c.blacklisted && <span className="text-left text-xs font-bold" dir="auto">{t("till.cart.blacklisted")}</span>}
+                <span className="flex min-w-0 items-center gap-2">
+                    {c.name && (
+                        <span className="truncate text-left text-sm font-semibold" dir="auto">
+                            {c.name}
+                        </span>
+                    )}
+                    {c.name && nameEmpty && (
+                        <button type="button" onClick={() => onUseName(c.name ?? "")} className="ms-auto h-9 shrink-0 rounded-full bg-[var(--card-bg)] px-3 text-xs font-semibold text-foreground shadow-sm ring-1 ring-[var(--card-border)]">
+                            {t("till.cart.useName")}
+                        </button>
+                    )}
+                </span>
+                <span className="flex flex-wrap gap-x-2 text-xs tabular-nums text-muted">
+                    {facts.map((f, i) => (
+                        <span key={f} className="flex gap-2">
+                            {i > 0 && <span aria-hidden="true">·</span>}
+                            <span dir="auto">{f}</span>
+                        </span>
+                    ))}
+                </span>
+                {c.returned > 0 && (
+                    <span className="text-left text-xs font-semibold text-amber-700 dark:text-amber-400" dir="auto">
+                        {t("till.cart.custReturned", { n: c.returned })}
+                    </span>
+                )}
+            </span>
+        </div>
     );
 }
