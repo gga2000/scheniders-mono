@@ -59,6 +59,12 @@ interface UseOrderFiltersOptions {
      * while the loaded rows do not cover the window, and never counted.
      */
     preview?: Pick<OrderListPreview, "rows" | "newestCutoff"> | null;
+    /**
+     * The in-transit tab across every date (hooks/use-in-transit-orders.ts), or
+     * null where the date filter applies to it as to every other tab. `scope`
+     * "any" shows every in-transit order, "today" only those that arrived today.
+     */
+    inTransit?: { extras: Order[]; loaded: boolean; scope: "any" | "today" } | null;
 }
 
 /** The preview the list may show: the head, through the list's own filter and sort. */
@@ -82,7 +88,7 @@ export interface CountViewFacts {
     windowIsAll: boolean;
 }
 
-export function useOrderFilters({ orders, searchResults, resultsAreSearch = true, filters, setFilters, clearFilters, loadedWindowKey, preview = null }: UseOrderFiltersOptions) {
+export function useOrderFilters({ orders, searchResults, resultsAreSearch = true, filters, setFilters, clearFilters, loadedWindowKey, preview = null, inTransit = null }: UseOrderFiltersOptions) {
 
     // WF-3: saved views used to live only in localStorage, so they did not follow
     // a user to another device or browser and were lost when site data was
@@ -156,9 +162,10 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
     // The rows, the window they were loaded for and the preview are deferred
     // TOGETHER, so no render pairs one window's rows with another's coverage,
     // or shows the preview beside a list that already covers the window.
-    const snapshot = useMemo(() => ({ orders, loadedWindowKey, preview }), [orders, loadedWindowKey, preview]);
+    const snapshot = useMemo(() => ({ orders, loadedWindowKey, preview, inTransit }), [orders, loadedWindowKey, preview, inTransit]);
     const deferredSnapshot = useDeferredValue(snapshot);
     const deferredOrders = deferredSnapshot.orders;
+    const deferredInTransit = deferredSnapshot.inTransit;
     const deferredSearchResults = useDeferredValue(searchResults);
     const deferredResultsAreSearch = useDeferredValue(resultsAreSearch);
     const deferredFilters = useDeferredValue(filters);
@@ -209,7 +216,34 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
         [deferredOrders, nonStatusFilters],
     );
 
-    const statusCounts = useMemo<OrderChipCounts>(() => countOrderChips(countView), [countView]);
+    // The in-transit tab ignores the date filter: its rows are the window's
+    // plus the ones the window does not hold, counted and listed by the same
+    // call, so the chip is the length of the list it opens.
+    const transitRows = useMemo(
+        () => (deferredInTransit && deferredInTransit.extras.length > 0 ? [...deferredOrders, ...deferredInTransit.extras] : deferredOrders),
+        [deferredOrders, deferredInTransit],
+    );
+    const transitScope = deferredInTransit?.scope;
+    const inTransitView = useMemo(
+        () => (transitScope ? filterOrders(transitRows, { ...nonStatusFilters, status: "in_transit" }, { inTransit: transitScope }) : null),
+        [transitRows, nonStatusFilters, transitScope],
+    );
+
+    // Both sides of the «كل الأيام» / «اليوم» switch, each the length of the
+    // list that side opens (null where the tab follows the date filter).
+    const inTransitCounts = useMemo(() => {
+        if (!transitScope) return null;
+        const f = { ...nonStatusFilters, status: "in_transit" as const };
+        return {
+            any: transitScope === "any" && inTransitView ? inTransitView.length : filterOrders(transitRows, f, { inTransit: "any" }).length,
+            today: transitScope === "today" && inTransitView ? inTransitView.length : filterOrders(transitRows, f, { inTransit: "today" }).length,
+        };
+    }, [transitRows, nonStatusFilters, transitScope, inTransitView]);
+
+    const statusCounts = useMemo<OrderChipCounts>(() => {
+        const counts = countOrderChips(countView);
+        return inTransitView ? { ...counts, in_transit: inTransitView.length } : counts;
+    }, [countView, inTransitView]);
 
     const filteredOrders = useMemo(() => {
         // Search results keep the server's ranking (exact number, then exact
@@ -219,10 +253,10 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
 
         // The status filter over the count view is the full list filter: every
         // other predicate has already been applied, and they are conjunctive.
-        const filtered = filterOrders(countView, { status: dStatus });
+        const filtered = dStatus === "in_transit" && inTransitView ? inTransitView : filterOrders(countView, { status: dStatus });
 
         return sortPinnedNewestFirst(filtered);
-    }, [countView, deferredSearchResults, dStatus]);
+    }, [countView, deferredSearchResults, dStatus, inTransitView]);
 
     // Needs Attention, each equal to the list its click opens:
     //   no response     → { ...filters, status: 'no_response' }    (a chip)
@@ -240,7 +274,10 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
     const deferredLoadedKey = deferredSnapshot.loadedWindowKey;
     const countViewFacts = useMemo<CountViewFacts>(() => {
         const window = windowFromDateFilter(dDateFrom, dDateTo);
-        const covered = deferredLoadedKey === undefined || listCovers(deferredLoadedKey, windowCacheKey(window));
+        // The in-transit tab's list is the whole of it only once every
+        // in-transit order has been read, not just the window's.
+        const transitCovered = !deferredInTransit || dStatus !== "in_transit" || deferredInTransit.loaded;
+        const covered = (deferredLoadedKey === undefined || listCovers(deferredLoadedKey, windowCacheKey(window))) && transitCovered;
         return {
             // Search hits are not narrowed by status, channel or product, so no
             // count describes them. A Prime queue is left by any filter pick,
@@ -250,7 +287,7 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
             statusIsAll: !dStatus || dStatus === "all",
             windowIsAll: window === null,
         };
-    }, [deferredSearchResults, deferredResultsAreSearch, deferredLoadedKey, dDateFrom, dDateTo, dStatus]);
+    }, [deferredSearchResults, deferredResultsAreSearch, deferredLoadedKey, deferredInTransit, dDateFrom, dDateTo, dStatus]);
 
     // The head of the list fetch, through the list's own filter and sort —
     // only while the rows do not cover the window and nothing is searched.
@@ -402,6 +439,7 @@ export function useOrderFilters({ orders, searchResults, resultsAreSearch = true
         filteredOrders,
         statusCounts,
         attentionCounts,
+        inTransitCounts,
         countViewFacts,
         listPreview,
         availableCities,

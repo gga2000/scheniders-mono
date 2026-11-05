@@ -1,5 +1,5 @@
 import type { Order, OrderFilters } from "@/types/order";
-import { windowFromDateFilter, orderInDateWindow } from "@/lib/order-window";
+import { windowFromDateFilter, orderInDateWindow, baghdadDayKey } from "@/lib/order-window";
 import { orderMatchesAdChannel } from "@/lib/ad-channel-filter";
 import { orderMatchesAdCampaign } from "@/lib/ad-campaign-filter";
 import { ORDER_CHIP_PREDICATES, isOrderChipId, isReplacementOrder } from "./order-chips";
@@ -16,6 +16,11 @@ export const FILTER_FIELDS_READ = [
     "status", "orderType", "dateFrom", "dateTo", "city", "product", "priority", "paymentStatus", "adChannel", "adCampaign", "isReturn",
 ] as const satisfies readonly (keyof OrderFilters)[];
 
+/** How the in-transit tab treats the date filter: not at all ("any"), or "today" only. Unset: the date filter applies. */
+export interface FilterOrdersOptions {
+    inTransit?: "any" | "today";
+}
+
 function needsReview(order: Order): boolean {
     if (order.notes && order.notes.includes("⚠️")) return true;
     // Empty items and not a manual order
@@ -29,10 +34,14 @@ function needsReview(order: Order): boolean {
  * tallies and the Needs Attention counts all run this over the same rows, so
  * each count is the length of the list its click opens.
  */
-export function filterOrders(rows: readonly Order[], f: OrderFilters): Order[] {
+export function filterOrders(rows: readonly Order[], f: OrderFilters, opts: FilterOrdersOptions = {}): Order[] {
     const status = f.status as string | undefined;
     const orderType = f.orderType;
-    const dateWindow = windowFromDateFilter(f.dateFrom, f.dateTo);
+    // The in-transit tab can ignore the merchant's date filter: every parcel
+    // still on the road shows, or only those that arrived today (Baghdad).
+    const dateWindow = status === "in_transit" && opts.inTransit
+        ? (opts.inTransit === "any" ? null : windowFromDateFilter(baghdadDayKey(), baghdadDayKey()))
+        : windowFromDateFilter(f.dateFrom, f.dateTo);
     const { city, product, priority, paymentStatus, adChannel, adCampaign, isReturn } = f;
 
     return rows.filter((order) => {

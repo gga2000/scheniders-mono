@@ -78,6 +78,8 @@ interface FilterUISlice {
   filterPaymentUnchecked: boolean;
   /** In transit: show only Prime parcels in this bucket, or stuck 3+ days (lib/prime/track.ts). */
   filterPrimeBucket: PrimeRowFilter | null;
+  /** In transit: show only orders that arrived today instead of every in-transit order. Not persisted. */
+  inTransitTodayOnly: boolean;
   /** The «معالجة» / «راجع» chip: the list shows that Prime queue across every date (lib/prime/queues.ts). */
   primeQueue: PrimeQueueId | null;
   /** An order a card asked the returns desk to take in; the orders page opens the desk with it. */
@@ -100,6 +102,7 @@ interface FilterUISlice {
   setFilterStuckTransit: (val: boolean) => void;
   setFilterPaymentUnchecked: (val: boolean) => void;
   setFilterPrimeBucket: (val: PrimeRowFilter | null) => void;
+  setInTransitTodayOnly: (val: boolean) => void;
   setPrimeQueue: (val: PrimeQueueId | null) => void;
   requestReturnIntake: (orderId: string | null) => void;
   toggleSort: (key: string, shiftKey?: boolean) => void;
@@ -264,6 +267,7 @@ export const useOrderStore = create<OrderStore>()(
       filterStuckTransit: false,
       filterPaymentUnchecked: false,
       filterPrimeBucket: null,
+      inTransitTodayOnly: false,
       primeQueue: null,
       returnIntakeRequest: null,
       sortConfig: null,
@@ -284,6 +288,7 @@ export const useOrderStore = create<OrderStore>()(
       setFilterStuckTransit: (val) => set({ filterStuckTransit: val }),
       setFilterPaymentUnchecked: (val) => set({ filterPaymentUnchecked: val }),
       setFilterPrimeBucket: (val) => set({ filterPrimeBucket: val }),
+      setInTransitTodayOnly: (val) => set({ inTransitTodayOnly: val }),
       setPrimeQueue: (val) => set({ primeQueue: val }),
       requestReturnIntake: (orderId) => set({ returnIntakeRequest: orderId ? { orderId, at: Date.now() } : null }),
       toggleSort: (key, shiftKey) =>

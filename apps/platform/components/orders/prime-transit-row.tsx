@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { CalendarDays, Truck } from "lucide-react";
 import { Switch } from "@scheniders/ui/switch";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -44,8 +45,65 @@ export function PrimeTransitRow({ filters }: { filters: OrderFilters }) {
     useEffect(() => {
         if (active && filters.status !== "in_transit") setActive(null);
     }, [active, filters.status, setActive]);
-    if (!connected || filters.status !== "in_transit") return null;
+    if (filters.status !== "in_transit") return null;
+    if (!connected) {
+        return (
+            <div data-in-transit-row className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E8EEF8] bg-[#F7F9FD] px-3 py-2 dark:border-sky-400/15 dark:bg-sky-400/[0.04]">
+                <InTransitDaySwitch />
+            </div>
+        );
+    }
     return <PrimeTransitRowFor />;
+}
+
+/**
+ * «كل الأيام» / «اليوم»: the in-transit tab lists every order still on the
+ * road, from any day, whatever date is picked; «اليوم» narrows it to the ones
+ * that arrived today (hooks/use-in-transit-orders.ts, lib/orders/filter-orders.ts).
+ * Each side shows the length of the list it opens.
+ */
+function InTransitDaySwitch() {
+    const { t } = useLanguage();
+    const { inTransitCounts, countViewFacts } = useOrdersContext();
+    const todayOnly = useOrderStore((s) => s.inTransitTodayOnly);
+    const setTodayOnly = useOrderStore((s) => s.setInTransitTodayOnly);
+    const sides = [
+        { today: false, key: "orders.filter.inTransitAllDays", Icon: Truck, count: inTransitCounts?.any },
+        { today: true, key: "orders.filter.inTransitToday", Icon: CalendarDays, count: inTransitCounts?.today },
+    ] as const;
+    return (
+        <div role="group" aria-label={t("orders.filter.inTransitDaysLabel")} className="inline-flex shrink-0 gap-0.5 rounded-full border border-[#D5DEEE] bg-[#E6ECF7] p-[3px] dark:border-white/10 dark:bg-white/[0.06]">
+            {sides.map(({ today, key, Icon, count }) => {
+                const on = todayOnly === today;
+                return (
+                    <button
+                        key={key}
+                        type="button"
+                        data-in-transit-days={today ? "today" : "all"}
+                        aria-pressed={on}
+                        onClick={() => setTodayOnly(today)}
+                        className={cn(
+                            "inline-flex h-[30px] items-center gap-1.5 rounded-full px-3 text-[13px] transition-all",
+                            on
+                                ? "bg-white font-bold text-[#1F3F75] shadow-[0_1px_2px_rgba(31,63,117,0.2),0_0_0_1px_rgba(31,63,117,0.08)] dark:bg-white/15 dark:text-white"
+                                : "font-semibold text-[#5B6B88] hover:text-[#1F3F75] dark:text-white/60 dark:hover:text-white",
+                        )}
+                    >
+                        <Icon className="h-[15px] w-[15px]" aria-hidden="true" />
+                        {t(key)}
+                        {count !== undefined && countViewFacts.ready && (
+                            <span className={cn(
+                                "min-w-5 rounded-full px-1.5 text-center text-[11.5px] font-extrabold tabular-nums",
+                                on ? "bg-[#1F3F75] text-white dark:bg-sky-300 dark:text-[#0f1a2e]" : "bg-[#1F3F75]/[0.08] dark:bg-white/10",
+                            )}>
+                                {count}
+                            </span>
+                        )}
+                    </button>
+                );
+            })}
+        </div>
+    );
 }
 
 function PrimeTransitRowFor() {
@@ -79,6 +137,8 @@ function PrimeTransitRowFor() {
 
     return (
         <div data-prime-row className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E8EEF8] bg-[#F7F9FD] px-3 py-2 dark:border-sky-400/15 dark:bg-sky-400/[0.04]">
+            <InTransitDaySwitch />
+            <span className="mx-1 h-5 w-px bg-[#DCE4F2] dark:bg-white/10" aria-hidden="true" />
             <span aria-hidden="true" className="h-3 w-[42px] shrink-0 bg-[#1F3F75] [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat] dark:bg-sky-200" />
             <span className="sr-only">Prime</span>
             {CHIPS.map((chip) => {
