@@ -89,7 +89,6 @@ interface Row extends PrimeFailedCandidate {
         id: string;
         order_id: string;
         status: string;
-        customer_name: string;
         phone: string;
         discount_amount: number | null;
         items: OrderItem[] | null;
@@ -128,7 +127,7 @@ export async function sendPrimeFailedNotices(db: ServiceDb, tenantId: string, no
     const { data, error } = await db
         .from("prime_shipments")
         .select(
-            "id, step_code, status_changed_at, problem_checked_at, cancelled_at, failed_notice_sent_at, return_reason, postpone_reason, orders!inner(id, order_id, status, customer_name, phone, discount_amount, items)",
+            "id, step_code, status_changed_at, problem_checked_at, cancelled_at, failed_notice_sent_at, return_reason, postpone_reason, orders!inner(id, order_id, status, phone, discount_amount, items)",
         )
         .eq("tenant_id", tenantId)
         .in("step_code", [...PRIME_RESENDABLE_STEPS])
@@ -163,7 +162,8 @@ export async function sendPrimeFailedNotices(db: ServiceDb, tenantId: string, no
             name: PRIME_FAILED_NOTICE_TEMPLATE,
             languageCode: TEMPLATE_LANGUAGE,
             headerValues: [image],
-            bodyValues: [order.customer_name, order.order_id, primeFailedStatus(raw), discount.toLocaleString("en-US")],
+            // The approved template: {{1}} order number, {{2}} the driver's status, {{3}} the discount in IQD.
+            bodyValues: [order.order_id, primeFailedStatus(raw), discount.toLocaleString("en-US")],
             callbackData: order.id,
             label: order.order_id,
         });
