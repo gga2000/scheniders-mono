@@ -20,21 +20,23 @@ const KIND_CHIP: Record<PrimeProblemKind, string> = {
     stuck: "border-[#F6D9AE] bg-[#FEF3E2] text-[#8A4B00] dark:border-amber-400/25 dark:bg-amber-400/15 dark:text-amber-200",
 };
 
-function Fact({ label, field, icon, children, tone }: { label: string; field: string; icon: ReactNode; children: ReactNode; tone?: string }) {
+function Fact({ label, field, icon, children, tone, title }: { label: string; field: string; icon: ReactNode; children: ReactNode; tone?: string; title?: string }) {
     return (
-        <div data-prime-field={field} className={cn("flex min-w-0 items-start gap-2.5 rounded-xl border bg-white px-3 py-2 shadow-[0_1px_0_rgba(0,0,0,0.02)] dark:bg-white/[0.04]", tone ?? "border-[#F0E4E1] dark:border-white/10")}>
-            <span aria-hidden="true" className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#F7F3F2] text-[#6B5E5B] dark:bg-white/10 dark:text-white/60">{icon}</span>
-            <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted dark:text-white/45">{label}</span>
-                <span className="mt-0.5 block min-w-0 text-[13px] leading-5">{children}</span>
-            </span>
+        <div
+            data-prime-field={field}
+            title={title}
+            className={cn("flex h-9 min-w-0 items-center gap-2 rounded-lg border bg-white px-2.5 dark:bg-white/[0.04]", tone ?? "border-[#F0E4E1] dark:border-white/10")}
+        >
+            <span aria-hidden="true" className="shrink-0 text-[#8A7D7A] dark:text-white/50">{icon}</span>
+            <span className="shrink-0 text-[11px] font-semibold text-muted dark:text-white/45">{label}</span>
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]">{children}</span>
         </div>
     );
 }
 
 /**
- * The «معالجة» / «راجع» band's top row (desktop): four labelled tiles side
- * by side, the order's status at Prime, Prime's last step and when, Prime's
+ * The «معالجة» / «راجع» band's top row (desktop): four compact one-line
+ * labelled tiles side by side, the order's status at Prime, Prime's last step and when, Prime's
  * answer (its reason) and the team's last comment.
  */
 export function PrimeQueueFacts({ entry }: { entry: PrimeQueueEntry }) {
@@ -47,20 +49,20 @@ export function PrimeQueueFacts({ entry }: { entry: PrimeQueueEntry }) {
     const none = <span className="text-muted dark:text-white/40">{t("orders.primeQueue.field.none")}</span>;
 
     return (
-        <div data-prime-queue-status={problem.kind} className="grid grid-cols-4 gap-2">
+        <div data-prime-queue-status={problem.kind} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] gap-1.5">
             <Fact
                 field="status"
                 label={t("orders.primeQueue.field.status")}
-                icon={<span className="h-1.5 w-4 bg-[#315EA8] [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat] dark:bg-blue-300" />}
+                icon={<span className="block h-1.5 w-4 bg-[#315EA8] [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat] dark:bg-blue-300" />}
             >
-                <span className={cn("inline-flex h-6 max-w-full items-center whitespace-nowrap rounded-md border px-2 text-[12px] font-bold", KIND_CHIP[problem.kind])}>
+                <span className={cn("inline-flex h-5 max-w-full items-center whitespace-nowrap rounded-md border px-1.5 text-[11px] font-bold", KIND_CHIP[problem.kind])}>
                     <span className="truncate">{t(`prime.problems.kind.${problem.kind}`)}</span>
                 </span>
             </Fact>
             <Fact field="step" label={t("orders.primeQueue.field.step")} icon={<Truck className="h-3.5 w-3.5" />}>
-                <span className="block truncate font-semibold text-foreground">{step ?? "—"}</span>
+                <span className="truncate font-semibold text-foreground">{step ?? "—"}</span>
                 {when && (
-                    <span className="flex items-center gap-1 text-[11px] text-muted dark:text-white/45">
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted dark:text-white/45">
                         <Clock className="h-3 w-3" aria-hidden="true" />
                         {when}
                     </span>
@@ -71,15 +73,16 @@ export function PrimeQueueFacts({ entry }: { entry: PrimeQueueEntry }) {
                 label={t("orders.primeQueue.field.answer")}
                 icon={<MessageSquareQuote className="h-3.5 w-3.5" />}
                 tone={answer ? "border-[#F2C9C4] dark:border-rose-400/25" : undefined}
+                title={answer || undefined}
             >
-                {answer ? <span className="line-clamp-2 font-semibold text-[#8F1D13] dark:text-rose-300">{answer}</span> : none}
+                {answer ? <span className="truncate font-semibold text-[#8F1D13] dark:text-rose-300">{answer}</span> : none}
             </Fact>
-            <Fact field="comment" label={t("orders.primeQueue.field.comment")} icon={<StickyNote className="h-3.5 w-3.5" />}>
+            <Fact field="comment" label={t("orders.primeQueue.field.comment")} icon={<StickyNote className="h-3.5 w-3.5" />} title={view.problemNote ?? undefined}>
                 {view.problemNote ? (
                     <>
-                        <span className="line-clamp-2 text-foreground">{view.problemNote}</span>
+                        <span className="truncate text-foreground">{view.problemNote}</span>
                         {view.problemCheckedAt && (
-                            <span className="block truncate text-[11px] text-muted dark:text-white/45">
+                            <span className="shrink-0 text-[11px] text-muted dark:text-white/45">
                                 {view.problemCheckedBy ?? t("prime.problems.someone")} · {formatTime(view.problemCheckedAt)}
                             </span>
                         )}
