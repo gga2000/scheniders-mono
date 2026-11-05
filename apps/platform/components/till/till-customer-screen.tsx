@@ -115,7 +115,9 @@ export function TillCustomerScreen() {
                     <div className="my-auto flex flex-col items-center gap-4 text-center">
                         <p className="text-2xl font-semibold" dir="auto">{t("till.customer.scan", { method: t(`till.pay.method.${state.method}`) })}</p>
                         <img src={qrPay} alt={t("till.pay.qrAlt", { method: t(`till.pay.method.${state.method}`) })} className="aspect-square w-[min(100%,22rem)] rounded-[28px] bg-white object-contain p-5" />
-                        <p className="text-7xl font-bold tabular-nums tracking-tight">{formatIqd(state.due)}</p>
+                        <p className="text-7xl font-bold tabular-nums tracking-tight">
+                            {formatIqd(state.due)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
+                        </p>
                         {(storeName || shopName) && (
                             <p className="text-xl text-white/60" dir="auto">{t("till.customer.payTo", { name: [storeName, shopName].filter(Boolean).join(" · ") })}</p>
                         )}
@@ -126,18 +128,19 @@ export function TillCustomerScreen() {
                             label={state.method === "cash" ? t("till.customer.toPayCash") : t("till.customer.toPay", { method: t(`till.pay.method.${state.method}`) })}
                             value={formatIqd(state.due)}
                             big={!(state.method === "cash" && state.given > 0)}
+                            unit={t("till.iqd")}
                         />
                         {state.method === "cash" && state.given > 0 && (
                             <>
-                                <Row label={t("till.customer.gave")} value={formatIqd(state.given)} />
-                                <Change label={t("till.customer.change")} value={formatIqd(state.change)} />
+                                <Row label={t("till.customer.gave")} value={formatIqd(state.given)} unit={t("till.iqd")} />
+                                <Change label={t("till.customer.change")} value={formatIqd(state.change)} unit={t("till.iqd")} />
                             </>
                         )}
                     </div>
                 ) : (
                     <div className="my-auto flex flex-col items-center gap-6 text-center">
                         <p className="text-6xl font-bold" dir="auto">{t("till.customer.thanks")}</p>
-                        {state.change > 0 && <Change label={t("till.customer.change")} value={formatIqd(state.change)} />}
+                        {state.change > 0 && <Change label={t("till.customer.change")} value={formatIqd(state.change)} unit={t("till.iqd")} />}
                         {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
                     </div>
                 )}
@@ -150,25 +153,30 @@ function Center({ children }: { children: React.ReactNode }) {
     return <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">{children}</div>;
 }
 
-function Row({ label, value, big = false }: { label: string; value: string; big?: boolean }) {
+function Row({ label, value, unit, big = false }: { label: string; value: string; unit: string; big?: boolean }) {
     return big ? (
         <div className="flex flex-col gap-2">
             <p className="text-xl text-white/60" dir="auto">{label}</p>
             <p className="text-8xl font-bold tabular-nums tracking-tight">{value}</p>
+            <p className="text-lg text-white/60">{unit}</p>
         </div>
     ) : (
         <p className="flex items-baseline justify-between gap-4 text-2xl text-white/70">
             <span dir="auto">{label}</span>
-            <span className="text-4xl font-bold tabular-nums text-white">{value}</span>
+            <span className="text-4xl font-bold tabular-nums text-white">
+                {value} <span className="text-lg font-semibold text-white/60">{unit}</span>
+            </span>
         </p>
     );
 }
 
-function Change({ label, value }: { label: string; value: string }) {
+function Change({ label, value, unit }: { label: string; value: string; unit: string }) {
     return (
         <div className="w-full rounded-[28px] bg-[#E3F6DA] px-8 py-6 text-[#14532D]">
             <p className="text-xl font-semibold" dir="auto">{label}</p>
-            <p className="text-7xl font-bold tabular-nums tracking-tight">{value}</p>
+            <p className="text-7xl font-bold tabular-nums tracking-tight">
+                {value} <span className="text-2xl font-semibold">{unit}</span>
+            </p>
         </div>
     );
 }

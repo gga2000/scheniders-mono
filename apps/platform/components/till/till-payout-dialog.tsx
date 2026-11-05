@@ -20,13 +20,16 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
     // One id per open dialog, so a double tap or a retry saves one expense.
     const [clientId] = useState(() => crypto.randomUUID());
     const [amountText, setAmountText] = useState("");
-    const [note, setNote] = useState("");
+    // A reason chip and the typed details are kept apart, so tapping a chip never fills the text box.
+    const [reason, setReason] = useState<string | null>(null);
+    const [detail, setDetail] = useState("");
+    const note = [reason, detail.trim()].filter(Boolean).join(" · ");
     const amount = parseDinars(amountText);
     const ready = amount > 0 && note.trim().length > 0 && !payout.isPending;
 
     const submit = () =>
         payout.mutate(
-            { sessionId, clientId, amount, note: note.trim() },
+            { sessionId, clientId, amount, note },
             {
                 onSuccess: () => {
                     toast({ title: t("till.payout.saved", { amount: formatIqd(amount) }), variant: "success" });
@@ -86,10 +89,11 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
                                 <button
                                     key={r}
                                     type="button"
-                                    onClick={() => setNote(label)}
+                                    onClick={() => setReason(reason === label ? null : label)}
+                                    aria-pressed={reason === label}
                                     className={cn(
                                         "h-11 rounded-full border px-4 text-sm font-semibold",
-                                        note === label ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] text-foreground",
+                                        reason === label ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] text-foreground",
                                     )}
                                 >
                                     {label}
@@ -98,9 +102,9 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
                         })}
                     </div>
                     <input
-                        value={note}
-                        onChange={(e) => setNote(e.target.value.slice(0, 200))}
-                        placeholder={t("till.payout.notePlaceholder")}
+                        value={detail}
+                        onChange={(e) => setDetail(e.target.value.slice(0, 200))}
+                        placeholder={reason ? t("till.payout.detailPlaceholder") : t("till.payout.notePlaceholder")}
                         aria-label={t("till.payout.for")}
                         className="h-12 rounded-2xl border border-[var(--card-border)] bg-transparent px-4 text-sm text-foreground outline-none focus:border-[var(--ink)]"
                         dir="auto"
