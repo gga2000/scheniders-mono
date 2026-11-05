@@ -304,7 +304,7 @@ describe("what lands on the order", () => {
 
   it.each([
     ["Draft", { status: "draft" }],
-    ["out of stock", { stock_quantity: 0 }],
+    ["marked out of stock", { storefront_sold_out: true }],
     ["hidden", { is_visible: false }],
     ["a supply item", { is_supply: true }],
     ["another tenant's", { tenant_id: OTHER_TENANT }],

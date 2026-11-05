@@ -170,7 +170,7 @@ async function loadOffers(svc: Svc, order: OwnedOrder): Promise<PricedOffer[]> {
   // supply bar the checkout applies to a cart line, plus stock on hand.
   const { data: products, error: productsErr } = await svc
     .from("products")
-    .select("id, name, short_name, image_url, price, website_price, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity, storefront_stock")
+    .select("id, name, short_name, image_url, price, website_price, status, is_visible, is_archived, is_supply, stock_quantity, reserved_quantity, storefront_stock, storefront_sold_out")
     .in("id", offerIds)
     .eq("tenant_id", order.tenantId)
     .eq("is_visible", true)

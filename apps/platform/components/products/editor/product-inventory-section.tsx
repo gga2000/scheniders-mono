@@ -69,6 +69,24 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
             </div>
 
             {!formData.is_supply && (
+                <div className="rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-4">
+                        <label htmlFor="storefront-sold-out-toggle" className="text-sm font-medium text-foreground">
+                            {t("products.ed.storefrontSoldOut")}
+                        </label>
+                        <Switch
+                            id="storefront-sold-out-toggle"
+                            checked={formData.storefront_sold_out}
+                            onCheckedChange={(on) => updateField("storefront_sold_out", on)}
+                        />
+                    </div>
+                    <p dir={textDir} className="text-left text-xs text-muted">
+                        {formData.storefront_sold_out ? t("products.ed.storefrontSoldOutOn") : t("products.ed.storefrontSoldOutOff")}
+                    </p>
+                </div>
+            )}
+
+            {!formData.is_supply && (
                 <div className="rounded-xl border border-[var(--card-border)] bg-[var(--background)] p-4 space-y-3">
                     <div className="flex items-center justify-between gap-4">
                         <label htmlFor="storefront-stock-toggle" className="text-sm font-medium text-foreground">
