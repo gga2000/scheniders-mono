@@ -25,6 +25,8 @@ export const shopFormSchema = z.object({
             return phone;
         }),
     receipt_footer: optionalText(200),
+    fib_qr_url: z.string().url().startsWith("https://").max(500).nullable(),
+    zaincash_qr_url: z.string().url().startsWith("https://").max(500).nullable(),
 });
 
 export type ShopFormInput = z.input<typeof shopFormSchema>;

@@ -5,7 +5,7 @@ import { MessageCircle, Printer, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
-import { useTillSalesToday, type TillHistorySale } from "@/hooks/use-till";
+import { RECEIPT_CODE, useTillFindSale, useTillSalesToday, type TillHistorySale } from "@/hooks/use-till";
 import type { Shop } from "@/hooks/use-shops";
 import { formatIqd, type PayMethod } from "@/lib/till/cart";
 import { printReceipt, receiptDocument, receiptWhatsAppText, whatsAppReceiptLink, type ReceiptData } from "@/lib/till/receipt";
@@ -14,10 +14,13 @@ interface Props {
     sessionId: string;
     shop: Shop;
     storeName: string;
+    /** A receipt number scanned on the sell screen: the dialog opens searching for it. */
+    initialQuery?: string;
     onClose: () => void;
 }
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" });
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Asia/Baghdad" });
 
 function toReceipt(s: TillHistorySale, shop: Shop, storeName: string): ReceiptData {
     const lines = s.items.map((i) => ({ name: i.name, variant_name: i.variant_name, quantity: i.quantity, price: i.price }));
@@ -38,11 +41,17 @@ function toReceipt(s: TillHistorySale, shop: Shop, storeName: string): ReceiptDa
     };
 }
 
-/** Today's sales at this shop: find one by number, phone or product, then reprint or resend it. */
-export function TillHistoryDialog({ sessionId, shop, storeName, onClose }: Props) {
+/**
+ * Today's sales at this shop: find one by number, phone or product, then reprint or resend it.
+ * A full receipt number (typed or scanned from the receipt QR) also finds older sales from any shop.
+ */
+export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "", onClose }: Props) {
     const { t } = useLanguage();
     const sales = useTillSalesToday(sessionId, true);
-    const [q, setQ] = useState("");
+    const [q, setQ] = useState(initialQuery);
+    const code = q.trim();
+    const inToday = (sales.data ?? []).some((s) => s.order_id === code);
+    const past = useTillFindSale(sessionId, RECEIPT_CODE.test(code) && sales.isSuccess && !inToday ? code : null);
 
     const shown = useMemo(() => {
         const text = q.trim().toLowerCase();
@@ -64,7 +73,7 @@ export function TillHistoryDialog({ sessionId, shop, storeName, onClose }: Props
         <Dialog open onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="till-screen flex max-h-[86vh] flex-col md:max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle className="text-left">{t("till.history.title")}</DialogTitle>
+                    <DialogTitle className="text-left">{past.data ? t("till.history.foundTitle", { code }) : t("till.history.title")}</DialogTitle>
                     <DialogDescription className="text-left tabular-nums" dir="auto">
                         {sales.data ? t("till.history.summary", { n: sales.data.length, total: formatIqd(total) }) : " "}
                     </DialogDescription>
@@ -89,8 +98,20 @@ export function TillHistoryDialog({ sessionId, shop, storeName, onClose }: Props
                         </div>
                     ) : sales.isError ? (
                         <p className="py-10 text-center text-sm text-muted">{t("till.history.failed")}</p>
+                    ) : past.data ? (
+                        <ul className="flex flex-col">
+                            <SaleRow sale={past.data} receipt={toReceipt(past.data, shop, storeName)} withDay />
+                        </ul>
+                    ) : past.isFetching ? (
+                        <div className="h-16 animate-pulse rounded-2xl bg-[var(--card-border)]/40" aria-busy="true" />
                     ) : shown.length === 0 ? (
-                        <p className="py-10 text-center text-sm text-muted">{sales.data.length ? t("till.history.noMatch") : t("till.history.none")}</p>
+                        <p className="py-10 text-center text-sm text-muted" dir="auto">{past.isError
+                                ? t("till.history.failed")
+                                : past.isSuccess
+                                  ? t("till.history.notFound", { code })
+                                  : sales.data.length
+                                    ? t("till.history.noMatch")
+                                    : t("till.history.none")}</p>
                     ) : (
                         <ul className="flex flex-col divide-y divide-[var(--card-border)]">
                             {shown.map((s) => (
@@ -104,14 +125,17 @@ export function TillHistoryDialog({ sessionId, shop, storeName, onClose }: Props
     );
 }
 
-function SaleRow({ sale, receipt }: { sale: TillHistorySale; receipt: ReceiptData }) {
+function SaleRow({ sale, receipt, withDay = false }: { sale: TillHistorySale; receipt: ReceiptData; withDay?: boolean }) {
     const { t } = useLanguage();
     const phone = sale.phone ? normalizeIraqiMobile(sale.phone) : null;
     const methods = [...new Set(sale.payments.map((p) => p.method))] as PayMethod[];
     const items = sale.items.reduce((n, i) => n + i.quantity, 0);
     return (
         <li className="flex items-center gap-4 py-3">
-            <span className="w-14 shrink-0 text-sm font-semibold tabular-nums text-foreground">{time(sale.created_at)}</span>
+            <span className="flex w-14 shrink-0 flex-col text-sm font-semibold tabular-nums text-foreground">
+                {withDay && <span className="text-xs font-semibold text-muted">{day(sale.created_at)}</span>}
+                {time(sale.created_at)}
+            </span>
             <span className="min-w-0 flex-1">
                 <span className="block truncate text-left text-sm font-semibold text-foreground" dir="auto">
                     {sale.customer_name || t("till.history.walkIn")}

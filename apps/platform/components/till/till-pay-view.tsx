@@ -26,6 +26,8 @@ interface Props {
     print: boolean;
     onPrint: (v: boolean) => void;
     hasPhone: boolean;
+    /** The shop's FIB / ZainCash QR images, if the owner added them. */
+    payQr: Partial<Record<PayMethod, string>>;
     onBack: () => void;
     onComplete: (payments: PaymentLine[], change: number) => void;
 }
@@ -33,7 +35,7 @@ interface Props {
 const KEY_NOTES = IQD_NOTES.slice(0, 6);
 
 /** Taking the money: method, note keys, change as the hero, split when asked. */
-export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, onBack, onComplete }: Props) {
+export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, payQr, onBack, onComplete }: Props) {
     const { t } = useLanguage();
     const [method, setMethod] = useState<PayMethod>("cash");
     const [parts, setParts] = useState<PaymentLine[]>([]);
@@ -199,6 +201,15 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     </>
                 ) : (
                     <div className="flex flex-col gap-2 rounded-[20px] bg-[var(--card-border)]/30 p-5">
+                        {payQr[method] && (
+                            <figure className="flex items-center gap-5 pb-2">
+                                <img src={payQr[method]} alt={t("till.pay.qrAlt", { method: t(`till.pay.method.${method}`) })} className="h-56 w-56 shrink-0 rounded-2xl bg-white object-contain p-2" />
+                                <figcaption className="text-left text-base text-muted" dir="auto">
+                                    {t("till.pay.qrScan", { method: t(`till.pay.method.${method}`) })}
+                                    <span className="mt-1 block text-3xl font-bold tabular-nums text-foreground">{formatIqd(typed !== null && parseDinars(typed) > 0 ? parseDinars(typed) : rest)}</span>
+                                </figcaption>
+                            </figure>
+                        )}
                         <p className="text-left text-base font-semibold text-foreground" dir="auto">{t("till.pay.takeOn", { method: t(`till.pay.method.${method}`), amount: formatIqd(rest) })}</p>
                         <label className="flex items-center gap-3 text-sm text-muted">
                             {t("till.pay.onlyPart")}

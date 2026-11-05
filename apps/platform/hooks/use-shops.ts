@@ -17,6 +17,9 @@ export interface Shop {
     address: string | null;
     phone: string | null;
     receipt_footer: string | null;
+    /** The shop's own payment QR images, shown big on the pay screen. */
+    fib_qr_url: string | null;
+    zaincash_qr_url: string | null;
     is_active: boolean;
     staff: string[]; // user ids
 }
@@ -59,7 +62,7 @@ export function useShops() {
             const [shops, staff] = await Promise.all([
                 supabase
                     .from("shops")
-                    .select("id, name, address, phone, receipt_footer, is_active")
+                    .select("id, name, address, phone, receipt_footer, fib_qr_url, zaincash_qr_url, is_active")
                     .eq("tenant_id", tenantId)
                     .order("created_at", { ascending: true }),
                 supabase.from("shop_staff").select("shop_id, user_id").eq("tenant_id", tenantId),

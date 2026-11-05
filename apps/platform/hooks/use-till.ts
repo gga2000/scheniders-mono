@@ -308,6 +308,23 @@ const historySale = z.object({
 });
 export type TillHistorySale = z.infer<typeof historySale>;
 
+/** A receipt number: what the QR on a printed receipt holds. */
+export const RECEIPT_CODE = /^\d{10}$/;
+
+/** One past till sale of this store by its receipt number, from any shop and any day; null when there is none. */
+export function useTillFindSale(sessionId: string | null, orderId: string | null) {
+    return useQuery({
+        queryKey: ["till", "find", sessionId, orderId],
+        enabled: !!sessionId && !!orderId && RECEIPT_CODE.test(orderId),
+        staleTime: 30_000,
+        queryFn: async (): Promise<TillHistorySale | null> => {
+            const { data, error } = await supabase.rpc("till_find_sale", { p_session_id: sessionId, p_order_id: orderId });
+            if (error) throw error;
+            return historySale.nullable().parse(data);
+        },
+    });
+}
+
 /** Today's sales at this shop, newest first. */
 export function useTillSalesToday(sessionId: string | null, enabled: boolean) {
     return useQuery({

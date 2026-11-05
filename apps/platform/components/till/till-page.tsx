@@ -67,6 +67,7 @@ export function TillPage() {
     const [done, setDone] = useState<Done | null>(null);
     const [print, setPrint] = useState(true);
     const [historyOpen, setHistoryOpen] = useState(false);
+    const [historyQuery, setHistoryQuery] = useState("");
     const [payoutOpen, setPayoutOpen] = useState(false);
     // The till renders only after its queries load, never during the server pass, so reading storage here is safe.
     const [prefs, setPrefsState] = useState<TillPrefs>(readPrefs);
@@ -283,7 +284,10 @@ export function TillPage() {
             onLock={() => lock()}
             today={overview.data?.today}
             mine={overview.data?.mine}
-            onHistory={() => setHistoryOpen(true)}
+            onHistory={() => {
+                setHistoryQuery("");
+                setHistoryOpen(true);
+            }}
             commission={commissionOf(overview.data?.mine.total ?? 0, rules.data?.commission_pct ?? 0)}
             onPayout={() => setPayoutOpen(true)}
             prefs={prefs}
@@ -297,6 +301,7 @@ export function TillPage() {
                     print={print}
                     onPrint={setPrint}
                     hasPhone={!!ticket.phone.trim() && !!normalizeIraqiMobile(ticket.phone)}
+                    payQr={{ fib: shop.fib_qr_url ?? undefined, zaincash: shop.zaincash_qr_url ?? undefined }}
                     onBack={() => setView("sell")}
                     onComplete={complete}
                 />
@@ -319,7 +324,13 @@ export function TillPage() {
                 />
             ) : (
                 <div className="flex min-h-0 flex-1">
-                    <TillProductGrid products={shelf} loading={products.isPending} overview={overview.data} sound={prefs.sound} onAdd={add} />
+                    <TillProductGrid products={shelf} loading={products.isPending} overview={overview.data} sound={prefs.sound}
+                        onAdd={add}
+                        onReceiptCode={(code) => {
+                            setHistoryQuery(code);
+                            setHistoryOpen(true);
+                        }}
+                    />
                     <TillCartPanel
                         tickets={tickets}
                         activeId={ticket.id}
@@ -337,7 +348,7 @@ export function TillPage() {
                 </div>
             )}
             {payoutOpen && <TillPayoutDialog sessionId={session.id} onClose={() => setPayoutOpen(false)} />}
-            {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
+            {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} initialQuery={historyQuery} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
         </TillFrame>
     );
 }
