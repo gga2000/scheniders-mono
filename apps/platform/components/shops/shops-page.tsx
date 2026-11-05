@@ -13,6 +13,7 @@ import { TillPinsCard } from "./till-pins-card";
 import { TillChipsCard } from "./till-chips-card";
 import { TillLogCard } from "./till-log-card";
 import { TillHoursCard } from "./till-hours-card";
+import { ShopInsightsCard } from "./shop-insights-card";
 
 const CARD = "rounded-[24px] border border-[var(--card-border)] bg-[var(--card-bg)]";
 
@@ -84,6 +85,7 @@ export function ShopsPage() {
                     {manage && <TillHoursCard members={members.data ?? []} />}
                     {manage && <TillLogCard shops={shops.data ?? []} members={members.data ?? []} />}
                 </div>
+                {manage && <ShopInsightsCard shops={shops.data ?? []} />}
             </div>
 
             {editing !== null && (
