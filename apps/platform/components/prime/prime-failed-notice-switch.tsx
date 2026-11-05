@@ -5,6 +5,7 @@ import { Switch } from "@scheniders/ui/switch";
 import { useLanguage } from "@/hooks/use-language";
 import { usePrimeFailedNotice } from "@/hooks/use-prime-failed-notice";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 /**
  * The store's switch for the WhatsApp a customer gets when Prime's driver
@@ -29,7 +30,20 @@ export function PrimeFailedNoticeSwitch() {
                 <span className="block text-sm font-medium text-foreground">{t("prime.failedNotice.title")}</span>
                 <span className="block text-xs text-muted">{t("prime.failedNotice.body")}</span>
             </span>
-            <Switch checked={notice.enabled} disabled={notice.saving} onCheckedChange={change} aria-label={t("prime.failedNotice.title")} />
+            {/* The word beside the switch: a pale track alone was too easy to miss on the card. */}
+            <span
+                data-prime-failed-notice-state={notice.enabled ? "on" : "off"}
+                className={cn("text-xs font-semibold", notice.enabled ? "text-[#165C39] dark:text-emerald-300" : "text-muted")}
+            >
+                {t(notice.enabled ? "prime.failedNotice.on" : "prime.failedNotice.off")}
+            </span>
+            <Switch
+                checked={notice.enabled}
+                disabled={notice.saving}
+                onCheckedChange={change}
+                aria-label={t("prime.failedNotice.title")}
+                className="data-[state=checked]:bg-[#1F8A50] data-[state=unchecked]:bg-[#A8A196] dark:data-[state=unchecked]:bg-white/30"
+            />
         </label>
     );
 }
