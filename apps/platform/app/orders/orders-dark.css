@@ -645,3 +645,11 @@ html.dark:has(.orders-page) [role=dialog] i[class*="bg-[var(--foreground-muted)]
 /* Duplicate strip: the matched order number chip is a tint, not a mustard fill. */
 html.dark:has(.orders-page) span.rounded[class*="bg-amber-"][class*="font-mono"]:not(#a):not(#b),html.dark:has(.orders-page) span.rounded.font-bold[class*="bg-amber-4"]:not(#a):not(#b){background:rgba(226,190,110,.14)!important;color:#e2be6e!important}
 html.dark:has(.orders-page) .orders-card-surface button.bg-emerald-500[class*="w-10"] svg:not(#a):not(#b){color:inherit!important}
+
+/* build 6: popovers lift one step above the cards they open over, the
+   ship-via-Prime action loses its leftover yellow icon, and the disabled
+   send-template button stays readable. */
+html.dark:has(.orders-page) [data-radix-popper-content-wrapper] > [role="menu"]:not(#a):not(#b),html.dark:has(.orders-page) [data-radix-popper-content-wrapper] > div.z-50[class*="bg-[var(--card-bg)]"]:not(#a):not(#b){background:#2a2926!important;border-color:rgba(255,255,255,.09)!important;box-shadow:0 18px 44px -10px rgba(0,0,0,.9),0 0 0 1px rgba(0,0,0,.35)!important}
+html.dark:has(.orders-page) [data-radix-popper-content-wrapper] > div.z-50 [class*="bg-[var(--background)]"]:not(#a):not(#b){background:transparent!important;border-color:rgba(255,255,255,.07)!important}
+html.dark:has(.orders-page) .orders-toolbar-group button.p-2\.5.rounded-xl.bg-slate-800:not(#a):not(#b) svg{color:inherit!important}
+html.dark:has(.orders-page) [role=dialog] button.bg-gray-300.cursor-not-allowed:not(#a):not(#b){background:#242320!important;color:#a8a59e!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)!important}
