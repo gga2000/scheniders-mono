@@ -579,3 +579,30 @@ html.dark:has(.orders-page) .orders-page button[class*="bg-primary"][class*="bor
 /* i7 group labels neutral */
 html.dark:has(.orders-page) .orders-page .orders-toolbar-group>span{color:#8f8d86!important;letter-spacing:.02em}
 html.dark:has(.orders-page) .orders-page .orders-toolbar-divider{background:rgba(255,255,255,.08)!important}
+/* --- build 2: hooks the components now expose --- */
+/* Card actions: only the button that moves the order to its next stage
+   (data-next-step, full-card-actions.tsx) keeps its status colour; the rest
+   are quiet graphite until hovered. */
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button:not([data-next-step]):not(#a):not(#b):not(#c):not(#d){background:transparent!important;border-color:#34322e!important;color:#a8a59e!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button:not([data-next-step]):hover:not(#a):not(#b):not(#c):not(#d){background:#2d2c29!important;color:#f0eee9!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button:not([data-next-step]) svg{color:inherit!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button[title][class*="pastel-pink"]:not([data-next-step]):hover:not(#a):not(#b):not(#c):not(#d){color:#eb827b!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button[data-next-step]:not(#a):not(#b):not(#c):not(#d){background:color-mix(in srgb,currentColor 14%,transparent)!important;border:1px solid color-mix(in srgb,currentColor 30%,transparent)!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button[data-next-step][class*="pastel-yellow"]:not(#a){color:#e2be6e!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button[data-next-step][class*="pastel-green"]:not(#a){color:#8cd59b!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button[data-next-step][class*="bg-blue-100"]:not(#a){color:#7fc6d9!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button[data-next-step][class*="pastel-mint"]:not(#a){color:#a3b0ec!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button[data-next-step][class*="emerald"]:not(#a){color:#8cd59b!important}
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button[data-next-step] svg{color:inherit!important}
+/* Stock tiles by state (data-stock, stock-today-glance.tsx): same tint
+   recipe as the status pills; out of stock is an empty, dashed slot. */
+html.dark:has(.orders-page) [data-stock]:not(#a){--tw-ring-color:transparent;background:#242320!important;box-shadow:none!important;border:1px solid #34322e}
+html.dark:has(.orders-page) [data-stock="ok"]:not(#a){background:color-mix(in oklab,#8cd59b 7%,#242320)!important;border-color:color-mix(in oklab,#8cd59b 22%,transparent)}
+html.dark:has(.orders-page) [data-stock="ok"] :is(span,b):not(#a){color:#8cd59b!important}
+html.dark:has(.orders-page) :is([data-stock="low"],[data-stock="short"]):not(#a){background:color-mix(in oklab,#e2be6e 7%,#242320)!important;border-color:color-mix(in oklab,#e2be6e 22%,transparent)}
+html.dark:has(.orders-page) :is([data-stock="low"],[data-stock="short"]) :is(span,b):not(#a){color:#e2be6e!important}
+html.dark:has(.orders-page) [data-stock="oversold"]:not(#a){background:color-mix(in oklab,#eb827b 8%,#242320)!important;border-color:color-mix(in oklab,#eb827b 24%,transparent)}
+html.dark:has(.orders-page) [data-stock="oversold"] :is(span,b):not(#a){color:#eb827b!important}
+html.dark:has(.orders-page) [data-stock="out"]:not(#a){background:transparent!important;border-style:dashed;border-color:#3a3833}
+html.dark:has(.orders-page) [data-stock="out"] :is(span,b):not(#a){color:#8f8d86!important}
+html.dark:has(.orders-page) [data-stock] span.text-\[11px\]:first-child:not(#a){color:#a8a59e!important}

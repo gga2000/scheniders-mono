@@ -91,7 +91,7 @@ function LeftCount({ lane, state, label }: { lane: StockLane; state: StockState;
     const [key, fallback] = STOCK_STATE_LABEL[state];
     const tone = TONE[state];
     return (
-        <div className={cn("rounded-xl px-3 py-2 ring-1 ring-inset", tone.box)}>
+        <div data-stock={state} className={cn("rounded-xl px-3 py-2 ring-1 ring-inset", tone.box)}>
             <span className="block text-[11px] font-medium text-[var(--foreground-muted)]">{label}</span>
             <span className={cn("block text-[28px] font-bold leading-tight tabular-nums", tone.num)} dir="ltr">
                 {lane.left < 0 ? `−${Math.abs(lane.left)}` : lane.left}
