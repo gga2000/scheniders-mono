@@ -15,7 +15,7 @@ const TONE: Record<DangerBand, { tile: string; ring: string; dot: string; num: s
 
 interface Props {
     counts: Record<DangerBand, number>;
-    /** Every order in the list (open or not), so the open count reads against it. */
+    /** Every order in the list; each one sits in one band. */
     listTotal: number;
     active: DangerBand | null;
     onSelect: (band: DangerBand | null) => void;
@@ -26,15 +26,15 @@ interface Props {
 /**
  * The Shield danger section above the order cards (Ali, 2026-11-05): three
  * tiles, high danger (Trust under 50), medium (50-79) and low (80+ or new),
- * sized by how many open orders sit in each. Clicking a tile lists only its
- * orders; clicking it again shows them all. Only open orders get a band:
- * delivered, shipped and cancelled orders can no longer be stopped.
+ * sized by how many orders sit in each. Every order in the list gets a band,
+ * whatever its status. Clicking a tile lists only its orders; clicking it
+ * again shows them all.
  */
 export function ShieldDangerPanel({ counts, listTotal, active, onSelect, onClose, countsHidden = false }: Props) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const reduceMotion = useReducedMotion();
-    const open = DANGER_BANDS.reduce((sum, b) => sum + counts[b], 0);
+    const banded = DANGER_BANDS.reduce((sum, b) => sum + counts[b], 0);
     const num = (n: number) => (countsHidden ? "—" : n.toLocaleString());
 
     return (
@@ -50,7 +50,7 @@ export function ShieldDangerPanel({ counts, listTotal, active, onSelect, onClose
                 <div className="min-w-0 flex-1">
                     <h3 dir={dir} className="text-left text-[14px] font-bold text-foreground">{t("shield.danger.title")}</h3>
                     <p dir={dir} className="text-left text-[12px] text-(--foreground-muted)">
-                        {t("shield.danger.sub", { open: num(open), total: num(listTotal) })}
+                        {t("shield.danger.sub", { total: num(listTotal) })}
                     </p>
                 </div>
                 <button
@@ -79,7 +79,7 @@ export function ShieldDangerPanel({ counts, listTotal, active, onSelect, onClose
                             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: reduceMotion ? 0 : i * 0.05 }}
                             onClick={() => onSelect(isActive ? null : band)}
                             aria-pressed={isActive}
-                            style={{ flexGrow: countsHidden ? 1 : Math.max(counts[band], open * 0.18, 1), flexBasis: 0 }}
+                            style={{ flexGrow: countsHidden ? 1 : Math.max(counts[band], banded * 0.18, 1), flexBasis: 0 }}
                             className={cn(
                                 "flex min-w-[150px] items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-left outline-none transition-shadow",
                                 "hover:shadow-sm focus-visible:ring-2",

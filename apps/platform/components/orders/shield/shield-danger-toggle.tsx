@@ -6,36 +6,34 @@ import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover"
 import { Switch } from "@scheniders/ui/switch";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { DANGER_LIMIT, useShieldDanger } from "@/hooks/use-shield-danger";
-import { DANGER_OFF, snapDanger } from "@/lib/shield/danger";
+import { DANGER_BANDS, type DangerBand } from "@/lib/shield/danger";
 import { useOrderStore } from "@/store/use-order-store";
 
-/** The report's scale: red 0-50, yellow 50-80, green 80-100. */
-const ZONES = [
-    { band: "red", from: 0, to: 50, zone: "bg-rose-200 dark:bg-rose-500/40" },
-    { band: "yellow", from: 50, to: 80, zone: "bg-amber-200 dark:bg-amber-500/40" },
-    { band: "green", from: 80, to: 100, zone: "bg-emerald-200 dark:bg-emerald-500/40" },
-] as const;
+/** Track colours per stop: high (red), medium (yellow), low (green). */
+const STOP_TONE: Record<DangerBand, { zone: string; text: string; thumb: string }> = {
+    red: { zone: "bg-rose-200 dark:bg-rose-500/40", text: "text-rose-700 dark:text-rose-300", thumb: "bg-rose-600" },
+    yellow: { zone: "bg-amber-200 dark:bg-amber-500/40", text: "text-amber-700 dark:text-amber-300", thumb: "bg-amber-500" },
+    green: { zone: "bg-emerald-200 dark:bg-emerald-500/40", text: "text-emerald-700 dark:text-emerald-300", thumb: "bg-emerald-600" },
+};
+
+type Counts = Record<DangerBand, number>;
 
 /**
  * Tools-bar Shield button on the orders page (Ali, 2026-11-05): opens a small
- * slider over the button, the same scale as the Shield report. Drag it to a
- * Trust score and the cards keep only the open orders at or under it,
- * riskiest first; all the way right shows every order again. The badge counts
- * the open orders under 80 (red when any is under 50).
+ * slider over the button with three stops, high, medium and low danger. Picking
+ * a stop lists only that band's orders (every order in the list, any status);
+ * "Show all orders" clears it. The badge counts the high-danger orders.
  */
-export function ShieldDangerToggle() {
+export function ShieldDangerToggle({ counts }: { counts: Counts }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const [open, setOpen] = useState(false);
-    const max = useOrderStore((s) => s.dangerMax);
-    const setMax = useOrderStore((s) => s.setDangerMax);
-    const { count, red, scores } = useShieldDanger();
+    const band = useOrderStore((s) => s.dangerBand);
+    const setBand = useOrderStore((s) => s.setDangerBand);
     const showPanel = useOrderStore((s) => s.showDangerPanel);
     const setShowPanel = useOrderStore((s) => s.setShowDangerPanel);
-    const on = max < DANGER_OFF;
-    const shown = on ? scores.filter((s) => s <= max).length : null;
     const label = t("shield.slider.button");
+    const high = counts.red;
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -43,26 +41,23 @@ export function ShieldDangerToggle() {
                 <button
                     type="button"
                     data-shield-slider-button
-                    aria-pressed={on}
+                    aria-pressed={band !== null}
                     className={cn(
                         "relative p-2.5 rounded-xl transition-all duration-300",
-                        on || open
+                        band !== null || open
                             ? "bg-rose-100 text-rose-700 shadow-sm dark:bg-[var(--primary)] dark:text-black"
                             : "text-muted-foreground hover:bg-amber-200/60 hover:text-foreground dark:hover:bg-white/5",
                     )}
                     title={label}
-                    aria-label={count ? `${label} (${count})` : label}
+                    aria-label={high ? `${label} (${high})` : label}
                 >
                     <ShieldAlert className="w-4 h-4" />
-                    {count > 0 && (
+                    {high > 0 && (
                         <span
                             aria-hidden="true"
-                            className={cn(
-                                "absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full px-1 font-mono text-[9px] font-bold tabular-nums text-white",
-                                red ? "bg-rose-600" : "bg-amber-500",
-                            )}
+                            className="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 font-mono text-[9px] font-bold tabular-nums text-white"
                         >
-                            {count >= DANGER_LIMIT ? "99+" : count}
+                            {high > 99 ? "99+" : high}
                         </span>
                     )}
                 </button>
@@ -72,7 +67,7 @@ export function ShieldDangerToggle() {
                 sideOffset={10}
                 className="w-[320px] rounded-2xl border-(--card-border) bg-(--card-bg) p-4 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.28)]"
             >
-                <DangerSlider max={max} shown={shown} onChange={setMax} />
+                <DangerSlider band={band} counts={counts} onChange={setBand} />
                 <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 border-t border-(--card-border) pt-3">
                     <span dir={dir} className="text-[12px] font-semibold text-foreground">{t("shield.danger.show")}</span>
                     <Switch checked={showPanel} onCheckedChange={setShowPanel} aria-label={t("shield.danger.show")} />
@@ -82,61 +77,90 @@ export function ShieldDangerToggle() {
     );
 }
 
-/** The slider inside the popover: the report's scale with a thumb; 100 (far right) is off. */
-export function DangerSlider({ max, shown, onChange }: { max: number; shown: number | null; onChange: (max: number) => void }) {
+/** The three-stop slider: high, medium, low danger. No stop picked = every order. */
+export function DangerSlider({ band, counts, onChange }: { band: DangerBand | null; counts: Counts; onChange: (band: DangerBand | null) => void }) {
     const { t } = useLanguage();
     const dir = useTextDir();
-    const on = max < DANGER_OFF;
+    const index = band === null ? -1 : DANGER_BANDS.indexOf(band);
+    const num = (n: number) => n.toLocaleString("en-US");
+    const status = band === null ? t("shield.slider.all") : t("shield.slider.showing", { n: num(counts[band]) });
+
     return (
         <>
-    <div className="flex items-baseline justify-between gap-3">
-        <span dir={dir} className="text-[13px] font-bold text-foreground">{t("shield.slider.title")}</span>
-        <span dir={dir} className="text-[12px] text-muted-foreground tabular-nums">
-            {on ? t("shield.slider.showing", { n: shown ?? 0, max }) : t("shield.slider.all")}
-        </span>
-    </div>
+            <div className="flex items-baseline justify-between gap-3">
+                <span dir={dir} className="text-[13px] font-bold text-foreground">{t("shield.slider.title")}</span>
+                <span dir={dir} className="text-[12px] text-muted-foreground tabular-nums">{status}</span>
+            </div>
 
-    <div className="relative mt-4 h-6" dir="ltr">
-        <div className="absolute inset-x-0 top-2 flex h-2 gap-[3px]">
-            {ZONES.map((z) => (
-                <div key={z.band} className={cn("h-full rounded-full", z.zone)} style={{ width: `${z.to - z.from}%` }} />
-            ))}
-        </div>
-        <span
-            aria-hidden="true"
-            className="pointer-events-none absolute top-0 -ml-[9px] block h-[18px] w-[18px] translate-y-[3px] rounded-full border-[3px] border-(--card-bg) bg-foreground shadow-[0_2px_6px_rgba(0,0,0,0.25)] transition-[left] duration-150"
-            style={{ left: `${max}%`, top: -2 }}
-        />
-        <input
-            type="range"
-            min={0}
-            max={DANGER_OFF}
-            step={5}
-            value={max}
-            onChange={(e) => onChange(snapDanger(Number(e.target.value)))}
-            aria-label={t("shield.slider.title")}
-            aria-valuetext={on ? t("shield.slider.showing", { n: shown ?? 0, max }) : t("shield.slider.all")}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-        />
-    </div>
+            <div role="radiogroup" aria-label={t("shield.slider.title")} className="relative mt-4 h-6" dir="ltr">
+                <div className="absolute inset-x-0 top-2 flex h-2 gap-[3px]">
+                    {DANGER_BANDS.map((b) => (
+                        <div
+                            key={b}
+                            className={cn("h-full flex-1 rounded-full transition-opacity", STOP_TONE[b].zone, band !== null && b !== band && "opacity-40")}
+                        />
+                    ))}
+                </div>
+                {DANGER_BANDS.map((b, i) => (
+                    <span
+                        key={b}
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-[6px] -ml-[3px] block h-[6px] w-[6px] rounded-full bg-(--card-bg)"
+                        style={{ left: `${(i * 2 + 1) * (100 / 6)}%` }}
+                    />
+                ))}
+                {band !== null && (
+                    <span
+                        aria-hidden="true"
+                        className={cn(
+                            "pointer-events-none absolute top-[1px] -ml-[9px] block h-[18px] w-[18px] rounded-full border-[3px] border-(--card-bg) shadow-[0_2px_6px_rgba(0,0,0,0.25)] transition-[left] duration-200",
+                            STOP_TONE[band].thumb,
+                        )}
+                        style={{ left: `${(index * 2 + 1) * (100 / 6)}%` }}
+                    />
+                )}
+                <div className="absolute inset-0 flex">
+                    {DANGER_BANDS.map((b) => (
+                        <button
+                            key={b}
+                            type="button"
+                            role="radio"
+                            aria-checked={band === b}
+                            aria-label={t(`shield.danger.${b}`)}
+                            onClick={() => onChange(band === b ? null : b)}
+                            className="h-full flex-1 cursor-pointer"
+                        />
+                    ))}
+                </div>
+            </div>
 
-    <div className="mt-1 flex text-[11px] font-medium text-muted-foreground" dir="ltr">
-        {ZONES.map((z) => (
-            <span key={z.band} dir={dir} className={cn("text-left", z.band === "green" && "text-right")} style={{ width: `${z.to - z.from}%` }}>
-                {t(`shield.band.${z.band}`)}
-            </span>
-        ))}
-    </div>
+            <div className="mt-1 flex text-[11px] font-medium" dir="ltr">
+                {DANGER_BANDS.map((b) => (
+                    <button
+                        key={b}
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => onChange(band === b ? null : b)}
+                        className={cn(
+                            "flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1 transition-colors hover:bg-muted/40",
+                            band === b ? STOP_TONE[b].text : "text-muted-foreground",
+                        )}
+                    >
+                        <span dir={dir} className={cn(band === b && "font-bold")}>{t(`shield.danger.${b}`)}</span>
+                        <span className="font-mono text-[10px] tabular-nums opacity-80">{num(counts[b])}</span>
+                    </button>
+                ))}
+            </div>
 
-    {on && (
-        <button
-            type="button"
-            onClick={() => onChange(DANGER_OFF)}
-            className="mt-3 h-8 w-full rounded-xl border border-(--card-border) text-[12px] font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-        >
-            {t("shield.slider.reset")}
-        </button>
-    )}
+            {band !== null && (
+                <button
+                    type="button"
+                    onClick={() => onChange(null)}
+                    className="mt-3 h-8 w-full rounded-xl border border-(--card-border) text-[12px] font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                >
+                    {t("shield.slider.reset")}
+                </button>
+            )}
         </>
     );
 }

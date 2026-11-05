@@ -454,7 +454,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                             <PrimeTrackToggle />
 
                                             {/* Shield: danger slider */}
-                                            <ShieldDangerToggle />
+                                            <ShieldDangerToggle counts={dangerBandCounts} />
 
                                             {/* Map Toggle */}
                                             <button

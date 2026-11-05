@@ -34,11 +34,9 @@ interface ViewPreferencesSlice {
   actionDock: boolean;
   /** The Prime track band under each Prime parcel's card (the "Prime track on cards" switch). */
   primeTrackOnCards: boolean;
-  /** Shield danger slider: list only open orders with Trust at or under this, riskiest first. 100 = off. Not persisted. */
-  dangerMax: number;
   /** Shield danger section (high / medium / low bar) shown above the cards. */
   showDangerPanel: boolean;
-  /** The band picked in that section (only its orders are listed). Not persisted. */
+  /** The danger level picked on the Shield slider or section (only its orders are listed, riskiest first). Not persisted. */
   dangerBand: DangerBand | null;
   /** Cards whose band the truck button flipped away from the switch; cleared when the switch moves. Not persisted. */
   primeTrackOverrides: Readonly<Record<string, boolean>>;
@@ -54,7 +52,6 @@ interface ViewPreferencesSlice {
   setCompactGrid: (val: boolean) => void;
   setActionDock: (val: boolean) => void;
   setPrimeTrackOnCards: (val: boolean) => void;
-  setDangerMax: (max: number) => void;
   setShowDangerPanel: (val: boolean) => void;
   setDangerBand: (band: DangerBand | null) => void;
   setPrimeTrackOverride: (orderId: string, shown: boolean) => void;
@@ -227,7 +224,6 @@ export const useOrderStore = create<OrderStore>()(
       compactGrid: false,
       actionDock: true,
       primeTrackOnCards: true,
-      dangerMax: 100,
       showDangerPanel: false,
       dangerBand: null,
       primeTrackOverrides: {},
@@ -241,8 +237,7 @@ export const useOrderStore = create<OrderStore>()(
       setCompactGrid: (val) => set({ compactGrid: val }),
       setActionDock: (val) => set({ actionDock: val }),
       setPrimeTrackOnCards: (val) => set({ primeTrackOnCards: val, primeTrackOverrides: {} }),
-      setDangerMax: (max) => set({ dangerMax: max }),
-      setShowDangerPanel: (val) => set(val ? { showDangerPanel: true } : { showDangerPanel: false, dangerBand: null }),
+      setShowDangerPanel: (val) => set({ showDangerPanel: val }),
       setDangerBand: (band) => set({ dangerBand: band }),
       setPrimeTrackOverride: (orderId, shown) =>
         set((s) => ({ primeTrackOverrides: { ...s.primeTrackOverrides, [orderId]: shown } })),

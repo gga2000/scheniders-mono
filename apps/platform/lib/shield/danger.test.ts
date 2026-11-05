@@ -1,45 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { dangerBandOf, dangerCounts, inDangerRange, snapDanger } from "./danger";
+import { dangerBandOf, dangerCounts, orderTrust, trustByOrderId } from "./danger";
 
-const o = (id: string, status = "new", is_return = false) => ({ id, status, is_return }) as Parameters<typeof inDangerRange>[0];
-const trust = new Map([["a", 10], ["b", 49], ["c", 75]]);
+const trust = new Map([["7701111111", 10], ["7702222222", 49], ["7703333333", 50], ["7704444444", 79]]);
+const o = (id: string, phone: string) => ({ id, phone });
 
-describe("Shield danger slider", () => {
-    it("100 is off: every order stays", () => {
-        expect(inDangerRange(o("z", "delivered"), trust, 100)).toBe(true);
+describe("Shield danger level", () => {
+    it("reads the customer's score from any phone format", () => {
+        expect(orderTrust({ phone: "07701111111" }, trust)).toBe(10);
+        expect(orderTrust({ phone: "+964 770 222 2222" }, trust)).toBe(49);
+        expect(orderTrust({ phone: "0770999" }, trust)).toBeNull();
     });
 
-    it("keeps open orders at or under the picked score", () => {
-        expect(inDangerRange(o("a"), trust, 49)).toBe(true);
-        expect(inDangerRange(o("b"), trust, 49)).toBe(true);
-        expect(inDangerRange(o("c"), trust, 49)).toBe(false);
-        expect(inDangerRange(o("z"), trust, 80)).toBe(false);
+    it("under 50 high, 50-79 medium, everyone else low, whatever the order status", () => {
+        expect(dangerBandOf({ phone: "07701111111" }, trust)).toBe("red");
+        expect(dangerBandOf({ phone: "07702222222" }, trust)).toBe("red");
+        expect(dangerBandOf({ phone: "07703333333" }, trust)).toBe("yellow");
+        expect(dangerBandOf({ phone: "07704444444" }, trust)).toBe("yellow");
+        expect(dangerBandOf({ phone: "07705555555" }, trust)).toBe("green");
     });
 
-    it("drops orders that can no longer be stopped, and returns", () => {
-        expect(inDangerRange(o("a", "delivered"), trust, 49)).toBe(false);
-        expect(inDangerRange(o("a", "new", true), trust, 49)).toBe(false);
-    });
-
-    it("snaps to steps of 5 up to 80, then off", () => {
-        expect(snapDanger(47)).toBe(45);
-        expect(snapDanger(80)).toBe(80);
-        expect(snapDanger(83)).toBe(100);
-    });
-});
-
-describe("Shield danger bands", () => {
-    const tr = new Map([["a", 10], ["b", 49], ["c", 50], ["d", 79]]);
-    it("under 50 high, 50-79 medium, the rest of the open orders low; closed orders none", () => {
-        expect(dangerBandOf(o("a"), tr)).toBe("red");
-        expect(dangerBandOf(o("b"), tr)).toBe("red");
-        expect(dangerBandOf(o("c"), tr)).toBe("yellow");
-        expect(dangerBandOf(o("d"), tr)).toBe("yellow");
-        expect(dangerBandOf(o("e"), tr)).toBe("green");
-        expect(dangerBandOf(o("a", "delivered"), tr)).toBeNull();
-    });
-
-    it("counts each band", () => {
-        expect(dangerCounts([o("a"), o("c"), o("d"), o("e"), o("f", "in_transit")], tr)).toEqual({ red: 1, yellow: 2, green: 1 });
+    it("counts every order", () => {
+        const rows = [o("a", "07701111111"), o("b", "07703333333"), o("c", "07704444444"), o("d", "07705555555"), o("e", "bad")];
+        expect(dangerCounts(rows, trust)).toEqual({ red: 1, yellow: 2, green: 2 });
+        expect([...trustByOrderId(rows, trust)]).toEqual([["a", 10], ["b", 50], ["c", 79]]);
     });
 });

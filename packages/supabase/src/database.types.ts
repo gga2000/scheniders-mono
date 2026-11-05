@@ -9440,6 +9440,13 @@ export type Database = {
         Args: { p_note: string; p_phone: string }
         Returns: undefined
       }
+      shield_customer_trust: {
+        Args: never
+        Returns: {
+          phone: string
+          trust: number
+        }[]
+      }
       shield_risky_open_orders: {
         Args: { p_limit?: number }
         Returns: {
