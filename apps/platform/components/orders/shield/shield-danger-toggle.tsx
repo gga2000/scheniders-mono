@@ -22,9 +22,10 @@ type Counts = Record<DangerBand, number>;
  * Tools-bar Shield button on the orders page (Ali, 2026-11-05): opens a small
  * slider over the button with three stops, high, medium and low danger. Picking
  * a stop lists only that band's orders (every order in the list, any status);
- * "Show all orders" clears it. The badge counts the high-danger orders.
+ * "Show all orders" clears it. The badge counts the high-danger orders. Until
+ * the scores load (`ready`), counts show a dash and no stop can be picked.
  */
-export function ShieldDangerToggle({ counts }: { counts: Counts }) {
+export function ShieldDangerToggle({ counts, ready, failed, onRetry }: { counts: Counts; ready: boolean; failed: boolean; onRetry: () => void }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const [open, setOpen] = useState(false);
@@ -33,7 +34,7 @@ export function ShieldDangerToggle({ counts }: { counts: Counts }) {
     const showPanel = useOrderStore((s) => s.showDangerPanel);
     const setShowPanel = useOrderStore((s) => s.setShowDangerPanel);
     const label = t("shield.slider.button");
-    const high = counts.red;
+    const high = ready ? counts.red : 0;
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -67,7 +68,15 @@ export function ShieldDangerToggle({ counts }: { counts: Counts }) {
                 sideOffset={10}
                 className="w-[320px] rounded-2xl border-(--card-border) bg-(--card-bg) p-4 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.28)]"
             >
-                <DangerSlider band={band} counts={counts} onChange={setBand} />
+                <DangerSlider band={band} counts={ready ? counts : null} onChange={setBand} />
+                {failed && (
+                    <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-rose-50 px-3 py-2 dark:bg-rose-500/10">
+                        <span dir={dir} className="text-[12px] text-rose-700 dark:text-rose-300">{t("shield.slider.error")}</span>
+                        <button type="button" onClick={onRetry} className="shrink-0 text-[12px] font-bold text-rose-700 underline-offset-2 hover:underline dark:text-rose-300">
+                            {t("shield.slider.retry")}
+                        </button>
+                    </div>
+                )}
                 <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 border-t border-(--card-border) pt-3">
                     <span dir={dir} className="text-[12px] font-semibold text-foreground">{t("shield.danger.show")}</span>
                     <Switch checked={showPanel} onCheckedChange={setShowPanel} aria-label={t("shield.danger.show")} />
@@ -77,13 +86,19 @@ export function ShieldDangerToggle({ counts }: { counts: Counts }) {
     );
 }
 
-/** The three-stop slider: high, medium, low danger. No stop picked = every order. */
-export function DangerSlider({ band, counts, onChange }: { band: DangerBand | null; counts: Counts; onChange: (band: DangerBand | null) => void }) {
+/**
+ * The three-stop slider: high, medium, low danger. No stop picked = every order.
+ * `counts` is null while the scores load. A stop with no orders can't be
+ * picked, so the list never goes empty from the slider.
+ */
+export function DangerSlider({ band, counts, onChange }: { band: DangerBand | null; counts: Counts | null; onChange: (band: DangerBand | null) => void }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const index = band === null ? -1 : DANGER_BANDS.indexOf(band);
     const num = (n: number) => n.toLocaleString("en-US");
-    const status = band === null ? t("shield.slider.all") : t("shield.slider.showing", { n: num(counts[band]) });
+    const shown = (b: DangerBand) => (counts ? num(counts[b]) : "—");
+    const canPick = (b: DangerBand) => band === b || (counts !== null && counts[b] > 0);
+    const status = band === null ? t("shield.slider.all") : t("shield.slider.showing", { n: shown(band) });
 
     return (
         <>
@@ -126,28 +141,30 @@ export function DangerSlider({ band, counts, onChange }: { band: DangerBand | nu
                             type="button"
                             role="radio"
                             aria-checked={band === b}
-                            aria-label={t(`shield.danger.${b}`)}
+                            aria-label={`${t(`shield.danger.${b}`)} (${shown(b)})`}
+                            disabled={!canPick(b)}
                             onClick={() => onChange(band === b ? null : b)}
-                            className="h-full flex-1 cursor-pointer"
+                            className="h-full flex-1 cursor-pointer disabled:cursor-not-allowed"
                         />
                     ))}
                 </div>
             </div>
 
-            <div className="mt-1 flex text-[11px] font-medium" dir="ltr">
+            <div className="mt-1 flex text-[12px] font-medium" dir="ltr">
                 {DANGER_BANDS.map((b) => (
                     <button
                         key={b}
                         type="button"
                         tabIndex={-1}
+                        disabled={!canPick(b)}
                         onClick={() => onChange(band === b ? null : b)}
                         className={cn(
-                            "flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1 transition-colors hover:bg-muted/40",
+                            "flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1 transition-colors hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent",
                             band === b ? STOP_TONE[b].text : "text-muted-foreground",
                         )}
                     >
                         <span dir={dir} className={cn(band === b && "font-bold")}>{t(`shield.danger.${b}`)}</span>
-                        <span className="font-mono text-[10px] tabular-nums opacity-80">{num(counts[b])}</span>
+                        <span className="font-mono text-[12px] tabular-nums opacity-80">{shown(b)}</span>
                     </button>
                 ))}
             </div>

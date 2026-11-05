@@ -196,7 +196,7 @@ export function OrdersFilterBar({
                                 filterDuplicatesOnly={filterDuplicatesOnly}
                                 setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                 filterDueToday={filterDueToday}
-                                afterAbandonedChips={<PrimeQueueChips countsHidden={countsHidden} />}
+                                afterAbandonedChips={<PrimeQueueChips />}
                                 queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /></>}
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}

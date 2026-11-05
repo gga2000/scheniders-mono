@@ -28,7 +28,8 @@ interface Props {
  * tiles, high danger (Trust under 50), medium (50-79) and low (80+ or new),
  * sized by how many orders sit in each. Every order in the list gets a band,
  * whatever its status. Clicking a tile lists only its orders; clicking it
- * again shows them all.
+ * again shows them all. A tile with no orders can't be picked, so the list
+ * never goes empty from here.
  */
 export function ShieldDangerPanel({ counts, listTotal, active, onSelect, onClose, countsHidden = false }: Props) {
     const { t } = useLanguage();
@@ -78,11 +79,12 @@ export function ShieldDangerPanel({ counts, listTotal, active, onSelect, onClose
                             animate={{ opacity: active && !isActive ? 0.5 : 1, y: 0 }}
                             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: reduceMotion ? 0 : i * 0.05 }}
                             onClick={() => onSelect(isActive ? null : band)}
+                            disabled={!isActive && (countsHidden || counts[band] === 0)}
                             aria-pressed={isActive}
                             style={{ flexGrow: countsHidden ? 1 : Math.max(counts[band], banded * 0.18, 1), flexBasis: 0 }}
                             className={cn(
                                 "flex min-w-[150px] items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-left outline-none transition-shadow",
-                                "hover:shadow-sm focus-visible:ring-2",
+                                "hover:shadow-sm focus-visible:ring-2 disabled:cursor-not-allowed disabled:hover:shadow-none",
                                 tone.tile,
                                 isActive && cn("ring-2", tone.ring),
                             )}

@@ -151,6 +151,7 @@ export function useOrders() {
     const filterHook = useOrderFilters({
         orders,
         searchResults: orderSearch.active ? orderSearch.orders : primeQueueOrders,
+        resultsAreSearch: orderSearch.active,
         filters,
         setFilters,
         clearFilters,

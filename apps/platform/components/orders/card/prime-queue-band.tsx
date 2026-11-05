@@ -40,7 +40,7 @@ function PrimeQueueBandFor({ m }: { m: OrderCardModel }) {
     if (!entry) return null;
     const { queue, problem, view, order: boardOrder } = entry;
     const chip = primeChipState(view, boardOrder.status);
-    const handled = problem.handled && view.problemCheckedAt !== null;
+    const handled = problem.handled;
 
     return (
         <div

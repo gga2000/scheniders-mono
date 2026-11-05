@@ -54,6 +54,8 @@ describe("primeProblemKind", () => {
         expect(primeProblemKind(view({ stepCode: "RTN_WITHAGENT" }), "rejected", NOW)).toBeNull();
         expect(primeProblemKind(view({ stepCode: "RTN_WITHAGENT", cancelledAt: "2026-11-04T13:00:00Z" }), "in_transit", NOW)).toBeNull();
         expect(primeProblemKind(view({ status: "CNCL" }), "cancelled", NOW)).toBeNull();
+        expect(primeProblemKind(view({ status: "CNCL" }), "returned", NOW)).toBeNull();
+        expect(primeProblemKind(view({ status: "CNCL" }), "delivered", NOW)).toBeNull();
         expect(
             primeProblemKind(view({ status: "FAILED_DELIVER_RETURNED_TO_SENDER", resentAt: "2026-11-04T13:00:00Z", statusChangedAt: "2026-11-04T12:00:00Z" }), "in_transit", NOW),
         ).toBeNull();

@@ -42,6 +42,13 @@ interface UseOrderFiltersOptions {
      */
     searchResults: Order[] | null;
     /**
+     * False when `searchResults` is a Prime queue rather than a typed search.
+     * Picking any filter leaves a queue (useOrderFilterState), so the window's
+     * counts still describe what each chip opens; a search stays on through a
+     * chip click, so its counts are hidden. Defaults to true.
+     */
+    resultsAreSearch?: boolean;
+    /**
      * The window (`windowCacheKey`) the `orders` were loaded for, or null when
      * nothing has been loaded. Omitted (undefined), the caller asserts the rows
      * are the complete set for whatever window the filters name.
@@ -81,7 +88,7 @@ export interface CountViewFacts {
     windowIsAll: boolean;
 }
 
-export function useOrderFilters({ orders, searchResults, filters, setFilters, clearFilters, loadedWindowKey, preview = null, inTransit = null }: UseOrderFiltersOptions) {
+export function useOrderFilters({ orders, searchResults, resultsAreSearch = true, filters, setFilters, clearFilters, loadedWindowKey, preview = null, inTransit = null }: UseOrderFiltersOptions) {
 
     // WF-3: saved views used to live only in localStorage, so they did not follow
     // a user to another device or browser and were lost when site data was
@@ -160,6 +167,7 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
     const deferredOrders = deferredSnapshot.orders;
     const deferredInTransit = deferredSnapshot.inTransit;
     const deferredSearchResults = useDeferredValue(searchResults);
+    const deferredResultsAreSearch = useDeferredValue(resultsAreSearch);
     const deferredFilters = useDeferredValue(filters);
 
     // =============================================
@@ -272,13 +280,14 @@ export function useOrderFilters({ orders, searchResults, filters, setFilters, cl
         const covered = (deferredLoadedKey === undefined || listCovers(deferredLoadedKey, windowCacheKey(window))) && transitCovered;
         return {
             // Search hits are not narrowed by status, channel or product, so no
-            // count describes them. Otherwise the rows must cover the window.
-            ready: deferredSearchResults === null && covered,
+            // count describes them. A Prime queue is left by any filter pick,
+            // so the window's counts stand. Otherwise the rows must cover the window.
+            ready: (deferredSearchResults === null || !deferredResultsAreSearch) && covered,
             covered,
             statusIsAll: !dStatus || dStatus === "all",
             windowIsAll: window === null,
         };
-    }, [deferredSearchResults, deferredLoadedKey, deferredInTransit, dDateFrom, dDateTo, dStatus]);
+    }, [deferredSearchResults, deferredResultsAreSearch, deferredLoadedKey, deferredInTransit, dDateFrom, dDateTo, dStatus]);
 
     // The head of the list fetch, through the list's own filter and sort —
     // only while the rows do not cover the window and nothing is searched.

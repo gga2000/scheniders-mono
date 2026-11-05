@@ -19,6 +19,9 @@ import { countVisibility, listCountVisible } from "@/lib/orders/count-visibility
 import { isScheduleDue } from "@/lib/order-format-utils";
 import { sortDesktopList } from "@/lib/orders/list-sort";
 import { useShieldDanger } from "@/hooks/use-shield-danger";
+
+/** Statuses that settle a purchase for Shield (shield.sync_phone): only these move a Trust score. */
+const SHIELD_FINISHED: ReadonlySet<string> = new Set(["completed", "delivered", "rejected", "no_response", "cancelled", "returned", "refunded", "refund_delivered", "return_pending"]);
 import { dangerBandOf, dangerCounts, trustByOrderId } from "@/lib/shield/danger";
 import { desktopPreviewRows } from "@/lib/orders/list-preview";
 import { perfTrace } from "@/lib/perf-trace";
@@ -472,13 +475,20 @@ export function useOrdersPageModel() {
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
-    const { trustByPhone: dangerTrust } = useShieldDanger();
+    const shieldClosedCount = useMemo(
+        () => (orders ?? []).reduce((n, o) => (SHIELD_FINISHED.has(o.status) ? n + 1 : n), 0),
+        [orders],
+    );
+    const { trustByPhone: dangerTrust, ready: dangerReady, failed: dangerFailed, retry: retryDanger } = useShieldDanger(shieldClosedCount);
     const dangerBand = useOrderStore(s => s.dangerBand);
     const defDangerBand = React.useDeferredValue(dangerBand);
 
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
-    const filteredOrders = useMemo(() => {
+    // Every list filter except the danger band. The danger counts are taken
+    // over these rows, so a band's count is exactly the list you get when you
+    // pick it.
+    const preDangerOrders = useMemo(() => {
         let result = [...hookFilteredOrders];
 
         // 1. Apply Column Filters
@@ -533,6 +543,13 @@ export function useOrdersPageModel() {
             result = result.filter(o => ids?.has(o.id) ?? false);
         }
 
+        return result;
+    }, [hookFilteredOrders, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
+
+    const filteredOrders = useMemo(() => {
+        // A copy: sortDesktopList sorts in place, and preDangerOrders is memoized.
+        let result = [...preDangerOrders];
+
         // 1.10. Shield danger level (slider or section): one band, riskiest first (lib/shield/danger.ts).
         if (defDangerBand) {
             result = result.filter(o => dangerBandOf(o, dangerTrust) === defDangerBand);
@@ -543,13 +560,13 @@ export function useOrdersPageModel() {
         // prefix proof).
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
         return sortDesktopList(result, activeSorts, Date.now(), defDangerBand ? trustByOrderId(result, dangerTrust) : undefined);
-    }, [defDangerBand, dangerTrust, hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
+    }, [preDangerOrders, defDangerBand, dangerTrust, defSortConfig, defSortConfigs]);
 
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
     // Counted with the same predicate the filter uses, so the number on the card
     // can never disagree with the list you get after clicking it.
     // The danger section's band counts, over the same rows as the list.
-    const dangerBandCounts = useMemo(() => dangerCounts(hookFilteredOrders, dangerTrust), [hookFilteredOrders, dangerTrust]);
+    const dangerBandCounts = useMemo(() => dangerCounts(preDangerOrders, dangerTrust), [preDangerOrders, dangerTrust]);
 
     const flaggedCount = useMemo(() => {
         return hookFilteredOrders.filter(o => orderMatchesRiskLevel(o, 'flagged')).length;
@@ -576,6 +593,7 @@ export function useOrdersPageModel() {
     // previous list. Hidden counts render "—" (search, archive, a refinement,
     // or rows still loading for the window).
     const defShowArchived = React.useDeferredValue(showArchived);
+    const defPrimeQueue = React.useDeferredValue(useOrderStore((s) => s.primeQueue));
     const countVis = useMemo(() => countVisibility({
         facts: countViewFacts,
         archived: defShowArchived,
@@ -586,7 +604,8 @@ export function useOrdersPageModel() {
         stuckTransit: defFilterStuckTransit,
         paymentUnchecked: defFilterPaymentUnchecked,
         primeBucket: defFilterPrimeBucket !== null,
-    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterPrimeBucket]);
+        primeQueue: defPrimeQueue !== null,
+    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterPrimeBucket, defPrimeQueue]);
 
     // The head of a wide list fetch, while the window loads — rows in under a
     // second instead of a skeleton for the whole book. Only for the plain list:
@@ -1041,7 +1060,10 @@ export function useOrdersPageModel() {
         sortConfigs,
         toggleSort,
         dangerBandCounts,
-        dangerListTotal: hookFilteredOrders.length,
+        dangerListTotal: preDangerOrders.length,
+        dangerReady,
+        dangerFailed,
+        retryDanger,
         columnFilters,
         setColumnFilters,
         openFilterColumn,

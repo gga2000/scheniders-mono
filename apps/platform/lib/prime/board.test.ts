@@ -92,6 +92,7 @@ describe("primeBoard", () => {
                 parcel("back", { status: "RETURNED", stepCode: "RTN_INSTORE", statusChangedAt: "2026-11-02T05:00:00Z" }),
                 parcel("prime-cancelled", { status: "CNCL", stepCode: null, statusChangedAt: "2026-11-03T05:00:00Z" }),
                 parcel("closed", { status: "CNCL", stepCode: null }, "cancelled"),
+                parcel("closed-returned", { status: "CNCL", stepCode: null }, "returned"),
                 parcel("fine", { stepCode: "ONWAY" }),
             ],
             NOW,

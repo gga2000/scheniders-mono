@@ -48,6 +48,8 @@ function FullOrderCard(props: OrderCardProps) {
             {/* Dark mode vivid neon glow casted on the left side of the card */}
             {compact === 0 && (
                 <div
+                    data-status-edge={isReturn ? "return" : order.status}
+                    data-edge-glow=""
                     className={cn(
                         "hidden dark:block absolute top-[5%] bottom-[5%] -left-1 w-3 blur-md opacity-60 transition-opacity -z-10",
                         getStatusColor(order.status, isReturn),
@@ -94,6 +96,7 @@ function FullOrderCard(props: OrderCardProps) {
                 {/* Status Accent Bar */}
                 <motion.div
                     layoutId={getLayoutId(`order-accent-${order.id}-${order.status}`)}
+                    data-status-edge={isReturn ? "return" : order.status}
                     className={cn(
                         "relative overflow-hidden w-2 flex-shrink-0 rounded-l-[20px]",
                         getStatusColor(order.status, isReturn),

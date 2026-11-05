@@ -26,7 +26,7 @@ import type { OrdersPageModel } from "./use-orders-page-model";
 
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
-    const { sidebarExpanded, setIsReturnsOpen, setIsStockTodayOpen, setIsScannerOpen, showSubFilters, toggleSubFilters, showAdChannels, toggleAdChannels, showAdsChips, toggleAdsChips, showPipeline, togglePipeline, filters, setFilters, clearFilters, filterPresets, saveFilterPreset, loadFilterPreset, deleteFilterPreset, archivedOrders, fetchArchivedOrders, undoLastAction, canUndo, statusCounts, attentionCounts, oversoldCount, isMobile, t, datePreset, viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, showSearchBar, setShowSearchBar, analyticsLevel, setAnalyticsLevel, toolbarCollapsed, toggleToolbarCollapse, setSoundEnabled, showFilters, setShowFilters, groupBy, setGroupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, filterDueToday, setFilterDueToday, activePresetId, setActivePresetId, setIsCreateModalOpen, setIsExportModalOpen, showDatePicker, setShowDatePicker, datePickerPos, selectedOrders, showArchived, setShowArchived, isHeaderAnimating, setIsHeaderAnimating, notificationsEnabled, setNotificationsEnabled, dateButtonRef, datePickerRef, toolbarScrollRef, toolbarFade, filteredOrders, flaggedCount, dueTodayCount, totalRiskCount, countVis, previewing, listCountShown, openScanner, openReturns, openCreateModal, selectAll, isBulkProcessing, setShipConfirmCompany, setShipConfirmOpen, setShipConfirmKey, guardedBulkActions, showMapPanel, setShowMapPanel, hasActiveFilters, dangerBandCounts, dangerListTotal } = m;
+    const { sidebarExpanded, setIsReturnsOpen, setIsStockTodayOpen, setIsScannerOpen, showSubFilters, toggleSubFilters, showAdChannels, toggleAdChannels, showAdsChips, toggleAdsChips, showPipeline, togglePipeline, filters, setFilters, clearFilters, filterPresets, saveFilterPreset, loadFilterPreset, deleteFilterPreset, archivedOrders, fetchArchivedOrders, undoLastAction, canUndo, statusCounts, attentionCounts, oversoldCount, isMobile, t, datePreset, viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, showSearchBar, setShowSearchBar, analyticsLevel, setAnalyticsLevel, toolbarCollapsed, toggleToolbarCollapse, setSoundEnabled, showFilters, setShowFilters, groupBy, setGroupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, filterDueToday, setFilterDueToday, activePresetId, setActivePresetId, setIsCreateModalOpen, setIsExportModalOpen, showDatePicker, setShowDatePicker, datePickerPos, selectedOrders, showArchived, setShowArchived, isHeaderAnimating, setIsHeaderAnimating, notificationsEnabled, setNotificationsEnabled, dateButtonRef, datePickerRef, toolbarScrollRef, toolbarFade, filteredOrders, flaggedCount, dueTodayCount, totalRiskCount, countVis, previewing, listCountShown, openScanner, openReturns, openCreateModal, selectAll, isBulkProcessing, setShipConfirmCompany, setShipConfirmOpen, setShipConfirmKey, guardedBulkActions, showMapPanel, setShowMapPanel, hasActiveFilters, dangerBandCounts, dangerListTotal, dangerReady, dangerFailed, retryDanger } = m;
     const showDangerPanel = useOrderStore((s) => s.showDangerPanel);
     const setShowDangerPanel = useOrderStore((s) => s.setShowDangerPanel);
     const dangerBand = useOrderStore((s) => s.dangerBand);
@@ -141,20 +141,6 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
 
                                         <StockPinChips onOpen={() => setIsStockTodayOpen(true)} />
 
-                                        {/* Selection Indicator */}
-                                        <AnimatePresence>
-                                            {selectedOrders.size > 0 && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, scale: 0.8, x: -20 }}
-                                                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                                                    exit={{ opacity: 0, scale: 0.8, x: -20 }}
-                                                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/25"
-                                                >
-                                                    <span className="text-sm font-bold">{selectedOrders.size}</span>
-                                                    <span className="text-xs font-medium opacity-80">{t("orders.selected")}</span>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
                                     </div>
 
                                     {showAdsChips ? <AdsTodayChips /> : null}
@@ -454,7 +440,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                             <PrimeTrackToggle />
 
                                             {/* Shield: danger slider */}
-                                            <ShieldDangerToggle counts={dangerBandCounts} />
+                                            <ShieldDangerToggle counts={dangerBandCounts} ready={dangerReady} failed={dangerFailed} onRetry={retryDanger} />
 
                                             {/* Map Toggle */}
                                             <button
@@ -611,7 +597,7 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                 active={dangerBand}
                                                 onSelect={setDangerBand}
                                                 onClose={() => setShowDangerPanel(false)}
-                                                countsHidden={!countVis.chips}
+                                                countsHidden={!countVis.chips || !dangerReady}
                                             />
                                         </div>
                                     </motion.div>

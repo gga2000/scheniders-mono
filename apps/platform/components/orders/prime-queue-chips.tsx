@@ -29,9 +29,10 @@ const ICON: Record<PrimeQueueId, typeof AlertOctagon> = { fix: AlertOctagon, bac
  * «معالجة» and «راجع» in the status row, beside «متروكة»: the Prime parcels
  * that need someone, and the ones coming back. Each counts what nobody has
  * handled, whatever day the list shows, and opens that queue across every
- * date. Hidden for a tenant without a switched-on Prime link.
+ * date. Hidden for a tenant without a switched-on Prime link. The counts come
+ * from the Prime board, not the list, so the list's count rules never hide them.
  */
-export function PrimeQueueChips({ countsHidden = false }: { countsHidden?: boolean }) {
+export function PrimeQueueChips() {
     const { t } = useLanguage();
     const { connected, queues } = usePrimeQueues();
     const active = useOrderStore((s) => s.primeQueue);
@@ -43,13 +44,13 @@ export function PrimeQueueChips({ countsHidden = false }: { countsHidden?: boole
             {(["fix", "back"] as const).map((id) => {
                 const on = active === id;
                 const Icon = ICON[id];
-                const count = queues?.[id].waiting ?? 0;
+                const count = queues?.[id].waiting;
                 return (
                     <button
                         key={id}
                         type="button"
                         data-chip={`prime_${id}`}
-                        data-chip-count={countsHidden ? undefined : count}
+                        data-chip-count={queues ? count : undefined}
                         aria-pressed={on}
                         title={t(`orders.primeQueue.${id}.tip`)}
                         onClick={() => setActive(on ? null : id)}
@@ -60,7 +61,7 @@ export function PrimeQueueChips({ countsHidden = false }: { countsHidden?: boole
                     >
                         <Icon className="h-4 w-4" aria-hidden="true" />
                         <span>{t(`orders.primeQueue.${id}.label`)}</span>
-                        {!countsHidden && (
+                        {queues && (
                             <span className={cn("min-w-[24px] rounded-full px-2 py-0.5 text-center text-[12px] font-black tabular-nums", on ? STYLE[id].badgeOn : STYLE[id].badgeOff)}>
                                 {count}
                             </span>

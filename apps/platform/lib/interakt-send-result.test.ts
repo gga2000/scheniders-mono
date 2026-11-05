@@ -12,7 +12,7 @@ import type { Order } from "@/types/order";
  */
 
 vi.mock("@/lib/env", () => ({
-    env: { INTERAKT_API_KEY: "test-key" },
+    env: { INTERAKT_API_KEY: "test-key", VERCEL_PROJECT_PRODUCTION_URL: "schenidersapp.xyz" },
     providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
 }));
 

@@ -15,6 +15,10 @@ import type { RiskLevel } from "@/types/order";
 //                 active ones.
 //   uncovered     the rows are for another window (first load, a window
 //                 change in flight, cancelled or failed, sign-out).
+//   prime queue   «معالجة» / «راجع» lists one queue across every date. The
+//                 chips stay true (picking a filter leaves the queue), but
+//                 the Flagged card and risk badge are counted over the
+//                 queue's rows while their click leaves it, so they hide.
 //   refinement    a column filter, the duplicates toggle, the due-today toggle
 //                 or the risk filter narrows the list after the hook; a chip
 //                 click keeps the refinement, so the chip would overstate it.
@@ -42,6 +46,8 @@ export interface CountContext {
     paymentUnchecked?: boolean;
     /** A Prime row filter in transit (deferred). Optional: mobile has no such list filter. */
     primeBucket?: boolean;
+    /** A Prime queue is open (deferred). Optional: mobile has no queue chips. */
+    primeQueue?: boolean;
 }
 
 export interface CountVisibility {
@@ -62,9 +68,9 @@ export function countVisibility(c: CountContext): CountVisibility {
         dueTodayBadge: base && !refined({ exceptDue: true }),
         // Turning the risk filter on also clears status and dates, so with it
         // off the badge equals that list only when they are already clear.
-        riskBadge: base && !refined({ exceptRisk: true }) &&
+        riskBadge: base && !c.primeQueue && !refined({ exceptRisk: true }) &&
             (c.riskLevel !== undefined || (c.facts.statusIsAll && c.facts.windowIsAll)),
-        flaggedCard: base && !refined({ exceptRisk: true }),
+        flaggedCard: base && !c.primeQueue && !refined({ exceptRisk: true }),
     };
 }
 

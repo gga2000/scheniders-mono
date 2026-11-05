@@ -28,8 +28,19 @@ export interface PrimeQueues {
 export function usePrimeQueues(): PrimeQueues {
     const { connected } = usePrimeConnection();
     const { data } = usePrimeBoard(connected);
-    const queues = useMemo(() => (data ? primeQueues(primeProblemsFrom(data.views, data.orders, data.readAt)) : null), [data]);
-    return { connected, queues, data };
+    return { connected, queues: data ? queuesOf(data) : null, data };
+}
+
+/** Built once per board read and shared by every chip and card. */
+const queueCache = new WeakMap<PrimeBoardData, Record<PrimeQueueId, PrimeQueue>>();
+
+function queuesOf(data: PrimeBoardData): Record<PrimeQueueId, PrimeQueue> {
+    let queues = queueCache.get(data);
+    if (!queues) {
+        queues = primeQueues(primeProblemsFrom(data.views, data.orders, data.readAt));
+        queueCache.set(data, queues);
+    }
+    return queues;
 }
 
 export interface PrimeQueueEntry {
@@ -47,7 +58,7 @@ export function usePrimeQueueEntry(orderId: string): PrimeQueueEntry | null {
     const queue = useOrderStore((s) => s.primeQueue);
     const { queues, data } = usePrimeQueues();
     if (!queue || !queues || !data) return null;
-    const problem = queues[queue].problems.find((p) => p.orderId === orderId);
+    const problem = queues[queue].byOrder.get(orderId);
     const view = data.views.get(orderId);
     const order = data.orders.get(orderId);
     if (!problem || !view || !order || primeQueueOf(problem) !== queue) return null;
@@ -63,14 +74,17 @@ export function usePrimeQueueOrders(queue: PrimeQueueId | null, liveOrders: read
     const { session, clientReady, tenantId } = useAuth();
     const { queues } = usePrimeQueues();
     const ids = queue && queues ? queues[queue].orderIds : EMPTY_IDS;
+    // Keyed on the set, not the order: marking one handled re-sorts the queue
+    // but needs no new read.
+    const idSet = useMemo(() => [...ids].sort(), [ids]);
     const query = useQuery({
-        queryKey: [...orderKeys.lists(), "prime-queue", tenantId, queue, ids],
+        queryKey: [...orderKeys.lists(), "prime-queue", tenantId, queue, idSet],
         enabled: queue !== null && queues !== null && !!session && clientReady && !!tenantId,
         staleTime: 15_000,
         placeholderData: keepPreviousData,
         queryFn: () => {
             if (!tenantId) throw new Error("No active tenant");
-            return orderRepository.findByIds(tenantId, ids);
+            return orderRepository.findByIds(tenantId, idSet);
         },
     });
     return useMemo(() => {
