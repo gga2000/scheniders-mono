@@ -19,6 +19,9 @@ import { countVisibility, listCountVisible } from "@/lib/orders/count-visibility
 import { isScheduleDue } from "@/lib/order-format-utils";
 import { sortDesktopList } from "@/lib/orders/list-sort";
 import { useShieldDanger } from "@/hooks/use-shield-danger";
+
+/** Statuses that settle a purchase for Shield (shield.sync_phone): only these move a Trust score. */
+const SHIELD_FINISHED: ReadonlySet<string> = new Set(["completed", "delivered", "rejected", "no_response", "cancelled", "returned", "refunded", "refund_delivered", "return_pending"]);
 import { dangerBandOf, dangerCounts, trustByOrderId } from "@/lib/shield/danger";
 import { desktopPreviewRows } from "@/lib/orders/list-preview";
 import { perfTrace } from "@/lib/perf-trace";
@@ -472,7 +475,11 @@ export function useOrdersPageModel() {
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
-    const { trustByPhone: dangerTrust } = useShieldDanger();
+    const shieldClosedCount = useMemo(
+        () => (orders ?? []).reduce((n, o) => (SHIELD_FINISHED.has(o.status) ? n + 1 : n), 0),
+        [orders],
+    );
+    const { trustByPhone: dangerTrust, ready: dangerReady } = useShieldDanger(shieldClosedCount);
     const dangerBand = useOrderStore(s => s.dangerBand);
     const defDangerBand = React.useDeferredValue(dangerBand);
 
@@ -1042,6 +1049,7 @@ export function useOrdersPageModel() {
         toggleSort,
         dangerBandCounts,
         dangerListTotal: hookFilteredOrders.length,
+        dangerReady,
         columnFilters,
         setColumnFilters,
         openFilterColumn,
