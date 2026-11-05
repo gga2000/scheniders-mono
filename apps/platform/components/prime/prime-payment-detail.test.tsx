@@ -82,15 +82,15 @@ describe("PrimePaymentDetail", () => {
         expect(within(screen.getAllByRole("row")[3]).getByText("Not in your orders")).toBeTruthy();
     });
 
-    it("approves only the matching orders that are delivered, after a confirm", async () => {
-        mutateAsync.mockResolvedValue({ success: true, outcome: { kind: "approved", completed: 1 } });
+    it("approves the matching orders still open (delivered or on the road), after a confirm", async () => {
+        mutateAsync.mockResolvedValue({ success: true, outcome: { kind: "approved", completed: 2 } });
         show();
-        fireEvent.click(screen.getByRole("button", { name: "Approve 1 matching" }));
-        expect(screen.getByText("Mark 1 orders as paid?")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "Approve 2 matching" }));
+        expect(screen.getByText("Mark 2 orders as paid?")).toBeTruthy();
         fireEvent.click(screen.getByRole("button", { name: "Yes, approve" }));
 
         await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ action: "approve", id: 88014 }));
-        expect(await screen.findByText("1 orders marked paid.")).toBeTruthy();
+        expect(await screen.findByText("2 orders marked paid.")).toBeTruthy();
     });
 
     it("accepts Prime's price for one order and says a refused one plainly", async () => {
