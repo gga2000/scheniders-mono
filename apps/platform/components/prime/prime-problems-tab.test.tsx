@@ -108,8 +108,11 @@ describe("PrimeProblemsTab", () => {
         expect(within(row).getByText("Call").closest("a")?.getAttribute("href")).toBe("tel:07701234567");
         fireEvent.click(within(row).getByText("WhatsApp"));
         expect(whatsapp).toHaveBeenCalledWith("07701234567", expect.stringContaining("could not reach you"), t);
-        fireEvent.click(within(row).getByText("Ask Prime"));
-        expect(ask).toHaveBeenCalledWith("o1");
+        expect(within(row).getByText("New attempt")).toBeTruthy();
+        expect(within(row).queryByText("Ask Prime")).toBeNull();
+        const postponed = document.querySelector('[data-prime-problem="o2"]') as HTMLElement;
+        fireEvent.click(within(postponed).getByText("Ask Prime"));
+        expect(ask).toHaveBeenCalledWith("o2");
     });
 
     it("marks a parcel handled with a note, and takes the mark off", async () => {
