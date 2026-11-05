@@ -349,3 +349,32 @@ export function useShopInsights(days: number) {
         },
     });
 }
+
+const liveShopSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    daily_goal: z.number().nullable(),
+    sales: z.number().int(),
+    total: z.number(),
+    last_sale_at: z.string().nullable(),
+    cash_in: z.number(),
+    payouts: z.number(),
+    on_till: z.array(z.string()),
+    clocked_in: z.array(z.string()),
+});
+export type LiveShop = z.infer<typeof liveShopSchema>;
+
+/** Each active shop right now (Baghdad day): sales, cash taken, who is on the till and clocked in. Owners and managers only. */
+export function useShopsLive(enabled: boolean) {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: ["shops", "live", tenantId],
+        enabled: enabled && !!tenantId,
+        refetchInterval: 30_000,
+        queryFn: async (): Promise<LiveShop[]> => {
+            const { data, error } = await supabase.rpc("shops_live");
+            if (error) throw error;
+            return z.array(liveShopSchema).parse(data);
+        },
+    });
+}
