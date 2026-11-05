@@ -32,6 +32,8 @@ import { useOrderFilterState } from "@/hooks/use-order-filter-state";
 import { useServerOrderSearch } from "@/hooks/use-server-order-search";
 import { usePrimeQueueOrders } from "@/hooks/use-prime-queues";
 import { useOrderStore } from "@/store/use-order-store";
+import { useInTransitOrders } from "@/hooks/use-in-transit-orders";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { assertAggregateParity } from "@/lib/order-aggregate-parity";
 import { windowCacheKey, windowFromDateFilter } from "@/lib/order-window";
@@ -135,6 +137,16 @@ export function useOrders() {
     const primeQueue = useOrderStore((s) => s.primeQueue);
     const primeQueueOrders = usePrimeQueueOrders(primeQueue, orders);
 
+    // The «قيد التوصيل» tab ignores the date filter (desktop): every in-transit
+    // order shows, or only today's while the «اليوم فقط» toggle is on.
+    const isMobile = useIsMobile();
+    const inTransitTodayOnly = useOrderStore((s) => s.inTransitTodayOnly);
+    const inTransitRows = useInTransitOrders(!isMobile && filtersSettled, orders);
+    const inTransit = useMemo(
+        () => (isMobile ? null : { ...inTransitRows, scope: inTransitTodayOnly ? ("today" as const) : ("any" as const) }),
+        [isMobile, inTransitRows, inTransitTodayOnly],
+    );
+
     // 1. Filters — filter state, presets, persistence, derived lists
     const filterHook = useOrderFilters({
         orders,
@@ -144,6 +156,7 @@ export function useOrders() {
         clearFilters,
         loadedWindowKey: listLoadedKey,
         preview,
+        inTransit,
     });
 
     // The list holds the whole filtered window — now (the cache) AND in the

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { CalendarClock, Check } from "lucide-react";
 import { Switch } from "@scheniders/ui/switch";
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useLanguage } from "@/hooks/use-language";
@@ -44,8 +45,45 @@ export function PrimeTransitRow({ filters }: { filters: OrderFilters }) {
     useEffect(() => {
         if (active && filters.status !== "in_transit") setActive(null);
     }, [active, filters.status, setActive]);
-    if (!connected || filters.status !== "in_transit") return null;
+    if (filters.status !== "in_transit") return null;
+    if (!connected) {
+        return (
+            <div data-in-transit-row className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E8EEF8] bg-[#F7F9FD] px-3 py-2 dark:border-sky-400/15 dark:bg-sky-400/[0.04]">
+                <InTransitTodayToggle />
+            </div>
+        );
+    }
     return <PrimeTransitRowFor />;
+}
+
+/**
+ * «اليوم فقط»: the in-transit tab lists every order still on the road, from
+ * any day, whatever date is picked; this narrows it to the ones that arrived
+ * today (hooks/use-in-transit-orders.ts, lib/orders/filter-orders.ts).
+ */
+function InTransitTodayToggle() {
+    const { t } = useLanguage();
+    const on = useOrderStore((s) => s.inTransitTodayOnly);
+    const setOn = useOrderStore((s) => s.setInTransitTodayOnly);
+    return (
+        <button
+            type="button"
+            data-testid="in-transit-today-only"
+            aria-pressed={on}
+            title={t("orders.filter.inTransitTodayOnlyTip")}
+            onClick={() => setOn(!on)}
+            className={cn(
+                "inline-flex h-9 items-center gap-2 rounded-full border-2 px-3.5 text-[13px] font-bold transition-colors",
+                on
+                    ? "border-[#7C3AED] bg-[#7C3AED] text-white"
+                    : "border-[#7C3AED] bg-white text-[#7C3AED] hover:bg-[#F5F0FF] dark:bg-transparent dark:text-violet-200 dark:border-violet-400/60",
+            )}
+        >
+            <CalendarClock className="h-4 w-4" />
+            {t("orders.filter.inTransitTodayOnly")}
+            {on && <Check className="h-4 w-4" />}
+        </button>
+    );
 }
 
 function PrimeTransitRowFor() {
@@ -79,6 +117,7 @@ function PrimeTransitRowFor() {
 
     return (
         <div data-prime-row className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#E8EEF8] bg-[#F7F9FD] px-3 py-2 dark:border-sky-400/15 dark:bg-sky-400/[0.04]">
+            <InTransitTodayToggle />
             <span aria-hidden="true" className="h-3 w-[42px] shrink-0 bg-[#1F3F75] [mask:url(/assets/prime-mark.svg)_center/contain_no-repeat] dark:bg-sky-200" />
             <span className="sr-only">Prime</span>
             {CHIPS.map((chip) => {

@@ -781,6 +781,28 @@ export const orderRepository = {
         return withRiskData(tenantId, rows);
     },
 
+    /**
+     * Every live order in transit, whatever day it arrived: the «قيد التوصيل»
+     * tab shows them all regardless of the date filter. Paged so a long tail of
+     * parcels never truncates at the server's row cap.
+     */
+    async findInTransit(tenantId: string): Promise<Order[]> {
+        const rows: Order[] = [];
+        for (let i = 0; ; i++) {
+            const page = await readPage(() =>
+                listQuery(tenantId, null, LIST_COLUMNS)
+                    .eq("status", "in_transit")
+                    .order("created_at", { ascending: false })
+                    .order("id", { ascending: false })
+                    .range(i * PAGE, i * PAGE + PAGE - 1),
+            );
+            const got = pageRows([page]);
+            rows.push(...got);
+            if (got.length < PAGE) break;
+        }
+        return withRiskData(tenantId, rows);
+    },
+
     /** Fetch a single order by ID (all columns for detail view). */
     async findById(id: string): Promise<Order | null> {
         const { data, error } = await supabase
