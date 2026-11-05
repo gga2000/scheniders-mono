@@ -150,7 +150,7 @@ export function DangerSlider({ band, counts, onChange }: { band: DangerBand | nu
                 </div>
             </div>
 
-            <div className="mt-1 flex text-[11px] font-medium" dir="ltr">
+            <div className="mt-1 flex text-[12px] font-medium" dir="ltr">
                 {DANGER_BANDS.map((b) => (
                     <button
                         key={b}
@@ -164,7 +164,7 @@ export function DangerSlider({ band, counts, onChange }: { band: DangerBand | nu
                         )}
                     >
                         <span dir={dir} className={cn(band === b && "font-bold")}>{t(`shield.danger.${b}`)}</span>
-                        <span className="font-mono text-[11px] tabular-nums opacity-80">{shown(b)}</span>
+                        <span className="font-mono text-[12px] tabular-nums opacity-80">{shown(b)}</span>
                     </button>
                 ))}
             </div>
