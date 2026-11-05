@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Flame, Package, ScanLine, X } from "lucide-react";
+import { Check, Flame, Package, ScanLine, TrendingDown, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
 import { RECEIPT_CODE, type TillOverview } from "@/hooks/use-till";
-import { findByCode, formatIqd, searchProducts, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { findByCode, formatIqd, isLow, searchProducts, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { beep, flyToCart } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ interface Props {
 }
 
 type Notice = { kind: "ok" | "bad"; text: string; at: number } | null;
-/** "all", "best" or a category id. */
+/** "all", "best", "low" or a category id. */
 type Filter = string;
 
 const NOTICE_MS = 2600;
@@ -48,6 +48,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
         [overview, byId],
     );
     const chips = useMemo(() => overview?.chips ?? [], [overview]);
+    const low = useMemo(() => products.filter(isLow), [products]);
 
     const add = (product: TillProduct, variant: TillVariant | null, from: HTMLElement | null) => {
         onAdd(product, variant);
@@ -61,7 +62,10 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
             setNotice({ kind: "bad", text: t("till.sell.addedOut", { name }), at: Date.now() });
             return;
         }
-        setNotice({ kind: "ok", text: t("till.sell.added", { name, left: had - 1 }), at: Date.now() });
+        const left = had - 1;
+        // At or under the product's own minimum. The owner's restock note comes from the products stock trigger when the sale lands.
+        const low = left > 0 && left <= product.low_at;
+        setNotice({ kind: "ok", text: t(low ? "till.sell.addedLow" : "till.sell.added", { name, left }), at: Date.now() });
     };
 
     const choose = (product: TillProduct, from: HTMLElement | null) => {
@@ -101,11 +105,12 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
     const inFilter = useMemo(() => {
         if (filter === "all") return products;
         if (filter === "best") return best;
+        if (filter === "low") return low;
         const chip = chips.find((c) => c.id === filter);
         if (!chip) return products;
         const ids = new Set(chip.product_ids);
         return products.filter((p) => ids.has(p.id));
-    }, [filter, products, best, chips]);
+    }, [filter, products, best, low, chips]);
 
     const matches = searchProducts(inFilter, query);
     // Sold-out items go last, judged before this cart so a card never jumps away while it is being tapped.
@@ -148,7 +153,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                 </label>
             </form>
 
-            {(chips.length > 0 || best.length > 0) && (
+            {(chips.length > 0 || best.length > 0 || low.length > 0) && (
                 <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]" role="toolbar" aria-label={t("till.sell.filters")}>
                     <Chip on={filter === "all"} onClick={() => setFilter("all")}>
                         {t("till.sell.all")}
@@ -157,6 +162,12 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                         <Chip on={filter === "best"} onClick={() => setFilter("best")}>
                             <Flame className="h-4 w-4" aria-hidden="true" />
                             {t("till.sell.best")}
+                        </Chip>
+                    )}
+                    {low.length > 0 && (
+                        <Chip on={filter === "low"} onClick={() => setFilter("low")}>
+                            <TrendingDown className="h-4 w-4" aria-hidden="true" />
+                            {t("till.sell.low", { n: low.length })}
                         </Chip>
                     )}
                     {chips.map((c) => (
@@ -278,7 +289,7 @@ function QuickKey({ product, onPick }: { product: TillProduct; onPick: (el: HTML
             <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-semibold text-foreground" dir="auto">{product.name}</span>
                 <span className="text-base font-bold tabular-nums text-foreground">{formatIqd(price)}</span>
-                <span className={cn("text-xs", out ? "font-semibold text-red-600" : "text-muted")}>
+                <span className={cn("text-xs", out ? "font-semibold text-red-600" : isLow(product) ? "font-semibold text-[#92400E] dark:text-amber-300" : "text-muted")}>
                     {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
                 </span>
             </span>
@@ -292,7 +303,7 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: H
     const sizes = product.variants.length;
     const from = sizes > 1 ? Math.min(...product.variants.map((v) => v.price)) : product.variants[0]?.price ?? product.price;
     const out = product.available <= 0;
-    const low = !out && product.available <= 3;
+    const low = isLow(product);
     return (
         <button
             type="button"

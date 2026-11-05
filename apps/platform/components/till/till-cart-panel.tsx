@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { AlertTriangle, Minus, Package, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, Bookmark, Minus, Package, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { logRemovedLines, useTillCustomer } from "@/hooks/use-till";
@@ -29,10 +29,15 @@ interface Props {
     sessionId: string;
     /** Managers with a PIN who can allow a discount over the limit here. */
     managers: TillMember[];
+    /** Put this cart's bottles aside for the customer. */
+    onKeepAside: () => void;
+    /** Bottles kept aside in this shop right now. */
+    holdsCount: number;
+    onHolds: () => void;
 }
 
 /** The right side of the sell screen: held sales as tabs, the customer, the lines, discount, total. */
-export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId, managers }: Props) {
+export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, onPay, canDiscount, discountLimitPct, isManager, cashierName, sessionId, managers, onKeepAside, holdsCount, onHolds }: Props) {
     const { t } = useLanguage();
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     const subtotal = subtotalOf(ticket.cart);
@@ -106,6 +111,16 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     <Plus className="h-4 w-4" aria-hidden="true" />
                     {t("till.cart.newSale")}
                 </button>
+                {holdsCount > 0 && (
+                    <button
+                        type="button"
+                        onClick={onHolds}
+                        className="flex h-12 shrink-0 items-center gap-1.5 rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
+                    >
+                        <Bookmark className="h-4 w-4" aria-hidden="true" />
+                        {t("till.holds.tab", { n: holdsCount })}
+                    </button>
+                )}
             </div>
 
             <div className="border-b border-[var(--card-border)] px-4 py-3">
@@ -283,6 +298,17 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     </span>
                     <span className="text-5xl font-bold tabular-nums tracking-tight text-foreground">{formatIqd(total)}</span>
                 </div>
+                <div className="grid grid-cols-[auto_1fr] gap-2">
+                <button
+                    type="button"
+                    onClick={onKeepAside}
+                    disabled={ticket.cart.length === 0 || phoneBad}
+                    title={t("till.hold.title")}
+                    className="flex h-16 flex-col items-center justify-center gap-0.5 rounded-2xl border border-[var(--card-border)] px-4 text-xs font-semibold text-foreground disabled:opacity-40"
+                >
+                    <Bookmark className="h-5 w-5" aria-hidden="true" />
+                    {t("till.hold.button")}
+                </button>
                 <button
                     type="button"
                     // Over the limit, the one big button takes the next step: asking a manager.
@@ -299,6 +325,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                         t("till.cart.pay", { total: formatIqd(total) })
                     )}
                 </button>
+                </div>
             </div>
             {askManager && limit !== null && (
                 <TillManagerDialog

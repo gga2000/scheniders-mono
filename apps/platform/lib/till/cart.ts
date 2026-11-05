@@ -23,6 +23,8 @@ export interface TillProduct {
     barcode: string | null;
     sku: string | null;
     available: number;
+    /** The product's own minimum: at or under it (and above 0) it is running low. 0 means no minimum. */
+    low_at: number;
     variants: TillVariant[];
     /** Pieces of it in the current cart, already taken off `available` (set by onShelf). */
     in_cart?: number;
@@ -43,6 +45,11 @@ export interface CartLine {
 }
 
 export const MAX_QTY = 999;
+
+/** In stock, but at or under the product's own minimum. */
+export function isLow(product: Pick<TillProduct, "available" | "low_at">): boolean {
+    return product.available > 0 && product.available <= product.low_at;
+}
 
 export function lineKey(productId: string, variantId: string | null): string {
     return variantId ? `${productId}:${variantId}` : productId;

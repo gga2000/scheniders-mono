@@ -15,12 +15,14 @@ import {
     saleErrorOf,
     useTillClock,
     useTillClockSet,
+    useTillHolds,
     useTillOverview,
     useTillProducts,
     useTillSale,
     useTillStoreName,
+    type TillHold,
 } from "@/hooks/use-till";
-import { addToCart, commissionOf, dateLocale, formatIqd, onShelf, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { addToCart, commissionOf, dateLocale, formatIqd, onShelf, setQuantity, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { connectDrawer, drawerSupported, openDrawer } from "@/lib/till/cash-drawer";
 import type { DisplayState, PayShown } from "@/lib/till/customer-display";
 import { readPrefs, TEXT_ZOOM, writePrefs, type TextSize, type TillPrefs } from "@/lib/till/prefs";
@@ -31,6 +33,8 @@ import { TillCartPanel } from "./till-cart-panel";
 import { TillPayView } from "./till-pay-view";
 import { TillDoneView } from "./till-done-view";
 import { TillHistoryDialog } from "./till-history-dialog";
+import { TillHoldDialog } from "./till-hold-dialog";
+import { TillHoldsDialog } from "./till-holds-dialog";
 import { TillPayoutDialog } from "./till-payout-dialog";
 import { newTicket, type Ticket } from "./till-ticket";
 import { useCustomerDisplay } from "./use-customer-display";
@@ -84,6 +88,8 @@ export function TillPage() {
     const [historyOpen, setHistoryOpen] = useState(false);
     const [historyQuery, setHistoryQuery] = useState("");
     const [payoutOpen, setPayoutOpen] = useState(false);
+    const [holdOpen, setHoldOpen] = useState(false);
+    const [holdsOpen, setHoldsOpen] = useState(false);
     // The till renders only after its queries load, never during the server pass, so reading storage here is safe.
     const [prefs, setPrefsState] = useState<TillPrefs>(readPrefs);
     const setPrefs = (next: TillPrefs) => {
@@ -93,6 +99,7 @@ export function TillPage() {
     const overview = useTillOverview(session?.id ?? null);
     const clock = useTillClock(session?.id ?? null);
     const clockSet = useTillClockSet();
+    const holds = useTillHolds(session?.id ?? null);
 
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     // Stock badges and the "left" note count what is already in this sale's cart.
@@ -181,6 +188,45 @@ export function TillPage() {
     const startNext = () => {
         setDone(null);
         setView("sell");
+    };
+    // Lines kept aside leave the cart; an emptied ticket closes like a finished sale.
+    const keptAside = (keys: string[]) => {
+        const gone = new Set(keys);
+        const left = ticket.cart.filter((l) => !gone.has(l.key));
+        if (left.length > 0) {
+            updateTicket({ ...ticket, cart: left, discount: Math.min(ticket.discount, subtotalOf(left)) });
+            return;
+        }
+        const rest = tickets.filter((x) => x.id !== ticket.id);
+        const fresh = newTicket();
+        setTickets(rest.length ? rest : [fresh]);
+        setActiveId(rest[0]?.id ?? fresh.id);
+    };
+    // The customer came back: their kept bottles open as a new sale in their name.
+    const sellHeld = (hold: TillHold) => {
+        const product = products.data?.find((p) => p.id === hold.product_id);
+        if (!product) {
+            toast({ title: t("till.holds.missing", { name: hold.name }), variant: "error" });
+            return;
+        }
+        const variant = hold.variant_id ? (product.variants.find((v) => v.id === hold.variant_id) ?? null) : null;
+        const withHold = (cart: CartLine[]) => {
+            const next = addToCart(cart, product, variant);
+            const line = next.find((l) => l.product_id === hold.product_id && l.variant_id === (variant?.id ?? null));
+            const had = cart.find((l) => l.key === line?.key)?.quantity ?? 0;
+            return line ? setQuantity(next, line.key, had + hold.quantity) : next;
+        };
+        // Several bottles kept for one customer go into one sale.
+        const same = tickets.find((x) => x.customerName.trim() === hold.customer_name && x.phone.trim() === (hold.customer_phone ?? ""));
+        if (same) {
+            updateTicket({ ...same, cart: withHold(same.cart) });
+            setActiveId(same.id);
+        } else {
+            const fresh = { ...newTicket(), cart: withHold([]), customerName: hold.customer_name, phone: hold.customer_phone ?? "" };
+            setTickets((all) => [...all.filter((x) => x.cart.length > 0 || x.id !== activeId), fresh]);
+            setActiveId(fresh.id);
+        }
+        startNext();
     };
     // Same items again for the next customer, in the fresh ticket the sale left open.
     const sellAgain = () => {
@@ -411,8 +457,24 @@ export function TillPage() {
                         cashierName={session.cashier.display_name}
                         sessionId={session.id}
                         managers={(members.data ?? []).filter((m) => m.role === "admin" && m.has_pin && m.user_id !== session.cashier.user_id)}
+                        onKeepAside={() => setHoldOpen(true)}
+                        holdsCount={holds.data?.length ?? 0}
+                        onHolds={() => setHoldsOpen(true)}
                     />
                 </div>
+            )}
+            {holdOpen && ticket.cart.length > 0 && (
+                <TillHoldDialog
+                    sessionId={session.id}
+                    lines={ticket.cart}
+                    customerName={ticket.customerName}
+                    phone={ticket.phone}
+                    onKept={keptAside}
+                    onClose={() => setHoldOpen(false)}
+                />
+            )}
+            {holdsOpen && (
+                <TillHoldsDialog sessionId={session.id} holds={holds.data ?? []} onSell={sellHeld} onClose={() => setHoldsOpen(false)} />
             )}
             {payoutOpen && <TillPayoutDialog sessionId={session.id} onClose={() => setPayoutOpen(false)} />}
             {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} initialQuery={historyQuery} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
