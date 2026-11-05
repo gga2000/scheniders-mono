@@ -12,6 +12,8 @@ export interface TillVariant {
     sku: string | null;
     /** Free to sell: stock minus what open orders hold. */
     available: number;
+    /** Bottles there in all: stock, including the ones open orders hold. */
+    on_hand: number;
 }
 
 export interface TillProduct {
@@ -23,6 +25,8 @@ export interface TillProduct {
     barcode: string | null;
     sku: string | null;
     available: number;
+    /** Bottles there in all (sum of sizes when it has sizes). */
+    on_hand: number;
     /** The product's own minimum: at or under it (and above 0) it is running low. 0 means no minimum. */
     low_at: number;
     variants: TillVariant[];

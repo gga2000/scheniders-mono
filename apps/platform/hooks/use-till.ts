@@ -69,6 +69,7 @@ export function useTillProducts() {
                         barcode: v.barcode,
                         sku: v.sku,
                         available: free(v.stock_quantity, v.reserved_quantity),
+                        on_hand: Math.max(0, v.stock_quantity ?? 0),
                     }));
                 return {
                     id: p.id,
@@ -79,6 +80,7 @@ export function useTillProducts() {
                     barcode: p.barcode,
                     sku: p.sku,
                     available: variants.length ? variants.reduce((s, v) => s + v.available, 0) : free(p.stock_quantity, p.reserved_quantity),
+                    on_hand: variants.length ? variants.reduce((sum, v) => sum + v.on_hand, 0) : Math.max(0, p.stock_quantity ?? 0),
                     low_at: Math.max(0, p.low_stock_threshold ?? 0),
                     variants,
                 };
@@ -551,5 +553,18 @@ export function useTillTesterEnd() {
             return z.object({ ended: z.boolean() }).parse(data).ended;
         },
         onSettled: (_d, _e, input) => qc.invalidateQueries({ queryKey: testersKey(input.sessionId) }),
+    });
+}
+
+/** Sets stock to a shelf count (managers only). Returns how many lines changed. */
+export function useTillCountApply() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; lines: { product_id: string; variant_id: string | null; counted: number }[] }): Promise<number> => {
+            const { data, error } = await supabase.rpc("till_count_apply", { p_session_id: input.sessionId, p_lines: input.lines });
+            if (error) throw error;
+            return z.object({ changed: z.number().int() }).parse(data).changed;
+        },
+        onSettled: () => qc.invalidateQueries({ queryKey: ["till", "products"] }),
     });
 }

@@ -26,13 +26,14 @@ const envoy: TillProduct = {
     barcode: "111",
     sku: "ENV",
     available: 21,
+    on_hand: 21,
     low_at: 5,
     variants: [
-        { id: "v30", name: "30 ml", price: 10_000, barcode: "11130", sku: null, available: 5 },
-        { id: "v100", name: "100 ml", price: 45_000, barcode: "111100", sku: null, available: 16 },
+        { id: "v30", name: "30 ml", price: 10_000, barcode: "11130", sku: null, available: 5, on_hand: 5 },
+        { id: "v100", name: "100 ml", price: 45_000, barcode: "111100", sku: null, available: 16, on_hand: 16 },
     ],
 };
-const bag: TillProduct = { id: "p2", name: "Gift bag", price: 2_000, image_url: null, tag_color: null, barcode: "222", sku: null, available: 40, low_at: 5, variants: [] };
+const bag: TillProduct = { id: "p2", name: "Gift bag", price: 2_000, image_url: null, tag_color: null, barcode: "222", sku: null, available: 40, on_hand: 40, low_at: 5, variants: [] };
 
 describe("cart", () => {
     it("adds, stacks the same line, and totals", () => {
