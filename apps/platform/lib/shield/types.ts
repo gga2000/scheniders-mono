@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-/** One row of `public.shield_lookup`: other stores' record for one phone. */
+/** One counted order in the Trust score: where it happened, what happened, the points it moved. */
+export const trustStepSchema = z.object({
+    src: z.enum(["own", "net"]),
+    kind: z.enum(["delivered", "pattern", "refused", "refused_unspecified", "no_answer", "phone_off",
+        "changed_mind", "wrong_info", "not_available"]),
+    pts: z.number().int(),
+});
+export type TrustStep = z.infer<typeof trustStepSchema>;
+
+/** One row of `public.shield_lookup`: other stores' record for one phone, plus its Trust score. */
 export const shieldNetworkSchema = z.object({
     phone: z.string(),
     band: z.enum(["red", "yellow", "green", "none"]),
@@ -14,6 +23,9 @@ export const shieldNetworkSchema = z.object({
     sequence: z.array(z.enum(["D", "R", "N", "C", "O"])).nullable(),
     last_bad_orders_ago: z.number().int().nullable(),
     trend: z.enum(["improving", "worsening", "steady"]).nullable(),
+    trust: z.number().int(),
+    trust_new: z.boolean(),
+    trust_steps: z.array(trustStepSchema),
 });
 
 export type ShieldNetwork = z.infer<typeof shieldNetworkSchema>;

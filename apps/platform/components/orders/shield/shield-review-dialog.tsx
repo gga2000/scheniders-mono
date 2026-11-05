@@ -6,9 +6,10 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@schenide
 import { formatIraqiPhoneDisplay } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import type { ChanceStep, DeliveryChance, OwnHistory, ShieldBand } from "@/lib/shield/delivery-chance";
-import type { ShieldNetwork } from "@/lib/shield/types";
+import type { OrderCheck, ShieldBand, Trust } from "@/lib/shield/trust";
+import type { ShieldNetwork, TrustStep } from "@/lib/shield/types";
 import { ShieldNetworkRecord } from "./shield-network-record";
+import { CHECK_TONE, SHIELD_TONE } from "./shield-tone";
 
 interface Props {
     open: boolean;
@@ -17,26 +18,30 @@ interface Props {
     phone: string;
     orderId?: string;
     orderedAt?: string;
-    result: DeliveryChance;
+    trust: Trust;
+    checks: OrderCheck[];
     network: ShieldNetwork | null;
     networkFailed: boolean;
-    own: OwnHistory | null;
 }
 
-/** Where the bands sit on the chance scale (risk 60 / 35 → chance 40 / 65). */
+/** Where the bands sit on the 0-100 Trust scale. */
 const ZONES: { band: ShieldBand; from: number; to: number }[] = [
-    { band: "red", from: 0, to: 40 },
-    { band: "yellow", from: 40, to: 65 },
-    { band: "green", from: 65, to: 100 },
+    { band: "red", from: 0, to: 50 },
+    { band: "yellow", from: 50, to: 80 },
+    { band: "green", from: 80, to: 100 },
 ];
 
-const INK: Record<ShieldBand, { text: string; bar: string; zone: string; wash: string; dot: string }> = {
+const INK: Record<ShieldBand | "new", { text: string; bar: string; zone: string; wash: string; dot: string }> = {
     red: { text: "text-rose-700 dark:text-rose-300", bar: "bg-rose-500", zone: "bg-rose-500/20", wash: "from-rose-500/[0.07]", dot: "bg-rose-500" },
     yellow: { text: "text-amber-700 dark:text-amber-300", bar: "bg-amber-500", zone: "bg-amber-500/20", wash: "from-amber-500/[0.08]", dot: "bg-amber-500" },
     green: { text: "text-emerald-700 dark:text-emerald-300", bar: "bg-emerald-500", zone: "bg-emerald-500/20", wash: "from-emerald-500/[0.07]", dot: "bg-emerald-500" },
+    new: { text: "text-foreground", bar: "bg-foreground/30", zone: "bg-foreground/10", wash: "from-foreground/[0.03]", dot: "bg-foreground/40" },
 };
 
 const KICKER = "text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground";
+
+/** Older orders fold into one row so the path stays readable. */
+const PATH_ROWS = 10;
 
 function orderedAtLabel(iso: string, language: string): string {
     return new Intl.DateTimeFormat(language === "ar" ? "ar-IQ" : "en-GB", {
@@ -50,15 +55,16 @@ function orderedAtLabel(iso: string, language: string): string {
 }
 
 /**
- * The Shield review, laid out as a report: the verdict and the chance on one
- * scale, the path from a typical order to this one (one row per signal, with
- * how far it moved the chance), this store's own record next to what other
- * stores saw, and the privacy line. Opens from the ring or the warning.
+ * The Shield report: the customer's Trust score on one scale, the order's own
+ * checks, the path from 100 to today's score (one row per finished order, here
+ * or in another store, with the points it moved), this store's record next to
+ * what other stores saw, and the privacy line. Opens from the ring or the warning.
  */
-export function ShieldReviewDialog({ open, onOpenChange, customerName, phone, orderId, orderedAt, result, network, networkFailed, own }: Props) {
+export function ShieldReviewDialog({ open, onOpenChange, customerName, phone, orderId, orderedAt, trust, checks, network, networkFailed }: Props) {
     const { t, language } = useLanguage();
     const dir = useTextDir();
-    const ink = INK[result.band];
+    const look = trust.isNew ? "new" : trust.band;
+    const ink = INK[look];
     const hasNetwork = network !== null && network.band !== "none";
 
     return (
@@ -76,19 +82,22 @@ export function ShieldReviewDialog({ open, onOpenChange, customerName, phone, or
                         <div className="mt-5 grid grid-cols-[auto_1fr] items-end gap-x-8">
                             <div>
                                 <div className={cn("font-headline text-[64px] font-black leading-[0.85] tracking-tight tabular-nums", ink.text)} dir="ltr">
-                                    {result.chance}
-                                    <span className="ml-0.5 align-top text-[28px] font-bold">%</span>
+                                    {trust.score}
+                                    <span className="ml-1 text-[22px] font-bold text-muted-foreground">/100</span>
                                 </div>
-                                <p dir={dir} className="mt-2 text-left text-xs font-medium text-muted-foreground">
-                                    {t("shield.report.chanceLabel")}
+                                <p dir={dir} className="mt-2 flex items-center gap-1.5 text-left text-xs font-medium text-muted-foreground">
+                                    {t("shield.trust.label")}
+                                    {trust.isNew && (
+                                        <span className="rounded-md border border-(--card-border) px-1.5 py-px text-[10px] font-semibold">{t("shield.trust.newLabel")}</span>
+                                    )}
                                 </p>
                             </div>
                             <div className="min-w-0 pb-1">
                                 <DialogTitle dir={dir} className={cn("text-left text-xl font-extrabold leading-tight tracking-normal", ink.text)}>
-                                    {t(`shield.band.${result.band}`)}
+                                    {trust.isNew ? t("shield.band.new") : t(`shield.band.${trust.band}`)}
                                 </DialogTitle>
                                 <p dir={dir} className="mt-1 text-left text-sm leading-relaxed text-foreground">
-                                    {t(`shield.report.action.${result.band}`)}
+                                    {t(`shield.report.action.${look}`)}
                                 </p>
                                 <DialogDescription className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                                     <span dir="auto" className="font-semibold text-foreground">{customerName}</span>
@@ -98,14 +107,16 @@ export function ShieldReviewDialog({ open, onOpenChange, customerName, phone, or
                             </div>
                         </div>
 
-                        <ChanceScale chance={result.chance} base={result.base} />
+                        <TrustScale score={trust.score} isNew={trust.isNew} />
                     </header>
 
                     <div className="grid gap-8 px-8 pb-8 pt-2">
-                        <ChancePath result={result} />
+                        {checks.length > 0 && <Checks checks={checks} />}
+
+                        <ScorePath trust={trust} />
 
                         <div className="grid grid-cols-2 gap-4">
-                            <OwnPanel own={own} />
+                            <OwnPanel steps={trust.steps} />
                             <NetworkPanel network={network} failed={networkFailed} />
                         </div>
 
@@ -126,8 +137,8 @@ export function ShieldReviewDialog({ open, onOpenChange, customerName, phone, or
     );
 }
 
-/** One line from 0 to 100 with the three bands, this order's mark and where a typical order sits. */
-function ChanceScale({ chance, base }: { chance: number; base: number }) {
+/** One line from 0 to 100 with the three bands; the mark slides down from 100, where every customer starts. */
+function TrustScale({ score, isNew }: { score: number; isNew: boolean }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const reduce = useReducedMotion();
@@ -139,14 +150,16 @@ function ChanceScale({ chance, base }: { chance: number; base: number }) {
                         <div key={z.band} className={cn("h-full rounded-full", INK[z.band].zone)} style={{ width: `${z.to - z.from}%` }} />
                     ))}
                 </div>
-                <div className="absolute top-2 h-5 w-px bg-foreground/25" style={{ left: `${base}%` }} title={t("shield.report.typicalAt", { chance: base })} />
                 <motion.div
                     className="absolute top-0 -ml-[9px] flex flex-col items-center"
-                    initial={reduce ? false : { left: `${base}%` }}
-                    animate={{ left: `${chance}%` }}
+                    initial={reduce ? false : { left: "100%" }}
+                    animate={{ left: `${score}%` }}
                     transition={{ type: "spring", stiffness: 120, damping: 18, delay: 0.15 }}
                 >
-                    <span className="block h-[18px] w-[18px] rounded-full border-[3px] border-(--card-bg) bg-foreground shadow-[0_2px_6px_rgba(0,0,0,0.25)]" style={{ marginTop: 9 }} />
+                    <span
+                        className={cn("block h-[18px] w-[18px] rounded-full border-[3px] border-(--card-bg) shadow-[0_2px_6px_rgba(0,0,0,0.25)]", isNew ? "bg-foreground/40" : "bg-foreground")}
+                        style={{ marginTop: 9 }}
+                    />
                 </motion.div>
             </div>
             <div className="mt-1 flex text-[11px] font-medium text-muted-foreground">
@@ -160,32 +173,86 @@ function ChanceScale({ chance, base }: { chance: number; base: number }) {
     );
 }
 
-function stepDelta(s: ChanceStep): string {
-    const d = s.to - s.from;
-    if (d === 0) return "±0";
-    return d > 0 ? `+${d}` : `−${-d}`;
+function Checks({ checks }: { checks: OrderCheck[] }) {
+    const { t } = useLanguage();
+    const dir = useTextDir();
+    return (
+        <section>
+            <h3 dir={dir} className={cn(KICKER, "text-left")}>{t("shield.report.checksTitle")}</h3>
+            <ul className="mt-3 flex flex-wrap gap-2">
+                {checks.map((c) => (
+                    <li key={c} dir={dir} className={cn("rounded-lg px-3 py-1.5 text-[13px] font-semibold", SHIELD_TONE[CHECK_TONE[c]].pill)}>
+                        {t(`shield.check.${c}`)}
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
 }
 
-/** The waterfall: a typical order, each signal's move, and where this order lands. */
-function ChancePath({ result }: { result: DeliveryChance }) {
+function signed(pts: number): string {
+    if (pts === 0) return "±0";
+    return pts > 0 ? `+${pts}` : `−${-pts}`;
+}
+
+interface PathRow {
+    key: string;
+    label: string;
+    note?: string;
+    from: number;
+    to: number;
+    pts: number;
+}
+
+/** Each counted order with the score before and after it, oldest first; the oldest fold into one row. */
+function pathRows(steps: TrustStep[], t: (key: string, vars?: Record<string, number>) => string): PathRow[] {
+    const rows: PathRow[] = [];
+    let at = 100;
+    const fold = Math.max(0, steps.length - PATH_ROWS);
+    if (fold > 0) {
+        const from = at;
+        for (const s of steps.slice(0, fold)) at += s.pts;
+        rows.push({ key: "earlier", label: t("shield.report.earlier", { n: fold }), from, to: at, pts: at - from });
+    }
+    steps.slice(fold).forEach((s, i) => {
+        const from = at;
+        at += s.pts;
+        rows.push({
+            key: `${fold + i}`,
+            label: t(`shield.kind.${s.kind}`),
+            note: s.kind === "pattern" ? undefined : t(`shield.src.${s.src}`),
+            from,
+            to: at,
+            pts: s.pts,
+        });
+    });
+    return rows;
+}
+
+/** The path: 100 at the start, each finished order's points, and where the customer stands now. */
+function ScorePath({ trust }: { trust: Trust }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const reduce = useReducedMotion();
-    const ink = INK[result.band];
+    const ink = INK[trust.isNew ? "new" : trust.band];
+    const rows = pathRows(trust.steps, t);
 
-    const row = (key: string, label: string, from: number, to: number, bar: string, value: string, strong = false, i = 0) => (
-        <li key={key} className={cn("grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_3rem] items-center gap-4 py-2", strong && "border-t border-(--card-border) pt-3")}>
-            <span dir={dir} className={cn("truncate text-left text-[13px]", strong ? "font-bold text-foreground" : "text-foreground/85")}>{label}</span>
+    const line = (key: string, label: string, note: string | undefined, from: number, to: number, bar: string, value: string, opts: { strong?: boolean; muted?: boolean; i?: number } = {}) => (
+        <li key={key} className={cn("grid grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_4.5rem] items-center gap-4 py-2", opts.strong && "border-t border-(--card-border) pt-3")}>
+            <span dir={dir} className={cn("truncate text-left text-[13px]", opts.strong ? "font-bold text-foreground" : "text-foreground/85")}>
+                {label}
+                {note && <span className="text-muted-foreground"> · {note}</span>}
+            </span>
             <span className="relative h-2.5 rounded-full bg-(--card-border)/50" dir="ltr">
                 <motion.span
                     className={cn("absolute inset-y-0 rounded-full", bar)}
                     style={{ left: `${Math.min(from, to)}%` }}
                     initial={reduce ? false : { width: 0 }}
                     animate={{ width: `${Math.max(Math.abs(to - from), 1.2)}%` }}
-                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.08 + i * 0.06 }}
+                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.08 + (opts.i ?? 0) * 0.06 }}
                 />
             </span>
-            <span dir="ltr" className={cn("text-right font-mono text-[13px] tabular-nums", strong ? cn("font-bold", ink.text) : "text-muted-foreground")}>{value}</span>
+            <span dir="ltr" className={cn("text-right font-mono text-[13px] tabular-nums", opts.strong ? cn("font-bold", ink.text) : opts.muted ? "text-muted-foreground/70" : "text-muted-foreground")}>{value}</span>
         </li>
     );
 
@@ -193,17 +260,29 @@ function ChancePath({ result }: { result: DeliveryChance }) {
         <section>
             <h3 dir={dir} className={cn(KICKER, "text-left")}>{t("shield.report.howTitle")}</h3>
             <ol className="mt-3">
-                {row("base", t("shield.report.typical"), 0, result.base, "bg-foreground/20", `${result.base}%`)}
-                {result.steps.map((s, i) =>
-                    row(s.key, t(`shield.reason.${s.key}`), s.from, s.to, s.effect === "risk" ? "bg-rose-500" : "bg-emerald-500", stepDelta(s), false, i + 1),
+                {line("start", t("shield.report.start"), undefined, 0, 100, "bg-foreground/20", "100")}
+                {rows.map((r, i) =>
+                    line(
+                        r.key,
+                        r.label,
+                        r.pts === 0 && r.key !== "earlier" ? t("shield.report.atTop") : r.note,
+                        r.from,
+                        r.to,
+                        r.pts < 0 ? "bg-rose-500" : "bg-emerald-500",
+                        signed(r.pts),
+                        { muted: r.pts === 0, i: i + 1 },
+                    ),
                 )}
-                {row("result", t("shield.report.thisOrder"), 0, result.chance, ink.bar, `${result.chance}%`, true, result.steps.length + 1)}
+                {rows.length === 0 && (
+                    <li dir={dir} className="py-2 text-left text-[13px] text-muted-foreground">{t("shield.report.newPath")}</li>
+                )}
+                {line("now", t("shield.report.now"), undefined, 0, trust.score, ink.bar, String(trust.score), { strong: true, i: rows.length + 1 })}
             </ol>
         </section>
     );
 }
 
-function Stat({ value, label, dot }: { value: number; label: string; dot: string }) {
+function Stat({ value, label, dot }: { value: string; label: string; dot: string }) {
     const dir = useTextDir();
     // The dot leads the label in both languages, so the row stays left to right.
     return (
@@ -219,18 +298,21 @@ function Stat({ value, label, dot }: { value: number; label: string; dot: string
 
 const PANEL = "flex flex-col gap-4 rounded-2xl border border-(--card-border) bg-(--background)/50 px-5 py-4";
 
-function OwnPanel({ own }: { own: OwnHistory | null }) {
+function OwnPanel({ steps }: { steps: TrustStep[] }) {
     const { t } = useLanguage();
     const dir = useTextDir();
-    const any = own !== null && own.delivered + own.refused + own.noAnswer > 0;
+    const own = steps.filter((s) => s.src === "own");
+    const delivered = own.filter((s) => s.kind === "delivered").length;
+    const bad = own.length - delivered;
+    const pts = own.reduce((sum, s) => sum + s.pts, 0);
     return (
         <section className={PANEL}>
             <h3 dir={dir} className={cn(KICKER, "text-left")}>{t("shield.report.yourStore")}</h3>
-            {any ? (
+            {own.length > 0 ? (
                 <div className="grid grid-cols-3 gap-3">
-                    <Stat value={own.delivered} label={t("shield.report.delivered")} dot="bg-emerald-500" />
-                    <Stat value={own.refused} label={t("shield.report.refused")} dot="bg-rose-500" />
-                    <Stat value={own.noAnswer} label={t("shield.report.noAnswer")} dot="bg-amber-500" />
+                    <Stat value={String(delivered)} label={t("shield.report.delivered")} dot="bg-emerald-500" />
+                    <Stat value={String(bad)} label={t("shield.report.bad")} dot="bg-rose-500" />
+                    <Stat value={signed(pts)} label={t("shield.report.points")} dot="bg-foreground/40" />
                 </div>
             ) : (
                 <div>
@@ -254,9 +336,9 @@ function NetworkPanel({ network, failed }: { network: ShieldNetwork | null; fail
                 <p dir={dir} className="text-left text-sm text-muted-foreground">{t("shield.loadFailed")}</p>
             ) : has ? (
                 <div className="grid grid-cols-3 gap-3">
-                    <Stat value={network.delivered ?? 0} label={t("shield.report.delivered")} dot="bg-emerald-500" />
-                    <Stat value={badTotal} label={t("shield.report.badOutcomes")} dot="bg-rose-500" />
-                    <Stat value={network.stores ?? 0} label={t("shield.report.stores")} dot="bg-foreground/40" />
+                    <Stat value={String(network.delivered ?? 0)} label={t("shield.report.delivered")} dot="bg-emerald-500" />
+                    <Stat value={String(badTotal)} label={t("shield.report.badOutcomes")} dot="bg-rose-500" />
+                    <Stat value={String(network.stores ?? 0)} label={t("shield.report.stores")} dot="bg-foreground/40" />
                 </div>
             ) : (
                 <div>

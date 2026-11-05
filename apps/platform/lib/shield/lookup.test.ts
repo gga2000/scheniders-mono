@@ -8,6 +8,7 @@ import { loadShield, normalizeShieldPhone } from "./lookup";
 const row = (phone: string) => ({
     phone, band: "none", score: null, confidence: null, stores: null, outcomes: null, delivered: null,
     delivered_stores: null, bad: null, sequence: null, last_bad_orders_ago: null, trend: null,
+    trust: 100, trust_new: true, trust_steps: [],
 });
 
 describe("shield lookup", () => {

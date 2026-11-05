@@ -61,7 +61,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                         </span>
                     )}
 
-                    <OrderShield order={order} riskAssessment={riskAssessment} />
+                    <OrderShield order={order} />
                 </motion.div>
 
                 {/* Order ID with Return indicator + Sequence Tag */}

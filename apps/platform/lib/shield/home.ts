@@ -1,15 +1,17 @@
 import { z } from "zod";
-import type { ShieldBand } from "./delivery-chance";
+import { trustBand, type ShieldBand } from "./trust";
+import { trustStepSchema } from "./types";
 
-/** One row of shield_risky_open_orders: an open order whose customer has a bad record. */
+/** One row of shield_risky_open_orders: an open order whose customer's Trust score is under 80. */
 export const riskyOpenOrderSchema = z.object({
     id: z.string(),
     order_id: z.string(),
     customer_name: z.string().nullable(),
     status: z.string(),
     created_at: z.string(),
-    own_tier: z.string().nullable(),
-    network_band: z.enum(["red", "yellow", "green", "none"]),
+    trust: z.number().int(),
+    worst_kind: trustStepSchema.shape.kind.nullable(),
+    worst_src: trustStepSchema.shape.src.nullable(),
 });
 export type RiskyOpenOrder = z.infer<typeof riskyOpenOrderSchema>;
 
@@ -24,18 +26,9 @@ export const shieldImpactSchema = z.object({
 });
 export type ShieldImpact = z.infer<typeof shieldImpactSchema>;
 
-/** Red when other stores say red or this store rates the customer risky/critical; otherwise yellow. */
-export function riskyOrderBand(row: Pick<RiskyOpenOrder, "own_tier" | "network_band">): Exclude<ShieldBand, "green"> {
-    if (row.network_band === "red" || row.own_tier === "critical" || row.own_tier === "risky") return "red";
-    return "yellow";
-}
-
-/** The one reason shown on the row, as a shield.reason.* key. Other stores' red record wins. */
-export function riskyOrderReason(row: Pick<RiskyOpenOrder, "own_tier" | "network_band">): string {
-    if (row.network_band === "red") return "networkRed";
-    if (row.own_tier === "critical" || row.own_tier === "risky") return "ownBad";
-    if (row.network_band === "yellow") return "networkYellow";
-    return "ownMixed";
+/** Red under 50, yellow 50-79 (the list only holds scores under 80). */
+export function riskyOrderBand(row: Pick<RiskyOpenOrder, "trust">): Exclude<ShieldBand, "green"> {
+    return trustBand(row.trust) === "red" ? "red" : "yellow";
 }
 
 /** Share of the flagged orders that shipped anyway and came back refused, 0-100; null with none shipped. */

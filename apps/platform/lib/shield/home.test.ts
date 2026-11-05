@@ -1,20 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ownDeliveryRate, storeScoreSchema, riskyOpenOrderSchema, riskyOrderBand, riskyOrderReason, shieldImpactSchema, shippedRefusedRate } from "./home";
+import { ownDeliveryRate, storeScoreSchema, riskyOpenOrderSchema, riskyOrderBand, shieldImpactSchema, shippedRefusedRate } from "./home";
 
 describe("shield home", () => {
-    it("red when other stores say red or this store rates the customer risky", () => {
-        expect(riskyOrderBand({ own_tier: null, network_band: "red" })).toBe("red");
-        expect(riskyOrderBand({ own_tier: "critical", network_band: "none" })).toBe("red");
-        expect(riskyOrderBand({ own_tier: "risky", network_band: "none" })).toBe("red");
-        expect(riskyOrderBand({ own_tier: "watch", network_band: "none" })).toBe("yellow");
-        expect(riskyOrderBand({ own_tier: null, network_band: "yellow" })).toBe("yellow");
-    });
-
-    it("other stores' red record is the reason shown first", () => {
-        expect(riskyOrderReason({ own_tier: "critical", network_band: "red" })).toBe("networkRed");
-        expect(riskyOrderReason({ own_tier: "risky", network_band: "yellow" })).toBe("ownBad");
-        expect(riskyOrderReason({ own_tier: null, network_band: "yellow" })).toBe("networkYellow");
-        expect(riskyOrderReason({ own_tier: "watch", network_band: "none" })).toBe("ownMixed");
+    it("red under 50, otherwise yellow", () => {
+        expect(riskyOrderBand({ trust: 40 })).toBe("red");
+        expect(riskyOrderBand({ trust: 49 })).toBe("red");
+        expect(riskyOrderBand({ trust: 50 })).toBe("yellow");
+        expect(riskyOrderBand({ trust: 75 })).toBe("yellow");
     });
 
     it("refused rate counts only shipped orders that ended", () => {
@@ -24,8 +16,8 @@ describe("shield home", () => {
         expect(shippedRefusedRate({ ...impact, shipped_delivered: 0, shipped_refused: 0 })).toBeNull();
     });
 
-    it("rejects an unknown network band", () => {
-        expect(() => riskyOpenOrderSchema.parse({ id: "a", order_id: "1", customer_name: null, status: "new", created_at: "", own_tier: null, network_band: "blue" })).toThrow();
+    it("rejects an unknown step kind", () => {
+        expect(() => riskyOpenOrderSchema.parse({ id: "a", order_id: "1", customer_name: null, status: "new", created_at: "", trust: 60, worst_kind: "late", worst_src: "own" })).toThrow();
     });
 
     it("own delivery rate needs 10 finished orders; network stays null below 3 stores", () => {

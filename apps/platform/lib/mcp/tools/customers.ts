@@ -90,8 +90,8 @@ export function registerCustomerTools(server: McpServer): void {
         title: "Shield: risky orders and results",
         kind: "read",
         description:
-            "Shield, the cross-store fake-order check: open orders from the last 14 days whose customer refused or did not answer " +
-            "before (here or in other stores) and should get a call before confirming, red first; what Shield stopped in the last " +
+            "Shield, the cross-store fake-order check: open orders from the last 14 days whose customer's Trust score " +
+            "(starts at 100, drops for refusals and no-answers here or in other stores) is under 80, lowest first; what Shield stopped in the last " +
             "`days`; and this store's delivery rate against other stores. Other stores are never named.",
         input: z.object({ days: z.number().int().min(7).max(90).default(30) }),
         async run(caller, input) {
@@ -113,9 +113,8 @@ export function registerCustomerTools(server: McpServer): void {
             const rate = ownDeliveryRate(sc);
 
             const reason = (r: (typeof rows)[number]) =>
-                r.network_band === "red" || r.network_band === "yellow"
-                    ? `${r.network_band} record in other stores`
-                    : `rated ${r.own_tier ?? "unknown"} here`;
+                `trust ${r.trust}/100` +
+                (r.worst_kind ? `, worst: ${r.worst_kind.replace(/_/g, " ")} ${r.worst_src === "own" ? "here" : "in another store"}` : "");
             return [
                 rows.length === 0
                     ? "No risky open orders from the last 14 days."
