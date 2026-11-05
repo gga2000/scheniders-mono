@@ -25,7 +25,7 @@ type Counts = Record<DangerBand, number>;
  * "Show all orders" clears it. The badge counts the high-danger orders. Until
  * the scores load (`ready`), counts show a dash and no stop can be picked.
  */
-export function ShieldDangerToggle({ counts, ready }: { counts: Counts; ready: boolean }) {
+export function ShieldDangerToggle({ counts, ready, failed, onRetry }: { counts: Counts; ready: boolean; failed: boolean; onRetry: () => void }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const [open, setOpen] = useState(false);
@@ -69,6 +69,14 @@ export function ShieldDangerToggle({ counts, ready }: { counts: Counts; ready: b
                 className="w-[320px] rounded-2xl border-(--card-border) bg-(--card-bg) p-4 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.28)]"
             >
                 <DangerSlider band={band} counts={ready ? counts : null} onChange={setBand} />
+                {failed && (
+                    <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-rose-50 px-3 py-2 dark:bg-rose-500/10">
+                        <span dir={dir} className="text-[12px] text-rose-700 dark:text-rose-300">{t("shield.slider.error")}</span>
+                        <button type="button" onClick={onRetry} className="shrink-0 text-[12px] font-bold text-rose-700 underline-offset-2 hover:underline dark:text-rose-300">
+                            {t("shield.slider.retry")}
+                        </button>
+                    </div>
+                )}
                 <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 border-t border-(--card-border) pt-3">
                     <span dir={dir} className="text-[12px] font-semibold text-foreground">{t("shield.danger.show")}</span>
                     <Switch checked={showPanel} onCheckedChange={setShowPanel} aria-label={t("shield.danger.show")} />
@@ -142,7 +150,7 @@ export function DangerSlider({ band, counts, onChange }: { band: DangerBand | nu
                 </div>
             </div>
 
-            <div className="mt-1 flex text-[11px] font-medium" dir="ltr">
+            <div className="mt-1 flex text-[12px] font-medium" dir="ltr">
                 {DANGER_BANDS.map((b) => (
                     <button
                         key={b}
@@ -156,7 +164,7 @@ export function DangerSlider({ band, counts, onChange }: { band: DangerBand | nu
                         )}
                     >
                         <span dir={dir} className={cn(band === b && "font-bold")}>{t(`shield.danger.${b}`)}</span>
-                        <span className="font-mono text-[11px] tabular-nums opacity-80">{shown(b)}</span>
+                        <span className="font-mono text-[12px] tabular-nums opacity-80">{shown(b)}</span>
                     </button>
                 ))}
             </div>
