@@ -23,6 +23,7 @@ const HIDE_SCROLLBAR =
 function usePrefersReducedMotion(): boolean {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setReduce(mq.matches);
     const on = () => setReduce(mq.matches);
@@ -153,6 +154,10 @@ export function HeroStage({
   const count = images.length;
   const next = count > 1 ? (active + 1) % count : -1;
   const touchX = useRef<number | null>(null);
+  // Set after hydration so the first paint is exactly the cover (no extra
+  // image in the initial HTML); the next photo is preloaded from here on.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => setArmed(true), []);
 
   useEffect(() => {
     if (count < 2 || reduce || thumbsOpen) return;
@@ -209,7 +214,7 @@ export function HeroStage({
         {images.map((src, i) =>
           // Every photo is mounted once so switching is an instant crossfade;
           // only the cover is the LCP candidate (priority), the rest lazy.
-          i === active || i === 0 || i === next || seen.has(i) ? (
+          i === active || i === 0 || (armed && i === next) || seen.has(i) ? (
             <Image
               key={src}
               src={src}
