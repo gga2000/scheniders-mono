@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { CheckCircle2, ChevronDown } from "lucide-react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import type { PrimeBoardData } from "@/hooks/use-prime-board";
 import { primeChipState } from "@/lib/prime/chip-state";
@@ -25,7 +25,16 @@ type Filter = PrimeProblemKind | "all";
  * again, and mark it handled with a note so nobody calls twice. A mark lasts
  * until Prime moves the parcel again.
  */
-export function PrimeProblemsTab({ data, onAskPrime }: { data: PrimeBoardData; onAskPrime: (orderId: string) => void }) {
+export function PrimeProblemsTab({
+    data,
+    onAskPrime,
+    calm,
+}: {
+    data: PrimeBoardData;
+    onAskPrime: (orderId: string) => void;
+    /** What the quiet state says when nothing needs anyone: the oldest parcel still on the road and when Prime was last read. */
+    calm?: { oldest: { orderNumber: string; days: number } | null; checkedMinutesAgo: number | null };
+}) {
     const { t } = useLanguage();
     const [filter, setFilter] = useState<Filter>("all");
     const [open, setOpen] = useState<{ orderId: string; focus: PrimePanelFocus } | null>(null);
@@ -40,37 +49,46 @@ export function PrimeProblemsTab({ data, onAskPrime }: { data: PrimeBoardData; o
         <section className="flex min-w-0 flex-col gap-4 rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <h2 className="text-[17px] font-bold text-foreground">
-                    {t("prime.problems.title")} <span className="text-muted tabular-nums">· {waiting}</span>
+                    {t("prime.page.workTitle")} <span className="text-muted tabular-nums">· {waiting}</span>
                 </h2>
                 <span className="text-xs text-muted">{t("prime.problems.hint")}</span>
             </div>
 
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t("prime.problems.title")}>
-                {(["all", ...PRIME_PROBLEM_KINDS] as const).map((kind) => {
-                    const count = kind === "all" ? waiting : (counts.get(kind) ?? 0);
-                    if (kind !== "all" && count === 0 && filter !== kind) return null;
-                    const on = filter === kind;
-                    return (
-                        <button
-                            key={kind}
-                            type="button"
-                            data-problem-filter={kind}
-                            aria-pressed={on}
-                            onClick={() => setFilter(kind)}
-                            className={cn(
-                                "inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition-colors",
-                                on ? "border-[var(--ink)] bg-[var(--ink)] text-white dark:border-white dark:bg-white dark:text-[var(--ink)]" : "border-[#E7E5E4] bg-white text-foreground hover:bg-[#F5F3EF] dark:border-white/10 dark:bg-transparent",
-                            )}
-                        >
-                            {t(`prime.problems.kind.${kind}`)}
-                            <span className="min-w-5 rounded-full bg-black/[0.06] px-1.5 text-center text-xs font-bold tabular-nums dark:bg-white/10">{count}</span>
-                        </button>
-                    );
-                })}
-            </div>
+            {problems.length > 0 && (
+                <div className="flex flex-wrap gap-2" role="group" aria-label={t("prime.page.workTitle")}>
+                    {(["all", ...PRIME_PROBLEM_KINDS] as const).map((kind) => {
+                        const count = kind === "all" ? waiting : (counts.get(kind) ?? 0);
+                        if (kind !== "all" && count === 0 && filter !== kind) return null;
+                        const on = filter === kind;
+                        return (
+                            <button
+                                key={kind}
+                                type="button"
+                                data-problem-filter={kind}
+                                aria-pressed={on}
+                                onClick={() => setFilter(kind)}
+                                className={cn(
+                                    "inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-[13px] font-semibold transition-colors",
+                                    on ? "border-[var(--ink)] bg-[var(--ink)] text-white dark:border-white dark:bg-white dark:text-[var(--ink)]" : "border-[#E7E5E4] bg-white text-foreground hover:bg-[#F5F3EF] dark:border-white/10 dark:bg-transparent",
+                                )}
+                            >
+                                {t(`prime.problems.kind.${kind}`)}
+                                <span className="min-w-5 rounded-full bg-black/[0.06] px-1.5 text-center text-xs font-bold tabular-nums dark:bg-white/10">{count}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {shown.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted">{t("prime.problems.none")}</p>
+                <div data-prime-calm className="flex flex-col items-center gap-1 py-10 text-center">
+                    <CheckCircle2 aria-hidden="true" className="h-7 w-7 text-[#1F7A4D] dark:text-emerald-300" />
+                    <b className="text-base text-foreground">{t("prime.page.calmTitle")}</b>
+                    <p className="text-sm text-muted">
+                        {calm?.checkedMinutesAgo != null && t("prime.page.calmChecked", { min: calm.checkedMinutesAgo })}
+                        {calm?.oldest && <> · {t("prime.page.calmOldest", { order: calm.oldest.orderNumber, days: calm.oldest.days })}</>}
+                    </p>
+                </div>
             ) : (
                 <ol className="flex flex-col">
                     {shown.map((problem) => (

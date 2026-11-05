@@ -1,19 +1,56 @@
 "use client";
 
+import { useState } from "react";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
-import { usePrimeStatements } from "@/hooks/use-prime-statements";
+import { usePrimeStatement, usePrimeStatementAction, usePrimeStatements } from "@/hooks/use-prime-statements";
+import { useActionProblem } from "./use-action-problem";
 
 const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
-/** «الكشف الجديد»: Prime's newest payment, how many of its parcels match our orders, and the difference. */
+const light = "inline-flex h-[42px] items-center justify-center rounded-full bg-white px-4 text-[13px] font-semibold text-[#1E1E1E] transition-colors hover:bg-white/90 disabled:opacity-60";
+const ghost = "inline-flex h-[42px] items-center justify-center rounded-full border border-white/25 px-4 text-[13px] font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-60";
+
+/**
+ * «الكشف الجديد»: Prime's newest payment that the store has not approved, in
+ * plain words (how many parcels, how many match, the difference), with the
+ * same two-step approval the statement page has. Gone once the newest
+ * payment is approved: nothing is left to do.
+ */
 export function PrimeStatementCard({ onOpen }: { onOpen: (id: number) => void }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const statements = usePrimeStatements(true);
+    const action = usePrimeStatementAction();
+    const problemOf = useActionProblem();
+    const [confirming, setConfirming] = useState(false);
+    const [note, setNote] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
     const answer = statements.data;
     const entry = answer?.connected ? answer.statements[0] : undefined;
     const latest = answer?.connected ? answer.latest : null;
+    // The rows say how many parcels the approval can still close.
+    const payment = usePrimeStatement(entry && latest && entry.approval === null ? entry.id : null);
+    const closable = payment.data?.statement.rows.filter((r) => r.kind === "match" && (r.ours?.status === "delivered" || r.ours?.status === "in_transit")).length ?? 0;
 
+    if (answer?.connected && (!entry || entry.approval !== null) && !note) return null;
+
+    const approve = async () => {
+        if (!entry) return;
+        setNote(null);
+        try {
+            const result = await action.mutateAsync({ action: "approve", id: entry.id });
+            const problem = problemOf(result);
+            if (problem) return setNote({ tone: "bad", text: problem });
+            if (result.success && result.outcome.kind === "approved") {
+                setNote({ tone: "ok", text: result.outcome.completed > 0 ? t("prime.cash.approvedDone", { count: result.outcome.completed }) : t("prime.cash.nothingToApprove") });
+            }
+        } catch {
+            setNote({ tone: "bad", text: t("prime.cash.error.failed") });
+        } finally {
+            setConfirming(false);
+        }
+    };
+
+    const off = latest ? latest.summary.different + latest.summary.unknown : 0;
     return (
         <section className="flex flex-col gap-3.5 rounded-[22px] border border-[#1E1E1E] bg-[#1E1E1E] p-5 text-white">
             <div className="flex items-center justify-between gap-3">
@@ -21,12 +58,12 @@ export function PrimeStatementCard({ onOpen }: { onOpen: (id: number) => void })
                 {latest && (
                     <span
                         className={
-                            latest.summary.different > 0 || latest.summary.unknown > 0
+                            off > 0
                                 ? "inline-flex h-[26px] items-center rounded-full bg-[#3A2A10] px-2.5 text-xs font-bold text-[#F5C98A]"
                                 : "inline-flex h-[26px] items-center rounded-full bg-[#143524] px-2.5 text-xs font-bold text-[#BFE3CC]"
                         }
                     >
-                        {latest.summary.different > 0 || latest.summary.unknown > 0 ? t("prime.page.statementDiff") : t("prime.page.statementMatch")}
+                        {off > 0 ? t("prime.page.statementDiff") : t("prime.page.statementMatch")}
                     </span>
                 )}
             </div>
@@ -36,7 +73,7 @@ export function PrimeStatementCard({ onOpen }: { onOpen: (id: number) => void })
                 <p className="text-sm text-[#B5B5B5]">{t("orders.prime.unreachable")}</p>
             ) : !entry || !latest ? (
                 <p dir={dir} className="text-left text-sm text-[#B5B5B5]">
-                    {t("prime.page.noStatements")}
+                    {note ? note.text : t("prime.page.noStatements")}
                 </p>
             ) : (
                 <>
@@ -46,22 +83,41 @@ export function PrimeStatementCard({ onOpen }: { onOpen: (id: number) => void })
                         </span>
                         <b className="text-[26px] tabular-nums">{amount.format(entry.amount)}</b>
                     </div>
-                    <div dir={dir} className="flex gap-2 text-left text-[13px] text-[#D4D4D4]">
-                        <span>{t("prime.page.matchedCount", { count: latest.summary.matched })}</span>
-                        {latest.summary.diff !== 0 && (
-                            <>
-                                <span>·</span>
-                                <span>{t("prime.page.diffAmount", { amount: amount.format(Math.abs(latest.summary.diff)) })}</span>
-                            </>
-                        )}
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => onOpen(entry.id)}
-                        className="inline-flex h-[42px] items-center justify-center rounded-full bg-white px-4 text-[13px] font-semibold text-[#1E1E1E] transition-colors hover:bg-white/90"
-                    >
-                        {t("prime.page.openStatement")}
-                    </button>
+                    <p dir={dir} className="text-left text-[13px] leading-relaxed text-[#D4D4D4]">
+                        {latest.summary.diff === 0
+                            ? t("prime.page.statementPlainSame", { parcels: latest.summary.parcels, matched: latest.summary.matched })
+                            : t("prime.page.statementPlain", { parcels: latest.summary.parcels, matched: latest.summary.matched, amount: amount.format(Math.abs(latest.summary.diff)) })}
+                    </p>
+                    {note && (
+                        <p role={note.tone === "bad" ? "alert" : "status"} dir={dir} className={note.tone === "bad" ? "text-left text-xs font-semibold text-[#F5A59B]" : "text-left text-xs font-semibold text-[#BFE3CC]"}>
+                            {note.text}
+                        </p>
+                    )}
+                    {entry.approval === null &&
+                        (confirming ? (
+                            <div className="flex flex-col gap-2">
+                                <span dir={dir} className="text-left text-[13px] font-semibold">
+                                    {t("prime.cash.confirmApprove", { count: closable })}
+                                </span>
+                                <div className="flex gap-2">
+                                    <button type="button" disabled={action.isPending} onClick={approve} className={light}>
+                                        {action.isPending ? "…" : t("prime.cash.confirm")}
+                                    </button>
+                                    <button type="button" onClick={() => setConfirming(false)} className={ghost}>
+                                        {t("prime.cash.cancel")}
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex gap-2">
+                                <button type="button" disabled={closable === 0 || payment.isPending} onClick={() => setConfirming(true)} className={light}>
+                                    {t("prime.cash.approve", { count: closable })}
+                                </button>
+                                <button type="button" onClick={() => onOpen(entry.id)} className={ghost}>
+                                    {t("prime.page.openStatement")}
+                                </button>
+                            </div>
+                        ))}
                 </>
             )}
         </section>

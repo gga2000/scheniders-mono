@@ -108,3 +108,28 @@ export function primeBoard(parcels: readonly PrimeBoardParcel[], now: number): P
     lists.needs = needs.sort((a, b) => since(a.view) - since(b.view)).map((p) => p.orderId);
     return { lists, cash, out, reasons };
 }
+
+/** A parcel that waited this many days since Prime last moved it turns amber, and past the red mark it turns red. */
+export const PRIME_AGE_AMBER_DAYS = 3;
+export const PRIME_AGE_RED_DAYS = 6;
+export type PrimeAgeTone = "ok" | "amber" | "red";
+
+const DAY_MS = 86_400_000;
+
+export function primeAgeTone(days: number): PrimeAgeTone {
+    if (days > PRIME_AGE_RED_DAYS) return "red";
+    if (days > PRIME_AGE_AMBER_DAYS) return "amber";
+    return "ok";
+}
+
+/** Whole days the longest-waiting parcel has gone without a move at Prime (or since it was sent); null when there are none. */
+export function primeOldestAgeDays(views: readonly PrimeShipmentView[], now: number): number | null {
+    let oldest: number | null = null;
+    for (const view of views) {
+        const at = since(view);
+        if (at === 0) continue;
+        const days = Math.max(0, Math.floor((now - at) / DAY_MS));
+        if (oldest === null || days > oldest) oldest = days;
+    }
+    return oldest;
+}
