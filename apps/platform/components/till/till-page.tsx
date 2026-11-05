@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as Sentry from "@sentry/nextjs";
-import { ArrowLeft, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Clock3, Download, FlaskConical, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
@@ -36,6 +36,7 @@ import { TillHistoryDialog } from "./till-history-dialog";
 import { TillHoldDialog } from "./till-hold-dialog";
 import { TillHoldsDialog } from "./till-holds-dialog";
 import { TillPayoutDialog } from "./till-payout-dialog";
+import { TillTestersDialog } from "./till-testers-dialog";
 import { newTicket, type Ticket } from "./till-ticket";
 import { useCustomerDisplay } from "./use-customer-display";
 import { cn } from "@/lib/utils";
@@ -90,6 +91,7 @@ export function TillPage() {
     const [payoutOpen, setPayoutOpen] = useState(false);
     const [holdOpen, setHoldOpen] = useState(false);
     const [holdsOpen, setHoldsOpen] = useState(false);
+    const [testersOpen, setTestersOpen] = useState(false);
     // The till renders only after its queries load, never during the server pass, so reading storage here is safe.
     const [prefs, setPrefsState] = useState<TillPrefs>(readPrefs);
     const setPrefs = (next: TillPrefs) => {
@@ -404,6 +406,7 @@ export function TillPage() {
             }
             prefs={prefs}
             onPrefs={setPrefs}
+            onTesters={() => setTestersOpen(true)}
         >
             {view === "pay" ? (
                 <TillPayView
@@ -476,6 +479,15 @@ export function TillPage() {
             {holdsOpen && (
                 <TillHoldsDialog sessionId={session.id} holds={holds.data ?? []} onSell={sellHeld} onClose={() => setHoldsOpen(false)} />
             )}
+            {testersOpen && (
+                <TillTestersDialog
+                    sessionId={session.id}
+                    products={shelf}
+                    isManager={isManager}
+                    managers={(members.data ?? []).filter((m) => m.role === "admin" && m.has_pin && m.user_id !== session.cashier.user_id)}
+                    onClose={() => setTestersOpen(false)}
+                />
+            )}
             {payoutOpen && <TillPayoutDialog sessionId={session.id} onClose={() => setPayoutOpen(false)} />}
             {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} initialQuery={historyQuery} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
         </TillFrame>
@@ -497,6 +509,7 @@ function TillFrame({
     clock,
     prefs,
     onPrefs,
+    onTesters,
     children,
 }: {
     title?: string;
@@ -516,6 +529,7 @@ function TillFrame({
     clock?: { since: string | null; pending: boolean; onSet: (clockIn: boolean) => void };
     prefs?: TillPrefs;
     onPrefs?: (p: TillPrefs) => void;
+    onTesters?: () => void;
     children: React.ReactNode;
 }) {
     const { t } = useLanguage();
@@ -571,7 +585,7 @@ function TillFrame({
                         </button>
                     )}
                     {(commission != null || onPayout) && <MoneyMenu commission={commission ?? null} onPayout={onPayout} chip={chip} />}
-                    {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} chip={chip} />}
+                    {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} onTesters={onTesters} chip={chip} />}
                 </div>
                 {goal && today ? <GoalBar goal={goal} total={today.total} /> : null}
             </header>
@@ -761,7 +775,7 @@ function DrawerSetting({ prefs, onPrefs }: { prefs: TillPrefs; onPrefs: (p: Till
 type InstallPrompt = Event & { prompt: () => Promise<void> };
 
 /** This device's till settings: text size, sound, and installing the till as an app. */
-function TillSettings({ prefs, onPrefs, chip }: { prefs: TillPrefs; onPrefs: (p: TillPrefs) => void; chip: string }) {
+function TillSettings({ prefs, onPrefs, onTesters, chip }: { prefs: TillPrefs; onPrefs: (p: TillPrefs) => void; onTesters?: () => void; chip: string }) {
     const { t } = useLanguage();
     const [install, setInstall] = useState<InstallPrompt | null>(null);
     useEffect(() => {
@@ -808,6 +822,16 @@ function TillSettings({ prefs, onPrefs, chip }: { prefs: TillPrefs; onPrefs: (p:
                     </span>
                     <span className="text-xs text-muted">{prefs.sound ? t("till.settings.on") : t("till.settings.off")}</span>
                 </button>
+                {onTesters && (
+                    <button
+                        type="button"
+                        onClick={onTesters}
+                        className="flex h-12 items-center gap-2 rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
+                    >
+                        <FlaskConical className="h-4 w-4" aria-hidden="true" />
+                        {t("till.testers.title")}
+                    </button>
+                )}
                 <button
                     type="button"
                     onClick={() => window.open("/till/customer", "till-customer", "popup,width=1280,height=800")}
