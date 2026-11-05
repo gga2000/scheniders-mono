@@ -273,7 +273,8 @@ function CountRow({ line, counted, fresh, onBump }: { line: CountLine; counted: 
     const { t } = useLanguage();
     const diff = counted === undefined ? null : counted - line.expected;
     return (
-        <li className={cn("flex items-center gap-3 py-2.5", fresh && "bg-[var(--card-border)]/20")}>
+        // The row just scanned scrolls into view, so the cashier sees the count land.
+        <li ref={fresh ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined} className={cn("flex items-center gap-3 py-2.5", fresh && "bg-[var(--card-border)]/20")}>
             <span className="block h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-[var(--card-border)]/25">
                 {line.image_url ? (
                     <img src={line.image_url} alt="" className="h-full w-full object-cover" />
