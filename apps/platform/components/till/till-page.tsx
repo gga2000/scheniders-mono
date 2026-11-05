@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as Sentry from "@sentry/nextjs";
-import { ArrowLeft, ClipboardCheck, Tag, Clock3, Download, FlaskConical, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Tag, Wind, Clock3, Download, FlaskConical, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
@@ -39,6 +39,7 @@ import { TillPayoutDialog } from "./till-payout-dialog";
 import { TillTestersDialog } from "./till-testers-dialog";
 import { TillCountDialog } from "./till-count-dialog";
 import { TillLabelsDialog } from "./till-labels-dialog";
+import { TillScentDialog } from "./till-scent-dialog";
 import { newTicket, type Ticket } from "./till-ticket";
 import { useCustomerDisplay } from "./use-customer-display";
 import { cn } from "@/lib/utils";
@@ -96,6 +97,7 @@ export function TillPage() {
     const [testersOpen, setTestersOpen] = useState(false);
     const [countOpen, setCountOpen] = useState(false);
     const [labelsOpen, setLabelsOpen] = useState(false);
+    const [scentOpen, setScentOpen] = useState(false);
     // The till renders only after its queries load, never during the server pass, so reading storage here is safe.
     const [prefs, setPrefsState] = useState<TillPrefs>(readPrefs);
     const setPrefs = (next: TillPrefs) => {
@@ -413,6 +415,7 @@ export function TillPage() {
             onTesters={() => setTestersOpen(true)}
             onCount={isManager ? () => setCountOpen(true) : undefined}
             onLabels={isManager ? () => setLabelsOpen(true) : undefined}
+            onScent={isManager ? () => setScentOpen(true) : undefined}
         >
             {view === "pay" ? (
                 <TillPayView
@@ -506,6 +509,7 @@ export function TillPage() {
             {labelsOpen && (
                 <TillLabelsDialog sessionId={session.id} products={products.data ?? []} storeName={storeName.data ?? ""} onClose={() => setLabelsOpen(false)} />
             )}
+            {scentOpen && <TillScentDialog sessionId={session.id} products={products.data ?? []} onClose={() => setScentOpen(false)} />}
             {payoutOpen && <TillPayoutDialog sessionId={session.id} onClose={() => setPayoutOpen(false)} />}
             {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} initialQuery={historyQuery} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
         </TillFrame>
@@ -530,6 +534,7 @@ function TillFrame({
     onTesters,
     onCount,
     onLabels,
+    onScent,
     children,
 }: {
     title?: string;
@@ -552,6 +557,7 @@ function TillFrame({
     onTesters?: () => void;
     onCount?: () => void;
     onLabels?: () => void;
+    onScent?: () => void;
     children: React.ReactNode;
 }) {
     const { t } = useLanguage();
@@ -607,7 +613,7 @@ function TillFrame({
                         </button>
                     )}
                     {(commission != null || onPayout) && <MoneyMenu commission={commission ?? null} onPayout={onPayout} chip={chip} />}
-                    {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} onTesters={onTesters} onCount={onCount} onLabels={onLabels} chip={chip} />}
+                    {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} onTesters={onTesters} onCount={onCount} onLabels={onLabels} onScent={onScent} chip={chip} />}
                 </div>
                 {goal && today ? <GoalBar goal={goal} total={today.total} /> : null}
             </header>
@@ -803,6 +809,7 @@ function TillSettings({
     onTesters,
     onCount,
     onLabels,
+    onScent,
     chip,
 }: {
     prefs: TillPrefs;
@@ -810,6 +817,7 @@ function TillSettings({
     onTesters?: () => void;
     onCount?: () => void;
     onLabels?: () => void;
+    onScent?: () => void;
     chip: string;
 }) {
     const { t } = useLanguage();
@@ -886,6 +894,16 @@ function TillSettings({
                     >
                         <Tag className="h-4 w-4" aria-hidden="true" />
                         {t("till.labels.title")}
+                    </button>
+                )}
+                {onScent && (
+                    <button
+                        type="button"
+                        onClick={onScent}
+                        className="flex h-12 items-center gap-2 rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
+                    >
+                        <Wind className="h-4 w-4" aria-hidden="true" />
+                        {t("till.scent.title")}
                     </button>
                 )}
                 <button

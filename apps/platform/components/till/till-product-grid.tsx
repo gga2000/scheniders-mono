@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Flame, Package, ScanLine, TrendingDown, X } from "lucide-react";
+import { Check, Flame, Heart, Package, ScanLine, TrendingDown, Wind, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
 import { RECEIPT_CODE, type TillOverview } from "@/hooks/use-till";
 import { findByCode, formatIqd, isLow, searchProducts, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { beep, flyToCart } from "@/lib/till/feedback";
+import { byNotes, notesInUse, similarTo } from "@/lib/till/scent";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -21,7 +22,7 @@ interface Props {
 }
 
 type Notice = { kind: "ok" | "bad"; text: string; at: number } | null;
-/** "all", "best", "low" or a category id. */
+/** "all", "best", "low", "scent" or a category id. */
 type Filter = string;
 
 const NOTICE_MS = 2600;
@@ -33,6 +34,10 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
     const [filter, setFilter] = useState<Filter>("all");
     const [picking, setPicking] = useState<{ product: TillProduct; from: HTMLElement | null } | null>(null);
     const [notice, setNotice] = useState<Notice>(null);
+    // Scent helper: the notes picked, or "like this bottle" (the last one added).
+    const [notes, setNotes] = useState<string[]>([]);
+    const [likeId, setLikeId] = useState<string | null>(null);
+    const [lastAdded, setLastAdded] = useState<string | null>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
     // The notice floats over the grid and clears itself, so the grid never jumps.
@@ -49,9 +54,12 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
     );
     const chips = useMemo(() => overview?.chips ?? [], [overview]);
     const low = useMemo(() => products.filter(isLow), [products]);
+    const inUse = useMemo(() => notesInUse(products), [products]);
+    const liked = lastAdded ? byId.get(lastAdded) : undefined;
 
     const add = (product: TillProduct, variant: TillVariant | null, from: HTMLElement | null) => {
         onAdd(product, variant);
+        setLastAdded(product.id);
         flyToCart(from, product.image_url);
         const name = variant ? `${product.name} ${variant.name}` : product.name;
         const had = variant ? variant.available : product.available;
@@ -106,11 +114,15 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
         if (filter === "all") return products;
         if (filter === "best") return best;
         if (filter === "low") return low;
+        if (filter === "scent") {
+            const like = likeId ? byId.get(likeId) : undefined;
+            return like ? similarTo(products, like) : byNotes(products, notes);
+        }
         const chip = chips.find((c) => c.id === filter);
         if (!chip) return products;
         const ids = new Set(chip.product_ids);
         return products.filter((p) => ids.has(p.id));
-    }, [filter, products, best, low, chips]);
+    }, [filter, products, best, low, chips, notes, likeId, byId]);
 
     const matches = searchProducts(inFilter, query);
     // Sold-out items go last, judged before this cart so a card never jumps away while it is being tapped.
@@ -153,7 +165,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                 </label>
             </form>
 
-            {(chips.length > 0 || best.length > 0 || low.length > 0) && (
+            {(chips.length > 0 || best.length > 0 || low.length > 0 || inUse.length > 0) && (
                 <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]" role="toolbar" aria-label={t("till.sell.filters")}>
                     <Chip on={filter === "all"} onClick={() => setFilter("all")}>
                         {t("till.sell.all")}
@@ -170,10 +182,46 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                             {t("till.sell.low", { n: low.length })}
                         </Chip>
                     )}
+                    {inUse.length > 0 && (
+                        <Chip on={filter === "scent"} onClick={() => setFilter("scent")}>
+                            <Wind className="h-4 w-4" aria-hidden="true" />
+                            {t("till.scent.chip")}
+                        </Chip>
+                    )}
                     {chips.map((c) => (
                         <Chip key={c.id} on={filter === c.id} onClick={() => setFilter(c.id)}>
                             <span dir="auto">{c.name}</span>
                         </Chip>
+                    ))}
+                </div>
+            )}
+
+            {filter === "scent" && (
+                <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]" role="toolbar" aria-label={t("till.scent.notes")}>
+                    {liked && liked.notes.length > 0 && (
+                        <NoteChip
+                            on={likeId === liked.id}
+                            onClick={() => {
+                                setLikeId(likeId === liked.id ? null : liked.id);
+                                setNotes([]);
+                            }}
+                        >
+                            <Heart className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span dir="auto">{t("till.scent.like", { name: liked.name })}</span>
+                        </NoteChip>
+                    )}
+                    {inUse.map(({ note, count }) => (
+                        <NoteChip
+                            key={note}
+                            on={notes.includes(note)}
+                            onClick={() => {
+                                setLikeId(null);
+                                setNotes((prev) => (prev.includes(note) ? prev.filter((n) => n !== note) : [...prev, note]));
+                            }}
+                        >
+                            {t(`till.scent.note.${note}`)}
+                            <span className="tabular-nums opacity-60">{count}</span>
+                        </NoteChip>
                     ))}
                 </div>
             )}
@@ -243,6 +291,22 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                 />
             )}
         </div>
+    );
+}
+
+function NoteChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-pressed={on}
+            className={cn(
+                "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors",
+                on ? "border-[var(--ink)] bg-[var(--ink)]/10 text-foreground dark:border-[#EFFF00] dark:bg-[#EFFF00]/10" : "border-[var(--card-border)] text-foreground",
+            )}
+        >
+            {children}
+        </button>
     );
 }
 

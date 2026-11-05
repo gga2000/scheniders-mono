@@ -23,6 +23,7 @@ type ProductRow = {
     stock_quantity: number | null;
     reserved_quantity: number | null;
     low_stock_threshold: number | null;
+    scent_notes: string[] | null;
     product_variants: {
         id: string;
         name: string;
@@ -49,7 +50,7 @@ export function useTillProducts() {
             const { data, error } = await supabase
                 .from("products")
                 .select(
-                    "id, name, display_name, price, image_url, tag_color, barcode, sku, stock_quantity, reserved_quantity, low_stock_threshold, product_variants(id, name, price, barcode, sku, stock_quantity, reserved_quantity, is_enabled, display_order)",
+                    "id, name, display_name, price, image_url, tag_color, barcode, sku, stock_quantity, reserved_quantity, low_stock_threshold, scent_notes, product_variants(id, name, price, barcode, sku, stock_quantity, reserved_quantity, is_enabled, display_order)",
                 )
                 .eq("tenant_id", tenantId)
                 .eq("is_archived", false)
@@ -82,6 +83,7 @@ export function useTillProducts() {
                     available: variants.length ? variants.reduce((s, v) => s + v.available, 0) : free(p.stock_quantity, p.reserved_quantity),
                     on_hand: variants.length ? variants.reduce((sum, v) => sum + v.on_hand, 0) : Math.max(0, p.stock_quantity ?? 0),
                     low_at: Math.max(0, p.low_stock_threshold ?? 0),
+                    notes: p.scent_notes ?? [],
                     variants,
                 };
             });
@@ -579,6 +581,19 @@ export function useTillLabelCodes() {
             return z
                 .array(z.object({ product_id: z.string(), variant_id: z.string().nullable(), barcode: z.string(), created: z.boolean() }))
                 .parse(data);
+        },
+        onSettled: () => qc.invalidateQueries({ queryKey: ["till", "products"] }),
+    });
+}
+
+/** Sets one product's scent notes (managers only). */
+export function useTillSetScentNotes() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; productId: string; notes: string[] }): Promise<string[]> => {
+            const { data, error } = await supabase.rpc("till_set_scent_notes", { p_session_id: input.sessionId, p_product_id: input.productId, p_notes: input.notes });
+            if (error) throw error;
+            return z.array(z.string()).parse(data);
         },
         onSettled: () => qc.invalidateQueries({ queryKey: ["till", "products"] }),
     });
