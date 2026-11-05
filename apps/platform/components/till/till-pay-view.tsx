@@ -129,96 +129,102 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                 </div>
 
                 {method === "cash" ? (
-                    <>
-                        <div className="grid grid-cols-6 gap-2">
-                            {KEY_NOTES.map((note) => (
-                                <div key={note} className="relative">
-                                    <button
-                                        type="button"
-                                        onClick={() => tapNote(note)}
-                                        className="flex h-24 w-full items-end justify-between rounded-2xl p-3 text-left text-xl font-bold tabular-nums text-[#1E1E1E] transition-transform active:scale-[0.97]"
-                                        style={{ background: NOTE_TILES[note] }}
-                                    >
-                                        {formatIqd(note)}
-                                        {notes[note] ? (
-                                            <span className="rounded-full bg-[#1E1E1E] px-2.5 py-0.5 text-sm text-white">×{notes[note]}</span>
-                                        ) : null}
-                                    </button>
-                                    {notes[note] ? (
+                    <div className="grid min-h-[320px] flex-1 grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-4">
+                        <div className="flex min-h-0 flex-col gap-2">
+                            <div className="grid flex-1 auto-rows-fr grid-cols-3 gap-2">
+                                {KEY_NOTES.map((note) => (
+                                    <div key={note} className="relative min-h-24">
                                         <button
                                             type="button"
-                                            onClick={() => untapNote(note)}
-                                            aria-label={t("till.pay.takeOne", { note: formatIqd(note) })}
-                                            className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-white/70 text-[#1E1E1E] shadow-sm"
+                                            onClick={() => tapNote(note)}
+                                            className="flex h-full w-full items-end justify-between rounded-2xl p-4 text-left text-2xl font-bold tabular-nums text-[#1E1E1E] transition-transform active:scale-[0.97]"
+                                            style={{ background: NOTE_TILES[note] }}
                                         >
-                                            <Minus className="h-4 w-4" aria-hidden="true" />
+                                            {formatIqd(note)}
+                                            {notes[note] ? (
+                                                <span className="rounded-full bg-[#1E1E1E] px-2.5 py-0.5 text-sm text-white">×{notes[note]}</span>
+                                            ) : null}
                                         </button>
-                                    ) : null}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setNotes({});
-                                    setTyped(String(rest));
-                                }}
-                                className="h-14 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] text-base font-semibold text-foreground"
-                            >
-                                {t("till.pay.exact")}
-                            </button>
-                            <input
-                                value={typed ?? ""}
-                                onChange={(e) => {
-                                    setNotes({});
-                                    setTyped(e.target.value);
-                                }}
-                                placeholder={t("till.pay.typeAmount")}
-                                aria-label={t("till.pay.typeAmount")}
-                                inputMode="numeric"
-                                className="h-14 min-w-0 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center text-base font-semibold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
-                            />
-                            <button type="button" onClick={clear} className="h-14 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] text-base font-semibold text-foreground">
-                                {t("till.pay.clear")}
-                            </button>
+                                        {notes[note] ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => untapNote(note)}
+                                                aria-label={t("till.pay.takeOne", { note: formatIqd(note) })}
+                                                className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-white/70 text-[#1E1E1E] shadow-sm"
+                                            >
+                                                <Minus className="h-4 w-4" aria-hidden="true" />
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setNotes({});
+                                        setTyped(String(rest));
+                                    }}
+                                    className="h-14 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] text-base font-semibold text-foreground"
+                                >
+                                    {t("till.pay.exact")}
+                                </button>
+                                <input
+                                    value={typed ?? ""}
+                                    onChange={(e) => {
+                                        setNotes({});
+                                        setTyped(e.target.value);
+                                    }}
+                                    placeholder={t("till.pay.typeAmount")}
+                                    aria-label={t("till.pay.typeAmount")}
+                                    inputMode="numeric"
+                                    className="h-14 min-w-0 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center text-base font-semibold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
+                                />
+                                <button type="button" onClick={clear} className="h-14 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] text-base font-semibold text-foreground">
+                                    {t("till.pay.clear")}
+                                </button>
+                            </div>
                         </div>
 
                         <div
                             className={cn(
-                                "flex items-center justify-between rounded-[20px] px-6 py-5",
+                                "flex flex-col justify-between gap-4 rounded-[24px] p-6",
                                 result.ok ? "bg-[#E3F6DA] text-[#14532D] dark:bg-emerald-500/15 dark:text-emerald-200" : "bg-[var(--card-border)]/40 text-foreground",
                             )}
                             aria-live="polite"
                         >
                             <span>
-                                <span className="block text-base font-semibold">{result.ok ? t("till.pay.giveBack") : t("till.pay.short")}</span>
+                                <span className="block text-lg font-semibold">{result.ok ? t("till.pay.giveBack") : t("till.pay.short")}</span>
                                 <span className="block text-sm opacity-80">{given > 0 ? t("till.pay.gave", { amount: formatIqd(given) }) : t("till.pay.tapNotes")}</span>
                             </span>
-                            <span className="text-6xl font-bold tabular-nums tracking-tight">{formatIqd(result.ok ? change : result.short)}</span>
+                            <span className="text-left text-6xl font-bold tabular-nums tracking-tight">{formatIqd(result.ok ? change : result.short)}</span>
+                            <span className="flex min-h-9 flex-wrap gap-2">
+                                {change > 0 &&
+                                    changeInNotes(change).map(({ note, count }) => (
+                                        <span key={note} className="rounded-xl px-3 py-1.5 text-sm font-bold tabular-nums text-[#1E1E1E]" style={{ background: NOTE_TILES[note] }}>
+                                            {count} × {formatIqd(note)}
+                                        </span>
+                                    ))}
+                            </span>
                         </div>
-                        {change > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {changeInNotes(change).map(({ note, count }) => (
-                                    <span key={note} className="rounded-xl px-3 py-1.5 text-sm font-bold tabular-nums text-[#1E1E1E]" style={{ background: NOTE_TILES[note] }}>
-                                        {count} × {formatIqd(note)}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                    </>
+                    </div>
                 ) : (
-                    <div className="flex flex-col gap-2 rounded-[20px] bg-[var(--card-border)]/30 p-5">
+                    <div className="flex flex-1 flex-col items-center justify-center gap-5 rounded-[24px] bg-[var(--card-border)]/30 p-6 text-center">
                         {payQr[method] && (
-                            <figure className="flex items-center gap-5 pb-2">
-                                <img src={payQr[method]} alt={t("till.pay.qrAlt", { method: t(`till.pay.method.${method}`) })} className="h-56 w-56 shrink-0 rounded-2xl bg-white object-contain p-2" />
-                                <figcaption className="text-left text-base text-muted" dir="auto">
-                                    {t("till.pay.qrScan", { method: t(`till.pay.method.${method}`) })}
-                                    <span className="mt-1 block text-3xl font-bold tabular-nums text-foreground">{formatIqd(due)}</span>
-                                </figcaption>
-                            </figure>
+                            <img
+                                src={payQr[method]}
+                                alt={t("till.pay.qrAlt", { method: t(`till.pay.method.${method}`) })}
+                                className="h-72 w-72 shrink-0 rounded-3xl bg-white object-contain p-3 shadow-sm"
+                            />
                         )}
-                        <p className="text-left text-base font-semibold text-foreground" dir="auto">{t("till.pay.takeOn", { method: t(`till.pay.method.${method}`), amount: formatIqd(rest) })}</p>
+                        <div className="flex flex-col items-center gap-1">
+                            <p className="text-base text-muted" dir="auto">
+                                {payQr[method]
+                                    ? t("till.pay.qrScan", { method: t(`till.pay.method.${method}`) })
+                                    : t("till.pay.takeOn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}
+                            </p>
+                            <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">{formatIqd(due)}</p>
+                        </div>
                         <label className="flex items-center gap-3 text-sm text-muted">
                             {t("till.pay.onlyPart")}
                             <input
@@ -226,7 +232,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 onChange={(e) => setTyped(e.target.value)}
                                 inputMode="numeric"
                                 placeholder={formatIqd(rest)}
-                                className="h-12 w-40 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-right font-semibold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
+                                className="h-12 w-40 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
                             />
                         </label>
                     </div>
