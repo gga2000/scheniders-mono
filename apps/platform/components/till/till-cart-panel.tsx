@@ -50,6 +50,14 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const customer = useTillCustomer(sessionId, normalPhone);
     const overLimit = limit !== null && given > limit;
     const discountTooBig = overLimit && !ticket.approval;
+    // Line price cuts count toward the limit too, so spell out where the total comes from.
+    const lineCuts = given - ticket.discount;
+    const overText =
+        limit === null
+            ? ""
+            : lineCuts > 0 && ticket.discount > 0
+              ? t("till.manager.overParts", { lines: formatIqd(lineCuts), discount: formatIqd(ticket.discount), given: formatIqd(given), limit: formatIqd(limit) })
+              : t("till.manager.over", { given: formatIqd(given), limit: formatIqd(limit) });
 
     // Items taken out before payment go to the owner's log; the sale never waits on it.
     const changeQuantity = (l: CartLine, quantity: number) => {
@@ -63,8 +71,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     };
 
     const applyDiscount = (text: string) => {
-        setDiscountText(text);
-        onChange({ ...ticket, discount: Math.min(subtotal, parseDinars(text)) });
+        const amount = parseDinars(text);
+        setDiscountText(amount > 0 ? formatIqd(amount) : "");
+        onChange({ ...ticket, discount: Math.min(subtotal, amount) });
     };
 
     return (
@@ -172,7 +181,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                         className="flex min-h-7 max-w-full items-center overflow-hidden whitespace-nowrap text-xs tabular-nums text-muted underline decoration-dotted underline-offset-4 hover:text-foreground"
                                     >
                                         {l.price < l.list_price ? (
-                                            <span className="font-semibold text-foreground">{formatIqd(l.price)}</span>
+                                            <span className="font-semibold text-foreground" dir="auto">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
                                         ) : (
                                             <span dir="auto">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
                                         )}
@@ -269,7 +278,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 )}
                 {discountTooBig && limit !== null && (
                     <p className="text-left text-xs font-semibold text-red-600" dir="auto">
-                        {t("till.manager.over", { given: formatIqd(given), limit: formatIqd(limit) })}
+                        {overText}
                     </p>
                 )}
 
@@ -293,7 +302,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 <TillManagerDialog
                     sessionId={sessionId}
                     managers={managers}
-                    reason={t("till.manager.over", { given: formatIqd(given), limit: formatIqd(limit) })}
+                    reason={overText}
                     onApproved={(approval) => {
                         setAskManager(false);
                         onChange({ ...ticket, approval });

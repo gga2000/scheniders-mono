@@ -38,7 +38,8 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="till-screen flex flex-col gap-5 md:max-w-lg">
+            <DialogContent className="till-screen md:max-w-lg">
+                <div className="flex flex-col gap-6">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-left">
                         <HandCoins className="h-5 w-5" aria-hidden="true" />
@@ -114,6 +115,7 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
                 >
                     {payout.isPending ? t("till.payout.saving") : amount > 0 ? t("till.payout.take", { amount: formatIqd(amount) }) : t("till.payout.title")}
                 </button>
+                </div>
             </DialogContent>
         </Dialog>
     );
