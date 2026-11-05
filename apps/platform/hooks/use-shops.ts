@@ -326,3 +326,26 @@ export function useClearPin() {
         onSuccess: () => invalidate("members"),
     });
 }
+
+const insightsSchema = z.object({
+    days: z.number(),
+    hours: z.array(z.object({ shop_id: z.string(), dow: z.number().int(), hour: z.number().int(), sales: z.number().int(), total: z.number() })),
+    shop_top: z.array(z.object({ name: z.string(), pieces: z.number().int() })),
+    online_top: z.array(z.object({ name: z.string(), pieces: z.number().int() })),
+});
+export type ShopInsights = z.infer<typeof insightsSchema>;
+
+/** Busy hours per shop and shop vs online best sellers, over the last `days` days. */
+export function useShopInsights(days: number) {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: ["shops", "insights", tenantId, days],
+        enabled: !!tenantId,
+        staleTime: 5 * 60_000,
+        queryFn: async (): Promise<ShopInsights> => {
+            const { data, error } = await supabase.rpc("shop_insights", { p_days: days });
+            if (error) throw error;
+            return insightsSchema.parse(data);
+        },
+    });
+}
