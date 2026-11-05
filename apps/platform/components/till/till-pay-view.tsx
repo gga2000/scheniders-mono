@@ -45,6 +45,8 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
     // Notes tapped so far, by note value.
     const [notes, setNotes] = useState<Record<number, number>>({});
     const [typed, setTyped] = useState<string | null>(null);
+    // FIB and ZainCash: the cashier confirms the payment notice came in before the sale can close.
+    const [noticeIn, setNoticeIn] = useState(false);
 
     const rest = leftToPay(total, parts);
     const fromNotes = Object.entries(notes).reduce((s, [note, n]) => s + Number(note) * n, 0);
@@ -56,7 +58,9 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
     const clear = () => {
         setNotes({});
         setTyped(null);
+        setNoticeIn(false);
     };
+    const needsNotice = method === "fib" || method === "zaincash";
     const tapNote = (note: number) => {
         setTyped(null);
         setNotes((n) => ({ ...n, [note]: (n[note] ?? 0) + 1 }));
@@ -209,12 +213,12 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-1 flex-col items-center justify-center gap-5 rounded-[24px] bg-[var(--card-border)]/30 p-6 text-center">
+                    <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-[24px] bg-[var(--card-border)]/30 p-5 text-center">
                         {payQr[method] && (
                             <img
                                 src={payQr[method]}
                                 alt={t("till.pay.qrAlt", { method: t(`till.pay.method.${method}`) })}
-                                className="h-72 w-72 shrink-0 rounded-3xl bg-white object-contain p-3 shadow-sm"
+                                className="h-56 w-56 shrink-0 rounded-3xl bg-white object-contain p-3 shadow-sm"
                             />
                         )}
                         <div className="flex flex-col items-center gap-1">
@@ -225,6 +229,21 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             </p>
                             <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">{formatIqd(due)}</p>
                         </div>
+                        <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={noticeIn}
+                            onClick={() => setNoticeIn((v) => !v)}
+                            className={cn(
+                                "flex h-14 items-center gap-3 rounded-2xl border px-5 text-base font-semibold",
+                                noticeIn ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200" : "border-[var(--card-border)] bg-[var(--card-bg)] text-foreground",
+                            )}
+                        >
+                            <span className={cn("flex h-6 w-6 items-center justify-center rounded-md border-2", noticeIn ? "border-emerald-600 bg-emerald-600 text-white" : "border-[var(--card-border)]")}>
+                                {noticeIn && <Check className="h-4 w-4" aria-hidden="true" />}
+                            </span>
+                            <span dir="auto">{t("till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
+                        </button>
                         <label className="flex items-center gap-3 text-sm text-muted">
                             {t("till.pay.onlyPart")}
                             <input
@@ -255,20 +274,17 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     <button
                         type="button"
                         onClick={complete}
-                        disabled={!result.ok || pending || (method !== "cash" && typed !== null && parseDinars(typed) > 0 && parseDinars(typed) < rest)}
+                        disabled={!result.ok || pending || (needsNotice && !noticeIn) || (method !== "cash" && typed !== null && parseDinars(typed) > 0 && parseDinars(typed) < rest)}
                         className={cn("h-16 flex-1 rounded-2xl text-xl font-bold disabled:opacity-40", INK_BUTTON)}
                     >
                         {pending
                             ? t("till.pay.saving")
                             : change > 0
                               ? t("till.pay.completeChange", { change: formatIqd(change) })
-                              : method === "fib" || method === "zaincash"
-                                ? (
-                                      <span className="flex flex-col items-center leading-tight">
-                                          <span>{t("till.pay.completeNotice", { amount: formatIqd(due) })}</span>
-                                          <span className="text-sm font-medium opacity-70" dir="auto">{t("till.pay.completeNoticeSub", { method: t(`till.pay.method.${method}`) })}</span>
-                                      </span>
-                                  )
+                              : needsNotice
+                                ? noticeIn
+                                    ? t("till.pay.completeNotice", { amount: formatIqd(due) })
+                                    : t("till.pay.waitNotice", { method: t(`till.pay.method.${method}`) })
                                 : t("till.pay.complete")}
                     </button>
                 </div>

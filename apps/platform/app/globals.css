@@ -2424,6 +2424,28 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
 .till-notice { animation: till-notice-in 180ms cubic-bezier(0.22, 1, 0.36, 1); }
 @media (prefers-reduced-motion: reduce) { .till-notice { animation: none; } }
 
+/* On the till, toasts rise at the bottom centre like the "added" note, so they
+   never cover the header's shift, goal and money chips. */
+body:has(.till-screen) .toast-viewport {
+  /* Toast cards hang down from the viewport's top edge, so place that edge
+     one card height above the bottom of the screen. */
+  top: calc(100vh - 6.5rem);
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+/* Over product photos the frosted card goes see-through; make it solid. */
+body:has(.till-screen) .toast-card {
+  background: var(--card-bg);
+  backdrop-filter: none;
+  border-color: var(--card-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+/* A row that scrolls sideways fades at both ends, so cut-off chips read as "more". */
+.till-fade-x {
+  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 28px), transparent 100%);
+}
+
 /* ============================================
    Typography Helpers
    ============================================ */

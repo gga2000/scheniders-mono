@@ -9,6 +9,7 @@ import { findByCode, formatIqd, isLow, searchProducts, type TillProduct, type Ti
 import { beep, flyToCart } from "@/lib/till/feedback";
 import { byNotes, notesInUse, similarTo } from "@/lib/till/scent";
 import { cn } from "@/lib/utils";
+import { INK_BUTTON } from "./till-colors";
 
 interface Props {
     products: TillProduct[];
@@ -197,7 +198,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
             )}
 
             {filter === "scent" && (
-                <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]" role="toolbar" aria-label={t("till.scent.notes")}>
+                <div className="till-fade-x -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]" role="toolbar" aria-label={t("till.scent.notes")}>
                     {liked && liked.notes.length > 0 && (
                         <NoteChip
                             on={likeId === liked.id}
@@ -301,8 +302,8 @@ function NoteChip({ on, onClick, children }: { on: boolean; onClick: () => void;
             onClick={onClick}
             aria-pressed={on}
             className={cn(
-                "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition-colors",
-                on ? "border-[var(--ink)] bg-[var(--ink)]/10 text-foreground dark:border-[#EFFF00] dark:bg-[#EFFF00]/10" : "border-[var(--card-border)] text-foreground",
+                "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors",
+                on ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] text-foreground",
             )}
         >
             {children}
