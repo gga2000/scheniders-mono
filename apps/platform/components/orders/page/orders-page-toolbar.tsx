@@ -141,20 +141,6 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
 
                                         <StockPinChips onOpen={() => setIsStockTodayOpen(true)} />
 
-                                        {/* Selection Indicator */}
-                                        <AnimatePresence>
-                                            {selectedOrders.size > 0 && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, scale: 0.8, x: -20 }}
-                                                    animate={{ opacity: 1, scale: 1, x: 0 }}
-                                                    exit={{ opacity: 0, scale: 0.8, x: -20 }}
-                                                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500 text-white shadow-lg shadow-violet-500/25"
-                                                >
-                                                    <span className="text-sm font-bold">{selectedOrders.size}</span>
-                                                    <span className="text-xs font-medium opacity-80">{t("orders.selected")}</span>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
                                     </div>
 
                                     {showAdsChips ? <AdsTodayChips /> : null}

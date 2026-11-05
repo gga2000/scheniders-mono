@@ -71,7 +71,7 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                                                 : "bg-blue-50 text-blue-700 border border-blue-100"
                                         )}
                                     >
-                                        <span className="font-semibold">{t("orders.ui.nSelected", { count: selectedOrders.size })}</span>
+                                        {/* The count itself lives once, in the bulk action row above. */}
                                         {canOfferSelectAll({
                                             selectedCount: selectedOrders.size,
                                             loadedCount: filteredOrders.length,
