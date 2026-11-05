@@ -11755,7 +11755,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "prime.problems.wa.failed": "مرحباً {name}، مندوب برايم لم يتمكن من الوصول إليك لتسليم طلبك رقم {order}. متى يناسبك الاستلام؟",
         "prime.problems.wa.postponed": "مرحباً {name}، طلبك رقم {order} ينتظر عند برايم. أي يوم يناسبك للاستلام؟",
         "prime.problems.wa.generic": "مرحباً {name}، بخصوص طلبك رقم {order}: متى يناسبك التوصيل؟",
-        "prime.page.newAttempt": "محاولة جديدة",
+        "prime.page.newAttempt": "اعادة توصيل",
         "prime.page.askPrime": "اسأل برايم",
         "prime.page.newStatement": "الكشف الجديد",
         "prime.page.statementDiff": "فرق",
