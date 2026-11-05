@@ -7,14 +7,15 @@ import { DANGER_LIMIT, useShieldDanger } from "@/hooks/use-shield-danger";
 import { useOrderStore } from "@/store/use-order-store";
 
 /**
- * Tools-bar switch on the orders page (Ali, 2026-11-05): sorts the order
- * cards so the open orders with the lowest Shield Trust score come first.
- * The badge counts the orders under 80; it is red when any is under 50.
+ * Tools-bar switch on the orders page (Ali, 2026-11-05): opens the danger
+ * panel (high / medium / low) and sorts the order cards so the lowest Shield
+ * Trust score comes first. The badge counts the open orders under 80; it is
+ * red when any is under 50.
  */
 export function ShieldDangerToggle() {
     const { t } = useLanguage();
-    const on = useOrderStore((s) => s.sortByDanger);
-    const setOn = useOrderStore((s) => s.setSortByDanger);
+    const on = useOrderStore((s) => s.showDangerPanel);
+    const setOn = useOrderStore((s) => s.setShowDangerPanel);
     const { count, red } = useShieldDanger();
     const label = on ? t("shield.sort.off") : t("shield.sort.on");
 

@@ -18,6 +18,7 @@ import { AdsTodayChips } from "@/components/ads/ads-today-chips";
 import { AdsChipsToggle } from "@/components/ads/ads-chips-toggle";
 import { PrimeTrackToggle } from "@/components/orders/prime-track-toggle";
 import { ShieldDangerToggle } from "@/components/orders/shield/shield-danger-toggle";
+import { ShieldDangerPanel } from "@/components/orders/shield/shield-danger-panel";
 import { notificationService } from "@/lib/notification-service";
 import { toast } from "@/hooks/use-toast";
 import { DateRangePicker, SavedViewsTabs, StickyFilterBar } from "@/components/orders/page/lazy";
@@ -25,7 +26,10 @@ import type { OrdersPageModel } from "./use-orders-page-model";
 
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
-    const { sidebarExpanded, setIsReturnsOpen, setIsStockTodayOpen, setIsScannerOpen, showSubFilters, toggleSubFilters, showAdChannels, toggleAdChannels, showAdsChips, toggleAdsChips, showPipeline, togglePipeline, filters, setFilters, clearFilters, filterPresets, saveFilterPreset, loadFilterPreset, deleteFilterPreset, archivedOrders, fetchArchivedOrders, undoLastAction, canUndo, statusCounts, attentionCounts, oversoldCount, isMobile, t, datePreset, viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, showSearchBar, setShowSearchBar, analyticsLevel, setAnalyticsLevel, toolbarCollapsed, toggleToolbarCollapse, setSoundEnabled, showFilters, setShowFilters, groupBy, setGroupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, filterDueToday, setFilterDueToday, activePresetId, setActivePresetId, setIsCreateModalOpen, setIsExportModalOpen, showDatePicker, setShowDatePicker, datePickerPos, selectedOrders, showArchived, setShowArchived, isHeaderAnimating, setIsHeaderAnimating, notificationsEnabled, setNotificationsEnabled, dateButtonRef, datePickerRef, toolbarScrollRef, toolbarFade, filteredOrders, flaggedCount, dueTodayCount, totalRiskCount, countVis, previewing, listCountShown, openScanner, openReturns, openCreateModal, selectAll, isBulkProcessing, setShipConfirmCompany, setShipConfirmOpen, setShipConfirmKey, guardedBulkActions, showMapPanel, setShowMapPanel, hasActiveFilters } = m;
+    const { sidebarExpanded, setIsReturnsOpen, setIsStockTodayOpen, setIsScannerOpen, showSubFilters, toggleSubFilters, showAdChannels, toggleAdChannels, showAdsChips, toggleAdsChips, showPipeline, togglePipeline, filters, setFilters, clearFilters, filterPresets, saveFilterPreset, loadFilterPreset, deleteFilterPreset, archivedOrders, fetchArchivedOrders, undoLastAction, canUndo, statusCounts, attentionCounts, oversoldCount, isMobile, t, datePreset, viewMode, setViewMode, compactView, setCompactView, compactGrid, setCompactGrid, showSearchBar, setShowSearchBar, analyticsLevel, setAnalyticsLevel, toolbarCollapsed, toggleToolbarCollapse, setSoundEnabled, showFilters, setShowFilters, groupBy, setGroupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, filterDueToday, setFilterDueToday, activePresetId, setActivePresetId, setIsCreateModalOpen, setIsExportModalOpen, showDatePicker, setShowDatePicker, datePickerPos, selectedOrders, showArchived, setShowArchived, isHeaderAnimating, setIsHeaderAnimating, notificationsEnabled, setNotificationsEnabled, dateButtonRef, datePickerRef, toolbarScrollRef, toolbarFade, filteredOrders, flaggedCount, dueTodayCount, totalRiskCount, countVis, previewing, listCountShown, openScanner, openReturns, openCreateModal, selectAll, isBulkProcessing, setShipConfirmCompany, setShipConfirmOpen, setShipConfirmKey, guardedBulkActions, showMapPanel, setShowMapPanel, hasActiveFilters, dangerBandCounts } = m;
+    const showDangerPanel = useOrderStore((s) => s.showDangerPanel);
+    const dangerBand = useOrderStore((s) => s.dangerBand);
+    const setDangerBand = useOrderStore((s) => s.setDangerBand);
     return (
         <>
             {/* Section 1: Toolbar — stagger child */}
@@ -583,6 +587,28 @@ export function OrdersPageToolbar({ m }: { m: OrdersPageModel }) {
                                                 onSelectStatus={(status) =>
                                                     setFilters({ ...filters, status: status as Order["status"] | undefined })
                                                 }
+                                            />
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Shield danger panel — opened by the Shield button in Tools */}
+                            <AnimatePresence initial={false}>
+                                {showDangerPanel && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: "auto" }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        transition={{ duration: 0.3, ease: EASE_PANEL }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="pb-4">
+                                            <ShieldDangerPanel
+                                                counts={dangerBandCounts}
+                                                active={dangerBand}
+                                                onSelect={setDangerBand}
+                                                countsHidden={!countVis.chips}
                                             />
                                         </div>
                                     </motion.div>
