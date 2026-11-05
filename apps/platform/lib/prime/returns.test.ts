@@ -77,6 +77,26 @@ describe("primeReturnsSummary", () => {
     });
 
     it("has no share when Prime finished nothing", () => {
-        expect(primeReturnsSummary([], NOW)).toEqual({ finished: 0, returned: 0, rate: null, previousRate: null, savedByResend: 0, reasons: [], areas: [] });
+        expect(primeReturnsSummary([], NOW)).toEqual({ finished: 0, returned: 0, rate: null, previousRate: null, hoursToDeliver: null, previousHoursToDeliver: null, savedByResend: 0, reasons: [], areas: [] });
+    });
+
+    it("averages the hours and days to deliver, and leaves them empty when the hours are unknown", () => {
+        const summary = primeReturnsSummary(
+            [
+                delivered(2, 2, { deliverHours: 60, governorate: "BGD" }),
+                delivered(2, 3, { deliverHours: 100, governorate: "BAS" }),
+                delivered(1, 40, { deliverHours: 20 }),
+                returning(1, 5),
+            ],
+            NOW,
+        );
+        expect(summary.hoursToDeliver).toBe(40);
+        expect(summary.previousHoursToDeliver).toBe(20);
+        expect(summary.areas.find((a) => a.governorate === "BAS")?.days).toBe(2.1);
+        expect(summary.areas.find((a) => a.governorate === "BGD")?.days).toBe(1.3);
+
+        const unknown = primeReturnsSummary([delivered(3, 2)], NOW);
+        expect(unknown.hoursToDeliver).toBeNull();
+        expect(unknown.areas[0].days).toBeNull();
     });
 });

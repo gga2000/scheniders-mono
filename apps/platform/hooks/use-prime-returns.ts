@@ -18,6 +18,8 @@ const groupSchema = z
         reason: z.string().nullable(),
         changed_day: z.string(),
         parcels: z.coerce.number(),
+        // Added by migration 20261105080900; absent until it is applied.
+        deliver_hours: z.coerce.number().nullish(),
     })
     .transform(
         (r): PrimeReturnsGroup => ({
@@ -29,6 +31,7 @@ const groupSchema = z
             reason: r.reason,
             changedDay: r.changed_day,
             parcels: r.parcels,
+            deliverHours: r.deliver_hours ?? undefined,
         }),
     );
 

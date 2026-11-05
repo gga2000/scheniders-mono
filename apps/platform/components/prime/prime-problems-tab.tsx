@@ -20,6 +20,20 @@ import { PrimeParcelPanel, type PrimePanelFocus } from "@/components/orders/card
 import { PrimeProblemActions, PRIME_PROBLEM_CHIP } from "./prime-problem-actions";
 
 
+/** The order id of the parcel a typed number names: Prime's case number, our order number, or the end of the customer's phone; null when none or many match a phone. */
+export function findPrimeParcel(data: PrimeBoardData, typed: string): string | null {
+    const text = typed.trim();
+    const digits = text.replace(/\D/g, "");
+    if (!digits) return null;
+    for (const [orderId, view] of data.views) if (String(view.caseId) === digits) return orderId;
+    for (const [orderId, order] of data.orders) if (order.order_id === text || order.order_id === digits) return orderId;
+    if (digits.length >= 7) {
+        const phones = [...data.orders].filter(([, order]) => order.phone.replace(/\D/g, "").endsWith(digits.slice(-10)));
+        if (phones.length === 1) return phones[0][0];
+    }
+    return null;
+}
+
 type Filter = PrimeProblemKind | "all";
 
 /**
@@ -61,6 +75,18 @@ export function PrimeProblemsTab({
         for (const view of data.views.values()) if (view.problemCheckedAt && baghdadDayKey(Date.parse(view.problemCheckedAt)) === today) count += 1;
         return count;
     }, [data]);
+
+    // Find a parcel by Prime's case number, the customer's phone or our order number, and open its journey.
+    const [query, setQuery] = useState("");
+    const [notFound, setNotFound] = useState(false);
+    const find = () => {
+        const orderId = findPrimeParcel(data, query);
+        setNotFound(orderId === null && query.trim() !== "");
+        if (orderId) {
+            setOpen({ orderId, focus: "journey" });
+            setQuery("");
+        }
+    };
 
     // Several rows picked to be marked handled in one go, with one note.
     const mark = usePrimeProblemMark();
@@ -104,6 +130,36 @@ export function PrimeProblemsTab({
                     {t("prime.problems.hint")}
                 </span>
             </div>
+
+            <form
+                role="search"
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    find();
+                }}
+                className="flex items-center gap-2"
+            >
+                <input
+                    dir="auto"
+                    inputMode="search"
+                    value={query}
+                    onChange={(e) => {
+                        setQuery(e.target.value);
+                        setNotFound(false);
+                    }}
+                    placeholder={t("prime.problems.search")}
+                    aria-label={t("prime.problems.search")}
+                    className="h-9 min-w-0 flex-1 rounded-full border border-[var(--card-border)] bg-[var(--background)] px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)]"
+                />
+                <button type="submit" className="inline-flex h-9 items-center rounded-full border border-[var(--card-border)] px-4 text-[13px] font-semibold text-foreground hover:bg-black/[0.04] dark:hover:bg-white/10">
+                    {t("prime.problems.searchGo")}
+                </button>
+                {notFound && (
+                    <span role="status" className="text-xs font-semibold text-[#B42318] dark:text-rose-300">
+                        {t("prime.problems.searchNone")}
+                    </span>
+                )}
+            </form>
 
             {chosen.length > 0 && (
                 <div data-bulk-bar className="flex flex-wrap items-center gap-3 rounded-2xl bg-[#F1F5FB] px-4 py-3 dark:bg-sky-400/[0.06]">
