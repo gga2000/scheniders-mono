@@ -2,13 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, HandCoins, Lock, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Clock3, Download, HandCoins, Lock, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { useShops, useTillMembers, useTillRules, type Shop, type TillMember } from "@/hooks/use-shops";
-import { lockTillSession, pingTillSession, saleErrorOf, useTillOverview, useTillProducts, useTillSale, useTillStoreName } from "@/hooks/use-till";
+import {
+    lockTillSession,
+    pingTillSession,
+    saleErrorOf,
+    useTillClock,
+    useTillClockSet,
+    useTillOverview,
+    useTillProducts,
+    useTillSale,
+    useTillStoreName,
+} from "@/hooks/use-till";
 import { addToCart, commissionOf, dateLocale, formatIqd, onShelf, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { readPrefs, TEXT_ZOOM, writePrefs, type TextSize, type TillPrefs } from "@/lib/till/prefs";
 import { printReceipt, receiptDocument, type ReceiptData } from "@/lib/till/receipt";
@@ -20,6 +30,7 @@ import { TillDoneView } from "./till-done-view";
 import { TillHistoryDialog } from "./till-history-dialog";
 import { TillPayoutDialog } from "./till-payout-dialog";
 import { newTicket, type Ticket } from "./till-ticket";
+import { cn } from "@/lib/utils";
 
 type Session = { id: string; cashier: TillMember };
 type Done = { receipt: ReceiptData; phone: string | null; printed: boolean; cart: CartLine[] };
@@ -76,6 +87,8 @@ export function TillPage() {
         writePrefs(next);
     };
     const overview = useTillOverview(session?.id ?? null);
+    const clock = useTillClock(session?.id ?? null);
+    const clockSet = useTillClockSet();
 
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     // Stock badges and the "left" note count what is already in this sale's cart.
@@ -290,6 +303,20 @@ export function TillPage() {
             }}
             commission={commissionOf(overview.data?.mine.total ?? 0, rules.data?.commission_pct ?? 0)}
             onPayout={() => setPayoutOpen(true)}
+            goal={shop.daily_goal}
+            clock={
+                clock.isSuccess
+                    ? {
+                          since: clock.data?.shop_id === shop.id ? clock.data.clock_in : null,
+                          pending: clockSet.isPending,
+                          onSet: (clockIn: boolean) =>
+                              clockSet.mutate(
+                                  { sessionId: session.id, clockIn },
+                                  { onError: () => toast({ title: t("till.clock.failed"), variant: "error" }) },
+                              ),
+                      }
+                    : undefined
+            }
             prefs={prefs}
             onPrefs={setPrefs}
         >
@@ -364,6 +391,8 @@ function TillFrame({
     onHistory,
     commission,
     onPayout,
+    goal,
+    clock,
     prefs,
     onPrefs,
     children,
@@ -379,6 +408,10 @@ function TillFrame({
     /** The cashier's commission on today's sales, or null when the store pays none. */
     commission?: number | null;
     onPayout?: () => void;
+    /** The shop's sales target for today; null = none set. */
+    goal?: number | null;
+    /** The cashier's shift: since = clocked in at this shop at that time, or null. */
+    clock?: { since: string | null; pending: boolean; onSet: (clockIn: boolean) => void };
     prefs?: TillPrefs;
     onPrefs?: (p: TillPrefs) => void;
     children: React.ReactNode;
@@ -388,7 +421,7 @@ function TillFrame({
     const zoom = TEXT_ZOOM[prefs?.textSize ?? "normal"];
     return (
         <div className="till-screen flex h-full flex-col bg-background" style={zoom === 1 ? undefined : { zoom }}>
-            <header className="grid h-[64px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[#1E1E1E] px-4">
+            <header className="relative grid h-[64px] shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 bg-[#1E1E1E] px-4">
                 <div className="flex min-w-0 items-center gap-2">
                     <Link href="/orders" className={`${chip} px-3`} aria-label={t("till.top.exit")} title={t("till.top.exit")}>
                         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -408,10 +441,11 @@ function TillFrame({
                     {cashier && onLock && (
                         <button type="button" onClick={onLock} className={chip} title={t("till.top.lock")}>
                             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E4C1F9] text-xs text-[#1E1E1E]">{cashier.slice(0, 1).toUpperCase()}</span>
-                            <span dir="auto" className="max-w-[140px] truncate">{cashier}</span>
+                            <span dir="auto" className="max-w-[120px] truncate">{cashier}</span>
                             <Lock className="h-3.5 w-3.5 text-white/60" aria-hidden="true" />
                         </button>
                     )}
+                    {clock && <ClockChip clock={clock} chip={chip} />}
                 </div>
                 {title ? <h1 className="text-base font-bold text-white">{title}</h1> : <TillClock />}
                 <div className="flex items-center justify-end gap-2">
@@ -442,9 +476,71 @@ function TillFrame({
                     )}
                     {prefs && onPrefs && <TillSettings prefs={prefs} onPrefs={onPrefs} chip={chip} />}
                 </div>
+                {goal && today ? <GoalBar goal={goal} total={today.total} /> : null}
             </header>
             <main className="flex min-h-0 flex-1 flex-col">{children}</main>
         </div>
+    );
+}
+
+/** A thin line along the bottom of the header: today's sales against the shop's goal. */
+function GoalBar({ goal, total }: { goal: number; total: number }) {
+    const { t } = useLanguage();
+    const pct = Math.min(100, Math.round((total / goal) * 100));
+    const label = t("till.top.goal", { pct, goal: formatIqd(goal) });
+    return (
+        <div
+            className="absolute inset-x-0 bottom-0 h-1 bg-white/10"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pct}
+            aria-label={label}
+            title={label}
+        >
+            <div className={cn("h-full transition-[width] duration-700", pct >= 100 ? "bg-[#8FE3A8]" : "bg-[#EFFF00]")} style={{ width: `${pct}%` }} />
+        </div>
+    );
+}
+
+/** Clock in when the shift starts; when on, shows since when, and a second tap clocks out. */
+function ClockChip({ clock, chip }: { clock: NonNullable<Parameters<typeof TillFrame>[0]["clock"]>; chip: string }) {
+    const { t } = useLanguage();
+    const [confirming, setConfirming] = useState(false);
+    useEffect(() => {
+        if (!confirming) return;
+        const id = window.setTimeout(() => setConfirming(false), 3000);
+        return () => window.clearTimeout(id);
+    }, [confirming]);
+    if (!clock.since) {
+        return (
+            <button
+                type="button"
+                disabled={clock.pending}
+                onClick={() => clock.onSet(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-[#EFFF00] px-4 text-sm font-bold text-[#121212] disabled:opacity-60"
+            >
+                <Clock3 className="h-4 w-4" aria-hidden="true" />
+                {t("till.clock.in")}
+            </button>
+        );
+    }
+    const since = new Date(clock.since).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" });
+    return (
+        <button
+            type="button"
+            disabled={clock.pending}
+            onClick={() => {
+                if (!confirming) return setConfirming(true);
+                setConfirming(false);
+                clock.onSet(false);
+            }}
+            className={cn(chip, confirming && "border-[#FDE7EA] bg-[#FDE7EA] text-[#991B1B] hover:bg-[#FDE7EA]")}
+            aria-live="polite"
+        >
+            <Clock3 className="h-4 w-4" aria-hidden="true" />
+            <span className="tabular-nums" dir="auto">{confirming ? t("till.clock.confirmOut") : t("till.clock.since", { time: since })}</span>
+        </button>
     );
 }
 

@@ -25,6 +25,18 @@ export const shopFormSchema = z.object({
             return phone;
         }),
     receipt_footer: optionalText(200),
+    daily_goal: z
+        .string()
+        .transform((v, ctx) => {
+            const digits = v.replace(/[,\s]/g, "");
+            if (digits === "") return null;
+            const n = /^\d+$/.test(digits) ? Number(digits) : NaN;
+            if (!Number.isSafeInteger(n) || n < 1) {
+                ctx.addIssue({ code: "custom", message: "goal" });
+                return z.NEVER;
+            }
+            return n;
+        }),
     fib_qr_url: z.string().url().startsWith("https://").max(500).nullable(),
     zaincash_qr_url: z.string().url().startsWith("https://").max(500).nullable(),
 });

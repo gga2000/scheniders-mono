@@ -3,15 +3,22 @@ import { DEFAULT_TILL_RULES, shopFormSchema, tillPinSchema, tillRulesSchema } fr
 
 describe("shopFormSchema", () => {
     it("trims, blanks become null, phone is normalised", () => {
-        const out = shopFormSchema.parse({ name: "  Mansour ", address: " ", phone: "+964 770 214 8890", receipt_footer: "", fib_qr_url: null, zaincash_qr_url: "https://x.supabase.co/qr.png" });
-        expect(out).toEqual({ name: "Mansour", address: null, phone: "07702148890", receipt_footer: null, fib_qr_url: null, zaincash_qr_url: "https://x.supabase.co/qr.png" });
+        const out = shopFormSchema.parse({ name: "  Mansour ", address: " ", phone: "+964 770 214 8890", receipt_footer: "", daily_goal: "", fib_qr_url: null, zaincash_qr_url: "https://x.supabase.co/qr.png" });
+        expect(out).toEqual({ name: "Mansour", address: null, phone: "07702148890", receipt_footer: null, daily_goal: null, fib_qr_url: null, zaincash_qr_url: "https://x.supabase.co/qr.png" });
+    });
+
+    it("reads the daily goal with or without commas", () => {
+        const base = { name: "Karrada", address: "", phone: "", receipt_footer: "", fib_qr_url: null, zaincash_qr_url: null };
+        expect(shopFormSchema.parse({ ...base, daily_goal: "500,000" }).daily_goal).toBe(500000);
+        expect(shopFormSchema.safeParse({ ...base, daily_goal: "0" }).success).toBe(false);
+        expect(shopFormSchema.safeParse({ ...base, daily_goal: "5k" }).success).toBe(false);
     });
 
     it("rejects an empty name, a long name and a bad phone", () => {
-        expect(shopFormSchema.safeParse({ name: "  ", address: "", phone: "", receipt_footer: "", fib_qr_url: null, zaincash_qr_url: null }).success).toBe(false);
-        expect(shopFormSchema.safeParse({ name: "x".repeat(41), address: "", phone: "", receipt_footer: "", fib_qr_url: null, zaincash_qr_url: null }).success).toBe(false);
-        expect(shopFormSchema.safeParse({ name: "Karrada", address: "", phone: "12345", receipt_footer: "", fib_qr_url: null, zaincash_qr_url: null }).success).toBe(false);
-        expect(shopFormSchema.safeParse({ name: "Karrada", address: "", phone: "", receipt_footer: "", fib_qr_url: "http://x.com/q.png", zaincash_qr_url: null }).success).toBe(false);
+        expect(shopFormSchema.safeParse({ name: "  ", address: "", phone: "", receipt_footer: "", daily_goal: "", fib_qr_url: null, zaincash_qr_url: null }).success).toBe(false);
+        expect(shopFormSchema.safeParse({ name: "x".repeat(41), address: "", phone: "", receipt_footer: "", daily_goal: "", fib_qr_url: null, zaincash_qr_url: null }).success).toBe(false);
+        expect(shopFormSchema.safeParse({ name: "Karrada", address: "", phone: "12345", receipt_footer: "", daily_goal: "", fib_qr_url: null, zaincash_qr_url: null }).success).toBe(false);
+        expect(shopFormSchema.safeParse({ name: "Karrada", address: "", phone: "", receipt_footer: "", daily_goal: "", fib_qr_url: "http://x.com/q.png", zaincash_qr_url: null }).success).toBe(false);
     });
 });
 

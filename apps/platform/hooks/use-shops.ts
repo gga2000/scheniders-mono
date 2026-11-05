@@ -20,6 +20,8 @@ export interface Shop {
     /** The shop's own payment QR images, shown big on the pay screen. */
     fib_qr_url: string | null;
     zaincash_qr_url: string | null;
+    /** Sales target for one day, IQD; null = no goal. */
+    daily_goal: number | null;
     is_active: boolean;
     staff: string[]; // user ids
 }
@@ -62,7 +64,7 @@ export function useShops() {
             const [shops, staff] = await Promise.all([
                 supabase
                     .from("shops")
-                    .select("id, name, address, phone, receipt_footer, fib_qr_url, zaincash_qr_url, is_active")
+                    .select("id, name, address, phone, receipt_footer, fib_qr_url, zaincash_qr_url, daily_goal, is_active")
                     .eq("tenant_id", tenantId)
                     .order("created_at", { ascending: true }),
                 supabase.from("shop_staff").select("shop_id, user_id").eq("tenant_id", tenantId),
@@ -251,6 +253,38 @@ export function useSaveTillChips() {
 }
 
 /** The till log: removed items, price changes, manager OKs and pay-outs, newest first. */
+const clockRowSchema = z.object({
+    id: z.string(),
+    shop_id: z.string(),
+    user_id: z.string(),
+    clock_in: z.string(),
+    clock_out: z.string().nullable(),
+    auto_closed: z.boolean(),
+});
+export type TillClockRow = z.infer<typeof clockRowSchema>;
+
+/** Clock-ins and outs at the tills over the last 7 days, newest first. RLS shows owners everyone. */
+export function useTillClockWeek() {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: ["till", "clock", tenantId],
+        enabled: !!tenantId,
+        staleTime: 60_000,
+        queryFn: async (): Promise<TillClockRow[]> => {
+            const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+            const { data, error } = await supabase
+                .from("till_clock")
+                .select("id, shop_id, user_id, clock_in, clock_out, auto_closed")
+                .eq("tenant_id", tenantId)
+                .gte("clock_in", since)
+                .order("clock_in", { ascending: false })
+                .limit(500);
+            if (error) throw error;
+            return z.array(clockRowSchema).parse(data);
+        },
+    });
+}
+
 export function useTillEvents() {
     const { tenantId } = useAuth();
     return useQuery({

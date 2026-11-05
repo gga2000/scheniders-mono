@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { useSaveShop, type Shop, type TillMember } from "@/hooks/use-shops";
 import { shopFormSchema, type ShopFormInput } from "@/lib/till/shop-forms";
 import { supabase } from "@/lib/supabase";
+import { formatIqd } from "@/lib/till/cart";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -35,6 +36,7 @@ export function ShopDialog({ shop, members, onClose }: Props) {
         address: shop?.address ?? "",
         phone: shop?.phone ?? "",
         receipt_footer: shop?.receipt_footer ?? "",
+        daily_goal: shop?.daily_goal ? formatIqd(shop.daily_goal) : "",
         fib_qr_url: shop?.fib_qr_url ?? null,
         zaincash_qr_url: shop?.zaincash_qr_url ?? null,
     });
@@ -50,7 +52,7 @@ export function ShopDialog({ shop, members, onClose }: Props) {
         }
         setUploading(name);
         const ext = (file.name.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-        const path = `${tenantId}/shops/${name === "fib_qr_url" ? "fib" : "zaincash"}-${Date.now()}.${ext}`;
+        const path = `${tenantId}/shops/${name === "fib_qr_url" ? "fib" : "zaincash"}-${crypto.randomUUID()}.${ext}`;
         const { error } = await supabase.storage.from("tenant-assets").upload(path, file, { cacheControl: "3600", upsert: false });
         setUploading(null);
         if (error) {
@@ -136,7 +138,7 @@ export function ShopDialog({ shop, members, onClose }: Props) {
         );
     };
 
-    const field = (name: FieldName, label: string, opts: { hint?: string; error: string; inputMode?: "tel"; maxLength: number }) => (
+    const field = (name: FieldName, label: string, opts: { hint?: string; error: string; inputMode?: "tel" | "numeric"; maxLength: number }) => (
         <label className="flex flex-col gap-1.5">
             <span className="text-sm font-semibold text-foreground">{label}</span>
             <input
@@ -166,18 +168,26 @@ export function ShopDialog({ shop, members, onClose }: Props) {
                     </DialogHeader>
 
                     {field("name", t("till.shops.name"), { error: t("till.shops.nameError"), maxLength: 40 })}
-                    {field("address", t("till.shops.address"), { hint: t("till.shops.optional"), error: t("till.shops.tooLong"), maxLength: 200 })}
-                    {field("phone", t("till.shops.phone"), {
-                        hint: t("till.shops.phoneHint"),
-                        error: t("till.shops.phoneError"),
-                        inputMode: "tel",
-                        maxLength: 20,
-                    })}
-                    {field("receipt_footer", t("till.shops.footer"), {
-                        hint: t("till.shops.footerHint"),
-                        error: t("till.shops.tooLong"),
-                        maxLength: 200,
-                    })}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        {field("address", t("till.shops.address"), { hint: t("till.shops.optional"), error: t("till.shops.tooLong"), maxLength: 200 })}
+                        {field("phone", t("till.shops.phone"), {
+                            hint: t("till.shops.phoneHint"),
+                            error: t("till.shops.phoneError"),
+                            inputMode: "tel",
+                            maxLength: 20,
+                        })}
+                        {field("receipt_footer", t("till.shops.footer"), {
+                            hint: t("till.shops.footerHint"),
+                            error: t("till.shops.tooLong"),
+                            maxLength: 200,
+                        })}
+                        {field("daily_goal", t("till.shops.goal"), {
+                            hint: t("till.shops.goalHint"),
+                            error: t("till.shops.goalError"),
+                            inputMode: "numeric",
+                            maxLength: 16,
+                        })}
+                    </div>
 
                     <fieldset className="flex flex-col gap-2">
                         <legend className="mb-1.5 text-sm font-semibold text-foreground">{t("till.shops.payQr")}</legend>

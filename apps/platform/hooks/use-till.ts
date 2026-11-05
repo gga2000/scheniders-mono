@@ -233,6 +233,39 @@ export async function logRemovedLines(sessionId: string, lines: RemovedLine[]): 
     if (error) throw error;
 }
 
+const clockSchema = z.object({ clock_in: z.string(), shop_id: z.string() }).nullable();
+export type TillClock = z.infer<typeof clockSchema>;
+
+/** The cashier's open shift (clocked in), or null. */
+export function useTillClock(sessionId: string | null) {
+    return useQuery({
+        queryKey: ["till", "clock", "me", sessionId],
+        enabled: !!sessionId,
+        staleTime: 60_000,
+        queryFn: async (): Promise<TillClock> => {
+            const { data, error } = await supabase.rpc("till_clock_status", { p_session_id: sessionId });
+            if (error) throw error;
+            return clockSchema.parse(data);
+        },
+    });
+}
+
+/** Clocks the cashier in or out at this till. */
+export function useTillClockSet() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; clockIn: boolean }): Promise<TillClock> => {
+            const { data, error } = await supabase.rpc("till_clock_set", { p_session_id: input.sessionId, p_in: input.clockIn });
+            if (error) throw error;
+            return clockSchema.parse(data);
+        },
+        onSuccess: (data, input) => {
+            qc.setQueryData(["till", "clock", "me", input.sessionId], data);
+            qc.invalidateQueries({ queryKey: ["till", "clock"] });
+        },
+    });
+}
+
 /** Cash taken from the drawer for a shop cost; it lands in Finances as an expense. */
 export function useTillPayout() {
     const qc = useQueryClient();
