@@ -1,4 +1,4 @@
-/** The till's pastel tiles (from the approved concepts), with ink text on top in both themes. */
+/** Note colours (from the approved concepts). Used only as a small band on white note tiles and chips. */
 export const TILE = {
     pink: "#F4C7CF",
     green: "#C0EBA6",
