@@ -629,3 +629,19 @@ html.dark:has(.orders-page) span.rounded.bg-amber-500.text-white:not(#a):not(#b)
 html.dark:has(.orders-page) [role=dialog] i.bg-red-500:not(#a){background:#b0645d!important}
 html.dark:has(.orders-page) [role=dialog] i.bg-amber-400:not(#a){background:#ad9058!important}
 html.dark:has(.orders-page) [role=dialog] i.bg-emerald-500:not(#a){background:#5f9a6c!important}
+
+/* --- build 5: live critic round 35 --- */
+/* Card WhatsApp button: quiet like the other non-next-step buttons. */
+html.dark:has(.orders-page) .orders-card-surface button.bg-emerald-500[class*="w-10"]:not(#a):not(#b):not(#c){background:transparent!important;border:1px solid #34322e!important;border-radius:12px!important;color:#a8a59e!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-card-surface button.bg-emerald-500[class*="w-10"]:hover:not(#a):not(#b):not(#c){background:#2d2c29!important;color:#8cd59b!important}
+/* Toolbar: active toggles get the full selected recipe (tint + yellow icon + hairline). */
+html.dark:has(.orders-page) .orders-toolbar-group button.p-2\.5.rounded-xl[class*="dark:bg-[var(--primary)]"]:not(#a):not(#b):not(#c){background:rgba(239,255,0,.12)!important;color:#efff00!important;box-shadow:inset 0 0 0 1px rgba(239,255,0,.4)!important}
+/* "Ship via Prime" is an action, not a toggle: neutral icon button. */
+html.dark:has(.orders-page) .orders-toolbar-group button.p-2\.5.rounded-xl.bg-slate-800:not(#a):not(#b):not(#c){background:transparent!important;color:#cfcac2!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-toolbar-group button.p-2\.5.rounded-xl.bg-slate-800:hover:not(#a):not(#b):not(#c){background:#2d2c29!important;color:#f0eee9!important}
+/* Stock window: chip dots and bar segments from one set of colours. */
+html.dark:has(.orders-page) [role=dialog] i.bg-amber-500:not(#a){background:#ad9058!important}
+html.dark:has(.orders-page) [role=dialog] i[class*="bg-[var(--foreground-muted)]"]:not(#a){background:#5e5b55!important}
+/* Duplicate strip: the matched order number chip is a tint, not a mustard fill. */
+html.dark:has(.orders-page) span.rounded[class*="bg-amber-"][class*="font-mono"]:not(#a):not(#b),html.dark:has(.orders-page) span.rounded.font-bold[class*="bg-amber-4"]:not(#a):not(#b){background:rgba(226,190,110,.14)!important;color:#e2be6e!important}
+html.dark:has(.orders-page) .orders-card-surface button.bg-emerald-500[class*="w-10"] svg:not(#a):not(#b){color:inherit!important}
