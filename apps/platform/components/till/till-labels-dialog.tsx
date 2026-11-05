@@ -116,7 +116,7 @@ export function TillLabelsDialog({
                             aria-checked={onlyMissing}
                             onClick={() => setOnlyMissing((v) => !v)}
                             className={cn(
-                                "h-12 rounded-2xl border px-4 text-sm font-semibold",
+                                "h-12 rounded-full border px-5 text-sm font-semibold",
                                 onlyMissing ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] text-foreground",
                             )}
                         >
