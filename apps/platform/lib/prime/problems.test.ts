@@ -40,6 +40,8 @@ describe("primeProblemKind", () => {
         expect(primeProblemKind(view({ status: "FAILED_DELIVER_RETURNED_TO_SENDER", stepCode: "RTN_INSTORE" }), "in_transit", NOW)).toBe("returning");
         expect(primeProblemKind(view({ stepCode: "CANCEL_DONT_DELIVER" }), "in_transit", NOW)).toBe("returning");
         expect(primeProblemKind(view({ status: "CNCL" }), "in_transit", NOW)).toBe("cancelled_by_prime");
+        expect(primeProblemKind(view({ status: "CNCL", stepCode: "RTN_WITHAGENT" }), "in_transit", NOW)).toBe("failed");
+        expect(primeProblemKind(view({ status: "CNCL", stepCode: "RTN_WITHAGENT" }), "cancelled", NOW)).toBeNull();
     });
 
     it("counts a parcel that has not moved in 3 days as stuck", () => {

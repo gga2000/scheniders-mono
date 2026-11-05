@@ -10,6 +10,7 @@
  * status wins when it is final (delivered, coming back, cancelled).
  */
 import { primeChipState, PRIME_RETURNING, type PrimeShipmentView } from "@/lib/prime/chip-state";
+import { primeReasonLabel } from "@/lib/prime/reasons";
 
 /** 0 sent · 1 Prime's branch · 2 on the way · 3 with the driver · 4 delivered (or, coming back: back to you). */
 export type PrimeStop = 0 | 1 | 2 | 3 | 4;
@@ -184,13 +185,15 @@ export interface PrimeReasonNote {
 /** Prime's own reason for the state the parcel is in now; null when Prime said nothing that fits it. */
 export function primeReasonNote(view: PrimeShipmentView): PrimeReasonNote | null {
     const { state } = primeTrack(view);
-    if (state === "returning" || state === "needs_you") {
+    // A parcel Prime itself cancelled (not one we pulled back) still carries its reason.
+    const primeCancelled = state === "cancelled" && view.cancelledAt === null;
+    if (state === "returning" || state === "needs_you" || primeCancelled) {
         const reason = view.returnReason ?? view.postponeReason;
-        return reason ? { reason, until: null } : null;
+        return reason ? { reason: primeReasonLabel(reason), until: null } : null;
     }
     if (state === "postponed") {
         const until = view.postponedTo ? (/^\d{4}-\d{2}-\d{2}/.exec(view.postponedTo)?.[0] ?? view.postponedTo) : null;
-        return view.postponeReason || until ? { reason: view.postponeReason, until } : null;
+        return view.postponeReason || until ? { reason: view.postponeReason ? primeReasonLabel(view.postponeReason) : null, until } : null;
     }
     return null;
 }

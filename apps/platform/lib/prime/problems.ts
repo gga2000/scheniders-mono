@@ -33,10 +33,14 @@ const OPEN_ORDER = new Set(["confirmed", "in_transit"]);
 /** The parcel's problem, or null when it has none. */
 export function primeProblemKind(view: PrimeShipmentView, orderStatus: string, now: number): PrimeProblemKind | null {
     if (view.cancelledAt !== null) return null;
-    if (view.status === "CNCL") return orderStatus === "cancelled" ? null : "cancelled_by_prime";
+    const step = view.stepCode;
+    if (view.status === "CNCL") {
+        if (orderStatus === "cancelled") return null;
+        // Prime closes a failed delivery as CNCL but still lists it as waiting on the store.
+        return OPEN_ORDER.has(orderStatus) && step !== null && PRIME_FAILED_STEPS.has(step) ? "failed" : "cancelled_by_prime";
+    }
     if (!OPEN_ORDER.has(orderStatus)) return null;
     const { state } = primeTrack(view);
-    const step = view.stepCode;
     if (state === "returning") return primeChipState(view, orderStatus).resendRequested ? null : "returning";
     if (state === "needs_you") return step !== null && PRIME_FAILED_STEPS.has(step) ? "failed" : "confirm";
     if (state === "postponed") return "postponed";
