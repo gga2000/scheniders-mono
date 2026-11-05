@@ -1,0 +1,581 @@
+/* ============================================================
+   Orders page — dark mode "warm graphite" (concept A, 2026-11-05)
+
+   Approved by Ali in the orders dark-mode thread after 32 scored
+   rounds on the live page. Scope: dark theme on the desktop orders
+   page only (html.dark:has(.orders-page)) so its dialogs, popovers
+   and the header are covered while every other page and light mode
+   stay exactly as they were.
+
+   Palette
+     surfaces  #0f0e0d page · #1b1a18 panel · #242320 card · #2d2c29 raised
+     text      #f0eee9 · muted #a8a59e / #8f8d86
+     yellow    #efff00 solid only on primary actions; selected states use
+               rgba(239,255,0,.12) tint + yellow text + .4 hairline
+     status    equal-lightness tints: new #f2ad73, contacted #e2be6e,
+               confirmed #8cd59b, transit #7fc6d9, delivered #a3b0ec,
+               purple #b9a6dd, red #eb827b
+
+   These rules sit on top of the older neon dark rules in globals.css
+   (same order the reviewed prototype used); !important is needed
+   because those rules, Tailwind dark: utilities and inline styles
+   already use it. Sections are kept in the order they were reviewed.
+   ============================================================ */
+/* --- i1 --- */
+/* i1 surface ladder: canvas < panel < card < raised, each a visible step; solid hairlines */
+html.dark:has(.orders-page){--background:#0f0e0d;--background-soft:#1b1a18;--card-bg:#242320;--card-bg-hover:#2d2c29;--card-border:#302e2b;--border:#2e2c29;--border-hover:#3a3833;--card-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 10px 28px -16px rgba(0,0,0,.85);--card-shadow-hover:0 1px 0 rgba(255,255,255,.06) inset,0 16px 36px -18px rgba(0,0,0,.95)}
+html.dark:has(.orders-page) body{background:#0f0e0d}
+html.dark:has(.orders-page) .orders-page .orders-toolbar-group,html.dark:has(.orders-page) .orders-page .orders-toolbar-pill,html.dark:has(.orders-page) .orders-page .orders-analytics-card,html.dark:has(.orders-page) .orders-page .orders-sticky-filter>div,html.dark:has(.orders-page) .orders-page .orders-search-panel,html.dark:has(.orders-page) .orders-page .orders-collapsed-toolbar{background:#1b1a18!important;border-color:#2b2926!important;box-shadow:0 1px 0 rgba(255,255,255,.03) inset!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface{background:#242320!important;border:1px solid #302e2b!important;box-shadow:0 1px 0 rgba(255,255,255,.045) inset,0 14px 32px -18px rgba(0,0,0,.9)!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface:hover{border-color:#3a3833!important}
+html.dark:has(.orders-page) .orders-card-surface [class*="blur-md"]{display:none!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#1E1E1E]"],html.dark:has(.orders-page) [class~="dark:bg-[#1A1A1A]"]{background-color:#1a1917!important}
+html.dark:has(.orders-page) .orders-card-surface [class~="dark:bg-[#1A1A1A]"],html.dark:has(.orders-page) .orders-card-surface [class~="dark:bg-[#1E1E1E]"]{background-color:#1c1b18!important}
+html.dark:has(.orders-page) [class~="dark:hover:bg-[#242424]"]:hover,html.dark:has(.orders-page) [class~="dark:bg-[#242424]"]{background-color:#2a2926!important}
+html.dark:has(.orders-page) [class~="dark:border-[#3F3F3F]"],html.dark:has(.orders-page) [class~="dark:border-[#333]"],html.dark:has(.orders-page) [class~="dark:border-[#333333]"],html.dark:has(.orders-page) [class~="dark:border-white/5"]{border-color:#2e2c29!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="rounded"][class*="text-[9px]"][class*="bg-"],html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"]:not([class*="text-white"]){background:#2a2926!important;border-color:#3a3833!important}
+/* --- i10 --- */
+html.dark:has(.orders-page) .orders-page button.bg-orange-500{background:#2a2723!important;color:#f2ad73!important;box-shadow:inset 0 0 0 1px rgba(242,173,115,.35)}
+/* --- i11 --- */
+/* i11 order number chip: neutral, not blue */
+html.dark:has(.orders-page) .orders-page .orders-card-surface span[class~="dark:text-[#00E5FF]"]{background:rgba(255,255,255,.045)!important;color:#e4e2db!important;border-color:rgba(255,255,255,.09)!important;font-variant-numeric:tabular-nums}
+html.dark:has(.orders-page) .orders-page .orders-card-surface span[class~="dark:text-[#00E5FF]"]:hover{color:#efff00!important;border-color:rgba(239,255,0,.35)!important}
+/* --- i12 --- */
+/* i12 table view gets a real dark theme (today it is a white table with white text) */
+html.dark:has(.orders-page) .orders-page [role="table"]{background:#1f1e1b!important;border-color:rgba(255,255,255,.07)!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-gray-50"],html.dark:has(.orders-page) .orders-page [role="table"] [role="columnheader"]{background:#181816!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="border-gray"],html.dark:has(.orders-page) .orders-page [role="table"] [role="row"],html.dark:has(.orders-page) .orders-page [role="table"] [role="cell"]{border-color:rgba(255,255,255,.065)!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [role="row"]:hover{background:#262522!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-white"]{background:#282724!important;border-color:rgba(255,255,255,.08)!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="text-gray-7"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="text-gray-6"]{color:#c9c7c0!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="text-blue-6"]{color:#a3b0ec!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="text-green-6"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="text-emerald-6"]{color:#8cd59b!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="text-orange-"]{color:#f2ad73!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-blue-1"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-blue-2"]{background:rgba(163,176,236,.12)!important;color:#a3b0ec!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-green-1"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-emerald-1"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="pastel-green"]{background:rgba(140,213,155,.12)!important;color:#8cd59b!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="pastel-yellow"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-amber-1"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-yellow-1"]{background:rgba(226,190,110,.12)!important;color:#e2be6e!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-rose-1"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-red-1"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="pastel-pink"]{background:rgba(235,130,123,.14)!important;color:#f0a39d!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-white"],html.dark:has(.orders-page) .orders-page [role="table"] span[class*="rounded"][class*="border"]{background:#2a2926!important;color:#e8e6e1!important;border-color:#3a3833!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-gray-50/90"]{background:#1a1917!important}
+/* untagged product chip: neutral, never a light grey fill */
+html.dark:has(.orders-page) .orders-page [role="table"] span[style*="rgb(243, 244, 246)"]{background:#2a2926!important;color:#d9d6cf!important;border-color:#3a3833!important}
+/* avatars and status pills: tint in dark space */
+html.dark:has(.orders-page) .orders-page [role="table"] [role="cell"] div[class*="rounded-full"][class*="font-bold"][class*="shrink-0"]{background:rgba(255,255,255,.07)!important;color:#d9d6cf!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-red-2"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-rose-2"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-red-50"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-rose-50"]{background:rgba(235,130,123,.14)!important;color:#f0a39d!important;border-color:transparent!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-orange-2"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-orange-1"]{background:rgba(242,173,115,.13)!important;color:#f2ad73!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-emerald-2"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-green-2"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="pastel-mint"]{background:rgba(140,213,155,.12)!important;color:#8cd59b!important;box-shadow:none!important;--tw-ring-color:transparent!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-slate-2"],html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-gray-1"]{background:rgba(255,255,255,.06)!important;color:#c9c7c0!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="bg-blue-50"]{background:rgba(163,176,236,.12)!important;color:#a3b0ec!important}
+/* --- i13 --- */
+/* i13 "back to top" gets a solid surface (today its see-through fill fails to build) */
+html.dark:has(.orders-page) button[class*="backdrop-blur-xl"][class*="px-6"][class*="rounded-full"]{background:#2d2c29!important;border-color:#3a3833!important;box-shadow:0 8px 24px -8px rgba(0,0,0,.8)!important;backdrop-filter:none!important}
+html.dark:has(.orders-page) button[class*="backdrop-blur-xl"][class*="px-6"][class*="rounded-full"] *{color:#e8e6e1!important}
+/* --- i14 --- */
+/* i14 table: numbers neutral; meaning kept by the small arrow / mark beside them */
+html.dark:has(.orders-page) .orders-page [role="table"] span[class*="font-mono"][class*="font-bold"][class*="text-emerald-600"],html.dark:has(.orders-page) .orders-page [role="table"] span[class*="font-mono"][class*="font-bold"][class*="text-amber-600"],html.dark:has(.orders-page) .orders-page [role="table"] span[class*="font-mono"][class*="font-bold"][class*="text-blue-600"]{color:#f0eee9!important}
+html.dark:has(.orders-page) .orders-page [role="table"] [class*="font-mono"][class*="text-xs"][class*="text-emerald-600"]{color:#c9c7c0!important}
+/* --- i15 --- */
+/* i15 order window (dialog) + menus: no light pastel surfaces in dark */
+html.dark:has(.orders-page) [role="dialog"]{--background:#1b1a18;--card-bg:#242320}
+html.dark:has(.orders-page) [role="dialog"] button.bg-white,html.dark:has(.orders-page) [role="dialog"] div.bg-white[class*="px-2"]{background:#2d2c29!important;border-color:#3a3833!important;color:#e8e6e1!important}
+html.dark:has(.orders-page) [role="dialog"] button.bg-white:hover{background:#353430!important}
+html.dark:has(.orders-page) [role="dialog"] button[class*="bg-blue-50"]{background:rgba(163,176,236,.12)!important;color:#a3b0ec!important;border-color:rgba(163,176,236,.25)!important}
+html.dark:has(.orders-page) [role="dialog"] button[class*="bg-pink-100"]{background:rgba(230,148,187,.12)!important;color:#ebb0cb!important}
+html.dark:has(.orders-page) [role="dialog"] button[class*="bg-blue-100"]{background:rgba(163,176,236,.12)!important;color:#a3b0ec!important}
+html.dark:has(.orders-page) [role="dialog"] button[class*="bg-purple-100"]{background:rgba(185,166,221,.13)!important;color:#c7b8e6!important}
+html.dark:has(.orders-page) [role="dialog"] button[class*="bg-red-50"],html.dark:has(.orders-page) [role="dialog"] button[class*="bg-rose-50"]{background:rgba(235,130,123,.12)!important;color:#f0a39d!important;border-color:rgba(235,130,123,.25)!important}
+html.dark:has(.orders-page) [role="dialog"] button[class*="bg-gray-300"]{background:#2d2c29!important;color:#7f7d77!important}
+html.dark:has(.orders-page) [role="dialog"] button[class*="bg-[var(--button-success)]"]{background:#2f4a37!important;color:#bfe8c9!important;box-shadow:none!important}
+html.dark:has(.orders-page) [role="dialog"] button[class*="bg-[var(--button-success)]"]:hover{background:#38593f!important}
+html.dark:has(.orders-page) [role="dialog"] [class*="border-dashed"][class*="border-emerald-300"]{border-color:rgba(140,213,155,.3)!important;color:#8cd59b!important;background:transparent!important}
+/* menus: icon tiles tinted, not light pastel squares */
+html.dark:has(.orders-page) [role="menu"] div[class*="w-7"][class*="h-7"][class*="rounded-lg"]{background:rgba(255,255,255,.06)!important;color:#d9d6cf!important}
+html.dark:has(.orders-page) [role="menu"] div[class*="w-7"][class*="h-7"][class*="pastel-pink"],html.dark:has(.orders-page) [role="menu"] div[class*="w-7"][class*="h-7"][class*="bg-red"]{background:rgba(235,130,123,.14)!important;color:#f0a39d!important}
+html.dark:has(.orders-page) [role="menu"] div[class*="w-7"] svg{color:inherit!important}
+html.dark:has(.orders-page) [role="menu"]{background:#242320!important;border-color:#302e2b!important;box-shadow:0 18px 40px -12px rgba(0,0,0,.85)!important}
+html.dark:has(.orders-page) div.w-7.h-7.rounded-lg[class*="bg-[var(--pastel"]{background:rgba(255,255,255,.06)!important;color:#d9d6cf!important}
+html.dark:has(.orders-page) div.w-7.h-7.rounded-lg[class*="bg-[var(--pastel-pink"]{background:rgba(235,130,123,.14)!important;color:#f0a39d!important}
+html.dark:has(.orders-page) div.w-7.h-7.rounded-lg[class*="bg-[var(--pastel"] svg{color:inherit!important}
+html.dark:has(.orders-page) .rounded-2xl.shadow-lg div.w-7.h-7.rounded-lg{background:rgba(255,255,255,.06)!important;color:#d9d6cf!important}
+html.dark:has(.orders-page) .rounded-2xl.shadow-lg div.w-7.h-7.rounded-lg[class*="red"],html.dark:has(.orders-page) .rounded-2xl.shadow-lg div.w-7.h-7.rounded-lg[class*="rose"]{background:rgba(235,130,123,.14)!important;color:#f0a39d!important}
+html.dark:has(.orders-page) .rounded-2xl.shadow-lg div.w-7.h-7.rounded-lg svg{color:inherit!important}
+/* --- i16 --- */
+/* i16 table: COD warning drops under the order number instead of covering the avatar */
+html.dark:has(.orders-page) .orders-page [role="table"] [role="row"] > [role="cell"]:nth-child(3){flex-wrap:wrap;align-content:center;row-gap:3px;overflow:hidden}
+/* --- i17 --- */
+/* i17 back-to-top: small round button in the bottom corner, never over the cards */
+html.dark:has(.orders-page) div.fixed.top-24[class*="left-1/2"]{top:auto!important;bottom:28px!important;left:auto!important;right:28px!important;transform:none!important}
+html.dark:has(.orders-page) div.fixed.top-24[class*="left-1/2"] button{padding:0!important;width:44px;height:44px;justify-content:center}
+html.dark:has(.orders-page) div.fixed.top-24[class*="left-1/2"] button span{font-size:0!important}
+html.dark:has(.orders-page) div.fixed.top-24[class*="left-1/2"] button svg{width:18px;height:18px}
+/* --- i19 --- */
+/* i19 selection mode: bulk action bars in dark tints, not 13 light pastel pills; no light banner */
+html.dark:has(.orders-page) .orders-page .orders-search-panel button[class*="bg-[var(--pastel-"],html.dark:has(.orders-page) .orders-page .orders-search-panel button[class*="-100 "],html.dark:has(.orders-page) .orders-page .orders-search-panel button[class$="-100"],html.dark:has(.orders-page) div.fixed.bottom-6 button[class*="-100"]{background:#2a2926!important;color:#d9d6cf!important;border:1px solid #3a3833!important}
+html.dark:has(.orders-page) .orders-page .orders-search-panel button[class*="bg-red-100"],html.dark:has(.orders-page) div.fixed.bottom-6 button[class*="bg-red-100"],html.dark:has(.orders-page) .orders-page .orders-search-panel button[class*="pastel-pink"]{color:#f0a39d!important;border-color:rgba(235,130,123,.35)!important}
+html.dark:has(.orders-page) .orders-page .orders-search-panel button[class*="pastel-green"],html.dark:has(.orders-page) div.fixed.bottom-6 button[class*="bg-green-100"]{background:#efff00!important;color:#14140a!important;border-color:#efff00!important}
+html.dark:has(.orders-page) div.fixed.bottom-6 > div.bg-white{background:#242320!important;border-color:#3a3833!important;box-shadow:0 20px 50px -12px rgba(0,0,0,.9)!important}
+html.dark:has(.orders-page) .orders-page [class*="bg-blue-50"][class*="rounded"]:has(button),html.dark:has(.orders-page) .orders-page div[class*="bg-blue-50"][class*="border-blue"]{background:rgba(239,255,0,.06)!important;border-color:rgba(239,255,0,.25)!important;color:#f0eee9!important}
+html.dark:has(.orders-page) .orders-page div[class*="bg-blue-50"] *{color:#e8e6e1!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface[class*="ring-"]{--tw-ring-color:rgba(239,255,0,.55)!important}
+/* --- i2 --- */
+/* i2 soft white text */
+html.dark:has(.orders-page){--foreground:#f0eee9;--foreground-muted:#a3a19a;--foreground-subtle:#7f7d77;}
+html.dark:has(.orders-page) body,html.dark:has(.orders-page) [class~="text-white"],html.dark:has(.orders-page) [class~="dark:text-white"],html.dark:has(.orders-page) .orders-page .orders-analytics-card h3{color:#f0eee9!important}
+html.dark:has(.orders-page) [class~="dark:text-[#A1A1A1]"],html.dark:has(.orders-page) [class~="dark:text-[#D4D4D4]"]{color:#a3a19a!important}
+/* --- i20 --- */
+/* i20: grid view calm + pastel tabs neutral */
+html.dark:has(.orders-page) button.flex-1.h-7[class*="bg-[var(--primary)]"]{background:#2d2c29!important;color:#efff00!important;border:1px solid #3a3833!important;box-shadow:none!important}
+html.dark:has(.orders-page) button.flex-1.h-7[class*="bg-[var(--primary)]"]:hover{background:#34332f!important;border-color:rgba(239,255,0,.35)!important}
+html.dark:has(.orders-page) button.flex-1.h-7:not([class*="bg-[var(--primary)]"]){background:#242320!important;border:1px solid #302e2b!important;color:#a3a19a!important}
+/* unselected status tabs carrying pastel fills */
+html.dark:has(.orders-page) button.rounded-full.snap-start[class*="bg-[var(--pastel-"]:not(.bg-primary){background:#1f1e1b!important;color:#d9d6cf!important;border-color:#3a3833!important;opacity:1!important}
+html.dark:has(.orders-page) button.rounded-full.snap-start[class*="bg-[var(--pastel-"]:not(.bg-primary) span:last-child{background:#2d2c29!important;color:#a3a19a!important}
+/* grid status pills: tinted bg, coloured text */
+html.dark:has(.orders-page) span.inline-flex.rounded-full[class*="pastel-green"]{background:rgba(140,213,155,.14)!important;color:#8cd59b!important}
+html.dark:has(.orders-page) span.inline-flex.rounded-full[class*="pastel-yellow"],html.dark:has(.orders-page) span.inline-flex.rounded-full[class*="pastel-orange"]{background:rgba(226,190,110,.13)!important;color:#e2be6e!important}
+html.dark:has(.orders-page) span.inline-flex.rounded-full[class*="pastel-red"],html.dark:has(.orders-page) span.inline-flex.rounded-full[class*="pastel-pink"]{background:rgba(235,130,123,.14)!important;color:#eb827b!important}
+html.dark:has(.orders-page) span.inline-flex.rounded-full[class*="pastel-blue"]{background:rgba(163,176,236,.14)!important;color:#a3b0ec!important}
+html.dark:has(.orders-page) span.inline-flex.rounded-full[class*="pastel-purple"]{background:rgba(185,166,221,.14)!important;color:#b9a6dd!important}
+html.dark:has(.orders-page) span.rounded.bg-emerald-100.text-emerald-700{background:rgba(140,213,155,.12)!important;color:#8cd59b!important}
+/* --- i21 --- */
+/* i21: R10/R11 fixes */
+/* toolbar no longer clipped at 1440 */
+html.dark:has(.orders-page) div.flex.items-start.justify-between.overflow-x-auto.flex-nowrap:has(> .orders-toolbar-group){gap:6px!important}
+/* duplicate-order band: calm amber tint, no solid fills */
+html.dark:has(.orders-page) div.rounded-\[16px\].border.bg-amber-50{background:rgba(242,173,115,.06)!important;border-color:rgba(242,173,115,.28)!important;color:#e9c9a8!important}
+html.dark:has(.orders-page) div.rounded-\[16px\].bg-amber-50 span.bg-amber-500{background:rgba(226,190,110,.14)!important;color:#e2be6e!important}
+html.dark:has(.orders-page) div.rounded-\[16px\].bg-amber-50 button.bg-amber-500{background:#2d2c29!important;color:#f0eee9!important;border:1px solid #3a3833!important}
+/* aging chips: tint + coloured text */
+html.dark:has(.orders-page) span.rounded-full.bg-yellow-100.text-yellow-700{background:rgba(226,190,110,.12)!important;color:#e2be6e!important}
+html.dark:has(.orders-page) span.rounded-full.bg-orange-100.text-orange-700{background:rgba(242,173,115,.13)!important;color:#f2ad73!important}
+html.dark:has(.orders-page) span.rounded-full.bg-gray-100.text-gray-600{background:#242320!important;color:#a3a19a!important}
+/* chat buttons neutral; yellow kept only for the unread count */
+html.dark:has(.orders-page) button.w-10.h-10.rounded-xl[class*="dark:bg-yellow-500/10"]:not(#z){background:#2d2c29!important;border:1px solid #3a3833!important;color:#d9d6cf!important}
+html.dark:has(.orders-page) button.w-10.h-10.rounded-xl[class*="dark:bg-yellow-500/10"]:not(#z) svg{color:#d9d6cf!important}
+/* top bulk bar: only the floating bar keeps a yellow main button */
+html.dark:has(.orders-page) .orders-search-panel button[class*="bg-[var(--primary)]"],html.dark:has(.orders-page) .orders-search-panel button.bg-primary:not(.snap-start){background:#2a2926!important;color:#d9d6cf!important;box-shadow:none!important;border:1px solid #3a3833!important}
+/* selection banner neutral */
+html.dark:has(.orders-page) div[class*="border-yellow"][class*="rounded"]:has(> button),html.dark:has(.orders-page) div[class*="bg-blue-50"]:has(button){background:#1b1a18!important;border-color:#3a3833!important;color:#d9d6cf!important}
+/* table phone: no wrap, soft white, tabular */
+html.dark:has(.orders-page) [role=row] [role=cell] [class*="text-green"],html.dark:has(.orders-page) [role=row] [role=cell] [class*="text-emerald"]{color:#d9d6cf!important}
+html.dark:has(.orders-page) [role=row] [role=cell]{white-space:nowrap}
+html.dark:has(.orders-page) [role=row] [role=cell] *{font-variant-numeric:tabular-nums}
+/* secondary text a bit brighter */
+html.dark:has(.orders-page) .orders-card-surface [class*="text-[10px]"],html.dark:has(.orders-page) .orders-card-surface [class*="text-[11px]"][class*="text-muted"]{color:#a8a59e}
+html.dark:has(.orders-page) button.w-10.h-10.rounded-xl[class*="dark:bg-[rgba(0,255,100,0.15)]"]:not(#z){background:#2d2c29!important;border:1px solid #3a3833!important;color:#8cd59b!important}
+html.dark:has(.orders-page) button.w-10.h-10.rounded-xl[class*="dark:bg-[rgba(0,255,100,0.15)]"]:not(#z) svg{color:#8cd59b!important}
+/* top bulk bar: all ghost, red text kept for destructive */
+html.dark:has(.orders-page) button.px-3.rounded-lg.text-sm.font-medium.whitespace-nowrap[class*="py-1.5"]:not(#z){background:#242320!important;color:#d9d6cf!important;border:1px solid #3a3833!important;box-shadow:none!important}
+html.dark:has(.orders-page) button.px-3.rounded-lg.text-sm.font-medium.whitespace-nowrap[class*="py-1.5"]:not(#z):hover{background:#2d2c29!important}
+html.dark:has(.orders-page) button.px-3.rounded-lg.text-sm.font-medium.whitespace-nowrap[class*="py-1.5"][class*="red"]:not(#z){color:#eb827b!important;border-color:rgba(235,130,123,.35)!important}
+html.dark:has(.orders-page) div.rounded-xl.bg-blue-50.border-blue-100:not(#z){background:#1b1a18!important;border-color:#302e2b!important;color:#d9d6cf!important}
+html.dark:has(.orders-page) div.rounded-xl.bg-blue-50.border-blue-100:not(#z) *{color:inherit!important}
+html.dark:has(.orders-page) div.rounded-full.bg-violet-500:not(#z){background:#2d2c29!important;color:#f0eee9!important;border:1px solid #3a3833;box-shadow:none!important}
+html.dark:has(.orders-page) [role=row][aria-selected=true],html.dark:has(.orders-page) [role=row][data-selected=true]{background:#24231f!important}
+/* --- i22 --- */
+/* i22: date popover on graphite, flat yellow, no lime gradient */
+html.dark:has(.orders-page) div[class*="dark:bg-[#1a1a2e]"]:not(#z){background:#1b1a18!important;border-color:#302e2b!important;box-shadow:0 24px 48px -12px rgba(0,0,0,.6)!important}
+html.dark:has(.orders-page) div[class*="dark:from-[#151528]"]:not(#z){background:#161513!important;border-color:#302e2b!important}
+html.dark:has(.orders-page) div[class*="dark:from-[#151528]"] *[class*="text-lime"],html.dark:has(.orders-page) div[class*="dark:from-[#151528]"] svg{color:#a3a19a!important}
+html.dark:has(.orders-page) button[class*="from-lime-400"][class*="to-[#EFFF00]"]:not(#z){background:#efff00!important;color:#11110f!important;box-shadow:none!important}
+html.dark:has(.orders-page) div[class*="dark:bg-[#1a1a2e]"] button[class*="hover:bg-lime-100"]:not([class*="from-lime"]):hover{background:#2d2c29!important;color:#f0eee9!important}
+html.dark:has(.orders-page) div[class*="dark:bg-[#1a1a2e]"] button[class*="rounded-xl"][class*="border"]:not([class*="from-lime"]){background:#242320!important;border-color:#3a3833!important;color:#d9d6cf!important}
+/* notifications panel */
+html.dark:has(.orders-page) div[class*="group/row"].bg-primary\/5{background:#1f1e1b!important}
+html.dark:has(.orders-page) div[class*="group/row"]:hover{background:#242320!important}
+html.dark:has(.orders-page) div.rounded-full.shadow-sm.bg-orange-200{background:rgba(242,173,115,.14)!important;color:#f2ad73!important;box-shadow:none!important}
+html.dark:has(.orders-page) div.rounded-full.shadow-sm[class*="bg-[var(--pastel-yellow)]"]{background:rgba(226,190,110,.14)!important;color:#e2be6e!important;box-shadow:none!important}
+html.dark:has(.orders-page) div.rounded-full.shadow-sm[class*="bg-[var(--pastel-green)]"]{background:rgba(140,213,155,.14)!important;color:#8cd59b!important;box-shadow:none!important}
+html.dark:has(.orders-page) div.rounded-full.shadow-sm[class*="bg-[var(--pastel-blue)]"],html.dark:has(.orders-page) div.rounded-full.shadow-sm.bg-blue-200{background:rgba(163,176,236,.14)!important;color:#a3b0ec!important;box-shadow:none!important}
+html.dark:has(.orders-page) div.rounded-full.shadow-sm.bg-red-200,html.dark:has(.orders-page) div.rounded-full.shadow-sm[class*="bg-[var(--pastel-red)]"]{background:rgba(235,130,123,.14)!important;color:#eb827b!important;box-shadow:none!important}
+html.dark:has(.orders-page) button.rounded-full.bg-foreground[class*="text-[var(--card-bg)]"]{background:#2d2c29!important;color:#f0eee9!important;box-shadow:inset 0 0 0 1px #3a3833}
+/* dialogs: solid white pills/buttons become raised graphite */
+html.dark:has(.orders-page) [role=dialog] .bg-foreground:not(#z),html.dark:has(.orders-page) [role=dialog] [class*="bg-white"]:not([class*="dark:bg"]):not(img):not(#z){background:#2d2c29!important;color:#f0eee9!important;box-shadow:inset 0 0 0 1px #3a3833!important}
+html.dark:has(.orders-page) [role=dialog] .bg-foreground svg{color:#efff00!important}
+/* order window status chips: one neutral surface, colour lives in text/icon only; current status = yellow ring */
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"]:not(#z){background:#242320!important;border:1px solid #34322e!important;box-shadow:none!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"]:not(#z):hover{background:#2d2c29!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"].ring-2:not(#z){background:#2d2c29!important;border:1px solid #efff00!important;--tw-ring-color:transparent!important;--tw-ring-offset-width:0!important}
+html.dark:has(.orders-page) [role=dialog] .bg-foreground ~ span,html.dark:has(.orders-page) [role=dialog] button[class*="rounded-full"] span{opacity:1}
+/* --- i23 --- */
+/* i23: night tuning — alerts warm-red not fire-engine, no glows, header calm */
+html.dark:has(.orders-page) span.rounded-full.bg-red-500.text-white:not(#z){background:#b8403a!important;color:#fff4f2!important;box-shadow:0 0 0 2px #0f0e0d!important}
+html.dark:has(.orders-page) button.w-10.h-10.rounded-full[class*="var(--button-success)_14%"]:not(#z){background:#1f1e1b!important;border-color:#34322e!important;color:#8cd59b!important}
+html.dark:has(.orders-page) div.p-2.rounded-full[class*="dark:bg-[var(--primary)]"]:not(#z){box-shadow:none!important}
+html.dark:has(.orders-page) .orders-page [class*="dark:shadow-[0_0_"]:not(#z){box-shadow:none!important}
+html.dark:has(.orders-page) .orders-page [class*="shadow-[0_0_15px_rgba(239,255,0"]:not(#z){box-shadow:none!important}
+/* R13 fixes */
+/* colour only where attention is needed: fresh age chip, ref chip, source chip go neutral */
+html.dark:has(.orders-page) .orders-card-surface span.rounded.bg-emerald-100.text-emerald-700:not(#z),html.dark:has(.orders-page) span.px-1\.5.rounded.bg-emerald-100.text-emerald-700:not(#z){background:#2d2c29!important;color:#a8a59e!important}
+html.dark:has(.orders-page) span.rounded-full.bg-green-100.text-green-700:not(#z){background:#242320!important;color:#a8a59e!important;box-shadow:inset 0 0 0 1px #34322e}
+html.dark:has(.orders-page) span.rounded-full.bg-green-100.text-green-700 svg{color:#8cd59b!important}
+/* cool grey/slate avatars warmed */
+html.dark:has(.orders-page) div.rounded-full[class*="dark:bg-gray-800"]:not(#z),html.dark:has(.orders-page) div.rounded-full[class*="dark:bg-slate-800"]:not(#z){background:#2d2c29!important;border-color:#3a3833!important;color:#a8a59e!important}
+/* the "new order" button is yellow in every header state */
+html.dark:has(.orders-page) button.rounded-xl[class*="bg-[var(--button-success)]"].text-sm:not(#z){background:#efff00!important;color:#11110f!important;box-shadow:none!important}
+/* checkboxes: yellow when checked */
+html.dark:has(.orders-page) input[type=checkbox]{accent-color:#efff00;color-scheme:dark}
+/* selected cards: same 1px yellow border, no glow */
+html.dark:has(.orders-page) .orders-card-surface[class*="ring"],html.dark:has(.orders-page) [data-selected=true] .orders-card-surface{box-shadow:none!important}
+/* duplicate band neutral; only the icon carries amber-orange */
+html.dark:has(.orders-page) div.rounded-\[16px\].border.bg-amber-50:not(#z){background:#1b1a18!important;border-color:#3a3833!important;color:#d9d6cf!important}
+html.dark:has(.orders-page) div.rounded-\[16px\].bg-amber-50 > svg:first-child,html.dark:has(.orders-page) div.rounded-\[16px\].bg-amber-50 svg[class*="triangle"]{color:#f0a35e!important}
+/* stock window: muted bar and tiles, numbers soft white */
+html.dark:has(.orders-page) [role=dialog] [class*="h-2"] > [class*="bg-emerald-500"]:not(#z),html.dark:has(.orders-page) [role=dialog] [class*="h-2"] > [class*="bg-green-500"]:not(#z){background:#6fb07e!important}
+html.dark:has(.orders-page) [role=dialog] [class*="h-2"] > [class*="bg-red-500"]:not(#z){background:#c9675f!important}
+html.dark:has(.orders-page) [role=dialog] [class*="h-2"] > [class*="bg-amber-500"]:not(#z),html.dark:has(.orders-page) [role=dialog] [class*="h-2"] > [class*="bg-yellow-500"]:not(#z){background:#c9a45e!important}
+html.dark:has(.orders-page) [role=dialog] [class*="text-emerald-4"],html.dark:has(.orders-page) [role=dialog] [class*="text-green-4"]{color:#8cd59b!important}
+/* notification unread dots soft white; counts not red */
+html.dark:has(.orders-page) div[class*="group/row"] [class*="rounded-full"][class*="bg-primary"][class*="w-2"]{background:#d9d6cf!important}
+html.dark:has(.orders-page) span.rounded-full.bg-red-500.px-1\.5:not(#z){background:#2d2c29!important;color:#f0eee9!important;box-shadow:none!important}
+html.dark:has(.orders-page) [role=dialog] .h-2\.5.rounded-full > .bg-red-500{background:#c9675f!important}
+html.dark:has(.orders-page) [role=dialog] .h-2\.5.rounded-full > .bg-amber-400{background:#c9a45e!important}
+html.dark:has(.orders-page) [role=dialog] .h-2\.5.rounded-full > .bg-emerald-500{background:#6fb07e!important}
+html.dark:has(.orders-page) [role=dialog] .h-2\.5.rounded-full > [class*="foreground-muted"]{background:#55534d!important}
+html.dark:has(.orders-page) .orders-card-surface:has(input[type=checkbox]:checked):not(#z){border:1px solid rgba(239,255,0,.55)!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-card-surface:not(:has(input[type=checkbox]:checked)):not(#z){box-shadow:none!important}
+/* --- i25 --- */
+/* i25: Ali yes 2026-11-05 — fewer boxes, one status signal, no dot grid, quiet order-window statuses */
+/* 1. chip tray loses its own box; panel tighter */
+html.dark:has(.orders-page) .orders-search-panel .orders-sticky-filter > div.overflow-x-auto:not(#z){background:transparent!important;border:0!important;box-shadow:none!important;padding:4px 0 2px!important}
+html.dark:has(.orders-page) .orders-search-panel:not(#z){padding:18px 20px!important}
+/* 2. one status signal: drop the side stripe, keep the readable pill (gets a dot) */
+html.dark:has(.orders-page) .orders-card-surface > div.w-2.flex-shrink-0[class*="rounded-l-"]:not(#z),html.dark:has(.orders-page) .orders-card-surface div.w-2.flex-shrink-0[class*="rounded-l-[20px]"]:not(#z){display:none!important}
+/* 3. no page texture in dark */
+html.dark:has(.orders-page) .ambient-backdrop__dots,html.dark:has(.orders-page) .ambient-backdrop__twinkle{display:none!important}
+html.dark:has(.orders-page) main{background-image:none!important}
+/* 4. order window: status buttons neutral text; colour only on current + risky */
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"]:not(.ring-2):not(#z){color:#a8a59e!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"]:not(.ring-2) svg{color:#8f8d86!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"]:is([class*="red"],[class*="rose"]):not(.ring-2):not(#z){color:#eb827b!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"]:is([class*="red"],[class*="rose"]):not(.ring-2) svg{color:#eb827b!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"].ring-2:not(#z){color:#f0eee9!important}
+/* KPI pills: icon discs become graphite with coloured icon, so solid yellow is left for actions */
+html.dark:has(.orders-page) .orders-toolbar-pill > div.rounded-full:first-child:not(#z){background:#2d2c29!important;box-shadow:none!important;color:#efff00!important}
+html.dark:has(.orders-page) .orders-toolbar-pill > div.rounded-full:first-child svg{color:inherit!important}
+html.dark:has(.orders-page) .orders-toolbar-pill:nth-of-type(2) > div.rounded-full:first-child:not(#z){color:#7fc6d9!important}
+/* --- i26 --- */
+/* i26: R18 critique fixes */
+/* grid cards: drop top colour bar, pill carries status */
+html.dark:has(.orders-page) div.h-1\.5.w-full.flex-shrink-0.overflow-hidden:not(#z){display:none!important}
+/* empty status filters lose their colour (build: data-count from the real count) */
+html.dark:has(.orders-page) button[data-chip-count="0"]:not(.bg-primary):not(#z):not(#y){background:#1b1a18!important;border-color:#2d2c29!important;color:#8f8d86!important}
+html.dark:has(.orders-page) button[data-chip-count="0"]:not(.bg-primary):not(#z):not(#y) *{color:#8f8d86!important;background-color:transparent!important}
+/* one active view toggle */
+html.dark:has(.orders-page) .orders-toolbar-group:has(button.bg-amber-100[class*="p-2.5"]) button[class*="p-2.5"]:is(.bg-white,.bg-purple-100):not(#z){background:transparent!important;color:#a3a19a!important}
+html.dark:has(.orders-page) .orders-toolbar-group:has(button.bg-amber-100[class*="p-2.5"]) button[class*="p-2.5"]:is(.bg-white,.bg-purple-100) svg{color:#a3a19a!important}
+/* date picker: quick-pick uses selected style, solid yellow only on Apply */
+html.dark:has(.orders-page) button.w-full.rounded-xl.text-left[class*="from-lime-400"]:not(#z){background:#2d2c29!important;color:#efff00!important}
+/* action tray: no box, no dead space */
+html.dark:has(.orders-page) div.rounded-2xl[class*="md:min-w-[280px]"][class*="dark:bg-[#1A1A1A]"]:not(#z){background:transparent!important;border-color:transparent!important;min-width:0!important;gap:4px!important}
+/* small badges: muted, not alarm red */
+html.dark:has(.orders-page) span.rounded-full.bg-red-500.text-white:not(.px-1\.5):not(#z){background:#4a2a26!important;color:#f0a99f!important;box-shadow:0 0 0 2px #0f0e0d!important}
+html.dark:has(.orders-page) span.rounded-full.bg-red-500.px-1\.5:not(#z){background:#3b2522!important;color:#f0a99f!important}
+html.dark:has(.orders-page) span.absolute.rounded-full.w-4.h-4.border:not(#z){border-color:#3a3833!important;background:#1b1a18!important}
+/* order window main action yellow */
+html.dark:has(.orders-page) [role=dialog] button[class*="bg-[var(--button-success)]"].px-6:not(#z){background:#efff00!important;color:#11110f!important;box-shadow:none!important}
+html.dark:has(.orders-page) [role=dialog] button[class*="bg-[var(--button-success)]"].px-6 svg{color:#11110f!important}
+/* back-to-top clears floating bulk bar */
+html.dark:has(.orders-page) body:has(div.fixed.bottom-6 button) div.fixed.top-24[class*="left-1/2"]{bottom:96px!important}
+/* toolbar fits in every view mode at 1440 */
+html.dark:has(.orders-page) div.flex.items-start.justify-between.overflow-x-auto.flex-nowrap:has(> .orders-toolbar-group){gap:4px!important}
+html.dark:has(.orders-page) .orders-toolbar-group:not(#z){padding-inline:10px!important}
+html.dark:has(.orders-page) .orders-toolbar-group button[class*="p-2.5"]:not(#z){padding:8px!important}
+html.dark:has(.orders-page) .orders-toolbar-group [class*="gap-2"]:not(#z){gap:4px}
+/* --- i27 --- */
+/* i27: R20 fixes */
+/* yellow/amber off secondary chips and counters */
+html.dark:has(.orders-page) span.rounded-full.cursor-pointer.bg-orange-100.text-orange-700:not(#z){background:#242320!important;color:#c9c6bf!important;border-color:#3a3935!important}
+html.dark:has(.orders-page) span.absolute.rounded-full.font-mono.bg-amber-500:not(#z){background:#3a3935!important;color:#f0eee9!important}
+/* region codes neutral */
+html.dark:has(.orders-page) span.px-1\.5.rounded.bg-emerald-100.text-emerald-700:not(#z):not(#y){background:#2d2c29!important;color:#c9c6bf!important}
+/* aging chip outline neutral */
+html.dark:has(.orders-page) span.rounded-full.bg-green-100.text-green-700:not(#z){box-shadow:none!important;border-color:#2d2c29!important}
+/* floating layers lift above cards */
+html.dark:has(.orders-page) div.bg-\[var\(--card-bg\)\].rounded-2xl.shadow-lg:not(#z),html.dark:has(.orders-page) div.fixed.bottom-6 > div:not(#z){background:#2d2c29!important;border:1px solid #3a3935!important;box-shadow:0 12px 32px rgba(0,0,0,.55)!important}
+html.dark:has(.orders-page) [data-radix-popper-content-wrapper] > div:not(#z){box-shadow:0 12px 32px rgba(0,0,0,.55)!important}
+/* one pill recipe: tint, no outline, no glow */
+html.dark:has(.orders-page) div[class*="group/row"] [class*="rounded-full"][class*="ring"],html.dark:has(.orders-page) div[class*="group/row"] .rounded-full.shadow-sm{box-shadow:none!important;--tw-ring-shadow:0 0 #0000!important;border:0!important}
+html.dark:has(.orders-page) [role=dialog] [class*="border-red"][class*="rounded"]:not(button):not(#z){border-color:#4a2a27!important}
+html.dark:has(.orders-page) [role=dialog] [class*="bg-red-"][class*="rounded-xl"]:not(button):not(#z),html.dark:has(.orders-page) [role=dialog] [class*="dark:bg-red-"][class*="rounded"]:not(button):not(#z){background:rgba(229,138,128,.10)!important}
+html.dark:has(.orders-page) .orders-card-surface button.w-10 span.absolute:not(#z):not(#y){background:#3a3935!important;color:#f0eee9!important;border-color:#0f0e0d!important}
+html.dark:has(.orders-page) div.absolute[class*="shadow-2xl"]:not(#z),html.dark:has(.orders-page) div.fixed[class*="shadow-2xl"]:not([role=dialog]):not(#z){background:#242320!important;border-color:#3a3935!important;box-shadow:0 16px 40px rgba(0,0,0,.6)!important}
+/* --- i28 --- */
+/* i28: R21 fixes */
+/* bell panel lifts like other popovers */
+html.dark:has(.orders-page) div.z-50.rounded-md.border.text-popover-foreground:not(#z){background:#242320!important;border-color:#3a3935!important;box-shadow:0 16px 40px rgba(0,0,0,.6)!important}
+html.dark:has(.orders-page) div.z-50.rounded-md.border.text-popover-foreground div[class*="bg-[var(--background)]"]:not(#z){background:#242320!important}
+/* empty chips: count decides, whatever the status */
+html.dark:has(.orders-page) button[data-chip-count="0"]:not(.bg-primary):not(#a):not(#b):not(#c){background:#1b1a18!important;border-color:#2d2c29!important;color:#8f8d86!important;font-weight:500!important}
+html.dark:has(.orders-page) button[data-chip-count="0"]:not(.bg-primary):not(#a):not(#b):not(#c) *{color:#8f8d86!important;background-color:transparent!important}
+/* yellow back to its role */
+html.dark:has(.orders-page) svg.lucide-star[class*="text-[#EFFF00]"]{color:#c9c6bf!important;fill:#c9c6bf!important;filter:none!important}
+html.dark:has(.orders-page) [role=dialog] button[class*="pin"] svg,html.dark:has(.orders-page) [role=dialog] .bg-foreground svg{color:#f0eee9!important}
+html.dark:has(.orders-page) .orders-card-surface:has(input[type=checkbox]:checked):not(#a):not(#b){border:1px solid #3a3935!important;background:#2a2926!important}
+/* KPI pills: equal-lightness tints */
+html.dark:has(.orders-page) span.font-mono.tabular-nums[class*="dark:text-emerald-400"]{color:#8cd59b!important}
+html.dark:has(.orders-page) span.font-mono.tabular-nums[class*="dark:text-red-400"]{color:#eb827b!important}
+html.dark:has(.orders-page) span.p-2.rounded-full[class*="from-emerald-400"]:not(#z){background:#2d2c29!important;color:#7fc6d9!important;box-shadow:none!important}
+html.dark:has(.orders-page) button.rounded-full[class*="bg-white/40"]:not(#z){border-color:#2d2c29!important;--tw-ring-shadow:0 0 #0000!important;box-shadow:none!important}
+/* stock tiles: 12% fills */
+html.dark:has(.orders-page) [role=dialog] [class*="rounded-xl"][class*="border"][class*="emerald"]:not(button):not(#z){background:rgba(140,213,155,.10)!important;border-color:rgba(140,213,155,.22)!important}
+html.dark:has(.orders-page) [role=dialog] [class*="rounded-xl"][class*="border"][class*="red"]:not(button):not(#z){background:rgba(235,130,123,.10)!important;border-color:rgba(235,130,123,.24)!important}
+/* fewer outlines: toolbar groups and chips inside cards separate by surface */
+html.dark:has(.orders-page) .orders-toolbar-group:not(#z){border-color:transparent!important;background:#1b1a18!important}
+html.dark:has(.orders-page) .orders-card-surface span[class*="rounded-full"][class*="border"]:not(#z){border-color:transparent!important}
+/* order window header: status pill in the shared tint recipe; priority active neutral */
+html.dark:has(.orders-page) [role=dialog] button.rounded-full.uppercase[class*="bg-[var(--pastel-yellow)]"]:not(#z){background:rgba(226,190,110,.14)!important;color:#e2be6e!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-full.uppercase[class*="bg-[var(--pastel-green)]"]:not(#z){background:rgba(140,213,155,.14)!important;color:#8cd59b!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-full.uppercase[class*="bg-[var(--pastel-orange)]"]:not(#z),html.dark:has(.orders-page) [role=dialog] button.rounded-full.uppercase[class*="bg-orange"]:not(#z){background:rgba(242,173,115,.14)!important;color:#f2ad73!important}
+html.dark:has(.orders-page) [role=dialog] button.w-7.h-7.rounded-lg[class*="bg-[var(--ink)]"]:not(#z){background:#3a3935!important;color:#f0eee9!important;box-shadow:inset 0 0 0 1px #55534d!important}
+/* --- i29 --- */
+/* i29: R23 fixes */
+/* chat icon neutral everywhere (list + grid); unread shown by the count dot only */
+html.dark:has(.orders-page) .orders-card-surface button.w-10.h-10[class*="bg-[var(--primary)]"]:not(#a):not(#b){background:#2d2c29!important;color:#a8a59e!important;border:1px solid #3a3833!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-card-surface button.w-10.h-10[class*="bg-[var(--primary)]"] svg{color:#a8a59e!important}
+html.dark:has(.orders-page) button.flex-1.h-7[class*="bg-[var(--primary)]"]:not(#a):not(#b){color:#a8a59e!important}
+html.dark:has(.orders-page) button.flex-1.h-7[class*="bg-[var(--primary)]"] svg{color:#a8a59e!important}
+/* order ref chip + governorate chip neutral in every view */
+html.dark:has(.orders-page) span.px-1\.5.rounded.bg-emerald-100.text-emerald-700:not(#a):not(#b),html.dark:has(.orders-page) span.rounded.bg-emerald-100.text-emerald-700:not(#a):not(#b){background:#2d2c29!important;color:#c9c6bf!important;border-color:transparent!important}
+/* warning chips: neutral body, coloured icon only */
+html.dark:has(.orders-page) span.rounded-lg.border.bg-amber-100.text-amber-800:not(#z){background:#242320!important;color:#d9d6cf!important;border-color:#3a3833!important}
+html.dark:has(.orders-page) span.rounded-lg.border.bg-amber-100.text-amber-800 svg{color:#e2be6e!important}
+html.dark:has(.orders-page) span.rounded.border[class*="text-[#B4533F]"]:not(#z){color:#d9d6cf!important;border-color:#3a3833!important;background:#242320!important}
+html.dark:has(.orders-page) span.rounded.border[class*="text-[#B4533F]"] svg{color:#f2ad73!important}
+/* one selected token: yellow tint + yellow text (stock "all", date quick pick) */
+html.dark:has(.orders-page) [role=dialog] button.rounded-full.bg-foreground:not(#a):not(#b),html.dark:has(.orders-page) button.w-full.rounded-xl.text-left[class*="from-lime-400"]:not(#a):not(#b){background:rgba(239,255,0,.12)!important;color:#efff00!important;box-shadow:inset 0 0 0 1px rgba(239,255,0,.35)!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-full.bg-foreground *{color:#efff00!important}
+/* bell feed icons neutral */
+html.dark:has(.orders-page) div[class*="group/row"] svg{color:#a8a59e!important}
+/* toolbar + filter panel: fill not border */
+html.dark:has(.orders-page) .orders-search-panel:not(#a){border-color:transparent!important}
+/* trend arrows on table amounts neutral */
+html.dark:has(.orders-page) [role=row] [role=cell] svg[class*="trending"],html.dark:has(.orders-page) [role=row] [role=cell] svg[class*="arrow"]{color:#8f8d86!important}
+/* --- i3 --- */
+/* i3 yellow only for main action, selected state, active icon; no glows */
+html.dark:has(.orders-page) *{--tw-shadow-color:initial}
+html.dark:has(.orders-page) [class*="rgba(239,255,0"]{box-shadow:none!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-green"],
+html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-teal"],
+html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-emerald"]{background:#282724!important;color:#8cd59b!important;border:1px solid rgba(140,213,155,.22)!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-green"]:hover{background:#efff00!important;color:#14140a!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"]:not([class*="text-white"]):hover{color:#f0eee9!important;border-color:rgba(255,255,255,.2)!important}
+/* active toolbar chip: neutral raised chip, yellow icon. Never a darkened yellow (it turns khaki) */
+html.dark:has(.orders-page) .orders-page .orders-toolbar-group button[class*="dark:bg-[var(--primary)]"][class*="p-2.5"]{background:#2c2b28!important;color:#efff00!important;box-shadow:inset 0 0 0 1px #3a3833!important}
+html.dark:has(.orders-page) .orders-page .orders-toolbar-group button[class*="rgba(239,255,0,0.1)"]{background:#2c2b28!important;color:#efff00!important;border-color:#3a3833!important}
+html.dark:has(.orders-page) ::-webkit-scrollbar-thumb:hover{background:#4a4944}
+html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-blue"],html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-purple"],html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class*="text-indigo"]{background:#282724!important;color:#7fc6d9!important;border:1px solid rgba(127,198,217,.22)!important}
+html.dark:has(.orders-page) .orders-page [class~="dark:bg-[rgba(239,255,0,0.1)]"]{background:#2c2b28!important;border-color:#3a3833!important;color:#f0eee9!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-page [class~="dark:bg-[rgba(239,255,0,0.1)]"] svg{color:#efff00!important}
+html.dark:has(.orders-page) .orders-page button[class~="dark:bg-[#EFFF00]/5"]{background:#2c2b28!important;border-color:#3a3833!important}
+html.dark:has(.orders-page) .orders-page button[class~="dark:bg-[#EFFF00]/5"] svg{color:#efff00!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class*="rounded-xl"][class~="dark:bg-[rgba(239,255,0,0.1)]"]{background:#2d2c29!important;color:#efff00!important;border:1px solid #3a3833!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface button[class*="w-10"][class*="h-10"][class~="dark:bg-yellow-500/10"]{background:#2d2c29!important;color:#efff00!important;border:1px solid rgba(239,255,0,.35)!important}
+/* --- i30 --- */
+/* i30: R24 fixes */
+/* selected filter + date cell: tint recipe (solid yellow only for actions) */
+html.dark:has(.orders-page) button.rounded-full.snap-start.bg-primary:not(#a):not(#b):not(#c){background:rgba(239,255,0,.12)!important;color:#efff00!important;border:1px solid rgba(239,255,0,.4)!important;box-shadow:none!important;transform:none!important}
+html.dark:has(.orders-page) button.rounded-full.snap-start.bg-primary:not(#a):not(#b):not(#c) span:last-child{background:rgba(239,255,0,.18)!important;color:#efff00!important}
+html.dark:has(.orders-page) button.h-9.w-9.rounded-xl[class*="from-lime-400"]:not(#a):not(#b){background:rgba(239,255,0,.12)!important;color:#efff00!important;box-shadow:inset 0 0 0 1px rgba(239,255,0,.4)!important}
+/* Returns: neutral secondary */
+html.dark:has(.orders-page) button.rounded-xl.bg-orange-500.font-bold:not(#a):not(#b):not(#c){background:#242320!important;color:#f0eee9!important;border:1px solid #3a3833!important;box-shadow:none!important}
+html.dark:has(.orders-page) button.rounded-xl.bg-orange-500.font-bold:not(#a):not(#b):not(#c) svg{color:#a8a59e!important}
+/* selected cards follow the selected rule */
+html.dark:has(.orders-page) .orders-card-surface:has(input[type=checkbox]:checked):not(#a):not(#b):not(#c){border:1px solid rgba(239,255,0,.35)!important;background:color-mix(in srgb,#242320 96%,#efff00)!important}
+/* order window: grey until active */
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"]:not(.ring-2):not(#a):not(#b):not(#c),html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"]:not(.ring-2):not(#a):not(#b):not(#c) svg{color:#a8a49c!important}
+html.dark:has(.orders-page) [role=dialog] button.w-7.h-7.rounded-lg:not([class*="bg-[var(--ink)]"]):not(#a):not(#b){background:transparent!important;color:#8f8d86!important}
+html.dark:has(.orders-page) [role=dialog] button.w-7.h-7.rounded-lg:not([class*="bg-[var(--ink)]"]) svg{color:#8f8d86!important}
+/* badges: hide empty dots */
+html.dark:has(.orders-page) .orders-card-surface button span.absolute:empty{display:none!important}
+/* stock bar at status-tint lightness */
+html.dark:has(.orders-page) [role=dialog] .h-2\.5.rounded-full > .bg-emerald-500:not(#a){background:#5f9a6c!important}
+html.dark:has(.orders-page) [role=dialog] .h-2\.5.rounded-full > .bg-red-500:not(#a){background:#b0645d!important}
+html.dark:has(.orders-page) [role=dialog] .h-2\.5.rounded-full > .bg-amber-400:not(#a){background:#ad9058!important}
+/* --- i31 --- */
+/* i31: code-level fixes mocked */
+/* fixed card columns so product, address, price, actions line up on every row */
+html.dark:has(.orders-page) .orders-card-surface div.space-y-1.flex-shrink-0[class*="min-w-[160px]"]{width:290px!important;flex:0 0 290px!important}
+html.dark:has(.orders-page) .orders-card-surface div.text-right.flex-shrink-0[class*="min-w-[100px]"]{width:170px!important;flex:0 0 170px!important}
+html.dark:has(.orders-page) .orders-card-surface div.flex-shrink-0.justify-end[class*="md:min-w-[280px]"]:not(#a):not(#b){width:410px!important;flex:0 0 410px!important;min-width:410px!important;overflow:hidden}
+/* 12px minimum for meta text */
+html.dark:has(.orders-page) .orders-page [class*="text-[10px]"],html.dark:has(.orders-page) .orders-page [class*="text-[11px]"],html.dark:has(.orders-page) .orders-page [class*="text-[9px]"]:not(.absolute),html.dark:has(.orders-page) [role=dialog] [class*="text-[10px]"],html.dark:has(.orders-page) [role=dialog] [class*="text-[11px]"]{font-size:12px!important}
+html.dark:has(.orders-page) .orders-card-surface .text-xs{font-size:12.5px!important}
+/* header KPIs: neutral numbers, tint only on the warning */
+html.dark:has(.orders-page) span.font-mono.tabular-nums[class*="dark:text-emerald-400"]:not(#a){color:#f0eee9!important}
+html.dark:has(.orders-page) span.font-mono.tabular-nums[class*="dark:text-red-400"]:not(#a){color:#eb827b!important}
+/* stock tiles neutral, colour in the number only */
+html.dark:has(.orders-page) [role=dialog] [class*="rounded-xl"][class*="border"]:is([class*="emerald"],[class*="red"]):not(button):not(#a):not(#b){background:#242320!important;border-color:#34322e!important}
+/* every toggle uses the selected recipe */
+html.dark:has(.orders-page) [role=dialog] button.rounded-full[class*="bg-foreground"]:not(#a):not(#b),html.dark:has(.orders-page) [role=dialog] button.rounded-full[class*="bg-[var(--ink)]"]:not(#a){background:rgba(239,255,0,.12)!important;color:#efff00!important;box-shadow:inset 0 0 0 1px rgba(239,255,0,.4)!important}
+html.dark:has(.orders-page) [role=dialog] button.w-7.h-7.rounded-lg[class*="bg-[var(--ink)]"]:not(#a):not(#b){background:rgba(239,255,0,.12)!important;color:#efff00!important;box-shadow:inset 0 0 0 1px rgba(239,255,0,.4)!important}
+html.dark:has(.orders-page) [role=dialog] button.w-7.h-7.rounded-lg[class*="bg-[var(--ink)]"] svg{color:#efff00!important}
+/* selected cards: crisp hairline, no olive wash */
+html.dark:has(.orders-page) .orders-card-surface:has(input[type=checkbox]:checked):not(#a):not(#b):not(#c):not(#d){background:#242320!important;border:1px solid rgba(239,255,0,.6)!important}
+/* order window close: neutral */
+html.dark:has(.orders-page) [role=dialog] button[class*="bg-red"][class*="rounded"]:has(svg[class*="lucide-x"]):not(#a){background:#2d2c29!important;color:#d9d6cf!important;border-color:#3a3833!important}
+html.dark:has(.orders-page) [role=dialog] button[class*="bg-red"]:has(svg[class*="lucide-x"]) svg{color:#d9d6cf!important}
+/* table: no heavy header dividers */
+html.dark:has(.orders-page) [role=columnheader]{border-inline-color:transparent!important;box-shadow:none!important}
+/* grid view: compact icon actions instead of slabs */
+html.dark:has(.orders-page) button.flex-1.h-7:not(#a):not(#b){flex:0 0 40px!important;height:32px!important}
+html.dark:has(.orders-page) button.flex-1.h-7:first-of-type{margin-inline-start:auto}
+html.dark:has(.orders-page) .orders-card-surface div.justify-end[class*="md:min-w-[280px]"] > *{flex-shrink:0}
+html.dark:has(.orders-page) .orders-card-surface div.text-right.flex-shrink-0 [class*="rounded-full"]{white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+html.dark:has(.orders-page) button.rounded-full.text-xs[class*="bg-(--ink)"]:not(#a){background:rgba(239,255,0,.12)!important;color:#efff00!important;box-shadow:inset 0 0 0 1px rgba(239,255,0,.4)!important}
+html.dark:has(.orders-page) .orders-card-surface div.flex-1.min-w-0.space-y-2 .text-sm > div{white-space:nowrap}
+html.dark:has(.orders-page) .orders-card-surface div.flex-1.min-w-0.space-y-2 .text-sm > div.flex-1{overflow:hidden;text-overflow:ellipsis}
+html.dark:has(.orders-page) .orders-card-surface div.space-y-1.flex-shrink-0 span{white-space:nowrap}
+html.dark:has(.orders-page) .orders-card-surface div.space-y-1.flex-shrink-0 > div:first-child{flex-wrap:nowrap;overflow:hidden}
+html.dark:has(.orders-page) .orders-card-surface div.space-y-1.flex-shrink-0 > div:first-child > *{flex-shrink:0}
+html.dark:has(.orders-page) .orders-card-surface div.space-y-1.flex-shrink-0 > div:first-child > span:last-child{flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* --- i33 --- */
+/* i33: R26 fixes */
+/* export/Prime toggle on: selected recipe, not blue */
+html.dark:has(.orders-page) .orders-toolbar-group button.p-2\.5.rounded-xl.bg-slate-800:not(#a):not(#b){background:rgba(239,255,0,.12)!important;color:#efff00!important;box-shadow:inset 0 0 0 1px rgba(239,255,0,.4)!important}
+html.dark:has(.orders-page) .orders-toolbar-group button.p-2\.5.rounded-xl.bg-slate-800 svg{color:#efff00!important}
+/* checkboxes: tint fill + yellow tick, not a solid neon block */
+html.dark:has(.orders-page) input[type=checkbox]{appearance:none;-webkit-appearance:none;width:16px;height:16px;border-radius:4px;border:1px solid #55534d;background:#1b1a18;display:inline-grid;place-content:center;cursor:pointer}
+html.dark:has(.orders-page) input[type=checkbox]:checked{background:rgba(239,255,0,.14) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23efff00' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/12px no-repeat;border-color:rgba(239,255,0,.6)}
+/* bell status chips = card pill tints */
+html.dark:has(.orders-page) div[class*="group/row"] .rounded-full.shadow-sm.bg-blue-200:not(#a){background:rgba(163,176,236,.14)!important;color:#a3b0ec!important;box-shadow:none!important}
+html.dark:has(.orders-page) div[class*="group/row"] .rounded-full.shadow-sm[class*="pastel-mint"]:not(#a){background:rgba(127,198,217,.14)!important;color:#7fc6d9!important;box-shadow:none!important}
+html.dark:has(.orders-page) div[class*="group/row"] .absolute.w-2.h-2.rounded-full.bg-primary{background:#a8a59e!important;top:22px!important;transform:none!important}
+html.dark:has(.orders-page) div[class*="group/row"] div.w-5.h-5.rounded-full{background:#2d2c29!important;border-color:#3a3833!important;color:#a8a59e!important}
+/* time chip: bot/user icon neutral, fixed slot so actions sit at the same x */
+html.dark:has(.orders-page) .orders-card-surface div.rounded-xl.border[class*="bg-[var(--background)]"].text-muted:not(#a){background:transparent!important;border-color:transparent!important;box-shadow:none!important}
+html.dark:has(.orders-page) .orders-card-surface div.rounded-xl.border[class*="bg-[var(--background)]"].text-muted svg,html.dark:has(.orders-page) .orders-card-surface div.rounded-xl.border[class*="bg-[var(--background)]"].text-muted img{filter:grayscale(1) brightness(.8)}
+/* one order id, plain; short ref as quiet text */
+html.dark:has(.orders-page) .orders-card-surface span.rounded-md.border.text-sm.font-bold[class*="bg-[var(--background)]"]:not(#a):not(#b):not(#c){background:transparent!important;border-color:transparent!important;padding-inline:0!important;color:#f0eee9!important}
+html.dark:has(.orders-page) .orders-card-surface span.px-1\.5.rounded.bg-emerald-100.text-emerald-700:not(#a):not(#b):not(#c){background:transparent!important;color:#8f8d86!important;padding-inline:2px!important}
+/* edit window: add-WhatsApp link quiet */
+html.dark:has(.orders-page) [role=dialog] [class*="border-dashed"]:not(#a){color:#a8a59e!important;border-color:#3a3833!important}
+html.dark:has(.orders-page) [role=dialog] [class*="border-dashed"] *{color:#a8a59e!important}
+/* --- i34 --- */
+/* i34: R27 fixes */
+/* one order ID per card (short store ref hidden on cards; stays in table and order window) — Ali call */
+/* action group: fixed slots, time label its own column */
+html.dark:has(.orders-page) .orders-card-surface div.space-y-1.flex-shrink-0[class*="min-w-[160px]"]{width:275px!important;flex:0 0 275px!important}
+html.dark:has(.orders-page) .orders-card-surface div.flex-shrink-0.justify-end[class*="md:min-w-[280px]"]:not(#a):not(#b):not(#c){width:440px!important;flex:0 0 440px!important;min-width:440px!important;background:transparent!important;border:0!important}
+html.dark:has(.orders-page) .orders-card-surface div.rounded-xl.border[class*="bg-[var(--background)]"].text-muted:not(#a):not(#b){width:118px;justify-content:flex-end;margin-inline-end:auto;flex-shrink:0}
+/* source chip: a raised chip, not a hole */
+html.dark:has(.orders-page) .orders-card-surface div.text-right.flex-shrink-0 [class*="rounded-full"]:not(#a){background:#2d2c29!important;box-shadow:inset 0 0 0 1px #3a3833!important}
+/* toolbar icon toggles: yellow icon only, no tinted tile */
+html.dark:has(.orders-page) .orders-toolbar-group button.p-2\.5.rounded-xl:not(.bg-amber-100):not(.bg-white):not(.bg-purple-100):not(#a):not(#b):not(#c){background:transparent!important;box-shadow:none!important}
+/* order window: current status in yellow text */
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"].ring-2:not(#a):not(#b):not(#c),html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"].ring-2 svg{color:#efff00!important}
+html.dark:has(.orders-page) [role=dialog] button.rounded-lg.text-xs.px-3[class*="py-1.5"].ring-2:not(#a):not(#b):not(#c){background:rgba(239,255,0,.12)!important;border-color:rgba(239,255,0,.4)!important}
+/* calendar: today = dot only */
+html.dark:has(.orders-page) button.h-9.w-9 span.absolute.rounded-full{background:#efff00!important;box-shadow:none!important}
+/* --- i35 --- */
+/* R28: table columns fit the 1288px frame so status is never clipped */
+/* table product chips: neutral body, product colour kept only as the left bracket (same as cards) */
+html.dark:has(.orders-page) [data-orders-table] .flex.flex-wrap.gap-1 > span[style*="background-color"]:not(#a){background:#2d2c29!important;color:#e8e6e1!important;border-top-color:transparent!important;border-right-color:transparent!important;border-bottom-color:transparent!important;border-left-width:2px!important}
+/* table money + micro text */
+html.dark:has(.orders-page) [data-orders-table] span.font-mono.text-blue-600:not(#a){color:#f0eee9!important}
+html.dark:has(.orders-page) [data-orders-table] [class*="text-[11px]"]:not(#a),html.dark:has(.orders-page) [data-orders-table] [class*="text-[10px]"]:not(#a){font-size:12px!important}
+html.dark:has(.orders-page) [data-orders-table] .rounded-full.w-7.h-7[class*="bg-blue-100"]:not(#a){background:#2d2c29!important;color:#cfcac2!important}
+/* card totals: off-white, not pure white */
+html.dark:has(.orders-page) .orders-card-surface div.text-right.flex-shrink-0 [class*="text-2xl"],html.dark:has(.orders-page) .orders-card-surface div.text-right.flex-shrink-0 [class*="text-xl"]{color:#f2f0ec!important}
+/* bell pills use list tokens: transit teal, delivered blue */
+html.dark:has(.orders-page) div[class*="group/row"] .rounded-full.shadow-sm.bg-blue-200:not(#a):not(#b){background:rgba(127,198,217,.14)!important;color:#7fc6d9!important}
+html.dark:has(.orders-page) div[class*="group/row"] .rounded-full.shadow-sm[class*="pastel-mint"]:not(#a):not(#b){background:rgba(163,176,236,.14)!important;color:#a3b0ec!important}
+/* selected cards: full recipe = faint tint + hairline */
+html.dark:has(.orders-page) .orders-card-surface:has(input[type=checkbox]:checked):not(#a):not(#b):not(#c):not(#d):not(#e){background:color-mix(in oklab,#efff00 5%,#1b1a18)!important;border:1px solid rgba(239,255,0,.38)!important}
+/* stock tiles: softer */
+html.dark:has(.orders-page) [role=dialog] [class*="rounded-xl"][class*="border"][class*="emerald"]:not(button):not(#z):not(#y){background:rgba(140,213,155,.07)!important;border-color:rgba(140,213,155,.18)!important}
+html.dark:has(.orders-page) [role=dialog] [class*="rounded-xl"][class*="border"][class*="red"]:not(button):not(#z):not(#y){background:rgba(235,130,123,.08)!important;border-color:rgba(235,130,123,.2)!important}
+/* --- i36 --- */
+/* R29: date column room */
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative > div:last-child span{white-space:nowrap}
+/* table status pill = card recipe: own-colour tint, no outline, no dot */
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold:not(#a):not(#b):not(#c){background:color-mix(in srgb,currentColor 14%,transparent)!important;border:0!important;box-shadow:none!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold span.rounded-full:empty{display:none!important}
+/* table checkboxes visible */
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative input[type=checkbox]:not(#a){outline:1px solid #5a5750;outline-offset:-1px;border-radius:4px}
+/* selected cards: cleaner yellow, no olive */
+html.dark:has(.orders-page) .orders-card-surface:has(input[type=checkbox]:checked):not(#a):not(#b):not(#c):not(#d):not(#e):not(#f){background:color-mix(in oklch,#efff00 3%,#1d1d1b)!important;border:1px solid rgba(239,255,0,.45)!important}
+/* grid toolbar: expand + returns match card view */
+html.dark:has(.orders-page) button.rounded-xl[class*="bg-[var(--background)]"][class*="border-[var(--card-border)]"].text-muted:not(#a){background:#2d2c29!important;border-color:#3a3833!important;color:#cfcac2!important}
+html.dark:has(.orders-page) button.rounded-xl.bg-orange-500:not(#a):not(#b):not(#c){border:1px solid #3a3833!important;box-shadow:none!important}
+/* dialog segmented / tabs: selected recipe */
+html.dark:has(.orders-page) [role=dialog] [role=tablist] [data-state=active]:not(#a),html.dark:has(.orders-page) [role=dialog] button[aria-pressed=true]:not(#a){background:rgba(239,255,0,.12)!important;color:#efff00!important;box-shadow:inset 0 0 0 1px rgba(239,255,0,.4)!important}
+/* transit: bluer teal so it never reads as confirmed green */
+/* table status: per-status pastel text on its own tint */
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-green"]:not(#a):not(#b):not(#c){color:#8cd59b!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-yellow"]:not(#a):not(#b):not(#c){color:#e2be6e!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-orange"]:not(#a):not(#b):not(#c){color:#f2ad73!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-blue"]:not(#a):not(#b):not(#c){color:#a3b0ec!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-cyan"]:not(#a):not(#b):not(#c){color:#7fc6d9!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-teal"]:not(#a):not(#b):not(#c){color:#7fc6d9!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-purple"]:not(#a):not(#b):not(#c){color:#b9a6dd!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-red"]:not(#a):not(#b):not(#c){color:#eb827b!important}
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative button.w-full.rounded-lg.font-bold[class*="pastel-pink"]:not(#a):not(#b):not(#c){color:#eb827b!important}
+/* --- i37 --- */
+/* R30: no ghost tray behind actions */
+html.dark:has(.orders-page) .orders-card-surface div.flex-shrink-0.justify-end[class*="md:min-w-[280px]"]:not(#a):not(#b):not(#c){box-shadow:none!important}
+/* product chip: product colour as an inner bar, no crescent */
+html.dark:has(.orders-page) .orders-card-surface span.rounded-lg[class*="border-l-[3px]"]:not(#a):not(#b):not(#c):not(#d){background:#2d2c29!important;background-image:none!important;border-radius:2px 8px 8px 2px!important}
+html.dark:has(.orders-page) [data-orders-table] .flex.flex-wrap.gap-1 > span[style*="background-color"]:not(#a):not(#b){border-radius:6px!important}
+/* table checkbox: real 16px square */
+html.dark:has(.orders-page) div.grid.items-center.overflow-hidden.group.relative input[type=checkbox]:not(#a):not(#b),html.dark:has(.orders-page) [data-orders-table] > div:first-child input[type=checkbox]:not(#a){width:16px!important;height:16px!important;min-width:16px!important;flex:none!important;aspect-ratio:1}
+/* menus lift above cards */
+html.dark:has(.orders-page) [role=menu]:not(#a):not(#b){background:#2d2c29!important;border:1px solid rgba(255,255,255,.08)!important;box-shadow:0 12px 32px -8px rgba(0,0,0,.6),0 0 0 1px rgba(0,0,0,.4)!important}
+/* date: selected day needs no extra today dot */
+html.dark:has(.orders-page) [aria-selected=true] .rounded-full:empty,html.dark:has(.orders-page) button[aria-selected=true]::after{display:none!important}
+/* table header dividers: none */
+html.dark:has(.orders-page) [data-orders-table] > div:first-child > div:not(#a){border-right-color:transparent!important;border-left-color:transparent!important}
+/* --- i38 --- */
+/* R31: row actions: neutral outline, colour on the icon only */
+html.dark:has(.orders-page) .orders-card-surface div[class*="md:min-w-[280px]"] button:not(#a):not(#b):not(#c){border-color:#3a3833!important}
+/* edit window header buttons: outlined, never solid white */
+html.dark:has(.orders-page) [role=dialog] button.rounded-full:is([class*="bg-white"],[class*="bg-foreground"],[class*="bg-(--ink)"],[class*="bg-gray-900"]):not(#a):not(#b){background:transparent!important;border:1px solid #3a3833!important;color:#eb827b!important}
+/* stock tiles: lighter still */
+html.dark:has(.orders-page) [role=dialog] [class*="rounded-xl"][class*="border"][class*="emerald"]:not(button):not(#z):not(#y):not(#x){background:color-mix(in oklab,#8cd59b 6%,#242320)!important;border-color:color-mix(in oklab,#8cd59b 20%,transparent)!important}
+html.dark:has(.orders-page) [role=dialog] [class*="rounded-xl"][class*="border"][class*="red"]:not(button):not(#z):not(#y):not(#x){background:color-mix(in oklab,#eb827b 6%,#242320)!important;border-color:color-mix(in oklab,#eb827b 22%,transparent)!important}
+/* table header: one line */
+html.dark:has(.orders-page) [data-orders-table] > div:first-child *{white-space:nowrap}
+html.dark:has(.orders-page) [role=dialog] button.w-7.h-7.rounded-full.bg-gray-100:not(#a):not(#b){background:transparent!important;border:1px solid #3a3833!important;color:#eb827b!important}
+/* --- i4 --- */
+/* i4 statuses as calm tints, equal-lightness palette (OKLCH L≈.80 C≈.10) */
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"]{background:rgba(255,255,255,.05)!important;color:#c9c7c0!important;border-color:transparent!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-green"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-emerald"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-teal"]{background:rgba(140,213,155,.12)!important;color:#8cd59b!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-rose"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-red"]{background:rgba(235,130,123,.14)!important;color:#f0a39d!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-orange"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-amber"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-yellow"]{background:rgba(226,190,110,.12)!important;color:#e2be6e!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-blue"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-cyan"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-indigo"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-purple"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-violet"]{background:rgba(127,198,217,.12)!important;color:#7fc6d9!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-gray"],html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="inline-flex"][class*="h-6"][class*="text-slate"]{background:rgba(255,255,255,.05)!important;color:#a3a19a!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="bg-[var(--pastel-yellow)]"][class*="text-[#4A3500]"]{background:rgba(255,255,255,.06)!important;color:#d6d4cc!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="bg-emerald-"][class*="text-"]:not(button),html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="bg-green-100"]{background:rgba(140,213,155,.12)!important;color:#8cd59b!important;box-shadow:none!important}
+html.dark:has(.orders-page) [class~="dark:text-[#00E5FF]"]{color:#c9c7c0!important;background:rgba(255,255,255,.04)!important;border-color:rgba(255,255,255,.08)!important}
+html.dark:has(.orders-page) [class~="dark:text-[#00FFAA]"],html.dark:has(.orders-page) [class~="dark:text-[#66FFAA]"]{color:#8cd59b!important}
+html.dark:has(.orders-page) [class~="dark:bg-[rgba(0,255,100,0.15)]"]{background:rgba(140,213,155,.12)!important}
+html.dark:has(.orders-page) .orders-page .orders-card-surface [class*="bg-amber-50"][class*="border-amber-200"]{background:rgba(232,180,100,.08)!important;border-color:rgba(232,180,100,.2)!important;color:#e6c487!important}
+/* status tabs: urgent keep red, the rest neutral */
+html.dark:has(.orders-page) button[class*="bg-[#E5484D]"]{background:rgba(235,130,123,.16)!important;color:#f3aaa4!important;border-color:rgba(235,130,123,.35)!important}
+html.dark:has(.orders-page) button[class~="dark:bg-rose-500/15"]{background:rgba(230,148,187,.10)!important;color:#ebb0cb!important;border-color:rgba(230,148,187,.22)!important}
+html.dark:has(.orders-page) button[class*="ring-emerald-400/50"]{--tw-ring-color:rgba(140,213,155,.35)!important;box-shadow:none!important}
+html.dark:has(.orders-page) [class~="dark:hover:border-[rgba(0,255,255,0.4)]"]:hover{border-color:rgba(255,255,255,.2)!important}
+html.dark:has(.orders-page) .orders-page input[type="text"]:focus{border-color:rgba(239,255,0,.45)!important;box-shadow:0 0 0 3px rgba(239,255,0,.10)!important}
+html.dark:has(.orders-page) .orders-page .orders-search-panel:focus-within svg{color:#efff00}
+/* --- i5 --- */
+/* i5 thinner, calmer status stripe (same meaning per status) */
+html.dark:has(.orders-page) .orders-card-surface>[class*="w-2"][class*="flex-shrink-0"],html.dark:has(.orders-page) .orders-card-surface>[class*="w-3"][class*="flex-shrink-0"]{width:4px!important;margin:16px 0;border-radius:0 4px 4px 0}
+html.dark:has(.orders-page) [class~="dark:bg-[#FF6A00]"]{background:#f2ad73!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#EFFF00]"]{background:#e2be6e!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#39FF14]"]{background:#8cd59b!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#00FFAA]"]{background:#7fc6d9!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#00E5FF]"]{background:#a3b0ec!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#B800FF]"]{background:#b9a6dd!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#FF007F]"]{background:#e694bb!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#FF3333]"]{background:#eb827b!important}
+html.dark:has(.orders-page) [class~="dark:bg-[#FF8C69]"]{background:#e39a78!important}
+/* kill the blurred neon glow drawn outside each card's left edge */
+html.dark:has(.orders-page) .orders-page [class*="blur-md"][class*="-left-1"]{display:none!important}
+/* --- i6 --- */
+/* i6 selected tab: one style, solid yellow + dark text, no glow, no scale */
+html.dark:has(.orders-page) .orders-page button[class*="bg-primary"][class*="border-primary"]{background:#efff00!important;color:#14140a!important;border-color:#efff00!important;box-shadow:none!important;transform:none!important}
+html.dark:has(.orders-page) .orders-page button[class*="bg-primary"][class*="border-primary"] span:last-child{background:rgba(20,20,10,.14)!important;color:#14140a!important}
+/* --- i7 --- */
+/* i7 group labels neutral */
+html.dark:has(.orders-page) .orders-page .orders-toolbar-group>span{color:#8f8d86!important;letter-spacing:.02em}
+html.dark:has(.orders-page) .orders-page .orders-toolbar-divider{background:rgba(255,255,255,.08)!important}
