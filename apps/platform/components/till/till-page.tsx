@@ -123,10 +123,11 @@ export function TillPage() {
             const subtotal = subtotalOf(cart);
             return {
                 shopName,
-                lines: cart.map((l) => ({ name: l.name, variant: l.variant_name, quantity: l.quantity, price: l.price, image: l.image_url })),
+                lines: cart.map((l) => ({ name: l.name, variant: l.variant_name, quantity: l.quantity, price: l.price, listPrice: l.list_price, image: l.image_url })),
                 subtotal,
                 discount,
                 total: Math.max(0, subtotal - discount),
+                saved: discount + cart.reduce((s, l) => s + Math.max(0, l.list_price - l.price) * l.quantity, 0),
             };
         };
         if (view === "done" && done) return { view: "done", ...saleOf(done.cart, done.receipt.discount), total: done.receipt.total, change: done.receipt.change };
@@ -719,7 +720,7 @@ function ClockChip({ clock, chip }: { clock: NonNullable<Parameters<typeof TillF
             aria-live="polite"
         >
             <Clock3 className="h-4 w-4" aria-hidden="true" />
-            <span className="tabular-nums" dir="auto">{confirming ? t("till.clock.confirmOut") : t("till.clock.since", { time: since })}</span>
+            <span className="whitespace-nowrap tabular-nums" dir="auto">{confirming ? t("till.clock.confirmOut") : t("till.clock.since", { time: since })}</span>
         </button>
     );
 }

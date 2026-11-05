@@ -276,7 +276,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 clear();
                                 setMethod(method === "cash" ? "card" : "cash");
                             }}
-                            className="h-16 shrink-0 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-5 text-base font-semibold text-foreground"
+                            className="h-16 min-w-0 flex-1 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-base font-semibold leading-tight text-foreground"
                         >
                             {t("till.pay.splitOff", { amount: formatIqd(partAmount), method: t(`till.pay.method.${method}`) })}
                         </button>

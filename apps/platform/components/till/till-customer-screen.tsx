@@ -79,7 +79,10 @@ export function TillCustomerScreen() {
                                 {l.quantity} × {formatIqd(l.price)}
                             </span>
                         </span>
-                        <span className="shrink-0 text-2xl font-bold tabular-nums">{formatIqd(l.price * l.quantity)}</span>
+                        <span className="flex shrink-0 flex-col items-end">
+                            {l.listPrice > l.price && <span className="text-lg tabular-nums text-[#1E1E1E]/50 line-through dark:text-white/50">{formatIqd(l.listPrice * l.quantity)}</span>}
+                            <span className="text-2xl font-bold tabular-nums">{formatIqd(l.price * l.quantity)}</span>
+                        </span>
                     </li>
                 ))}
                 {state.discount > 0 && (
@@ -101,7 +104,7 @@ export function TillCustomerScreen() {
 
                 {state.view === "cart" ? (
                     <div className="mt-auto flex flex-col gap-3">
-                        {state.discount > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.discount) })} />}
+                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
                         <p className="text-xl text-white/60" dir="auto">{t("till.customer.total")}</p>
                         <p className="text-8xl font-bold tabular-nums tracking-tight">{formatIqd(state.total)}</p>
                         <p className="text-lg text-white/60" dir="auto">{t("till.customer.iqd")}</p>
@@ -133,7 +136,7 @@ export function TillCustomerScreen() {
                     <div className="my-auto flex flex-col items-center gap-6 text-center">
                         <p className="text-6xl font-bold" dir="auto">{t("till.customer.thanks")}</p>
                         {state.change > 0 && <Change label={t("till.customer.change")} value={formatIqd(state.change)} />}
-                        {state.discount > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.discount) })} />}
+                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
                     </div>
                 )}
             </aside>

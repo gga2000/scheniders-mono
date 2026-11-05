@@ -13,6 +13,8 @@ const line = z.object({
     variant: z.string().nullable(),
     quantity: z.number(),
     price: z.number(),
+    /** The shelf price before a cashier price cut; equal to price when there was none. */
+    listPrice: z.number(),
     image: z.string().nullable(),
 });
 
@@ -23,6 +25,8 @@ const sale = {
     subtotal: z.number(),
     discount: z.number(),
     total: z.number(),
+    /** Everything the customer saved: price cuts on lines plus the sale discount. */
+    saved: z.number(),
 };
 
 export const displayStateSchema = z.discriminatedUnion("view", [
