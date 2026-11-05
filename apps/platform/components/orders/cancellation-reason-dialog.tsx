@@ -2,7 +2,8 @@
 
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { X, XCircle, PackageX, MessageSquare, Pencil, Check, Truck } from "lucide-react";
+import { X, XCircle, PackageX, MessageSquare, Pencil, Check, Truck, ShieldCheck } from "lucide-react";
+import { Switch } from "@scheniders/ui/switch";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { usePermission } from "@/hooks/use-permission";
@@ -14,8 +15,12 @@ import { reasonUsageCount, reasonColorDot, isFallbackReason } from "@/lib/order-
 interface CancellationReasonDialogProps {
     open: boolean;
     onClose: () => void;
-    /** reasonId is the stable order_reasons.id when available (omitted for free-text/fallback). */
-    onConfirm: (reason: string, reasonId?: string) => void;
+    /**
+     * reasonId is the stable order_reasons.id when available (omitted for
+     * free-text/fallback). ourFault: staff marked it the store's or courier's
+     * fault, so the customer loses no Shield Trust points.
+     */
+    onConfirm: (reason: string, reasonId: string | undefined, ourFault: boolean) => void;
     customerName?: string;
     orderId?: string;
     type?: "cancel" | "reject";
@@ -42,6 +47,7 @@ export function CancellationReasonDialog({
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [customReason, setCustomReason] = useState("");
     const [editMode, setEditMode] = useState(false);
+    const [ourFault, setOurFault] = useState(false);
 
     const activeReasons = useMemo(() => allReasons.filter((r) => r.is_active), [allReasons]);
     const selected = activeReasons.find((r) => r.id === selectedId) || null;
@@ -88,6 +94,7 @@ export function CancellationReasonDialog({
         setSelectedId(null);
         setCustomReason("");
         setEditMode(false);
+        setOurFault(false);
         onClose();
     };
 
@@ -96,7 +103,7 @@ export function CancellationReasonDialog({
         const reason = needsNote ? customReason.trim() : selected.label_ar;
         if (!reason) return;
         const reasonId = isFallbackReason(selected) ? undefined : selected.id;
-        onConfirm(reason, reasonId);
+        onConfirm(reason, reasonId, ourFault);
         handleClose();
     };
 
@@ -404,6 +411,36 @@ export function CancellationReasonDialog({
                             </>
                         )}
                     </div>
+
+                    {/* Shield: the store's or courier's fault costs the customer no Trust points */}
+                    {!editMode && (
+                        <label
+                            data-shield-our-fault
+                            className={cn(
+                                "mx-5 mb-3.5 flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-3.5 py-3 transition-colors",
+                                ourFault
+                                    ? "border-emerald-300 bg-emerald-50 dark:border-emerald-500/40 dark:bg-emerald-500/10"
+                                    : "border-[var(--card-border)] bg-[var(--background)]",
+                            )}
+                        >
+                            <span className="flex min-w-0 items-start gap-2.5">
+                                <span
+                                    aria-hidden="true"
+                                    className={cn(
+                                        "grid h-8 w-8 shrink-0 place-items-center rounded-lg",
+                                        ourFault ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300" : "bg-muted/40 text-muted",
+                                    )}
+                                >
+                                    <ShieldCheck className="h-4 w-4" />
+                                </span>
+                                <span className="min-w-0">
+                                    <span className="block text-[13px] font-bold text-foreground">{t("shield.excuse.switch")}</span>
+                                    <span className="mt-0.5 block text-xs text-muted">{t("shield.excuse.switchHint")}</span>
+                                </span>
+                            </span>
+                            <Switch checked={ourFault} onCheckedChange={setOurFault} aria-label={t("shield.excuse.switch")} />
+                        </label>
+                    )}
 
                     {/* Footer */}
                     {!editMode && (

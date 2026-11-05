@@ -9,6 +9,7 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import type { OrderCheck, ShieldBand, Trust } from "@/lib/shield/trust";
 import type { ShieldNetwork, TrustStep } from "@/lib/shield/types";
 import { ShieldNetworkRecord } from "./shield-network-record";
+import { ShieldExcuseList } from "./shield-excuse-list";
 import { CHECK_TONE, SHIELD_TONE } from "./shield-tone";
 
 interface Props {
@@ -119,6 +120,8 @@ export function ShieldReviewDialog({ open, onOpenChange, customerName, phone, or
                             <OwnPanel steps={trust.steps} />
                             <NetworkPanel network={network} failed={networkFailed} />
                         </div>
+
+                        <ShieldExcuseList phone={phone} open={open} />
 
                         {hasNetwork && (
                             <section className="grid gap-5 rounded-2xl border border-(--card-border) px-5 py-5">
