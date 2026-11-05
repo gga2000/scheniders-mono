@@ -22,7 +22,8 @@ const OPEN_STATUSES: Order["status"][] = ["confirmed", "in_transit"];
 /** Shipments older than this are left alone (lost causes are a person's job). */
 const LOOKBACK_DAYS = 60;
 /** Shown as who changed the order's status. */
-export const PRIME_ACTOR = "Prime";
+import { PRIME_ACTOR } from "./actor";
+export { PRIME_ACTOR };
 
 type TrackedRow = {
     id: string;

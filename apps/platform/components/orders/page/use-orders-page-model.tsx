@@ -669,6 +669,11 @@ export function useOrdersPageModel() {
     // Toolbar callbacks.
     const openScanner = useCallback(() => setIsScannerOpen(true), []);
     const openReturns = useCallback(() => setIsReturnsOpen(true), []);
+    // A card's «وصل؟ استلمه» (the «راجع» list) opens the returns desk; the desk takes the parcel in.
+    const returnIntakeRequest = useOrderStore(s => s.returnIntakeRequest);
+    useEffect(() => {
+        if (returnIntakeRequest) setIsReturnsOpen(true);
+    }, [returnIntakeRequest]);
     const openCreateModal = useCallback(() => setIsCreateModalOpen(true), [setIsCreateModalOpen]);
 
     // Card callbacks, stable so a page re-render does not re-render every card.

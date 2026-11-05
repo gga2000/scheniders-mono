@@ -122,3 +122,17 @@ describe("due-today filter chip", () => {
         expect(screen.getByRole("button", { name: "مجدولة اليوم" })).toBeTruthy();
     });
 });
+
+describe("Prime queue chips slot", () => {
+    it("sits right after «متروكة», and a status chip turns a Prime queue off", async () => {
+        const { useOrderStore } = await import("@/store/use-order-store");
+        useOrderStore.getState().setPrimeQueue("fix");
+        renderBar({ afterAbandonedChips: <span data-testid="queue-slot" /> });
+        const abandoned = document.querySelector('[data-chip="pending_checkout"]');
+        expect(abandoned?.nextElementSibling?.getAttribute("data-testid")).toBe("queue-slot");
+        // While a queue is on no status chip reads as chosen.
+        expect(document.querySelector('[data-chip="all"]')?.className).not.toContain("bg-primary");
+        fireEvent.click(document.querySelector('[data-chip="new"]') as HTMLElement);
+        expect(useOrderStore.getState().primeQueue).toBeNull();
+    });
+});

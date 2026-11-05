@@ -13,6 +13,7 @@ import { PriorityBadge } from "./priority-badge";
 import { SourceBadge } from "./source-badge";
 import { StuckTransitBadge } from "./stuck-transit-badge";
 import { PrimeChip } from "./prime-chip";
+import { DeliveredByChip } from "./delivered-by-chip";
 import { DeliverySlotChip } from "./delivery-slot-chip";
 import { GiftChip } from "./gift-chip";
 import { TakeChip } from "./take-chip";
@@ -261,6 +262,7 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                     </CardStatusMenu>
 
                     <StuckTransitBadge order={order} />
+                    <DeliveredByChip order={order} />
                     <PrimeChip order={order} />
                     {onToggleReviewed && <PaymentCheckButton order={order} onToggle={onToggleReviewed} />}
 
