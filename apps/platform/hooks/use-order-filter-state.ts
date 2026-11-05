@@ -81,7 +81,11 @@ export function useOrderFilterState() {
     // the user is known: the write would land under the anonymous key.
     const userIdRef = useRef(userId);
     userIdRef.current = userId;
+    const setPrimeQueue = useOrderStore(s => s.setPrimeQueue);
     const setFilters = useCallback((newFilters: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => {
+        // A Prime queue («معالجة» / «راجع») is a view across every date; picking
+        // any filter leaves it, so every chip count is the list its click opens.
+        setPrimeQueue(null);
         setFiltersState(prev => {
             const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
             if (userIdRef.current) {
@@ -93,7 +97,7 @@ export function useOrderFilterState() {
             }
             return updated;
         });
-    }, [setPreference]);
+    }, [setPreference, setPrimeQueue]);
 
     const clearFilters = useCallback(() => setFilters({ status: "all" }), [setFilters]);
 
