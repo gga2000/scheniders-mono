@@ -54,10 +54,10 @@ function PrimeQueueBandFor({ m }: { m: OrderCardModel }) {
                     : "border-[#F2C9C4] bg-[#FFF7F6] dark:border-rose-400/20 dark:bg-rose-500/[0.05]",
             )}
         >
-            <div dir={dir} className="px-4 pb-1 pl-6 pt-3">
+            <div dir={dir} className="px-4 pl-6 pt-2">
                 <PrimeQueueFacts entry={entry} />
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-2.5 pl-6 pr-4">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-2 pl-6 pr-4">
                 <div dir={dir} className="min-w-0 text-left">
                     {handled ? (
                         <span data-problem-handled className="flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-[#165C39] dark:text-emerald-300">
