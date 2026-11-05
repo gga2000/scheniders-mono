@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inDangerRange, snapDanger } from "./danger";
+import { dangerBandOf, dangerCounts, inDangerRange, snapDanger } from "./danger";
 
 const o = (id: string, status = "new", is_return = false) => ({ id, status, is_return }) as Parameters<typeof inDangerRange>[0];
 const trust = new Map([["a", 10], ["b", 49], ["c", 75]]);
@@ -25,5 +25,21 @@ describe("Shield danger slider", () => {
         expect(snapDanger(47)).toBe(45);
         expect(snapDanger(80)).toBe(80);
         expect(snapDanger(83)).toBe(100);
+    });
+});
+
+describe("Shield danger bands", () => {
+    const tr = new Map([["a", 10], ["b", 49], ["c", 50], ["d", 79]]);
+    it("under 50 high, 50-79 medium, the rest of the open orders low; closed orders none", () => {
+        expect(dangerBandOf(o("a"), tr)).toBe("red");
+        expect(dangerBandOf(o("b"), tr)).toBe("red");
+        expect(dangerBandOf(o("c"), tr)).toBe("yellow");
+        expect(dangerBandOf(o("d"), tr)).toBe("yellow");
+        expect(dangerBandOf(o("e"), tr)).toBe("green");
+        expect(dangerBandOf(o("a", "delivered"), tr)).toBeNull();
+    });
+
+    it("counts each band", () => {
+        expect(dangerCounts([o("a"), o("c"), o("d"), o("e"), o("f", "in_transit")], tr)).toEqual({ red: 1, yellow: 2, green: 1 });
     });
 });

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { DangerBand } from "@/lib/shield/danger";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { Order } from "@/types/order";
 import type { PrimeRowFilter } from "@/lib/prime/track";
@@ -35,6 +36,10 @@ interface ViewPreferencesSlice {
   primeTrackOnCards: boolean;
   /** Shield danger slider: list only open orders with Trust at or under this, riskiest first. 100 = off. Not persisted. */
   dangerMax: number;
+  /** Shield danger section (high / medium / low bar) shown above the cards. */
+  showDangerPanel: boolean;
+  /** The band picked in that section (only its orders are listed). Not persisted. */
+  dangerBand: DangerBand | null;
   /** Cards whose band the truck button flipped away from the switch; cleared when the switch moves. Not persisted. */
   primeTrackOverrides: Readonly<Record<string, boolean>>;
   showSearchBar: boolean;
@@ -50,6 +55,8 @@ interface ViewPreferencesSlice {
   setActionDock: (val: boolean) => void;
   setPrimeTrackOnCards: (val: boolean) => void;
   setDangerMax: (max: number) => void;
+  setShowDangerPanel: (val: boolean) => void;
+  setDangerBand: (band: DangerBand | null) => void;
   setPrimeTrackOverride: (orderId: string, shown: boolean) => void;
   setShowSearchBar: (val: boolean) => void;
   setAnalyticsLevel: (val: 0 | 1 | 2) => void;
@@ -221,6 +228,8 @@ export const useOrderStore = create<OrderStore>()(
       actionDock: true,
       primeTrackOnCards: true,
       dangerMax: 100,
+      showDangerPanel: false,
+      dangerBand: null,
       primeTrackOverrides: {},
       showSearchBar: true,
       analyticsLevel: 0,
@@ -233,6 +242,8 @@ export const useOrderStore = create<OrderStore>()(
       setActionDock: (val) => set({ actionDock: val }),
       setPrimeTrackOnCards: (val) => set({ primeTrackOnCards: val, primeTrackOverrides: {} }),
       setDangerMax: (max) => set({ dangerMax: max }),
+      setShowDangerPanel: (val) => set(val ? { showDangerPanel: true } : { showDangerPanel: false, dangerBand: null }),
+      setDangerBand: (band) => set({ dangerBand: band }),
       setPrimeTrackOverride: (orderId, shown) =>
         set((s) => ({ primeTrackOverrides: { ...s.primeTrackOverrides, [orderId]: shown } })),
       setShowSearchBar: (val) => set({ showSearchBar: val }),
@@ -448,6 +459,7 @@ export const useOrderStore = create<OrderStore>()(
         compactGrid: state.compactGrid,
         actionDock: state.actionDock,
         primeTrackOnCards: state.primeTrackOnCards,
+        showDangerPanel: state.showDangerPanel,
         showSearchBar: state.showSearchBar,
         analyticsLevel: state.analyticsLevel,
         toolbarCollapsed: state.toolbarCollapsed,
