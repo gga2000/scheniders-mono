@@ -43,7 +43,8 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                         <p className="text-base opacity-80">{t("till.done.gave", { total: formatIqd(receipt.total), cash: formatIqd(cashGiven) })}</p>
                         <div className="flex flex-wrap justify-center gap-2">
                             {changeInNotes(receipt.change).map(({ note, count }) => (
-                                <span key={note} className="rounded-xl px-3 py-1.5 text-base font-bold tabular-nums text-[#1E1E1E]" style={{ background: NOTE_TILES[note] }}>
+                                <span key={note} className="inline-flex items-center gap-2 rounded-xl bg-[var(--card-bg)] px-3 py-1.5 text-base font-bold tabular-nums text-foreground">
+                                    <span className="h-2 w-4 rounded-full" style={{ background: NOTE_TILES[note] }} aria-hidden="true" />
                                     {count} × {formatIqd(note)}
                                 </span>
                             ))}

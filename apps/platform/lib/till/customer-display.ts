@@ -13,23 +13,28 @@ const line = z.object({
     variant: z.string().nullable(),
     quantity: z.number(),
     price: z.number(),
+    /** The shelf price before a cashier price cut; equal to price when there was none. */
+    listPrice: z.number(),
     image: z.string().nullable(),
 });
 
+/** The sale itself, shown on the left at every step so the screen keeps one layout. */
+const sale = {
+    shopName: z.string(),
+    lines: z.array(line),
+    subtotal: z.number(),
+    discount: z.number(),
+    total: z.number(),
+    /** Everything the customer saved: price cuts on lines plus the sale discount. */
+    saved: z.number(),
+};
+
 export const displayStateSchema = z.discriminatedUnion("view", [
     z.object({ view: z.literal("idle"), shopName: z.string() }),
-    z.object({
-        view: z.literal("cart"),
-        shopName: z.string(),
-        lines: z.array(line),
-        subtotal: z.number(),
-        discount: z.number(),
-        total: z.number(),
-    }),
+    z.object({ view: z.literal("cart"), ...sale }),
     z.object({
         view: z.literal("pay"),
-        shopName: z.string(),
-        total: z.number(),
+        ...sale,
         method: z.enum(["cash", "card", "zaincash", "fib"]),
         /** What is due on this method now (the rest, or the typed part). */
         due: z.number(),
@@ -37,7 +42,7 @@ export const displayStateSchema = z.discriminatedUnion("view", [
         change: z.number(),
         qr: z.string().nullable(),
     }),
-    z.object({ view: z.literal("done"), shopName: z.string(), total: z.number(), change: z.number() }),
+    z.object({ view: z.literal("done"), ...sale, change: z.number() }),
 ]);
 export type DisplayState = z.infer<typeof displayStateSchema>;
 
