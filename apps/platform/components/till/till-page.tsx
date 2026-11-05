@@ -857,14 +857,20 @@ function TillSettings({
                 <button
                     type="button"
                     onClick={() => onPrefs({ ...prefs, sound: !prefs.sound })}
-                    aria-pressed={prefs.sound}
+                    role="switch"
+                    aria-checked={prefs.sound}
                     className="flex h-12 items-center justify-between rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
                 >
                     <span className="flex items-center gap-2">
                         {prefs.sound ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4" aria-hidden="true" />}
                         {t("till.settings.sound")}
                     </span>
-                    <span className="text-xs text-muted">{prefs.sound ? t("till.settings.on") : t("till.settings.off")}</span>
+                    <span
+                        aria-hidden="true"
+                        className={cn("flex h-7 w-12 items-center rounded-full p-1 transition-colors", prefs.sound ? "justify-end bg-[var(--ink)] dark:bg-[#EFFF00]" : "justify-start bg-[var(--card-border)]")}
+                    >
+                        <span className="h-5 w-5 rounded-full bg-white shadow-sm dark:bg-zinc-900" />
+                    </span>
                 </button>
                 {onTesters && (
                     <button

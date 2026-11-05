@@ -112,7 +112,7 @@ export function TillScentDialog({ sessionId, products, onClose }: { sessionId: s
                                                 {mine.length ? mine.map((n) => t(`till.scent.note.${n}`)).join(" · ") : t("till.scent.none")}
                                             </span>
                                         </span>
-                                        {mine.length > 0 && <span className="shrink-0 text-xs font-semibold text-muted">{expanded ? t("till.scent.done") : t("till.scent.edit")}</span>}
+                                        {mine.length > 0 && <span className={cn("flex h-10 shrink-0 items-center rounded-xl px-4 text-sm font-semibold", expanded ? INK_BUTTON : "border border-[var(--card-border)] text-foreground")}>{expanded ? t("till.scent.done") : t("till.scent.edit")}</span>}
                                     </button>
                                     {expanded && (
                                         <div className="flex flex-wrap gap-1.5 ps-14">
