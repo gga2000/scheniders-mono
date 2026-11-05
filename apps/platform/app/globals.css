@@ -2441,10 +2441,6 @@ body:has(.till-screen) .toast-card {
   border-color: var(--card-border);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
 }
-/* A row that scrolls sideways fades at both ends, so cut-off chips read as "more". */
-.till-fade-x {
-  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 28px), transparent 100%);
-}
 
 /* ============================================
    Typography Helpers

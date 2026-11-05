@@ -198,7 +198,7 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
             )}
 
             {filter === "scent" && (
-                <div className="till-fade-x -mx-5 flex gap-1.5 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]" role="toolbar" aria-label={t("till.scent.notes")}>
+                <div className="flex flex-wrap gap-1.5" role="toolbar" aria-label={t("till.scent.notes")}>
                     {liked && liked.notes.length > 0 && (
                         <NoteChip
                             on={likeId === liked.id}

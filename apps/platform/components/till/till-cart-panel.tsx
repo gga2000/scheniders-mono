@@ -273,7 +273,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             <span className="text-right text-xs text-muted" dir="auto">
                                 {limit === null
                                     ? t("till.cart.anyDiscount", { name: cashierName })
-                                    : t("till.cart.upTo", { name: cashierName, pct: discountLimitPct ?? 0, amount: formatIqd(limit) })}
+                                    : given > 0
+                                      ? t("till.cart.limitLeft", { left: formatIqd(limit - given), amount: formatIqd(limit) })
+                                      : t("till.cart.upTo", { name: cashierName, pct: discountLimitPct ?? 0, amount: formatIqd(limit) })}
                             </span>
                         )}
                     </div>

@@ -597,8 +597,8 @@ function TillFrame({
                         <button type="button" onClick={onHistory} className={chip} title={t("till.history.title")}>
                             <Receipt className="h-4 w-4" aria-hidden="true" />
                             <span className="tabular-nums">{formatIqd(today.total)}</span>
-                            <span className="text-xs font-medium tabular-nums text-white/60" dir="auto">
-                                {t("till.top.today", { n: today.count })}
+                            <span className="whitespace-nowrap text-xs font-medium tabular-nums text-white/60" dir="auto">
+                                {t("till.top.today", { n: today.count, count: today.count })}
                             </span>
                             {goal ? (
                                 <span className="rounded-full bg-[#EFFF00]/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[#EFFF00]" dir="auto">

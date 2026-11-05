@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Minus, UserRound, X } from "lucide-react";
+import { Check, Equal, Minus, UserRound, X } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import {
     addPartPayment,
@@ -169,7 +169,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                     }}
                                     className="flex min-h-24 flex-col items-start justify-between rounded-2xl border border-[var(--ink)] bg-[var(--card-bg)] p-4 text-left text-lg font-bold text-foreground transition-transform active:scale-[0.97] dark:border-white/40"
                                 >
-                                    <Check className="h-5 w-5" aria-hidden="true" />
+                                    {typed !== null && parseDinars(typed) === rest ? <Check className="h-5 w-5" aria-hidden="true" /> : <Equal className="h-5 w-5 text-muted" aria-hidden="true" />}
                                     <span className="flex flex-col">
                                         {t("till.pay.exact")}
                                         <span className="text-sm font-semibold tabular-nums text-muted">{formatIqd(rest)}</span>
