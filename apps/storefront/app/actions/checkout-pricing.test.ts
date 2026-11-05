@@ -561,13 +561,20 @@ describe("free gift", () => {
     expect(recordedOrder(fake)).toBeUndefined();
   });
 
-  it("is skipped, not failed, when the gift is Draft or out of stock", async () => {
-    for (const over of [{ status: "draft" }, { stock_quantity: 0 }]) {
+  it("is skipped, not failed, when the gift is Draft or marked out of stock", async () => {
+    for (const over of [{ status: "draft" }, { storefront_sold_out: true }]) {
       const fake = install(giftTables(over));
       const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 32500, 2)] });
       expect(res.success).toBe(true);
       expect(recordedOrder(fake)?.items).toHaveLength(1);
     }
+  });
+
+  it("is still added when its real stock count is 0 (the store keeps selling)", async () => {
+    const fake = install(giftTables({ stock_quantity: 0 }));
+    const res = await submitCheckout({ tenantId: TENANT, customer, items: [line(PERFUME, 32500, 2)] });
+    expect(res.success).toBe(true);
+    expect(recordedOrder(fake)?.items).toHaveLength(2);
   });
 
   it("follows the storefront stock the merchant set, not the real count", async () => {
