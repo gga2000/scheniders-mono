@@ -182,6 +182,11 @@ describe("primeReasonNote", () => {
         expect(primeReasonNote(view({ status: "POSTPONED", postponedTo: "الخميس" }))).toEqual({ reason: null, until: "الخميس" });
     });
 
+    it("turns Prime's reason codes into the words Prime's app shows", () => {
+        expect(primeReasonNote(view({ status: "CNCL", stepCode: "RTN_WITHAGENT", returnReason: "WILL_RCV_LATERFROMSNDR" }))?.reason).toBe("سيستلم الطلب لاحقًا");
+        expect(primeReasonNote(view({ status: "POSTPONED", postponeReason: "CLS", postponedTo: "2026-11-06 22:55:00" }))).toEqual({ reason: "الهاتف مغلق", until: "2026-11-06" });
+    });
+
     it("says nothing for a parcel on its way, or when Prime gave no reason", () => {
         expect(primeReasonNote(view({ returnReason: "قديم" }))).toBeNull();
         expect(primeReasonNote(view({ status: "FAILED_DELIVER_RETURNED_TO_SENDER" }))).toBeNull();
