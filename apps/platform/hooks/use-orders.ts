@@ -30,6 +30,8 @@ import { useLoadedOrdersWindowKey, useOrdersListSettledOnce } from "@/hooks/orde
 import { useEffect } from "react";
 import { useOrderFilterState } from "@/hooks/use-order-filter-state";
 import { useServerOrderSearch } from "@/hooks/use-server-order-search";
+import { usePrimeQueueOrders } from "@/hooks/use-prime-queues";
+import { useOrderStore } from "@/store/use-order-store";
 import { useOrdersAggregates } from "@/hooks/use-orders-aggregates";
 import { assertAggregateParity } from "@/lib/order-aggregate-parity";
 import { windowCacheKey, windowFromDateFilter } from "@/lib/order-window";
@@ -128,10 +130,15 @@ export function useOrders() {
         [listPreviewData],
     );
 
+    // The «معالجة» / «راجع» chips show their Prime queue across every date,
+    // like a search: the queue's rows replace the window's.
+    const primeQueue = useOrderStore((s) => s.primeQueue);
+    const primeQueueOrders = usePrimeQueueOrders(primeQueue, orders);
+
     // 1. Filters — filter state, presets, persistence, derived lists
     const filterHook = useOrderFilters({
         orders,
-        searchResults: orderSearch.active ? orderSearch.orders : null,
+        searchResults: orderSearch.active ? orderSearch.orders : primeQueueOrders,
         filters,
         setFilters,
         clearFilters,
