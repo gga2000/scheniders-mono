@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { usePrefetchProducts } from "@/hooks/use-products-query";
@@ -22,7 +22,6 @@ import { useLanguage } from "@/hooks/use-language";
 import { useMemo, useState, type ComponentType } from "react";
 import { canAccessRoute, filterNavSections } from "@/lib/route-permissions";
 import { NotificationCenter } from "@/components/ui/notification-center";
-import { LiquidNavPending, LiquidNavWater } from "@/components/ui/liquid-nav-water";
 import { TransitionLink } from "./transition-link";
 import {
     AnimatedDashboardIcon,
@@ -203,7 +202,11 @@ export function Sidebar({
     const isItemActive = (item: NavItem) => pathname === item.href
         || pathname.startsWith(`${item.href}/`)
         || Boolean(item.subItems && pathname.startsWith(item.href));
-    const activeHref = navSections.flatMap(section => section.items).find(isItemActive)?.href ?? null;
+    const reduceMotion = useReducedMotion();
+    // The active pill glides from the old item to the new one, then rests.
+    const activePillTransition = reduceMotion
+        ? { duration: 0 }
+        : { type: "spring" as const, stiffness: 520, damping: 42, mass: 0.8 };
 
     const renderNavItem = (item: NavItem, index: number) => {
         const isActive = isItemActive(item);
@@ -214,25 +217,31 @@ export function Sidebar({
                 <TransitionLink
                     href={item.href}
                     prefetch={true}
-                    data-liquid-key={item.href}
                     onMouseEnter={() => {
                         // Intent-based rigorous prefetching
                         if (["/products", "/finances"].includes(item.href)) prefetchProducts();
                     }}
                     className={cn(
-                        "flex items-center py-2.5 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                        "flex items-center py-2.5 rounded-2xl transition-colors duration-200 group relative isolate",
                         collapsed
                             ? "justify-center w-full"
                             : "gap-3 px-3",
                         isActive
-                            // The liquid drop marks the active item; the flat fill only
-                            // shows until the water has measured the layout.
-                            ? "text-white [[data-liquid-water=pending]_&]:bg-white/10"
+                            ? "text-white"
                             : "text-zinc-500 hover:text-white hover:bg-white/[0.03]"
                     )}
                     title={collapsed ? t(item.key) : undefined}
                 >
-                    <LiquidNavPending navKey={item.href} />
+                    {isActive && (
+                        <motion.span
+                            layoutId="sidebar-active-pill"
+                            aria-hidden="true"
+                            transition={activePillTransition}
+                            className="pointer-events-none absolute inset-0 -z-10 rounded-2xl bg-white/[0.06]"
+                        >
+                            <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[#E4B5D1]" />
+                        </motion.span>
+                    )}
                     <motion.span
                         transition={sidebarSpring}
                         className="nav-icon-shine flex-shrink-0 inline-flex items-center justify-center w-[22px] h-[22px]"
@@ -245,7 +254,7 @@ export function Sidebar({
                                     <AnimIcon
                                         className={cn(
                                             "w-[22px] h-[22px] transition-colors",
-                                            isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
+                                            isActive ? "text-[#E4B5D1]" : "text-zinc-500 group-hover:text-white"
                                         )}
                                         active={isActive || undefined}
                                     />
@@ -261,7 +270,7 @@ export function Sidebar({
                             >
                                 <item.icon className={cn(
                                     "w-[22px] h-[22px] transition-colors",
-                                    isActive ? "text-white" : "text-zinc-500 group-hover:text-white"
+                                    isActive ? "text-[#E4B5D1]" : "text-zinc-500 group-hover:text-white"
                                 )} />
                             </motion.span>
                         )}
@@ -393,10 +402,9 @@ export function Sidebar({
                 </motion.div>
 
                 {/* Navigation */}
-                {/* p-2 leaves the liquid drop room to draw its rim at the edges, top and bottom included. */}
-                <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide p-2">
+                <nav className="flex-1 space-y-0 overflow-y-auto overflow-x-hidden scrollbar-hide px-2">
                     {!profileLoaded ? navPlaceholder : (
-                        <LiquidNavWater activeKey={activeHref}>
+                        <>
                             {navSections.map((section, sectionIndex) => (
                                 <div key={section.titleKey} className={sectionIndex > 0 ? (collapsed ? "mt-2" : "mt-5") : undefined}>
                                     <motion.div
@@ -410,7 +418,7 @@ export function Sidebar({
                                     {section.items.map(item => renderNavItem(item, NAV_ITEMS.indexOf(item)))}
                                 </div>
                             ))}
-                        </LiquidNavWater>
+                        </>
                     )}
                 </nav>
 
