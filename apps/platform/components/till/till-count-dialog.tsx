@@ -111,7 +111,7 @@ export function TillCountDialog({
             },
             {
                 onSuccess: (changed) => {
-                    toast({ title: t("till.count.saved", { n: changed }), variant: "success" });
+                    toast({ title: t("till.count.saved", { n: changed, count: changed }), variant: "success" });
                     onClose();
                 },
                 onError: () => toast({ title: t("till.count.failed"), variant: "error" }),
