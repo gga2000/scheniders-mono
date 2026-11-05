@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock3, Download, HandCoins, Lock, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import * as Sentry from "@sentry/nextjs";
+import { ArrowLeft, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
@@ -20,6 +21,8 @@ import {
     useTillStoreName,
 } from "@/hooks/use-till";
 import { addToCart, commissionOf, dateLocale, formatIqd, onShelf, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { connectDrawer, drawerSupported, openDrawer } from "@/lib/till/cash-drawer";
+import type { DisplayState, PayShown } from "@/lib/till/customer-display";
 import { readPrefs, TEXT_ZOOM, writePrefs, type TextSize, type TillPrefs } from "@/lib/till/prefs";
 import { printReceipt, receiptDocument, type ReceiptData } from "@/lib/till/receipt";
 import { TillLockScreen } from "./till-lock-screen";
@@ -30,6 +33,7 @@ import { TillDoneView } from "./till-done-view";
 import { TillHistoryDialog } from "./till-history-dialog";
 import { TillPayoutDialog } from "./till-payout-dialog";
 import { newTicket, type Ticket } from "./till-ticket";
+import { useCustomerDisplay } from "./use-customer-display";
 import { cn } from "@/lib/utils";
 
 type Session = { id: string; cashier: TillMember };
@@ -93,6 +97,31 @@ export function TillPage() {
     const ticket = tickets.find((x) => x.id === activeId) ?? tickets[0];
     // Stock badges and the "left" note count what is already in this sale's cart.
     const shelf = useMemo(() => onShelf(products.data ?? [], ticket.cart), [products.data, ticket.cart]);
+
+    // The customer screen mirrors the sale: idle (logo), the cart, the amount due, then the change.
+    const [payShown, setPayShown] = useState<PayShown | null>(null);
+    const onPayShown = useCallback((p: PayShown) => setPayShown(p), []);
+    const shopName = shop?.name ?? "";
+    const displayState = useMemo((): DisplayState => {
+        if (!session) return { view: "idle", shopName };
+        if (view === "done" && done) return { view: "done", shopName, total: done.receipt.total, change: done.receipt.change };
+        const subtotal = subtotalOf(ticket.cart);
+        const total = Math.max(0, subtotal - ticket.discount);
+        if (view === "pay" && payShown) {
+            const qr = payShown.method === "fib" ? shop?.fib_qr_url : payShown.method === "zaincash" ? shop?.zaincash_qr_url : null;
+            return { view: "pay", shopName, total, method: payShown.method, due: payShown.due, given: payShown.given, change: payShown.change, qr: qr ?? null };
+        }
+        if (ticket.cart.length === 0) return { view: "idle", shopName };
+        return {
+            view: "cart",
+            shopName,
+            lines: ticket.cart.map((l) => ({ name: l.name, variant: l.variant_name, quantity: l.quantity, price: l.price, image: l.image_url })),
+            subtotal,
+            discount: ticket.discount,
+            total,
+        };
+    }, [session, view, done, ticket.cart, ticket.discount, payShown, shop, shopName]);
+    useCustomerDisplay(displayState);
 
     // Who may switch in here: the shop's staff and the managers.
     const cashiers = useMemo(
@@ -197,6 +226,16 @@ export function TillPage() {
                         customerName: ticket.customerName.trim() || null,
                     };
                     if (print) printReceipt(receiptDocument(receipt));
+                    if (prefs.drawer && payments.some((p) => p.method === "cash")) {
+                        openDrawer()
+                            .then((opened) => {
+                                if (!opened) toast({ title: t("till.drawer.notConnected"), variant: "warning" });
+                            })
+                            .catch((err: unknown) => {
+                                Sentry.captureException(err, { tags: { area: "till", op: "drawer" } });
+                                toast({ title: t("till.drawer.failed"), variant: "error" });
+                            });
+                    }
                     setDone({ receipt, phone, printed: print, cart: ticket.cart });
                     // The sold ticket leaves; held ones stay as tabs.
                     const rest = tickets.filter((x) => x.id !== ticket.id);
@@ -329,6 +368,7 @@ export function TillPage() {
                     onPrint={setPrint}
                     hasPhone={!!ticket.phone.trim() && !!normalizeIraqiMobile(ticket.phone)}
                     payQr={{ fib: shop.fib_qr_url ?? undefined, zaincash: shop.zaincash_qr_url ?? undefined }}
+                    onShown={onPayShown}
                     onBack={() => setView("sell")}
                     onComplete={complete}
                 />
@@ -561,6 +601,66 @@ function TillClock() {
     );
 }
 
+/** Opening the cash drawer on cash sales: pick the printer's port once, then test it. */
+function DrawerSetting({ prefs, onPrefs }: { prefs: TillPrefs; onPrefs: (p: TillPrefs) => void }) {
+    const { t } = useLanguage();
+    const [busy, setBusy] = useState(false);
+    if (!drawerSupported()) return <p className="text-left text-xs text-muted" dir="auto">{t("till.drawer.unsupported")}</p>;
+    const run = async (step: () => Promise<boolean>, onDone: (ok: boolean) => void) => {
+        setBusy(true);
+        try {
+            onDone(await step());
+        } catch (err: unknown) {
+            // The cashier closing the port picker is not a failure.
+            if (!(err instanceof DOMException && err.name === "NotFoundError")) {
+                Sentry.captureException(err, { tags: { area: "till", op: "drawer" } });
+                toast({ title: t("till.drawer.failed"), variant: "error" });
+            }
+        } finally {
+            setBusy(false);
+        }
+    };
+    return (
+        <div className="flex flex-col gap-2 rounded-2xl border border-[var(--card-border)] p-3">
+            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Inbox className="h-4 w-4" aria-hidden="true" />
+                {t("till.drawer.title")}
+            </span>
+            <span className="text-left text-xs text-muted" dir="auto">{prefs.drawer ? t("till.drawer.on") : t("till.drawer.hint")}</span>
+            <span className="flex gap-2">
+                {prefs.drawer ? (
+                    <>
+                        <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => run(openDrawer, (ok) => !ok && toast({ title: t("till.drawer.notConnected"), variant: "warning" }))}
+                            className="h-10 flex-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-foreground"
+                        >
+                            {t("till.drawer.test")}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onPrefs({ ...prefs, drawer: false })}
+                            className="h-10 flex-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-foreground"
+                        >
+                            {t("till.drawer.turnOff")}
+                        </button>
+                    </>
+                ) : (
+                    <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => run(connectDrawer, (ok) => ok && onPrefs({ ...prefs, drawer: true }))}
+                        className="h-10 flex-1 rounded-xl border border-[var(--card-border)] text-xs font-semibold text-foreground"
+                    >
+                        {t("till.drawer.connect")}
+                    </button>
+                )}
+            </span>
+        </div>
+    );
+}
+
 type InstallPrompt = Event & { prompt: () => Promise<void> };
 
 /** This device's till settings: text size, sound, and installing the till as an app. */
@@ -581,7 +681,7 @@ function TillSettings({ prefs, onPrefs, chip }: { prefs: TillPrefs; onPrefs: (p:
             <PopoverTrigger className={`${chip} px-3`} aria-label={t("till.settings.title")} title={t("till.settings.title")}>
                 <Settings2 className="h-4 w-4" aria-hidden="true" />
             </PopoverTrigger>
-            <PopoverContent align="end" className="flex w-72 flex-col gap-4 rounded-2xl p-4">
+            <PopoverContent align="end" className="flex w-80 flex-col gap-4 rounded-2xl border-[var(--card-border)] bg-[var(--card-bg)] p-4">
                 <div className="flex flex-col gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.settings.textSize")}</p>
                     <div className="grid grid-cols-3 gap-1 rounded-2xl bg-[var(--card-border)]/30 p-1">
@@ -611,6 +711,15 @@ function TillSettings({ prefs, onPrefs, chip }: { prefs: TillPrefs; onPrefs: (p:
                     </span>
                     <span className="text-xs text-muted">{prefs.sound ? t("till.settings.on") : t("till.settings.off")}</span>
                 </button>
+                <button
+                    type="button"
+                    onClick={() => window.open("/till/customer", "till-customer", "popup,width=1280,height=800")}
+                    className="flex h-12 items-center gap-2 rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
+                >
+                    <MonitorSmartphone className="h-4 w-4" aria-hidden="true" />
+                    {t("till.settings.customerScreen")}
+                </button>
+                <DrawerSetting prefs={prefs} onPrefs={onPrefs} />
                 {install ? (
                     <button
                         type="button"
