@@ -1,37 +1,64 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Package, ScanLine, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Flame, Package, ScanLine, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
+import type { TillOverview } from "@/hooks/use-till";
 import { findByCode, formatIqd, searchProducts, type TillProduct, type TillVariant } from "@/lib/till/cart";
+import { beep, flyToCart } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 
 interface Props {
     products: TillProduct[];
     loading: boolean;
+    /** Best sellers and the merchant's category chips; absent while it loads. */
+    overview: TillOverview | undefined;
+    sound: boolean;
     onAdd: (product: TillProduct, variant: TillVariant | null) => void;
 }
 
-type Notice = { kind: "ok" | "bad"; text: string } | null;
+type Notice = { kind: "ok" | "bad"; text: string; at: number } | null;
+/** "all", "best" or a category id. */
+type Filter = string;
 
-/** The left side of the sell screen: scan or search, and one card per product. */
-export function TillProductGrid({ products, loading, onAdd }: Props) {
+const NOTICE_MS = 2600;
+
+/** The left side of the sell screen: scan or search, chips, best sellers, and one card per product. */
+export function TillProductGrid({ products, loading, overview, sound, onAdd }: Props) {
     const { t } = useLanguage();
     const [query, setQuery] = useState("");
-    const [picking, setPicking] = useState<TillProduct | null>(null);
+    const [filter, setFilter] = useState<Filter>("all");
+    const [picking, setPicking] = useState<{ product: TillProduct; from: HTMLElement | null } | null>(null);
     const [notice, setNotice] = useState<Notice>(null);
+    const searchRef = useRef<HTMLInputElement>(null);
 
-    const add = (product: TillProduct, variant: TillVariant | null) => {
+    // The notice floats over the grid and clears itself, so the grid never jumps.
+    useEffect(() => {
+        if (!notice) return;
+        const id = window.setTimeout(() => setNotice(null), NOTICE_MS);
+        return () => window.clearTimeout(id);
+    }, [notice]);
+
+    const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+    const best = useMemo(
+        () => (overview?.best ?? []).map((id) => byId.get(id)).filter((p): p is TillProduct => !!p),
+        [overview, byId],
+    );
+    const chips = useMemo(() => overview?.chips ?? [], [overview]);
+
+    const add = (product: TillProduct, variant: TillVariant | null, from: HTMLElement | null) => {
         onAdd(product, variant);
+        if (sound) beep("ok");
+        flyToCart(from, product.image_url);
         const name = variant ? `${product.name} ${variant.name}` : product.name;
         const left = (variant ? variant.available : product.available) - 1;
-        setNotice({ kind: "ok", text: t("till.sell.added", { name, left: Math.max(0, left) }) });
+        setNotice({ kind: "ok", text: t("till.sell.added", { name, left: Math.max(0, left) }), at: Date.now() });
     };
 
-    const choose = (product: TillProduct) => {
-        if (product.variants.length > 1) setPicking(product);
-        else add(product, product.variants[0] ?? null);
+    const choose = (product: TillProduct, from: HTMLElement | null) => {
+        if (product.variants.length > 1) setPicking({ product, from });
+        else add(product, product.variants[0] ?? null, from);
     };
 
     // A barcode scanner types the code and presses Enter.
@@ -42,29 +69,43 @@ export function TillProductGrid({ products, loading, onAdd }: Props) {
         const hit = findByCode(products, code);
         if (hit) {
             setQuery("");
-            if (hit.variant || hit.product.variants.length === 0) add(hit.product, hit.variant);
-            else setPicking(hit.product);
+            if (hit.variant || hit.product.variants.length === 0) add(hit.product, hit.variant, null);
+            else setPicking({ product: hit.product, from: null });
             return;
         }
         const matches = searchProducts(products, code);
         if (matches.length === 1) {
             setQuery("");
-            choose(matches[0]);
+            choose(matches[0], null);
             return;
         }
-        if (matches.length === 0) setNotice({ kind: "bad", text: t("till.sell.unknownCode", { code }) });
+        if (matches.length === 0) {
+            if (sound) beep("bad");
+            setNotice({ kind: "bad", text: t("till.sell.unknownCode", { code }), at: Date.now() });
+        }
     };
 
+    const inFilter = useMemo(() => {
+        if (filter === "all") return products;
+        if (filter === "best") return best;
+        const chip = chips.find((c) => c.id === filter);
+        if (!chip) return products;
+        const ids = new Set(chip.product_ids);
+        return products.filter((p) => ids.has(p.id));
+    }, [filter, products, best, chips]);
+
     // Sellable products first, so the out-of-stock ones don't crowd the top of the grid.
-    const matches = searchProducts(products, query);
+    const matches = searchProducts(inFilter, query);
     const shown = [...matches.filter((p) => p.available > 0), ...matches.filter((p) => p.available <= 0)];
+    const showBestRow = filter === "all" && !query.trim() && best.length > 0;
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col gap-3 p-5">
+        <div className="relative flex min-h-0 flex-1 flex-col gap-3 p-5">
             <form onSubmit={submit}>
                 <label className="flex h-14 items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 transition-colors focus-within:border-[var(--ink)] dark:focus-within:border-[#EFFF00]">
                     <ScanLine className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
                     <input
+                        ref={searchRef}
                         // The till lives on this box: a scanner can type into it at any time.
                         autoFocus
                         value={query}
@@ -74,31 +115,42 @@ export function TillProductGrid({ products, loading, onAdd }: Props) {
                         }}
                         placeholder={t("till.sell.search")}
                         aria-label={t("till.sell.search")}
-                        className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted"
+                        className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-foreground/45"
                         dir="auto"
                     />
                     {query && (
-                        <button type="button" onClick={() => setQuery("")} aria-label={t("till.sell.clearSearch")} className="flex h-10 w-10 items-center justify-center text-muted">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setQuery("");
+                                searchRef.current?.focus();
+                            }}
+                            aria-label={t("till.sell.clearSearch")}
+                            className="flex h-10 w-10 items-center justify-center text-muted"
+                        >
                             <X className="h-5 w-5" aria-hidden="true" />
                         </button>
                     )}
                 </label>
             </form>
 
-            {notice && (
-                <p
-                    role="status"
-                    dir="auto"
-                    className={cn(
-                        "flex items-center gap-2 rounded-2xl px-4 py-3 text-left text-sm font-medium",
-                        notice.kind === "ok"
-                            ? "bg-[#E3F6DA] text-[#14532D] dark:bg-emerald-500/15 dark:text-emerald-300"
-                            : "bg-[#FDE7EA] text-[#991B1B] dark:bg-red-500/15 dark:text-red-300",
+            {(chips.length > 0 || best.length > 0) && (
+                <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none]" role="toolbar" aria-label={t("till.sell.filters")}>
+                    <Chip on={filter === "all"} onClick={() => setFilter("all")}>
+                        {t("till.sell.all")}
+                    </Chip>
+                    {best.length > 0 && (
+                        <Chip on={filter === "best"} onClick={() => setFilter("best")}>
+                            <Flame className="h-4 w-4" aria-hidden="true" />
+                            {t("till.sell.best")}
+                        </Chip>
                     )}
-                >
-                    {notice.kind === "ok" ? <Check className="h-4 w-4 shrink-0" aria-hidden="true" /> : <X className="h-4 w-4 shrink-0" aria-hidden="true" />}
-                    {notice.text}
-                </p>
+                    {chips.map((c) => (
+                        <Chip key={c.id} on={filter === c.id} onClick={() => setFilter(c.id)}>
+                            <span dir="auto">{c.name}</span>
+                        </Chip>
+                    ))}
+                </div>
             )}
 
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -108,23 +160,58 @@ export function TillProductGrid({ products, loading, onAdd }: Props) {
                             <div key={i} className="aspect-[4/5] animate-pulse rounded-[20px] bg-[var(--card-border)]/40" />
                         ))}
                     </div>
-                ) : shown.length === 0 ? (
-                    <p className="py-10 text-center text-sm text-muted">{products.length ? t("till.sell.noMatch") : t("till.sell.noProducts")}</p>
                 ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 pb-2">
-                        {shown.map((p) => (
-                            <ProductCard key={p.id} product={p} onPick={() => choose(p)} />
-                        ))}
+                    <div className="flex flex-col gap-4 pb-2">
+                        {showBestRow && (
+                            <section aria-label={t("till.sell.best")} className="flex flex-col gap-2">
+                                <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+                                    <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+                                    {t("till.sell.bestHere")}
+                                </h2>
+                                <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
+                                    {best.map((p) => (
+                                        <QuickKey key={p.id} product={p} onPick={(el) => choose(p, el)} />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                        {shown.length === 0 ? (
+                            <p className="py-10 text-center text-sm text-muted">{products.length ? t("till.sell.noMatch") : t("till.sell.noProducts")}</p>
+                        ) : (
+                            <section aria-label={t("till.sell.allProducts")} className="flex flex-col gap-2">
+                                {showBestRow && <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.sell.allProducts")}</h2>}
+                                <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+                                    {shown.map((p) => (
+                                        <ProductCard key={p.id} product={p} onPick={(el) => choose(p, el)} />
+                                    ))}
+                                </div>
+                            </section>
+                        )}
                     </div>
                 )}
             </div>
 
+            {notice && (
+                <p
+                    key={notice.at}
+                    role="status"
+                    dir="auto"
+                    className={cn(
+                        "till-notice pointer-events-none absolute bottom-6 left-1/2 z-10 flex max-w-[min(560px,calc(100%-40px))] -translate-x-1/2 items-center gap-2 rounded-2xl px-4 py-3 text-left text-sm font-semibold shadow-lg",
+                        notice.kind === "ok" ? "bg-[#1E1E1E] text-white dark:bg-[#EFFF00] dark:text-[#121212]" : "bg-[#B91C1C] text-white",
+                    )}
+                >
+                    {notice.kind === "ok" ? <Check className="h-4 w-4 shrink-0" aria-hidden="true" /> : <X className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                    <span className="truncate">{notice.text}</span>
+                </p>
+            )}
+
             {picking && (
                 <VariantPicker
-                    product={picking}
+                    product={picking.product}
                     onClose={() => setPicking(null)}
                     onPick={(v) => {
-                        add(picking, v);
+                        add(picking.product, v, picking.from);
                         setPicking(null);
                     }}
                 />
@@ -133,8 +220,60 @@ export function TillProductGrid({ products, loading, onAdd }: Props) {
     );
 }
 
-function ProductCard({ product, onPick }: { product: TillProduct; onPick: () => void }) {
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-pressed={on}
+            className={cn(
+                "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors",
+                on
+                    ? "border-transparent bg-[var(--ink)] text-white dark:bg-[#EFFF00] dark:text-[#121212]"
+                    : "border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:border-[var(--ink)]/30 dark:hover:border-white/25",
+            )}
+        >
+            {children}
+        </button>
+    );
+}
+
+/** A compact best-seller key: photo, name, price; one tap adds it. */
+function QuickKey({ product, onPick }: { product: TillProduct; onPick: (el: HTMLElement | null) => void }) {
     const { t } = useLanguage();
+    const ref = useRef<HTMLSpanElement>(null);
+    const out = product.available <= 0;
+    const sizes = product.variants.length;
+    const price = sizes > 1 ? Math.min(...product.variants.map((v) => v.price)) : product.variants[0]?.price ?? product.price;
+    return (
+        <button
+            type="button"
+            onClick={() => onPick(ref.current)}
+            className="flex h-[76px] items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-2 pr-3 text-left transition-[transform,border-color] duration-150 hover:border-[var(--ink)]/25 active:scale-[0.98] dark:hover:border-white/25"
+        >
+            <span ref={ref} className="block h-[60px] w-[60px] shrink-0 overflow-hidden rounded-xl bg-[var(--card-border)]/25">
+                {product.image_url ? (
+                    <img src={product.image_url} alt="" loading="lazy" className={cn("h-full w-full object-cover", out && "opacity-45 grayscale")} />
+                ) : (
+                    <span className="flex h-full items-center justify-center text-muted">
+                        <Package className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                )}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-sm font-semibold text-foreground" dir="auto">{product.name}</span>
+                <span className="text-base font-bold tabular-nums text-foreground">{formatIqd(price)}</span>
+                <span className={cn("text-xs", out ? "font-semibold text-red-600" : "text-muted")}>
+                    {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
+                </span>
+            </span>
+        </button>
+    );
+}
+
+function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: HTMLElement | null) => void }) {
+    const { t } = useLanguage();
+    const photo = useRef<HTMLSpanElement>(null);
     const sizes = product.variants.length;
     const from = sizes > 1 ? Math.min(...product.variants.map((v) => v.price)) : product.variants[0]?.price ?? product.price;
     const out = product.available <= 0;
@@ -142,10 +281,10 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: () => 
     return (
         <button
             type="button"
-            onClick={onPick}
+            onClick={() => onPick(photo.current)}
             className="group flex flex-col overflow-hidden rounded-[20px] border border-[var(--card-border)] bg-[var(--card-bg)] text-left transition-[transform,border-color] duration-150 hover:border-[var(--ink)]/25 active:scale-[0.98] dark:hover:border-white/25"
         >
-            <span className="relative block aspect-square w-full overflow-hidden bg-[var(--card-border)]/25">
+            <span ref={photo} className="relative block aspect-square w-full overflow-hidden bg-[var(--card-border)]/25">
                 {product.image_url ? (
                     <img
                         src={product.image_url}

@@ -186,7 +186,104 @@ export function useTillSale() {
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: tillKeys.products(tenantId) });
+            qc.invalidateQueries({ queryKey: ["till", "overview"] });
+            qc.invalidateQueries({ queryKey: ["till", "today"] });
             qc.invalidateQueries({ queryKey: ["orders"] });
+        },
+    });
+}
+
+// ── While a cashier is in: header numbers, best sellers, chips, history, customer card ──
+
+const countTotal = z.object({ count: z.number(), total: z.coerce.number() });
+const overviewSchema = z.object({
+    best: z.array(z.string()),
+    chips: z.array(z.object({ id: z.string(), name: z.string(), product_ids: z.array(z.string()) })),
+    today: countTotal,
+    mine: countTotal,
+});
+export type TillOverview = z.infer<typeof overviewSchema>;
+
+/** Best sellers, the category chips and today's numbers, for the open session. */
+export function useTillOverview(sessionId: string | null) {
+    return useQuery({
+        queryKey: ["till", "overview", sessionId],
+        enabled: !!sessionId,
+        staleTime: 30_000,
+        refetchInterval: 120_000,
+        queryFn: async (): Promise<TillOverview> => {
+            const { data, error } = await supabase.rpc("till_overview", { p_session_id: sessionId });
+            if (error) throw error;
+            return overviewSchema.parse(data);
+        },
+    });
+}
+
+const historyItem = z.object({
+    name: z.string().catch(""),
+    variant_name: z.string().nullable().catch(null),
+    quantity: z.coerce.number().catch(1),
+    price: z.coerce.number().catch(0),
+    image_url: z.string().nullable().catch(null),
+    product_id: z.string().nullable().catch(null),
+    variant_id: z.string().nullable().catch(null),
+});
+const historySale = z.object({
+    id: z.string(),
+    order_id: z.string(),
+    created_at: z.string(),
+    total: z.coerce.number(),
+    discount: z.coerce.number(),
+    customer_name: z.string().nullable(),
+    phone: z.string().nullable(),
+    items: z.array(historyItem),
+    cashier: z.string(),
+    payments: z.array(
+        z.object({
+            method: z.enum(["cash", "card", "zaincash", "fib"]),
+            amount: z.coerce.number(),
+            tendered: z.coerce.number().nullable(),
+        }),
+    ),
+});
+export type TillHistorySale = z.infer<typeof historySale>;
+
+/** Today's sales at this shop, newest first. */
+export function useTillSalesToday(sessionId: string | null, enabled: boolean) {
+    return useQuery({
+        queryKey: ["till", "today", sessionId],
+        enabled: !!sessionId && enabled,
+        staleTime: 10_000,
+        queryFn: async (): Promise<TillHistorySale[]> => {
+            const { data, error } = await supabase.rpc("till_sales_today", { p_session_id: sessionId });
+            if (error) throw error;
+            return z.array(historySale).parse(data);
+        },
+    });
+}
+
+const customerSchema = z
+    .object({
+        name: z.string().nullable(),
+        orders: z.number(),
+        spent: z.coerce.number(),
+        returned: z.number(),
+        last_at: z.string().nullable(),
+        blacklisted: z.boolean(),
+    })
+    .nullable();
+export type TillCustomer = NonNullable<z.infer<typeof customerSchema>>;
+
+/** What the store already knows about this phone number. `phone` is the normalised 07… number. */
+export function useTillCustomer(sessionId: string | null, phone: string | null) {
+    return useQuery({
+        queryKey: ["till", "customer", sessionId, phone],
+        enabled: !!sessionId && !!phone,
+        staleTime: 60_000,
+        queryFn: async (): Promise<TillCustomer | null> => {
+            const { data, error } = await supabase.rpc("till_customer", { p_session_id: sessionId, p_phone: phone });
+            if (error) throw error;
+            return customerSchema.parse(data);
         },
     });
 }

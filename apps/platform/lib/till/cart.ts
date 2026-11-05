@@ -192,6 +192,11 @@ export function parseDinars(text: string): number {
     return /^\d+$/.test(digits) ? Number(digits) : 0;
 }
 
+/** The locale for dates on the till: Iraqi month names in Arabic, with the same Western digits as prices. */
+export function dateLocale(language: string): string {
+    return language === "ar" ? "ar-IQ-u-nu-latn" : "en-GB";
+}
+
 export function formatIqd(n: number): string {
     return Math.round(n).toLocaleString("en-US");
 }
