@@ -13,6 +13,7 @@ const sized: TillProduct = {
     available: 18,
     on_hand: 21,
     low_at: 5,
+    notes: [],
     variants: [
         { id: "v30", name: "30 ml", price: 10_000, barcode: " ", sku: null, available: 4, on_hand: 5 },
         { id: "v100", name: "100 ml", price: 45_000, barcode: "111100", sku: null, available: 14, on_hand: 16 },

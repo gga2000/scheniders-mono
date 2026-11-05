@@ -13,12 +13,13 @@ const sized: TillProduct = {
     available: 18,
     on_hand: 21,
     low_at: 5,
+    notes: [],
     variants: [
         { id: "v30", name: "30 ml", price: 10_000, barcode: "11130", sku: null, available: 4, on_hand: 5 },
         { id: "v100", name: "100 ml", price: 45_000, barcode: "111100", sku: null, available: 14, on_hand: 16 },
     ],
 };
-const bag: TillProduct = { id: "p2", name: "Gift bag", price: 2_000, image_url: null, tag_color: null, barcode: "222", sku: null, available: 40, on_hand: 40, low_at: 5, variants: [] };
+const bag: TillProduct = { id: "p2", name: "Gift bag", price: 2_000, image_url: null, tag_color: null, barcode: "222", sku: null, available: 40, on_hand: 40, low_at: 5, notes: [], variants: [] };
 
 describe("countLines", () => {
     it("gives one line per size, counting bottles held by orders too", () => {

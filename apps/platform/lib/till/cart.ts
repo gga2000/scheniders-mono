@@ -27,6 +27,8 @@ export interface TillProduct {
     available: number;
     /** Bottles there in all (sum of sizes when it has sizes). */
     on_hand: number;
+    /** Scent notes (keys from SCENT_NOTES), for the scent helper. */
+    notes: string[];
     /** The product's own minimum: at or under it (and above 0) it is running low. 0 means no minimum. */
     low_at: number;
     variants: TillVariant[];
