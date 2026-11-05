@@ -167,9 +167,13 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                         setNotes({});
                                         setTyped(String(rest));
                                     }}
-                                    className="flex min-h-24 items-end rounded-2xl border-2 border-dashed border-[var(--card-border)] bg-[var(--card-bg)] p-4 text-left text-lg font-bold text-foreground transition-transform active:scale-[0.97]"
+                                    className="flex min-h-24 flex-col items-start justify-between rounded-2xl border border-[var(--ink)] bg-[var(--card-bg)] p-4 text-left text-lg font-bold text-foreground transition-transform active:scale-[0.97] dark:border-white/40"
                                 >
-                                    {t("till.pay.exact")}
+                                    <Check className="h-5 w-5" aria-hidden="true" />
+                                    <span className="flex flex-col">
+                                        {t("till.pay.exact")}
+                                        <span className="text-sm font-semibold tabular-nums text-muted">{formatIqd(rest)}</span>
+                                    </span>
                                 </button>
                             </div>
                             <div className="grid grid-cols-[2fr_1fr] gap-2">
@@ -316,6 +320,10 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             <span className="tabular-nums">−{formatIqd(ticket.discount)}</span>
                         </p>
                     )}
+                    <p className="mt-1 flex justify-between border-t border-[var(--card-border)] pt-2 text-base font-bold text-foreground">
+                        <span>{t("till.cart.total")}</span>
+                        <span className="tabular-nums">{formatIqd(total)}</span>
+                    </p>
                     <button type="button" onClick={onBack} disabled={pending} className="mt-2 h-12 rounded-2xl border border-[var(--card-border)] text-sm font-semibold text-foreground">
                         {t("till.pay.backToCart")}
                     </button>

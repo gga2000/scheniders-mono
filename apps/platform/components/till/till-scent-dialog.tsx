@@ -82,7 +82,7 @@ export function TillScentDialog({ sessionId, products, onClose }: { sessionId: s
                             aria-checked={onlyEmpty}
                             onClick={() => setOnlyEmpty((v) => !v)}
                             className={cn(
-                                "h-12 rounded-2xl border px-4 text-sm font-semibold",
+                                "h-12 rounded-full border px-5 text-sm font-semibold",
                                 onlyEmpty ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] text-foreground",
                             )}
                         >

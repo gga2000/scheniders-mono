@@ -273,10 +273,16 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                     dir="auto"
                     className={cn(
                         "till-notice pointer-events-none absolute bottom-6 left-1/2 z-10 flex max-w-[min(560px,calc(100%-40px))] -translate-x-1/2 items-center gap-2 rounded-2xl px-4 py-3 text-left text-sm font-semibold shadow-lg",
-                        notice.kind === "ok" ? "bg-[#1E1E1E] text-white dark:bg-[#EFFF00] dark:text-[#121212]" : "bg-[#B91C1C] text-white",
+                        notice.kind === "ok" ? "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground" : "bg-[#B91C1C] text-white",
                     )}
                 >
-                    {notice.kind === "ok" ? <Check className="h-4 w-4 shrink-0" aria-hidden="true" /> : <X className="h-4 w-4 shrink-0" aria-hidden="true" />}
+                    {notice.kind === "ok" ? (
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                            <Check className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                    ) : (
+                        <X className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    )}
                     <span className="truncate">{notice.text}</span>
                 </p>
             )}
