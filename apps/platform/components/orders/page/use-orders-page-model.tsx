@@ -18,6 +18,7 @@ import { orderMatchesRiskLevel } from "@/lib/order-filter-utils";
 import { countVisibility, listCountVisible } from "@/lib/orders/count-visibility";
 import { isScheduleDue } from "@/lib/order-format-utils";
 import { sortDesktopList } from "@/lib/orders/list-sort";
+import { useShieldDanger } from "@/hooks/use-shield-danger";
 import { desktopPreviewRows } from "@/lib/orders/list-preview";
 import { perfTrace } from "@/lib/perf-trace";
 import { orderRepository } from "@/lib/repositories/order-repository";
@@ -470,6 +471,9 @@ export function useOrdersPageModel() {
     const defRiskLevel = React.useDeferredValue(filters.riskLevel);
     const defSortConfig = React.useDeferredValue(sortConfig);
     const defSortConfigs = React.useDeferredValue(sortConfigs);
+    const sortByDanger = useOrderStore(s => s.sortByDanger);
+    const { trustById: dangerTrust } = useShieldDanger();
+    const defDanger = React.useDeferredValue(sortByDanger ? dangerTrust : undefined);
 
     // Sort hook's filtered orders
     // Advanced Filtering & Sorting
@@ -532,8 +536,8 @@ export function useOrdersPageModel() {
         // newest first (lib/orders/list-sort.ts — shared with the preview's
         // prefix proof).
         const activeSorts = defSortConfigs.length > 0 ? defSortConfigs : defSortConfig ? [defSortConfig] : [];
-        return sortDesktopList(result, activeSorts);
-    }, [hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
+        return sortDesktopList(result, activeSorts, Date.now(), defDanger);
+    }, [defDanger, hookFilteredOrders, defSortConfig, defSortConfigs, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
 
     // Calculate flagged orders count for "Needs Attention" card (data quality issues + rejected orders).
     // Counted with the same predicate the filter uses, so the number on the card

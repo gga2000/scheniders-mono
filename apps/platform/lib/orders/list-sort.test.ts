@@ -29,6 +29,11 @@ describe("list sorts", () => {
         expect(ids(sortDesktopList(rows(), [{ key: "order_id", direction: "desc" }], NOW))).toEqual(["pinned", "due", "old", "new", "parked"]);
     });
 
+    it("desktop sort by danger: lowest Trust first inside the pinned / parked bands, the rest as usual", () => {
+        const danger = new Map([["old", 30], ["due", 60], ["parked", 10]]);
+        expect(ids(sortDesktopList(rows(), [], NOW, danger))).toEqual(["pinned", "old", "due", "new", "parked"]);
+    });
+
     it("mobile: parked last, newest first, the pin is not a key", () => {
         expect(ids(sortMobileList(rows(), NOW))).toEqual(["new", "due", "old", "pinned", "parked"]);
     });
