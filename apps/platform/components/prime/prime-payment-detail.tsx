@@ -97,7 +97,7 @@ export function PrimePaymentDetail({ paymentId, onAskPrime }: { paymentId: numbe
     const rows = [...statement.rows].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]);
     const expected = summary.net - summary.diff;
     const off = summary.different + summary.unknown;
-    const closable = statement.rows.filter((r) => r.kind === "match" && r.ours?.status === "delivered").length;
+    const closable = statement.rows.filter((r) => r.kind === "match" && (r.ours?.status === "delivered" || r.ours?.status === "in_transit")).length;
 
     const exportCsv = () =>
         downloadCsv(
