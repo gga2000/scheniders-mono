@@ -26,6 +26,10 @@ describe("countVisibility", () => {
         expect(v(over)).toEqual({ chips: false, dueTodayBadge: false, riskBadge: false, flaggedCard: false });
     });
 
+    it("keeps the chips but hides Flagged and risk while a Prime queue is open", () => {
+        expect(v({ primeQueue: true })).toEqual({ chips: true, dueTodayBadge: true, riskBadge: false, flaggedCard: false });
+    });
+
     it.each([
         ["a column filter", { columnFilter: true }],
         ["duplicates only", { duplicatesOnly: true }],

@@ -5,6 +5,7 @@ import { BellRing, ChevronDown, Check, MessageSquareText, RotateCw, Route } from
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
 import { primeChipState } from "@/lib/prime/chip-state";
+import { usePrimeQueueEntry } from "@/hooks/use-prime-queues";
 import { primeBandAction, primeReasonNote, primeTrack, type PrimeTrackState } from "@/lib/prime/track";
 import { primeReasonText, primeWhen } from "@/lib/prime/when";
 import { formatTime } from "@/lib/order-format-utils";
@@ -46,6 +47,9 @@ function PrimeBandFor({ m }: { m: OrderCardModel }) {
     const { t } = useLanguage();
     const dir = useTextDir();
     const band = usePrimeBand(order);
+    // In an open «معالجة» / «راجع» list the queue band under this one carries
+    // Prime's answer and the fixes, so this band keeps only the journey.
+    const inQueue = usePrimeQueueEntry(order.id) !== null;
     const [panel, setPanel] = useState<PrimePanelFocus | null>(null);
     if (!band.shown || !band.view) return null;
 
@@ -57,7 +61,7 @@ function PrimeBandFor({ m }: { m: OrderCardModel }) {
     const title = view.stepName ?? t("orders.prime.band.sentTitle");
     const note =
         view.pushError !== null ? t("orders.prime.band.editRefused") : view.cancelRefusedAt !== null ? t("orders.prime.cancelRefused") : null;
-    const primeSays = primeReasonText(primeReasonNote(view), t);
+    const primeSays = inQueue ? null : primeReasonText(primeReasonNote(view), t);
     const togglePanel = (focus: PrimePanelFocus) => setPanel((open) => (open === focus ? null : focus));
 
     const remind = () =>
@@ -123,7 +127,7 @@ function PrimeBandFor({ m }: { m: OrderCardModel }) {
                             <span dir={dir}>{t("orders.prime.resent", { time: formatTime(view.resentAt) })}</span>
                         </span>
                     )}
-                    {action === "resend" && (
+                    {action === "resend" && !inQueue && (
                         <>
                             <button
                                 type="button"
@@ -139,7 +143,7 @@ function PrimeBandFor({ m }: { m: OrderCardModel }) {
                             </a>
                         </>
                     )}
-                    {action === "remind" && (
+                    {action === "remind" && !inQueue && (
                         <button type="button" onClick={remind} className={cn(bandButton, "border-[#F3D7A8] text-[#8A4B00] dark:border-amber-400/30 dark:text-amber-200")}>
                             <BellRing className="h-4 w-4" aria-hidden="true" />
                             {t("orders.prime.band.remind")}

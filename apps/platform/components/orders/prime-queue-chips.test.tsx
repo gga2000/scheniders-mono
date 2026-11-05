@@ -10,8 +10,8 @@ const state: { value: PrimeQueues } = {
         connected: true,
         data: null,
         queues: {
-            fix: { problems: [], orderIds: ["a", "b", "c"], waiting: 2 },
-            back: { problems: [], orderIds: ["d"], waiting: 1 },
+            fix: { problems: [], orderIds: ["a", "b", "c"], waiting: 2, byOrder: new Map() },
+            back: { problems: [], orderIds: ["d"], waiting: 1, byOrder: new Map() },
         },
     },
 };

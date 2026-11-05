@@ -4,6 +4,7 @@ import { useOrderStore } from "@/store/use-order-store";
 import { OrderListPreviewStrip } from "@/components/orders/order-list-preview-strip";
 import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { EmptyState } from "@/components/ui/empty-states";
+import { PrimeQueueEmpty } from "@/components/orders/prime-queue-empty";
 import { EASE_CHROME } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ import type { OrdersPageModel } from "./use-orders-page-model";
 /** One section of the orders page; see app/orders/page.tsx. */
 export function OrdersPageList({ m }: { m: OrdersPageModel }) {
     const { recordContact, isRefreshing, ordersPending, orderSearch, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, togglePin, ordersAreComplete, t, viewMode, compactView, compactGrid, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, selectedOrders, setSelectedOrders, showArchived, setSelectedOrderWithFetch, emptyStateHasFilters, isFirstRun, filteredOrders, previewing, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, cardListProps } = m;
+    const primeQueue = useOrderStore((s) => s.primeQueue);
     return (
         <>
             {/* Section 2: Order Cards — stagger child */}
@@ -122,6 +124,8 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                                                 <div key={i} className="w-full h-24 animate-pulse bg-muted/20 rounded-2xl" />
                                             ))}
                                         </div>
+                                    ) : listOrders.length === 0 && primeQueue !== null ? (
+                                        <PrimeQueueEmpty queue={primeQueue} />
                                     ) : listOrders.length === 0 ? (
                                         <EmptyState
                                             type={isFirstRun ? "no-orders" : (filters.status && ['new', 'contacted', 'confirmed', 'delivered', 'rejected'].includes(filters.status) ? filters.status : "all") as "new" | "contacted" | "confirmed" | "delivered" | "rejected" | "all"}
