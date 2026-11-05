@@ -368,7 +368,14 @@ export async function sendTemplateMessage(
     console.log(
         `[Interakt] Sending template "${templateName}" to +${body.countryCode}${body.phoneNumber} for order ${order.order_id}`
     );
+    return postTemplate(apiKey, body, order.order_id);
+}
 
+/**
+ * POST one template to Interakt, retrying a rate limit or a dropped
+ * connection. `label` names the send in the logs (an order number).
+ */
+async function postTemplate(apiKey: string, body: InteraktTemplateBody, label: string): Promise<SendTemplateResult> {
     let lastError: string | undefined;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -423,7 +430,7 @@ export async function sendTemplateMessage(
             if (data.result) {
                 const messageId = typeof data.id === "string" ? data.id : undefined;
                 console.log(
-                    `[Interakt] ✅ Template sent successfully for order ${order.order_id}`,
+                    `[Interakt] ✅ Template sent successfully for order ${label}`,
                     messageId ? `(msg: ${messageId})` : ""
                 );
                 return {
@@ -460,6 +467,40 @@ export async function sendTemplateMessage(
         success: false,
         error: lastError || "Max retries exceeded",
     };
+}
+
+/** A template the store created in Interakt, sent with its own values. */
+export interface NamedTemplateInput {
+    phone: string;
+    name: string;
+    languageCode: string;
+    bodyValues: string[];
+    /** One value per header variable; for a media header, the file's public URL. */
+    headerValues?: string[];
+    /** Comes back on Interakt's delivery receipts (the order uuid). */
+    callbackData?: string;
+    /** Names the send in the logs. */
+    label: string;
+}
+
+/** Send a template that is not one of TEMPLATE_NAMES (lib/prime/failed-notice). */
+export async function sendNamedTemplate(input: NamedTemplateInput): Promise<SendTemplateResult> {
+    const apiKey = env.INTERAKT_API_KEY;
+    if (!apiKey) return { success: false, error: "Interakt API key not configured" };
+    const { countryCode, phoneNumber } = formatPhoneForInterakt(input.phone);
+    const body: InteraktTemplateBody = {
+        countryCode,
+        phoneNumber,
+        callbackData: input.callbackData,
+        type: "Template",
+        template: {
+            name: input.name,
+            languageCode: input.languageCode,
+            bodyValues: input.bodyValues.map(sanitizeTemplateVar),
+            ...(input.headerValues ? { headerValues: input.headerValues } : {}),
+        },
+    };
+    return postTemplate(apiKey, body, input.label);
 }
 
 // =============================================
