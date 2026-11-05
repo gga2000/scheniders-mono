@@ -54,7 +54,9 @@ export type PrimeSendResult = { connected: false } | Pick<LinkedResult, "connect
  * getting its case number while the run goes.
  */
 const CHUNK = 10;
-const RETRY_DELAY_MS = 1000;
+/** Times a chunk is tried while Prime stays silent, and the pauses between the tries. */
+const SEND_ATTEMPTS = 3;
+const RETRY_DELAYS_MS = [2000, 5000];
 
 async function postChunk(orderIds: string[], token: string): Promise<ChunkResult> {
     const res = await fetch("/api/prime/send", {
@@ -66,9 +68,6 @@ async function postChunk(orderIds: string[], token: string): Promise<ChunkResult
     return chunkSchema.parse(await res.json());
 }
 
-const allUnreachable = (chunk: LinkedResult) =>
-    chunk.sent.length === 0 && chunk.failed.length > 0 && chunk.failed.every((f) => f.reason === "prime_unreachable");
-
 /** Progress of a send: orders answered so far, each answered order's outcome, and the chunk on its way now. */
 export interface PrimeSendProgress {
     done: number;
@@ -79,6 +78,8 @@ export interface PrimeSendProgress {
     failed: ReadonlySet<string>;
     /** The orders of the request in flight. */
     sending: ReadonlySet<string>;
+    /** Set while Prime stayed silent and the same orders are being asked again. */
+    retry?: { attempt: number; of: number };
 }
 
 /**
@@ -123,13 +124,14 @@ export function usePrimeLink() {
     const send = useCallback(
         async (orderIds: string[], onProgress?: (progress: PrimeSendProgress) => void): Promise<PrimeSendResult> => {
             const result: Extract<PrimeSendResult, { connected: true }> = { connected: true, sent: [], skipped: [], failed: [] };
-            const report = (sending: readonly string[] = []) =>
+            const report = (sending: readonly string[] = [], retry?: { attempt: number; of: number }) =>
                 onProgress?.({
                     done: result.sent.length + result.skipped.length + result.failed.length,
                     total: orderIds.length,
                     sent: new Map(result.sent.map((s) => [s.orderId, s.caseId])),
                     failed: new Set([...result.skipped, ...result.failed].map((f) => f.orderId)),
                     sending: new Set(sending),
+                    retry,
                 });
             report();
             let primeDown = false;
@@ -140,36 +142,42 @@ export function usePrimeLink() {
                     report();
                     continue;
                 }
-                let chunk: ChunkResult;
-                report(ids);
-                try {
-                    chunk = await postChunk(ids, token);
-                } catch (first) {
-                    console.error("Prime send request failed, asking once more:", first);
-                    await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+                // Parcels Prime has not answered stay "waiting" and are asked again, up to
+                // SEND_ATTEMPTS times; only then do they go to the Excel file.
+                let pending = ids;
+                for (let attempt = 1; attempt <= SEND_ATTEMPTS && pending.length > 0; attempt++) {
+                    if (attempt > 1) {
+                        report(pending, { attempt, of: SEND_ATTEMPTS });
+                        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt - 2]));
+                    } else {
+                        report(pending);
+                    }
+                    let chunk: ChunkResult;
                     try {
-                        chunk = await postChunk(ids, token);
-                    } catch (second) {
-                        console.error("Prime send request failed again:", second);
-                        primeDown = true;
-                        for (const orderId of ids) result.failed.push({ orderId, reason: "prime_unreachable" });
-                        report();
+                        chunk = await postChunk(pending, token);
+                    } catch (err) {
+                        console.error(`Prime send request failed (attempt ${attempt} of ${SEND_ATTEMPTS}):`, err);
                         continue;
                     }
+                    // The link is off: for the first chunk the whole run goes to the Excel file as before;
+                    // later (switched off mid-run) the rest is reported, never silently dropped.
+                    if (!chunk.connected) {
+                        if (i === 0) return { connected: false };
+                        for (const orderId of pending) result.failed.push({ orderId, reason: "prime_unreachable", message: "The Prime link was switched off" });
+                        pending = [];
+                        break;
+                    }
+                    result.sent.push(...chunk.sent);
+                    result.skipped.push(...chunk.skipped);
+                    // Prime's refusal is about the order, so asking again cannot help; only silence is retried.
+                    result.failed.push(...chunk.failed.filter((f) => f.reason !== "prime_unreachable"));
+                    pending = chunk.failed.filter((f) => f.reason === "prime_unreachable").map((f) => f.orderId);
                 }
-                // The link is off: for the first chunk the whole run goes to the Excel file as before;
-                // later (switched off mid-run) the rest is reported, never silently dropped.
-                if (!chunk.connected) {
-                    if (i === 0) return { connected: false };
-                    for (const orderId of ids) result.failed.push({ orderId, reason: "prime_unreachable", message: "The Prime link was switched off" });
-                    report();
-                    continue;
+                if (pending.length > 0) {
+                    for (const orderId of pending) result.failed.push({ orderId, reason: "prime_unreachable" });
+                    primeDown = true;
                 }
-                result.sent.push(...chunk.sent);
-                result.skipped.push(...chunk.skipped);
-                result.failed.push(...chunk.failed);
                 report();
-                if (allUnreachable(chunk)) primeDown = true;
             }
             return result;
         },
