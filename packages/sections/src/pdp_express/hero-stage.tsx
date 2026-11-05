@@ -2,16 +2,20 @@
 
 // Express hero stage: the product photo fills the top half of the screen,
 // edge to edge. Extra photos live in a small deck at its bottom-left that
-// rotates on its own; tapping the deck slides a row of thumbnails out
+// rotates on its own; the main photo also advances by itself (paused by touch); tapping the deck slides a row of thumbnails out
 // under the photo, and tapping a thumbnail makes it the main photo.
 
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "@scheniders/shared";
 import { isOptimizableImageHost } from "../helpers/image";
 import { MaterialIcon } from "../helpers/primitives";
 import { xs } from "./text";
+
+/** Main photo advances this often; a touch pauses it for MAIN_PAUSE_MS. */
+const MAIN_ROTATE_MS = 4500;
+const MAIN_PAUSE_MS = 10000;
 
 const HIDE_SCROLLBAR =
   "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
@@ -141,17 +145,71 @@ export function HeroStage({
 }) {
   const [active, setActive] = useState(0);
   const [thumbsOpen, setThumbsOpen] = useState(false);
+  // Photos already shown (kept mounted so the crossfade has both sides).
+  const [seen, setSeen] = useState<ReadonlySet<number>>(() => new Set([0]));
+  // Autoplay stays off until this timestamp (touch / manual pick pauses it).
+  const [resumeAt, setResumeAt] = useState(0);
+  const reduce = usePrefersReducedMotion();
+  const count = images.length;
+  const next = count > 1 ? (active + 1) % count : -1;
+  const touchX = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (count < 2 || reduce || thumbsOpen) return;
+    let id: ReturnType<typeof setTimeout> | null = null;
+    const stop = () => {
+      if (id !== null) clearTimeout(id);
+      id = null;
+    };
+    const schedule = () => {
+      stop();
+      if (document.hidden) return;
+      const wait = Math.max(MAIN_ROTATE_MS, resumeAt - Date.now());
+      id = setTimeout(() => {
+        setActive((a) => (a + 1) % count);
+      }, wait);
+    };
+    const onVis = () => (document.hidden ? stop() : schedule());
+    schedule();
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [active, count, reduce, thumbsOpen, resumeAt]);
+
+  useEffect(() => {
+    setSeen((s) => (s.has(active) ? s : new Set(s).add(active)));
+  }, [active]);
+
   const current = images[active] ?? images[0];
   if (!current) return null;
+  const pause = () => setResumeAt(Date.now() + MAIN_PAUSE_MS);
   const others = images.filter((_, i) => i !== active);
 
   return (
     <div>
-      <div className="relative h-[50vh] w-full overflow-hidden bg-bk-surface-alt supports-[height:1svh]:h-[50svh]">
+      <div
+        className="relative h-[50vh] w-full overflow-hidden bg-bk-surface-alt supports-[height:1svh]:h-[50svh]"
+        onTouchStart={(e) => {
+          pause();
+          touchX.current = e.touches[0]?.clientX ?? null;
+        }}
+        onTouchEnd={(e) => {
+          const start = touchX.current;
+          touchX.current = null;
+          const end = e.changedTouches[0]?.clientX;
+          if (start === null || end === undefined || count < 2) return;
+          const dx = end - start;
+          if (Math.abs(dx) < 40) return;
+          setActive((a) => (a + (dx < 0 ? 1 : count - 1)) % count);
+          pause();
+        }}
+      >
         {images.map((src, i) =>
           // Every photo is mounted once so switching is an instant crossfade;
           // only the cover is the LCP candidate (priority), the rest lazy.
-          i === active || i === 0 ? (
+          i === active || i === 0 || i === next || seen.has(i) ? (
             <Image
               key={src}
               src={src}
@@ -207,7 +265,10 @@ export function HeroStage({
                 <button
                   key={`${i}-${src}`}
                   type="button"
-                  onClick={() => setActive(i)}
+                  onClick={() => {
+                    setActive(i);
+                    pause();
+                  }}
                   aria-pressed={i === active}
                   aria-label={xs("photoOf", locale, { n: i + 1, total: images.length })}
                   className={cn(
