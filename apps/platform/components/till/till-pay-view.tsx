@@ -254,7 +254,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 value={typed ?? ""}
                                 onChange={(e) => setTyped(e.target.value)}
                                 inputMode="numeric"
-                                placeholder={formatIqd(rest)}
+                                placeholder={t("till.pay.allOfIt")}
                                 className="h-12 w-40 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
                             />
                         </label>
