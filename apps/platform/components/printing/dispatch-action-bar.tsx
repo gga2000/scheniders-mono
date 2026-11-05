@@ -18,7 +18,7 @@ interface DispatchActionBarProps {
     /** With the Prime link: the ticked run's cash, Prime's fees and what reaches the store. */
     primeMoney?: PrimeRunMoney;
     /** While the run is handed to Prime: parcels answered so far of the run. */
-    primeProgress?: { done: number; total: number } | null;
+    primeProgress?: { done: number; total: number; retry?: { attempt: number; of: number } } | null;
 }
 
 /**
@@ -71,7 +71,9 @@ export function DispatchActionBar({ selectedCount, shipping, primeLinked, onShip
                 className="flex h-10 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[var(--ink)] disabled:opacity-60"
             >
                 {shipping ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}
-                {handing
+                {handing?.retry
+                    ? t("printing.prime.retrying", handing.retry)
+                    : handing
                     ? t("printing.prime.handing", { done: handing.done, total: handing.total })
                     : shipping
                       ? t("printing.shipping")
