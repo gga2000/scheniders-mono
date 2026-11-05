@@ -22,6 +22,7 @@ type ProductRow = {
     sku: string | null;
     stock_quantity: number | null;
     reserved_quantity: number | null;
+    low_stock_threshold: number | null;
     product_variants: {
         id: string;
         name: string;
@@ -48,7 +49,7 @@ export function useTillProducts() {
             const { data, error } = await supabase
                 .from("products")
                 .select(
-                    "id, name, display_name, price, image_url, tag_color, barcode, sku, stock_quantity, reserved_quantity, product_variants(id, name, price, barcode, sku, stock_quantity, reserved_quantity, is_enabled, display_order)",
+                    "id, name, display_name, price, image_url, tag_color, barcode, sku, stock_quantity, reserved_quantity, low_stock_threshold, product_variants(id, name, price, barcode, sku, stock_quantity, reserved_quantity, is_enabled, display_order)",
                 )
                 .eq("tenant_id", tenantId)
                 .eq("is_archived", false)
@@ -78,6 +79,7 @@ export function useTillProducts() {
                     barcode: p.barcode,
                     sku: p.sku,
                     available: variants.length ? variants.reduce((s, v) => s + v.available, 0) : free(p.stock_quantity, p.reserved_quantity),
+                    low_at: Math.max(0, p.low_stock_threshold ?? 0),
                     variants,
                 };
             });
@@ -394,6 +396,92 @@ export function useTillCustomer(sessionId: string | null, phone: string | null) 
             const { data, error } = await supabase.rpc("till_customer", { p_session_id: sessionId, p_phone: phone });
             if (error) throw error;
             return customerSchema.parse(data);
+        },
+    });
+}
+
+const holdSchema = z.object({
+    id: z.string().uuid(),
+    product_id: z.string().uuid(),
+    variant_id: z.string().uuid().nullable(),
+    name: z.string(),
+    variant_name: z.string().nullable(),
+    image_url: z.string().nullable(),
+    quantity: z.number().int(),
+    customer_name: z.string(),
+    customer_phone: z.string().nullable(),
+    held_by: z.string(),
+    created_at: z.string(),
+    expires_at: z.string(),
+});
+export type TillHold = z.infer<typeof holdSchema>;
+const holdsKey = (sessionId: string | null) => ["till", "holds", sessionId] as const;
+
+/** Bottles kept aside for customers in this till's shop, soonest to run out first. */
+export function useTillHolds(sessionId: string | null) {
+    return useQuery({
+        queryKey: holdsKey(sessionId),
+        enabled: !!sessionId,
+        staleTime: 30_000,
+        refetchInterval: 60_000,
+        queryFn: async (): Promise<TillHold[]> => {
+            const { data, error } = await supabase.rpc("till_holds_open", { p_session_id: sessionId });
+            if (error) throw error;
+            return z.array(holdSchema).parse(data);
+        },
+    });
+}
+
+const holdAddSchema = z.union([
+    z.object({ hold_id: z.string().uuid(), replay: z.boolean() }),
+    z.object({ error: z.literal("not_enough"), available: z.number().int() }),
+]);
+export type HoldLine = { key: string; clientId: string; productId: string; variantId: string | null; quantity: number; name: string };
+export type HoldAddResult = { kept: string[]; short: { key: string; name: string; available: number }[] };
+
+/** Keeps each line aside for the customer. Lines with too few pieces free are skipped and reported. */
+export function useTillHoldAdd() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; lines: HoldLine[]; name: string; phone: string | null; hours: number }): Promise<HoldAddResult> => {
+            const out: HoldAddResult = { kept: [], short: [] };
+            for (const l of input.lines) {
+                const { data, error } = await supabase.rpc("till_hold_add", {
+                    p_session_id: input.sessionId,
+                    p_client_id: l.clientId,
+                    p_product_id: l.productId,
+                    p_variant_id: l.variantId,
+                    p_quantity: l.quantity,
+                    p_name: input.name,
+                    p_phone: input.phone,
+                    p_hours: input.hours,
+                });
+                if (error) throw error;
+                const r = holdAddSchema.parse(data);
+                if ("error" in r) out.short.push({ key: l.key, name: l.name, available: r.available });
+                else out.kept.push(l.key);
+            }
+            return out;
+        },
+        onSettled: (_d, _e, input) => {
+            qc.invalidateQueries({ queryKey: holdsKey(input.sessionId) });
+            qc.invalidateQueries({ queryKey: ["till", "products"] });
+        },
+    });
+}
+
+/** Ends a hold: picked up (the till sells it next) or put back on the shelf. */
+export function useTillHoldEnd() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: { sessionId: string; holdId: string; reason: "picked_up" | "released" }): Promise<boolean> => {
+            const { data, error } = await supabase.rpc("till_hold_end", { p_session_id: input.sessionId, p_hold_id: input.holdId, p_reason: input.reason });
+            if (error) throw error;
+            return z.object({ ended: z.boolean() }).parse(data).ended;
+        },
+        onSettled: (_d, _e, input) => {
+            qc.invalidateQueries({ queryKey: holdsKey(input.sessionId) });
+            qc.invalidateQueries({ queryKey: ["till", "products"] });
         },
     });
 }

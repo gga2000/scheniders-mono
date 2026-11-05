@@ -4,6 +4,7 @@ import {
     addToCart,
     changeInNotes,
     findByCode,
+    isLow,
     finishPayment,
     leftToPay,
     maxDiscount,
@@ -25,12 +26,13 @@ const envoy: TillProduct = {
     barcode: "111",
     sku: "ENV",
     available: 21,
+    low_at: 5,
     variants: [
         { id: "v30", name: "30 ml", price: 10_000, barcode: "11130", sku: null, available: 5 },
         { id: "v100", name: "100 ml", price: 45_000, barcode: "111100", sku: null, available: 16 },
     ],
 };
-const bag: TillProduct = { id: "p2", name: "Gift bag", price: 2_000, image_url: null, tag_color: null, barcode: "222", sku: null, available: 40, variants: [] };
+const bag: TillProduct = { id: "p2", name: "Gift bag", price: 2_000, image_url: null, tag_color: null, barcode: "222", sku: null, available: 40, low_at: 5, variants: [] };
 
 describe("cart", () => {
     it("adds, stacks the same line, and totals", () => {
@@ -88,6 +90,15 @@ describe("onShelf", () => {
     it("returns the same list when the cart is empty", () => {
         const list = [envoy];
         expect(onShelf(list, [])).toBe(list);
+    });
+});
+
+describe("isLow", () => {
+    it("is low at or under the minimum, but not when sold out or with no minimum", () => {
+        expect(isLow({ available: 5, low_at: 5 })).toBe(true);
+        expect(isLow({ available: 6, low_at: 5 })).toBe(false);
+        expect(isLow({ available: 0, low_at: 5 })).toBe(false);
+        expect(isLow({ available: 1, low_at: 0 })).toBe(false);
     });
 });
 
