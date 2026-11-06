@@ -11,6 +11,7 @@ import type { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { env } from "@/lib/env";
 import { sendNamedTemplate } from "@/lib/interakt";
 import { PRIME_RESENDABLE_STEPS } from "@/lib/prime/chip-state";
+import { primeReasonLabel } from "@/lib/prime/reasons";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -44,9 +45,10 @@ export function primeFailedNoticeOpen(now: number): boolean {
     return hour >= OPEN_HOUR && hour < CLOSE_HOUR;
 }
 
-/** The driver's report as Prime wrote it, else a plain "could not deliver". */
+/** The driver's report in Prime's Arabic words (codes like DENIED translated), else a plain "could not deliver". */
 export function primeFailedStatus(row: { return_reason: string | null; postpone_reason: string | null }): string {
-    return row.return_reason?.trim() || row.postpone_reason?.trim() || FALLBACK_STATUS;
+    const reason = row.return_reason?.trim() || row.postpone_reason?.trim();
+    return reason ? primeReasonLabel(reason) : FALLBACK_STATUS;
 }
 
 export interface PrimeFailedCandidate {

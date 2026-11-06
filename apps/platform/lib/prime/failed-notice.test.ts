@@ -57,6 +57,11 @@ describe("message values", () => {
         expect(primeFailedStatus({ return_reason: "", postpone_reason: null })).toBe("تعذر التوصيل");
     });
 
+    it("turns Prime's reason codes into the Arabic words Prime shows", () => {
+        expect(primeFailedStatus({ return_reason: "DENIED", postpone_reason: null })).toBe("رفض الطلب");
+        expect(primeFailedStatus({ return_reason: null, postpone_reason: " CLS " })).toBe("الهاتف مغلق");
+    });
+
     it("is off unless switched on", () => {
         expect(primeFailedNoticeSetting(null).enabled).toBe(false);
         expect(primeFailedNoticeSetting({ enabled: "yes" }).enabled).toBe(false);
