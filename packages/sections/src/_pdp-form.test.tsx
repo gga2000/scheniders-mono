@@ -71,10 +71,10 @@ function ids(html: string): Set<string> {
 }
 
 describe("pdp_direct_order form labels (P1-3)", () => {
-  it("renders a visible label for each of the five fields, each linked to its control", () => {
+  it("renders a visible label for each of the six fields, each linked to its control", () => {
     const html = render();
     const targets = labelTargets(html);
-    expect(targets).toHaveLength(5);
+    expect(targets).toHaveLength(6);
     const rendered = ids(html);
     for (const target of targets) expect(rendered.has(target)).toBe(true);
     expect(html).toContain("الاسم الكامل");
@@ -82,6 +82,7 @@ describe("pdp_direct_order form labels (P1-3)", () => {
     expect(html).toContain("رقم بديل");
     expect(html).toContain("المحافظة");
     expect(html).toContain("العنوان");
+    expect(html).toContain("ملاحظات على الطلب");
   });
 
   it("uses dir=auto on name/address and autocomplete tokens on every field", () => {
