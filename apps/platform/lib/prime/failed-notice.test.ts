@@ -4,7 +4,6 @@ import {
     primeFailedNoticeOpen,
     primeFailedNoticeSetting,
     primeFailedStatus,
-    primeOrderDiscount,
     type PrimeFailedCandidate,
 } from "./failed-notice";
 
@@ -52,19 +51,6 @@ describe("primeFailedNoticeDue", () => {
 });
 
 describe("message values", () => {
-    it("counts the order discount and every item below its compare-at price", () => {
-        expect(
-            primeOrderDiscount({
-                discount_amount: 2000,
-                items: [
-                    { name: "A", quantity: 2, price: 25000, compare_at_price: 35000 },
-                    { name: "B", quantity: 1, price: 20000 },
-                ],
-            }),
-        ).toBe(22000);
-        expect(primeOrderDiscount({ discount_amount: null, items: null })).toBe(0);
-    });
-
     it("uses the driver's report, else says it could not be delivered", () => {
         expect(primeFailedStatus({ return_reason: " المستلم حاظر المندوب ", postpone_reason: null })).toBe("المستلم حاظر المندوب");
         expect(primeFailedStatus({ return_reason: null, postpone_reason: "الهاتف مغلق" })).toBe("الهاتف مغلق");

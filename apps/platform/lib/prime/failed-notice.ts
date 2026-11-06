@@ -1,7 +1,7 @@
 /**
  * The WhatsApp a customer gets when Prime's driver reports a failed delivery
- * (Ali, 2026-11-05): the driver's own words, that the parcel is now going
- * back, and the discount they lose without an answer. One message per
+ * (Ali, 2026-11-05): the order number, the driver's own words, and that the
+ * order goes back to the company without an answer before 8 pm. One message per
  * failure, only 10:00 to 20:00 Baghdad, only while nobody on the team has
  * handled the parcel, and only when the store switched it on
  * (app_settings `prime_failed_whatsapp`). The template is the store's own,
@@ -11,12 +11,12 @@ import type { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { env } from "@/lib/env";
 import { sendNamedTemplate } from "@/lib/interakt";
 import { PRIME_RESENDABLE_STEPS } from "@/lib/prime/chip-state";
-import type { OrderItem } from "@/types/order";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
 export const PRIME_FAILED_NOTICE_KEY = "prime_failed_whatsapp";
-export const PRIME_FAILED_NOTICE_TEMPLATE = "prime_delivery_failed";
+/** The Utility copy Meta approved (the first, prime_delivery_failed, was moved to Marketing). */
+export const PRIME_FAILED_NOTICE_TEMPLATE = "copy_of_delivery_update";
 const TEMPLATE_LANGUAGE = "ar";
 /** Baghdad hours the message may go out: from 10:00, until before 20:00. */
 const OPEN_HOUR = 10;
@@ -42,17 +42,6 @@ export function primeFailedNoticeSetting(value: unknown): PrimeFailedNoticeSetti
 export function primeFailedNoticeOpen(now: number): boolean {
     const hour = new Date(now + 3 * 60 * 60 * 1000).getUTCHours();
     return hour >= OPEN_HOUR && hour < CLOSE_HOUR;
-}
-
-/** What the customer saved on the order: the order's discount plus each item's price below its compare-at price. */
-export function primeOrderDiscount(order: { discount_amount: number | null; items: readonly OrderItem[] | null }): number {
-    let saved = Math.max(0, Math.round(Number(order.discount_amount) || 0));
-    for (const item of order.items ?? []) {
-        const compare = Number(item.compare_at_price) || 0;
-        const price = Number(item.price) || 0;
-        if (compare > price) saved += Math.round((compare - price) * (Number(item.quantity) || 1));
-    }
-    return saved;
 }
 
 /** The driver's report as Prime wrote it, else a plain "could not deliver". */
@@ -90,15 +79,12 @@ interface Row extends PrimeFailedCandidate {
         order_id: string;
         status: string;
         phone: string;
-        discount_amount: number | null;
-        items: OrderItem[] | null;
     };
 }
 
 export interface PrimeFailedNoticeOutcome {
     sent: number;
     failed: number;
-    skipped: number;
 }
 
 /**
@@ -109,7 +95,7 @@ export interface PrimeFailedNoticeOutcome {
  * 5 minutes, and is logged in whatsapp_logs.
  */
 export async function sendPrimeFailedNotices(db: ServiceDb, tenantId: string, now: number): Promise<PrimeFailedNoticeOutcome> {
-    const outcome: PrimeFailedNoticeOutcome = { sent: 0, failed: 0, skipped: 0 };
+    const outcome: PrimeFailedNoticeOutcome = { sent: 0, failed: 0 };
     // Interakt fetches the header picture from the live app; previews and laptops have no public address for it.
     if (env.VERCEL_ENV !== "production" || !env.VERCEL_PROJECT_PRODUCTION_URL) return outcome;
     if (!primeFailedNoticeOpen(now)) return outcome;
@@ -127,7 +113,7 @@ export async function sendPrimeFailedNotices(db: ServiceDb, tenantId: string, no
     const { data, error } = await db
         .from("prime_shipments")
         .select(
-            "id, step_code, status_changed_at, problem_checked_at, cancelled_at, failed_notice_sent_at, return_reason, postpone_reason, orders!inner(id, order_id, status, phone, discount_amount, items)",
+            "id, step_code, status_changed_at, problem_checked_at, cancelled_at, failed_notice_sent_at, return_reason, postpone_reason, orders!inner(id, order_id, status, phone)",
         )
         .eq("tenant_id", tenantId)
         .in("step_code", [...PRIME_RESENDABLE_STEPS])
@@ -141,12 +127,6 @@ export async function sendPrimeFailedNotices(db: ServiceDb, tenantId: string, no
         const row = { ...raw, order: { status: raw.orders.status } };
         if (!primeFailedNoticeDue(row, now)) continue;
         const order = raw.orders;
-        const discount = primeOrderDiscount(order);
-        // The message names the discount they lose; with none it would say something false.
-        if (discount <= 0) {
-            outcome.skipped += 1;
-            continue;
-        }
 
         const { data: claimed, error: claimError } = await db
             .from("prime_shipments")
@@ -162,8 +142,8 @@ export async function sendPrimeFailedNotices(db: ServiceDb, tenantId: string, no
             name: PRIME_FAILED_NOTICE_TEMPLATE,
             languageCode: TEMPLATE_LANGUAGE,
             headerValues: [image],
-            // The approved template: {{1}} order number, {{2}} the driver's status, {{3}} the discount in IQD.
-            bodyValues: [order.order_id, primeFailedStatus(raw), discount.toLocaleString("en-US")],
+            // The approved template: {{1}} order number, {{2}} the driver's status.
+            bodyValues: [order.order_id, primeFailedStatus(raw)],
             callbackData: order.id,
             label: order.order_id,
         });
