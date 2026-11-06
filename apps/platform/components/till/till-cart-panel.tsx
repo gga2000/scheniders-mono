@@ -206,7 +206,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                         type="button"
                                         onClick={() => setEditing(editing === l.key ? null : l.key)}
                                         aria-expanded={editing === l.key}
-                                        className="flex min-h-7 max-w-full items-center gap-1 text-left text-xs leading-tight tabular-nums text-muted hover:text-foreground"
+                                        className="-my-2 flex min-h-11 max-w-full items-center gap-1 text-left text-xs leading-tight tabular-nums text-muted hover:text-foreground"
                                     >
                                         <Pencil className="h-3 w-3 shrink-0" aria-hidden="true" />
                                         {l.price < l.list_price ? (
@@ -299,21 +299,24 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     </div>
                 )}
                 {discountTooBig && limit !== null && (
-                    <dl className="grid gap-1 rounded-2xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
-                        <div className="flex justify-between gap-3">
-                            <dt dir="auto">{t("till.manager.rowGiven")}</dt>
-                            <dd className="tabular-nums">{formatIqd(given)}</dd>
-                        </div>
-                        {overParts && <p className="text-xs opacity-80" dir="auto">{overParts}</p>}
-                        <div className="flex justify-between gap-3">
-                            <dt dir="auto">{t("till.manager.rowLimit")}</dt>
-                            <dd className="tabular-nums">{formatIqd(limit)}</dd>
-                        </div>
-                        <div className="flex justify-between gap-3 border-t border-red-200 pt-1 font-bold dark:border-red-400/30">
-                            <dt dir="auto">{t("till.manager.rowOver")}</dt>
-                            <dd className="tabular-nums">{formatIqd(given - limit)}</dd>
-                        </div>
-                    </dl>
+                    <div className="flex flex-col gap-1 rounded-2xl bg-red-50 px-3 py-2 text-red-700 dark:bg-red-500/10 dark:text-red-300">
+                        {/* Three figures side by side, so the cart above keeps its room while the manager looks. */}
+                        <dl className="grid grid-cols-3 gap-2 text-center">
+                            <div>
+                                <dt className="text-xs" dir="auto">{t("till.manager.rowGiven")}</dt>
+                                <dd className="text-base font-semibold tabular-nums">{formatIqd(given)}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs" dir="auto">{t("till.manager.rowLimit")}</dt>
+                                <dd className="text-base font-semibold tabular-nums">{formatIqd(limit)}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs font-bold" dir="auto">{t("till.manager.rowOver")}</dt>
+                                <dd className="text-base font-bold tabular-nums">{formatIqd(given - limit)}</dd>
+                            </div>
+                        </dl>
+                        {overParts && <p className="text-center text-xs opacity-80" dir="auto">{overParts}</p>}
+                    </div>
                 )}
 
                 {ticket.discount > 0 && (

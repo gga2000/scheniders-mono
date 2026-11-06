@@ -301,7 +301,11 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 clear();
                                 setMethod(method === "cash" ? "card" : "cash");
                             }}
-                            className="h-16 min-w-0 flex-1 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-base font-semibold leading-tight text-foreground"
+                            // When the money given falls short, splitting is the only way on, so it becomes the main button.
+                            className={cn(
+                                "h-16 min-w-0 flex-1 rounded-2xl px-4 text-base font-semibold leading-tight",
+                                result.ok ? "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground" : INK_BUTTON,
+                            )}
                         >
                             {t("till.pay.splitOff", { amount: formatIqd(partAmount), method: t(`till.pay.method.${method}`) })}
                         </button>

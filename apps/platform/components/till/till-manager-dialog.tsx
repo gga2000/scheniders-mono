@@ -107,7 +107,7 @@ export function TillManagerDialog({ sessionId, managers, reason, onApproved, onC
                             {message ?? (who ? t("till.lock.typePin", { name: who.display_name }) : t("till.manager.pick"))}
                         </p>
 
-                        <div className={cn("grid grid-cols-3 gap-2", !who && "opacity-40")}>
+                        <div className="grid grid-cols-3 gap-2">
                             {KEYS.map((k) => (
                                 <button
                                     key={k}
