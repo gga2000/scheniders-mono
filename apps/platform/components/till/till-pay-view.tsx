@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Equal, Minus, UserRound, X } from "lucide-react";
+import { Check, Equal, MessageCircle, Minus, UserRound, X } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import {
     addPartPayment,
@@ -360,9 +360,9 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     </button>
                 </div>
                 <Toggle on={print} onChange={onPrint} label={t("till.pay.printReceipt")} />
-                <p className="flex min-h-14 items-center justify-between gap-3 border-b border-[var(--card-border)] px-4 text-sm">
-                    <span className="font-semibold text-foreground">{t("till.pay.whatsappReceipt")}</span>
-                    <span className="text-right text-xs text-muted" dir="auto">{hasPhone ? t("till.pay.whatsappAfter") : t("till.pay.noPhone")}</span>
+                <p className="flex min-h-14 items-center gap-2 border-b border-[var(--card-border)] px-4 text-xs text-muted" dir="auto">
+                    <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {t("till.pay.whatsappReceipt")}: {hasPhone ? t("till.pay.whatsappAfter") : t("till.pay.noPhone")}
                 </p>
                 <p className="text-left p-4 text-xs text-muted" dir="auto">{t("till.pay.note")}</p>
             </aside>

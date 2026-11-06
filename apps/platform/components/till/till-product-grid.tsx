@@ -128,8 +128,11 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
     const matches = searchProducts(inFilter, query);
     // Sold-out items go last, judged before this cart so a card never jumps away while it is being tapped.
     const stocked = (p: TillProduct) => p.available + (p.in_cart ?? 0) > 0;
-    const shown = [...matches.filter(stocked), ...matches.filter((p) => !stocked(p))];
     const showBestRow = filter === "all" && !query.trim() && best.length > 0;
+    // The best-seller strip already shows its bottles, so the grid under it starts with the rest.
+    const inStrip = new Set(showBestRow ? best.slice(0, 4).map((p) => p.id) : []);
+    const rest = matches.filter((p) => !inStrip.has(p.id));
+    const shown = [...rest.filter(stocked), ...rest.filter((p) => !stocked(p))];
 
     return (
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-5">
@@ -244,17 +247,17 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                                 </h2>
                                 {/* One row only, so the full grid starts above the fold; the chip shows them all. */}
                                 <div className="grid grid-cols-4 gap-2">
-                                    {best.slice(0, 4).map((p) => (
+                                    {best.filter((p) => inStrip.has(p.id)).map((p) => (
                                         <QuickKey key={p.id} product={p} onPick={(el) => choose(p, el)} />
                                     ))}
                                 </div>
                             </section>
                         )}
-                        {shown.length === 0 ? (
+                        {matches.length === 0 ? (
                             <p className="py-10 text-center text-sm text-muted">{products.length ? t("till.sell.noMatch") : t("till.sell.noProducts")}</p>
                         ) : (
                             <section aria-label={t("till.sell.allProducts")} className="flex flex-col gap-2">
-                                {showBestRow && <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.sell.allProducts")}</h2>}
+                                {showBestRow && shown.length > 0 && <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.sell.moreProducts")}</h2>}
                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3">
                                     {shown.map((p) => (
                                         <ProductCard key={p.id} product={p} onPick={(el) => choose(p, el)} />
