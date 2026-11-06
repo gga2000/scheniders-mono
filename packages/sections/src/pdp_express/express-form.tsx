@@ -20,6 +20,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { IRAQ_GOVERNORATES, governorateLabel, cn, resolveI18n } from "@scheniders/shared";
 import { EXPRESS_VARIANTS_ID, useExpressOrderStore } from "../helpers/express-order-store";
+import { NOTES_MAX_LENGTH } from "../helpers/order-notes";
 import { MaterialIcon } from "../helpers/primitives";
 import type { FieldElement, FieldKey } from "../pdp_direct_order.client";
 import { formProgressReport } from "./form-progress";
@@ -198,6 +199,7 @@ export function ExpressForm({
     (form.governorate_code !== "" && form.address_details.trim() !== "") ||
     landmark !== "" ||
     form.alt_phone !== "" ||
+    m.notes !== "" ||
     hasError("alt_phone") ||
     focusStage === "extras";
   const nameReady = name.length >= 2 && settledName.length >= 2;
@@ -577,6 +579,24 @@ export function ExpressForm({
               {xs("addAltPhone", locale)}
             </button>
           )}
+        </StageItem>
+
+        <StageItem open={extrasOpen && !hideRest} late className={text}>
+          <label htmlFor={`${m.submitErrorId}-notes`} className={labelCls}>
+            {xs("notesLabel", locale)}{" "}
+            <span className="font-normal text-bk-ink-faint">({xs("optional", locale)})</span>
+          </label>
+          <textarea
+            id={`${m.submitErrorId}-notes`}
+            name="notes"
+            rows={2}
+            dir="auto"
+            maxLength={NOTES_MAX_LENGTH}
+            placeholder={xs("notesPlaceholder", locale)}
+            value={m.notes}
+            onChange={(e) => m.setNotes(e.target.value)}
+            className={cn(inputCls, text, "resize-none")}
+          />
         </StageItem>
       </Stage>
     </div>

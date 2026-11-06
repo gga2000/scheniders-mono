@@ -30,6 +30,7 @@
 
 "use client";
 
+import { NOTES_MAX_LENGTH } from "./helpers/order-notes";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
@@ -121,6 +122,13 @@ export const STRINGS = {
   governorate: { en: "Governorate", ar: "المحافظة", ku: "پارێزگا" },
   governoratePlaceholder: { en: "Choose governorate", ar: "اختر المحافظة", ku: "پارێزگا هەڵبژێرە" },
   address: { en: "Address", ar: "العنوان", ku: "ناونیشان" },
+  optional: { en: "optional", ar: "اختياري", ku: "ئارەزوومەندانە" },
+  notes: { en: "Order notes", ar: "ملاحظات على الطلب", ku: "تێبینی لەسەر داواکاری" },
+  notesPlaceholder: {
+    en: "e.g. call before delivery, gift wrap",
+    ar: "مثال: اتصلوا قبل التوصيل، تغليف هدية",
+    ku: "نموونە: پێش گەیاندن پەیوەندی بکەن",
+  },
   addressPlaceholder: {
     en: "Nearest landmark, street, house number…",
     ar: "أقرب نقطة دالة، الشارع، رقم الدار…",
@@ -453,6 +461,8 @@ export function PdpDirectOrderRender({
   // server's verdict on it. The amount is previewed from the published
   // program; the server re-checks eligibility and prices it again at submit.
   const [referralCode, setReferralCode] = useState("");
+  // Optional free-text note for the merchant, posted as `notes`.
+  const [notes, setNotes] = useState("");
   const [referralState, setReferralState] = useState<
     | { kind: "idle" }
     | { kind: "checking" }
@@ -1067,6 +1077,7 @@ export function PdpDirectOrderRender({
       city: governorateName ?? form.governorate_code,
       address_details: addressDetails,
       ...(altPhone ? { alt_phone: altPhone } : {}),
+      ...(notes.trim() ? { notes: notes.trim().slice(0, NOTES_MAX_LENGTH) } : {}),
       payment_method: "cod",
       items,
       subtotal,
@@ -1368,6 +1379,8 @@ export function PdpDirectOrderRender({
           avgRating,
           form,
           set,
+          notes,
+          setNotes,
           fieldErrors,
           fieldError,
           validateOnBlur,
@@ -1769,6 +1782,24 @@ export function PdpDirectOrderRender({
                   />
                 </IconField>
                 {renderFieldError("address_details")}
+              </div>
+
+              <div>
+                <label htmlFor={`${uid}-notes`} className={labelCls}>
+                  {s("notes")}{" "}
+                  <span className={hintCls}>{s("optional")}</span>
+                </label>
+                <textarea
+                  id={`${uid}-notes`}
+                  name="notes"
+                  rows={2}
+                  dir="auto"
+                  maxLength={NOTES_MAX_LENGTH}
+                  placeholder={s("notesPlaceholder")}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className={cn(inputCls, "resize-none px-4 py-3")}
+                />
               </div>
             </div>
 

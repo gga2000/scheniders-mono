@@ -34,7 +34,7 @@ export const checkoutOrderBodySchema = z.object({
    *  stored on `orders.secondary_phone` — never smuggled into `notes`. */
   alt_phone: z.string().trim().max(32).optional(),
   email: z.string().email().optional(),
-  notes: z.string().optional(),
+  notes: z.string().max(500).optional(),
   payment_method: z.enum(["cod", "card", "fastpay"]).optional().default("cod"),
   items: z
     .array(
