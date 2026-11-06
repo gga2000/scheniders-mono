@@ -87,6 +87,9 @@ export interface ExpressModel {
   avgRating: number;
   form: FormState;
   set: (k: FieldKey, v: string) => void;
+  /** The optional note for the merchant, posted as `notes`. */
+  notes: string;
+  setNotes: (v: string) => void;
   fieldErrors: FieldErrors;
   fieldError: (k: FieldKey, raw: string) => string | null;
   validateOnBlur: (k: FieldKey) => void;
