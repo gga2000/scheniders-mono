@@ -14,12 +14,15 @@ import { ShieldReviewDialog } from "./shield-review-dialog";
  * Shield on the order card (Ali, 2026-11-04, Trust score 2026-11-05): a ring
  * with the customer's Trust score out of 100, plus one short warning line when
  * the score is under 80 or the order itself needs a check. Clicking either
- * opens the Shield report. Shows only while the order can still be stopped.
+ * opens the Shield report. The ring shows on every order; the warning line
+ * only while the order can still be stopped (in-transit cards keep the ring,
+ * 2026-11-06).
  */
 export function OrderShield({ order }: { order: Order }) {
     const { t } = useLanguage();
     const [open, setOpen] = useState(false);
-    const active = SHIELD_OPEN_STATUSES.has(order.status) && !order.is_return;
+    const active = !order.is_return;
+    const stoppable = SHIELD_OPEN_STATUSES.has(order.status);
     const shield = useShield(order.phone, active);
     const loading = shield.isPending && normalizeShieldPhone(order.phone) !== null;
 
@@ -52,7 +55,7 @@ export function OrderShield({ order }: { order: Order }) {
                 >
                     {trust.score}
                 </button>
-                {trust.band !== "green" ? (
+                {!stoppable ? null : trust.band !== "green" ? (
                     <button
                         type="button"
                         onClick={() => setOpen(true)}
