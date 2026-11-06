@@ -5,7 +5,7 @@ import { Check, MessageCircle, Printer, RotateCcw } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { changeInNotes, formatIqd } from "@/lib/till/cart";
-import { printReceipt, receiptDocument, receiptWhatsAppText, whatsAppReceiptLink, type ReceiptData } from "@/lib/till/receipt";
+import { printReceipt, receiptDocument, receiptSaved, receiptWhatsAppText, whatsAppReceiptLink, type ReceiptData } from "@/lib/till/receipt";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON, NOTE_TILES } from "./till-colors";
 
@@ -90,6 +90,12 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                         <p className="flex justify-between text-sm text-muted">
                             {t("till.cart.discount")}
                             <span className="tabular-nums">−{formatIqd(receipt.discount)}</span>
+                        </p>
+                    )}
+                    {receiptSaved(receipt) > receipt.discount && (
+                        <p className="flex justify-between text-sm font-semibold text-[#14532D] dark:text-emerald-300">
+                            {t("till.done.saved")}
+                            <span className="tabular-nums">{formatIqd(receiptSaved(receipt))}</span>
                         </p>
                     )}
                     <p className="flex justify-between border-t border-[var(--card-border)] pt-2 text-base font-bold text-foreground">
