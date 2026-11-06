@@ -3,9 +3,9 @@ import {
     primeFailedNoticeDue,
     primeFailedNoticeOpen,
     primeFailedNoticeSetting,
-    primeFailedStatus,
     type PrimeFailedCandidate,
 } from "./failed-notice";
+import { primeFailedStatus } from "./failed-notice-message";
 
 const NOW = Date.parse("2026-11-05T12:00:00Z"); // 15:00 Baghdad
 

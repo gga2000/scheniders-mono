@@ -19,7 +19,7 @@ const REFRESH_MS = 60_000;
 
 /** The prime_shipments columns a Prime view is read from. */
 export const PRIME_VIEW_COLUMNS =
-    "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at, return_reason, postpone_reason, postponed_to, problem_checked_at, problem_checked_by, problem_note";
+    "order_id, case_id, shipment_status, step_code, step_name, sent_at, receipt_amount_iqd, shipment_charge, checked_at, status_changed_at, push_needed_at, cancel_needed_at, push_error, cancelled_at, cancel_refused_at, resent_at, return_reason, postpone_reason, postponed_to, problem_checked_at, problem_checked_by, problem_note, failed_notice_sent_at, failed_notice_sent_by";
 
 export const primeShipmentRowSchema = z.object({
     order_id: z.string(),
@@ -44,6 +44,8 @@ export const primeShipmentRowSchema = z.object({
     problem_checked_at: z.string().nullable(),
     problem_checked_by: z.string().nullable(),
     problem_note: z.string().nullable(),
+    failed_notice_sent_at: z.string().nullable(),
+    failed_notice_sent_by: z.string().nullable(),
 });
 
 const EMPTY: ReadonlyMap<string, PrimeShipmentView> = new Map();
@@ -85,6 +87,8 @@ export function primeViewFromRow(r: z.infer<typeof primeShipmentRowSchema>): Pri
         problemCheckedAt: r.problem_checked_at,
         problemCheckedBy: r.problem_checked_by,
         problemNote: r.problem_note,
+        warnedAt: r.failed_notice_sent_at,
+        warnedBy: r.failed_notice_sent_by,
     };
 }
 
@@ -290,6 +294,31 @@ export function usePrimeProblemMark() {
             const answer = problemAnswer.parse(await res.json().catch(() => ({ success: false })));
             await queryClient.invalidateQueries({ queryKey: primeShipmentsKey(tenantId) });
             return answer.success;
+        },
+        [token, tenantId, queryClient],
+    );
+}
+
+/**
+ * Sends the failed-delivery WhatsApp to one order's customer now (POST
+ * /api/prime/failed-notice/send); refreshes the Prime views after, so the
+ * button turns into the "sent" note. Resolves with the server's error, or null.
+ */
+export function usePrimeFailedNoticeSend() {
+    const { session, tenantId } = useAuth();
+    const token = session?.access_token;
+    const queryClient = useQueryClient();
+    return useCallback(
+        async (orderId: string): Promise<string | null> => {
+            if (!token) throw new Error("Not signed in");
+            const res = await fetch("/api/prime/failed-notice/send", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId }),
+            });
+            const answer = problemAnswer.parse(await res.json().catch(() => ({ success: false })));
+            await queryClient.invalidateQueries({ queryKey: primeShipmentsKey(tenantId) });
+            return answer.success ? null : (answer.error ?? "Not sent");
         },
         [token, tenantId, queryClient],
     );

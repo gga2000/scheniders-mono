@@ -16,7 +16,8 @@ const t = (key: string, vars?: Record<string, string | number>) => {
 
 vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t, language: "en" }), useTextDir: () => "ltr" }));
 const mark = vi.hoisted(() => vi.fn().mockResolvedValue(true));
-vi.mock("@/hooks/use-prime-shipments", () => ({ usePrimeProblemMark: () => mark }));
+const warn = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+vi.mock("@/hooks/use-prime-shipments", () => ({ usePrimeProblemMark: () => mark, usePrimeFailedNoticeSend: () => warn }));
 const whatsapp = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/open-whatsapp-chat", () => ({ openWhatsAppChat: whatsapp }));
 const notice = vi.hoisted(() => ({ enabled: false, loaded: true, saving: false, setEnabled: vi.fn().mockResolvedValue(true) }));
@@ -48,6 +49,8 @@ const view = (over: Partial<PrimeShipmentView>): PrimeShipmentView => ({
     problemCheckedAt: null,
     problemCheckedBy: null,
     problemNote: null,
+    warnedAt: null,
+    warnedBy: null,
     ...over,
 });
 
@@ -85,6 +88,7 @@ afterEach(() => {
     cleanup();
     mark.mockClear();
     whatsapp.mockClear();
+    warn.mockClear();
 });
 
 describe("PrimeProblemsTab", () => {
@@ -125,6 +129,24 @@ describe("PrimeProblemsTab", () => {
         const postponed = document.querySelector('[data-prime-problem="o2"]') as HTMLElement;
         fireEvent.click(within(postponed).getByText("Ask Prime"));
         expect(ask).toHaveBeenCalledWith("o2");
+    });
+
+    it("sends the failed-delivery warning by hand after showing the message, and shows when it went out", async () => {
+        const views = new Map(data().views);
+        views.set("o2", view({ status: "POSTPONED", stepCode: "POSTPONED", stepName: "مؤجل", warnedAt: "2026-11-04T12:05:00Z" }));
+        views.set("o1", view({ stepCode: "RTN_WITHAGENT", stepName: "تعذر التوصيل", returnReason: "DENIED" }));
+        const d: PrimeBoardData = { ...data(), views };
+        render(<PrimeProblemsTab data={d} onAskPrime={vi.fn()} />);
+        const row = document.querySelector('[data-prime-problem="o1"]') as HTMLElement;
+        fireEvent.click(within(row).getByText("Send warning"));
+        expect(screen.getByText(/حالته: رفض الطلب/)).toBeTruthy();
+        fireEvent.click(screen.getByText("Send"));
+        await waitFor(() => expect(warn).toHaveBeenCalledWith("o1"));
+        // Handled parcels and ones already warned get no button.
+        const handled = document.querySelector('[data-prime-problem="o3"]') as HTMLElement;
+        expect(within(handled).queryByText("Send warning")).toBeNull();
+        const warned = document.querySelector('[data-prime-problem="o2"]') as HTMLElement;
+        expect(warned.querySelector("[data-prime-warned]")?.textContent).toContain("automatic");
     });
 
     it("marks a parcel handled with a note, and takes the mark off", async () => {

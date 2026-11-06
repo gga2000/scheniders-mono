@@ -352,6 +352,7 @@ function ProblemRow({
                 </div>
                 <PrimeProblemActions
                     problem={problem}
+                    view={view}
                     order={order}
                     canResend={chip.canResend}
                     onResend={() => onToggle("resend")}
