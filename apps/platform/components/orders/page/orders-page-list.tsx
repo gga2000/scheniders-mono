@@ -5,7 +5,9 @@ import { OrderListPreviewStrip } from "@/components/orders/order-list-preview-st
 import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { EmptyState } from "@/components/ui/empty-states";
 import { PrimeQueueEmpty } from "@/components/orders/prime-queue-empty";
-import { usePrimeQueuePending } from "@/hooks/use-prime-queues";
+import { PrimeHandledFold } from "@/components/orders/prime-handled-fold";
+import { usePrimeQueueHandledIds, usePrimeQueuePending } from "@/hooks/use-prime-queues";
+import { useMemo } from "react";
 import { EASE_CHROME } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -25,6 +27,16 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
     const { recordContact, isRefreshing, ordersPending, orderSearch, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, togglePin, ordersAreComplete, t, viewMode, compactView, compactGrid, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, selectedOrders, setSelectedOrders, showArchived, setSelectedOrderWithFetch, emptyStateHasFilters, isFirstRun, filteredOrders, previewing, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, cardListProps } = m;
     const primeQueue = useOrderStore((s) => s.primeQueue);
     const primeQueuePending = usePrimeQueuePending(primeQueue);
+    // In a «معالجة» / «راجع» list the handled orders leave the cards and
+    // gather in one closed green bar at the bottom.
+    const handledIds = usePrimeQueueHandledIds(primeQueue);
+    const [openOrders, handledOrders] = useMemo(() => {
+        if (handledIds.size === 0) return [listOrders, NO_ORDERS];
+        return [listOrders.filter((o) => !handledIds.has(o.id)), listOrders.filter((o) => handledIds.has(o.id))];
+    }, [listOrders, handledIds]);
+    const handledFold = (
+        <PrimeHandledFold orders={handledOrders} renderCard={(order) => <VirtualizedOrderList {...cardListProps} orders={[order]} />} />
+    );
     return (
         <>
             {/* Section 2: Order Cards — stagger child */}
@@ -140,8 +152,10 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                                            in grid mode — `content-visibility` is deliberately not
                                            applied any more, because it would make the virtualizer
                                            measure the placeholder height instead of the card. */
+                                        <>
                                         <VirtualizedOrderList
                                             {...cardListProps}
+                                            orders={openOrders}
                                             gridMode
                                             gridClassName={cn(
                                                 "grid gap-2",
@@ -150,13 +164,18 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                                                     : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
                                             )}
                                         />
+                                        {handledFold}
+                                        </>
                                     ) : (
                                         /* One renderer at every list size. A small-list branch used to
                                            swap in at under 10 rows, so a filter or search crossing
                                            that line remounted every card and closed any menu open
                                            on one (seen live: the status menu shut under the click
                                            as a search's results landed). */
-                                        <VirtualizedOrderList {...cardListProps} />
+                                        <>
+                                            <VirtualizedOrderList {...cardListProps} orders={openOrders} />
+                                            {handledFold}
+                                        </>
                                     )}
                                 </>
                             )}
@@ -207,3 +226,5 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
         </>
     );
 }
+
+const NO_ORDERS: OrdersPageModel["listOrders"] = [];
