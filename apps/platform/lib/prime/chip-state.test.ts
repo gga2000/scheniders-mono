@@ -22,6 +22,8 @@ const view = (over: Partial<PrimeShipmentView> = {}): PrimeShipmentView => ({
     problemCheckedAt: null,
     problemCheckedBy: null,
     problemNote: null,
+    warnedAt: null,
+    warnedBy: null,
     ...over,
 });
 

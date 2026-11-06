@@ -87,6 +87,7 @@ function PrimeQueueBandFor({ m }: { m: OrderCardModel }) {
                     )}
                     <PrimeProblemActions
                         problem={problem}
+                        view={view}
                         order={boardOrder}
                         canResend={chip.canResend}
                         onResend={() => setResendOpen((v) => !v)}

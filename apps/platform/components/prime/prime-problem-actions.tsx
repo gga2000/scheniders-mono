@@ -7,8 +7,10 @@ import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { usePrimeProblemMark } from "@/hooks/use-prime-shipments";
 import { toast } from "@/hooks/use-toast";
 import { openWhatsAppChat } from "@/lib/open-whatsapp-chat";
+import type { PrimeShipmentView } from "@/lib/prime/chip-state";
 import type { PrimeProblem, PrimeProblemKind } from "@/lib/prime/problems";
 import { cn } from "@/lib/utils";
+import { PrimeWarningButton } from "./prime-warning-button";
 
 /** The problem's kind chip, shared by the Prime page's problems tab and the orders page's «معالجة» strip. */
 export const PRIME_PROBLEM_CHIP: Record<PrimeProblemKind, string> = {
@@ -35,18 +37,21 @@ export const primeActionButton =
 
 /**
  * The fix at hand for a Prime problem: call or WhatsApp the customer, send
- * the parcel again (or ask Prime when it cannot be resent), and mark it
- * handled with a note so nobody calls twice.
+ * the parcel again (or ask Prime when it cannot be resent), send the
+ * failed-delivery warning by hand, and mark it handled with a note so
+ * nobody calls twice.
  */
 export function PrimeProblemActions({
     problem,
+    view,
     order,
     canResend,
     onResend,
     onAskPrime,
 }: {
     problem: Pick<PrimeProblem, "orderId" | "kind" | "handled">;
-    order: { phone: string; customer_name: string; order_id: string };
+    view: PrimeShipmentView;
+    order: { id: string; phone: string; customer_name: string; order_id: string; status: string };
     canResend: boolean;
     onResend: () => void;
     onAskPrime: () => void;
@@ -67,6 +72,7 @@ export function PrimeProblemActions({
                     {t("prime.problems.whatsapp")}
                 </button>
             )}
+            <PrimeWarningButton view={view} order={order} />
             {canResend ? (
                 <button
                     type="button"

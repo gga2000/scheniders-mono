@@ -36,6 +36,9 @@ export interface PrimeShipmentView {
     problemCheckedAt: string | null;
     problemCheckedBy: string | null;
     problemNote: string | null;
+    /** The failed-delivery WhatsApp went to the customer (lib/prime/failed-notice): when, and who sent it by hand (null = the app). */
+    warnedAt: string | null;
+    warnedBy: string | null;
 }
 
 export type PrimeChipTone = "progress" | "warn" | "problem" | "muted";
