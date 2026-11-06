@@ -37,6 +37,10 @@ export function useOrderFilterState() {
     // and its dates never moved again. Merchants opened the app on a window from
     // weeks earlier under an "All Orders" label.
     const [filters, setFiltersState] = useState<OrderFilters>(getDefaultFilters);
+    // The filter as of the last change, kept beside the state so setFilters can
+    // tell whether a call changes anything (and two calls in one tick chain).
+    // Every write of the state writes it too.
+    const filtersRef = useRef(filters);
 
     /**
      * True until the server-side preference has had its chance to replace the
@@ -67,6 +71,7 @@ export function useOrderFilterState() {
                 // session would open the page on results for a term the search
                 // box does not show.
                 delete saved.searchQuery;
+                filtersRef.current = saved;
                 setFiltersState(saved);
             }
             hasLoadedUserPrefs.current = true;
@@ -83,20 +88,23 @@ export function useOrderFilterState() {
     userIdRef.current = userId;
     const setPrimeQueue = useOrderStore(s => s.setPrimeQueue);
     const setFilters = useCallback((newFilters: OrderFilters | ((prev: OrderFilters) => OrderFilters)) => {
+        const prev = filtersRef.current;
+        const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
+        // A no-op call (the search box syncing an unchanged term on mount)
+        // must not close a Prime queue a reload restored.
+        if (updated === prev) return;
+        filtersRef.current = updated;
         // A Prime queue («معالجة» / «راجع») is a view across every date; picking
         // any filter leaves it, so every chip count is the list its click opens.
         setPrimeQueue(null);
-        setFiltersState(prev => {
-            const updated = typeof newFilters === 'function' ? newFilters(prev) : newFilters;
-            if (userIdRef.current) {
-                // Strip riskLevel, adChannel, adCampaign and searchQuery from persistence: each
-                // is a quick look at a slice, and coming back to a list silently
-                // pinned to one ad network reads as orders having gone missing.
-                const { riskLevel: _riskLevel, adChannel: _adChannel, adCampaign: _adCampaign, searchQuery: _searchQuery, ...persistableFilters } = updated;
-                setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
-            }
-            return updated;
-        });
+        setFiltersState(updated);
+        if (userIdRef.current) {
+            // Strip riskLevel, adChannel, adCampaign and searchQuery from persistence: each
+            // is a quick look at a slice, and coming back to a list silently
+            // pinned to one ad network reads as orders having gone missing.
+            const { riskLevel: _riskLevel, adChannel: _adChannel, adCampaign: _adCampaign, searchQuery: _searchQuery, ...persistableFilters } = updated;
+            setPreference(PREFERENCE_KEYS.ORDER_FILTERS, persistableFilters);
+        }
     }, [setPreference, setPrimeQueue]);
 
     const clearFilters = useCallback(() => setFilters({ status: "all" }), [setFilters]);
