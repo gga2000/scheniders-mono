@@ -609,7 +609,7 @@ function TillFrame({
                         <button type="button" onClick={onHistory} className={chip} title={t("till.history.title")}>
                             <Receipt className="h-4 w-4" aria-hidden="true" />
                             <span className="tabular-nums">{formatIqd(today.total)}</span>
-                            <span className="whitespace-nowrap text-xs font-medium tabular-nums text-white/60" dir="auto">
+                            <span className="whitespace-nowrap text-xs font-medium tabular-nums text-white/75" dir="auto">
                                 {t("till.top.today", { n: today.count, count: today.count })}
                             </span>
                             {goal ? (
@@ -632,7 +632,7 @@ function TillFrame({
                     )}
                     {commission != null && (
                         <span className={cn(chip, "cursor-default")}>
-                            <span className="whitespace-nowrap text-xs font-medium text-white/60" dir="auto">{t("till.top.commission")}</span>
+                            <span className="whitespace-nowrap text-xs font-medium text-white/75" dir="auto">{t("till.top.commission")}</span>
                             <span className="tabular-nums">{formatIqd(commission)}</span>
                         </span>
                     )}
@@ -718,7 +718,7 @@ function TillClock() {
     return (
         <p className="flex flex-col items-center leading-tight text-white">
             <span className="text-xl font-bold tabular-nums">{now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" })}</span>
-            <span className="whitespace-nowrap text-[11px] font-medium text-white/60">{now.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Baghdad" })}</span>
+            <span className="whitespace-nowrap text-[11px] font-medium text-white/75">{now.toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Baghdad" })}</span>
         </p>
     );
 }

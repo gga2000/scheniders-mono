@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { AlertTriangle, Bookmark, FlaskConical, Minus, Package, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, Bookmark, FlaskConical, Minus, Package, Pencil, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { logRemovedLines, useTillCustomer } from "@/hooks/use-till";
@@ -206,8 +206,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                         type="button"
                                         onClick={() => setEditing(editing === l.key ? null : l.key)}
                                         aria-expanded={editing === l.key}
-                                        className="flex min-h-7 max-w-full items-center overflow-hidden whitespace-nowrap text-xs tabular-nums text-muted underline decoration-dotted underline-offset-4 hover:text-foreground"
+                                        className="flex min-h-7 max-w-full items-center gap-1 text-left text-xs leading-tight tabular-nums text-muted hover:text-foreground"
                                     >
+                                        <Pencil className="h-3 w-3 shrink-0" aria-hidden="true" />
                                         {l.price < l.list_price ? (
                                             <span className="font-semibold text-foreground" dir="auto">{t("till.cart.each", { price: formatIqd(l.price) })}</span>
                                         ) : (
@@ -276,7 +277,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             <button
                                 type="button"
                                 onClick={() => setDiscountOpen(true)}
-                                className="h-12 rounded-2xl border border-dashed border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
+                                className="h-12 rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
                             >
                                 {t("till.cart.addDiscount")}
                             </button>

@@ -108,14 +108,14 @@ export function TillCustomerScreen() {
                     <div className="mt-auto flex flex-col gap-3">
                         {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
                         <p className="text-xl text-white/60" dir="auto">{t("till.customer.total")}</p>
-                        <p className="text-8xl font-bold tabular-nums tracking-tight">{formatIqd(state.total)}</p>
+                        <p className={cn("font-bold tabular-nums tracking-tight", bigSize(formatIqd(state.total)))}>{formatIqd(state.total)}</p>
                         <p className="text-lg text-white/60" dir="auto">{t("till.iqd")}</p>
                     </div>
                 ) : state.view === "pay" && qrPay ? (
                     <div className="my-auto flex flex-col items-center gap-4 text-center">
                         <p className="text-2xl font-semibold" dir="auto">{t("till.customer.scan", { method: t(`till.pay.method.${state.method}`) })}</p>
                         <img src={qrPay} alt={t("till.pay.qrAlt", { method: t(`till.pay.method.${state.method}`) })} className="aspect-square w-[min(100%,22rem)] rounded-[28px] bg-white object-contain p-5" />
-                        <p className="text-7xl font-bold tabular-nums tracking-tight">
+                        <p className={cn("font-bold tabular-nums tracking-tight", formatIqd(state.due).length > 7 ? "text-6xl" : "text-7xl")}>
                             {formatIqd(state.due)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
                         </p>
                         {(storeName || shopName) && (
@@ -149,6 +149,11 @@ export function TillCustomerScreen() {
     );
 }
 
+/** The panel is about 38% of the screen: a 7-digit amount ("1,175,750") steps down so it never clips. */
+function bigSize(value: string) {
+    return value.length > 9 ? "text-6xl" : value.length > 7 ? "text-7xl" : "text-8xl";
+}
+
 function Center({ children }: { children: React.ReactNode }) {
     return <div className="flex flex-1 flex-col items-center justify-center p-10 text-center">{children}</div>;
 }
@@ -157,7 +162,7 @@ function Row({ label, value, unit, big = false }: { label: string; value: string
     return big ? (
         <div className="flex flex-col gap-2">
             <p className="text-xl text-white/60" dir="auto">{label}</p>
-            <p className="text-8xl font-bold tabular-nums tracking-tight">{value}</p>
+            <p className={cn("font-bold tabular-nums tracking-tight", bigSize(value))}>{value}</p>
             <p className="text-lg text-white/60">{unit}</p>
         </div>
     ) : (
@@ -174,7 +179,7 @@ function Change({ label, value, unit }: { label: string; value: string; unit: st
     return (
         <div className="w-full rounded-[28px] bg-[#E3F6DA] px-8 py-6 text-[#14532D]">
             <p className="text-xl font-semibold" dir="auto">{label}</p>
-            <p className="text-7xl font-bold tabular-nums tracking-tight">
+            <p className={cn("font-bold tabular-nums tracking-tight", value.length > 7 ? "text-6xl" : "text-7xl")}>
                 {value} <span className="text-2xl font-semibold">{unit}</span>
             </p>
         </div>
