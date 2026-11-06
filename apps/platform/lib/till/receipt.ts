@@ -14,7 +14,8 @@ export interface ReceiptData {
     cashier: string;
     /** ISO time of the sale. */
     at: string;
-    lines: { name: string; variant_name: string | null; quantity: number; price: number }[];
+    /** list_price is the shelf price, known for sales made on this screen (not for reprints). */
+    lines: { name: string; variant_name: string | null; quantity: number; price: number; list_price?: number }[];
     subtotal: number;
     discount: number;
     total: number;
@@ -38,6 +39,11 @@ export function receiptTime(iso: string): string {
     }).formatToParts(new Date(iso));
     const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
     return `${get("year")}/${get("month")}/${get("day")} · ${get("hour")}:${get("minute")}`;
+}
+
+/** Line price cuts plus the cart discount: the same "saved" the customer screen shows. */
+export function receiptSaved(r: ReceiptData): number {
+    return r.discount + r.lines.reduce((s, l) => s + Math.max(0, (l.list_price ?? l.price) - l.price) * l.quantity, 0);
 }
 
 function lineName(l: ReceiptData["lines"][number]): string {

@@ -307,7 +307,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 result.ok ? "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground" : INK_BUTTON,
                             )}
                         >
-                            {t("till.pay.splitOff", { amount: formatIqd(partAmount), method: t(`till.pay.method.${method}`) })}
+                            <span dir="auto">{t("till.pay.splitOff", { amount: formatIqd(partAmount), method: t(`till.pay.method.${method}`), rest: formatIqd(rest - partAmount) })}</span>
                         </button>
                     )}
                     <button

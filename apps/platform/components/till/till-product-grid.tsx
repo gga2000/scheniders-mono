@@ -397,6 +397,11 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: H
                         <Package className="h-10 w-10" aria-hidden="true" />
                     </span>
                 )}
+                {(product.in_cart ?? 0) > 0 && (
+                    <span className="absolute right-2 top-2 rounded-full bg-[#EFFF00] px-2.5 py-1 text-xs font-bold tabular-nums text-[#121212] shadow-sm" aria-label={t("till.sell.inCart", { n: product.in_cart ?? 0 })}>
+                        ×{product.in_cart}
+                    </span>
+                )}
                 {sizes > 1 && (
                     <span className="absolute left-2 top-2 rounded-full bg-[#1E1E1E]/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                         {t("till.sell.sizes", { n: sizes })}

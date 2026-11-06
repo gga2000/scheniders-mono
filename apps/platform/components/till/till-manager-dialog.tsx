@@ -114,7 +114,7 @@ export function TillManagerDialog({ sessionId, managers, reason, onApproved, onC
                                     type="button"
                                     disabled={!who || approve.isPending}
                                     onClick={() => press(k)}
-                                    className="h-14 rounded-2xl border border-[var(--card-border)] text-xl font-semibold tabular-nums text-foreground active:bg-[var(--card-border)]/40"
+                                    className="h-14 rounded-2xl border border-[var(--card-border)] text-xl font-semibold tabular-nums text-foreground active:bg-[var(--card-border)]/40 disabled:opacity-40"
                                 >
                                     {k}
                                 </button>
@@ -124,7 +124,7 @@ export function TillManagerDialog({ sessionId, managers, reason, onApproved, onC
                                 type="button"
                                 disabled={!who || approve.isPending}
                                 onClick={() => press("0")}
-                                className="h-14 rounded-2xl border border-[var(--card-border)] text-xl font-semibold tabular-nums text-foreground active:bg-[var(--card-border)]/40"
+                                className="h-14 rounded-2xl border border-[var(--card-border)] text-xl font-semibold tabular-nums text-foreground active:bg-[var(--card-border)]/40 disabled:opacity-40"
                             >
                                 0
                             </button>

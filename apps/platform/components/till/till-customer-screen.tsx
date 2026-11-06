@@ -18,6 +18,7 @@ export function TillCustomerScreen() {
     const brand = useTenantBrand();
     const [state, setState] = useState<DisplayState | null>(null);
     const [noChannel, setNoChannel] = useState(false);
+    const [badLogo, setBadLogo] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof BroadcastChannel === "undefined") {
@@ -36,7 +37,9 @@ export function TillCustomerScreen() {
     const shopName = state?.shopName ?? "";
     const storeName = brand.name ?? "";
 
-    const brandMark = brand.logoUrl ? <img src={brand.logoUrl} alt="" className="h-12 w-12 rounded-xl bg-white object-contain p-1" /> : null;
+    // A logo link that fails falls back to the store name, never an empty white box in front of the customer.
+    const logoUrl = brand.logoUrl && brand.logoUrl !== badLogo ? brand.logoUrl : null;
+    const brandMark = logoUrl ? <img src={logoUrl} alt="" onError={() => setBadLogo(logoUrl)} className="h-12 w-12 rounded-xl bg-white object-contain p-1" /> : null;
 
     if (noChannel || !state || state.view === "idle") {
         return (
@@ -46,8 +49,8 @@ export function TillCustomerScreen() {
                         <p className="text-xl" dir="auto">{t("till.customer.unsupported")}</p>
                     ) : (
                         <>
-                            {brand.logoUrl ? (
-                                <img src={brand.logoUrl} alt={storeName} className="max-h-44 max-w-[50vw] rounded-[32px] bg-white object-contain p-4" />
+                            {logoUrl ? (
+                                <img src={logoUrl} alt={storeName} onError={() => setBadLogo(logoUrl)} className="max-h-44 max-w-[50vw] rounded-[32px] bg-white object-contain p-4" />
                             ) : (
                                 <p className="text-6xl font-bold tracking-tight" dir="auto">{storeName}</p>
                             )}
