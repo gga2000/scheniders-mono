@@ -5,6 +5,7 @@ import { OrderListPreviewStrip } from "@/components/orders/order-list-preview-st
 import { OrderSearchBanner } from "@/components/orders/order-search-banner";
 import { EmptyState } from "@/components/ui/empty-states";
 import { PrimeQueueEmpty } from "@/components/orders/prime-queue-empty";
+import { usePrimeQueuePending } from "@/hooks/use-prime-queues";
 import { EASE_CHROME } from "@/components/layout/page-transition";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ import type { OrdersPageModel } from "./use-orders-page-model";
 export function OrdersPageList({ m }: { m: OrdersPageModel }) {
     const { recordContact, isRefreshing, ordersPending, orderSearch, availableCities, availableProducts, filters, setFilters, getDuplicateWindowAlert, togglePin, ordersAreComplete, t, viewMode, compactView, compactGrid, groupBy, filterDuplicatesOnly, setFilterDuplicatesOnly, sortConfig, toggleSort, columnFilters, setColumnFilters, openFilterColumn, setOpenFilterColumn, setIsModalOpen, setShowDuplicateModal, setDuplicateOrder, selectedOrders, setSelectedOrders, showArchived, setSelectedOrderWithFetch, emptyStateHasFilters, isFirstRun, filteredOrders, previewing, toggleOrderSelection, PAGE_SELECT_LIMIT, selectAll, guardedStatusUpdate, listOrders, getRiskLevelByPhone, groupedOrders, modePrice, cardListProps } = m;
     const primeQueue = useOrderStore((s) => s.primeQueue);
+    const primeQueuePending = usePrimeQueuePending(primeQueue);
     return (
         <>
             {/* Section 2: Order Cards — stagger child */}
@@ -112,7 +114,7 @@ export function OrdersPageList({ m }: { m: OrdersPageModel }) {
                             {/* Cards View */}
                             {(viewMode === "cards" || viewMode === "list") && (
                                 <>
-                                    {listOrders.length === 0 && (isRefreshing || ordersPending || previewing || (!showArchived && orderSearch.pending)) ? (
+                                    {listOrders.length === 0 && (isRefreshing || ordersPending || previewing || primeQueuePending || (!showArchived && orderSearch.pending)) ? (
                                         /* An empty list while rows are still arriving is not an empty
                                            list. `loading` covers only the first fetch, so a refetch —
                                            after a window change, a reconnect, or a stale SWR

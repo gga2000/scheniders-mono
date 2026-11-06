@@ -15,6 +15,8 @@ import { useOrderStore } from "@/store/use-order-store";
 
 export interface PrimeQueues {
     connected: boolean;
+    /** The Prime link status has answered (connected is known). */
+    checked: boolean;
     queues: Record<PrimeQueueId, PrimeQueue> | null;
     /** The parcels and their orders the queues were read from, for the card strips. */
     data: PrimeBoardData | null;
@@ -26,9 +28,9 @@ export interface PrimeQueues {
  * and a parcel waiting on someone can be from any day.
  */
 export function usePrimeQueues(): PrimeQueues {
-    const { connected } = usePrimeConnection();
+    const { connected, checked } = usePrimeConnection();
     const { data } = usePrimeBoard(connected);
-    return { connected, queues: data ? queuesOf(data) : null, data };
+    return { connected, checked, queues: data ? queuesOf(data) : null, data };
 }
 
 /** Built once per board read and shared by every chip and card. */
@@ -71,6 +73,39 @@ export function usePrimeQueueEntry(orderId: string): PrimeQueueEntry | null {
  * (realtime and optimistic updates patch it), like search results.
  */
 export function usePrimeQueueOrders(queue: PrimeQueueId | null, liveOrders: readonly Order[]): Order[] | null {
+    const { ids, query } = useQueueRows(queue);
+    return useMemo(() => {
+        if (queue === null) return null;
+        const live = new Map<string, Order>();
+        for (const o of liveOrders) live.set(o.id, o);
+        const fetched = new Map<string, Order>();
+        for (const o of query.data ?? []) fetched.set(o.id, o);
+        const rows: Order[] = [];
+        for (const id of ids) {
+            const row = live.get(id) ?? fetched.get(id);
+            if (row) rows.push(row);
+        }
+        return rows;
+    }, [queue, ids, liveOrders, query.data]);
+}
+
+/**
+ * The chosen queue's rows are still on their way: the Prime link, the board
+ * or the orders read has not answered yet (after a reload the queue is
+ * restored before any of them). The list shows its loading rows, not
+ * «nothing to fix».
+ */
+export function usePrimeQueuePending(queue: PrimeQueueId | null): boolean {
+    const { connected, checked, queues } = usePrimeQueues();
+    const { query } = useQueueRows(queue);
+    if (queue === null) return false;
+    if (!checked) return true;
+    if (!connected) return false;
+    return queues === null || query.isPending;
+}
+
+/** One read of the queue's orders by id, shared by the rows and the pending flag. */
+function useQueueRows(queue: PrimeQueueId | null) {
     const { session, clientReady, tenantId } = useAuth();
     const { queues } = usePrimeQueues();
     const ids = queue && queues ? queues[queue].orderIds : EMPTY_IDS;
@@ -87,19 +122,7 @@ export function usePrimeQueueOrders(queue: PrimeQueueId | null, liveOrders: read
             return orderRepository.findByIds(tenantId, idSet);
         },
     });
-    return useMemo(() => {
-        if (queue === null) return null;
-        const live = new Map<string, Order>();
-        for (const o of liveOrders) live.set(o.id, o);
-        const fetched = new Map<string, Order>();
-        for (const o of query.data ?? []) fetched.set(o.id, o);
-        const rows: Order[] = [];
-        for (const id of ids) {
-            const row = live.get(id) ?? fetched.get(id);
-            if (row) rows.push(row);
-        }
-        return rows;
-    }, [queue, ids, liveOrders, query.data]);
+    return { ids, query };
 }
 
 const EMPTY_IDS: readonly string[] = [];
