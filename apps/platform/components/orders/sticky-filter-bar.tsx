@@ -47,6 +47,10 @@ interface StickyFilterBarProps {
     queueChips?: ReactNode;
     /** Chips placed right after «متروكة» (the Prime «معالجة» / «راجع» queues). */
     afterAbandonedChips?: ReactNode;
+    /** Chip at the end of the products row (desktop: scheduled for another day). */
+    productRowEnd?: ReactNode;
+    /** Keeps the products row up when `productRowEnd` has something to show but no product is in view. */
+    showProductRowEnd?: boolean;
     setFilterDueToday?: (val: boolean) => void;
     dueTodayCount?: number;
     /** When false the contextual sub-filter rows (Type, Products) are collapsed. Owned by the parent so the search-bar toggle can drive it. */
@@ -83,6 +87,8 @@ export const StickyFilterBar = memo(function StickyFilterBar({
     filterDueToday = false,
     queueChips,
     afterAbandonedChips,
+    productRowEnd,
+    showProductRowEnd = false,
     setFilterDueToday,
     dueTodayCount = 0,
     showSubFilters = false,
@@ -464,7 +470,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
             )}
 
             {/* Contextual Product Sub-Filters — products present in the current view */}
-            {showSubFilters && productsInView.length > 0 && (
+            {showSubFilters && (productsInView.length > 0 || showProductRowEnd) && (
                 <div className={cn(
                     "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x",
                     showOrderTypeFilter
@@ -540,6 +546,8 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                             </DropdownMenuContent>
                         </DropdownMenu>
                     )}
+
+                    {productRowEnd}
 
                     {filters.product && (
                         <button

@@ -5,6 +5,7 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useR
 import { useOrdersContext } from "@/components/providers/orders-provider";
 import { useOrderStore } from "@/store/use-order-store";
 import { useStuckInTransit } from "@/hooks/use-stuck-in-transit";
+import { useScheduledLater } from "@/hooks/use-scheduled-later";
 import { usePrimeRowSets } from "@/hooks/use-prime-shipments";
 import { usePaymentUnchecked } from "@/hooks/use-payment-unchecked";
 import { useDuplicateDispatchGuard } from "@/hooks/use-duplicate-dispatch-guard";
@@ -463,6 +464,10 @@ export function useOrdersPageModel() {
     const defFilterDueToday = React.useDeferredValue(filterDueToday);
     const filterStuckTransit = useOrderStore(s => s.filterStuckTransit);
     const defFilterStuckTransit = React.useDeferredValue(filterStuckTransit);
+    const filterScheduledLater = useOrderStore(s => s.filterScheduledLater);
+    const defFilterScheduledLater = React.useDeferredValue(filterScheduledLater);
+    const scheduledLater = useScheduledLater();
+    const scheduledLaterSet = useMemo(() => new Set(scheduledLater?.ids ?? []), [scheduledLater]);
     const { stuckIds } = useStuckInTransit();
     const stuckIdSet = useMemo(() => new Set(stuckIds), [stuckIds]);
     const filterPaymentUnchecked = useOrderStore(s => s.filterPaymentUnchecked);
@@ -532,6 +537,11 @@ export function useOrdersPageModel() {
             result = result.filter(o => stuckIdSet.has(o.id));
         }
 
+        // 1.7b. Confirmed orders scheduled for a day after today (lib/orders/scheduled-later.ts).
+        if (defFilterScheduledLater) {
+            result = result.filter(o => scheduledLaterSet.has(o.id));
+        }
+
         // 1.8. Payment-not-checked queue (lib/orders/payment-check.ts).
         if (defFilterPaymentUnchecked) {
             result = result.filter(o => paymentUncheckedSet.has(o.id));
@@ -544,7 +554,7 @@ export function useOrdersPageModel() {
         }
 
         return result;
-    }, [hookFilteredOrders, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
+    }, [hookFilteredOrders, defColumnFilters, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, stuckIdSet, defFilterScheduledLater, scheduledLaterSet, defFilterPaymentUnchecked, paymentUncheckedSet, defFilterPrimeBucket, primeRowSets, getCustomerOrderCount, defRiskLevel]);
 
     const filteredOrders = useMemo(() => {
         // A copy: sortDesktopList sorts in place, and preDangerOrders is memoized.
@@ -602,10 +612,11 @@ export function useOrdersPageModel() {
         duplicatesOnly: defFilterDuplicatesOnly,
         dueToday: defFilterDueToday,
         stuckTransit: defFilterStuckTransit,
+        scheduledLater: defFilterScheduledLater,
         paymentUnchecked: defFilterPaymentUnchecked,
         primeBucket: defFilterPrimeBucket !== null,
         primeQueue: defPrimeQueue !== null,
-    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterPrimeBucket, defPrimeQueue]);
+    }), [countViewFacts, defShowArchived, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterScheduledLater, defFilterPaymentUnchecked, defFilterPrimeBucket, defPrimeQueue]);
 
     // The head of a wide list fetch, while the window loads — rows in under a
     // second instead of a skeleton for the whole book. Only for the plain list:
@@ -616,10 +627,10 @@ export function useOrdersPageModel() {
     // book lands are dropped.
     const previewOrders = useMemo(() => {
         if (!listPreview || defShowArchived || groupBy !== "none") return null;
-        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday || defFilterStuckTransit || defFilterPaymentUnchecked || defFilterPrimeBucket) return null;
+        if (Object.values(defColumnFilters || {}).some(Boolean) || defRiskLevel || defFilterDuplicatesOnly || defFilterDueToday || defFilterStuckTransit || defFilterScheduledLater || defFilterPaymentUnchecked || defFilterPrimeBucket) return null;
         if (defSortConfigs.length > 0 || defSortConfig) return null;
         return desktopPreviewRows(listPreview.rows);
-    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterPaymentUnchecked, defFilterPrimeBucket, defSortConfigs, defSortConfig]);
+    }, [listPreview, defShowArchived, groupBy, defColumnFilters, defRiskLevel, defFilterDuplicatesOnly, defFilterDueToday, defFilterStuckTransit, defFilterScheduledLater, defFilterPaymentUnchecked, defFilterPrimeBucket, defSortConfigs, defSortConfig]);
     const previewing = previewOrders !== null;
     // A count of the list is its length only once the list is the whole
     // window (or the server's search hits): never over a preview or the

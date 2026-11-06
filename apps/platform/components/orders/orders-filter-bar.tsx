@@ -27,6 +27,8 @@ import { AdChannelFilter } from "@/components/orders/ad-channel-filter";
 import { AdCampaignFilter } from "@/components/orders/ad-campaign-filter";
 import { LeadQualityStrip } from "@/components/orders/lead-quality-strip";
 import { StuckTransitChip } from "@/components/orders/stuck-transit-chip";
+import { ScheduledLaterChip } from "@/components/orders/scheduled-later-chip";
+import { useScheduledLater } from "@/hooks/use-scheduled-later";
 import { PaymentUncheckedChip } from "@/components/orders/payment-unchecked-chip";
 import { PrimeTransitRow } from "@/components/orders/prime-transit-row";
 import type { PaymentStatus } from "@/lib/supabase";
@@ -152,6 +154,10 @@ export function OrdersFilterBar({
             setTemplatePanelOpen: s.setTemplatePanelOpen,
         })),
     );
+    const scheduledLater = useScheduledLater();
+    const scheduledLaterOn = useOrderStore((s) => s.filterScheduledLater);
+    const scheduledLaterShown = scheduledLater !== null || scheduledLaterOn;
+
 
     return (
         <AnimatePresence initial={false}>
@@ -197,6 +203,8 @@ export function OrdersFilterBar({
                                 setFilterDuplicatesOnly={setFilterDuplicatesOnly}
                                 filterDueToday={filterDueToday}
                                 afterAbandonedChips={<PrimeQueueChips />}
+                                productRowEnd={<ScheduledLaterChip filters={filters} setFilters={setFilters} />}
+                                showProductRowEnd={scheduledLaterShown}
                                 queueChips={<><StuckTransitChip filters={filters} setFilters={setFilters} /><PaymentUncheckedChip filters={filters} setFilters={setFilters} /></>}
                                 setFilterDueToday={setFilterDueToday}
                                 dueTodayCount={dueTodayCount}
