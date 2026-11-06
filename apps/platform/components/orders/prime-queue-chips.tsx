@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { AlertOctagon, Undo2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { usePrimeQueues } from "@/hooks/use-prime-queues";
@@ -34,9 +35,13 @@ const ICON: Record<PrimeQueueId, typeof AlertOctagon> = { fix: AlertOctagon, bac
  */
 export function PrimeQueueChips() {
     const { t } = useLanguage();
-    const { connected, queues } = usePrimeQueues();
+    const { connected, checked, queues } = usePrimeQueues();
     const active = useOrderStore((s) => s.primeQueue);
     const setActive = useOrderStore((s) => s.setPrimeQueue);
+    // A queue kept from the last visit, on a store whose Prime link is off now: back to the normal list.
+    useEffect(() => {
+        if (checked && !connected && active !== null) setActive(null);
+    }, [checked, connected, active, setActive]);
     if (!connected) return null;
 
     return (

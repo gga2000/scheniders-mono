@@ -8,6 +8,7 @@ import { PrimeQueueChips } from "./prime-queue-chips";
 const state: { value: PrimeQueues } = {
     value: {
         connected: true,
+        checked: true,
         data: null,
         queues: {
             fix: { problems: [], orderIds: ["a", "b", "c"], waiting: 2, byOrder: new Map() },
@@ -21,7 +22,7 @@ vi.mock("@/hooks/use-language", () => ({ useLanguage: () => ({ t: (key: string) 
 afterEach(() => {
     cleanup();
     useOrderStore.getState().setPrimeQueue(null);
-    state.value = { ...state.value, connected: true };
+    state.value = { ...state.value, connected: true, checked: true };
 });
 
 describe("PrimeQueueChips", () => {
@@ -54,5 +55,21 @@ describe("PrimeQueueChips", () => {
         state.value = { ...state.value, connected: false };
         render(<PrimeQueueChips />);
         expect(screen.queryByRole("button")).toBeNull();
+    });
+
+    it("closes a queue kept from the last visit once the store has no Prime link, but not while the link is still being checked", () => {
+        useOrderStore.getState().setPrimeQueue("fix");
+        state.value = { ...state.value, connected: false, checked: false };
+        const { rerender } = render(<PrimeQueueChips />);
+        expect(useOrderStore.getState().primeQueue).toBe("fix");
+        state.value = { ...state.value, connected: false, checked: true };
+        rerender(<PrimeQueueChips />);
+        expect(useOrderStore.getState().primeQueue).toBeNull();
+    });
+
+    it("keeps the open queue through a reload", () => {
+        useOrderStore.getState().setPrimeQueue("back");
+        const { partialize } = useOrderStore.persist.getOptions();
+        expect(partialize?.(useOrderStore.getState())).toMatchObject({ primeQueue: "back" });
     });
 });

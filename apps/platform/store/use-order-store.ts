@@ -80,7 +80,7 @@ interface FilterUISlice {
   filterPrimeBucket: PrimeRowFilter | null;
   /** In transit: show only orders that arrived today instead of every in-transit order. Not persisted. */
   inTransitTodayOnly: boolean;
-  /** The «معالجة» / «راجع» chip: the list shows that Prime queue across every date (lib/prime/queues.ts). */
+  /** The «معالجة» / «راجع» chip: the list shows that Prime queue across every date (lib/prime/queues.ts). Persisted. */
   primeQueue: PrimeQueueId | null;
   /** An order a card asked the returns desk to take in; the orders page opens the desk with it. */
   returnIntakeRequest: { orderId: string; at: number } | null;
@@ -467,6 +467,8 @@ export const useOrderStore = create<OrderStore>()(
         tableDensity: state.tableDensity,
         activeDateRange: state.activeDateRange,
         notificationsEnabled: state.notificationsEnabled,
+        // A reload keeps the «معالجة» / «راجع» list open, like the status filter beside it.
+        primeQueue: state.primeQueue,
       }),
     }
   )
