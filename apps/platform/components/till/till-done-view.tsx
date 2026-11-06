@@ -102,6 +102,12 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                             <span className="tabular-nums">{formatIqd(p.tendered ?? p.amount)}</span>
                         </p>
                     ))}
+                    {receipt.change > 0 && (
+                        <p className="flex justify-between text-sm font-semibold text-foreground">
+                            {t("till.pay.giveBack")}
+                            <span className="tabular-nums">{formatIqd(receipt.change)}</span>
+                        </p>
+                    )}
                 </section>
 
                 <section className="flex flex-col gap-2">

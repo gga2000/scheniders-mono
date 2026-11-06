@@ -108,8 +108,9 @@ export function TillCustomerScreen() {
                     <div className="mt-auto flex flex-col gap-3">
                         {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
                         <p className="text-xl text-white/60" dir="auto">{t("till.customer.total")}</p>
-                        <p className={cn("font-bold tabular-nums tracking-tight", bigSize(formatIqd(state.total)))}>{formatIqd(state.total)}</p>
-                        <p className="text-lg text-white/60" dir="auto">{t("till.iqd")}</p>
+                        <p className={cn("font-bold tabular-nums tracking-tight", bigSize(formatIqd(state.total)))}>
+                            {formatIqd(state.total)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
+                        </p>
                     </div>
                 ) : state.view === "pay" && qrPay ? (
                     <div className="my-auto flex flex-col items-center gap-4 text-center">
@@ -149,9 +150,9 @@ export function TillCustomerScreen() {
     );
 }
 
-/** The panel is about 38% of the screen: a 7-digit amount ("1,175,750") steps down so it never clips. */
+/** The panel is about 38% of the screen: longer amounts step down so the number and its unit never clip. */
 function bigSize(value: string) {
-    return value.length > 9 ? "text-6xl" : value.length > 7 ? "text-7xl" : "text-8xl";
+    return value.length > 7 ? "text-6xl" : value.length > 5 ? "text-7xl" : "text-8xl";
 }
 
 function Center({ children }: { children: React.ReactNode }) {
@@ -162,8 +163,9 @@ function Row({ label, value, unit, big = false }: { label: string; value: string
     return big ? (
         <div className="flex flex-col gap-2">
             <p className="text-xl text-white/60" dir="auto">{label}</p>
-            <p className={cn("font-bold tabular-nums tracking-tight", bigSize(value))}>{value}</p>
-            <p className="text-lg text-white/60">{unit}</p>
+            <p className={cn("font-bold tabular-nums tracking-tight", bigSize(value))}>
+                {value} <span className="text-2xl font-semibold text-white/60">{unit}</span>
+            </p>
         </div>
     ) : (
         <p className="flex items-baseline justify-between gap-4 text-2xl text-white/70">
