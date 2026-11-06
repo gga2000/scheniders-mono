@@ -90,6 +90,20 @@ export function usePrimeQueueOrders(queue: PrimeQueueId | null, liveOrders: read
 }
 
 /**
+ * The chosen queue's orders someone already marked handled. The list shows
+ * them folded under one green bar at the bottom (prime-handled-fold), so the
+ * cards on top are only what still needs someone.
+ */
+export function usePrimeQueueHandledIds(queue: PrimeQueueId | null): ReadonlySet<string> {
+    const { queues } = usePrimeQueues();
+    const problems = queue && queues ? queues[queue].problems : null;
+    return useMemo(() => {
+        if (!problems) return EMPTY_SET;
+        return new Set(problems.filter((p) => p.handled).map((p) => p.orderId));
+    }, [problems]);
+}
+
+/**
  * The chosen queue's rows are still on their way: the Prime link, the board
  * or the orders read has not answered yet (after a reload the queue is
  * restored before any of them). The list shows its loading rows, not
@@ -126,3 +140,4 @@ function useQueueRows(queue: PrimeQueueId | null) {
 }
 
 const EMPTY_IDS: readonly string[] = [];
+const EMPTY_SET: ReadonlySet<string> = new Set();
