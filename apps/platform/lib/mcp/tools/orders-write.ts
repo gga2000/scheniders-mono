@@ -11,6 +11,7 @@ import {
     orderRefSchema,
     orderStatusSchema,
     resolveOrderGovernorate,
+    stripLeadingGovernorate,
 } from "@/lib/mcp/orders";
 import { iqd, itemsText, orderLine, statusText } from "@/lib/mcp/format";
 import { buildStatusUpdate } from "@/lib/orders/status-update";
@@ -297,7 +298,10 @@ export function registerOrderWriteTools(server: McpServer): void {
             if (input.phone !== undefined) next.phone = orderPhone(input.phone, "Phone");
             if (input.secondary_phone !== undefined) next.secondary_phone = input.secondary_phone ? orderPhone(input.secondary_phone, "Second phone") : undefined;
             if (input.governorate !== undefined) Object.assign(next, resolveOrderGovernorate(input.governorate));
-            if (input.address_details !== undefined) next.address_details = input.address_details;
+            if (input.address_details !== undefined) {
+                const code = next.governorate_code ?? order.governorate_code;
+                next.address_details = code ? stripLeadingGovernorate(input.address_details, code) : input.address_details;
+            }
             if (input.notes !== undefined) next.notes = input.notes;
             if (input.internal_notes !== undefined) next.internal_notes = input.internal_notes;
             if (input.delivery_fee !== undefined) next.delivery_fee = input.delivery_fee;
@@ -390,7 +394,12 @@ export function registerOrderWriteTools(server: McpServer): void {
             phone: z.string().trim().min(7).max(30),
             secondary_phone: z.string().trim().max(30).optional(),
             governorate: governorateInputSchema,
-            address_details: z.string().trim().min(1).max(500),
+            address_details: z
+                .string()
+                .trim()
+                .min(1)
+                .max(500)
+                .describe("Address below the governorate: district, area, street, landmark. Do NOT repeat the governorate; it is stored separately."),
             items: z.array(orderLineInputSchema).min(1).max(50),
             source: orderSourceSchema.default("other").describe("Where the order came from (whatsapp, meta, tiktok, telegram, shop, ...)"),
             delivery_fee: z.number().int().min(0).max(1_000_000).default(0),
@@ -404,6 +413,7 @@ export function registerOrderWriteTools(server: McpServer): void {
         async run(caller, input) {
             requireWriter(caller);
             const gov = resolveOrderGovernorate(input.governorate);
+            const addressDetails = stripLeadingGovernorate(input.address_details, gov.governorate_code);
             const phone = orderPhone(input.phone, "Phone");
 
             const items = await buildOrderItems(caller, input.items);
@@ -414,7 +424,7 @@ export function registerOrderWriteTools(server: McpServer): void {
             }
             const price = itemsTotal - input.discount;
             const summary = [
-                `${input.customer_name} | ${phone} | ${gov.city}, ${input.address_details} | source ${input.source}`,
+                `${input.customer_name} | ${phone} | ${gov.city}, ${addressDetails} | source ${input.source}`,
                 `Items: ${itemsText(items)}`,
                 `Items total ${iqd(itemsTotal)} − discount ${iqd(input.discount)} = ${iqd(price)}; delivery ${iqd(input.delivery_fee)}; customer pays ${iqd(price + input.delivery_fee)}`,
                 ...(input.scheduled_date ? [`Scheduled for ${input.scheduled_date}`] : []),
@@ -429,7 +439,7 @@ export function registerOrderWriteTools(server: McpServer): void {
                 secondary_phone: input.secondary_phone ? orderPhone(input.secondary_phone, "Second phone") : undefined,
                 city: gov.city,
                 governorate_code: gov.governorate_code,
-                address_details: input.address_details,
+                address_details: addressDetails,
                 items,
                 price,
                 discount_amount: input.discount,
