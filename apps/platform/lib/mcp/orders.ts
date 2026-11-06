@@ -85,6 +85,37 @@ export function orderPhone(raw: string, field: string): string {
     return phone;
 }
 
+const LEADING_SEPARATORS = /^[\s/\\\-–—•·,،:]+/;
+
+/**
+ * The orders page shows `city • address_details`, so an address that starts
+ * with the governorate repeats it ("الديوانية • الديوانية / قضاء الشامية").
+ * Drops one leading mention of the order's governorate (name or alias, with an
+ * optional "محافظة") and its separator; an address that is only the governorate
+ * is kept as is.
+ */
+export function stripLeadingGovernorate(address: string, governorateCode: string): string {
+    const gov = getGovernorateByCode(governorateCode);
+    const text = address.trim();
+    if (!gov) return text;
+    const names = [gov.nameAr, gov.nameEn, ...gov.aliases]
+        .map((n) => n.trim())
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length);
+    const lower = text.toLowerCase();
+    const body = lower.startsWith("محافظة ") ? text.slice("محافظة ".length).trimStart() : text;
+    const bodyLower = body.toLowerCase();
+    for (const name of names) {
+        if (!bodyLower.startsWith(name.toLowerCase())) continue;
+        const rest = body.slice(name.length);
+        // Whole word only: "البصرة" must not eat the start of "البصرة2" style names.
+        if (rest !== "" && !LEADING_SEPARATORS.test(rest)) continue;
+        const remainder = rest.replace(LEADING_SEPARATORS, "").trim();
+        return remainder === "" ? text : remainder;
+    }
+    return text;
+}
+
 export const governorateInputSchema = z
     .string()
     .trim()
