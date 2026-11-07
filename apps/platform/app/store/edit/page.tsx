@@ -156,9 +156,6 @@ export default async function StoreV2Page({
     const hasPublished = !!published;
     // If we started from a draft, the editor begins in a dirty state so Publish enables.
     const initiallyDirty = !!draft;
-    // EC33: the DB row's last-write time, so the editor can reject a stale local
-    // crash backup that predates newer saved/published work (e.g. another device).
-    const initialUpdatedAt = t.updated_at ? Date.parse(t.updated_at) : null;
     // BUG25: the published "generation" counter at hydration — publish rejects
     // if the live rev has moved on (another editor published in the meantime).
     const initialRev = t.store_config_rev ?? 0;
@@ -230,7 +227,6 @@ export default async function StoreV2Page({
             publishedConfig={published ?? null}
             hasPublished={hasPublished}
             initiallyDirty={initiallyDirty}
-            initialUpdatedAt={initialUpdatedAt}
             initialRev={initialRev}
             previewToken={previewToken}
             previewProducts={previewProducts}

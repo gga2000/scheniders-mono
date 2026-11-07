@@ -127,8 +127,6 @@ export interface EditorShellProps {
     publishedConfig?: StoreConfigV2 | null;
     hasPublished: boolean;
     initiallyDirty?: boolean;
-    /** EC33: DB `updated_at` (epoch ms) — gates stale crash-backup recovery. */
-    initialUpdatedAt?: number | null;
     /** BUG25: published rev at hydration — publish rejects on a stale base. */
     initialRev?: number;
     /**
@@ -191,7 +189,6 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         publishedConfig,
         hasPublished,
         initiallyDirty,
-        initialUpdatedAt,
         initialRev,
         previewToken,
         previewProducts,
@@ -216,7 +213,6 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialConfig,
         hasPublished,
         initiallyDirty,
-        initialUpdatedAt,
         initialRev,
     });
     const liveStorefront = useStorefrontUrlState(tenant.slug, tenant.id);
@@ -1812,6 +1808,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                         url={iframePreviewUrl}
                                         breakpoint={builder.active_breakpoint}
                                         zoom={canvas_zoom}
+                                        rtl={
+                                            builder.active_locale === "ar" ||
+                                            builder.active_locale === "ku"
+                                        }
                                     />
                                 </div>
                                 {/* Zoom pill (A1) — bottom-left over the canvas */}

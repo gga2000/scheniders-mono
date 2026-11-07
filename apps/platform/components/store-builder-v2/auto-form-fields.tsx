@@ -669,11 +669,10 @@ export function ImageControl(p: ImageControlProps): ReactElement {
         },
         [p, imageLocale],
     );
-    // An image the owner uploaded here lives in our own storage: its address
-    // means nothing to them, so the link box is only for pasting an outside
-    // image (or when there is no image yet).
-    const isOwnUpload =
-        !!p.value && p.value.includes("/storage/v1/object/public/tenant-assets/");
+    // An image in our own storage (any bucket: section uploads, product
+    // photos…) has an address that means nothing to the owner, so the link
+    // box is only for pasting an outside image (or when there is none yet).
+    const isOwnUpload = !!p.value && p.value.includes("/storage/v1/object/public/");
 
     return (
         <div className="space-y-1.5">

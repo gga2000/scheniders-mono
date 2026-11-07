@@ -498,6 +498,7 @@ function Toolbar(props: ToolbarProps): ReactElement {
         onUp,
         onDown,
     } = props;
+    const locale = useEditorLocale();
 
     const flip_below = rect.top < FLIP_THRESHOLD;
     const top = flip_below
@@ -524,35 +525,35 @@ function Toolbar(props: ToolbarProps): ReactElement {
             <span className="h-4 w-px bg-white/40" aria-hidden="true" />
             <ToolbarButton
                 testId="preview-overlay-toolbar-edit"
-                aria_label="Edit section"
+                aria_label={t(STRINGS.common.section_edit, locale)}
                 onClick={onEdit}
             >
                 <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             </ToolbarButton>
             <ToolbarButton
                 testId="preview-overlay-toolbar-duplicate"
-                aria_label="Duplicate section"
+                aria_label={t(STRINGS.common.section_duplicate, locale)}
                 onClick={onDuplicate}
             >
                 <Copy className="h-3.5 w-3.5" aria-hidden="true" />
             </ToolbarButton>
             <ToolbarButton
                 testId="preview-overlay-toolbar-up"
-                aria_label="Move section up"
+                aria_label={t(STRINGS.common.section_move_up, locale)}
                 onClick={onUp}
             >
                 <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
             </ToolbarButton>
             <ToolbarButton
                 testId="preview-overlay-toolbar-down"
-                aria_label="Move section down"
+                aria_label={t(STRINGS.common.section_move_down, locale)}
                 onClick={onDown}
             >
                 <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
             </ToolbarButton>
             <ToolbarButton
                 testId="preview-overlay-toolbar-delete"
-                aria_label="Delete section"
+                aria_label={t(STRINGS.common.section_delete, locale)}
                 onClick={onDelete}
             >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

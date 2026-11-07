@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { Breakpoint } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
@@ -30,6 +30,10 @@ export interface PreviewFrameProps {
      * value the click-to-edit overlay receives.
      */
     zoom?: number;
+    /** The previewed store page reads right-to-left (Arabic, Kurdish). When a
+     *  fixed zoom makes the frame wider than the canvas, the canvas opens
+     *  scrolled to the right edge, where an RTL page starts. */
+    rtl?: boolean;
 }
 
 /**
@@ -38,9 +42,10 @@ export interface PreviewFrameProps {
  * postMessage into the contentWindow.
  */
 export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
-    function PreviewFrame({ url, breakpoint, zoom = 1 }, ref) {
+    function PreviewFrame({ url, breakpoint, zoom = 1, rtl = false }, ref) {
         const locale = useEditorLocale();
         const innerRef = useRef<HTMLIFrameElement | null>(null);
+        const canvasRef = useRef<HTMLDivElement | null>(null);
         const [loaded, setLoaded] = useState<boolean>(false);
         // Expose the iframe to parents while still keeping a local ref
         // for the keep-alive ping below.
@@ -74,6 +79,14 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
         }, []);
 
         const deviceWidthPx = BREAKPOINT_WIDTH_PX[breakpoint];
+
+        // Open an overflowing canvas at the edge where the page starts: the
+        // right edge for an RTL page, the left edge otherwise.
+        useLayoutEffect(() => {
+            const el = canvasRef.current;
+            if (!el) return;
+            el.scrollLeft = rtl ? el.scrollWidth : 0;
+        }, [rtl, zoom, breakpoint]);
         // The shell computes the on-screen scale (fit or a fixed zoom) and
         // hands the SAME number to the overlay, so rings line up exactly.
         const scale = zoom > 0 ? zoom : 1;
@@ -84,6 +97,7 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
 
         return (
             <div
+                ref={canvasRef}
                 data-testid="preview-frame"
                 data-breakpoint={breakpoint}
                 data-zoom={zoom}
@@ -91,8 +105,8 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
                 // the pill never sits on top of the store page.
                 className="relative flex h-full w-full items-center overflow-auto bg-muted/30 px-4 pt-4 pb-12"
                 // "safe center": centred when it fits; when a fixed zoom makes
-                // the frame wider than the canvas it starts at the left edge
-                // and scrolls, instead of being squeezed or cut off.
+                // the frame wider than the canvas it scrolls instead of being
+                // squeezed or cut off (opening at the page's start edge).
                 style={{ justifyContent: "safe center" }}
             >
                 <div

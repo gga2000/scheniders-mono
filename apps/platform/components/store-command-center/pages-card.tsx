@@ -11,23 +11,25 @@ interface PagesCardProps {
     locale: LocaleCode;
 }
 
+// Same names the editor's page list shows, so a page is called the same
+// thing on the hub and inside the editor.
 const PAGE_LABELS: Record<PageId, EditorString> = {
-    home: STRINGS.command_center.page_home,
-    category: STRINGS.command_center.page_category,
-    product: STRINGS.command_center.page_product,
-    search: STRINGS.command_center.page_search,
-    cart: STRINGS.command_center.page_cart,
-    checkout: STRINGS.command_center.page_checkout,
-    checkout_success: STRINGS.command_center.page_checkout_success,
-    track: STRINGS.command_center.page_track,
-    about: STRINGS.command_center.page_about,
-    faq: STRINGS.command_center.page_faq,
-    contact: STRINGS.command_center.page_contact,
-    policy_shipping: STRINGS.command_center.page_policy_shipping,
-    policy_returns: STRINGS.command_center.page_policy_returns,
-    policy_privacy: STRINGS.command_center.page_policy_privacy,
-    policy_terms: STRINGS.command_center.page_policy_terms,
-    not_found: STRINGS.command_center.page_not_found,
+    home: STRINGS.page_tree.page_home,
+    category: STRINGS.page_tree.page_category,
+    product: STRINGS.page_tree.page_product,
+    search: STRINGS.page_tree.page_search,
+    cart: STRINGS.page_tree.page_cart,
+    checkout: STRINGS.page_tree.page_checkout,
+    checkout_success: STRINGS.page_tree.page_checkout_success,
+    track: STRINGS.page_tree.page_track,
+    about: STRINGS.page_tree.page_about,
+    faq: STRINGS.page_tree.page_faq,
+    contact: STRINGS.page_tree.page_contact,
+    policy_shipping: STRINGS.page_tree.page_policy_shipping,
+    policy_returns: STRINGS.page_tree.page_policy_returns,
+    policy_privacy: STRINGS.page_tree.page_policy_privacy,
+    policy_terms: STRINGS.page_tree.page_policy_terms,
+    not_found: STRINGS.page_tree.page_not_found,
 };
 
 export function PagesCard({ config, locale }: PagesCardProps) {
