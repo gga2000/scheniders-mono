@@ -1224,6 +1224,9 @@ export async function getSavedAccessToken(supabaseClient?: unknown): Promise<str
             .from('settings')
             .select('value')
             .eq('key', 'lightfunnels_access_token')
+            // The platform's LightFunnels token is the store-less row. Store
+            // admins can write rows for their own store, so never read theirs.
+            .is('tenant_id', null)
             .single();
 
         if (error) {
@@ -1262,7 +1265,8 @@ export async function removeAccessToken(): Promise<boolean> {
     const { error } = await supabase
         .from('settings')
         .delete()
-        .eq('key', 'lightfunnels_access_token');
+        .eq('key', 'lightfunnels_access_token')
+        .is('tenant_id', null);
 
     return !error;
 }

@@ -41,7 +41,9 @@ export async function provisionInvitedUserIfNeeded(
         const { data: invite } = await admin
             .from("team_invites")
             .select("id, tenant_id, role, display_name, invited_by, created_at")
-            .ilike("email", email)
+            // Exact match: emails are stored lower-case, and ilike treats "_" and "%"
+            // as wildcards, so "john_doe@" would match a different person's "john1doe@".
+            .eq("email", email)
             .eq("status", "pending")
             .order("created_at", { ascending: false })
             .limit(1)

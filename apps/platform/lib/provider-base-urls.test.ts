@@ -65,6 +65,7 @@ describe("platform provider clients reach the host from env (against the provide
         vi.resetModules();
         for (const name of Object.keys(PLATFORM_PROVIDER_DEFAULTS)) vi.stubEnv(name, mock.url);
         vi.stubEnv("INTERAKT_API_KEY", "test-interakt-key");
+        vi.stubEnv("INTERAKT_SENDER_TENANT_IDS", "11111111-1111-4111-8111-111111111111");
         vi.stubEnv("TELEGRAM_BOT_TOKEN", "test-bot-token");
         vi.stubEnv("GEMINI_API_KEY", "test-gemini-key");
         vi.stubEnv("QSTASH_TOKEN", "test-qstash-token");
@@ -78,7 +79,7 @@ describe("platform provider clients reach the host from env (against the provide
 
     it("Interakt (cart recovery sender)", async () => {
         const { sendCartRecoveryMessage } = await import("./abandoned-cart-sender");
-        const result = await sendCartRecoveryMessage({ id: "cart-1", phone: "07701234567", items: [], subtotal_iqd: 0 });
+        const result = await sendCartRecoveryMessage({ id: "cart-1", tenant_id: "11111111-1111-4111-8111-111111111111", phone: "07701234567", items: [], subtotal_iqd: 0 });
         expect(result.success).toBe(true);
         expect(paths()).toEqual(["interakt POST /v1/public/message/"]);
     });

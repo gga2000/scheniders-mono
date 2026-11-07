@@ -40,6 +40,23 @@ interface InteraktTemplateBody {
  * Reading only `.message` turned the second into a bare "HTTP 400", which the
  * failure handler then took for a bad phone number.
  */
+/**
+ * INTERAKT_API_KEY is ONE WhatsApp number shared by the platform. Only stores
+ * listed in INTERAKT_SENDER_TENANT_IDS may send through it; every send path
+ * checks this, so one store can never message people from another store's
+ * number. No tenant (or an unset list) means no send.
+ */
+export function sharedSenderAllows(tenantId: string | null | undefined): boolean {
+    if (!tenantId) return false;
+    const allowed = (env.INTERAKT_SENDER_TENANT_IDS ?? "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+    return allowed.includes(tenantId.toLowerCase());
+}
+
+const SENDER_NOT_ALLOWED = "This store is not set up to send WhatsApp from the shared number";
+
 export function interaktErrorMessage(body: unknown): string | undefined {
     if (typeof body === "string") return body.trim() || undefined;
     if (Array.isArray(body)) {
@@ -369,6 +386,9 @@ export async function sendTemplateMessage(
     discountPercent?: number,
     customPrice?: number,
 ): Promise<SendTemplateResult> {
+    if (!sharedSenderAllows(order.tenant_id)) {
+        return { success: false, error: SENDER_NOT_ALLOWED };
+    }
     const apiKey = env.INTERAKT_API_KEY;
 
     if (!apiKey) {
@@ -496,6 +516,8 @@ async function postTemplate(apiKey: string, body: InteraktTemplateBody, label: s
 
 /** A template the store created in Interakt, sent with its own values. */
 export interface NamedTemplateInput {
+    /** The store sending; must be allowed on the shared number. */
+    tenantId: string;
     phone: string;
     name: string;
     languageCode: string;
@@ -510,6 +532,7 @@ export interface NamedTemplateInput {
 
 /** Send a template that is not one of TEMPLATE_NAMES (lib/prime/failed-notice). */
 export async function sendNamedTemplate(input: NamedTemplateInput): Promise<SendTemplateResult> {
+    if (!sharedSenderAllows(input.tenantId)) return { success: false, error: SENDER_NOT_ALLOWED };
     const apiKey = env.INTERAKT_API_KEY;
     if (!apiKey) return { success: false, error: "Interakt API key not configured" };
     const { countryCode, phoneNumber } = formatPhoneForInterakt(input.phone);
@@ -583,6 +606,9 @@ export async function sendStaffAlertMessage(
     order: Order,
     staffPhone: string,
 ): Promise<SendTemplateResult> {
+    if (!sharedSenderAllows(order.tenant_id)) {
+        return { success: false, error: SENDER_NOT_ALLOWED };
+    }
     const apiKey = env.INTERAKT_API_KEY;
     if (!apiKey) {
         return { success: false, error: "Interakt API key not configured" };

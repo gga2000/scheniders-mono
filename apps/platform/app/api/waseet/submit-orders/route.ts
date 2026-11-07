@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         // 3. Load dependencies
         const [cityMappings, defaultPackageSizeId] = await Promise.all([
             getCityMappings(),
-            getDefaultPackageSizeId(),
+            getDefaultPackageSizeId(tenantId),
         ]);
 
         if (cityMappings.length === 0) {

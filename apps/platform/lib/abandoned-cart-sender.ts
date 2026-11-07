@@ -8,7 +8,7 @@
  */
 
 import { env, providerBaseUrls } from "./env";
-import { formatPhoneForInterakt, type SendTemplateResult } from "./interakt";
+import { formatPhoneForInterakt, sharedSenderAllows, type SendTemplateResult } from "./interakt";
 import { cartItemsSubtotal, type AbandonedCartItem } from "@scheniders/shared";
 
 const INTERAKT_API_URL = `${providerBaseUrls.INTERAKT_API_BASE_URL}/v1/public/message/`;
@@ -20,6 +20,8 @@ export const CART_RECOVERY_TEMPLATE = "abandoned_cart_recovery";
 
 export interface RecoverableCart {
   id: string;
+  /** The store the cart belongs to; must be allowed on the shared number. */
+  tenant_id: string;
   phone: string;
   items: AbandonedCartItem[];
   subtotal_iqd: number;
@@ -72,6 +74,9 @@ export function buildCartRecoveryBody(cart: RecoverableCart): InteraktBody {
 export async function sendCartRecoveryMessage(
   cart: RecoverableCart,
 ): Promise<SendTemplateResult> {
+  if (!sharedSenderAllows(cart.tenant_id)) {
+    return { success: false, error: "This store is not set up to send WhatsApp from the shared number" };
+  }
   const apiKey = env.INTERAKT_API_KEY;
   if (!apiKey) {
     return { success: false, error: "Interakt API key not configured" };
