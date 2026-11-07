@@ -611,8 +611,10 @@ export function HealthChecklistScreen(
                 </div>
 
                 {/* auto-fit, not viewport breakpoints: this screen lives in a
-                    380px rail where lg: classes produced unreadable slivers. */}
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
+                    380px rail where lg: classes produced unreadable slivers.
+                    min-w-0 lets the 1fr track shrink instead of pushing the
+                    cards past the rail's right edge. */}
+                <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-3">
                     {CATEGORY_ORDER.map((cat) => {
                         const v = report.category_scores[cat];
                         return (

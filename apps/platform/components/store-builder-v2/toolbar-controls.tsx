@@ -321,7 +321,9 @@ export function PublishButton({ onPublish, disabled, busy, title }: PublishButto
             data-testid="publish-button"
             onClick={onPublish}
             disabled={disabled || busy}
-            title={title}
+            // A greyed button must say why: a health block if there is one,
+            // else that there is nothing new to publish.
+            title={title ?? (hasChanges || busy ? undefined : t(STRINGS.publish.disabled_no_changes, locale))}
             className={cn(
                 "inline-flex h-8 items-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                 hasChanges

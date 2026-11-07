@@ -1150,6 +1150,9 @@ export const STRINGS = {
         // tFormat: {n}
         health_items_to_address_one: { en: "{n} item to address before launch.", ar: "{n} عنصر يجب معالجته قبل الإطلاق.", ku: "{n} بابەت هەیە پێویستە پێش دەستپێکردن چارەسەر بکرێت." },
         health_items_to_address_other: { en: "{n} items to address before launch.", ar: "{n} عناصر يجب معالجتها قبل الإطلاق.", ku: "{n} بابەت هەیە پێویستە پێش دەستپێکردن چارەسەر بکرێن." },
+        // tFormat: {n} — open checks that do not stop publishing.
+        health_suggestions_one: { en: "{n} suggestion to make the store better.", ar: "{n} اقتراح لتحسين المتجر.", ku: "{n} پێشنیار بۆ باشترکردنی فرۆشگا." },
+        health_suggestions_other: { en: "{n} suggestions to make the store better.", ar: "{n} اقتراحات لتحسين المتجر.", ku: "{n} پێشنیار بۆ باشترکردنی فرۆشگا." },
         health_fix: { en: "Fix", ar: "إصلاح", ku: "چاککردن" },
         health_all_passing: { en: "All checks passing", ar: "جميع الفحوصات ناجحة", ku: "هەموو پشکنینەکان سەرکەوتوون" },
         health_full_checklist: { en: "Full checklist in editor", ar: "القائمة الكاملة في المحرّر", ku: "لیستی تەواو لە دەستکاریکەردا" },
