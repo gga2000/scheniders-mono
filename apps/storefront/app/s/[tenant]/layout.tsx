@@ -11,7 +11,7 @@ import {
 } from "@scheniders/shared";
 import type { BrandKit, StoreConfigV2 } from "@scheniders/shared";
 import { resolveStoreTenant, requireStoreTenant } from "@/lib/route-guards";
-import { getRequestOrigin, htmlLangFor, ogLocaleFor, getStorefrontBase, storeDisplayName } from "@/lib/seo";
+import { getRequestOrigin, htmlLangFor, ogLocaleFor, getStorefrontBase, storeDisplayName, storeOgImage } from "@/lib/seo";
 import { StoreBaseProvider } from "@/lib/store-context";
 import { resolveV2PageMetadata } from "@/lib/storefront-runtime";
 import { CartHydrator } from "@/components/cart-hydrator";
@@ -356,7 +356,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tenant: s
     (typeof homeDescription === "string" && homeDescription.trim()) ||
     `${storeDisplayName(tenant)} — اطلب الآن من أفضل المنتجات`;
   const origin = await getRequestOrigin();
-  const ogImage = v2Identity?.og_image_url || seo?.og_image_url;
+  const ogImage = storeOgImage(tenant);
   // Home-screen install: the manifest is per tenant and lives under the
   // store's own root, so it resolves in both routing modes (path and
   // subdomain/custom domain).
