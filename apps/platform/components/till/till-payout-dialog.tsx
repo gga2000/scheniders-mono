@@ -61,7 +61,7 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
                         inputMode="numeric"
                         placeholder="0"
                         aria-label={t("till.payout.amount")}
-                        className="h-14 rounded-2xl border border-[var(--card-border)] bg-transparent px-4 text-right text-2xl font-bold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
+                        className="h-14 rounded-2xl border border-stone-400 dark:border-white/25 bg-transparent px-4 text-right text-2xl font-bold tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
                     />
                     <div className="flex flex-wrap gap-2">
                         {AMOUNTS.map((a) => (
@@ -106,7 +106,7 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
                         onChange={(e) => setDetail(e.target.value.slice(0, 200))}
                         placeholder={reason ? t("till.payout.detailPlaceholder") : t("till.payout.notePlaceholder")}
                         aria-label={t("till.payout.for")}
-                        className="h-12 rounded-2xl border border-[var(--card-border)] bg-transparent px-4 text-sm text-foreground outline-none focus:border-[var(--ink)]"
+                        className="h-12 rounded-2xl border border-stone-400 dark:border-white/25 bg-transparent px-4 text-sm text-foreground outline-none focus:border-[var(--ink)]"
                         dir="auto"
                     />
                 </div>

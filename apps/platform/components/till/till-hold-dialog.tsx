@@ -117,7 +117,7 @@ export function TillHoldDialog({
                             placeholder={t("till.hold.name")}
                             aria-label={t("till.hold.name")}
                             autoFocus={!customerName.trim()}
-                            className="h-12 rounded-2xl border border-[var(--card-border)] bg-transparent px-4 text-sm text-foreground outline-none focus:border-[var(--ink)]"
+                            className="h-12 rounded-2xl border border-stone-400 dark:border-white/25 bg-transparent px-4 text-sm text-foreground outline-none focus:border-[var(--ink)]"
                             dir="auto"
                         />
                         <input
@@ -128,7 +128,7 @@ export function TillHoldDialog({
                             inputMode="tel"
                             className={cn(
                                 "h-12 rounded-2xl border bg-transparent px-4 text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]",
-                                phoneBad ? "border-red-500" : "border-[var(--card-border)]",
+                                phoneBad ? "border-red-500" : "border-stone-400 dark:border-white/25",
                             )}
                         />
                     </div>

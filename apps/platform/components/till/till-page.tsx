@@ -920,7 +920,7 @@ function PrefSwitch({ on, onChange, icon, label }: { on: boolean; onChange: () =
                 {icon}
                 {label}
             </span>
-            <span aria-hidden="true" className={cn("flex h-7 w-12 items-center rounded-full p-1 transition-colors", on ? "justify-end bg-[var(--ink)] dark:bg-[#EFFF00]" : "justify-start bg-[var(--card-border)]")}>
+            <span aria-hidden="true" className={cn("flex h-7 w-12 items-center rounded-full p-1 transition-colors", on ? "justify-end bg-[var(--ink)] dark:bg-[#EFFF00]" : "justify-start bg-stone-400 dark:bg-white/25")}>
                 <span className="h-5 w-5 rounded-full bg-white shadow-sm dark:bg-zinc-900" />
             </span>
         </button>

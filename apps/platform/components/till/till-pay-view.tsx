@@ -175,7 +175,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 type="button"
                                 onClick={() => {
                                     setNotes({});
-                                    setTyped(String(rest));
+                                    setTyped(formatIqd(rest));
                                 }}
                                 className="flex h-14 items-center justify-center gap-2 rounded-2xl border-2 border-[var(--ink)] bg-[var(--card-bg)] px-4 text-base font-bold text-foreground transition-transform active:scale-[0.97] dark:border-white/60"
                             >
@@ -192,7 +192,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 placeholder={t("till.pay.typeAmount")}
                                 aria-label={t("till.pay.typeAmount")}
                                 inputMode="numeric"
-                                className="h-14 min-w-0 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center text-base font-semibold tabular-nums text-foreground outline-none placeholder:text-foreground focus:border-[var(--ink)]"
+                                className="h-14 min-w-0 rounded-2xl border border-stone-400 dark:border-white/25 bg-[var(--card-bg)] px-4 text-center text-base font-semibold tabular-nums text-foreground outline-none placeholder:text-foreground focus:border-[var(--ink)]"
                             />
                             <button type="button" onClick={clear} className="h-14 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] text-base font-semibold text-foreground">
                                 {t("till.pay.clear")}
@@ -253,7 +253,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 noticeIn ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200" : "border-[var(--card-border)] bg-[var(--card-bg)] text-foreground",
                             )}
                         >
-                            <span className={cn("flex h-6 w-6 items-center justify-center rounded-md border-2", noticeIn ? "border-emerald-600 bg-emerald-600 text-white" : "border-[var(--card-border)]")}>
+                            <span className={cn("flex h-6 w-6 items-center justify-center rounded-md border-2", noticeIn ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-500 dark:border-white/50")}>
                                 {noticeIn && <Check className="h-4 w-4" aria-hidden="true" />}
                             </span>
                             <span dir="auto">{t("till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
@@ -271,7 +271,10 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                             type="button"
                                             role="radio"
                                             aria-checked={on}
-                                            onClick={() => setTyped(o.all ? null : "")}
+                                            onClick={() => {
+                                                setTyped(o.all ? null : "");
+                                                setNoticeIn(false);
+                                            }}
                                             className={cn("h-11 rounded-xl px-5 text-base font-semibold", on ? INK_BUTTON : "text-foreground")}
                                         >
                                             {o.label}
@@ -282,12 +285,15 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             {typed !== null && (
                                 <input
                                     value={typed}
-                                    onChange={(e) => setTyped(e.target.value)}
+                                    onChange={(e) => {
+                                        setTyped(e.target.value);
+                                        setNoticeIn(false);
+                                    }}
                                     inputMode="numeric"
                                     autoFocus
                                     placeholder={t("till.pay.partAmount")}
                                     aria-label={t("till.pay.partAmount")}
-                                    className="h-12 w-40 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none placeholder:font-normal placeholder:text-muted focus:border-[var(--ink)]"
+                                    className="h-12 w-40 rounded-2xl border border-stone-400 dark:border-white/25 bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none placeholder:font-normal placeholder:text-muted focus:border-[var(--ink)]"
                                 />
                             )}
                         </div>
@@ -303,10 +309,13 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 clear();
                                 setMethod(method === "cash" ? "card" : "cash");
                             }}
+                            // FIB and ZainCash money counts only once its notice is ticked, part payments included.
+                            disabled={needsNotice && !noticeIn}
                             // When the money given falls short, splitting is the only way on, so it becomes the main button.
                             className={cn(
                                 "h-16 min-w-0 flex-1 rounded-2xl px-4 text-base font-semibold leading-tight",
                                 result.ok ? "border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground" : INK_BUTTON,
+                                "disabled:border-transparent disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70",
                             )}
                         >
                             <span dir="auto">{t("till.pay.splitOff", { amount: formatIqd(partAmount), method: t(`till.pay.method.${method}`), rest: formatIqd(rest - partAmount) })}</span>

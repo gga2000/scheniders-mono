@@ -82,12 +82,17 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                                     {l.variant_name && <span className="text-muted"> · {l.variant_name}</span>}
                                     {l.quantity > 1 && <span className="tabular-nums text-muted"> × {l.quantity}</span>}
                                 </span>
-                                <span className="shrink-0 tabular-nums text-foreground">{formatIqd(l.price * l.quantity)}</span>
+                                <span className="shrink-0 tabular-nums text-foreground">
+                                    {l.list_price !== undefined && l.list_price > l.price && (
+                                        <s className="me-1.5 text-xs text-muted">{formatIqd(l.list_price * l.quantity)}</s>
+                                    )}
+                                    {formatIqd(l.price * l.quantity)}
+                                </span>
                             </li>
                         ))}
                     </ul>
                     {receipt.discount > 0 && (
-                        <p className="flex justify-between text-sm text-muted">
+                        <p className="flex justify-between text-sm text-foreground">
                             {t("till.cart.discount")}
                             <span className="tabular-nums">−{formatIqd(receipt.discount)}</span>
                         </p>
@@ -124,7 +129,7 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                             placeholder={t("till.done.phoneForWa")}
                             aria-label={t("till.done.phoneForWa")}
                             inputMode="tel"
-                            className="h-12 rounded-2xl border border-[var(--card-border)] bg-transparent px-3 text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
+                            className="h-12 rounded-2xl border border-stone-400 dark:border-white/25 bg-transparent px-3 text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
                         />
                     )}
                     {sendTo ? (
@@ -136,7 +141,7 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                         >
                             <MessageCircle className="h-4 w-4" aria-hidden="true" />
                             {phone ? (
-                                <span>
+                                <span dir="auto">
                                     {t("till.done.whatsappTo")} <bdi dir="ltr" className="tabular-nums">{phone}</bdi>
                                 </span>
                             ) : (
