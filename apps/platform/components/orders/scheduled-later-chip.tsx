@@ -31,7 +31,9 @@ export function ScheduledLaterChip({ filters, setFilters }: ScheduledLaterChipPr
         if (on && filters.status !== "confirmed") setOn(false);
     }, [on, filters.status, setOn]);
 
-    if (!later && !on) return null;
+    const count = later?.ids.length ?? 0;
+    // Always shown so the merchant sees it exists; at 0 it is muted and does nothing.
+    const empty = count === 0 && !on;
 
     const turnOff = () => {
         const today = baghdadDayKey();
@@ -52,13 +54,16 @@ export function ScheduledLaterChip({ filters, setFilters }: ScheduledLaterChipPr
             <button
                 type="button"
                 data-chip="scheduled-later"
-                data-chip-count={later?.ids.length ?? 0}
+                data-chip-count={count}
                 onClick={on ? turnOff : turnOn}
+                disabled={empty}
                 aria-pressed={on}
                 title={t("orders.filter.scheduledLaterTip")}
                 className={cn(
                     "rounded-full whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 border px-3 py-1.5 text-xs font-medium",
-                    on
+                    empty
+                        ? "bg-background text-muted-foreground/70 border-border/50 cursor-default"
+                        : on
                         ? "bg-violet-600 text-white border-violet-600 shadow-sm dark:bg-violet-400 dark:text-black dark:border-violet-400"
                         : "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 active:scale-95 dark:bg-violet-400/15 dark:text-violet-200 dark:border-violet-400/30 dark:hover:bg-violet-400/25",
                 )}
@@ -69,10 +74,10 @@ export function ScheduledLaterChip({ filters, setFilters }: ScheduledLaterChipPr
                     data-badge="scheduled-later"
                     className={cn(
                         "px-1.5 py-0.5 rounded-full text-[11px] font-black min-w-[18px] text-center",
-                        on ? "bg-white/25 text-current" : "bg-violet-200/60 text-violet-800 dark:bg-violet-400/20 dark:text-violet-100",
+                        on ? "bg-white/25 text-current" : empty ? "bg-muted-foreground/15 text-muted-foreground" : "bg-violet-200/60 text-violet-800 dark:bg-violet-400/20 dark:text-violet-100",
                     )}
                 >
-                    {later?.ids.length ?? 0}
+                    {count}
                 </span>
             </button>
             {on && (
