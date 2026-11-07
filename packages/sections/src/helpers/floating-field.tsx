@@ -1,28 +1,88 @@
 "use client";
 
 // Floating-label wrapper for a form control. The label rests inside the
-// box like a placeholder and lifts above it, word by word, once the
-// control has focus or a value. CSS-only motion (transform + colour on a
-// compositor-friendly path, no animation library) so it stays smooth on
-// mid-range phones.
+// box like a placeholder; once the control has focus or a value its
+// letters spring up above the box one after another (a staggered wave),
+// and fall back the same way when the field is emptied and left.
 //
-// The label is split into WORDS, never letters: splitting Arabic into
-// per-letter elements breaks letter joining. Words are `inline-block`, so
-// the shaping inside each word is untouched and a script that joins
-// letters still reads correctly.
+// Motion is CSS only (transform + colour, compositor-friendly, no
+// animation library) so it stays smooth on mid-range phones. The spring is
+// a sampled damped spring (stiffness 300, damping 20, mass 1) expressed as
+// a CSS `linear()` easing; browsers without `linear()` drop the inline
+// declaration and fall back to the default ease.
+//
+// Arabic: every letter is its own inline-block, which on its own would
+// shape each one as an isolated letter. Each letter that joins a
+// neighbour carries a zero-width joiner on that side, so the shaper still
+// picks its initial/medial/final form and the word reads joined while the
+// letters move independently. See `splitLetters`.
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "@scheniders/shared";
 
-/** Gap between the first word lifting and each following word. */
-const WORD_STAGGER_MS = 35;
+/** Gap between one letter lifting and the next. */
+const LETTER_STAGGER_MS = 28;
+/** Damped spring, stiffness 300 / damping 20 / mass 1, sampled over the
+ *  600ms it takes to settle (the `duration-[600ms]` on each letter). */
+const SPRING_EASE =
+  "linear(0, 0.079, 0.26, 0.478, 0.686, 0.857, 0.982, 1.061, 1.099, 1.108, 1.098, 1.078, 1.054, 1.032, 1.014, 1.001, 0.993, 0.989, 0.988, 0.99, 0.992, 0.994, 0.997, 0.999, 1)";
+
+const ZWJ = "‍";
+const ARABIC_LETTER = /^\p{Script=Arabic}/u;
+const ARABIC_MARK = /^\p{M}/u;
+/** Arabic-script letters that join the letter before them but never the
+ *  one after (alef forms, dal, thal, ra, zain, waw forms, teh marbuta and
+ *  the Kurdish/Persian variants); hamza joins neither side. */
+const JOINS_RIGHT_ONLY = new Set([..."اأإآٱدذرزژڕوؤۆۇۈۋةە"]);
+const NON_JOINING = new Set(["ء"]);
+
+function joinsNext(g: string): boolean {
+  const base = g[0] ?? "";
+  return (
+    ARABIC_LETTER.test(base) &&
+    !JOINS_RIGHT_ONLY.has(base) &&
+    !NON_JOINING.has(base)
+  );
+}
+
+function joinsPrev(g: string): boolean {
+  const base = g[0] ?? "";
+  return (
+    ARABIC_LETTER.test(base) &&
+    !ARABIC_MARK.test(base) &&
+    !NON_JOINING.has(base)
+  );
+}
+
+function graphemes(word: string): string[] {
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    const seg = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+    return Array.from(seg.segment(word), (s) => s.segment);
+  }
+  return Array.from(word);
+}
+
+/** One word as its letters (grapheme clusters, so harakat stay on their
+ *  letter), each padded with zero-width joiners on the sides where it
+ *  connects to its neighbour in the word. */
+export function splitLetters(word: string): string[] {
+  const gs = graphemes(word);
+  return gs.map((g, i) => {
+    const prev = gs[i - 1];
+    const next = gs[i + 1];
+    const before =
+      prev !== undefined && joinsNext(prev) && joinsPrev(g) ? ZWJ : "";
+    const after =
+      next !== undefined && joinsNext(g) && joinsPrev(next) ? ZWJ : "";
+    return `${before}${g}${after}`;
+  });
+}
 
 export function FloatingField({
   label,
   htmlFor,
   filled,
   rtl,
-  alwaysFloat = false,
   className,
   children,
 }: {
@@ -34,20 +94,19 @@ export function FloatingField({
   filled: boolean;
   /** The label starts at the right edge in right-to-left locales. */
   rtl: boolean;
-  /** A select with a visible prompt option: the label never rests inside. */
-  alwaysFloat?: boolean;
   className?: string;
-  /** The control (and any adornment) — position:relative box of the field. */
+  /** The control (and any adornment) — the field's box. */
   children: ReactNode;
 }) {
   const [focused, setFocused] = useState(false);
-  const floated = alwaysFloat || focused || filled;
+  const floated = focused || filled;
   const words = label.split(/\s+/).filter(Boolean);
+  let letterIndex = 0;
 
   return (
     <div
       data-floated={floated ? "true" : "false"}
-      className={cn("group/ff pt-5", className)}
+      className={cn("pt-6", className)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
@@ -65,31 +124,42 @@ export function FloatingField({
           htmlFor={htmlFor}
           dir={rtl ? "rtl" : "ltr"}
           className={cn(
-            "pointer-events-none absolute z-[1] block max-w-[calc(100%-3.5rem)] whitespace-nowrap font-bk-body text-base font-bold",
-            "top-0 leading-[52px]",
-            rtl ? "right-4 origin-right" : "left-4 origin-left",
-            "transition-transform duration-bk-base ease-out motion-reduce:transition-none",
-            floated && "-translate-y-[36px] scale-[0.82]",
+            "pointer-events-none absolute top-0 z-[1] block max-w-[calc(100%-3.5rem)] whitespace-nowrap font-bk-body text-[15px] font-bold leading-[52px]",
+            rtl ? "right-4" : "left-4",
           )}
         >
-          {words.map((word, i) => (
-            <span key={`${i}-${word}`}>
-              {i > 0 ? " " : null}
-              <span
-                style={
-                  {
-                    "--ff-delay": `${i * WORD_STAGGER_MS}ms`,
-                  } as React.CSSProperties
-                }
-                className={cn(
-                  "inline-block transition-[transform,color] duration-bk-base ease-[cubic-bezier(0.34,1.4,0.64,1)] [transition-delay:var(--ff-delay)] motion-reduce:transition-none",
-                  "[[data-bk-motion=reduce]_&]:delay-0",
-                  floated
-                    ? "-translate-y-[2px] text-bk-ink-soft"
-                    : "text-bk-ink-faint",
-                )}
-              >
-                {word}
+          {/* Screen readers get the label as one plain string; the moving
+              letters (with their joiners) are visual only. */}
+          <span className="sr-only">{label}</span>
+          {words.map((word, w) => (
+            <span key={`${w}-${word}`} aria-hidden="true">
+              {w > 0 ? " " : null}
+              <span className="inline-block">
+                {splitLetters(word).map((letter, l) => {
+                  const i = letterIndex++;
+                  return (
+                    <span
+                      key={l}
+                      style={
+                        {
+                          "--ff-delay": `${i * LETTER_STAGGER_MS}ms`,
+                          transitionTimingFunction: SPRING_EASE,
+                        } as CSSProperties
+                      }
+                      className={cn(
+                        "inline-block will-change-transform motion-reduce:transition-none",
+                        "transition-[transform,color] [transition-delay:var(--ff-delay)]",
+                        "duration-[600ms]",
+                        "[[data-bk-motion=reduce]_&]:delay-0",
+                        floated
+                          ? "-translate-y-[38px] text-bk-ink-soft"
+                          : "translate-y-0 text-bk-ink-faint",
+                      )}
+                    >
+                      {letter}
+                    </span>
+                  );
+                })}
               </span>
             </span>
           ))}

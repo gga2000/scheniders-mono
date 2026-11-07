@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { FloatingField } from "./floating-field";
+import { FloatingField, splitLetters } from "./floating-field";
 
 function Field({ filled = false, rtl = false, label = "Full name" }) {
   return (
@@ -41,18 +41,53 @@ describe("FloatingField", () => {
     );
   });
 
-  it("splits by word, never by letter, so Arabic keeps its joined letters", () => {
-    render(<Field rtl label="أقرب نقطة دالة" />);
+  it("splits the label into letters and keeps the full text for screen readers", () => {
+    render(<Field rtl label="أقرب نقطة" />);
     const label = screen.getByText((_, el) => el?.tagName === "LABEL");
     expect(label.getAttribute("dir")).toBe("rtl");
-    expect(label.textContent).toBe("أقرب نقطة دالة");
-    expect(label.querySelectorAll("span > span")).toHaveLength(3);
+    expect(screen.getByRole("textbox", { name: "أقرب نقطة" })).toBe(
+      screen.getByRole("textbox"),
+    );
+    expect(label.querySelectorAll("[aria-hidden] span span")).toHaveLength(8);
   });
 
   it("points the label at its control", () => {
     render(<Field />);
-    expect(screen.getByLabelText("Full name")).toBe(
+    expect(screen.getByRole("textbox", { name: "Full name" })).toBe(
       screen.getByRole("textbox"),
     );
+  });
+});
+
+describe("splitLetters", () => {
+  const Z = "\u200D";
+
+  it("leaves Latin letters as they are", () => {
+    expect(splitLetters("Name")).toEqual(["N", "a", "m", "e"]);
+  });
+
+  it("joins Arabic letters to both neighbours with zero-width joiners", () => {
+    // ب ي ت: every letter joins both ways.
+    expect(splitLetters("بيت")).toEqual([`ب${Z}`, `${Z}ي${Z}`, `${Z}ت`]);
+  });
+
+  it("does not join across a letter that only joins backwards", () => {
+    // ا never joins the letter after it, so ل starts a new joined run.
+    expect(splitLetters("الاسم")).toEqual([
+      "ا",
+      `ل${Z}`,
+      `${Z}ا`,
+      `س${Z}`,
+      `${Z}م`,
+    ]);
+  });
+
+  it("keeps harakat on their letter", () => {
+    expect(splitLetters("يفضّل")).toEqual([
+      `ي${Z}`,
+      `${Z}ف${Z}`,
+      `${Z}ضّ${Z}`,
+      `${Z}ل`,
+    ]);
   });
 });
