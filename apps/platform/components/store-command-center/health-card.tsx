@@ -37,7 +37,9 @@ function fixHref(fix: FixAction | undefined): string {
         case "page":
             return go.tab
                 ? `/store/edit?page=${go.page_id}&tab=${go.tab}`
-                : `/store/edit?page=${go.page_id}`;
+                : go.open
+                  ? `/store/edit?page=${go.page_id}&open=${go.open}`
+                  : `/store/edit?page=${go.page_id}`;
         case "section":
             return `/store/edit?page=${go.page_id}&section=${go.section_id}`;
         case "external":

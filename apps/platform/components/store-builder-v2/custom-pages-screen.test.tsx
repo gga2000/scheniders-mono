@@ -42,7 +42,7 @@ describe("CustomPagesScreen", () => {
             { id: "p1", slug: "products", title: { en: "X" }, sections: [], hidden: false },
         ]);
         render(<CustomPagesScreen builder={builder} onClose={() => {}} />);
-        expect(screen.getByTestId("custom-page-error-0").textContent).toMatch(/reserved/i);
+        expect(screen.getByTestId("custom-page-error-0").textContent).toMatch(/built-in page/i);
     });
 
     it("re-slugs (kebab-case) and removes a page", () => {

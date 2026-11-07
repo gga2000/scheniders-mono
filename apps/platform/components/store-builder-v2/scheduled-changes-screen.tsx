@@ -34,6 +34,7 @@ import {
     Eye,
 } from "lucide-react";
 import type {
+    LocaleCode,
     PageId,
     ScheduledChange,
     SectionInstance,
@@ -51,7 +52,7 @@ import type {
 } from "@/hooks/use-store-builder-v2";
 import { cn } from "@/lib/utils";
 import { getPageLabel } from "./page-tree";
-import { STRINGS, t as tx } from "@/lib/editor-i18n";
+import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -71,21 +72,18 @@ export interface ScheduledChangesScreenProps {
 /* Helpers                                                              */
 /* ─────────────────────────────────────────────────────────────────── */
 
-function describeRelative(target: Date, now: Date, suffix: "ago" | "in"): string {
-    const delta = Math.abs(target.getTime() - now.getTime());
-    const mins = Math.floor(delta / 60_000);
-    if (mins < 60) {
-        const v = `${mins}m`;
-        return suffix === "ago" ? `${v} ago` : `in ${v}`;
-    }
+/** "3 days ago" / "in 2 hours", worded in the editor's language. */
+function describeRelative(target: Date, now: Date, locale: LocaleCode): string {
+    const fmt = new Intl.RelativeTimeFormat(
+        `${locale === "ku" ? "ckb" : locale}-u-nu-latn`,
+        { numeric: "auto" },
+    );
+    const sign = target.getTime() >= now.getTime() ? 1 : -1;
+    const mins = Math.floor(Math.abs(target.getTime() - now.getTime()) / 60_000);
+    if (mins < 60) return fmt.format(sign * mins, "minute");
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) {
-        const v = `${hrs}h`;
-        return suffix === "ago" ? `${v} ago` : `in ${v}`;
-    }
-    const days = Math.floor(hrs / 24);
-    const v = `${days} day${days === 1 ? "" : "s"}`;
-    return suffix === "ago" ? `${v} ago` : `in ${v}`;
+    if (hrs < 24) return fmt.format(sign * hrs, "hour");
+    return fmt.format(sign * Math.floor(hrs / 24), "day");
 }
 
 function deriveStatus(s: StoredSchedule, now: Date): ScheduleStatus {
@@ -236,11 +234,11 @@ export function ScheduledChangesScreen({
             setSchedules(rows);
         } catch (err) {
             if (!mountedRef.current) return;
-            setError(err instanceof Error ? err.message : "Failed to load schedules");
+            setError(err instanceof Error ? err.message : tx(STRINGS.advanced_chrome.sched_error_load, locale));
         } finally {
             if (mountedRef.current) setLoading(false);
         }
-    }, [builder]);
+    }, [builder, locale]);
 
     useEffect(() => {
         if (initialSchedules !== undefined) return;
@@ -277,7 +275,7 @@ export function ScheduledChangesScreen({
                         applyToTargetVariants(prev, s.targets, (v) =>
                             patchTimeWindow(v, { end_iso: nowIso }),
                         ),
-                    "Ended scheduled change early",
+                    tx(STRINGS.advanced_chrome.sched_history_end, locale),
                 );
                 await builder.updateSchedule(s.id, {
                     ends_at_iso: nowIso,
@@ -293,12 +291,12 @@ export function ScheduledChangesScreen({
                         : prev,
                 );
             } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to end schedule");
+                setError(err instanceof Error ? err.message : tx(STRINGS.advanced_chrome.sched_error_end, locale));
             } finally {
                 if (mountedRef.current) setBusyId(null);
             }
         },
-        [builder],
+        [builder, locale],
     );
 
     const handleCancel = useCallback(
@@ -313,7 +311,7 @@ export function ScheduledChangesScreen({
                             ...v,
                             enabled: false,
                         })),
-                    "Cancelled scheduled change",
+                    tx(STRINGS.advanced_chrome.sched_history_cancel, locale),
                 );
                 await builder.cancelSchedule(s.id);
                 setSchedules((prev) =>
@@ -324,12 +322,12 @@ export function ScheduledChangesScreen({
                         : prev,
                 );
             } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to cancel schedule");
+                setError(err instanceof Error ? err.message : tx(STRINGS.advanced_chrome.sched_error_cancel, locale));
             } finally {
                 if (mountedRef.current) setBusyId(null);
             }
         },
-        [builder],
+        [builder, locale],
     );
 
     const handleDelete = useCallback(
@@ -339,12 +337,12 @@ export function ScheduledChangesScreen({
                 await builder.deleteSchedule(s.id);
                 setSchedules((prev) => (prev ? prev.filter((r) => r.id !== s.id) : prev));
             } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to delete schedule");
+                setError(err instanceof Error ? err.message : tx(STRINGS.advanced_chrome.sched_error_delete, locale));
             } finally {
                 if (mountedRef.current) setBusyId(null);
             }
         },
-        [builder],
+        [builder, locale],
     );
 
     const handleCreated = useCallback((row: StoredSchedule): void => {
@@ -363,7 +361,7 @@ export function ScheduledChangesScreen({
                         applyToTargetVariants(prev, s.targets, (v) =>
                             patchTimeWindow(v, { start_iso: nextStartIso }),
                         ),
-                    "Updated scheduled change start",
+                    tx(STRINGS.advanced_chrome.sched_history_start, locale),
                 );
                 await builder.updateSchedule(s.id, { starts_at_iso: nextStartIso });
                 setSchedules((prev) =>
@@ -375,12 +373,12 @@ export function ScheduledChangesScreen({
                 );
                 setEditingScheduleId(null);
             } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to update");
+                setError(err instanceof Error ? err.message : tx(STRINGS.advanced_chrome.sched_error_update, locale));
             } finally {
                 if (mountedRef.current) setBusyId(null);
             }
         },
-        [builder],
+        [builder, locale],
     );
 
     /* ── Render ──────────────────────────────────────────────── */
@@ -403,9 +401,9 @@ export function ScheduledChangesScreen({
                         <ChevronLeft className="h-4 w-4" />
                     </button>
                     <div>
-                        <h2 className="text-base font-bold tracking-tight">Scheduled Changes</h2>
-                        <p className="text-[11px] text-foreground/80">
-                            Time-windowed variants you&apos;ve set up across your store.
+                        <h2 className="text-base font-bold tracking-tight">{tx(STRINGS.scheduled.heading, locale)}</h2>
+                        <p dir="auto" className="text-[11px] text-foreground/80">
+                            {tx(STRINGS.advanced_chrome.sched_subtitle, locale)}
                         </p>
                     </div>
                 </div>
@@ -417,7 +415,7 @@ export function ScheduledChangesScreen({
                         className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                        Refresh
+                        {tx(STRINGS.advanced_chrome.adv_refresh, locale)}
                     </button>
                     <button
                         type="button"
@@ -426,7 +424,7 @@ export function ScheduledChangesScreen({
                         className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                     >
                         <Plus className="h-3.5 w-3.5" />
-                        New schedule
+                        {tx(STRINGS.scheduled.new, locale)}
                     </button>
                 </div>
             </header>
@@ -658,10 +656,10 @@ function ScheduleRow({
     const start = new Date(schedule.starts_at_iso);
     const end = schedule.ends_at_iso ? new Date(schedule.ends_at_iso) : null;
 
-    const startedAgo = describeRelative(start, now, "ago");
-    const endsIn = end ? describeRelative(end, now, "in") : null;
-    const startsIn = describeRelative(start, now, "in");
-    const endsAgo = end ? describeRelative(end, now, "ago") : null;
+    const startedAgo = describeRelative(start, now, locale);
+    const endsIn = end ? describeRelative(end, now, locale) : null;
+    const startsIn = describeRelative(start, now, locale);
+    const endsAgo = end ? describeRelative(end, now, locale) : null;
 
     const resolved = useMemo(
         () => resolveTargets(builder, schedule.targets),
@@ -673,9 +671,12 @@ function ScheduleRow({
             ? "—"
             : resolved
                   .map((t) => {
-                      const sec = t.section_label || t.section_type || "Section";
+                      const sec =
+                          t.section_label ||
+                          t.section_type ||
+                          tx(STRINGS.advanced_chrome.sched_target_section_fallback, locale);
                       const variant = t.variant_label ? ` / "${t.variant_label}"` : "";
-                      return `${getPageLabel(t.page_id)} / ${sec}${variant}`;
+                      return `${getPageLabel(t.page_id, locale)} / ${sec}${variant}`;
                   })
                   .join("; ");
 
@@ -726,17 +727,24 @@ function ScheduleRow({
             <div className="mt-1.5 ml-8 text-[11px] text-muted-foreground">
                 {status === "active" && (
                     <>
-                        Started {startedAgo}
-                        {endsIn ? ` — ends ${endsIn}` : " — no end date"}
+                        {tFormat(STRINGS.advanced_chrome.sched_row_started, locale, { when: startedAgo })}
+                        {" · "}
+                        {endsIn
+                            ? tFormat(STRINGS.advanced_chrome.sched_row_ends, locale, { when: endsIn })
+                            : tx(STRINGS.advanced_chrome.sched_row_no_end, locale)}
                     </>
                 )}
                 {status === "scheduled" && (
                     <>
-                        Starts {startsIn}
-                        {endsIn ? ` — ends ${endsIn}` : ""}
+                        {tFormat(STRINGS.advanced_chrome.sched_row_starts, locale, { when: startsIn })}
+                        {endsIn
+                            ? ` · ${tFormat(STRINGS.advanced_chrome.sched_row_ends, locale, { when: endsIn })}`
+                            : ""}
                     </>
                 )}
-                {status === "expired" && <>Ended {endsAgo ?? startedAgo}</>}
+                {status === "expired" && (
+                    <>{tFormat(STRINGS.advanced_chrome.sched_row_ended, locale, { when: endsAgo ?? startedAgo })}</>
+                )}
                 {status === "cancelled" && <>{tx(STRINGS.advanced_chrome.sched_row_cancelled, locale)}</>}
             </div>
 
@@ -766,7 +774,7 @@ function ScheduleRow({
                         className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-2 text-[11px] font-semibold text-primary-foreground"
                     >
                         <Check className="h-3 w-3" />
-                        Save
+                        {tx(STRINGS.common.save, locale)}
                     </button>
                     <button
                         type="button"
@@ -774,7 +782,7 @@ function ScheduleRow({
                         data-testid={`schedule-row-${schedule.id}-edit-start-cancel`}
                         className="inline-flex h-7 items-center rounded-md px-2 text-[11px] text-muted-foreground hover:text-foreground"
                     >
-                        Cancel
+                        {tx(STRINGS.common.cancel, locale)}
                     </button>
                 </div>
             )}
@@ -787,7 +795,7 @@ function ScheduleRow({
                     className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                 >
                     <Eye className="h-3 w-3" />
-                    View
+                    {tx(STRINGS.scheduled.view, locale)}
                 </button>
                 {status === "active" && onEndEarly && (
                     <button
@@ -798,7 +806,7 @@ function ScheduleRow({
                         className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-amber-500/10 hover:text-amber-700"
                     >
                         <StopCircle className="h-3 w-3" />
-                        End early
+                        {tx(STRINGS.scheduled.end_early, locale)}
                     </button>
                 )}
                 {status === "scheduled" && onEditStart && !isEditing && (
@@ -810,7 +818,7 @@ function ScheduleRow({
                         className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                     >
                         <Pencil className="h-3 w-3" />
-                        Edit start
+                        {tx(STRINGS.scheduled.edit_start, locale)}
                     </button>
                 )}
                 {(status === "active" || status === "scheduled") && onCancel && (
@@ -822,7 +830,7 @@ function ScheduleRow({
                         className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10"
                     >
                         <Trash2 className="h-3 w-3" />
-                        Cancel
+                        {tx(STRINGS.common.cancel, locale)}
                     </button>
                 )}
                 {(status === "expired" || status === "cancelled" || status === "active") && onDelete && (
@@ -834,7 +842,7 @@ function ScheduleRow({
                         className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10"
                     >
                         <Trash2 className="h-3 w-3" />
-                        Delete
+                        {tx(STRINGS.scheduled.delete, locale)}
                     </button>
                 )}
             </div>
@@ -879,7 +887,7 @@ function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): Reac
                 </header>
                 <div className="flex-1 overflow-y-auto p-4">
                     <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
-                        Targets
+                        {tx(STRINGS.scheduled.targets_heading, locale)}
                     </h4>
                     {resolved.length === 0 ? (
                         <p className="text-[12px] text-foreground/80">{tx(STRINGS.advanced_chrome.sched_no_targets, locale)}</p>
@@ -895,17 +903,17 @@ function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): Reac
                                         key={`${t.section_id}-${t.variant_id}-${i}`}
                                         className="rounded-md border border-(--card-border) bg-background p-3 text-[12px]"
                                     >
-                                        <div className="font-medium">{getPageLabel(t.page_id)}</div>
+                                        <div className="font-medium">{getPageLabel(t.page_id, locale)}</div>
                                         <div className="text-muted-foreground">
-                                            Section:{" "}
+                                            {tx(STRINGS.advanced_chrome.sched_section_label, locale)}{" "}
                                             <span className="text-foreground/80">
-                                                {t.section_label || t.section_type || "Unknown"}
+                                                {t.section_label || t.section_type || tx(STRINGS.advanced_chrome.sched_target_unknown, locale)}
                                             </span>
                                         </div>
                                         <div className="text-muted-foreground">
-                                            Variant:{" "}
+                                            {tx(STRINGS.advanced_chrome.sched_variant_label, locale)}{" "}
                                             <span className="text-foreground/80">
-                                                {t.variant_label || "(missing)"}
+                                                {t.variant_label || tx(STRINGS.advanced_chrome.sched_variant_missing, locale)}
                                             </span>
                                         </div>
                                         {variant?.override && (
@@ -983,33 +991,33 @@ function ScheduleCreatorModal({
     const handleSubmit = useCallback(async (): Promise<void> => {
         setFormError(null);
         if (!label.trim()) {
-            setFormError("Label is required");
+            setFormError(tx(STRINGS.advanced_chrome.sched_err_label_required, locale));
             return;
         }
         const startsIso = inputToIso(startInput, timezone);
         if (!startsIso) {
-            setFormError("Valid start date is required");
+            setFormError(tx(STRINGS.advanced_chrome.sched_err_start_required, locale));
             return;
         }
         const endsIso = endInput ? inputToIso(endInput, timezone) : undefined;
         if (endInput && !endsIso) {
-            setFormError("End date is invalid");
+            setFormError(tx(STRINGS.advanced_chrome.sched_err_end_invalid, locale));
             return;
         }
         if (endsIso && new Date(endsIso) <= new Date(startsIso)) {
-            setFormError("End must be after start");
+            setFormError(tx(STRINGS.advanced_chrome.sched_err_end_before_start, locale));
             return;
         }
         if (!pageId) {
-            setFormError("Pick a page");
+            setFormError(tx(STRINGS.advanced_chrome.sched_err_pick_page, locale));
             return;
         }
         if (!sectionId) {
-            setFormError("Pick a section");
+            setFormError(tx(STRINGS.advanced_chrome.sched_err_pick_section, locale));
             return;
         }
         if (!variantId) {
-            setFormError("Pick or create a variant");
+            setFormError(tx(STRINGS.advanced_chrome.sched_err_pick_variant, locale));
             return;
         }
 
@@ -1069,7 +1077,7 @@ function ScheduleCreatorModal({
             });
             onCreated(row);
         } catch (err) {
-            setFormError(err instanceof Error ? err.message : "Failed to create schedule");
+            setFormError(err instanceof Error ? err.message : tx(STRINGS.advanced_chrome.sched_error_create, locale));
         } finally {
             setSubmitting(false);
         }
@@ -1077,6 +1085,7 @@ function ScheduleCreatorModal({
         builder,
         endInput,
         label,
+        locale,
         newVariantLabel,
         onCreated,
         pageId,
@@ -1113,7 +1122,7 @@ function ScheduleCreatorModal({
 
                 <div className="max-h-[70vh] space-y-4 overflow-y-auto p-5">
                     {/* Label */}
-                    <Field label="Label">
+                    <Field label={tx(STRINGS.advanced_chrome.sched_field_label, locale)}>
                         <input
                             type="text"
                             value={label}
@@ -1126,7 +1135,7 @@ function ScheduleCreatorModal({
 
                     {/* Date/time */}
                     <div className="grid grid-cols-2 gap-3">
-                        <Field label="Start date / time">
+                        <Field label={tx(STRINGS.advanced_chrome.sched_field_start, locale)}>
                             <input
                                 type="datetime-local"
                                 value={startInput}
@@ -1135,7 +1144,7 @@ function ScheduleCreatorModal({
                                 className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
                         </Field>
-                        <Field label="End date / time (optional)">
+                        <Field label={tx(STRINGS.advanced_chrome.sched_field_end, locale)}>
                             <input
                                 type="datetime-local"
                                 value={endInput}
@@ -1147,7 +1156,7 @@ function ScheduleCreatorModal({
                     </div>
 
                     {/* Timezone */}
-                    <Field label="Timezone">
+                    <Field label={tx(STRINGS.advanced_chrome.sched_field_timezone, locale)}>
                         <select
                             value={timezone}
                             onChange={(e) => setTimezone(e.target.value)}
@@ -1162,7 +1171,7 @@ function ScheduleCreatorModal({
                     </Field>
 
                     {/* Target cascade */}
-                    <Field label="Page">
+                    <Field label={tx(STRINGS.advanced_chrome.sched_field_page, locale)}>
                         <select
                             value={pageId}
                             onChange={(e) => setPageId(e.target.value as PageId)}
@@ -1172,13 +1181,13 @@ function ScheduleCreatorModal({
                             <option value="">{tx(STRINGS.advanced_chrome.sched_choose_page, locale)}</option>
                             {availablePages.map((p) => (
                                 <option key={p.page_id} value={p.page_id}>
-                                    {getPageLabel(p.page_id)}
+                                    {getPageLabel(p.page_id, locale)}
                                 </option>
                             ))}
                         </select>
                     </Field>
 
-                    <Field label="Section">
+                    <Field label={tx(STRINGS.advanced_chrome.sched_field_section, locale)}>
                         <select
                             value={sectionId}
                             onChange={(e) => setSectionId(e.target.value)}
@@ -1190,7 +1199,7 @@ function ScheduleCreatorModal({
                             )}
                         >
                             <option value="">
-                                {pageId ? "Choose a section…" : "Pick a page first"}
+                                {tx(pageId ? STRINGS.advanced_chrome.sched_choose_section : STRINGS.advanced_chrome.sched_pick_page_first, locale)}
                             </option>
                             {availableSections.map((s) => (
                                 <option key={s.id} value={s.id}>
@@ -1201,7 +1210,7 @@ function ScheduleCreatorModal({
                         </select>
                     </Field>
 
-                    <Field label="Variant">
+                    <Field label={tx(STRINGS.advanced_chrome.sched_field_variant, locale)}>
                         <select
                             value={variantId}
                             onChange={(e) => setVariantId(e.target.value)}
@@ -1213,7 +1222,7 @@ function ScheduleCreatorModal({
                             )}
                         >
                             <option value="">
-                                {sectionId ? "Choose a variant…" : "Pick a section first"}
+                                {tx(sectionId ? STRINGS.advanced_chrome.sched_choose_variant : STRINGS.advanced_chrome.sched_pick_section_first, locale)}
                             </option>
                             {availableVariants.map((v) => (
                                 <option key={v.id} value={v.id}>
@@ -1229,7 +1238,7 @@ function ScheduleCreatorModal({
                     </Field>
 
                     {variantId === NEW_VARIANT_SENTINEL && (
-                        <Field label="New variant label">
+                        <Field label={tx(STRINGS.advanced_chrome.sched_field_new_variant_label, locale)}>
                             <input
                                 type="text"
                                 value={newVariantLabel}
@@ -1239,8 +1248,7 @@ function ScheduleCreatorModal({
                                 className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />
                             <p className="mt-1 text-[11px] text-muted-foreground">
-                                A `time_window` variant will be created in this section,
-                                wired to the schedule&apos;s start/end times.
+                                {tx(STRINGS.advanced_chrome.sched_new_variant_hint, locale)}
                             </p>
                         </Field>
                     )}
@@ -1263,7 +1271,7 @@ function ScheduleCreatorModal({
                         data-testid="schedule-creator-cancel"
                         className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
-                        Cancel
+                        {tx(STRINGS.common.cancel, locale)}
                     </button>
                     <button
                         type="button"

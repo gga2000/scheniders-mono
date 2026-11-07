@@ -44,7 +44,10 @@ export interface HealthChecklistScreenProps {
     /** Open a settings screen (brand_kit etc.). */
     onSelectSetting: (id: SettingsSectionId) => void;
     /** Navigate to a page. The host should also close the health view. */
-    onSelectPage: (page_id: PageId, opts?: { tab?: "seo" }) => void;
+    onSelectPage: (
+        page_id: PageId,
+        opts?: { tab?: "seo"; open?: "add_section" },
+    ) => void;
     /** Open a specific section's edit panel on a page. */
     onSelectSection?: (page_id: PageId, section_id: string) => void;
     /** Close the health screen and return to the live preview. */
@@ -371,7 +374,10 @@ export function HealthChecklistScreen(
             return;
         }
         if (go.kind === "page") {
-            onSelectPage(go.page_id, go.tab ? { tab: go.tab } : undefined);
+            onSelectPage(
+                go.page_id,
+                go.tab || go.open ? { tab: go.tab, open: go.open } : undefined,
+            );
             return;
         }
         if (go.kind === "section") {

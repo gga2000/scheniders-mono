@@ -59,7 +59,7 @@ describe("RedirectsScreen", () => {
         ]);
         render(<RedirectsScreen builder={builder} onClose={() => {}} />);
         expect(screen.getByTestId("redirect-issue-1").textContent).toMatch(
-            /Duplicate/,
+            /Same source as rule 1/,
         );
     });
 

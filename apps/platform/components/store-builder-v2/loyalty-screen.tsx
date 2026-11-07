@@ -13,6 +13,8 @@ import { useCallback } from "react";
 import { X, Award } from "lucide-react";
 import type { LoyaltyConfig, ReferralConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
 
 export interface LoyaltyScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -24,9 +26,9 @@ const inputCls =
 
 /** Parse to a non-negative number, or undefined when blank. */
 function num(v: string): number | undefined {
-    const t = v.trim();
-    if (t === "") return undefined;
-    const n = Number(t);
+    const s = v.trim();
+    if (s === "") return undefined;
+    const n = Number(s);
     return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
@@ -34,6 +36,8 @@ export function LoyaltyScreen({
     builder,
     onClose,
 }: LoyaltyScreenProps): React.ReactElement {
+    const locale = useEditorLocale();
+    const L = STRINGS.loyalty;
     const cfg: LoyaltyConfig = builder.config.commerce?.loyalty ?? {};
     const enabled = cfg.enabled === true;
 
@@ -47,10 +51,10 @@ export function LoyaltyScreen({
                         loyalty: { ...prev.commerce?.loyalty, ...patch },
                     },
                 }),
-                "Edited loyalty",
+                tFormat(STRINGS.history.edit_named, locale, { name: t(L.heading, locale) }),
             );
         },
-        [builder],
+        [builder, locale, L],
     );
 
     // Referrals live here because the referrer's reward is paid in points:
@@ -66,10 +70,10 @@ export function LoyaltyScreen({
                         referral: { ...prev.commerce?.referral, ...patch },
                     },
                 }),
-                "Edited referrals",
+                tFormat(STRINGS.history.edit_named, locale, { name: t(L.referral_heading, locale) }),
             );
         },
-        [builder],
+        [builder, locale, L],
     );
     const referralRows: {
         key: keyof ReferralConfig;
@@ -79,20 +83,20 @@ export function LoyaltyScreen({
     }[] = [
         {
             key: "friend_discount_pct",
-            label: "Friend's discount (%)",
-            hint: "Off their first order with the code",
+            label: t(L.friend_pct_label, locale),
+            hint: t(L.friend_pct_hint, locale),
             value: referral.friend_discount_pct,
         },
         {
             key: "friend_max_discount_iqd",
-            label: "Cap on that discount (IQD)",
-            hint: "Blank = no cap",
+            label: t(L.friend_cap_label, locale),
+            hint: t(L.friend_cap_hint, locale),
             value: referral.friend_max_discount_iqd,
         },
         {
             key: "referrer_points",
-            label: "Points for the referrer",
-            hint: "Credited when the friend's order is delivered; needs loyalty on",
+            label: t(L.referrer_label, locale),
+            hint: t(L.referrer_hint, locale),
             value: referral.referrer_points,
         },
     ];
@@ -106,27 +110,27 @@ export function LoyaltyScreen({
     }[] = [
         {
             key: "earn_per_iqd",
-            label: "Points earned per IQD",
-            hint: "e.g. 0.001 = 1 point per 1,000 IQD spent",
+            label: t(L.earn_label, locale),
+            hint: t(L.earn_hint, locale),
             value: cfg.earn_per_iqd,
             step: "0.0001",
         },
         {
             key: "redeem_value_iqd",
-            label: "IQD value per point",
-            hint: "e.g. 10 = each point is worth 10 IQD off",
+            label: t(L.redeem_label, locale),
+            hint: t(L.redeem_hint, locale),
             value: cfg.redeem_value_iqd,
         },
         {
             key: "min_redeem_points",
-            label: "Minimum points to redeem",
-            hint: "Customers can't redeem below this balance",
+            label: t(L.min_label, locale),
+            hint: t(L.min_hint, locale),
             value: cfg.min_redeem_points,
         },
         {
             key: "max_redeem_pct",
-            label: "Max % of order from points",
-            hint: "Cap redemption to this share of the subtotal (0–100)",
+            label: t(L.max_label, locale),
+            hint: t(L.max_hint, locale),
             value: cfg.max_redeem_pct,
         },
     ];
@@ -139,7 +143,7 @@ export function LoyaltyScreen({
             <header className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
                 <button
                     type="button"
-                    aria-label="Close loyalty"
+                    aria-label={t(L.close, locale)}
                     data-testid="loyalty-close"
                     onClick={onClose}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
@@ -147,20 +151,17 @@ export function LoyaltyScreen({
                     <X className="h-4 w-4" />
                 </button>
                 <Award className="h-4 w-4 text-amber-600" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">Loyalty points</h2>
+                <h2 className="text-sm font-semibold text-foreground">{t(L.heading, locale)}</h2>
             </header>
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">
-                    Reward repeat customers: they earn points when an order is delivered
-                    and redeem them for a discount at checkout. If a delivered order is
-                    later returned or cancelled, the points it earned are taken back. Off
-                    by default — turn it on to start the program.
+                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
+                    {t(L.intro, locale)}
                 </p>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-sm font-medium text-foreground">
-                        Enable loyalty points
+                        {t(L.enable, locale)}
                     </span>
                     <input
                         type="checkbox"
@@ -175,7 +176,7 @@ export function LoyaltyScreen({
                         key={row.key}
                         className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3"
                     >
-                        <span className="min-w-0 text-sm text-foreground">
+                        <span dir="auto" className="min-w-0 text-sm text-foreground">
                             {row.label}
                             <span className="mt-0.5 block text-xs text-muted-foreground">
                                 {row.hint}
@@ -199,16 +200,14 @@ export function LoyaltyScreen({
                 <section className="mt-2 flex flex-col gap-3" aria-labelledby="referral-heading">
                     <div>
                         <h3 id="referral-heading" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Referrals
+                            {t(L.referral_heading, locale)}
                         </h3>
-                        <p className="mt-1 max-w-prose text-xs text-muted-foreground">
-                            Every buyer gets a code on the thank-you page and a WhatsApp share
-                            link. A friend using it on their first order gets the discount; the
-                            referrer gets points when that order is delivered.
+                        <p dir="auto" className="mt-1 max-w-prose text-xs text-muted-foreground">
+                            {t(L.referral_intro, locale)}
                         </p>
                     </div>
                     <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                        <span className="text-sm font-medium text-foreground">Enable referrals</span>
+                        <span className="text-sm font-medium text-foreground">{t(L.referral_enable, locale)}</span>
                         <input
                             type="checkbox"
                             data-testid="referral-enabled"
@@ -221,7 +220,7 @@ export function LoyaltyScreen({
                             key={row.key}
                             className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3"
                         >
-                            <span className="min-w-0 text-sm text-foreground">
+                            <span dir="auto" className="min-w-0 text-sm text-foreground">
                                 {row.label}
                                 <span className="mt-0.5 block text-xs text-muted-foreground">{row.hint}</span>
                             </span>
@@ -241,8 +240,7 @@ export function LoyaltyScreen({
                     ))}
                     {referral.enabled === true && !enabled && (referral.referrer_points ?? 0) > 0 && (
                         <p role="status" data-testid="referral-needs-loyalty" className="text-xs text-amber-700">
-                            Referrer points are paid through loyalty — turn loyalty on, or the
-                            referrer gets nothing.
+                            {t(L.referral_needs_loyalty, locale)}
                         </p>
                     )}
                 </section>

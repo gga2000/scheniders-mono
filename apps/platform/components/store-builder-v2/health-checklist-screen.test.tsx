@@ -169,6 +169,24 @@ describe("HealthChecklistScreen", () => {
         expect(onSelectPage).toHaveBeenCalledWith("policy_privacy", undefined);
     });
 
+    it("an add-a-section fix opens the page with the section picker", () => {
+        const cfg = freshEmpty();
+        const onSelectPage = vi.fn();
+        render(
+            <HealthChecklistScreen
+                config={cfg}
+                tenantName="Test"
+                onSelectSetting={() => {}}
+                onSelectPage={onSelectPage}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("health-fix-cart_has_promo_or_upsell"));
+        expect(onSelectPage).toHaveBeenCalledWith("cart", {
+            tab: undefined,
+            open: "add_section",
+        });
+    });
+
     it("'Blocks publish' banner appears when blocking failures exist", () => {
         const cfg = freshEmpty();
         render(

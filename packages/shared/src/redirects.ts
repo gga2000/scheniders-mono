@@ -64,15 +64,23 @@ export function matchRedirect(
     return null;
 }
 
+/** Why a redirect rule is flagged in the editor. `other` is the 0-based
+ *  index of the earlier rule a duplicate collides with. */
+export type RedirectIssue =
+    | { code: "missing" }
+    | { code: "self" }
+    | { code: "duplicate"; other: number }
+    | { code: "chain" };
+
 /**
  * Validate a rule list for the editor: flags empty fields, self-redirects,
  * duplicate sources, and direct A→B→A / A→B chains. Returns a per-index map
- * of human-readable issues (empty when all valid).
+ * of issue codes (empty when all valid); the editor words them per locale.
  */
-export function validateRedirects(
+export function redirectIssues(
     rules: RedirectRule[],
-): Record<number, string> {
-    const issues: Record<number, string> = {};
+): Record<number, RedirectIssue> {
+    const issues: Record<number, RedirectIssue> = {};
     const seenFrom = new Map<string, number>();
     const fromSet = new Set(
         rules
@@ -83,25 +91,43 @@ export function validateRedirects(
         const from = rule?.from?.trim();
         const to = rule?.to?.trim();
         if (!from || !to) {
-            issues[i] = "Both source and destination are required.";
+            issues[i] = { code: "missing" };
             return;
         }
         const nFrom = normalizeRedirectPath(from);
         if (!isAbsoluteUrl(to) && normalizeRedirectPath(to) === nFrom) {
-            issues[i] = "Source and destination are the same.";
+            issues[i] = { code: "self" };
             return;
         }
         const dup = seenFrom.get(nFrom);
         if (dup !== undefined) {
-            issues[i] = `Duplicate source — also rule #${dup + 1}.`;
+            issues[i] = { code: "duplicate", other: dup };
             return;
         }
         seenFrom.set(nFrom, i);
         // Chain: destination is itself a source of another rule → would
         // require a second hop. Warn (not fatal).
         if (!isAbsoluteUrl(to) && fromSet.has(normalizeRedirectPath(to))) {
-            issues[i] = "Destination is itself redirected — visitors take two hops.";
+            issues[i] = { code: "chain" };
         }
     });
     return issues;
+}
+
+/** English wording of {@link redirectIssues}, for non-editor callers and tests. */
+export function validateRedirects(
+    rules: RedirectRule[],
+): Record<number, string> {
+    const out: Record<number, string> = {};
+    for (const [i, issue] of Object.entries(redirectIssues(rules))) {
+        out[Number(i)] =
+            issue.code === "missing"
+                ? "Both source and destination are required."
+                : issue.code === "self"
+                  ? "Source and destination are the same."
+                  : issue.code === "duplicate"
+                    ? `Duplicate source — also rule #${issue.other + 1}.`
+                    : "Destination is itself redirected — visitors take two hops.";
+    }
+    return out;
 }

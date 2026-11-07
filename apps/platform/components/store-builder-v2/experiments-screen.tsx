@@ -44,7 +44,8 @@ import type {
     ExperimentStats,
 } from "@/hooks/use-store-builder-v2";
 import { cn } from "@/lib/utils";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
+import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -69,20 +70,20 @@ const STATUSES: Experiment["status"][] = [
     "completed",
 ];
 
-const STATUS_LABELS: Record<Experiment["status"], string> = {
-    running: "Running",
-    paused: "Paused",
-    draft: "Draft",
-    completed: "Completed",
+const STATUS_LABELS: Record<Experiment["status"], EditorString> = {
+    running: STRINGS.experiment.status_running,
+    paused: STRINGS.experiment.status_paused,
+    draft: STRINGS.experiment.status_draft,
+    completed: STRINGS.experiment.status_completed,
 };
 
 // Merchant goal labels — replaces the engineering "Primary metric" copy
 // with phrases that read as outcomes ("More orders" instead of "Orders").
-const METRIC_LABELS: Record<Experiment["primary_metric"], string> = {
-    orders: "More orders",
-    add_to_cart: "More add-to-cart",
-    click_through: "More clicks",
-    revenue: "More revenue",
+const METRIC_LABELS: Record<Experiment["primary_metric"], EditorString> = {
+    orders: STRINGS.experiment.goal_orders,
+    add_to_cart: STRINGS.experiment.goal_add_to_cart,
+    click_through: STRINGS.experiment.goal_click_through,
+    revenue: STRINGS.experiment.goal_revenue,
 };
 
 const MAX_ARMS = 6;
@@ -122,19 +123,20 @@ export function canPromoteWinner(input: VerdictInput): boolean {
 /* Helpers                                                              */
 /* ─────────────────────────────────────────────────────────────────── */
 
-function relativeStarted(iso: string | undefined, now: Date): string {
-    if (!iso) return "Not started";
+function relativeStarted(iso: string | undefined, now: Date, locale: LocaleCode): string {
+    const A = STRINGS.advanced_chrome;
+    if (!iso) return t(A.exp_not_started, locale);
     const then = new Date(iso).getTime();
-    if (Number.isNaN(then)) return "Not started";
+    if (Number.isNaN(then)) return t(A.exp_not_started, locale);
     const delta = now.getTime() - then;
-    if (delta < 0) return "Starts soon";
+    if (delta < 0) return t(A.exp_starts_soon, locale);
     const days = Math.floor(delta / 86_400_000);
     if (days === 0) {
         const hours = Math.floor(delta / 3_600_000);
-        if (hours === 0) return "Started just now";
-        return `Started ${hours}h ago`;
+        if (hours === 0) return t(A.exp_started_now, locale);
+        return tFormat(A.exp_started_hours, locale, { n: hours });
     }
-    return `Started ${days} day${days === 1 ? "" : "s"} ago`;
+    return tFormat(A.exp_started_days, locale, { n: days });
 }
 
 function dateInputValue(iso: string | undefined): string {
@@ -216,13 +218,13 @@ export function ExperimentsScreen({
 
     const handleCreate = useCallback((): void => {
         const exp = builder.createExperiment({
-            name: "New experiment",
+            name: t(STRINGS.advanced_chrome.exp_default_name, locale),
             status: "draft",
             primary_metric: "orders",
             arms: defaultArms(),
         });
         setEditingId(exp.id);
-    }, [builder]);
+    }, [builder, locale]);
 
     const handlePatch = useCallback(
         (id: string, patch: Partial<Experiment>): void => {
@@ -449,6 +451,7 @@ function StatusBucket({
     onStop,
     onDelete,
 }: StatusBucketProps): ReactElement {
+    const locale = useEditorLocale();
     const toneClasses =
         status === "running"
             ? "border-emerald-500/40 bg-emerald-500/5"
@@ -464,7 +467,7 @@ function StatusBucket({
         >
             <header className="flex items-center gap-2 px-4 py-2.5">
                 <h3 className="text-sm font-semibold tracking-tight">
-                    {STATUS_LABELS[status]}
+                    {t(STATUS_LABELS[status], locale)}
                 </h3>
                 <span className="rounded-full bg-background/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                     {experiments.length}
@@ -514,6 +517,7 @@ function ExperimentRow({
     onStop,
     onDelete,
 }: ExperimentRowProps): ReactElement {
+    const locale = useEditorLocale();
     const trafficSummary = experiment.arms
         .map((a) => `${a.label} ${a.traffic_pct}%`)
         .join(" / ");
@@ -527,19 +531,19 @@ function ExperimentRow({
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                         <h4 className="truncate text-sm font-semibold tracking-tight">
-                            {experiment.name || "(Untitled)"}
+                            {experiment.name || t(STRINGS.advanced_chrome.exp_untitled, locale)}
                         </h4>
                         <StatusBadge status={experiment.status} />
                     </div>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {relativeStarted(experiment.starts_at, now)} ·{" "}
-                        Primary metric:{" "}
+                        {relativeStarted(experiment.starts_at, now, locale)} ·{" "}
+                        {t(STRINGS.advanced_chrome.exp_primary_metric_label, locale)}{" "}
                         <span className="font-medium text-foreground/80">
-                            {METRIC_LABELS[experiment.primary_metric]}
+                            {t(METRIC_LABELS[experiment.primary_metric], locale)}
                         </span>
                     </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                        Traffic split:{" "}
+                        {t(STRINGS.advanced_chrome.exp_traffic_split, locale)}{" "}
                         <span className="font-medium text-foreground/80">
                             {trafficSummary}
                         </span>
@@ -555,7 +559,7 @@ function ExperimentRow({
                     className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                 >
                     <Eye className="h-3 w-3" />
-                    View
+                    {t(STRINGS.experiment.action_view, locale)}
                 </button>
                 <button
                     type="button"
@@ -563,7 +567,7 @@ function ExperimentRow({
                     data-testid={`experiment-row-${experiment.id}-edit`}
                     className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
                 >
-                    Edit
+                    {t(STRINGS.experiment.action_edit, locale)}
                 </button>
                 {experiment.status === "running" && (
                     <>
@@ -574,7 +578,7 @@ function ExperimentRow({
                             className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-amber-500/10 hover:text-amber-700"
                         >
                             <Pause className="h-3 w-3" />
-                            Pause
+                            {t(STRINGS.experiment.action_pause, locale)}
                         </button>
                         <button
                             type="button"
@@ -583,7 +587,7 @@ function ExperimentRow({
                             className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-rose-500/10 hover:text-rose-700"
                         >
                             <StopCircle className="h-3 w-3" />
-                            Stop &amp; promote winner
+                            {t(STRINGS.advanced_chrome.exp_stop_promote, locale)}
                         </button>
                     </>
                 )}
@@ -595,7 +599,7 @@ function ExperimentRow({
                         className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-emerald-500/10 hover:text-emerald-700"
                     >
                         <Play className="h-3 w-3" />
-                        Resume
+                        {t(STRINGS.experiment.action_resume, locale)}
                     </button>
                 )}
                 {(experiment.status === "draft" ||
@@ -608,7 +612,7 @@ function ExperimentRow({
                         className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10"
                     >
                         <Trash2 className="h-3 w-3" />
-                        Delete
+                        {t(STRINGS.common.delete, locale)}
                     </button>
                 )}
             </div>
@@ -621,6 +625,7 @@ function StatusBadge({
 }: {
     status: Experiment["status"];
 }): ReactElement {
+    const locale = useEditorLocale();
     const tone =
         status === "running"
             ? "bg-emerald-500/20 text-emerald-700"
@@ -636,7 +641,7 @@ function StatusBadge({
                 tone,
             )}
         >
-            {STATUS_LABELS[status]}
+            {t(STATUS_LABELS[status], locale)}
         </span>
     );
 }
@@ -747,7 +752,7 @@ function ExperimentEditor({
                 </header>
 
                 <div className="flex-1 space-y-4 overflow-y-auto p-5">
-                    <Field label="Name">
+                    <Field label={t(STRINGS.advanced_chrome.exp_field_name, locale)}>
                         <input
                             type="text"
                             value={experiment.name}
@@ -757,7 +762,7 @@ function ExperimentEditor({
                         />
                     </Field>
 
-                    <Field label="Primary metric">
+                    <Field label={t(STRINGS.advanced_chrome.exp_field_primary_metric, locale)}>
                         <select
                             value={experiment.primary_metric}
                             onChange={(e) =>
@@ -773,14 +778,14 @@ function ExperimentEditor({
                                 ["orders", "add_to_cart", "click_through", "revenue"] as const
                             ).map((m) => (
                                 <option key={m} value={m}>
-                                    {METRIC_LABELS[m]}
+                                    {t(METRIC_LABELS[m], locale)}
                                 </option>
                             ))}
                         </select>
                     </Field>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <Field label="Starts at">
+                        <Field label={t(STRINGS.advanced_chrome.exp_field_starts_at, locale)}>
                             <input
                                 type="datetime-local"
                                 value={dateInputValue(experiment.starts_at)}
@@ -792,7 +797,7 @@ function ExperimentEditor({
                                 className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm"
                             />
                         </Field>
-                        <Field label="Ends at (optional)">
+                        <Field label={t(STRINGS.advanced_chrome.exp_field_ends_at, locale)}>
                             <input
                                 type="datetime-local"
                                 value={dateInputValue(experiment.ends_at)}
@@ -883,7 +888,7 @@ function ExperimentEditor({
                                     : "border-rose-500/40 bg-rose-500/10 text-rose-700",
                             )}
                         >
-                            Total traffic:{" "}
+                            {t(STRINGS.advanced_chrome.exp_total_traffic, locale)}{" "}
                             <span className="font-semibold tabular-nums">{total}%</span>{" "}
                             {!sumsTo100 && (
                                 <span data-testid="experiment-editor-traffic-error">
@@ -894,7 +899,7 @@ function ExperimentEditor({
                     </div>
 
                     {/* Status */}
-                    <Field label="Status">
+                    <Field label={t(STRINGS.advanced_chrome.exp_field_status, locale)}>
                         <div
                             role="radiogroup"
                             aria-label={t(STRINGS.advanced_chrome.exp_field_status, locale)}
@@ -918,7 +923,7 @@ function ExperimentEditor({
                                         data-testid={`experiment-editor-status-${s}`}
                                         className="sr-only"
                                     />
-                                    {STATUS_LABELS[s]}
+                                    {t(STATUS_LABELS[s], locale)}
                                 </label>
                             ))}
                         </div>
@@ -933,7 +938,7 @@ function ExperimentEditor({
                         className="inline-flex h-9 items-center gap-1 rounded-md border border-rose-500/40 px-3 text-[12px] font-medium text-rose-700 transition-colors hover:bg-rose-500/10"
                     >
                         <Trash2 className="h-3.5 w-3.5" />
-                        Delete
+                        {t(STRINGS.common.delete, locale)}
                     </button>
                     <button
                         type="button"
@@ -942,7 +947,7 @@ function ExperimentEditor({
                         className="inline-flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                     >
                         <Check className="h-3.5 w-3.5" />
-                        Done
+                        {t(STRINGS.common.done, locale)}
                     </button>
                 </footer>
             </aside>
@@ -977,11 +982,11 @@ function ExperimentViewer({
             const res = await builder.fetchExperimentStats(experiment.id);
             setStats(res);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load stats");
+            setError(err instanceof Error ? err.message : t(STRINGS.advanced_chrome.exp_stats_error, locale));
         } finally {
             setLoading(false);
         }
-    }, [builder, experiment.id]);
+    }, [builder, experiment.id, locale]);
 
     useEffect(() => {
         void refresh();
@@ -999,12 +1004,12 @@ function ExperimentViewer({
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <div className="min-w-0">
                         <h3 className="truncate text-base font-bold tracking-tight">
-                            {experiment.name || "(Untitled)"}
+                            {experiment.name || t(STRINGS.advanced_chrome.exp_untitled, locale)}
                         </h3>
                         <p className="text-[11px] text-muted-foreground">
                             Primary metric:{" "}
                             <span className="font-medium text-foreground/80">
-                                {METRIC_LABELS[experiment.primary_metric]}
+                                {t(METRIC_LABELS[experiment.primary_metric], locale)}
                             </span>
                         </p>
                     </div>
@@ -1090,12 +1095,12 @@ function ExperimentViewer({
                                         </div>
                                         <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] sm:grid-cols-4">
                                             <Stat
-                                                label="Visitors"
+                                                label={t(STRINGS.experiment.stat_visitors, locale)}
                                                 value={fmt(armStats.visitors)}
                                                 testId={`experiment-viewer-arm-${arm.id}-visitors`}
                                             />
                                             <Stat
-                                                label="ATC"
+                                                label={t(STRINGS.advanced_chrome.exp_stat_atc, locale)}
                                                 value={
                                                     armStats.visitors > 0
                                                         ? pct(
@@ -1106,7 +1111,7 @@ function ExperimentViewer({
                                                 }
                                             />
                                             <Stat
-                                                label="Checkout"
+                                                label={t(STRINGS.advanced_chrome.exp_stat_checkout, locale)}
                                                 value={
                                                     armStats.visitors > 0
                                                         ? pct(
@@ -1117,7 +1122,7 @@ function ExperimentViewer({
                                                 }
                                             />
                                             <Stat
-                                                label="Conversion"
+                                                label={t(STRINGS.experiment.stat_conversion, locale)}
                                                 value={
                                                     armStats.visitors > 0
                                                         ? pct(armStats.conversion_rate)
@@ -1126,15 +1131,15 @@ function ExperimentViewer({
                                                 testId={`experiment-viewer-arm-${arm.id}-cr`}
                                             />
                                             <Stat
-                                                label="Orders"
+                                                label={t(STRINGS.experiment.stat_orders, locale)}
                                                 value={fmt(armStats.orders)}
                                             />
                                             <Stat
-                                                label="Revenue (IQD)"
+                                                label={t(STRINGS.experiment.stat_revenue, locale)}
                                                 value={fmt(armStats.revenue_iqd)}
                                             />
                                             <Stat
-                                                label="AOV"
+                                                label={t(STRINGS.advanced_chrome.exp_stat_aov, locale)}
                                                 value={
                                                     armStats.orders > 0
                                                         ? fmt(armStats.avg_order_value, 0)
@@ -1143,7 +1148,7 @@ function ExperimentViewer({
                                             />
                                             {sig && !isControl && (
                                                 <Stat
-                                                    label="Uplift vs control"
+                                                    label={t(STRINGS.advanced_chrome.exp_stat_uplift_control, locale)}
                                                     value={`${sig.uplift_pct >= 0 ? "+" : ""}${sig.uplift_pct.toFixed(2)}%`}
                                                     testId={`experiment-viewer-arm-${arm.id}-uplift`}
                                                 />
@@ -1281,7 +1286,9 @@ function DeleteConfirm({
             <div className="w-full max-w-md overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <h3 className="text-base font-semibold tracking-tight">
-                        Delete &ldquo;{experiment.name || "Untitled"}&rdquo;?
+                        {tFormat(STRINGS.advanced_chrome.exp_delete_title, locale, {
+                            name: experiment.name || t(STRINGS.advanced_chrome.exp_untitled, locale),
+                        })}
                     </h3>
                     <button
                         type="button"
@@ -1301,16 +1308,19 @@ function DeleteConfirm({
                         >
                             <AlertCircle className="mt-0.5 h-3.5 w-3.5" />
                             <p>
-                                This experiment is referenced by{" "}
+                                {t(STRINGS.advanced_chrome.exp_delete_refs_prefix, locale)}{" "}
                                 <span
                                     data-testid="experiment-delete-refs-count"
                                     className="font-semibold"
                                 >
                                     {refsCount}
                                 </span>{" "}
-                                variant{refsCount === 1 ? "" : "s"}. Deleting it will
-                                leave those variants targeting a non-existent test.
-                                Proceed?
+                                {t(
+                                    refsCount === 1
+                                        ? STRINGS.advanced_chrome.exp_delete_refs_suffix_one
+                                        : STRINGS.advanced_chrome.exp_delete_refs_suffix_many,
+                                    locale,
+                                )}
                             </p>
                         </div>
                     ) : (
@@ -1326,7 +1336,7 @@ function DeleteConfirm({
                         data-testid="experiment-delete-cancel-btn"
                         className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
-                        Cancel
+                        {t(STRINGS.common.cancel, locale)}
                     </button>
                     <button
                         type="button"
