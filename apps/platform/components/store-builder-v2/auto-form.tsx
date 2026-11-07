@@ -200,6 +200,7 @@ export function AutoForm<T>(props: AutoFormProps<T>): ReactElement {
                     tenantId={tenantId}
                     activeLocale={activeLocale ?? "en"}
                     renderAdornment={renderAdornment}
+                    sectionDefaults={sectionDefaults}
                 />
             </>
         );
@@ -237,6 +238,8 @@ interface GroupedFormRendererProps {
     tenantId?: string;
     activeLocale: LocaleCode;
     renderAdornment?: RenderFieldAdornment;
+    /** The section's own defaults: what an unset on/off setting means. */
+    sectionDefaults?: Record<string, unknown>;
 }
 
 function GroupedFormRenderer(p: GroupedFormRendererProps): ReactElement {
@@ -290,6 +293,7 @@ function GroupedFormRenderer(p: GroupedFormRendererProps): ReactElement {
                                     tenantId={p.tenantId}
                                     activeLocale={p.activeLocale}
                                     renderAdornment={p.renderAdornment}
+                                    unsetDefault={p.sectionDefaults?.[key]}
                                     isTopLevel
                                 />
                             ))}

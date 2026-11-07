@@ -623,11 +623,37 @@ export function useStoreBuilderV2(
                 clearTimeout(retry.timer);
                 retry.timer = null;
             }
-            if (pendingDraftWriteRef.current) {
-                void saveDraftRef.current?.(configRef.current);
+            if (!pendingDraftWriteRef.current) return;
+            // The editor is gone but a save is still owed. Keep a local
+            // backup right now (the 30s one may be stale) and keep warning on
+            // tab close until the write lands: the component's own guard
+            // below is removed with it. Failed saves keep retrying in the
+            // background, and a later success clears the pending flag.
+            try {
+                window.localStorage.setItem(
+                    localBackupKey(tenantId),
+                    JSON.stringify({ saved_at: Date.now(), config: configRef.current }),
+                );
+            } catch {
+                // Swallow quota / serialization errors.
             }
+            const guardWhileOwed = (e: BeforeUnloadEvent): void => {
+                if (!pendingDraftWriteRef.current) {
+                    window.removeEventListener("beforeunload", guardWhileOwed);
+                    return;
+                }
+                e.preventDefault();
+                e.returnValue = "";
+            };
+            window.addEventListener("beforeunload", guardWhileOwed);
+            void saveDraftRef.current?.(configRef.current)?.finally(() => {
+                if (!pendingDraftWriteRef.current) {
+                    window.removeEventListener("beforeunload", guardWhileOwed);
+                }
+            });
         },
-        [],
+        // tenantId is fixed for the editor's lifetime.
+        [tenantId],
     );
 
     /* ── localStorage backup (every 30s) ──────────────────────────── */

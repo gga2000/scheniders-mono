@@ -35,6 +35,8 @@ import {
 import { I18nToolbarPill } from "./i18n-screen";
 
 export interface EditorToolbarProps {
+    /** One-time card anchored under the mode toggle. */
+    modeIntro?: React.ReactNode;
     tenantName: string;
     builder: UseStoreBuilderV2Return;
     editorMode: EditorMode;
@@ -65,6 +67,7 @@ export function EditorToolbar({
     publishDisabled,
     publishBusy,
     publishBlockedReason,
+    modeIntro,
 }: EditorToolbarProps): React.ReactElement {
     return (
         <header
@@ -100,7 +103,10 @@ export function EditorToolbar({
             </div>
 
             <div className="flex items-center gap-2.5">
-                <ModeToggle value={editorMode} onChange={onChangeMode} />
+                <span className="relative">
+                    <ModeToggle value={editorMode} onChange={onChangeMode} />
+                    {modeIntro}
+                </span>
                 <LocaleSelect
                     value={builder.active_locale}
                     onChange={builder.set_active_locale}

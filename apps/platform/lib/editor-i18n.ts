@@ -114,7 +114,7 @@ export const STRINGS = {
         page_policy_returns: { en: "Returns", ar: "الإرجاع", ku: "گەڕاندنەوە" },
         page_policy_privacy: { en: "Privacy", ar: "الخصوصية", ku: "تایبەتمەندێتی" },
         page_policy_terms: { en: "Terms", ar: "الشروط", ku: "مەرجەکان" },
-        page_not_found: { en: "404", ar: "404", ku: "404" },
+        page_not_found: { en: "Page not found", ar: "صفحة غير موجودة", ku: "پەڕە نەدۆزرایەوە" },
         // Settings
         setting_brand_kit: { en: "Style & branding", ar: "هوية العلامة", ku: "کیتی برێند" },
         setting_health: { en: "Store health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },
@@ -691,8 +691,8 @@ export const STRINGS = {
         hidden_page: { en: "Hidden", ar: "مخفية", ku: "شاراوە" },
         page_other: { en: "Another store address…", ar: "عنوان ثاني بالمتجر…", ku: "ناونیشانێکی تری فرۆشگا…" },
         page_other_label: { en: "Store address", ar: "عنوان بالمتجر", ku: "ناونیشانی فرۆشگا" },
+        still_opens: { en: "Until you pick one it still opens", ar: "إلى أن تختار، يبقى يفتح", ku: "تا هەڵدەبژێریت هێشتا دەکاتەوە" },
         page_other_placeholder: { en: "/products?sort=sale", ar: "/products?sort=sale", ku: "/products?sort=sale" },
-        stored_as: { en: "Opens", ar: "يفتح", ku: "دەکاتەوە" },
         page_home: { en: "Home", ar: "الرئيسية", ku: "سەرەکی" },
         page_products: { en: "All products", ar: "كل المنتجات", ku: "هەموو بەرهەمەکان" },
         page_search: { en: "Search", ar: "البحث", ku: "گەڕان" },

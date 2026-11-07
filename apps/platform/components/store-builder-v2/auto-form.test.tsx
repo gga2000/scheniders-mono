@@ -112,6 +112,38 @@ describe("AutoForm", () => {
         expect(onChange).toHaveBeenCalledWith({ limit: 1 });
     });
 
+    it("shows an unset on/off setting as a switch that is off, not an add button", () => {
+        render(
+            <AutoForm
+                schema={z.object({ flag: z.boolean().optional() })}
+                value={{}}
+                onChange={() => {}}
+            />,
+        );
+        expect(screen.queryByTestId("auto-form-root.flag-set")).toBeNull();
+        const sw = screen.getByTestId("auto-form-root.flag-switch");
+        expect(sw.getAttribute("aria-checked")).toBe("false");
+    });
+
+    it("shows an unset on/off setting in the section's default state", () => {
+        const entry = getManifestEntry("pdp_buy_box");
+        if (!entry) throw new Error("pdp_buy_box missing from the manifest");
+        const { container } = render(
+            <AutoForm
+                schema={entry.schema as unknown as z.ZodObject<z.ZodRawShape>}
+                value={{}}
+                sectionType="pdp_buy_box"
+                onChange={() => {}}
+            />,
+        );
+        // Open every group: only the first one starts open.
+        container
+            .querySelectorAll('[aria-expanded="false"]')
+            .forEach((el) => fireEvent.click(el));
+        const sw = container.querySelector('[data-testid$=".show_cod_card-switch"]');
+        expect(sw?.getAttribute("aria-checked")).toBe("true");
+    });
+
     it("offers Reset to default when props differ, and resets on click (C2)", () => {
         const defaults = getManifestEntry("trust_strip")?.defaultProps as
             | Record<string, unknown>

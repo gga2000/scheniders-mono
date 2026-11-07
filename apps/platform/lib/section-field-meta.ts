@@ -117,7 +117,7 @@ const GENERIC_FIELD_LABELS: Record<string, EditorString> = {
 
 const GENERIC_FIELD_HELP: Record<string, EditorString> = {
     eyebrow: { en: "Optional — e.g. your store name or “New”.", ar: "اختياري — مثلاً اسم متجرك أو «جديد».", ku: "ئارەزوومەندانە — بۆ نموونە ناوی فرۆشگاکەت یان «نوێ»." },
-    cta_href: { en: "Where the button takes the visitor, e.g. /products.", ar: "إلى أين يأخذ الزر الزائر، مثال: ‎/products.", ku: "دوگمەکە سەردانیکەر بۆ کوێ دەبات، نموونە: ‎/products." },
+    cta_href: { en: "The page the button opens.", ar: "الصفحة التي يفتحها الزر.", ku: "ئەو پەڕەیەی دوگمەکە دەیکاتەوە." },
     image_alt: { en: "Describe the image in a few words — helps Google find you.", ar: "صف الصورة بكلمات قليلة — يساعد غوغل على إيجادك.", ku: "بە چەند وشەیەک وێنەکە وەسف بکە — یارمەتی گووگڵ دەدات بتدۆزێتەوە." },
     manual_skus: { en: "Comma-separated product codes from your Products page.", ar: "أكواد منتجات مفصولة بفواصل من صفحة المنتجات.", ku: "کۆدی بەرهەمەکان بە کۆما جیاکراوە لە پەڕەی بەرهەمەکان." },
     analytics_tag: { en: "Optional — a name for tracking clicks on this section.", ar: "اختياري — اسم لتتبّع النقرات على هذا القسم.", ku: "ئارەزوومەندانە — ناوێک بۆ شوێنکەوتنی کلیکەکان لەم بەشە." },
