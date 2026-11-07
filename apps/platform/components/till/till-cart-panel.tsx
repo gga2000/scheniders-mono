@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, Bookmark, FlaskConical, Minus, Package, Pencil, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
@@ -12,7 +12,7 @@ import { CART_TARGET_ID } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
 import { TillManagerDialog } from "./till-manager-dialog";
-import type { Ticket } from "./till-ticket";
+import { APPROVAL_MS, approvalCovers, type Ticket } from "./till-ticket";
 
 interface Props {
     tickets: Ticket[];
@@ -58,7 +58,16 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const phoneBad = ticket.phone.trim() !== "" && !normalPhone;
     const customer = useTillCustomer(sessionId, normalPhone);
     const overLimit = limit !== null && given > limit;
-    const discountTooBig = overLimit && !ticket.approval;
+    // A manager's OK covers the amount they saw for 3 minutes; tick so the chip counts down and drops when it runs out.
+    const [now, setNow] = useState(() => Date.now());
+    const approval = ticket.approval;
+    useEffect(() => {
+        if (!approval) return;
+        const id = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, [approval]);
+    const approved = approvalCovers(approval, given, now);
+    const discountTooBig = overLimit && !approved;
     // Line price cuts count toward the limit too, so spell out where the total comes from.
     const lineCuts = given - ticket.discount;
     const overText = limit === null ? "" : t("till.manager.overShort", { given: formatIqd(given), limit: formatIqd(limit), extra: formatIqd(given - limit) });
@@ -282,10 +291,13 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                 {t("till.cart.addDiscount")}
                             </button>
                         )}
-                        {ticket.approval && overLimit ? (
+                        {approval && approved && overLimit ? (
                             <span className="flex items-center gap-1.5 rounded-full bg-[#B8E8E0] px-3 py-1.5 text-xs font-semibold text-[#1E1E1E]" dir="auto">
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                                {t("till.manager.allowedFor", { name: ticket.approval.managerName, amount: formatIqd(given) })}
+                                <span>
+                                    {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqd(approval.maxOff) })}{" "}
+                                    <span className="whitespace-nowrap font-normal tabular-nums">· {clock(Math.min(APPROVAL_MS, approval.expiresAt - now))}</span>
+                                </span>
                             </span>
                         ) : discountTooBig ? null : (
                             <span className="text-right text-xs text-muted" dir="auto">
@@ -368,9 +380,10 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     sessionId={sessionId}
                     managers={managers}
                     reason={overText}
-                    onApproved={(approval) => {
+                    maxOff={given}
+                    onApproved={(ok) => {
                         setAskManager(false);
-                        onChange({ ...ticket, approval });
+                        onChange({ ...ticket, approval: { ...ok, maxOff: given, expiresAt: Date.now() + APPROVAL_MS } });
                     }}
                     onClose={() => setAskManager(false)}
                 />
@@ -498,4 +511,10 @@ function CustomerCard({
             </span>
         </div>
     );
+}
+
+/** Time left as m:ss, never below 0:00. */
+function clock(ms: number): string {
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }

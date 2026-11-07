@@ -173,6 +173,7 @@ export function TillTestersDialog({
                     sessionId={sessionId}
                     managers={managers}
                     reason={t("till.testers.askReason", { name: asking.pick.label })}
+                    maxOff={null}
                     onApproved={(approval) => tryOpen(asking.pick, asking.clientId, approval.id)}
                     onClose={() => setAsking(null)}
                 />

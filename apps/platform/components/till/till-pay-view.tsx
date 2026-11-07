@@ -316,7 +316,8 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                         type="button"
                         onClick={complete}
                         disabled={!result.ok || pending || (needsNotice && !noticeIn) || (method !== "cash" && typed !== null && parseDinars(typed) > 0 && parseDinars(typed) < rest)}
-                        className={cn("h-16 flex-1 rounded-2xl text-xl font-bold disabled:opacity-40", INK_BUTTON)}
+                        // Not ready yet is a state the cashier reads ("waiting for the FIB notice"), so it stays legible instead of fading.
+                        className={cn("h-16 flex-1 rounded-2xl text-xl font-bold disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70", INK_BUTTON)}
                     >
                         {pending
                             ? t("till.pay.saving")

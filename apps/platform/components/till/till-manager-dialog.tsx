@@ -14,6 +14,8 @@ interface Props {
     managers: TillMember[];
     /** What the manager is allowing, e.g. "Discount 30,000 (limit 10,000)". */
     reason: string;
+    /** The price cuts + discount being allowed; null when no amount is involved (testers). */
+    maxOff: number | null;
     onApproved: (approval: { id: string; managerName: string }) => void;
     onClose: () => void;
 }
@@ -21,7 +23,7 @@ interface Props {
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
 /** A manager taps their name and types their PIN on the till to allow one sale over the cashier's limit. */
-export function TillManagerDialog({ sessionId, managers, reason, onApproved, onClose }: Props) {
+export function TillManagerDialog({ sessionId, managers, reason, maxOff, onApproved, onClose }: Props) {
     const { t } = useLanguage();
     const approve = useTillApprove();
     const [who, setWho] = useState<TillMember | null>(managers.length === 1 ? managers[0] : null);
@@ -35,7 +37,7 @@ export function TillManagerDialog({ sessionId, managers, reason, onApproved, onC
         setMessage(null);
         if (next.length < 4) return;
         approve.mutate(
-            { sessionId, managerId: who.user_id, pin: next },
+            { sessionId, managerId: who.user_id, pin: next, maxOff },
             {
                 onSuccess: (r) => {
                     if (r.result === "ok" && r.approval_id) {

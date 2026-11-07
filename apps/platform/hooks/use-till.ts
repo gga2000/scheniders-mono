@@ -161,7 +161,7 @@ export interface SaleInput {
 }
 
 /** Why a sale was refused, as a key the till can explain. */
-export type SaleError = "locked" | "discount_over_limit" | "discount_not_allowed" | "approval_expired" | "mismatch" | "product" | "paused" | "failed";
+export type SaleError = "locked" | "discount_over_limit" | "discount_not_allowed" | "approval_expired" | "approval_too_small" | "mismatch" | "product" | "paused" | "failed";
 
 export function saleErrorOf(err: unknown): SaleError {
     const message = typeof err === "object" && err !== null && "message" in err ? String(err.message) : "";
@@ -169,6 +169,7 @@ export function saleErrorOf(err: unknown): SaleError {
     if (message.includes("discount_over_limit")) return "discount_over_limit";
     if (message.includes("discount_not_allowed")) return "discount_not_allowed";
     if (message.includes("approval_expired")) return "approval_expired";
+    if (message.includes("approval_too_small")) return "approval_too_small";
     if (message.includes("payments_do_not_match_total")) return "mismatch";
     if (message.includes("product_not_found")) return "product";
     if (message.includes("store_paused")) return "paused";
@@ -212,11 +213,19 @@ const approveSchema = z.object({
 });
 export type ApproveResult = z.infer<typeof approveSchema>;
 
-/** A manager types their PIN on the till to allow one sale over the cashier's limit. */
+/**
+ * A manager types their PIN on the till to allow one sale over the cashier's limit.
+ * maxOff is the price cuts + discount they are allowing; the sale may not go over it.
+ */
 export function useTillApprove() {
     return useMutation({
-        mutationFn: async (input: { sessionId: string; managerId: string; pin: string }): Promise<ApproveResult> => {
-            const { data, error } = await supabase.rpc("till_approve", { p_session_id: input.sessionId, p_manager_id: input.managerId, p_pin: input.pin });
+        mutationFn: async (input: { sessionId: string; managerId: string; pin: string; maxOff: number | null }): Promise<ApproveResult> => {
+            const { data, error } = await supabase.rpc("till_approve", {
+                p_session_id: input.sessionId,
+                p_manager_id: input.managerId,
+                p_pin: input.pin,
+                ...(input.maxOff !== null ? { p_max_off: input.maxOff } : {}),
+            });
             if (error) throw error;
             return approveSchema.parse(data);
         },

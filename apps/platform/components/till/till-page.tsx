@@ -313,7 +313,7 @@ export function TillPage() {
                 },
                 onError: (err) => {
                     const why = saleErrorOf(err);
-                    if (why === "approval_expired") {
+                    if (why === "approval_expired" || why === "approval_too_small") {
                         updateTicket({ ...ticket, approval: null });
                         setView("sell");
                     }
