@@ -341,3 +341,48 @@ export function checkCopyFixLabel(
     if (!copy) return engineLabel;
     return copy[locale] ?? copy.en;
 }
+
+/**
+ * What a check confirms once it passes. The Health screen's "All" and
+ * "Passing" filters list passing checks too; showing their failure copy
+ * ("Privacy policy page is empty") next to a green dot said the opposite
+ * of the truth.
+ */
+export const CHECK_PASSED_COPY: Record<string, EditorString> = {
+    privacy_policy_has_content: { en: "Privacy policy page is filled in.", ar: "صفحة سياسة الخصوصية مكتملة.", ku: "پەڕەی سیاسەتی تایبەتمەندێتی تەواوە." },
+    shipping_policy_has_content: { en: "Shipping policy page is filled in.", ar: "صفحة سياسة الشحن مكتملة.", ku: "پەڕەی سیاسەتی گەیاندن تەواوە." },
+    returns_policy_has_content: { en: "Returns policy page is filled in.", ar: "صفحة سياسة الإرجاع مكتملة.", ku: "پەڕەی سیاسەتی گەڕاندنەوە تەواوە." },
+    terms_has_content: { en: "Terms & conditions page is filled in.", ar: "صفحة الشروط والأحكام مكتملة.", ku: "پەڕەی مەرج و ڕێساکان تەواوە." },
+    contact_phone_set: { en: "A contact phone shows on your store.", ar: "رقم هاتف للتواصل ظاهر في متجرك.", ku: "ژمارەی تەلەفۆنی پەیوەندی لە فرۆشگاکەت دیارە." },
+    whatsapp_number_set: { en: "Your WhatsApp number is set.", ar: "رقم واتساب متجرك مضبوط.", ku: "ژمارەی واتساپی فرۆشگاکەت دانراوە." },
+    pixel_or_gtm_configured: { en: "Ad tracking is set up.", ar: "تتبع الإعلانات مفعّل.", ku: "شوێنکەوتنی ڕیکلام ڕێکخراوە." },
+    og_image_set: { en: "Your store has a share image.", ar: "لمتجرك صورة مشاركة.", ku: "فرۆشگاکەت وێنەی هاوبەشکردنی هەیە." },
+    home_meta_title: { en: "Home page has a title for Google.", ar: "للصفحة الرئيسية عنوان في جوجل.", ku: "پەڕەی سەرەکی ناونیشانی گووگڵی هەیە." },
+    home_meta_description: { en: "Home page has a description for Google.", ar: "للصفحة الرئيسية وصف في جوجل.", ku: "پەڕەی سەرەکی وەسفی گووگڵی هەیە." },
+    every_page_has_meta_title: { en: "Every page has a title for Google.", ar: "لكل صفحة عنوان في جوجل.", ku: "هەموو پەڕەیەک ناونیشانی گووگڵی هەیە." },
+    important_pages_indexable: { en: "Your important pages are visible to Google.", ar: "صفحاتك المهمة ظاهرة لجوجل.", ku: "پەڕە گرنگەکانت بۆ گووگڵ دیارن." },
+    images_have_alt_text: { en: "Your images have descriptions.", ar: "صورك لها أوصاف.", ku: "وێنەکانت وەسفیان هەیە." },
+    business_name_set: { en: "Store name is set.", ar: "اسم المتجر مضبوط.", ku: "ناوی فرۆشگا دانراوە." },
+    tagline_set: { en: "Your store has a tagline.", ar: "لمتجرك شعار نصي.", ku: "فرۆشگاکەت دروشمی هەیە." },
+    logo_uploaded: { en: "Logo uploaded.", ar: "الشعار مرفوع.", ku: "لۆگۆ بارکراوە." },
+    favicon_uploaded: { en: "Browser tab icon uploaded.", ar: "أيقونة تبويب المتصفح مرفوعة.", ku: "ئایکۆنی تابی وێبگەڕ بارکراوە." },
+    social_links_set: { en: "Social links are set.", ar: "روابط التواصل الاجتماعي مضبوطة.", ku: "بەستەرەکانی سۆشیال میدیا دانراون." },
+    home_has_content: { en: "Your home page has sections.", ar: "صفحتك الرئيسية فيها أقسام.", ku: "پەڕەی سەرەکیت بەشی تێدایە." },
+    home_has_hero: { en: "Home has a cover section.", ar: "الرئيسية فيها قسم غلاف.", ku: "پەڕەی سەرەکی بەشی بەرگی هەیە." },
+    home_has_trust_strip: { en: "Home shows trust badges.", ar: "الرئيسية تعرض شارات الثقة.", ku: "پەڕەی سەرەکی نیشانەکانی متمانە پیشان دەدات." },
+    home_has_product_grid: { en: "Home shows your products.", ar: "الرئيسية تعرض منتجاتك.", ku: "پەڕەی سەرەکی بەرهەمەکانت پیشان دەدات." },
+    home_has_testimonials: { en: "Home shows customer reviews.", ar: "الرئيسية تعرض آراء الزبائن.", ku: "پەڕەی سەرەکی ڕای کڕیاران پیشان دەدات." },
+    home_has_newsletter: { en: "Visitors can sign up for your news.", ar: "يمكن للزوار الاشتراك بأخبارك.", ku: "سەردانیکەران دەتوانن بەشداری هەواڵەکانت ببن." },
+    pdp_has_delivery_promise: { en: "Product pages show delivery info.", ar: "صفحات المنتجات تعرض معلومات التوصيل.", ku: "پەڕەکانی بەرهەم زانیاری گەیاندن پیشان دەدەن." },
+    cart_has_promo_or_upsell: { en: "Cart page has a promo or upsell.", ar: "صفحة السلة فيها عرض أو منتج إضافي.", ku: "پەڕەی سەبەتە ئۆفەر یان بەرهەمی زیادەی هەیە." },
+    at_least_one_testimonial: { en: "Customer reviews show on your store.", ar: "آراء الزبائن ظاهرة في متجرك.", ku: "ڕای کڕیاران لە فرۆشگاکەت دیارە." },
+    contact_page_populated: { en: "Contact page has your details.", ar: "صفحة الاتصال فيها بياناتك.", ku: "پەڕەی پەیوەندی زانیارییەکانتی تێدایە." },
+    at_least_one_image_per_hero: { en: "Every cover section has an image.", ar: "كل أقسام الغلاف فيها صور.", ku: "هەموو بەشەکانی بەرگ وێنەیان هەیە." },
+    every_section_enabled_has_content: { en: "Every visible section has content.", ar: "كل الأقسام الظاهرة فيها محتوى.", ku: "هەموو بەشە دیارەکان ناوەڕۆکیان هەیە." },
+    no_lorem_ipsum: { en: "No placeholder text left.", ar: "لا يوجد نص تجريبي متبقٍ.", ku: "هیچ دەقی نموونەیی نەماوە." },
+    home_section_count_reasonable: { en: "Home has a healthy number of sections.", ar: "عدد أقسام الرئيسية مناسب.", ku: "ژمارەی بەشەکانی پەڕەی سەرەکی گونجاوە." },
+    font_count_reasonable: { en: "Font count is light.", ar: "عدد الخطوط مناسب.", ku: "ژمارەی فۆنتەکان گونجاوە." },
+    no_dead_cta_links: { en: "Every button goes somewhere real.", ar: "كل الأزرار تؤدي لصفحات موجودة.", ku: "هەموو دوگمەکان بۆ پەڕەی ڕاستەقینە دەچن." },
+    translations_complete: { en: "All text is translated.", ar: "كل النصوص مترجمة.", ku: "هەموو دەقەکان وەرگێڕدراون." },
+    default_locale_enabled: { en: "Your default language is on.", ar: "لغتك الأساسية مفعّلة.", ku: "زمانی سەرەکیت چالاکە." },
+};

@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import { useEditorMode } from "@/lib/editor-mode-context";
-import { CHECK_COPY, checkCopyFixLabel } from "@/lib/health-check-copy";
+import { CHECK_COPY, CHECK_PASSED_COPY, checkCopyFixLabel } from "@/lib/health-check-copy";
 import type { LocaleCode } from "@scheniders/shared";
 import type { SettingsSectionId } from "./page-tree";
 
@@ -191,9 +191,12 @@ export function HealthChecklistScreen(
         [config, healthContext],
     );
     const blocking = useMemo(() => blockingChecks(report), [report]);
-    // Open checks that do not block Publish (shown behind the Simple hatch).
-    const simpleSuggestionCount =
-        report.checks.filter((c) => c.status !== "pass").length - blocking.length;
+    // Open checks that do not block Publish. Simple mode lists them under
+    // the blockers, the same items the hub card shows with a Fix button.
+    const suggestions = useMemo(() => {
+        const blockingIds = new Set(blocking.map((c) => c.id));
+        return report.checks.filter((c) => c.status !== "pass" && !blockingIds.has(c.id));
+    }, [report, blocking]);
 
     const [filter, setFilter] = useState<Filter>("failing");
 
@@ -681,6 +684,24 @@ export function HealthChecklistScreen(
                     ))}
                 </ul>
             )}
+            {isSimple && suggestions.length > 0 && (
+                <section data-testid="health-simple-suggestions" className="border-t border-(--card-border)">
+                    <h3 className="px-6 pt-3 text-xs font-semibold text-muted-foreground">
+                        {tFormat(
+                            suggestions.length === 1
+                                ? STRINGS.command_center.health_suggestions_one
+                                : STRINGS.command_center.health_suggestions_other,
+                            locale,
+                            { n: suggestions.length },
+                        )}
+                    </h3>
+                    <ul className="flex flex-col divide-y divide-(--card-border)">
+                        {suggestions.map((c) => (
+                            <HealthCheckRow key={c.id} check={c} onFix={handleFix} locale={locale} />
+                        ))}
+                    </ul>
+                </section>
+            )}
             {isSimple && (
                 <div className="px-6 pb-6 pt-3">
                     <button
@@ -689,18 +710,7 @@ export function HealthChecklistScreen(
                         onClick={() => setMode("advanced")}
                         className="text-xs font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
                     >
-                        {/* The launch steps can all be done while softer checks
-                            still warn; name them so "all set" and the badge
-                            never seem to disagree. */}
-                        {simpleSuggestionCount > 0
-                            ? tFormat(
-                                  simpleSuggestionCount === 1
-                                      ? STRINGS.command_center.health_suggestions_one
-                                      : STRINGS.command_center.health_suggestions_other,
-                                  locale,
-                                  { n: simpleSuggestionCount },
-                              )
-                            : t(STRINGS.mode.more_options, locale)}
+                        {t(STRINGS.mode.more_options, locale)}
                     </button>
                 </div>
             )}
@@ -787,7 +797,13 @@ function HealthCheckRow({
     // check it becomes the row title; the engine's English id/message is
     // the fallback for unknown checks only.
     const copy = CHECK_COPY[check.id];
-    const title = copy ? t(copy.message, locale) : humanize(check.id);
+    // A passing check states what is true, never its failure copy.
+    const passed = check.status === "pass" ? CHECK_PASSED_COPY[check.id] : undefined;
+    const title = passed
+        ? t(passed, locale)
+        : copy
+          ? t(copy.message, locale)
+          : humanize(check.id);
     const subtitle = copy ? null : check.message;
     return (
         <li

@@ -9,8 +9,8 @@ import { useEditorLocale } from "@/lib/editor-locale-context";
 /**
  * Logical viewport width per breakpoint (px). The iframe always renders at
  * this width so the store's media queries match a real device; when the
- * canvas is narrower, the frame is scaled down to fit instead of squeezing
- * the page into a narrower layout (desktop used to render at ~760px).
+ * canvas is narrower, the editor shell passes a zoom below 1 so the page is
+ * scaled down instead of squeezed into a narrower layout.
  */
 export const BREAKPOINT_WIDTH_PX: Record<Breakpoint, number> = {
     mobile: 390,
@@ -24,9 +24,10 @@ export interface PreviewFrameProps {
     url: string;
     breakpoint: Breakpoint;
     /**
-     * Visual zoom (A1). The iframe keeps its LOGICAL viewport width (so
-     * media queries never shift) and is transform-scaled; the framed
-     * wrapper shrinks to the scaled footprint so layout follows.
+     * On-screen scale of the frame. The iframe keeps its LOGICAL viewport
+     * width (so media queries never shift) and is transform-scaled; the
+     * framed wrapper shrinks to the scaled footprint. Must be the same
+     * value the click-to-edit overlay receives.
      */
     zoom?: number;
 }
@@ -41,21 +42,6 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
         const locale = useEditorLocale();
         const innerRef = useRef<HTMLIFrameElement | null>(null);
         const [loaded, setLoaded] = useState<boolean>(false);
-        const outerRef = useRef<HTMLDivElement | null>(null);
-        // Width the canvas leaves for the frame; null until measured (and in
-        // environments without ResizeObserver), which means "no fit scaling".
-        const [availableWidth, setAvailableWidth] = useState<number | null>(null);
-
-        useEffect(() => {
-            const el = outerRef.current;
-            if (!el || typeof ResizeObserver === "undefined") return;
-            const ro = new ResizeObserver(([entry]) => {
-                if (entry) setAvailableWidth(entry.contentRect.width);
-            });
-            ro.observe(el);
-            return () => ro.disconnect();
-        }, []);
-
         // Expose the iframe to parents while still keeping a local ref
         // for the keep-alive ping below.
         useImperativeHandle<HTMLIFrameElement | null, HTMLIFrameElement | null>(
@@ -88,12 +74,9 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
         }, []);
 
         const deviceWidthPx = BREAKPOINT_WIDTH_PX[breakpoint];
-        // Fit the logical width into the canvas, then apply the user's zoom.
-        const fit =
-            availableWidth !== null && availableWidth > 0
-                ? Math.min(1, availableWidth / deviceWidthPx)
-                : 1;
-        const scale = fit * zoom;
+        // The shell computes the on-screen scale (fit or a fixed zoom) and
+        // hands the SAME number to the overlay, so rings line up exactly.
+        const scale = zoom > 0 ? zoom : 1;
         const scaled = scale !== 1;
         // Wrapper takes the SCALED footprint; the iframe inside keeps the
         // logical width and shrinks visually via transform.
@@ -106,8 +89,6 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
                 data-zoom={zoom}
                 className="relative flex h-full w-full items-center justify-center overflow-hidden bg-muted/30 p-4"
             >
-                {/* Measures the space inside the padding. */}
-                <div ref={outerRef} aria-hidden="true" className="pointer-events-none absolute inset-4" />
                 <div
                     data-testid="preview-frame-viewport"
                     className={cn(
