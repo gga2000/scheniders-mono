@@ -5,6 +5,7 @@ import {
 } from "@/lib/whatsapp-delivery-receipts";
 import { formatPhoneToStandard } from "@/lib/order-utils";
 import { env } from "@/lib/env";
+import { sharedSenderAllows } from "@/lib/interakt";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
@@ -205,7 +206,9 @@ async function findOrder(
             .eq("id", callbackData)
             .single();
 
-        if (!error && data) {
+        // Only stores allowed on the shared WhatsApp number send from it, so a
+        // reply to it can only concern their orders.
+        if (!error && data && sharedSenderAllows(data.tenant_id)) {
             return data;
         }
         console.warn(`[Interakt Webhook] callback_data UUID not found: ${callbackData}`);
@@ -237,15 +240,16 @@ async function findOrder(
             .order("created_at", { ascending: false })
             .limit(5);
 
-        if (!error && data && data.length > 0) {
-            const tenants = new Set(data.map(o => o.tenant_id));
+        const mine = (data ?? []).filter((o) => sharedSenderAllows(o.tenant_id));
+        if (!error && mine.length > 0) {
+            const tenants = new Set(mine.map(o => o.tenant_id));
             if (tenants.size > 1) {
                 console.error(
                     `[Interakt Webhook] Refusing to guess: phone ${phone} has contacted orders in ${tenants.size} tenants`,
                 );
                 return null;
             }
-            return data[0];
+            return mine[0];
         }
         console.warn(`[Interakt Webhook] No contacted order found for phone: ${phone}`);
     }
