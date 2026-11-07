@@ -10,6 +10,7 @@ describe("resolveFieldWidget", () => {
         expect(resolveFieldWidget("manual_product_ids")).toEqual({ kind: "product", multiple: true });
         expect(resolveFieldWidget("manual_category_ids")).toEqual({ kind: "category", multiple: true, stores: "id" });
         expect(resolveFieldWidget("category_slug")).toEqual({ kind: "category", multiple: false, stores: "slug" });
+        expect(resolveFieldWidget("category_slugs")).toEqual({ kind: "category", multiple: true, stores: "slug" });
     });
 
     it("routes every href field to the link picker", () => {

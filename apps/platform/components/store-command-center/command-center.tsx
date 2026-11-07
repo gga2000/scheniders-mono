@@ -67,7 +67,7 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
     const locale: LocaleCode = resolvedConfig?.default_locale ?? "ar";
 
     return (
-        <div className="px-4 sm:px-6 py-6 max-w-[1400px] mx-auto space-y-6">
+        <div className="sb-bidi px-4 sm:px-6 py-6 max-w-[1400px] mx-auto space-y-6">
             <HeaderBar
                 businessName={tenant.business_name}
                 status={storeStatus}

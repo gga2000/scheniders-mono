@@ -41,6 +41,7 @@ import {
     resolveFieldLabel,
 } from "@/lib/section-field-meta";
 import { I18nStringInput } from "./i18n-string-input";
+import { isFieldRelevant } from "@/lib/section-field-visibility";
 import { resolveFieldWidget } from "@/lib/section-field-widgets";
 import {
     AttributePickerField,
@@ -207,7 +208,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                     value={value}
                     onChange={onChange}
                     multiple={widget.multiple}
-                    stores={widget.multiple ? "id" : widget.stores}
+                    stores={widget.stores}
                     locale={fieldLocale}
                     testId={pickerTestId}
                 />
@@ -1166,7 +1167,10 @@ interface ObjectControlProps {
 }
 
 export function ObjectControl(p: ObjectControlProps): ReactElement {
-    const fields = Object.keys(p.shape);
+    const shapeKeys = Object.keys(p.shape);
+    // Drop fields a sibling switch makes inert (e.g. hand-written cards
+    // while the section reads real categories) — editing them does nothing.
+    const fields = shapeKeys.filter((k) => isFieldRelevant(k, p.value, shapeKeys));
     const isRoot = p.testIdBase === "auto-form-root";
     const isInline = fields.length < 2;
     const [open, setOpen] = useState<boolean>(true);
