@@ -14,11 +14,12 @@ import {
     Rocket,
 } from "lucide-react";
 import type { Breakpoint, LocaleCode } from "@scheniders/shared";
-import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@scheniders/shared";
+import { LOCALE_LABELS } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import type { SaveStateV2 } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { useEditorStoreLocales } from "@/lib/editor-store-locales-context";
 import { useEditorMode, type EditorMode } from "@/lib/editor-mode-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -136,6 +137,9 @@ export interface LocaleSelectProps {
 
 export function LocaleSelect({ value, onChange }: LocaleSelectProps) {
     const locale = useEditorLocale();
+    // Only the store's own languages (an Arabic + English store is never
+    // offered Kurdish).
+    const storeLocales = useEditorStoreLocales();
     return (
         <div className="relative inline-flex items-center">
             <Globe
@@ -149,7 +153,7 @@ export function LocaleSelect({ value, onChange }: LocaleSelectProps) {
                 onChange={(e) => onChange(e.target.value as LocaleCode)}
                 className="cursor-pointer appearance-none rounded-full border border-(--card-border) bg-(--background-soft) py-1.5 pl-7 pr-7 text-sm font-medium text-foreground transition-colors hover:border-(--border-hover) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
             >
-                {SUPPORTED_LOCALES.map((locale) => (
+                {storeLocales.map((locale) => (
                     <option key={locale} value={locale}>
                         {LOCALE_LABELS[locale]}
                     </option>

@@ -18,6 +18,8 @@ function fresh(): StoreConfigV2 {
 
 function homeWithHero(): StoreConfigV2 {
     const cfg = fresh();
+    // English is the source here; Arabic is the translation with gaps.
+    cfg.default_locale = "en";
     cfg.enabled_locales = ["ar", "en"];
     cfg.pages = cfg.pages.map((p) =>
         p.page_id === "home"
@@ -43,6 +45,14 @@ function homeWithHero(): StoreConfigV2 {
 }
 
 describe("I18nScreen", () => {
+    it("opens on a translation, never on the store's main language", () => {
+        const cfg = homeWithHero();
+        cfg.default_locale = "ar";
+        render(<I18nScreen config={cfg} onSelectPage={vi.fn()} />);
+        expect(screen.getByText(/not yet written in English/)).toBeTruthy();
+        expect(screen.queryByText(/not yet written in Arabic/)).toBeNull();
+    });
+
     it("lists pages with untranslated fields and lets you jump to a section", () => {
         const cfg = homeWithHero();
         const onSelectSection = vi.fn();
