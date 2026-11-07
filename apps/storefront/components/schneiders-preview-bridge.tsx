@@ -206,11 +206,13 @@ export function SchneidersPreviewBridge(): null {
     // Only bridge when actually loaded in an iframe.
     if (window.parent === window) return;
 
+    // EC25: locked to the trusted editor's origin so section data can't leak
+    // to a hostile embedder. No trusted embedder → nothing is posted.
+    const target_origin = platformTargetOrigin();
     const post = (msg: PreviewOutboundMessage): void => {
+      if (!target_origin) return;
       try {
-        // EC25: locked to the platform origin in prod so section data can't
-        // leak to a hostile embedder ("*" only in dev).
-        window.parent.postMessage(msg, platformTargetOrigin());
+        window.parent.postMessage(msg, target_origin);
       } catch {
         /* cross-origin best-effort */
       }

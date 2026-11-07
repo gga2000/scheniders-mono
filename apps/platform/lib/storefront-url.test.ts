@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStorefrontUrl,
   DEFAULT_DEV_STOREFRONT_PORT,
+  pickPrimaryDomain,
 } from "./storefront-url";
 
 describe("buildStorefrontUrl", () => {
@@ -61,5 +62,36 @@ describe("buildStorefrontUrl", () => {
       hostname: "localhost",
     });
     expect(url.startsWith("http://")).toBe(true);
+  });
+});
+
+describe("pickPrimaryDomain", () => {
+  it("prefers the real www domain over the bare one and the vercel.app host", () => {
+    expect(
+      pickPrimaryDomain([
+        { domain: "scheniders-storefront.vercel.app", created_at: "2026-08-17" },
+        { domain: "scheniders.com", created_at: "2026-09-05" },
+        { domain: "www.scheniders.com", created_at: "2026-09-05" },
+      ]),
+    ).toBe("www.scheniders.com");
+  });
+
+  it("falls back to the vercel.app host when it is the only one", () => {
+    expect(
+      pickPrimaryDomain([{ domain: "shop.vercel.app", created_at: null }]),
+    ).toBe("shop.vercel.app");
+  });
+
+  it("returns null with no verified domain", () => {
+    expect(pickPrimaryDomain([])).toBeNull();
+  });
+
+  it("is stable: the oldest wins a tie", () => {
+    expect(
+      pickPrimaryDomain([
+        { domain: "b.example.com", created_at: "2026-02-01" },
+        { domain: "a.example.com", created_at: "2026-01-01" },
+      ]),
+    ).toBe("a.example.com");
   });
 });

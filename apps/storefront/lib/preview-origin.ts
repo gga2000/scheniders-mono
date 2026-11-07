@@ -14,7 +14,7 @@
 /** Hardcoded trusted editor origins (prod + local dev). */
 export const SAFE_PARENT_ORIGINS: ReadonlySet<string> = new Set<string>([
   "http://localhost:3000", // platform dev
-  "https://platform.scheniders.com", // production platform
+  "https://schenidersapp.xyz", // production platform (merchant admin)
 ]);
 
 /**
@@ -38,12 +38,25 @@ export function isAllowedParentOrigin(origin: string | null | undefined): boolea
 }
 
 /**
- * Target origin for OUTBOUND messages to the parent. Locked to the configured
- * platform origin in production so section data can't leak to a hostile
- * embedder; `"*"` only in dev (no env set), where the parent is localhost.
+ * Target origin for OUTBOUND messages to the parent: the embedding editor's
+ * own origin, and only when that origin is trusted. Read from
+ * `location.ancestorOrigins` (Chromium/Safari) or the referrer (Firefox).
+ * Returns null when the embedder is unknown or untrusted, so section data
+ * is never posted to `"*"` or to a hostile frame.
  */
-export function platformTargetOrigin(): string {
-  return process.env.NEXT_PUBLIC_PLATFORM_ORIGIN || "*";
+export function platformTargetOrigin(): string | null {
+  if (typeof window === "undefined") return null;
+  const candidates: string[] = [];
+  const ancestors = window.location.ancestorOrigins;
+  if (ancestors && ancestors.length > 0) candidates.push(ancestors[0]);
+  if (document.referrer) {
+    try {
+      candidates.push(new URL(document.referrer).origin);
+    } catch {
+      /* malformed referrer → ignored */
+    }
+  }
+  return candidates.find((o) => isAllowedParentOrigin(o)) ?? null;
 }
 
 /**

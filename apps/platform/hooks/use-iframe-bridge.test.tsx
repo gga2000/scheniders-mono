@@ -44,7 +44,7 @@ const Harness = forwardRef<HarnessHandle, HarnessProps>(function Harness(
             contentWindow: contentWindow as unknown as Window,
         } as unknown as HTMLIFrameElement;
     }
-    const api = useIframeBridge(iframeRef);
+    const api = useIframeBridge(iframeRef, STOREFRONT_ORIGIN);
     useImperativeHandle(ref, () => ({ api }), [api]);
     return null;
 });
