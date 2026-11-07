@@ -18,7 +18,8 @@ import type {
 } from "@scheniders/shared";
 import { SUPPORTED_LOCALES } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
-import { computeCompleteness } from "@/lib/i18n-completeness";
+import { computeCompleteness, PAGE_META_SECTION_ID } from "@/lib/i18n-completeness";
+import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { resolveFieldLabel } from "@/lib/section-field-meta";
@@ -35,6 +36,17 @@ export interface I18nScreenProps {
     /** Open a section's edit panel and jump there. */
     onSelectSection?: (page_id: PageId, section_id: string) => void;
     onClose?: () => void;
+}
+
+/**
+ * A merchant-facing name for a section row: its own label, else the
+ * catalog name in the editor's language — never the raw type id.
+ */
+function sectionLabel(id: string, type: string, label: string | undefined, locale: LocaleCode): string {
+    if (id === PAGE_META_SECTION_ID) return t(STRINGS.i18n_screen.page_meta, locale);
+    if (label) return label;
+    const entry = getManifestEntry(type);
+    return entry ? sectionDisplayName(entry, locale) : t(STRINGS.i18n_screen.section_fallback, locale);
 }
 
 /**
@@ -143,7 +155,7 @@ export function I18nScreen({
                         const missing = page.sections.flatMap((s) =>
                             s.missing[focusLocale].map((path) => ({
                                 section_id: s.section_id,
-                                section_label: s.label ?? s.type,
+                                section_label: sectionLabel(s.section_id, s.type, s.label, locale),
                                 path,
                             })),
                         );
@@ -203,10 +215,12 @@ export function I18nScreen({
                                                         type="button"
                                                         data-testid="i18n-jump-section"
                                                         onClick={() =>
-                                                            onSelectSection(
-                                                                page.page_id as PageId,
-                                                                m.section_id,
-                                                            )
+                                                            m.section_id === PAGE_META_SECTION_ID
+                                                                ? onSelectPage(page.page_id as PageId)
+                                                                : onSelectSection(
+                                                                      page.page_id as PageId,
+                                                                      m.section_id,
+                                                                  )
                                                         }
                                                         className="shrink-0 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary transition-colors hover:bg-primary/15"
                                                     >

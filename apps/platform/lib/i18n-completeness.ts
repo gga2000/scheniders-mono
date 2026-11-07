@@ -83,40 +83,12 @@ function recordI18n(
   }
 }
 
-/** Walk an arbitrary props blob and record every i18n field. The hint
- *  `keyHint` is used to identify `_i18n` keys whose value happens to be
- *  undefined or a primitive (still counted toward the total). */
-function walkProps(
-  value: unknown,
-  bucket: Record<LocaleCode, LocaleCounter>,
-  keyHint?: string,
-): void {
-  if (isI18nShape(value)) {
-    recordI18n(value, bucket);
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) walkProps(item, bucket);
-    return;
-  }
-  if (value !== null && typeof value === "object") {
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      // Recurse first so nested i18n in plain shapes still gets counted.
-      walkProps(v, bucket, k);
-    }
-    return;
-  }
-  // Primitive — only count an empty `_i18n` slot as 0/total per locale.
-  if (keyHint && keyHint.endsWith("_i18n")) {
-    for (const loc of SUPPORTED_LOCALES) {
-      bucket[loc].total += 1;
-    }
-  }
-}
-
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public API                                                           */
 /* ─────────────────────────────────────────────────────────────────── */
+
+/** Synthetic section id for a page's own Google title/description. */
+export const PAGE_META_SECTION_ID = "__page_meta";
 
 export interface SectionCompleteness {
   section_id: string;
@@ -222,9 +194,23 @@ function analysePage(page: PageConfig): PageCompleteness {
   const perLocale = emptyPerLocale();
   const sections: SectionCompleteness[] = [];
 
-  // Page meta has i18n too — title + description.
+  // Page meta has i18n too (Google title + description). It is analysed
+  // like a section so its gaps are LISTED, not only counted — otherwise a
+  // page reads "19/20" with nothing on screen to fix.
   if (page.meta) {
-    walkProps(page.meta, perLocale, "meta");
+    const metaResult = analyseSection({
+      id: PAGE_META_SECTION_ID,
+      type: PAGE_META_SECTION_ID,
+      enabled: true,
+      base: page.meta as Record<string, unknown>,
+    } as SectionInstance);
+    sections.push(metaResult);
+    const raw = emptyPerLocale();
+    for (const loc of SUPPORTED_LOCALES) {
+      raw[loc].filled = metaResult.perLocale[loc].filled;
+      raw[loc].total = metaResult.perLocale[loc].total;
+    }
+    addInto(perLocale, raw);
   }
 
   for (const section of page.sections) {
