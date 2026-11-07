@@ -803,15 +803,6 @@ export const STRINGS = {
         tab_style: { en: "Style", ar: "الهوية", ku: "شێواز" },
         tab_seo: { en: "SEO", ar: "جوجل", ku: "گووگڵ" },
         tab_health: { en: "Health", ar: "الجاهزية", ku: "ئامادەیی" },
-        // Site-wide parts (promo bar, header, footer) — shown on every page.
-        sitewide_title: { en: "On every page", ar: "بكل الصفحات", ku: "لە هەموو پەڕەکان" },
-        sitewide_promo_bar: { en: "Top bar", ar: "الشريط العلوي", ku: "شریتی سەرەوە" },
-        sitewide_header: { en: "Header", ar: "رأس المتجر", ku: "سەرەوەی فرۆشگا" },
-        sitewide_footer: { en: "Footer", ar: "أسفل المتجر", ku: "خوارەوەی فرۆشگا" },
-        sitewide_hint: { en: "Changes here show on every page of the store.", ar: "أي تعديل هنا يظهر بكل صفحات المتجر.", ku: "هەر گۆڕانکارییەک لێرە لە هەموو پەڕەکانی فرۆشگا دەردەکەوێت." },
-        sitewide_back: { en: "Back to page sections", ar: "رجوع لعناصر الصفحة", ku: "گەڕانەوە بۆ بەشەکانی پەڕە" },
-        sitewide_show: { en: "Show on store", ar: "يظهر بالمتجر", ku: "لە فرۆشگا پیشان بدە" },
-        sitewide_edit: { en: "Edit", ar: "تعديل", ku: "دەستکاری" },
         // Style tab routes to the full-screen Brand Kit — the full editor
         // is a two-pane layout that cannot fit in the 380px rail.
     },
