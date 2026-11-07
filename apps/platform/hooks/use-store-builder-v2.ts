@@ -613,11 +613,17 @@ export function useStoreBuilderV2(
     // Leaving the editor in-app (the back link is a client navigation, so no
     // beforeunload fires) must not drop an edit still inside the 2s debounce:
     // replace the pending timer with an immediate save of the latest config.
+    // The same applies after a FAILED save: the backoff retry (up to 15s away)
+    // would otherwise be the only write left, so it is pulled forward too.
     useEffect(
         () => () => {
-            const hadPendingTimer = autoSaveTimerRef.current !== null;
             cancelAutoSave();
-            if (hadPendingTimer && pendingDraftWriteRef.current) {
+            const retry = saveRetryRef.current;
+            if (retry.timer) {
+                clearTimeout(retry.timer);
+                retry.timer = null;
+            }
+            if (pendingDraftWriteRef.current) {
                 void saveDraftRef.current?.(configRef.current);
             }
         },

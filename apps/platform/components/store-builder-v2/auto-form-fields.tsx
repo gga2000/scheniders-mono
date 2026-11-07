@@ -757,13 +757,13 @@ export function NumberControl(p: NumberControlProps): ReactElement {
                     )}
                 />
             </div>
-            {(p.min !== undefined || p.max !== undefined) && (
+            {/* A bounded value already has a slider that shows its range;
+                only a one-sided limit needs spelling out. */}
+            {!bounded && (p.min !== undefined || p.max !== undefined) && (
                 <p className="text-[11px] text-muted-foreground">
-                    {p.min !== undefined && p.max !== undefined
-                        ? tFormat(STRINGS.auto_form.range_hint, locale, { min: p.min, max: p.max })
-                        : p.min !== undefined
-                          ? tFormat(STRINGS.auto_form.min_hint, locale, { min: p.min })
-                          : tFormat(STRINGS.auto_form.max_hint, locale, { max: p.max ?? "" })}
+                    {p.min !== undefined
+                        ? tFormat(STRINGS.auto_form.min_hint, locale, { min: p.min })
+                        : tFormat(STRINGS.auto_form.max_hint, locale, { max: p.max ?? "" })}
                 </p>
             )}
         </div>

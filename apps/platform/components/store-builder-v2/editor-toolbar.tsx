@@ -20,6 +20,7 @@ import {
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import type { EditorMode } from "@/lib/editor-mode-context";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { cn } from "@/lib/utils";
 import {
     BreakpointToggle,
     LocaleSelect,
@@ -210,6 +211,28 @@ export function EditorToolbar({
                         void builder.save_draft();
                     }}
                 />
+                <span
+                    data-testid="publish-state"
+                    data-pending={publishDisabled ? "false" : "true"}
+                    className={cn(
+                        "inline-flex items-center gap-1.5 text-xs font-medium",
+                        publishDisabled ? "text-muted-foreground" : "text-amber-700 dark:text-amber-400",
+                    )}
+                >
+                    <span
+                        aria-hidden="true"
+                        className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            publishDisabled ? "bg-emerald-500" : "bg-amber-500",
+                        )}
+                    />
+                    {t(
+                        publishDisabled
+                            ? STRINGS.publish.state_up_to_date
+                            : STRINGS.publish.state_pending,
+                        builder.active_locale,
+                    )}
+                </span>
                 <PublishButton
                     onPublish={onPublish}
                     disabled={publishDisabled}
