@@ -264,7 +264,8 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
 
                     <StuckTransitBadge order={order} />
                     <DeliveredByChip order={order} />
-                    <PrimeChip order={order} />
+                    {/* Desktop shows the Prime chip above the action buttons (order-card.tsx); mobile keeps it here. */}
+                    <span className="contents md:hidden"><PrimeChip order={order} /></span>
                     {onToggleReviewed && <PaymentCheckButton order={order} onToggle={onToggleReviewed} />}
 
                     {/* Delivery Company Badge */}
