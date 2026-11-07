@@ -1,5 +1,6 @@
 import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
 import { activeTenantRole } from "@/lib/auth/active-tenant-role";
+import { linkTargetAllowed } from "@/lib/auth/link-target";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 
@@ -35,12 +36,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Admins only" }, { status: 403 });
         }
 
-        // The target must be a member of the same tenant.
-        const { data: targetMembership } = await admin
-            .from("tenant_members").select("role")
-            .eq("user_id", targetUserId).eq("tenant_id", tenantId).eq("status", "active").maybeSingle();
-        if (!targetMembership) {
-            return NextResponse.json({ error: "That user isn't a member of this workspace." }, { status: 404 });
+        // The link signs its opener in as the target, so the target must be a
+        // non-admin member of this store only (lib/auth/link-target).
+        if (targetUserId === user.id || !(await linkTargetAllowed(admin, targetUserId, tenantId))) {
+            return NextResponse.json(
+                { error: "A Google link can only be made for a staff member who belongs to this workspace only." },
+                { status: 403 },
+            );
         }
 
         // Generate + store a single-use token.

@@ -179,7 +179,7 @@ describe("with the opt-in (express)", () => {
   it("shows the line inside the phone block and beacons with it", () => {
     mountExpress({ show_capture_consent: true });
     const phone = q<HTMLInputElement>('input[name="phone"]');
-    const phoneBlock = phone.closest("div")?.parentElement;
+    const phoneBlock = phone.closest("[data-floated]")?.parentElement;
     expect(phoneBlock?.querySelector("[data-capture-consent]")?.textContent).toBe(DEFAULT_AR);
 
     typePhone();

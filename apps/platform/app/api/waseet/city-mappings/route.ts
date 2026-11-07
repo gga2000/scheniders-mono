@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { authorizeWaseetCaller, WASEET_ADMIN_ROLES, WASEET_READ_ROLES } from "@/lib/waseet-caller";
 
 /**
  * GET /api/waseet/city-mappings
@@ -10,16 +11,8 @@ import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-s
  */
 export async function GET(request: NextRequest) {
     try {
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json({ success: false, error: "Missing Authorization header" }, { status: 401 });
-        }
-
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-        }
+        const caller = await authorizeWaseetCaller(request, WASEET_READ_ROLES);
+        if (!caller.ok) return caller.response;
 
         const supabaseAdmin = createSupabaseServiceClient();
         const { data, error } = await supabaseAdmin
@@ -43,16 +36,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json({ success: false, error: "Missing Authorization header" }, { status: 401 });
-        }
-
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-        }
+        // The map is shared by every store on the Al-Waseet account: only its admins change it.
+        const caller = await authorizeWaseetCaller(request, WASEET_ADMIN_ROLES);
+        if (!caller.ok) return caller.response;
 
         const body = await request.json();
         const { mappings } = body;

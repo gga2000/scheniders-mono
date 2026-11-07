@@ -101,6 +101,10 @@ const serverSchema = z.object({
     // number (INTERAKT_API_KEY). Unset = nobody sends: a store not listed here
     // must never message customers from another store's number.
     INTERAKT_SENDER_TENANT_IDS: tenantIdList.optional(),
+    // Stores allowed to use the one platform Al-Waseet account (WASEET_USERNAME).
+    // Unset = nobody: its invoices, parcels and city map belong to whoever
+    // owns that account, never to every store on the platform.
+    WASEET_SHARED_ACCOUNT_TENANT_IDS: tenantIdList.optional(),
 });
 
 // =============================================
@@ -161,6 +165,7 @@ function validateEnv() {
             TELEGRAM_WEBHOOK_SECRET: orUndef(process.env.TELEGRAM_WEBHOOK_SECRET),
             STOREFRONT_WA_CONFIRM_TENANT_IDS: orUndef(process.env.STOREFRONT_WA_CONFIRM_TENANT_IDS),
             INTERAKT_SENDER_TENANT_IDS: orUndef(process.env.INTERAKT_SENDER_TENANT_IDS),
+            WASEET_SHARED_ACCOUNT_TENANT_IDS: orUndef(process.env.WASEET_SHARED_ACCOUNT_TENANT_IDS),
         });
 
         if (!serverResult.success) {

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // `order_number` is optional: with it the lookup answers one order (and,
 // because phone AND number match, may name the customer); without it the
 // phone alone lists its latest orders, masked (see lookup_orders_by_phone
-// and maskOrderNumber below).
+// and MASKED_ORDER_NUMBER below).
 const querySchema = z.object({
   tenant_id: z.string().uuid(),
   order_number: z
@@ -42,17 +42,15 @@ const lookupRowSchema = z.object({
 });
 
 /**
- * A phone-only answer never carries a full order number. Phone + order
+ * A phone-only answer carries no digit of the order number. Phone + order
  * number is the second factor that unlocks loyalty points
- * (lib/loyalty-proof.ts) and the one-order view with the customer's name,
- * so handing the number back to anyone who knows the phone would turn the
- * phone alone into that proof. The tail is enough for the shopper to tell
- * their orders apart; at most half of a short number is shown.
+ * (lib/loyalty-proof.ts) and the one-order view with the customer's name.
+ * Order numbers are <source><YYMMDD><seq>, and this answer already gives the
+ * day (placed_at), so even a 4-character tail rebuilt the whole number and
+ * turned the phone alone into that proof. Shoppers tell their orders apart
+ * by day, item count and stage.
  */
-function maskOrderNumber(orderNumber: string): string {
-  const visible = Math.min(4, Math.floor(orderNumber.length / 2));
-  return `•••${orderNumber.slice(orderNumber.length - visible)}`;
-}
+const MASKED_ORDER_NUMBER = "•••";
 
 // lookup_order is EXECUTE-granted to service_role only (migration
 // 20261021090300). With the anon key anyone could call it straight against
@@ -155,7 +153,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
       return NextResponse.json({
-        orders: rows.data.map((row) => ({ ...row, order_number: maskOrderNumber(row.order_number) })),
+        orders: rows.data.map((row) => ({ ...row, order_number: MASKED_ORDER_NUMBER })),
       });
     }
 

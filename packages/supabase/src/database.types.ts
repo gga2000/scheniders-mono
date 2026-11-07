@@ -7573,6 +7573,7 @@ export type Database = {
           domain: string
           id: string
           tenant_id: string
+          verification_token: string
           verified: boolean
           verified_at: string | null
         }
@@ -7581,6 +7582,7 @@ export type Database = {
           domain: string
           id?: string
           tenant_id: string
+          verification_token?: string
           verified?: boolean
           verified_at?: string | null
         }
@@ -7589,6 +7591,7 @@ export type Database = {
           domain?: string
           id?: string
           tenant_id?: string
+          verification_token?: string
           verified?: boolean
           verified_at?: string | null
         }

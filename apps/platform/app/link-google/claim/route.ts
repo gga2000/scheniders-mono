@@ -1,5 +1,6 @@
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { NextResponse, type NextRequest } from "next/server";
+import { linkTargetAllowed } from "@/lib/auth/link-target";
 
 /**
  * Flow A claim route. Opened by an employee from an admin-generated link.
@@ -18,15 +19,22 @@ export async function GET(request: NextRequest) {
 
     const admin = createSupabaseServiceClient();
 
-    // Validate: exists, unused, unexpired.
+    // Consume the token first, in one statement: unused AND unexpired, so two
+    // parallel opens of the same link cannot both get a session.
     const { data: row } = await admin
         .from("account_link_tokens")
-        .select("id, target_user_id, used_at, expires_at")
+        .update({ used_at: new Date().toISOString() })
         .eq("token", token)
+        .is("used_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .select("id, target_user_id, tenant_id")
         .maybeSingle();
 
-    if (!row || row.used_at || new Date(row.expires_at) < new Date()) {
-        return fail("link_expired");
+    if (!row) return fail("link_expired");
+
+    // Re-check the target now: memberships may have changed since the link was made.
+    if (!(await linkTargetAllowed(admin, row.target_user_id, row.tenant_id))) {
+        return fail("link_invalid");
     }
 
     // The employee's (synthetic) work email — needed to mint the magic link.
@@ -46,12 +54,6 @@ export async function GET(request: NextRequest) {
         },
     });
     if (linkErr || !linkData?.properties?.action_link) return fail("link_failed");
-
-    // Consume the token (single-use) before handing off.
-    await admin
-        .from("account_link_tokens")
-        .update({ used_at: new Date().toISOString() })
-        .eq("id", row.id);
 
     return NextResponse.redirect(linkData.properties.action_link);
 }

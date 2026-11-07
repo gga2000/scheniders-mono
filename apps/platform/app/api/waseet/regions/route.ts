@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken } from "@/lib/supabase-server";
+import { authorizeWaseetCaller, WASEET_READ_ROLES } from "@/lib/waseet-caller";
 import { fetchRegions } from "@/lib/waseet-api";
 
 /**
@@ -10,16 +10,8 @@ import { fetchRegions } from "@/lib/waseet-api";
  */
 export async function GET(request: NextRequest) {
     try {
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json({ success: false, error: "Missing Authorization header" }, { status: 401 });
-        }
-
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-        }
+        const caller = await authorizeWaseetCaller(request, WASEET_READ_ROLES);
+        if (!caller.ok) return caller.response;
 
         const cityId = request.nextUrl.searchParams.get("city_id");
         if (!cityId) {
