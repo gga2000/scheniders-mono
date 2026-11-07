@@ -10,8 +10,24 @@ export interface Ticket {
     phone: string;
     discount: number;
     /** A manager's PIN OK for going over the cashier's discount limit, used by this sale. */
-    approval: { id: string; managerName: string } | null;
+    approval: TicketApproval | null;
     createdAt: number;
+}
+
+/** What the manager allowed: up to maxOff (price cuts + discount), until expiresAt (ms). */
+export interface TicketApproval {
+    id: string;
+    managerName: string;
+    maxOff: number;
+    expiresAt: number;
+}
+
+/** How long a manager's OK lasts; matches till_approve on the server. */
+export const APPROVAL_MS = 3 * 60 * 1000;
+
+/** The approval still covers this much off and has not run out. */
+export function approvalCovers(a: TicketApproval | null, off: number, now: number): boolean {
+    return a !== null && off <= a.maxOff && now < a.expiresAt;
 }
 
 export function newTicket(): Ticket {

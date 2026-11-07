@@ -19,6 +19,7 @@ export function TillCustomerScreen() {
     const [state, setState] = useState<DisplayState | null>(null);
     const [noChannel, setNoChannel] = useState(false);
     const [badLogo, setBadLogo] = useState<string | null>(null);
+    const [readyLogo, setReadyLogo] = useState<string | null>(null);
 
     useEffect(() => {
         if (typeof BroadcastChannel === "undefined") {
@@ -39,7 +40,15 @@ export function TillCustomerScreen() {
 
     // A logo link that fails falls back to the store name, never an empty white box in front of the customer.
     const logoUrl = brand.logoUrl && brand.logoUrl !== badLogo ? brand.logoUrl : null;
-    const brandMark = logoUrl ? <img src={logoUrl} alt="" onError={() => setBadLogo(logoUrl)} className="h-12 w-12 rounded-xl bg-white object-contain p-1" /> : null;
+    // Hidden until it has loaded, so the customer never sees an empty white box while it downloads.
+    const logoShown = logoUrl !== null && readyLogo === logoUrl ? "" : "invisible";
+    // An image already in the cache can finish before React listens for onLoad.
+    const logoRef = (el: HTMLImageElement | null) => {
+        if (el && logoUrl && el.complete && el.naturalWidth > 0) setReadyLogo(logoUrl);
+    };
+    const brandMark = logoUrl ? (
+        <img ref={logoRef} src={logoUrl} alt="" onLoad={() => setReadyLogo(logoUrl)} onError={() => setBadLogo(logoUrl)} className={cn("h-12 w-12 rounded-xl bg-white object-contain p-1", logoShown)} />
+    ) : null;
 
     if (noChannel || !state || state.view === "idle") {
         return (
@@ -50,7 +59,7 @@ export function TillCustomerScreen() {
                     ) : (
                         <>
                             {logoUrl ? (
-                                <img src={logoUrl} alt={storeName} onError={() => setBadLogo(logoUrl)} className="max-h-44 max-w-[50vw] rounded-[32px] bg-white object-contain p-4" />
+                                <img ref={logoRef} src={logoUrl} alt={storeName} onLoad={() => setReadyLogo(logoUrl)} onError={() => setBadLogo(logoUrl)} className={cn("max-h-44 max-w-[50vw] rounded-[32px] bg-white object-contain p-4", logoShown)} />
                             ) : (
                                 <p className="text-6xl font-bold tracking-tight" dir="auto">{storeName}</p>
                             )}
@@ -77,7 +86,7 @@ export function TillCustomerScreen() {
                         </span>
                         <span className="min-w-0 flex-1" dir="auto">
                             <span className="block truncate text-2xl font-semibold">{l.name}</span>
-                            <span className="block text-lg tabular-nums text-[#1E1E1E]/60 dark:text-white/60">
+                            <span className="block text-lg tabular-nums text-[#1E1E1E]/75 dark:text-white/75">
                                 {l.variant ? `${l.variant} · ` : ""}
                                 <bdi dir="ltr">
                                     {l.quantity} × {formatIqd(l.price)}
@@ -85,7 +94,7 @@ export function TillCustomerScreen() {
                             </span>
                         </span>
                         <span className="flex shrink-0 flex-col items-end">
-                            {l.listPrice > l.price && <span className="text-lg tabular-nums text-[#1E1E1E]/50 line-through dark:text-white/50">{formatIqd(l.listPrice * l.quantity)}</span>}
+                            {l.listPrice > l.price && <span className="text-lg tabular-nums text-[#1E1E1E]/65 line-through dark:text-white/65">{formatIqd(l.listPrice * l.quantity)}</span>}
                             <span className="text-2xl font-bold tabular-nums">{formatIqd(l.price * l.quantity)}</span>
                         </span>
                     </li>

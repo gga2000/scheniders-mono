@@ -60,7 +60,7 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                     <button
                         type="button"
                         onClick={() => printReceipt(receiptDocument(receipt))}
-                        className="inline-flex h-12 items-center gap-2 rounded-2xl bg-white/70 px-5 text-sm font-semibold text-[#14532D] dark:bg-white/10 dark:text-emerald-100"
+                        className="inline-flex h-12 items-center gap-2 rounded-2xl border border-[#14532D]/25 bg-white px-5 text-sm font-semibold text-[#14532D] dark:border-emerald-100/30 dark:bg-white/10 dark:text-emerald-100"
                     >
                         <Printer className="h-4 w-4" aria-hidden="true" />
                         {printed ? t("till.done.printAgain") : t("till.done.print")}
