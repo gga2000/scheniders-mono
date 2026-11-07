@@ -17,6 +17,7 @@ import type {
     FixAction,
     HealthCategory,
     HealthCheck,
+    HealthContext,
     PageId,
     RuleStatus,
     StoreConfigV2,
@@ -36,11 +37,13 @@ import type { SettingsSectionId } from "./page-tree";
 
 export interface HealthChecklistScreenProps {
     config: StoreConfigV2;
+    /** Contact numbers the storefront resolves outside the config. */
+    healthContext?: HealthContext;
     tenantName: string;
     /** Open a settings screen (brand_kit etc.). */
     onSelectSetting: (id: SettingsSectionId) => void;
     /** Navigate to a page. The host should also close the health view. */
-    onSelectPage: (page_id: PageId) => void;
+    onSelectPage: (page_id: PageId, opts?: { tab?: "seo" }) => void;
     /** Open a specific section's edit panel on a page. */
     onSelectSection?: (page_id: PageId, section_id: string) => void;
     /** Close the health screen and return to the live preview. */
@@ -175,7 +178,7 @@ function ScoreDonut({ score }: { score: number }): ReactElement {
 export function HealthChecklistScreen(
     props: HealthChecklistScreenProps,
 ): ReactElement {
-    const { config, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose, hasPublished, onSetWhatsappNumber, onSetDeliveryFee } = props;
+    const { config, healthContext, tenantName, onSelectSetting, onSelectPage, onSelectSection, onClose, hasPublished, onSetWhatsappNumber, onSetDeliveryFee } = props;
     const locale = useResolvedEditorLocale();
     // S3-03: Simple mode shows the launch checklist (+ any publish blockers)
     // only — the score donut, dimension cards, filters and the 36-check list
@@ -183,7 +186,10 @@ export function HealthChecklistScreen(
     const { mode, setMode } = useEditorMode();
     const isSimple = mode === "simple";
 
-    const report = useMemo(() => runHealthChecks(config), [config]);
+    const report = useMemo(
+        () => runHealthChecks(config, healthContext),
+        [config, healthContext],
+    );
     const blocking = useMemo(() => blockingChecks(report), [report]);
 
     const [filter, setFilter] = useState<Filter>("failing");
@@ -358,7 +364,7 @@ export function HealthChecklistScreen(
             return;
         }
         if (go.kind === "page") {
-            onSelectPage(go.page_id);
+            onSelectPage(go.page_id, go.tab ? { tab: go.tab } : undefined);
             return;
         }
         if (go.kind === "section") {

@@ -29,7 +29,7 @@ function Hub({ withData, config }: { withData: boolean; config: StoreConfigV2 | 
                 <CommandCenter
                     tenantId={TENANT_ID}
                     tenant={{
-                        id: TENANT_ID, slug: "demo-store", business_name: "متجر الأناقة", store_config: null,
+                        id: TENANT_ID, slug: "demo-store", business_name: "متجر الأناقة", store_config: null, contact_phone: null,
                         status: "active", store_config_v2: config, store_config_v2_draft: null,
                     }}
                 />
