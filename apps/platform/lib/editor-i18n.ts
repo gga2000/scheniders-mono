@@ -1218,6 +1218,16 @@ export const STRINGS = {
         },
         domain_toast_verify_failed: { en: "Verification failed", ar: "فشل التحقق", ku: "پشتڕاستکردنەوە سەرکەوتوو نەبوو" },
         domain_toast_not_pointing: { en: "Not verified yet. Make sure the CNAME record is saved; DNS can take up to 48 hours.", ar: "لم يتم التحقق بعد. تأكد من حفظ سجل CNAME؛ قد يستغرق DNS حتى 48 ساعة.", ku: "هێشتا پشتڕاست نەکراوەتەوە. دڵنیابە CNAME پاشەکەوت کراوە؛ DNS دەکرێت تا ٤٨ کاتژمێر بخایەنێت." },
+        domain_dns_records_heading: {
+            en: "Add both records at your domain provider, then press Verify. The TXT record proves the domain is yours.",
+            ar: "أضف السجلين عند مزوّد النطاق، ثم اضغط تحقّق. سجل TXT يثبت أن النطاق ملكك.",
+            ku: "هەردوو تۆمارەکە لای دابینکەری دۆمەینەکەت زیاد بکە، پاشان پشتڕاستکردنەوە دابگرە. تۆماری TXT دەیسەلمێنێت دۆمەینەکە هی تۆیە.",
+        },
+        domain_toast_txt_missing: {
+            en: "Not verified yet. Add the TXT record shown under the domain; DNS can take up to 48 hours.",
+            ar: "لم يتم التحقق بعد. أضف سجل TXT الظاهر تحت النطاق؛ قد يستغرق DNS حتى 48 ساعة.",
+            ku: "هێشتا پشتڕاست نەکراوەتەوە. تۆماری TXT ی ژێر دۆمەینەکە زیاد بکە؛ DNS دەکرێت تا ٤٨ کاتژمێر بخایەنێت.",
+        },
         domain_invalid: { en: "Enter a valid domain like shop.example.com", ar: "أدخل نطاقاً صحيحاً مثل shop.example.com", ku: "دۆمەینێکی دروست بنووسە وەک shop.example.com" },
         domain_taken: { en: "This domain is already connected to a store.", ar: "هذا النطاق مربوط بمتجر آخر.", ku: "ئەم دۆمەینە پێشتر بە فرۆشگایەک بەستراوەتەوە." },
         domain_list_error: { en: "Couldn't load your domains. Close and try again.", ar: "ما كدرنا نجيب نطاقاتك. سكّر وجرّب مرة ثانية.", ku: "نەتوانرا دۆمەینەکانت باربکرێن. دایبخە و دووبارە هەوڵبدەرەوە." },

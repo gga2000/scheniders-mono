@@ -3,7 +3,7 @@ import dns from "dns/promises";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { isAcceptedCnameTarget } from "@/lib/custom-domain";
+import { domainTxtName, isAcceptedCnameTarget, txtRecordsProve } from "@/lib/custom-domain";
 import { DomainConflictError, provisionCustomDomain, type DomainSsl } from "@/lib/vercel-domains";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +16,10 @@ const NO_RECORD_CODES = new Set(["ENODATA", "ENOTFOUND", "NXDOMAIN"]);
 /**
  * POST /api/domains/verify  Body: { domain_id }   (tenant admin)
  *
- * Marks the caller's own custom domain verified once its CNAME points at
- * Scheniders. The tenant comes from the caller's session, never the request, so
+ * Marks the caller's own custom domain verified once the store proves it owns
+ * it (TXT `_scheniders.<domain>` = this row's token) and its CNAME points at
+ * Scheniders. The CNAME alone would let one store claim a domain another
+ * store pointed at us. The tenant comes from the caller's session, never the request, so
  * one tenant cannot probe or verify another tenant's domain ids.
  */
 export async function POST(request: Request): Promise<NextResponse> {
@@ -33,7 +35,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const supabase = createSupabaseServiceClient();
     const { data: domain, error: fetchError } = await supabase
         .from("tenant_domains")
-        .select("id, domain, verified")
+        .select("id, domain, verified, verification_token")
         .eq("id", domain_id)
         .eq("tenant_id", caller.tenantId)
         .maybeSingle();
@@ -46,6 +48,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
     if (domain.verified) {
         return NextResponse.json({ verified: true });
+    }
+
+    const owned = await ownershipProved(domain.domain, domain.verification_token);
+    if (owned === "dns_error") {
+        return NextResponse.json({ error: "DNS lookup failed. Try again in a minute." }, { status: 502 });
+    }
+    if (!owned) {
+        return NextResponse.json({
+            verified: false,
+            reason: "txt_missing",
+            error: "TXT record not found. Add the TXT record shown, then try again; DNS can take up to 48 hours.",
+        });
     }
 
     let records: string[];
@@ -97,6 +111,18 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
     return NextResponse.json({ verified: true, ssl: ssl.state });
+}
+
+/** The TXT ownership proof: true, false (no matching record yet), or a resolver failure. */
+async function ownershipProved(domain: string, token: string): Promise<boolean | "dns_error"> {
+    try {
+        return txtRecordsProve(await dns.resolveTxt(domainTxtName(domain)), token);
+    } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code && NO_RECORD_CODES.has(code)) return false;
+        console.error("[domains/verify] TXT lookup failed:", err);
+        return "dns_error";
+    }
 }
 
 type Provisioned = { ok: true; state: DomainSsl } | { ok: false; conflict: boolean };

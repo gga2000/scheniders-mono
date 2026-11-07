@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isAcceptedCnameTarget, normalizeCustomDomain } from "./custom-domain";
+import { isAcceptedCnameTarget, normalizeCustomDomain, txtRecordsProve } from "./custom-domain";
 
 describe("normalizeCustomDomain", () => {
     it.each([
@@ -25,5 +25,17 @@ describe("isAcceptedCnameTarget", () => {
         expect(isAcceptedCnameTarget("cname.vercel-dns.com.attacker.net")).toBe(false);
         expect(isAcceptedCnameTarget("evil-scheniders.com")).toBe(false);
         expect(isAcceptedCnameTarget("notvercel.example.com")).toBe(false);
+    });
+});
+
+describe("txtRecordsProve", () => {
+    it("accepts the store's own token, joined across DNS chunks", () => {
+        expect(txtRecordsProve([["v=spf1 -all"], ["scheniders-verify=", "abc123"]], "abc123")).toBe(true);
+    });
+
+    it("refuses another token, a partial match and no records", () => {
+        expect(txtRecordsProve([["scheniders-verify=zzz"]], "abc123")).toBe(false);
+        expect(txtRecordsProve([["scheniders-verify=abc1234"]], "abc123")).toBe(false);
+        expect(txtRecordsProve([], "abc123")).toBe(false);
     });
 });

@@ -18,7 +18,7 @@ import { STRINGS, t } from "@/lib/editor-i18n";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { CUSTOM_DOMAIN_CNAME_TARGET, normalizeCustomDomain } from "@/lib/custom-domain";
+import { CUSTOM_DOMAIN_CNAME_TARGET, domainTxtName, domainTxtValue, normalizeCustomDomain } from "@/lib/custom-domain";
 
 interface DomainDialogProps {
     tenantId: string;
@@ -35,10 +35,13 @@ interface TenantDomain {
     verified: boolean;
     verified_at: string | null;
     created_at: string;
+    /** Goes in the TXT record that proves this store owns the domain. */
+    verification_token: string;
 }
 
 const verifyResponse = z.object({
     verified: z.boolean(),
+    reason: z.literal("txt_missing").optional(),
     ssl: z.enum(["active", "pending", "misconfigured", "not_configured"]).optional(),
 });
 
@@ -75,7 +78,7 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("tenant_domains")
-                .select("id, tenant_id, domain, verified, verified_at, created_at")
+                .select("id, tenant_id, domain, verified, verified_at, created_at, verification_token")
                 .eq("tenant_id", tenantId)
                 .order("created_at", { ascending: false });
             if (error) throw error;
@@ -144,7 +147,14 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                 }
             } else {
                 // The endpoint answers 200 + verified:false while DNS has not caught up.
-                toast.error(t(STRINGS.command_center.domain_toast_not_pointing, locale));
+                toast.error(
+                    t(
+                        result.reason === "txt_missing"
+                            ? STRINGS.command_center.domain_toast_txt_missing
+                            : STRINGS.command_center.domain_toast_not_pointing,
+                        locale,
+                    ),
+                );
             }
         },
         onError: (err: Error) => {
@@ -200,41 +210,59 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                 ) : domains.length > 0 ? (
                     <div className="space-y-2 mb-4">
                         {domains.map((domain) => (
-                            <div
-                                key={domain.id}
-                                className="flex items-center justify-between px-3 py-2 rounded-xl border border-border"
-                            >
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                    <span className="text-sm truncate" dir="ltr">
-                                        {domain.domain}
-                                    </span>
-                                    {domain.verified ? (
-                                        <span className="flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full shrink-0">
-                                            <Check className="w-2.5 h-2.5" />{" "}
-                                            {t(STRINGS.command_center.domain_status_active, locale)}
+                            <div key={domain.id} className="rounded-xl border border-border">
+                                <div className="flex items-center justify-between px-3 py-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                        <span className="text-sm truncate" dir="ltr">
+                                            {domain.domain}
                                         </span>
-                                    ) : (
-                                        <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full shrink-0">
-                                            <AlertCircle className="w-2.5 h-2.5" />{" "}
-                                            {t(STRINGS.command_center.domain_status_pending, locale)}
-                                        </span>
+                                        {domain.verified ? (
+                                            <span className="flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full shrink-0">
+                                                <Check className="w-2.5 h-2.5" />{" "}
+                                                {t(STRINGS.command_center.domain_status_active, locale)}
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full shrink-0">
+                                                <AlertCircle className="w-2.5 h-2.5" />{" "}
+                                                {t(STRINGS.command_center.domain_status_pending, locale)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {!domain.verified && (
+                                        <button
+                                            type="button"
+                                            onClick={() => verifyDomain.mutate(domain.id)}
+                                            disabled={verifyDomain.isPending || !accessToken}
+                                            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50 shrink-0 ml-2"
+                                        >
+                                            {verifyDomain.isPending ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                <RefreshCw className="w-3 h-3" />
+                                            )}
+                                            {t(STRINGS.command_center.domain_verify, locale)}
+                                        </button>
                                     )}
                                 </div>
                                 {!domain.verified && (
-                                    <button
-                                        type="button"
-                                        onClick={() => verifyDomain.mutate(domain.id)}
-                                        disabled={verifyDomain.isPending || !accessToken}
-                                        className="flex items-center gap-1 text-xs font-medium text-primary hover:underline disabled:opacity-50 shrink-0 ml-2"
-                                    >
-                                        {verifyDomain.isPending ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            <RefreshCw className="w-3 h-3" />
-                                        )}
-                                        {t(STRINGS.command_center.domain_verify, locale)}
-                                    </button>
+                                    <div className="border-t border-border px-3 py-2 space-y-2">
+                                        <p className="text-[11px] text-muted-foreground">
+                                            {t(STRINGS.command_center.domain_dns_records_heading, locale)}
+                                        </p>
+                                        <DnsRecord
+                                            locale={locale}
+                                            type="CNAME"
+                                            name={domain.domain}
+                                            value={CUSTOM_DOMAIN_CNAME_TARGET}
+                                        />
+                                        <DnsRecord
+                                            locale={locale}
+                                            type="TXT"
+                                            name={domainTxtName(domain.domain)}
+                                            value={domainTxtValue(domain.verification_token)}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         ))}
@@ -316,6 +344,23 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+/** One DNS record to copy, in the form every DNS panel asks for. */
+function DnsRecord({ locale, type, name, value }: { locale: LocaleCode; type: string; name: string; value: string }) {
+    return (
+        <div className="rounded-lg bg-muted/30 px-2 py-1.5 text-[11px] font-mono space-y-0.5" dir="ltr">
+            <p>
+                {t(STRINGS.command_center.domain_dns_type, locale)} <strong>{type}</strong>
+            </p>
+            <p className="break-all">
+                {t(STRINGS.command_center.domain_dns_name, locale)} <strong className="select-all">{name}</strong>
+            </p>
+            <p className="break-all">
+                {t(STRINGS.command_center.domain_dns_value, locale)} <strong className="select-all">{value}</strong>
+            </p>
         </div>
     );
 }
