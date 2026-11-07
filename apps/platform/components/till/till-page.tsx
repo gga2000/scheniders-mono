@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import * as Sentry from "@sentry/nextjs";
-import { ArrowLeft, ClipboardCheck, Tag, Wind, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, Settings2, Store, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, ClipboardCheck, Tag, Wind, Clock3, Download, HandCoins, Inbox, Lock, MonitorSmartphone, Receipt, LayoutGrid, Settings2, Store, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@scheniders/ui/popover";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
@@ -461,7 +461,7 @@ export function TillPage() {
                 />
             ) : (
                 <div className="flex min-h-0 flex-1">
-                    <TillProductGrid products={shelf} loading={products.isPending} overview={overview.data} sound={prefs.sound}
+                    <TillProductGrid products={shelf} loading={products.isPending} overview={overview.data} sound={prefs.sound} compact={prefs.compact}
                         onAdd={add}
                         onReceiptCode={(code) => {
                             setHistoryQuery(code);
@@ -785,7 +785,7 @@ function DrawerSetting({ prefs, onPrefs }: { prefs: TillPrefs; onPrefs: (p: Till
 
 type InstallPrompt = Event & { prompt: () => Promise<void> };
 
-/** This device's till settings: text size, sound, and installing the till as an app. */
+/** This device's till settings: text size, sound, small cards, and installing the till as an app. */
 function TillSettings({
     prefs,
     onPrefs,
@@ -835,24 +835,18 @@ function TillSettings({
                         ))}
                     </div>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => onPrefs({ ...prefs, sound: !prefs.sound })}
-                    role="switch"
-                    aria-checked={prefs.sound}
-                    className="flex h-12 items-center justify-between rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
-                >
-                    <span className="flex items-center gap-2">
-                        {prefs.sound ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4" aria-hidden="true" />}
-                        {t("till.settings.sound")}
-                    </span>
-                    <span
-                        aria-hidden="true"
-                        className={cn("flex h-7 w-12 items-center rounded-full p-1 transition-colors", prefs.sound ? "justify-end bg-[var(--ink)] dark:bg-[#EFFF00]" : "justify-start bg-[var(--card-border)]")}
-                    >
-                        <span className="h-5 w-5 rounded-full bg-white shadow-sm dark:bg-zinc-900" />
-                    </span>
-                </button>
+                <PrefSwitch
+                    on={prefs.sound}
+                    onChange={() => onPrefs({ ...prefs, sound: !prefs.sound })}
+                    icon={prefs.sound ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4" aria-hidden="true" />}
+                    label={t("till.settings.sound")}
+                />
+                <PrefSwitch
+                    on={prefs.compact}
+                    onChange={() => onPrefs({ ...prefs, compact: !prefs.compact })}
+                    icon={<LayoutGrid className="h-4 w-4" aria-hidden="true" />}
+                    label={t("till.settings.compact")}
+                />
                 {onCount && (
                     <button
                         type="button"
@@ -909,5 +903,26 @@ function TillSettings({
                 )}
             </PopoverContent>
         </Popover>
+    );
+}
+
+/** One on/off row in the till settings. */
+function PrefSwitch({ on, onChange, icon, label }: { on: boolean; onChange: () => void; icon: React.ReactNode; label: string }) {
+    return (
+        <button
+            type="button"
+            onClick={onChange}
+            role="switch"
+            aria-checked={on}
+            className="flex h-12 items-center justify-between rounded-2xl border border-[var(--card-border)] px-4 text-sm font-semibold text-foreground"
+        >
+            <span className="flex items-center gap-2">
+                {icon}
+                {label}
+            </span>
+            <span aria-hidden="true" className={cn("flex h-7 w-12 items-center rounded-full p-1 transition-colors", on ? "justify-end bg-[var(--ink)] dark:bg-[#EFFF00]" : "justify-start bg-[var(--card-border)]")}>
+                <span className="h-5 w-5 rounded-full bg-white shadow-sm dark:bg-zinc-900" />
+            </span>
+        </button>
     );
 }

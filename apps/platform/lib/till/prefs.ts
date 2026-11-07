@@ -1,4 +1,4 @@
-/** This device's till settings: text size, sound, cash drawer. Kept in the browser, per device. */
+/** This device's till settings: text size, sound, cash drawer, small cards. Kept in the browser, per device. */
 
 export type TextSize = "normal" | "large" | "xl";
 export interface TillPrefs {
@@ -6,9 +6,11 @@ export interface TillPrefs {
     sound: boolean;
     /** Open the cash drawer on sales paid in cash (needs a printer port picked on this device). */
     drawer: boolean;
+    /** Smaller product cards so more fit on screen (for cashiers who know the shelf). */
+    compact: boolean;
 }
 
-export const DEFAULT_PREFS: TillPrefs = { textSize: "normal", sound: true, drawer: false };
+export const DEFAULT_PREFS: TillPrefs = { textSize: "normal", sound: true, drawer: false, compact: false };
 
 /** How much the whole till grows for each text size. */
 export const TEXT_ZOOM: Record<TextSize, number> = { normal: 1, large: 1.12, xl: 1.25 };
@@ -26,6 +28,7 @@ export function readPrefs(): TillPrefs {
             textSize: o.textSize === "large" || o.textSize === "xl" ? o.textSize : "normal",
             sound: o.sound !== false,
             drawer: o.drawer === true,
+            compact: o.compact === true,
         };
     } catch {
         return DEFAULT_PREFS;
