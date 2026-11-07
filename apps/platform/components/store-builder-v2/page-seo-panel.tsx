@@ -42,6 +42,20 @@ export interface PageSeoPanelProps {
     tenantId?: string;
 }
 
+/**
+ * The path Google shows under a result, as crumbs: the home page is the bare
+ * host, policies live under /policies/<name>, and product and category pages
+ * are one of many, so they show their folder.
+ */
+function serpCrumbs(pageId: PageId): string[] {
+    if (pageId === "home") return [];
+    if (pageId.startsWith("policy_")) return ["policies", pageId.slice("policy_".length)];
+    if (pageId === "product") return ["products", "…"];
+    if (pageId === "category") return ["categories", "…"];
+    if (pageId === "checkout_success") return ["checkout", "success"];
+    return [pageId];
+}
+
 export function PageSeoPanel({
     pageId,
     pageLabel,
@@ -101,7 +115,7 @@ export function PageSeoPanel({
                     {t(STRINGS.seo.serp_preview, locale)}
                 </p>
                 <p className="truncate text-xs text-emerald-700">
-                    {host} › {pageId}
+                    {[host, ...serpCrumbs(pageId)].join(" › ")}
                 </p>
                 <p className="truncate text-[15px] leading-snug text-[#1a0dab]">
                     {resolvedTitle}
@@ -146,7 +160,7 @@ export function PageSeoPanel({
                     tenantId={tenantId}
                     testIdBase="seo-og-image"
                 />
-                <p dir="auto" className="text-left text-xs text-muted-foreground">
+                <p dir="auto" className="text-xs text-muted-foreground">
                     {t(STRINGS.seo.og_help, locale)}
                 </p>
             </div>

@@ -308,7 +308,7 @@ export function ImageField({
                     </button>
                 )}
             </div>
-            <p dir="auto" className="text-left text-[11px] text-muted-foreground">
+            <p dir="auto" className="text-[11px] text-muted-foreground">
                 {helperText}
             </p>
         </div>

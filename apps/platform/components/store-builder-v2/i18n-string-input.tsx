@@ -143,7 +143,7 @@ export function I18nStringInput({
                 )}
 
                 {helperText && !showFallback && (
-                    <p dir="auto" className="mt-1 text-left text-[11px] text-muted-foreground">
+                    <p dir="auto" className="mt-1 text-[11px] text-muted-foreground">
                         {helperText}
                     </p>
                 )}

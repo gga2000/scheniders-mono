@@ -1,5 +1,6 @@
 "use client";
 
+import { hasUnpublishedDraft } from "@/lib/store-draft";
 import { isStorePubliclyLive, SUPPORTED_LOCALES } from "@scheniders/shared";
 import type { LocaleCode, StoreConfigV2 } from "@scheniders/shared";
 import { useStoreAnalytics } from "@/hooks/use-store-analytics";
@@ -40,7 +41,9 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
         // exposes `status IN ('trial','active')`), so it must not read as "Draft".
         published:
             !!tenant.store_config_v2 && isStorePubliclyLive(tenant.status),
-        hasDraft: !!tenant.store_config_v2_draft,
+        // Same rule as the editor: a draft identical to the live store is
+        // not "unpublished changes".
+        hasDraft: hasUnpublishedDraft(tenant.store_config_v2_draft, tenant.store_config_v2),
     };
 
     // The hub must reflect the same state the editor shows: the editor loads

@@ -40,7 +40,7 @@ import {
     groupDiffByTop,
     type DiffEntry,
 } from "./config-diff";
-import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -639,6 +639,30 @@ export function VersionHistoryScreen({
 /* DiffView                                                             */
 /* ─────────────────────────────────────────────────────────────────── */
 
+/** Plain name for a diff group (the config's top-level field). */
+function diffGroupLabel(key: string): EditorString {
+    const V = STRINGS.version_history;
+    switch (key) {
+        case "pages":
+            return V.group_pages;
+        case "globals":
+            return V.group_globals;
+        case "brand_kit":
+            return V.group_brand_kit;
+        case "commerce":
+            return V.group_commerce;
+        case "default_locale":
+        case "enabled_locales":
+            return V.group_languages;
+        case "custom_pages":
+            return V.group_custom_pages;
+        case "redirects":
+            return V.group_redirects;
+        default:
+            return V.group_other;
+    }
+}
+
 interface DiffViewProps {
     entries: DiffEntry[];
 }
@@ -668,7 +692,7 @@ function DiffView({ entries }: DiffViewProps): ReactElement {
             {keys.map((key) => (
                 <div key={key} className="rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
-                        {key}
+                        {t(diffGroupLabel(key), locale)}
                     </div>
                     <ul className="space-y-1">
                         {grouped[key].map((e, i) => (
