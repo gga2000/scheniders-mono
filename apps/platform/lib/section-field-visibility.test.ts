@@ -42,3 +42,24 @@ describe("isFieldRelevant — product FAQ", () => {
         expect(isFieldRelevant("contact_style", v, faq)).toBe(true);
     });
 });
+
+describe("isFieldRelevant — layout and bar switches", () => {
+    it("hides the photo shade when the photo sits beside the words", () => {
+        const about = ["layout", "overlay_opacity", "bg_image_url"];
+        expect(isFieldRelevant("overlay_opacity", { layout: "split" }, about)).toBe(false);
+        expect(isFieldRelevant("overlay_opacity", {}, about)).toBe(true);
+    });
+
+    it("hides catalogue search and page size while the catalogue bar is off", () => {
+        const grid = ["catalog_controls", "catalog_search", "catalog_page_size"];
+        expect(isFieldRelevant("catalog_search", {}, grid)).toBe(false);
+        expect(isFieldRelevant("catalog_page_size", { catalog_controls: false }, grid)).toBe(false);
+        expect(isFieldRelevant("catalog_search", { catalog_controls: true }, grid)).toBe(true);
+    });
+
+    it("hides the category-links limit while the links are off", () => {
+        const grid = ["show_category_links", "category_links_limit"];
+        expect(isFieldRelevant("category_links_limit", {}, grid)).toBe(false);
+        expect(isFieldRelevant("category_links_limit", { show_category_links: true }, grid)).toBe(true);
+    });
+});

@@ -55,6 +55,8 @@ export function BpIcon({
 
 export function BreakpointAdornment(p: BreakpointAdornmentProps): ReactElement {
     const [openBp, setOpenBp] = useState<Breakpoint | null>(null);
+    const locale = useResolvedEditorLocale();
+    const deviceName = (bp: Breakpoint): string => tx(BP_LABELS[bp], locale);
 
     const baseValue = (p.instance.base as Record<string, unknown>)?.[p.fieldKey];
 
@@ -116,7 +118,9 @@ export function BreakpointAdornment(p: BreakpointAdornmentProps): ReactElement {
                             data-testid={`bp-adornment-${p.fieldKey}-${bp}`}
                             data-has-override={hasOverride ? "true" : "false"}
                             aria-pressed={isOpen}
-                            aria-label={`${bp} override for ${p.fieldKey}`}
+                            aria-label={tFormat(STRINGS.common.device_value_add, locale, {
+                                device: deviceName(bp),
+                            })}
                             onClick={() => handleToggle(bp)}
                             className={cn(
                                 "inline-flex h-6 w-6 items-center justify-center rounded-md border transition-colors",
@@ -126,11 +130,13 @@ export function BreakpointAdornment(p: BreakpointAdornmentProps): ReactElement {
                                 isOpen && "ring-2 ring-primary/30",
                                 isActive && !hasOverride && "text-foreground",
                             )}
-                            title={
+                            title={tFormat(
                                 hasOverride
-                                    ? `${bp} override active`
-                                    : `Add ${bp} override`
-                            }
+                                    ? STRINGS.common.device_value_on
+                                    : STRINGS.common.device_value_add,
+                                locale,
+                                { device: deviceName(bp) },
+                            )}
                         >
                             <BpIcon breakpoint={bp} />
                         </button>

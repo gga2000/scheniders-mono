@@ -41,6 +41,29 @@ const RULE_SETS: readonly RuleSet[] = [
         },
     },
     {
+        // about_spotlight: "split" puts the photo beside the words, so there
+        // is no shade over it.
+        switchKey: "layout",
+        rules: {
+            overlay_opacity: (s) => s.layout !== "split",
+        },
+    },
+    {
+        // product_grid: search and page size belong to the full-catalogue
+        // bar; without it the grid has neither.
+        switchKey: "catalog_controls",
+        rules: {
+            catalog_search: (s) => s.catalog_controls === true,
+            catalog_page_size: (s) => s.catalog_controls === true,
+        },
+    },
+    {
+        switchKey: "show_category_links",
+        rules: {
+            category_links_limit: (s) => s.show_category_links === true,
+        },
+    },
+    {
         switchKey: "product_faq",
         rules: {
             items: (s) => !hasProductFaq(s),

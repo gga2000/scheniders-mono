@@ -157,12 +157,9 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                 data-testid="inspector-rail-tabs"
                 className="shrink-0 border-b border-(--card-border) p-2"
             >
-                <div
-                    className={cn(
-                        "grid gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1",
-                        showSeoTab ? "grid-cols-4" : "grid-cols-3",
-                    )}
-                >
+                {/* Flex, not equal grid columns: a long label («صحة المتجر»)
+                    takes the room it needs instead of wrapping to two lines. */}
+                <div className="flex gap-0.5 rounded-full border border-(--card-border) bg-(--background-soft) p-1">
                     <InspectorTabBtn
                         icon={<BlocksIcon className="h-3.5 w-3.5" aria-hidden="true" />}
                         label={t(STRINGS.inspector.tab_blocks, locale)}
@@ -280,7 +277,7 @@ function InspectorTabBtn({
             data-testid={testId}
             onClick={onClick}
             className={cn(
-                "flex items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                "flex flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2 py-1.5 text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                 active
                     ? "bg-(--card-bg) text-foreground shadow-(--card-shadow)"
                     : "text-muted-foreground hover:text-foreground",

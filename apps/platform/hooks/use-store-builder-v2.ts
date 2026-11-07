@@ -75,13 +75,6 @@ export interface UseStoreBuilderV2Options {
     hasPublished: boolean;
     /** Whether the initial config came from a draft (so we start dirty). */
     initiallyDirty?: boolean;
-    /**
-     * EC33: the DB row's `updated_at` (epoch ms) at hydration. A local crash
-     * backup is only offered when it's NEWER than this — otherwise the DB has
-     * been saved/published since the backup was written (e.g. from another
-     * device), so the backup is stale and must not resurrect over newer work.
-     */
-    initialUpdatedAt?: number | null;
     /** BUG25: published rev counter at hydration; publish rejects a stale base. */
     initialRev?: number;
 }
@@ -279,7 +272,6 @@ export function useStoreBuilderV2(
         initialConfig,
         hasPublished,
         initiallyDirty = false,
-        initialUpdatedAt = null,
         initialRev = 0,
     } = options;
 
@@ -664,7 +656,7 @@ export function useStoreBuilderV2(
             try {
                 window.localStorage.setItem(
                     localBackupKey(tenantId),
-                    JSON.stringify({ saved_at: Date.now(), config: configRef.current }),
+                    JSON.stringify({ saved_at: Date.now(), config: configRef.current, rev: expectedRevRef.current }),
                 );
             } catch {
                 // Swallow quota / serialization errors.
@@ -698,7 +690,7 @@ export function useStoreBuilderV2(
             try {
                 window.localStorage.setItem(
                     localBackupKey(tenantId),
-                    JSON.stringify({ saved_at: Date.now(), config: configRef.current }),
+                    JSON.stringify({ saved_at: Date.now(), config: configRef.current, rev: expectedRevRef.current }),
                 );
             } catch {
                 // Swallow quota / serialization errors.
@@ -719,7 +711,7 @@ export function useStoreBuilderV2(
             try {
                 window.localStorage.setItem(
                     localBackupKey(tenantId),
-                    JSON.stringify({ saved_at: Date.now(), config }),
+                    JSON.stringify({ saved_at: Date.now(), config, rev: expectedRevRef.current }),
                 );
             } catch {
                 // Swallow quota / serialization errors.
@@ -1107,17 +1099,16 @@ export function useStoreBuilderV2(
             const parsed = JSON.parse(raw) as {
                 saved_at?: number;
                 config?: StoreConfigV2;
+                rev?: number;
             };
             if (!parsed?.config || typeof parsed.saved_at !== "number") return;
-            // EC33: the backup is keyed only by tenant, so it can belong to an
-            // OLDER session than what's now in the DB (e.g. another device saved
-            // or published since). If the DB was updated at/after the backup's
-            // timestamp, the backup is stale — drop it rather than offer to
-            // resurrect it over newer work.
-            if (
-                typeof initialUpdatedAt === "number" &&
-                parsed.saved_at <= initialUpdatedAt
-            ) {
+            // EC33: the backup is keyed only by tenant, so it can predate a
+            // publish made since (e.g. from another device). Each backup
+            // records the publish counter it was written against; once the
+            // store has been published past it, the backup is stale. This is
+            // deliberately NOT the row's updated_at: unrelated writes to the
+            // tenant row move that too and would silently drop unsaved work.
+            if (typeof parsed.rev === "number" && parsed.rev < initialRev) {
                 window.localStorage.removeItem(localBackupKey(tenantId));
                 return;
             }
