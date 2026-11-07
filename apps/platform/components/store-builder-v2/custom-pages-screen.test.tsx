@@ -4,7 +4,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { StoreConfigV2, CustomPage } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
-import { CustomPagesScreen } from "./custom-pages-screen";
+import { CustomPagesScreen, redirectsAfterSlugChange } from "./custom-pages-screen";
 
 afterEach(cleanup);
 
@@ -54,8 +54,32 @@ describe("CustomPagesScreen", () => {
             target: { value: "New Slug" },
         });
         expect(applyLast(setConfig, config).custom_pages?.[0].slug).toBe("new-slug");
+        const calls = setConfig.mock.calls.length;
         fireEvent.click(screen.getByTestId("custom-page-remove-0"));
+        // First click only asks; nothing is deleted yet.
+        expect(setConfig.mock.calls.length).toBe(calls);
+        fireEvent.click(screen.getByTestId("custom-page-remove-confirm-0"));
         expect(applyLast(setConfig, config).custom_pages).toHaveLength(0);
+    });
+
+    it("forwards the old address when a slug rename is finished", () => {
+        const pages: CustomPage[] = [
+            { id: "p1", slug: "new", title: { en: "X" }, sections: [], hidden: false },
+        ];
+        const { builder, setConfig } = makeBuilder(pages);
+        render(<CustomPagesScreen builder={builder} onClose={() => {}} />);
+        const input = screen.getByTestId("custom-page-slug-0");
+        // Focus captured "old"-er value: simulate the merchant starting from "old".
+        (builder.config.custom_pages as CustomPage[])[0].slug = "old";
+        fireEvent.focus(input);
+        (builder.config.custom_pages as CustomPage[])[0].slug = "new";
+        fireEvent.blur(input);
+        const cfg = { schema_version: 2, redirects: [{ from: "/x", to: "/p/old" }] } as unknown as StoreConfigV2;
+        const next = applyLast(setConfig, cfg);
+        expect(next.redirects).toEqual([
+            { from: "/x", to: "/p/new" },
+            { from: "/p/old", to: "/p/new", permanent: true },
+        ]);
     });
 
     it("fires onEditSections(id) when 'Edit sections' is clicked (E4)", () => {
@@ -158,5 +182,18 @@ describe("guide details (W7.6)", () => {
         });
         const next = applyLast(setConfig, config);
         expect(next.custom_pages?.[0].article?.author).toBeUndefined();
+    });
+});
+
+describe("redirectsAfterSlugChange", () => {
+    it("drops a rule from the new address so it cannot shadow the page", () => {
+        expect(
+            redirectsAfterSlugChange([{ from: "/p/new", to: "/p/other" }], "old", "new"),
+        ).toEqual([{ from: "/p/old", to: "/p/new", permanent: true }]);
+    });
+
+    it("does not duplicate an existing rule from the old address", () => {
+        const rules = [{ from: "/p/old", to: "/p/elsewhere" }];
+        expect(redirectsAfterSlugChange(rules, "old", "new")).toEqual(rules);
     });
 });

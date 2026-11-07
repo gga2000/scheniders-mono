@@ -9,12 +9,13 @@
 // per-page section tree is edited elsewhere; this screen owns page metadata.
 // =====================================================================
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { X, Plus, Trash2, FileText, EyeOff, PencilRuler, BookOpen } from "lucide-react";
 import {
     normalizeSlug,
     validateSlug,
     type CustomPage,
+    type RedirectRule,
     type SlugIssue,
 } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,26 @@ const SLUG_MESSAGE: Record<NonNullable<SlugIssue>, string> = {
     duplicate: "Another page already uses this slug",
 };
 
+/**
+ * Redirect rules after a page moves from `/p/<from>` to `/p/<to>`: old links
+ * (ads, WhatsApp shares, search results) keep working. Rules that pointed at
+ * the old address now point at the new one (no chains), and a rule FROM the
+ * new address is dropped so it cannot shadow the page.
+ */
+export function redirectsAfterSlugChange(
+    rules: RedirectRule[],
+    fromSlug: string,
+    toSlug: string,
+): RedirectRule[] {
+    const from = `/p/${fromSlug}`;
+    const to = `/p/${toSlug}`;
+    const next = rules
+        .filter((r) => r.from !== to)
+        .map((r) => (r.to === from ? { ...r, to } : r));
+    if (!next.some((r) => r.from === from)) next.push({ from, to, permanent: true });
+    return next;
+}
+
 const inputCls =
     "rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
 
@@ -52,7 +73,15 @@ export function CustomPagesScreen({
     onEditSections,
 }: CustomPagesScreenProps): React.ReactElement {
     const pages: CustomPage[] = builder.config.custom_pages ?? [];
+    // Titles are written in the store's main language (an Arabic store sees
+    // and edits its Arabic title, not an empty English one).
+    const locale = builder.config.default_locale ?? "ar";
     const [draftTitle, setDraftTitle] = useState("");
+    // Slug each page had when its slug field was focused, so a finished
+    // rename (on blur) can forward the old address.
+    const slugAtFocus = useRef<Map<string, string>>(new Map());
+    const [forwarded, setForwarded] = useState<Record<string, string>>({});
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
     const setPages = useCallback(
         (next: CustomPage[]): void => {
@@ -74,15 +103,32 @@ export function CustomPagesScreen({
         while (validateSlug(slug, pages) !== null) slug = `${base}-${n++}`;
         setPages([
             ...pages,
-            { id: newId(), slug, title: { en: title }, sections: [], hidden: false },
+            { id: newId(), slug, title: { [locale]: title }, sections: [], hidden: false },
         ]);
         setDraftTitle("");
     };
 
     const updatePage = (i: number, patch: Partial<CustomPage>): void =>
         setPages(pages.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
-    const removePage = (i: number): void =>
+    const removePage = (i: number): void => {
+        setConfirmDelete(null);
         setPages(pages.filter((_, idx) => idx !== i));
+    };
+
+    const finishSlugEdit = (page: CustomPage): void => {
+        const before = slugAtFocus.current.get(page.id);
+        slugAtFocus.current.delete(page.id);
+        if (!before || before === page.slug) return;
+        if (validateSlug(page.slug, pages, page.id) !== null) return;
+        builder.setConfig(
+            (prev) => ({
+                ...prev,
+                redirects: redirectsAfterSlugChange(prev.redirects ?? [], before, page.slug),
+            }),
+            "Forwarded old page address",
+        );
+        setForwarded((f) => ({ ...f, [page.id]: before }));
+    };
 
     return (
         <div
@@ -157,9 +203,9 @@ export function CustomPagesScreen({
                                             type="text"
                                             aria-label="Page title"
                                             data-testid={`custom-page-title-${i}`}
-                                            value={resolveI18n(p.title, "en")}
+                                            value={resolveI18n(p.title, locale)}
                                             onChange={(e) =>
-                                                updatePage(i, { title: { ...p.title, en: e.target.value } })
+                                                updatePage(i, { title: { ...p.title, [locale]: e.target.value } })
                                             }
                                             className={cn(inputCls, "flex-1 min-w-32")}
                                         />
@@ -170,6 +216,8 @@ export function CustomPagesScreen({
                                             aria-label="Page slug"
                                             data-testid={`custom-page-slug-${i}`}
                                             value={p.slug}
+                                            onFocus={() => slugAtFocus.current.set(p.id, p.slug)}
+                                            onBlur={() => finishSlugEdit(p)}
                                             onChange={(e) =>
                                                 updatePage(i, { slug: normalizeSlug(e.target.value) })
                                             }
@@ -200,18 +248,41 @@ export function CustomPagesScreen({
                                                 Edit sections
                                             </button>
                                         )}
-                                        <button
-                                            type="button"
-                                            aria-label="Delete page"
-                                            data-testid={`custom-page-remove-${i}`}
-                                            onClick={() => removePage(i)}
-                                            className={cn(
-                                                "inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600",
-                                                !onEditSections && "ml-auto",
-                                            )}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
+                                        {confirmDelete === p.id ? (
+                                            <span className={cn("inline-flex items-center gap-1.5", !onEditSections && "ml-auto")}>
+                                                <span className="text-xs text-rose-700">
+                                                    Delete /p/{p.slug}? Links to it will show «page not found».
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    data-testid={`custom-page-remove-confirm-${i}`}
+                                                    onClick={() => removePage(i)}
+                                                    className="inline-flex h-8 items-center rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white hover:bg-rose-700"
+                                                >
+                                                    Delete
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setConfirmDelete(null)}
+                                                    className="inline-flex h-8 items-center rounded-lg border border-(--card-border) px-3 text-xs font-medium"
+                                                >
+                                                    Keep
+                                                </button>
+                                            </span>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                aria-label="Delete page"
+                                                data-testid={`custom-page-remove-${i}`}
+                                                onClick={() => setConfirmDelete(p.id)}
+                                                className={cn(
+                                                    "inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600",
+                                                    !onEditSections && "ml-auto",
+                                                )}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
                                     {issue && (
                                         <p
@@ -219,6 +290,14 @@ export function CustomPagesScreen({
                                             className="mt-1.5 text-xs text-rose-600"
                                         >
                                             {SLUG_MESSAGE[issue]}
+                                        </p>
+                                    )}
+                                    {forwarded[p.id] && !issue && (
+                                        <p
+                                            data-testid={`custom-page-forwarded-${i}`}
+                                            className="mt-1.5 text-xs text-emerald-700"
+                                        >
+                                            Old link /p/{forwarded[p.id]} now opens this page.
                                         </p>
                                     )}
                                     <p className="mt-1 text-xs text-muted-foreground">
