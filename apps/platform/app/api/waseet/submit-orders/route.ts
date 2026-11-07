@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyAccessToken, createSupabaseServiceClient } from "@/lib/supabase-server";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { authorizeWaseetCaller, WASEET_READ_ROLES } from "@/lib/waseet-caller";
 import {
     createWaseetOrder,
     mapOrderToWaseet,
@@ -7,13 +8,9 @@ import {
     getDefaultPackageSizeId,
 } from "@/lib/waseet-api";
 import type { Order } from "@/types/order";
-import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import type { WaseetSubmitResult } from "@/types/waseet";
 import { waseetSubmitBodySchema, toOrderUuids, MAX_WASEET_ORDERS_PER_REQUEST } from "@/lib/order-api-schemas";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
-
-/** Roles allowed to dispatch real shipments. `viewer` is read-only. */
-const SHIP_ALLOWED_ROLES = ["admin", "super_admin", "employee"];
 
 export const maxDuration = 60;
 
@@ -29,16 +26,10 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
     try {
         // 1. Auth
-        const authHeader = request.headers.get("Authorization");
-        const token = authHeader?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json({ success: false, error: "Missing Authorization header" }, { status: 401 });
-        }
-
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-        }
+        // Shipping is a real-world, billable side effect on the shared
+        // Al-Waseet account: an active member of an allowed store, never a viewer.
+        const caller = await authorizeWaseetCaller(request, WASEET_READ_ROLES);
+        if (!caller.ok) return caller.response;
 
         // 2. Parse request
         const parsedBody = waseetSubmitBodySchema.safeParse(await request.json());
@@ -53,23 +44,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: "No valid order ids provided" }, { status: 400 });
         }
 
-        // 2b. Resolve the caller's tenant from their session — the orders we
-        // ship must belong to them, regardless of which ids they sent.
-        // Only while they are an active member of it, with their role there.
-        const active = await resolveActiveTenant(user.id);
-        if (!active.ok) {
-            return NextResponse.json({ success: false, error: active.error }, { status: active.status });
-        }
-
-        // Shipping is a real-world, billable side effect — gate it like deletion.
-        if (!SHIP_ALLOWED_ROLES.includes(active.role)) {
-            return NextResponse.json(
-                { success: false, error: "You do not have permission to ship orders" },
-                { status: 403 },
-            );
-        }
-
-        const tenantId = active.tenantId;
+        const tenantId = caller.tenantId;
         const supabaseAdmin = createSupabaseServiceClient();
 
         // 3. Load dependencies
@@ -106,7 +81,7 @@ export async function POST(request: NextRequest) {
         let failed = 0;
 
         for (const order of orders as Order[]) {
-            const result = await processOrder(order, cityMappings, defaultPackageSizeId, supabaseAdmin, user.id);
+            const result = await processOrder(order, cityMappings, defaultPackageSizeId, supabaseAdmin, caller.userId);
             results.push(result);
             if (result.success) {
                 submitted++;
