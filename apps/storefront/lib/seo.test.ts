@@ -16,6 +16,7 @@ import {
   storeCanonical,
   metaDescription,
   storeDisplayName,
+  storeOgImage,
 } from "./seo";
 
 describe("itemListJsonLd", () => {
@@ -468,5 +469,32 @@ describe("metaDescription", () => {
   it("returns nothing for empty text", () => {
     expect(metaDescription("  \n ")).toBeUndefined();
     expect(metaDescription(null)).toBeUndefined();
+  });
+});
+
+describe("storeOgImage", () => {
+  const home = (og?: string) => [{ page_id: "home", sections: [], meta: og ? { og_image_url: og } : undefined }];
+
+  it("prefers the brand kit image", () => {
+    expect(
+      storeOgImage({
+        store_config: { seo: { og_image_url: "https://x/legacy.jpg" } },
+        store_config_v2: { brand_kit: { identity: { og_image_url: "https://x/brand.jpg" } }, pages: home("https://x/home.jpg") },
+      }),
+    ).toBe("https://x/brand.jpg");
+  });
+
+  it("falls back to legacy SEO, then the home page image", () => {
+    expect(
+      storeOgImage({ store_config: { seo: { og_image_url: "https://x/legacy.jpg" } }, store_config_v2: { pages: home("https://x/home.jpg") } }),
+    ).toBe("https://x/legacy.jpg");
+    expect(storeOgImage({ store_config_v2: { brand_kit: { identity: { og_image_url: "" } }, pages: home("https://x/home.jpg") } })).toBe(
+      "https://x/home.jpg",
+    );
+  });
+
+  it("is undefined when nothing is set or pages are malformed", () => {
+    expect(storeOgImage({ store_config_v2: { pages: "bad" } })).toBeUndefined();
+    expect(storeOgImage({})).toBeUndefined();
   });
 });

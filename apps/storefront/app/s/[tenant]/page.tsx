@@ -24,6 +24,7 @@ import {
   organizationJsonLd,
   websiteJsonLd,
   storeDisplayName,
+  storeOgImage,
 } from "@/lib/seo";
 
 const TEMPLATE_NAMES = new Set<TemplateName>([
@@ -47,6 +48,7 @@ export async function generateMetadata({
   const v2 = tenant?.store_config_v2 ?? null;
   const base = resolveV2PageMetadata(v2, "home", v2?.default_locale ?? "ar");
   const { baseUrl } = await getStorefrontBase(tenantParam);
+  const ogImage = tenant ? storeOgImage(tenant) : undefined;
   // A page-level openGraph replaces (not merges) the layout's, so re-apply the
   // og defaults (type/locale/siteName) here, keeping the page's title/image.
   return {
@@ -56,6 +58,7 @@ export async function generateMetadata({
       type: "website",
       locale: ogLocaleFor(v2?.default_locale),
       ...(tenant ? { siteName: storeDisplayName(tenant) } : {}),
+      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
       ...(base.openGraph ?? {}),
       ...(baseUrl ? { url: baseUrl } : {}),
     },

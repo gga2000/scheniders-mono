@@ -94,6 +94,29 @@ export function storeDisplayName(tenant: {
 }
 
 /**
+ * The store-wide link-preview image: the brand kit's share image, else the
+ * legacy `store_config.seo` one, else the home page's own SEO image. Pages
+ * that set their own `openGraph` replace the layout's (Next does not merge
+ * it), so they must re-apply this or the share card loses its picture.
+ */
+export function storeOgImage(tenant: {
+  store_config?: { seo?: { og_image_url?: string | null } | null } | null;
+  store_config_v2?: {
+    brand_kit?: { identity?: { og_image_url?: string | null } };
+    pages?: unknown;
+  } | null;
+}): string | undefined {
+  const v2 = tenant.store_config_v2;
+  const pages = Array.isArray(v2?.pages) ? (v2.pages as PageConfig[]) : [];
+  const homeImage = pages.find((p) => p.page_id === "home")?.meta?.og_image_url;
+  const url =
+    v2?.brand_kit?.identity?.og_image_url?.trim() ||
+    tenant.store_config?.seo?.og_image_url?.trim() ||
+    homeImage?.trim();
+  return url || undefined;
+}
+
+/**
  * A page description for search results and link previews: one line, at most
  * `max` characters, cut at a word boundary. Product descriptions are long,
  * multi-paragraph stories; search engines show ~160 characters and a share

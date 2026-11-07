@@ -28,9 +28,11 @@ import {
     FlaskConical,
     MapPin,
     MessageCircle,
+    Monitor,
     Moon,
     Search,
     Smartphone,
+    Tablet,
     Truck,
     X,
 } from "lucide-react";
@@ -50,6 +52,7 @@ import {
 import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { VARIANT_KIND_ICON } from "./variant-list";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Kind catalog                                                         */
@@ -59,7 +62,6 @@ export type VariantKind = VariantCondition["kind"];
 
 interface KindCard {
     kind: VariantKind;
-    emoji: string;
     title: string;
     description: string;
 }
@@ -67,55 +69,46 @@ interface KindCard {
 export const VARIANT_KIND_CARDS: KindCard[] = [
     {
         kind: "locale",
-        emoji: "🌐",
         title: "A different language",
         description: "Override copy and assets per locale.",
     },
     {
         kind: "breakpoint",
-        emoji: "📱",
         title: "A specific device",
         description: "Tailor the section for mobile, tablet, or desktop.",
     },
     {
         kind: "time_window",
-        emoji: "📅",
         title: "At a scheduled time",
         description: "Activate the variant during a specific window.",
     },
     {
         kind: "audience",
-        emoji: "🎯",
         title: "For a customer segment",
         description: "Show different content to a targeted audience.",
     },
     {
         kind: "ab_test",
-        emoji: "⚗️",
         title: "For an A/B test",
         description: "Bind this variant to one experiment arm.",
     },
     {
         kind: "governorate",
-        emoji: "📍",
         title: "For specific governorates",
         description: "Geo-target visitors by Iraqi governorate.",
     },
     {
         kind: "product",
-        emoji: "🛍",
         title: "For specific products",
         description: "Override on the product detail page only.",
     },
     {
         kind: "category",
-        emoji: "📁",
         title: "For specific categories",
         description: "Scope to one or more product categories.",
     },
     {
         kind: "page",
-        emoji: "📄",
         title: "For specific pages",
         description: "Limit the override to certain pages.",
     },
@@ -148,10 +141,10 @@ const BREAKPOINT_LABELS: Record<Breakpoint, string> = {
     desktop: "Desktop",
 };
 
-const BREAKPOINT_EMOJI: Record<Breakpoint, string> = {
-    mobile: "📱",
-    tablet: "🖥️",
-    desktop: "🖥",
+const BREAKPOINT_ICON: Record<Breakpoint, typeof Smartphone> = {
+    mobile: Smartphone,
+    tablet: Tablet,
+    desktop: Monitor,
 };
 
 const TIMEZONE_OPTIONS: Array<{ value: string; label: string }> = [
@@ -836,12 +829,7 @@ function Step1Kind({ onPick, onPickPreset, sectionType }: Step1Props): ReactElem
                                     onClick={() => onPick(c.kind)}
                                     className="flex w-full items-start gap-3 rounded-md border border-(--card-border) bg-(--card-bg) p-3 text-left transition-colors hover:border-primary/50 hover:bg-primary/5"
                                 >
-                                    <span
-                                        aria-hidden="true"
-                                        className="text-xl leading-none"
-                                    >
-                                        {c.emoji}
-                                    </span>
+                                    <KindCardIcon kind={c.kind} />
                                     <div className="min-w-0 flex-1">
                                         <div className="text-sm font-semibold">{c.title}</div>
                                         <div className="mt-0.5 text-[11px] text-foreground/80">
@@ -1102,7 +1090,7 @@ function BreakpointStep({
                                     data-testid={`variant-wizard-breakpoint-${b}`}
                                     onChange={() => toggle(b)}
                                 />
-                                <span aria-hidden="true">{BREAKPOINT_EMOJI[b]}</span>
+                                <BreakpointIcon breakpoint={b} />
                                 <span className="font-medium">{BREAKPOINT_LABELS[b]}</span>
                             </label>
                         </li>
@@ -1634,4 +1622,21 @@ function defaultLabelForCondition(c: VariantCondition): string {
                 ? `Pages (${c.values.length})`
                 : `${PAGE_LABELS[c.values[0]]} page`;
     }
+}
+
+function KindCardIcon({ kind }: { kind: VariantKind }): ReactElement {
+    const Icon = VARIANT_KIND_ICON[kind];
+    return (
+        <span
+            aria-hidden="true"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
+        >
+            <Icon className="h-4 w-4" />
+        </span>
+    );
+}
+
+function BreakpointIcon({ breakpoint }: { breakpoint: Breakpoint }): ReactElement {
+    const Icon = BREAKPOINT_ICON[breakpoint];
+    return <Icon aria-hidden="true" className="h-4 w-4 text-muted-foreground" />;
 }

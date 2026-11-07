@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import {
     DndContext,
     PointerSensor,
@@ -34,6 +34,7 @@ import {
     type PreviewPageConfig,
 } from "@/hooks/use-iframe-bridge";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
+import { useEditorCoEditors } from "@/hooks/use-editor-co-editors";
 import { healthContextFor, type TenantContactFields } from "@/lib/health-context";
 import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import { PageTree, getPageLabel, type SettingsSectionId } from "./page-tree";
@@ -218,6 +219,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialRev,
     });
     const liveStorefrontUrl = useStorefrontUrl(tenant.slug, tenant.id);
+    const co_editors = useEditorCoEditors(tenant.id);
 
     const builder = builderOverride ?? liveBuilder;
     const storefrontUrl = storefrontUrlOverride ?? liveStorefrontUrl;
@@ -596,6 +598,19 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         preview_as,
         bridge,
     ]);
+
+    // Brand kit → preview, live. The iframe renders the SAVED draft's kit;
+    // push the current one whenever it changes or the frame (re)connects,
+    // so colour/font edits show before the autosave lands.
+    const bridge_ready = bridge.state.ready;
+    const postBrandKitUpdate = bridge.postBrandKitUpdate;
+    useEffect(() => {
+        if (!bridge_ready) return;
+        const handle = setTimeout(() => {
+            postBrandKitUpdate(builder.config.brand_kit);
+        }, 100);
+        return () => clearTimeout(handle);
+    }, [builder.config.brand_kit, bridge_ready, postBrandKitUpdate]);
 
     /* ── Page navigation: full reload of the iframe ───────────────── */
     //
@@ -1571,7 +1586,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     onPublishAnyway={handlePublishAnyway}
                     onJumpToFix={handlePublishJumpToFix}
                     busy={publishBusy}
-                    error={builder.save_state === "error"}
+                    error={builder.publish_error}
                     config={builder.config}
                     publishedConfig={publishedConfig ?? null}
                 />
@@ -1654,6 +1669,25 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     >
                         {t(STRINGS.publish.conflict_reload, builder.active_locale)}
                     </button>
+                </div>
+            )}
+
+            {(co_editors.others.length > 0 || co_editors.otherTab) && (
+                <div
+                    role="status"
+                    data-testid="co-editor-banner"
+                    className="flex items-center gap-2 border-b border-amber-300 bg-amber-50 px-5 py-2 text-sm text-amber-900"
+                >
+                    <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>
+                        {co_editors.others.length > 0
+                            ? tFormat(STRINGS.publish.co_editor_people, builder.active_locale, {
+                                  names: co_editors.others.join(
+                                      builder.active_locale === "en" ? ", " : "، ",
+                                  ),
+                              })
+                            : t(STRINGS.publish.co_editor_tab, builder.active_locale)}
+                    </span>
                 </div>
             )}
 
@@ -1992,7 +2026,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 onPublishAnyway={handlePublishAnyway}
                 onJumpToFix={handlePublishJumpToFix}
                 busy={publishBusy}
-                error={builder.save_state === "error"}
+                error={builder.publish_error}
                 config={builder.config}
                 publishedConfig={publishedConfig ?? null}
             />

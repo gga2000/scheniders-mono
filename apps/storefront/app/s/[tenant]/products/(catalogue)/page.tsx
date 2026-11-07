@@ -15,7 +15,7 @@ import { V2Page } from "@/components/v2-page";
 import { SchneidersPageShell } from "@/components/schneiders/page-shell";
 import { PageHeader } from "@/components/schneiders/content-page";
 import { SchneidersSearchView } from "@/components/schneiders/search-view";
-import { storeCanonical, storeDisplayName } from "@/lib/seo";
+import { storeCanonical, storeDisplayName, storeOgImage } from "@/lib/seo";
 
 interface Props {
   params: Promise<{ tenant: string }>;
@@ -27,7 +27,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tenant) return { title: "Store not found" };
   const locale = tenant.store_config_v2?.default_locale ?? "ar";
   const title = `${resolveI18n(CATALOG_HEADING, locale)} — ${storeDisplayName(tenant)}`;
-  return { title, ...(await storeCanonical(tenantParam, "/products")), openGraph: { title } };
+  const image = storeOgImage(tenant);
+  return {
+    title,
+    ...(await storeCanonical(tenantParam, "/products")),
+    openGraph: { title, ...(image ? { images: [{ url: image }] } : {}) },
+  };
 }
 
 export default async function AllProductsPage({ params }: Props) {

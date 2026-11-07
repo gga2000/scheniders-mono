@@ -234,7 +234,7 @@ describe("PublishConfirmSheet — diff section", () => {
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}
-                error
+                error="failed"
                 config={makeConfig({})}
                 publishedConfig={null}
             />,
@@ -253,12 +253,32 @@ describe("PublishConfirmSheet — diff section", () => {
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}
-                error
+                error="failed"
                 busy
                 config={makeConfig({})}
                 publishedConfig={null}
             />,
         );
         expect(screen.queryByTestId("publish-confirm-sheet-error")).toBeNull();
+    });
+
+    it("offers Reload, not Retry, when someone else published first", () => {
+        render(
+            <PublishConfirmSheet
+                open
+                blockingChecks={[]}
+                onClose={() => {}}
+                onPublishAnyway={() => {}}
+                onJumpToFix={() => {}}
+                error="conflict"
+                config={makeConfig({})}
+                publishedConfig={null}
+            />,
+        );
+        expect(screen.getByTestId("publish-confirm-sheet-error").textContent).toMatch(
+            /someone else published/i,
+        );
+        expect(screen.getByTestId("publish-confirm-sheet-reload")).toBeTruthy();
+        expect(screen.queryByTestId("publish-confirm-sheet-publish-anyway")).toBeNull();
     });
 });

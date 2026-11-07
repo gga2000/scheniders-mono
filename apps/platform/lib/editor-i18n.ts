@@ -454,9 +454,13 @@ export const STRINGS = {
         retry: { en: "Retry publish", ar: "إعادة المحاولة", ku: "دووبارە هەوڵبدەرەوە" },
         conflict_message: { en: "Someone else published changes since you opened the editor. Reload to get the latest before publishing again — your draft is kept.", ar: "قام شخص آخر بنشر تغييرات منذ فتحك المحرر. أعد التحميل للحصول على الأحدث قبل النشر مجدداً — مسودتك محفوظة.", ku: "کەسێکی تر گۆڕانکاری بڵاوکردەوە لەو کاتەوەی دەستکاریکەرەکەت کردەوە. دووبارە باری بکەرەوە بۆ وەرگرتنی نوێترین پێش بڵاوکردنەوە — ڕەشنووسەکەت پارێزراوە." },
         conflict_reload: { en: "Reload", ar: "إعادة التحميل", ku: "دووبارە بارکردنەوە" },
+        // Another editor open at the same time: whole-draft saves overwrite
+        // each other, so warn before work is lost.
+        co_editor_people: { en: "{names} is also editing the store. Edit one at a time, or your changes can overwrite each other.", ar: "{names} يعدّل المتجر هسه. عدّلوا واحد واحد حتى ما تمسح تعديلات أحدكم الثاني.", ku: "{names} ئێستا دەستکاری فرۆشگا دەکات. یەک یەک دەستکاری بکەن، دەنا گۆڕانکارییەکان یەکتر دەسڕنەوە." },
+        co_editor_tab: { en: "The editor is open in another tab too. Close one, or your changes can overwrite each other.", ar: "المحرر مفتوح بتبويب ثاني هم. سدّ واحد حتى ما تمسح التعديلات بعضها.", ku: "دەستکاریکەر لە تابێکی تریشدا کراوەیە. یەکێکیان دابخە، دەنا گۆڕانکارییەکان یەکتر دەسڕنەوە." },
         // Post-publish success dialog — the peak moment. Celebrate + hand
         // over the live link.
-        success_title: { en: "Your store is live! 🎉", ar: "متجرك صار مباشراً! 🎉", ku: "فرۆشگاکەت بڵاوبووەوە! 🎉" },
+        success_title: { en: "Your store is live!", ar: "متجرك صار مباشراً!", ku: "فرۆشگاکەت بڵاوبووەوە!" },
         success_subtitle: { en: "Share the link with your customers — orders can start right now.", ar: "شارك الرابط مع زبائنك — تكدر تستقبل الطلبات من الآن.", ku: "بەستەرەکە لەگەڵ کڕیارەکانت هاوبەش بکە — لە ئێستاوە داواکاری وەربگرە." },
         success_view: { en: "View my store", ar: "شاهد متجرك", ku: "فرۆشگاکەم ببینە" },
         success_copy: { en: "Copy link", ar: "نسخ الرابط", ku: "بەستەر کۆپی بکە" },
@@ -845,7 +849,7 @@ export const STRINGS = {
 
     /* ── Post-wizard welcome (one-time overlay) ───────────────── */
     welcome: {
-        title: { en: "Your store is ready! 🎉", ar: "متجرك جاهز! 🎉", ku: "فرۆشگاکەت ئامادەیە! 🎉" },
+        title: { en: "Your store is ready!", ar: "متجرك جاهز!", ku: "فرۆشگاکەت ئامادەیە!" },
         subtitle: { en: "We built it from your answers — here's all you need to know:", ar: "بنيناه من إجاباتك — هذا كل اللي تحتاج تعرفه:", ku: "لە وەڵامەکانتەوە دروستمان کرد — ئەمە هەموو ئەوەیە کە پێویستە بیزانیت:" },
         bullet_edit: { en: "Click any text or image on the page to edit it.", ar: "اضغط على أي نص أو صورة بالصفحة لتعديلها.", ku: "کلیک لە هەر دەق یان وێنەیەک بکە لە پەڕەکە بۆ دەستکاری." },
         bullet_autosave: { en: "Everything saves automatically as you work.", ar: "كل شيء يُحفظ تلقائياً وأنت تشتغل.", ku: "هەموو شتێک بە خۆکار خەزن دەبێت کاتێک کاردەکەیت." },
@@ -946,7 +950,7 @@ export const STRINGS = {
         launch_step_publish: { en: "Publish your store", ar: "انشر متجرك", ku: "فرۆشگاکەت بڵاوبکەرەوە" },
         launch_step_publish_hint: { en: "Use the Publish button at the top when the steps above are done.", ar: "استخدم زر «نشر» في الأعلى بعد إكمال الخطوات.", ku: "دوگمەی «بڵاوکردنەوە» لە سەرەوە بەکاربهێنە دوای تەواوکردنی هەنگاوەکان." },
         launch_fix: { en: "Do it", ar: "أكملها", ku: "تەواوی بکە" },
-        launch_all_done: { en: "All set — your store is live! 🎉", ar: "كل شيء تمام — متجرك مباشر! 🎉", ku: "هەموو شت تەواوە — فرۆشگاکەت بڵاوە! 🎉" },
+        launch_all_done: { en: "All set — your store is live!", ar: "كل شيء تمام — متجرك مباشر!", ku: "هەموو شت تەواوە — فرۆشگاکەت بڵاوە!" },
         // Inline WhatsApp capture inside the checklist row (S3-01)
         launch_whatsapp_placeholder: { en: "07XXXXXXXXX", ar: "07XXXXXXXXX", ku: "07XXXXXXXXX" },
         launch_whatsapp_save: { en: "Save", ar: "حفظ", ku: "پاشەکەوت" },

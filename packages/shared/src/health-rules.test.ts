@@ -453,3 +453,26 @@ describe("runHealthChecks — checks match what the storefront shows", () => {
         expect(c?.status).toBe("pass");
     });
 });
+
+describe("runHealthChecks — og_image_set", () => {
+    const status = (cfg: StoreConfigV2) =>
+        runHealthChecks(cfg).checks.find((c) => c.id === "og_image_set")?.status;
+
+    it("fails with no share image anywhere", () => {
+        expect(status(freshEmpty())).toBe("fail");
+    });
+
+    it("passes on the home page's own SEO image (the storefront falls back to it)", () => {
+        const cfg = freshEmpty();
+        const home = cfg.pages.find((p) => p.page_id === "home");
+        if (!home) throw new Error("fixture has no home page");
+        home.meta = { ...home.meta, og_image_url: "https://cdn/home.jpg" };
+        expect(status(cfg)).toBe("pass");
+    });
+
+    it("treats a blank brand image as missing", () => {
+        const cfg = freshEmpty();
+        cfg.brand_kit.identity.og_image_url = "  ";
+        expect(status(cfg)).toBe("fail");
+    });
+});

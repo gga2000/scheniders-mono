@@ -25,6 +25,9 @@ vi.mock("@/lib/supabase", () => ({
 vi.mock("@/hooks/use-storefront-url", () => ({
     useStorefrontUrl: () => "http://localhost:3001/s/test-store",
 }));
+vi.mock("@/hooks/use-editor-co-editors", () => ({
+    useEditorCoEditors: () => ({ others: [], otherTab: false }),
+}));
 
 // User preferences reach useAuth (needs AuthProvider); stub to in-memory.
 // Tests run with no saved preference → editor opens in Simple mode, same
@@ -54,6 +57,7 @@ interface MockBridgeSpies {
     state: { ready: boolean; inline_editing?: boolean };
     postPageConfigUpdate: ReturnType<typeof vi.fn>;
     postRuntimeUpdate: ReturnType<typeof vi.fn>;
+    postBrandKitUpdate: ReturnType<typeof vi.fn>;
     postPageIdChange: ReturnType<typeof vi.fn>;
     scrollToSection: ReturnType<typeof vi.fn>;
     requestRect: ReturnType<typeof vi.fn>;
@@ -78,6 +82,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
                 state: { ready: false, inline_editing: false },
                 postPageConfigUpdate: vi.fn(),
                 postRuntimeUpdate: vi.fn(),
+                postBrandKitUpdate: vi.fn(),
                 postPageIdChange: vi.fn(),
                 scrollToSection: vi.fn(),
                 requestRect: vi.fn(),
@@ -110,6 +115,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
             onContextMenu: g.__editorShellBridge.onContextMenu,
             postPageConfigUpdate: g.__editorShellBridge.postPageConfigUpdate,
             postRuntimeUpdate: g.__editorShellBridge.postRuntimeUpdate,
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: g.__editorShellBridge.postPageIdChange,
         };
     },
@@ -151,6 +157,7 @@ function makeBuilder(overrides: Partial<UseStoreBuilderV2Return> = {}): UseStore
         has_unpublished_changes: false,
         save_draft: asyncNoop,
         publish_conflict: false,
+        publish_error: null,
         publish: async () => true,
         revert_to_published: asyncNoop,
         undo: noop,
@@ -383,6 +390,7 @@ describe("EditorShell", () => {
             state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -447,6 +455,7 @@ describe("EditorShell", () => {
             state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -591,6 +600,7 @@ describe("EditorShell", () => {
             state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -652,6 +662,7 @@ describe("EditorShell", () => {
             state: { ready: false, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),

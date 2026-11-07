@@ -410,8 +410,12 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return { status: "pass" };
     }),
     check("og_image_set", "ad_compliance", 1, (cfg) => {
-        const og = cfg.brand_kit?.identity?.og_image_url;
-        if (og && og.trim().length > 0) return { status: "pass" };
+        // The storefront falls back to the home page's SEO image for every
+        // page's link preview (storeOgImage), so either one is enough.
+        const og =
+            cfg.brand_kit?.identity?.og_image_url?.trim() ||
+            getPage(cfg, "home")?.meta?.og_image_url?.trim();
+        if (og) return { status: "pass" };
         return {
             status: "fail",
             message: "No social-share image — ad previews will be ugly.",
