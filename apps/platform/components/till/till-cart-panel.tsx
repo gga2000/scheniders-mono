@@ -58,7 +58,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const phoneBad = ticket.phone.trim() !== "" && !normalPhone;
     const customer = useTillCustomer(sessionId, normalPhone);
     const overLimit = limit !== null && given > limit;
-    // A manager's OK covers the amount they saw for 3 minutes; tick so the chip counts down and drops when it runs out.
+    // A manager's OK covers the amount they saw for 15 minutes; tick so the chip counts down and drops when it runs out.
     const [now, setNow] = useState(() => Date.now());
     const approval = ticket.approval;
     useEffect(() => {
@@ -152,7 +152,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             onChange={(e) => onChange({ ...ticket, customerName: e.target.value.slice(0, 100) })}
                             placeholder={t("till.cart.customerName")}
                             aria-label={t("till.cart.customerName")}
-                            className="h-12 rounded-2xl border border-[var(--card-border)] bg-transparent px-3 text-sm text-foreground outline-none focus:border-[var(--ink)]"
+                            className="h-12 rounded-2xl border border-stone-400 dark:border-white/25 bg-transparent px-3 text-sm text-foreground outline-none focus:border-[var(--ink)]"
                             dir="auto"
                         />
                         <input
@@ -163,7 +163,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             aria-invalid={phoneBad || undefined}
                             inputMode="tel"
                             className={cn(
-                                "h-12 rounded-2xl border border-[var(--card-border)] bg-transparent px-3 text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]",
+                                "h-12 rounded-2xl border border-stone-400 dark:border-white/25 bg-transparent px-3 text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]",
                                 phoneBad && "border-red-500",
                             )}
                         />
@@ -277,7 +277,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                     onBlur={() => setDiscountText("")}
                                     inputMode="numeric"
                                     className={cn(
-                                        "h-12 w-32 rounded-2xl border border-[var(--card-border)] bg-transparent px-3 text-right tabular-nums outline-none focus:border-[var(--ink)]",
+                                        "h-12 w-32 rounded-2xl border border-stone-400 dark:border-white/25 bg-transparent px-3 text-right tabular-nums outline-none focus:border-[var(--ink)]",
                                         discountTooBig && "border-red-500",
                                     )}
                                 />
@@ -292,7 +292,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             </button>
                         )}
                         {approval && approved && overLimit ? (
-                            <span className="flex items-center gap-1.5 rounded-full bg-[#B8E8E0] px-3 py-1.5 text-xs font-semibold text-[#1E1E1E]" dir="auto">
+                            <span className="flex items-center gap-1.5 rounded-xl bg-[#B8E8E0] px-3 py-1.5 text-xs font-semibold text-[#1E1E1E]" dir="auto">
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                                 <span>
                                     {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqd(approval.maxOff) })}{" "}
@@ -327,7 +327,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                 <dd className="text-base font-bold tabular-nums">{formatIqd(given - limit)}</dd>
                             </div>
                         </dl>
-                        {overParts && <p className="text-center text-xs opacity-80" dir="auto">{overParts}</p>}
+                        {overParts && <p className="text-center text-xs" dir="auto">{overParts}</p>}
                     </div>
                 )}
 
@@ -428,7 +428,7 @@ function LinePriceEditor({ line, onPrice, onDone }: { line: CartLine; onPrice: (
                 inputMode="numeric"
                 placeholder={formatIqd(line.list_price)}
                 aria-label={t("till.cart.linePrice")}
-                className="h-10 w-28 rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 text-right text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
+                className="h-10 w-28 rounded-xl border border-stone-400 dark:border-white/25 bg-[var(--card-bg)] px-3 text-right text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)]"
             />
             {line.price < line.list_price && (
                 <button
