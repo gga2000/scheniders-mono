@@ -580,6 +580,7 @@ function ToolbarButton({
             type="button"
             data-testid={testId}
             aria-label={aria_label}
+            title={aria_label}
             onClick={onClick}
             className="inline-flex h-6 w-6 items-center justify-center rounded text-white transition-colors hover:bg-white/20"
         >

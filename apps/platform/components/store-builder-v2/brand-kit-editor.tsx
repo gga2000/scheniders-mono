@@ -978,15 +978,17 @@ function DerivedSwatchStrip({ kit }: { kit: BrandKit }): ReactElement {
                     <Tooltip
                         key={s.name}
                         content={
-                            <span className="font-mono text-[10px]">
-                                {s.name}: {val}
+                            // The colour value only: the internal token names
+                            // ("on-primary", "surface-alt") mean nothing to a merchant.
+                            <span dir="ltr" className="font-mono text-[10px]">
+                                {val}
                             </span>
                         }
                         side="top"
                     >
                         <div
                             data-testid={`derived-swatch-${s.name}`}
-                            title={`${s.name}: ${val}`}
+                            title={val}
                             className="h-5 w-5 rounded-md border border-(--card-border)"
                             style={{ background: val }}
                         />

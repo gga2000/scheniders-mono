@@ -202,6 +202,17 @@ const PING_TIMEOUT_MS = 2_000;
 /* Hook                                                                 */
 /* ─────────────────────────────────────────────────────────────────── */
 
+function sameRect(a: PreviewRect | null, b: PreviewRect | null): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
+}
+
+function sameRectList(a: readonly BridgeSectionRect[], b: readonly BridgeSectionRect[]): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((r, i) => r.section_id === b[i].section_id && sameRect(r.rect, b[i].rect));
+}
+
 export function useIframeBridge(
     iframeRef: RefObject<HTMLIFrameElement | null>,
     trustedOrigin: string,
@@ -405,7 +416,7 @@ export function useIframeBridge(
                 }
                 case "scrolled": {
                     const y = (data as { y?: number }).y ?? 0;
-                    setState((s) => ({ ...s, scroll_y: y }));
+                    setState((s) => (s.scroll_y === y ? s : { ...s, scroll_y: y }));
                     break;
                 }
                 case "section_hovered": {
@@ -461,13 +472,22 @@ export function useIframeBridge(
                         section_id: string;
                         rect: RectLike | null;
                     };
-                    setState((s) => ({
-                        ...s,
-                        rect_updates: {
-                            ...s.rect_updates,
-                            [d.section_id]: toPreviewRect(d.rect),
-                        },
-                    }));
+                    const next = toPreviewRect(d.rect);
+                    // Same rect again (the iframe re-reports while it scrolls
+                    // or animates): keep the state object, so nothing that
+                    // depends on it re-renders.
+                    setState((s) =>
+                        sameRect(s.rect_updates[d.section_id] ?? null, next)
+                        && d.section_id in s.rect_updates
+                            ? s
+                            : {
+                                  ...s,
+                                  rect_updates: {
+                                      ...s.rect_updates,
+                                      [d.section_id]: next,
+                                  },
+                              },
+                    );
                     break;
                 }
                 case "inline_edit_begin": {
@@ -502,7 +522,9 @@ export function useIframeBridge(
                             return rect ? { section_id: r.section_id, rect } : null;
                         })
                         .filter((r): r is BridgeSectionRect => r !== null);
-                    setState((s) => ({ ...s, all_rects: rects }));
+                    setState((s) =>
+                        sameRectList(s.all_rects, rects) ? s : { ...s, all_rects: rects },
+                    );
                     break;
                 }
                 case "section_context_menu": {

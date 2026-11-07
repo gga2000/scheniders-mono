@@ -226,6 +226,7 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                         activeLocale={activeLocale}
                         storefrontUrl={storefrontUrl}
                         businessName={tenantName}
+                        tenantId={tenantId}
                     />
                 ) : (
                     <div

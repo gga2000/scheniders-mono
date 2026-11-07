@@ -313,6 +313,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     PREFERENCE_KEYS.EDITOR_MODE_INTRO_SEEN,
                 );
                 if (!seen) set_mode_intro_open(true);
+            } else {
+                // The intro explains Advanced; leaving Advanced closes it
+                // (it is not marked seen, so it shows on the next switch).
+                set_mode_intro_open(false);
             }
         },
         [getPreference, setPreference],
@@ -394,6 +398,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // tenant's own storefront host, which differs per store.
     const preview_origin = useMemo(() => originOf(storefrontUrl), [storefrontUrl]);
     const bridge = useIframeBridge(iframe_ref, preview_origin);
+    // `bridge` is a new object on every bridge state change (rects stream in
+    // many times a second while the preview scrolls or animates). Effects
+    // that post to the iframe depend on these stable callbacks and the
+    // specific state fields instead, so their debounce timers are not reset
+    // by unrelated rect traffic (that starved live edits for seconds).
+    const bridge_ready = bridge.state.ready;
+    const bridge_inline_editing = bridge.state.inline_editing;
+    const bridge_scroll_y = bridge.state.scroll_y;
+    const {
+        postPageConfigUpdate,
+        postRuntimeUpdate,
+        postPageIdChange,
+        requestAllRects,
+        setSelectedSection: postSelectedSection,
+    } = bridge;
     const [iframe_bounds, set_iframe_bounds] = useState<DOMRect | null>(null);
 
     // BUG29: pages with no valid templates (category, product, cart…)
@@ -498,14 +517,15 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     // Ask the iframe for every section's rect so the overlay can place the
     // insert-`+` gaps. Re-request (debounced) whenever the section list,
-    // page, or breakpoint changes, and on scroll (via the new `bridge`
-    // identity each render → `state.scroll_y` change).
+    // page, or breakpoint changes, and on scroll.
     useEffect(() => {
-        if (!bridge.state.ready) return;
-        const t = setTimeout(() => bridge.requestAllRects(), 150);
+        if (!bridge_ready) return;
+        const t = setTimeout(() => requestAllRects(), 150);
         return () => clearTimeout(t);
     }, [
-        bridge,
+        bridge_ready,
+        bridge_scroll_y,
+        requestAllRects,
         builder.config,
         builder.active_page,
         builder.active_breakpoint,
@@ -518,11 +538,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         undefined,
     );
     useEffect(() => {
-        if (!bridge.state.ready) return;
+        if (!bridge_ready) return;
         if (last_posted_selection_ref.current === selected_section_id) return;
         last_posted_selection_ref.current = selected_section_id;
-        bridge.setSelectedSection(selected_section_id);
-    }, [selected_section_id, bridge]);
+        postSelectedSection(selected_section_id);
+    }, [selected_section_id, bridge_ready, postSelectedSection]);
 
     // The page the canvas is currently authoring — a system PageId or a
     // custom page (E4). All section/meta mutations + the iframe preview key
@@ -567,18 +587,18 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // hammer postMessage, and we only push when the bridge has emitted
     // `ready` (otherwise the iframe handler isn't mounted yet).
     useEffect(() => {
-        if (!bridge.state.ready) return;
+        if (!bridge_ready) return;
         // While an inline edit is in flight the contenteditable in the iframe
         // is authoritative — pushing a config update would re-render the
         // section and reset the caret. We resume (and push the latest config)
         // when `inline_editing` flips back to false, since it's in the deps.
-        if (bridge.state.inline_editing) return;
+        if (bridge_inline_editing) return;
         // While a spacing-drag streams transient configs, don't clobber them
         // with the committed config (resumes on the commit's setConfig).
         if (spacing_dragging_ref.current) return;
         const handle = setTimeout(() => {
             if (activePageConfig) {
-                bridge.postPageConfigUpdate(activePageConfig);
+                postPageConfigUpdate(activePageConfig);
             }
             const runtime: RuntimeContext = {
                 page_id: activeRuntimePageId,
@@ -591,7 +611,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 category_id: undefined,
                 now: new Date(),
             };
-            bridge.postRuntimeUpdate(runtime);
+            postRuntimeUpdate(runtime);
         }, 100);
         return () => clearTimeout(handle);
     }, [
@@ -600,13 +620,15 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         builder.active_breakpoint,
         builder.active_locale,
         preview_as,
-        bridge,
+        bridge_ready,
+        bridge_inline_editing,
+        postPageConfigUpdate,
+        postRuntimeUpdate,
     ]);
 
     // Brand kit → preview, live. The iframe renders the SAVED draft's kit;
     // push the current one whenever it changes or the frame (re)connects,
     // so colour/font edits show before the autosave lands.
-    const bridge_ready = bridge.state.ready;
     const postBrandKitUpdate = bridge.postBrandKitUpdate;
     useEffect(() => {
         if (!bridge_ready) return;
@@ -650,8 +672,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         // during the ~1s before the bridge is ready would strand the iframe on
         // the old page (the ref would already match `active_page`, so the
         // ready-triggered re-run would skip the navigation). This effect
-        // re-runs when `ready` flips because `bridge` is in its deps.
-        if (!bridge.state.ready) return;
+        // re-runs when `ready` flips because `bridge_ready` is in its deps.
+        if (!bridge_ready) return;
         last_pushed_page_ref.current = builder.active_page;
         // Build the URL inline (rather than reading `previewUrlRef`) so
         // we never race the ref-sync effect, which commits in its own
@@ -664,14 +686,15 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             builder.active_locale,
             activePreviewToken,
         );
-        bridge.postPageIdChange(nextUrl);
+        postPageIdChange(nextUrl);
     }, [
         builder.active_page,
         builder.active_breakpoint,
         builder.active_locale,
         storefrontUrl,
         tenant.slug,
-        bridge,
+        bridge_ready,
+        postPageIdChange,
         activePreviewToken,
     ]);
 
@@ -876,9 +899,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                         : s,
                 ),
             };
-            bridge.postPageConfigUpdate(nextPage);
+            postPageConfigUpdate(nextPage);
         },
-        [activePageConfig, bridge],
+        [activePageConfig, postPageConfigUpdate],
     );
 
     /* ── DnD: picker card → preview insertion ─────────────────── */
