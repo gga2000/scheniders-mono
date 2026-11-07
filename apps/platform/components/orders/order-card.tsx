@@ -16,6 +16,7 @@ import { FullCardDetails } from "./card/full-card-details";
 import { FullCardPrice } from "./card/full-card-price";
 import { FullCardMobile } from "./card/full-card-mobile";
 import { FullCardActions } from "./card/full-card-actions";
+import { PrimeChip } from "./card/prime-chip";
 import { PrimeBands } from "./card/prime-bands";
 
 export const OrderCard = memo(function OrderCard(props: OrderCardProps) {
@@ -178,7 +179,13 @@ function FullOrderCard(props: OrderCardProps) {
                     {/* DIVIDER - Desktop only */}
                     <div className="w-px h-16 bg-[var(--card-border)] flex-shrink-0 hidden md:block dark:bg-white/5" />
 
-                    <FullCardActions m={m} />
+                    {/* Prime chip sits above the buttons (Ali, 2026-11-07); the wrapper vanishes when the chip renders nothing */}
+                    <div className="hidden flex-shrink-0 flex-col items-end gap-2 md:flex">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5 empty:hidden">
+                            <PrimeChip order={order} />
+                        </div>
+                        <FullCardActions m={m} />
+                    </div>
                 </div>
                 <PrimeBands m={m} />
                 </div>
