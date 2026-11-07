@@ -74,6 +74,9 @@ export interface HealthContext {
     whatsapp?: string | null;
     /** The call number the storefront footer will show, or null. */
     phone?: string | null;
+    /** A share image the storefront uses from outside the config (older
+     *  stores keep it in the legacy SEO settings), or null. */
+    ogImage?: string | null;
 }
 
 export interface HealthCheck {
@@ -409,11 +412,12 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         }
         return { status: "pass" };
     }),
-    check("og_image_set", "ad_compliance", 1, (cfg) => {
+    check("og_image_set", "ad_compliance", 1, (cfg, ctx) => {
         // The storefront falls back to the home page's SEO image for every
         // page's link preview (storeOgImage), so either one is enough.
         const og =
             cfg.brand_kit?.identity?.og_image_url?.trim() ||
+            ctx.ogImage?.trim() ||
             getPage(cfg, "home")?.meta?.og_image_url?.trim();
         if (og) return { status: "pass" };
         return {

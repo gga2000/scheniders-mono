@@ -60,9 +60,11 @@ interface TenantMemberRow {
         store_config_v2_draft: StoreConfigV2 | null;
         updated_at: string | null;
         store_config_rev: number | null;
-        /** Only `contact` is read, to resolve the order tracker's `{contact}`. */
+        /** Only `contact` (the order tracker's `{contact}`) and the legacy
+         *  SEO share image (health check) are read. */
         store_config: {
             contact?: { whatsapp_number?: string | null; phone_number?: string | null } | null;
+            seo?: { og_image_url?: string | null } | null;
         } | null;
         contact_phone: string | null;
     } | null;
@@ -212,7 +214,10 @@ export default async function StoreV2Page({
                 // Only the contact slice crosses to the client, never the
                 // whole legacy store_config row.
                 contact_fields: {
-                    store_config: { contact: t.store_config?.contact ?? null },
+                    store_config: {
+                        contact: t.store_config?.contact ?? null,
+                        seo: { og_image_url: t.store_config?.seo?.og_image_url ?? null },
+                    },
                     contact_phone: t.contact_phone,
                 },
                 tracking_contact: resolveTrackerContact({

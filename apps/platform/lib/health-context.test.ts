@@ -17,6 +17,17 @@ describe("healthContextFor", () => {
         expect(statusOf(runHealthChecks(cfg, ctx), "whatsapp_number_set")).toBe("pass");
     });
 
+    it("a share image kept in the old SEO settings counts, as the storefront uses it", () => {
+        const cfg = emptyStoreConfigV2();
+        const withImage = healthContextFor(
+            { store_config: { seo: { og_image_url: "https://x/og.jpg" } }, contact_phone: null },
+            cfg,
+        );
+        expect(statusOf(runHealthChecks(cfg, withImage), "og_image_set")).toBe("pass");
+        const none = healthContextFor({ store_config: null, contact_phone: null }, cfg);
+        expect(statusOf(runHealthChecks(cfg, none), "og_image_set")).toBe("fail");
+    });
+
     it("the store call number counts for the footer phone check", () => {
         const cfg = emptyStoreConfigV2();
         const ctx = healthContextFor({ store_config: null, contact_phone: "07801234567" }, cfg);
