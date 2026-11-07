@@ -191,6 +191,9 @@ export function HealthChecklistScreen(
         [config, healthContext],
     );
     const blocking = useMemo(() => blockingChecks(report), [report]);
+    // Open checks that do not block Publish (shown behind the Simple hatch).
+    const simpleSuggestionCount =
+        report.checks.filter((c) => c.status !== "pass").length - blocking.length;
 
     const [filter, setFilter] = useState<Filter>("failing");
 
@@ -686,7 +689,18 @@ export function HealthChecklistScreen(
                         onClick={() => setMode("advanced")}
                         className="text-xs font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
                     >
-                        {t(STRINGS.mode.more_options, locale)}
+                        {/* The launch steps can all be done while softer checks
+                            still warn; name them so "all set" and the badge
+                            never seem to disagree. */}
+                        {simpleSuggestionCount > 0
+                            ? tFormat(
+                                  simpleSuggestionCount === 1
+                                      ? STRINGS.command_center.health_suggestions_one
+                                      : STRINGS.command_center.health_suggestions_other,
+                                  locale,
+                                  { n: simpleSuggestionCount },
+                              )
+                            : t(STRINGS.mode.more_options, locale)}
                     </button>
                 </div>
             )}

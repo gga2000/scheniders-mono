@@ -915,11 +915,11 @@ export const STRINGS = {
     health: {
         heading: { en: "Store Health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },
         // tFormat: {tenant}
-        subtitle: { en: "{tenant} — what to fix before launch", ar: "{tenant} — ما الذي يجب إصلاحه قبل الإطلاق", ku: "{tenant} — چی پێویستە چاکبکرێت پێش دەستپێکردن" },
+        subtitle: { en: "{tenant} — what to check before you publish", ar: "{tenant} — ما يجب فحصه قبل النشر", ku: "{tenant} — چی پێویستە بپشکنرێت پێش بڵاوکردنەوە" },
         out_of_100: { en: "out of 100", ar: "من 100", ku: "لە ١٠٠" },
         score_needs_work: { en: "Needs work", ar: "يحتاج عملاً", ku: "پێویستی بە کار هەیە" },
         score_almost: { en: "Almost there", ar: "اقتربت", ku: "نزیکی" },
-        score_ready: { en: "Ready to launch", ar: "جاهز للإطلاق", ku: "ئامادەیە بۆ دەستپێکردن" },
+        score_ready: { en: "Ready to publish", ar: "جاهز للنشر", ku: "ئامادەیە بۆ بڵاوکردنەوە" },
         score_great: { en: "Looking great", ar: "ممتاز", ku: "زۆر باشە" },
         cat_ad_compliance: { en: "Ad compliance", ar: "الامتثال الإعلاني", ku: "گونجاندنی ڕیکلام" },
         cat_conversion: { en: "Conversion", ar: "التحويل", ku: "گۆڕین" },
@@ -1136,11 +1136,11 @@ export const STRINGS = {
         health_score_needs_attention: { en: "Needs attention", ar: "يحتاج انتباهاً", ku: "پێویستی بە سەرنجە" },
         health_score_getting_there: { en: "Getting there", ar: "في الطريق الصحيح", ku: "بەرەو باشتر دەچێت" },
         health_score_looking_good: { en: "Looking good", ar: "يبدو جيداً", ku: "باش دیارە" },
-        health_score_launch_ready: { en: "Launch-ready", ar: "جاهز للإطلاق", ku: "ئامادەیە بۆ دەستپێک" },
-        health_all_passing_detail: { en: "All checks passing — store is launch-ready.", ar: "جميع الفحوصات ناجحة — المتجر جاهز للإطلاق.", ku: "هەموو پشکنینەکان سەرکەوتوون — فرۆشگا ئامادەیە بۆ دەستپێک." },
+        health_score_launch_ready: { en: "In good shape", ar: "بحالة ممتازة", ku: "لە باشترین دۆخدایە" },
+        health_all_passing_detail: { en: "All checks passing.", ar: "جميع الفحوصات ناجحة.", ku: "هەموو پشکنینەکان سەرکەوتوون." },
         // tFormat: {n}
-        health_items_to_address_one: { en: "{n} item to address before launch.", ar: "{n} عنصر يجب معالجته قبل الإطلاق.", ku: "{n} بابەت هەیە پێویستە پێش دەستپێکردن چارەسەر بکرێت." },
-        health_items_to_address_other: { en: "{n} items to address before launch.", ar: "{n} عناصر يجب معالجتها قبل الإطلاق.", ku: "{n} بابەت هەیە پێویستە پێش دەستپێکردن چارەسەر بکرێن." },
+        health_items_to_address_one: { en: "{n} item blocks publishing.", ar: "{n} عنصر يمنع النشر.", ku: "{n} بابەت ڕێگری لە بڵاوکردنەوە دەکات." },
+        health_items_to_address_other: { en: "{n} items block publishing.", ar: "{n} عناصر تمنع النشر.", ku: "{n} بابەت ڕێگری لە بڵاوکردنەوە دەکەن." },
         // tFormat: {n} — open checks that do not stop publishing.
         health_suggestions_one: { en: "{n} suggestion to make the store better.", ar: "{n} اقتراح لتحسين المتجر.", ku: "{n} پێشنیار بۆ باشترکردنی فرۆشگا." },
         health_suggestions_other: { en: "{n} suggestions to make the store better.", ar: "{n} اقتراحات لتحسين المتجر.", ku: "{n} پێشنیار بۆ باشترکردنی فرۆشگا." },

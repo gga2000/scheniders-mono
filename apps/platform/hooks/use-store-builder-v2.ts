@@ -610,10 +610,16 @@ export function useStoreBuilderV2(
         }, AUTOSAVE_DEBOUNCE_MS);
     }, [config, serializedConfig]);
 
-    // Leaving the editor must not leave a timer that writes after unmount.
+    // Leaving the editor in-app (the back link is a client navigation, so no
+    // beforeunload fires) must not drop an edit still inside the 2s debounce:
+    // replace the pending timer with an immediate save of the latest config.
     useEffect(
         () => () => {
+            const hadPendingTimer = autoSaveTimerRef.current !== null;
             cancelAutoSave();
+            if (hadPendingTimer && pendingDraftWriteRef.current) {
+                void saveDraftRef.current?.(configRef.current);
+            }
         },
         [],
     );

@@ -130,6 +130,10 @@ export function inferField(schema: z.ZodType<unknown>): {
             if (min === undefined && typeof innerAny.minValue === "number") min = innerAny.minValue;
             if (max === undefined && typeof innerAny.maxValue === "number") max = innerAny.maxValue;
             if (innerAny._def?.format === "safeint") integer = true;
+            // `z.int()` reports the safe-integer limits as its range; those are
+            // "no limit", not a range to draw a slider over.
+            if (min !== undefined && min <= Number.MIN_SAFE_INTEGER) min = undefined;
+            if (max !== undefined && max >= Number.MAX_SAFE_INTEGER) max = undefined;
             return {
                 field: { kind: "number", min, max, integer },
                 optional,
