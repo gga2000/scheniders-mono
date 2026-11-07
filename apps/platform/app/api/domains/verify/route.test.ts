@@ -3,16 +3,17 @@ import { NextResponse } from "next/server";
 
 const state = vi.hoisted(() => ({
     caller: null as unknown,
-    row: null as { id: string; domain: string; verified: boolean } | null,
+    row: null as { id: string; domain: string; verified: boolean; verification_token: string } | null,
     eqs: [] as Array<[string, unknown]>,
     updated: false,
     resolve: vi.fn(),
+    resolveTxt: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/require-request-caller", () => ({
     requireRequestCaller: async () => state.caller,
 }));
-vi.mock("dns/promises", () => ({ default: { resolveCname: state.resolve } }));
+vi.mock("dns/promises", () => ({ default: { resolveCname: state.resolve, resolveTxt: state.resolveTxt } }));
 vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: () => ({
         from: () => ({
@@ -49,10 +50,12 @@ const req = (body: unknown) =>
 
 beforeEach(() => {
     state.caller = { ok: true, userId: "u", tenantId: "tenant-a", role: "admin", platformAdmin: false };
-    state.row = { id: ID, domain: "shop.example.com", verified: false };
+    state.row = { id: ID, domain: "shop.example.com", verified: false, verification_token: "tok123" };
     state.eqs = [];
     state.updated = false;
     state.resolve.mockReset();
+    state.resolveTxt.mockReset();
+    state.resolveTxt.mockResolvedValue([["scheniders-verify=tok123"]]);
     vercel.provision.mockReset();
     vercel.provision.mockResolvedValue("active");
 });
@@ -121,6 +124,24 @@ describe("POST /api/domains/verify", () => {
         state.resolve.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "ENODATA" }));
         expect((await (await POST(req({ domain_id: ID }))).json()).verified).toBe(false);
         state.resolve.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "ESERVFAIL" }));
+        expect((await POST(req({ domain_id: ID }))).status).toBe(502);
+        expect(state.updated).toBe(false);
+    });
+
+    it("refuses a domain whose TXT proof is missing or belongs to another store, before looking at the CNAME", async () => {
+        state.resolve.mockResolvedValue(["cname.vercel-dns.com"]);
+        state.resolveTxt.mockResolvedValueOnce([["scheniders-verify=someone-else"]]);
+        expect(await (await POST(req({ domain_id: ID }))).json()).toMatchObject({ verified: false, reason: "txt_missing" });
+        state.resolveTxt.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "ENOTFOUND" }));
+        expect(await (await POST(req({ domain_id: ID }))).json()).toMatchObject({ verified: false, reason: "txt_missing" });
+        expect(state.resolveTxt).toHaveBeenCalledWith("_scheniders.shop.example.com");
+        expect(state.resolve).not.toHaveBeenCalled();
+        expect(vercel.provision).not.toHaveBeenCalled();
+        expect(state.updated).toBe(false);
+    });
+
+    it("answers 502 when the TXT lookup itself fails", async () => {
+        state.resolveTxt.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "ESERVFAIL" }));
         expect((await POST(req({ domain_id: ID }))).status).toBe(502);
         expect(state.updated).toBe(false);
     });

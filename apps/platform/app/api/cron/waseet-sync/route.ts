@@ -3,6 +3,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { fetchOrdersByIdsBulk } from "@/lib/waseet-api";
 import type { WaseetMerchantOrder } from "@/types/waseet";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { waseetAccountAllows } from "@/lib/waseet-caller";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -44,6 +45,13 @@ export async function GET(request: NextRequest) {
 
         // Tenants with sync setting enabled
         globalSyncSetting?.filter(s => s.value && s.tenant_id).forEach(s => enabledTenantIds.add(s.tenant_id));
+
+        // Polling goes through the one platform Al-Waseet account: a store not
+        // allowed on it could otherwise type another store's parcel number and
+        // read its status.
+        for (const id of enabledTenantIds) {
+            if (!waseetAccountAllows(id)) enabledTenantIds.delete(id);
+        }
 
         if (enabledTenantIds.size === 0) {
             return NextResponse.json({ success: true, message: "No tenants with Waseet sync", updated: 0 });

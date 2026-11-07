@@ -1,6 +1,24 @@
 /** Where a merchant's custom domain must point. One source for the dialog's DNS hint and the verifier. */
 export const CUSTOM_DOMAIN_CNAME_TARGET = "cname.vercel-dns.com";
 
+/** The TXT record that proves a store owns its domain: `<prefix>.<domain>` holding `<value prefix><token>`. */
+export const DOMAIN_TXT_PREFIX = "_scheniders";
+const TXT_VALUE_PREFIX = "scheniders-verify=";
+
+export function domainTxtName(domain: string): string {
+    return `${DOMAIN_TXT_PREFIX}.${domain}`;
+}
+
+export function domainTxtValue(token: string): string {
+    return `${TXT_VALUE_PREFIX}${token}`;
+}
+
+/** Whether DNS TXT answers (each split into chunks, as Node returns them) hold this store's token. */
+export function txtRecordsProve(records: string[][], token: string): boolean {
+    const want = domainTxtValue(token);
+    return records.some((chunks) => chunks.join("").trim() === want);
+}
+
 const VERCEL_DNS_SUFFIX = ".vercel-dns.com";
 
 const HOSTNAME =
