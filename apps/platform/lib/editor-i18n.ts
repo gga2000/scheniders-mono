@@ -1569,6 +1569,8 @@ export const STRINGS = {
         showing: { en: "Text not yet written in {lang}. Pick a language above.", ar: "نصوص لم تُكتب بعد بـ{lang}. اختر لغة من الأعلى.", ku: "دەقەکانی هێشتا بە {lang} نەنووسراون. زمانێک لە سەرەوە هەڵبژێرە." },
         globals: { en: "Top bar, header and footer", ar: "الشريط العلوي والرأس والتذييل", ku: "شریتی سەرەوە، سەرپەڕە و پێپەڕە" },
         translate: { en: "Translate", ar: "ترجم", ku: "وەرگێڕان" },
+        page_meta: { en: "Page title and description in Google", ar: "عنوان الصفحة ووصفها في جوجل", ku: "ناونیشان و وەسفی پەڕە لە گووگڵ" },
+        section_fallback: { en: "Section", ar: "عنصر", ku: "بەش" },
         // tFormat: {n}
         more: { en: "+ {n} more", ar: "+ {n} أخرى", ku: "+ {n}ی تر" },
         // tFormat: {pct}
@@ -1576,6 +1578,7 @@ export const STRINGS = {
         pill_title: { en: "See what still needs translating", ar: "اعرض ما يحتاج ترجمة", ku: "ئەوەی هێشتا وەرگێڕانی دەوێت ببینە" },
     },
     common: {
+        insert_section_here: { en: "Add a section here", ar: "أضف عنصراً هنا", ku: "بەشێک لێرە زیاد بکە" },
         close: { en: "Close", ar: "إغلاق", ku: "داخستن" },
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
         save: { en: "Save", ar: "حفظ", ku: "هەڵگرتن" },

@@ -15,6 +15,14 @@ describe("summarizeArrayItem — repeater row titles", () => {
         expect(summarizeArrayItem({ label: "work" }, "ar")).toBeNull();
     });
 
+    it("reads an item that is itself a translated string", () => {
+        expect(summarizeArrayItem({ ar: "كل طلب يجيك وياه تيستر", en: "Every order ships with a tester" }, "ar")).toBe("كل طلب يجيك وياه تيستر");
+    });
+
+    it("falls back to any other text the merchant wrote", () => {
+        expect(summarizeArrayItem({ slug: "work", caption_i18n: { ar: "للدوام" } }, "ar")).toBe("للدوام");
+    });
+
     it("skips a slug key and keeps looking for readable text", () => {
         expect(summarizeArrayItem({ title_i18n: { en: "men-perfume" }, name: "Men perfume" }, "en")).toBe("Men perfume");
     });

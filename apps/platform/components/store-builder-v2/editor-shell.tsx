@@ -417,8 +417,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         if (zoom_setting !== "fit") return zoom_setting;
         const deviceW = BREAKPOINT_WIDTH_PX[builder.active_breakpoint];
         if (canvas_width <= 0) return 1;
-        // 32px = the frame's own padding (p-4 both sides).
-        return Math.min(1, (canvas_width - 32) / deviceW);
+        // 32px = the frame's padding (p-4 both sides); 2px = its border,
+        // which sits outside the logical width (box-content).
+        return Math.min(1, (canvas_width - 34) / deviceW);
     }, [zoom_setting, builder.active_breakpoint, canvas_width]);
 
     // Track the iframe's bounding rect so the overlay can position itself

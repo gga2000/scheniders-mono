@@ -1107,16 +1107,29 @@ export function summarizeArrayItem(item: unknown, locale: LocaleCode): string | 
         return typeof item === "string" && isReadable(item) ? truncate(item) : null;
     }
     const rec = item as Record<string, unknown>;
-    for (const key of SUMMARY_KEYS) {
+    // The item itself is a translated string ({ ar, en }): a list of facts,
+    // bullet points, etc.
+    if (Object.keys(rec).length > 0 && Object.keys(rec).every((k) => LOCALE_KEY.test(k))) {
+        return pickI18n(rec, locale);
+    }
+    // Known title-ish keys first, then any other text the merchant wrote.
+    const keys = [...SUMMARY_KEYS, ...Object.keys(rec).filter((k) => !(SUMMARY_KEYS as readonly string[]).includes(k))];
+    for (const key of keys) {
         const v = rec[key];
         if (typeof v === "string" && isReadable(v)) return truncate(v);
-        if (v && typeof v === "object") {
-            const i18n = v as Record<string, unknown>;
-            const s = i18n[locale] ?? i18n.en ?? i18n.ar;
-            if (typeof s === "string" && isReadable(s)) return truncate(s);
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+            const picked = pickI18n(v as Record<string, unknown>, locale);
+            if (picked) return picked;
         }
     }
     return null;
+}
+
+const LOCALE_KEY = /^(en|ar|ku)$/;
+
+function pickI18n(map: Record<string, unknown>, locale: LocaleCode): string | null {
+    const s = map[locale] ?? map.ar ?? map.en ?? map.ku;
+    return typeof s === "string" && isReadable(s) ? truncate(s) : null;
 }
 
 /**

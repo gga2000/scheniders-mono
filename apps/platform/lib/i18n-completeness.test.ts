@@ -10,7 +10,7 @@ import type {
 } from "@scheniders/shared";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
 
-import { computeCompleteness } from "./i18n-completeness";
+import { computeCompleteness, PAGE_META_SECTION_ID } from "./i18n-completeness";
 
 function s(
   id: string,
@@ -129,5 +129,20 @@ describe("computeCompleteness", () => {
     // Other pages contribute 0 (no sections by default).
     const cart = result.perPage.find((p) => p.page_id === "cart");
     expect(cart?.perLocale.en.total ?? 0).toBe(0);
+  });
+});
+
+describe("computeCompleteness — page meta", () => {
+  it("lists a page's untranslated Google title, not only counts it", () => {
+    const cfg = withHome([]);
+    cfg.pages = cfg.pages.map((p) =>
+      p.page_id === "home"
+        ? { ...p, meta: { title_i18n: { ar: "متجر" } } as PageConfig["meta"] }
+        : p,
+    );
+    const home = computeCompleteness(cfg).perPage.find((p) => p.page_id === "home");
+    const meta = home?.sections.find((sec) => sec.section_id === PAGE_META_SECTION_ID);
+    expect(home?.perLocale.en.total).toBeGreaterThan(home?.perLocale.en.filled ?? 0);
+    expect(meta?.missing.en.length).toBeGreaterThan(0);
   });
 });

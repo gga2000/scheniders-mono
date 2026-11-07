@@ -23,6 +23,8 @@ import {
     Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { STRINGS, t } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
 import type {
     PreviewRect,
     UseIframeBridgeReturn,
@@ -366,11 +368,12 @@ interface InsertGapProps {
 /** Slim full-width hit-zone centred on a section boundary; the `+` pill and
  *  hairline only appear on hover so the canvas stays uncluttered. */
 function InsertGap({ top, left, width, onClick }: InsertGapProps): ReactElement {
+    const locale = useEditorLocale();
     return (
         <button
             type="button"
             data-testid="preview-overlay-insert-gap"
-            aria-label="Insert section here"
+            aria-label={t(STRINGS.common.insert_section_here, locale)}
             onClick={onClick}
             className="group pointer-events-auto absolute flex -translate-y-1/2 items-center justify-center"
             style={{ top, left, width, height: 20 }}
