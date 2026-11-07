@@ -342,9 +342,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 
 /** A compact best-seller key: photo, name, price; one tap adds it. */
 function QuickKey({ product, onPick }: { product: TillProduct; onPick: (el: HTMLElement | null) => void }) {
-    const { t } = useLanguage();
     const ref = useRef<HTMLSpanElement>(null);
-    const out = product.available <= 0;
     const sizes = product.variants.length;
     const price = sizes > 1 ? Math.min(...product.variants.map((v) => v.price)) : product.variants[0]?.price ?? product.price;
     return (
@@ -353,7 +351,7 @@ function QuickKey({ product, onPick }: { product: TillProduct; onPick: (el: HTML
             onClick={() => onPick(ref.current)}
             className="flex h-[76px] items-center gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-2 pr-3 text-left transition-[transform,border-color] duration-150 hover:border-[var(--ink)]/25 active:scale-[0.98] dark:hover:border-white/25"
         >
-            <span ref={ref} className="block h-[60px] w-[60px] shrink-0 overflow-hidden rounded-xl bg-[var(--card-border)]/25">
+            <span ref={ref} className="relative block h-[60px] w-[60px] shrink-0 overflow-hidden rounded-xl bg-[var(--card-border)]/25">
                 {product.image_url ? (
                     <img src={product.image_url} alt="" loading="lazy" className={cn("h-full w-full object-cover")} />
                 ) : (
@@ -361,13 +359,12 @@ function QuickKey({ product, onPick }: { product: TillProduct; onPick: (el: HTML
                         <Package className="h-5 w-5" aria-hidden="true" />
                     </span>
                 )}
+                <InCartBadge n={product.in_cart ?? 0} className="right-1 top-1 px-1.5 py-0.5 text-[11px]" />
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-semibold text-foreground" dir="auto">{product.name}</span>
                 <span className="text-base font-bold tabular-nums text-foreground">{formatIqd(price)}</span>
-                <span className={cn("text-xs", out ? "font-semibold text-red-600" : isLow(product) ? "font-semibold text-[#92400E] dark:text-amber-300" : "text-muted")}>
-                    {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
-                </span>
+                <span className="flex"><StockTag product={product} /></span>
             </span>
         </button>
     );
@@ -379,7 +376,6 @@ function ProductCard({ product, compact, onPick }: { product: TillProduct; compa
     const sizes = product.variants.length;
     const from = sizes > 1 ? Math.min(...product.variants.map((v) => v.price)) : product.variants[0]?.price ?? product.price;
     const out = product.available <= 0;
-    const low = isLow(product);
     return (
         <button
             type="button"
@@ -399,11 +395,7 @@ function ProductCard({ product, compact, onPick }: { product: TillProduct; compa
                         <Package className="h-10 w-10" aria-hidden="true" />
                     </span>
                 )}
-                {(product.in_cart ?? 0) > 0 && (
-                    <span className="absolute right-2 top-2 rounded-full bg-[#EFFF00] px-2.5 py-1 text-xs font-bold tabular-nums text-[#121212] shadow-sm" aria-label={t("till.sell.inCart", { n: product.in_cart ?? 0 })}>
-                        ×{product.in_cart}
-                    </span>
-                )}
+                <InCartBadge n={product.in_cart ?? 0} className="right-2 top-2 px-2.5 py-1 text-xs" />
                 {sizes > 1 && (
                     <span className="absolute left-2 top-2 rounded-full bg-[#1E1E1E]/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
                         {t("till.sell.sizes", { n: sizes })}
@@ -417,14 +409,7 @@ function ProductCard({ product, compact, onPick }: { product: TillProduct; compa
                         {sizes > 1 && <span className="mr-1 text-xs font-medium text-muted">{t("till.sell.from")}</span>}
                         {formatIqd(from)}
                     </span>
-                    <span
-                        className={cn(
-                            "shrink-0 rounded-full text-xs tabular-nums",
-                            out ? "bg-[#FDE7EA] px-2 py-0.5 font-bold text-[#991B1B]" : low ? "bg-[#FEF3C7] px-2 py-0.5 font-bold text-[#92400E]" : "font-medium text-muted",
-                        )}
-                    >
-                        {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
-                    </span>
+                    <StockTag product={product} />
                 </span>
             </span>
         </button>
@@ -460,5 +445,33 @@ function VariantPicker({ product, onPick, onClose }: { product: TillProduct; onP
                 </div>
             </DialogContent>
         </Dialog>
+    );
+}
+
+/** Yellow "×n" on a product photo when it is already in the cart. */
+function InCartBadge({ n, className }: { n: number; className: string }) {
+    const { t } = useLanguage();
+    if (n <= 0) return null;
+    return (
+        <span className={cn("absolute rounded-full bg-[#EFFF00] font-bold tabular-nums text-[#121212] shadow-sm", className)} aria-label={t("till.sell.inCart", { n })}>
+            ×{n}
+        </span>
+    );
+}
+
+/** Stock left: plain when fine, an amber pill when low, a red pill when sold out. Same on the grid and the best-seller keys. */
+function StockTag({ product }: { product: TillProduct }) {
+    const { t } = useLanguage();
+    const out = product.available <= 0;
+    const low = isLow(product);
+    return (
+        <span
+            className={cn(
+                "shrink-0 rounded-full text-xs tabular-nums",
+                out ? "bg-[#FDE7EA] px-2 py-0.5 font-bold text-[#991B1B]" : low ? "bg-[#FEF3C7] px-2 py-0.5 font-bold text-[#92400E]" : "font-medium text-muted",
+            )}
+        >
+            {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
+        </span>
     );
 }
