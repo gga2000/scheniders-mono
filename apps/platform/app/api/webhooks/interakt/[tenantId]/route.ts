@@ -155,12 +155,14 @@ export async function POST(
         const phone = extractPhone(payload.data);
 
         let order: { id: string; order_id: string; status: string } | null = null;
+        let matchedBy: "callback" | "phone" | null = null;
 
         if (callbackData) {
             const { data } = await supabaseAdmin()
                 .from("orders").select("id, order_id, status")
                 .eq("id", callbackData).eq("tenant_id", tenantId).single();
             order = data;
+            if (order) matchedBy = "callback";
         }
 
         if (!order && phone) {
@@ -171,7 +173,21 @@ export async function POST(
                 .or(`phone.eq.${standardPhone},phone.eq.${phone}`)
                 .order("created_at", { ascending: false }).limit(1).single();
             order = data;
+            if (order) matchedBy = "phone";
         }
+
+        // Until the store's Interakt key is saved these replies are unsigned.
+        // An unsigned reply matched only by phone is the forgeable case (the
+        // phone and store id are all it takes); this line measures how often
+        // real replies need the phone fallback before unsigned ones are
+        // limited to the callback match.
+        console.info(JSON.stringify({
+            event: "interakt_reply_match",
+            tenant_id: tenantId,
+            matched_by: matchedBy,
+            had_callback: Boolean(callbackData),
+            signed: authResult.status === "authenticated",
+        }));
 
         if (!order) {
             return NextResponse.json({ success: false, error: "No matching order" }, { status: 404 });

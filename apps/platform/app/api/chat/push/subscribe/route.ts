@@ -10,8 +10,8 @@ import { z } from "zod";
 import {
     verifyAccessToken,
     createSupabaseServerClientWithToken,
-    createSupabaseServiceClient,
 } from "@/lib/supabase-server";
+import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 
 export const dynamic = "force-dynamic";
 
@@ -40,15 +40,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
 
-    // 3. Resolve tenant_id from user_profiles (needed for the row).
-    const service = createSupabaseServiceClient();
-    const { data: profile } = await service
-        .from("user_profiles")
-        .select("current_tenant_id")
-        .eq("id", user.id)
-        .maybeSingle();
-
-    const tenantId = (profile?.current_tenant_id as string | undefined) ?? null;
+    // 3. The store this subscription belongs to: the caller's current store,
+    //    only when they are an active member of it (never the raw
+    //    current_tenant_id, which a member can point at any store).
+    const active = await resolveActiveTenant(user.id);
+    if (!active.ok) {
+        return NextResponse.json({ error: active.error }, { status: active.status });
+    }
+    const tenantId = active.tenantId;
 
     // 4. Upsert using the user-scoped client so RLS (user_id = auth.uid()) is
     //    satisfied naturally — the anon key + user JWT means auth.uid() = user.id.
