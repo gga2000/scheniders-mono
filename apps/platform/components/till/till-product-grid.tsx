@@ -17,6 +17,8 @@ interface Props {
     /** Best sellers and the merchant's category chips; absent while it loads. */
     overview: TillOverview | undefined;
     sound: boolean;
+    /** Smaller cards: more products on screen at once. */
+    compact: boolean;
     onAdd: (product: TillProduct, variant: TillVariant | null) => void;
     /** A scanned receipt QR (a sale number, not a product): open that sale. */
     onReceiptCode: (code: string) => void;
@@ -29,7 +31,7 @@ type Filter = string;
 const NOTICE_MS = 2600;
 
 /** The left side of the sell screen: scan or search, chips, best sellers, and one card per product. */
-export function TillProductGrid({ products, loading, overview, sound, onAdd, onReceiptCode }: Props) {
+export function TillProductGrid({ products, loading, overview, sound, compact, onAdd, onReceiptCode }: Props) {
     const { t } = useLanguage();
     const [query, setQuery] = useState("");
     const [filter, setFilter] = useState<Filter>("all");
@@ -258,9 +260,9 @@ export function TillProductGrid({ products, loading, overview, sound, onAdd, onR
                         ) : (
                             <section aria-label={t("till.sell.allProducts")} className="flex flex-col gap-2">
                                 {showBestRow && shown.length > 0 && <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">{t("till.sell.moreProducts")}</h2>}
-                                <div className="grid grid-cols-[repeat(auto-fill,minmax(176px,1fr))] gap-3">
+                                <div className={cn("grid gap-3", compact ? "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]" : "grid-cols-[repeat(auto-fill,minmax(176px,1fr))]")}>
                                     {shown.map((p) => (
-                                        <ProductCard key={p.id} product={p} onPick={(el) => choose(p, el)} />
+                                        <ProductCard key={p.id} product={p} compact={compact} onPick={(el) => choose(p, el)} />
                                     ))}
                                 </div>
                             </section>
@@ -371,7 +373,7 @@ function QuickKey({ product, onPick }: { product: TillProduct; onPick: (el: HTML
     );
 }
 
-function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: HTMLElement | null) => void }) {
+function ProductCard({ product, compact, onPick }: { product: TillProduct; compact: boolean; onPick: (el: HTMLElement | null) => void }) {
     const { t } = useLanguage();
     const photo = useRef<HTMLSpanElement>(null);
     const sizes = product.variants.length;
@@ -384,7 +386,7 @@ function ProductCard({ product, onPick }: { product: TillProduct; onPick: (el: H
             onClick={() => onPick(photo.current)}
             className="group flex flex-col overflow-hidden rounded-[20px] border border-[var(--card-border)] bg-[var(--card-bg)] text-left transition-[transform,border-color] duration-150 hover:border-[var(--ink)]/25 active:scale-[0.98] dark:hover:border-white/25"
         >
-            <span ref={photo} className="relative block aspect-[4/3] w-full overflow-hidden bg-[var(--card-border)]/25">
+            <span ref={photo} className={cn("relative block w-full overflow-hidden bg-[var(--card-border)]/25", compact ? "aspect-[16/9]" : "aspect-[4/3]")}>
                 {product.image_url ? (
                     <img
                         src={product.image_url}
