@@ -145,6 +145,17 @@ body {
 @media (prefers-reduced-motion: reduce) { .app-header { transition: none; } }
 
 /* Recessed design canvas: warm surface + faint dot grid, like a pro design tool. */
+/*
+ * Arabic text in an LTR app (the app never sets <html dir>). Each text run
+ * takes its direction from its own first letter, so «عرض الكل» keeps its
+ * quotes, "مترجم 96%" reads in order and a sentence's full stop lands at
+ * its end. match-parent keeps the alignment the LTR layout already chose.
+ */
+.sb-bidi :where(p, span, label, button, a, li, h1, h2, h3, h4, option, dt, dd) {
+    unicode-bidi: plaintext;
+    text-align: match-parent;
+}
+
 .sb-canvas {
   background-color: var(--background);
   background-image: radial-gradient(

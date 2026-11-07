@@ -112,6 +112,7 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
         onSpacingChange,
         zoom = 1,
     } = props;
+    const locale = useEditorLocale();
 
     const { state, requestRect } = bridge;
 
@@ -312,7 +313,7 @@ export function PreviewOverlay(props: PreviewOverlayProps): ReactElement | null 
                     <Toolbar
                         rect={selected_rect}
                         iframe_height={iframeBounds.height}
-                        section_label={selected_section_label ?? "Section"}
+                        section_label={selected_section_label ?? t(STRINGS.i18n_screen.section_fallback, locale)}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onDuplicate={() => handleAction("duplicate")}

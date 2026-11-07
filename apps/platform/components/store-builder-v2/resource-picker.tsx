@@ -388,11 +388,25 @@ export function CategoryPickerField(props: {
     const choices = useMemo(() => toCategoryChoices(categories), [categories]);
 
     if (props.multiple) {
+        const stored = Array.isArray(props.value) ? (props.value as string[]) : [];
+        // Slug-valued list (e.g. `category_slugs`): show the categories by
+        // name, store slugs. A slug with no matching category stays as-is
+        // (the picker flags it as missing) so nothing is silently dropped.
+        const ids =
+            props.stores === "slug"
+                ? stored.map((slug) => categories.find((c) => c.slug === slug)?.id ?? slug)
+                : stored;
         return (
             <MultiPicker
                 label={props.label}
-                value={Array.isArray(props.value) ? (props.value as string[]) : []}
-                onChange={props.onChange}
+                value={ids}
+                onChange={(next) =>
+                    props.onChange(
+                        props.stores === "slug"
+                            ? next.map((id) => categories.find((c) => c.id === id)?.slug ?? id)
+                            : next,
+                    )
+                }
                 choices={choices}
                 placeholder={tx(STRINGS.picker.choose_categories, props.locale)}
                 locale={props.locale}

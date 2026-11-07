@@ -87,7 +87,7 @@ export const STRINGS = {
         aria_label: { en: "Page tree", ar: "شجرة الصفحات", ku: "دارچەی پەڕەکان" },
         settings_heading: { en: "Settings", ar: "الإعدادات", ku: "ڕێکخستنەکان" },
         advanced_heading: { en: "Advanced", ar: "متقدم", ku: "پێشکەوتوو" },
-        advanced_live_chip: { en: "Active advanced settings — view", ar: "إعدادات متقدّمة نشطة — اعرضها", ku: "ڕێکخستنە پێشکەوتووە چالاکەکان — بیانبینە" },
+        advanced_live_chip: { en: "Active advanced settings — view", ar: "إعدادات متقدمة نشطة — اعرضها", ku: "ڕێکخستنە پێشکەوتووە چالاکەکان — بیانبینە" },
         coming_soon: { en: "soon", ar: "قريباً", ku: "بەم زووانە" },
         // Page groups
         group_storefront: { en: "Storefront", ar: "المتجر", ku: "فرۆشگا" },
@@ -101,11 +101,11 @@ export const STRINGS = {
         // Pages
         page_home: { en: "Home", ar: "الرئيسية", ku: "ماڵەوە" },
         page_category: { en: "Category", ar: "الفئة", ku: "پۆل" },
-        page_product: { en: "Product detail", ar: "تفاصيل المنتج", ku: "وردەکارییەکانی بەرهەم" },
+        page_product: { en: "Product page", ar: "صفحة المنتج", ku: "پەڕەی بەرهەم" },
         page_search: { en: "Search", ar: "البحث", ku: "گەڕان" },
         page_cart: { en: "Cart", ar: "السلة", ku: "سەبەتە" },
         page_checkout: { en: "Checkout", ar: "الدفع", ku: "پارەدان" },
-        page_checkout_success: { en: "Thank you", ar: "شكراً لك", ku: "سوپاس" },
+        page_checkout_success: { en: "Order confirmed", ar: "تأكيد الطلب", ku: "داواکاری پشتڕاستکرایەوە" },
         page_track: { en: "Track order", ar: "تتبع الطلب", ku: "بەدواداچوونی داواکاری" },
         page_about: { en: "About", ar: "حول", ku: "دەربارە" },
         page_faq: { en: "FAQ", ar: "الأسئلة الشائعة", ku: "پرسیارە باوەکان" },
@@ -117,7 +117,7 @@ export const STRINGS = {
         page_not_found: { en: "404", ar: "404", ku: "404" },
         // Settings
         setting_brand_kit: { en: "Style & branding", ar: "هوية العلامة", ku: "کیتی برێند" },
-        setting_health: { en: "Store health", ar: "الصحة", ku: "تەندروستی" },
+        setting_health: { en: "Store health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },
         setting_i18n: { en: "Languages", ar: "اللغات", ku: "زمانەکان" },
         setting_segments: { en: "Audiences", ar: "الشرائح", ku: "بەشەکان" },
         setting_experiments: { en: "A/B tests", ar: "التجارب", ku: "تاقیکردنەوەکان" },
@@ -757,18 +757,18 @@ export const STRINGS = {
     mode: {
         group_aria: { en: "Editor mode", ar: "وضع المحرر", ku: "دۆخی دەستکاریکەر" },
         simple: { en: "Simple", ar: "بسيط", ku: "سادە" },
-        advanced: { en: "Advanced", ar: "متقدّم", ku: "پێشکەوتوو" },
+        advanced: { en: "Advanced", ar: "متقدم", ku: "پێشکەوتوو" },
         // One-time intro shown on the first switch to Advanced.
-        intro_title: { en: "Advanced mode", ar: "الوضع المتقدّم", ku: "دۆخی پێشکەوتوو" },
-        intro_body: { en: "Advanced shows every option: translations, versions, per-device tweaks, visibility rules and more. Switch back to Simple anytime.", ar: "الوضع المتقدّم يعرض كل الخيارات: الترجمات، النسخ، تخصيص لكل جهاز، قواعد الظهور وأكثر. تكدر ترجع لـ«بسيط» بأي وقت.", ku: "دۆخی پێشکەوتوو هەموو هەڵبژاردنەکان پیشان دەدات: وەرگێڕانەکان، وەشانەکان، دەستکاری بۆ هەر ئامێرێک، ڕێساکانی دەرکەوتن و زیاتر. هەر کاتێک دەتوانی بگەڕێیتەوە بۆ «سادە»." },
+        intro_title: { en: "Advanced mode", ar: "الوضع المتقدم", ku: "دۆخی پێشکەوتوو" },
+        intro_body: { en: "Advanced shows every option: translations, versions, per-device tweaks, visibility rules and more. Switch back to Simple anytime.", ar: "الوضع المتقدم يعرض كل الخيارات: الترجمات، النسخ، تخصيص لكل جهاز، قواعد الظهور وأكثر. تكدر ترجع لـ«بسيط» بأي وقت.", ku: "دۆخی پێشکەوتوو هەموو هەڵبژاردنەکان پیشان دەدات: وەرگێڕانەکان، وەشانەکان، دەستکاری بۆ هەر ئامێرێک، ڕێساکانی دەرکەوتن و زیاتر. هەر کاتێک دەتوانی بگەڕێیتەوە بۆ «سادە»." },
         intro_dismiss: { en: "Got it", ar: "فهمت", ku: "تێگەیشتم" },
         // Toast shown when a deep link forces Advanced for this visit.
-        elevated_for_link: { en: "Opened Advanced mode for this screen.", ar: "فتحنا الوضع المتقدّم لهذه الشاشة.", ku: "دۆخی پێشکەوتوو کرایەوە بۆ ئەم پەردەیە." },
+        elevated_for_link: { en: "Opened Advanced mode for this screen.", ar: "فتحنا الوضع المتقدم لهذه الشاشة.", ku: "دۆخی پێشکەوتوو کرایەوە بۆ ئەم پەردەیە." },
         // Chips shown in Simple when hidden-but-live data exists.
         // tFormat: {n}
-        live_rules_chip: { en: "{n} active rules — open Advanced", ar: "{n} قواعد مفعّلة — افتح المتقدّم", ku: "{n} ڕێسای چالاک — پێشکەوتوو بکەرەوە" },
-        live_versions_chip: { en: "{n} active versions — open Advanced", ar: "{n} نسخ مفعّلة — افتح المتقدّم", ku: "{n} وەشانی چالاک — پێشکەوتوو بکەرەوە" },
-        more_options: { en: "More options? Advanced mode", ar: "خيارات أكثر؟ الوضع المتقدّم", ku: "هەڵبژاردنی زیاتر؟ دۆخی پێشکەوتوو" },
+        live_rules_chip: { en: "{n} active rules — open Advanced", ar: "{n} قواعد مفعّلة — افتح المتقدم", ku: "{n} ڕێسای چالاک — پێشکەوتوو بکەرەوە" },
+        live_versions_chip: { en: "{n} active versions — open Advanced", ar: "{n} نسخ مفعّلة — افتح المتقدم", ku: "{n} وەشانی چالاک — پێشکەوتوو بکەرەوە" },
+        more_options: { en: "More options? Advanced mode", ar: "خيارات أكثر؟ الوضع المتقدم", ku: "هەڵبژاردنی زیاتر؟ دۆخی پێشکەوتوو" },
     },
 
     /* ── I18nStringInput (per-field translation tuck-away) ────── */
@@ -802,7 +802,7 @@ export const STRINGS = {
         tab_blocks: { en: "Blocks", ar: "العناصر", ku: "بەشەکان" },
         tab_style: { en: "Style", ar: "الهوية", ku: "شێواز" },
         tab_seo: { en: "SEO", ar: "جوجل", ku: "گووگڵ" },
-        tab_health: { en: "Health", ar: "الجاهزية", ku: "ئامادەیی" },
+        tab_health: { en: "Store health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },
         // Style tab routes to the full-screen Brand Kit — the full editor
         // is a two-pane layout that cannot fit in the 380px rail.
     },

@@ -1647,7 +1647,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         >
         <div
             data-testid="editor-shell-v2"
-            className="flex h-full flex-col bg-background"
+            className="sb-bidi flex h-full flex-col bg-background"
         >
             {builder.recoverable_backup && (
                 <DraftRecoveryBanner
