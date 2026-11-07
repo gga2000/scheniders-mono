@@ -108,6 +108,7 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
 
         const cart: RecoverableCart = {
             id: c.id,
+            tenant_id: c.tenant_id,
             phone: c.phone,
             items: Array.isArray(c.items) ? c.items : [],
             subtotal_iqd: c.subtotal_iqd ?? 0,

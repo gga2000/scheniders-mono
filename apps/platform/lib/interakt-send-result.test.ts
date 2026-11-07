@@ -12,7 +12,7 @@ import type { Order } from "@/types/order";
  */
 
 vi.mock("@/lib/env", () => ({
-    env: { INTERAKT_API_KEY: "test-key", VERCEL_PROJECT_PRODUCTION_URL: "schenidersapp.xyz" },
+    env: { INTERAKT_API_KEY: "test-key", VERCEL_PROJECT_PRODUCTION_URL: "schenidersapp.xyz", INTERAKT_SENDER_TENANT_IDS: "11111111-1111-4111-8111-111111111111" },
     providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
 }));
 
@@ -27,6 +27,7 @@ const LIVE_SUCCESS_RESPONSE = {
 const order = {
     id: "uuid-1",
     order_id: "7209",
+    tenant_id: "11111111-1111-4111-8111-111111111111",
     customer_name: "محمد حسن",
     phone: "07701234567",
     city: "بغداد",

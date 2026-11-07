@@ -116,7 +116,9 @@ export async function POST(request: NextRequest) {
     const { data: existingProfile } = await supabase
       .from("user_profiles")
       .select("id, display_name")
-      .ilike("email", email)
+      // Exact match: emails are stored lower-case, and ilike treats "_" and "%"
+      // as wildcards, so "john_doe@" would match a different person's "john1doe@".
+      .eq("email", email)
       .maybeSingle();
 
     let userId: string | null = existingProfile?.id ?? null;

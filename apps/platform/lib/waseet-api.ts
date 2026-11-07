@@ -72,24 +72,17 @@ const rateLimiter = new RateLimiter();
 // TOKEN MANAGEMENT
 // =============================================
 
+// The Al-Waseet login is one platform account (WASEET_USERNAME/PASSWORD env),
+// so its token is cached in this server process, never in app_settings: that
+// table is per store and store admins can write their own rows, so a store could
+// plant a "waseet_token" row and have every store's parcels sent to its account.
+let cachedToken: string | null = null;
+
 /**
- * Get the cached Al-Waseet token from app_settings, or login to get a new one.
+ * Get the cached Al-Waseet token, or login to get a new one.
  */
 async function getToken(): Promise<string> {
-    const supabaseAdmin = createSupabaseServiceClient();
-
-    // Try cached token first
-    const { data } = await supabaseAdmin
-        .from("app_settings")
-        .select("value")
-        .eq("key", "waseet_token")
-        .single();
-
-    if (data?.value?.token) {
-        return data.value.token;
-    }
-
-    // No cached token, perform login
+    if (cachedToken) return cachedToken;
     return await login();
 }
 
@@ -125,14 +118,7 @@ async function login(): Promise<string> {
         throw new Error("Al-Waseet login response missing token in data.token");
     }
 
-    // Cache token in app_settings
-    const supabaseAdmin = createSupabaseServiceClient();
-    await supabaseAdmin.from("app_settings").upsert({
-        key: "waseet_token",
-        value: { token, obtainedAt: new Date().toISOString() },
-        updated_at: new Date().toISOString(),
-    });
-
+    cachedToken = token;
     console.log("[Waseet] Login successful, token cached");
     return token;
 }
@@ -141,8 +127,7 @@ async function login(): Promise<string> {
  * Clear cached token (call on persistent auth failures).
  */
 async function clearToken(): Promise<void> {
-    const supabaseAdmin = createSupabaseServiceClient();
-    await supabaseAdmin.from("app_settings").delete().eq("key", "waseet_token");
+    cachedToken = null;
 }
 
 // =============================================
@@ -571,13 +556,14 @@ export async function getCityMappings(): Promise<WaseetCityMapping[]> {
  * Get the default package size ID from cached settings.
  * Falls back to 1 if not configured.
  */
-export async function getDefaultPackageSizeId(): Promise<number> {
+export async function getDefaultPackageSizeId(tenantId: string): Promise<number> {
     const supabaseAdmin = createSupabaseServiceClient();
     const { data } = await supabaseAdmin
         .from("app_settings")
         .select("value")
         .eq("key", "waseet_default_package_size")
-        .single();
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
 
     return data?.value?.id ? Number(data.value.id) : 1;
 }
