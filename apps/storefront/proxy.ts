@@ -167,6 +167,11 @@ const TENANT_ROOT_FILES: ReadonlySet<string> = new Set([
  */
 const STORE_PATH_HEADER = "x-store-path";
 
+/** The editor's preview route: `/_preview` and everything under it. */
+function isPreviewPath(pathname: string): boolean {
+  return pathname === "/_preview" || pathname.startsWith("/_preview/");
+}
+
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const { slug, isCustom } = extractSlug(host, ROOT_DOMAIN);
@@ -180,9 +185,16 @@ export function proxy(request: NextRequest) {
   // platform root, which has no such route — so a store on its own domain
   // got a 404 for its own manifest and its own sitemap, verified live. They
   // have to be rewritten onto /s/[tenant]/ like every other store page.
+  //
+  // The editor preview route already names its tenant in the path
+  // (/_preview/<slug>/<page>) and checks a tenant-scoped token. The editor
+  // loads it on the store's own origin, so on a custom domain or subdomain it
+  // must not be pushed under /s/<tenant>/ — that path does not exist, and the
+  // merchant saw their store's 404 page instead of the page they were editing.
   if (
     url.pathname.startsWith("/_next") ||
     url.pathname.startsWith("/api") ||
+    isPreviewPath(url.pathname) ||
     (url.pathname.includes(".") && !TENANT_ROOT_FILES.has(url.pathname))
   ) {
     return NextResponse.next();
