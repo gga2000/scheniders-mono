@@ -25,3 +25,21 @@ describe("unwrap", () => {
         expect(inferField(z.string().optional().catch(undefined)).field.kind).toBe("string");
     });
 });
+
+describe("inferField — number ranges", () => {
+    it("an integer with only a floor has no ceiling (no slider to 9 quadrillion)", () => {
+        expect(inferField(z.number().int().min(0)).field).toEqual({
+            kind: "number",
+            min: 0,
+            max: undefined,
+            integer: true,
+        });
+    });
+
+    it("a real range is kept", () => {
+        expect(inferField(z.number().int().min(1).max(60)).field).toMatchObject({
+            min: 1,
+            max: 60,
+        });
+    });
+});

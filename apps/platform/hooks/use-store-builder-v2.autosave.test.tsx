@@ -160,4 +160,27 @@ describe("builder autosave", () => {
     expect(ok).toBe(true);
     expect(result.current.publish_error).toBeNull();
   });
+
+  it("leaving the editor inside the debounce saves the edit right away", async () => {
+    const { result, unmount } = render();
+    act(() => {
+      result.current.setConfig((prev) => ({ ...prev, default_locale: "en" }) as StoreConfigV2, "structural");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(update).not.toHaveBeenCalled();
+    unmount();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(update).toHaveBeenCalledTimes(1);
+    const saved = update.mock.calls[0]?.[0] as { store_config_v2_draft: Record<string, unknown> };
+    expect(saved.store_config_v2_draft.default_locale).toBe("en");
+  });
+
+  it("leaving with nothing pending writes nothing", async () => {
+    const { unmount } = render();
+    unmount();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(update).not.toHaveBeenCalled();
+  });
 });

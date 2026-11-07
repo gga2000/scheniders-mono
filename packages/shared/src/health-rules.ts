@@ -793,17 +793,29 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return { status: "pass" };
     }),
     check("at_least_one_image_per_hero", "content", 1, (cfg) => {
-        const missing: SectionInstance[] = [];
-        for (const s of allEnabledSections(cfg)) {
-            if (!s.type.startsWith("hero_")) continue;
-            const img = findKey(s.base, (k) => /^image_url$|^image$|^bg_url$/.test(k));
-            if (!img || !resolveStr(img).trim()) missing.push(s);
+        // Every image key a hero section stores its picture under, video
+        // included (hero_card_float keeps it in `bg_image_url`).
+        const IMAGE_KEY = /^(image_url|image|bg_url|bg_image_url|background_image_url|media_url|video_url|poster_url)$/;
+        const missing: Array<{ page_id: PageId; section_id: string }> = [];
+        for (const page of cfg.pages) {
+            for (const s of page.sections) {
+                if (s.enabled === false || !s.type.startsWith("hero_")) continue;
+                const img = findKey(s.base, (k) => IMAGE_KEY.test(k));
+                if (!img || !resolveStr(img).trim()) {
+                    missing.push({ page_id: page.page_id, section_id: s.id });
+                }
+            }
         }
-        if (missing.length === 0) return { status: "pass" };
+        const first = missing[0];
+        if (!first) return { status: "pass" };
         return {
             status: "warn",
-            message: `${missing.length} hero section(s) missing an image.`,
-            fix_action: fixPage("home", "Add hero image"),
+            message: `${missing.length} hero section(s) missing an image (${[...new Set(missing.map((m) => m.page_id))].join(", ")}).`,
+            // Open the first hero that needs a picture, not always Home.
+            fix_action: {
+                label: "Add hero image",
+                go_to: { kind: "section", page_id: first.page_id, section_id: first.section_id },
+            },
         };
     }),
     check("every_section_enabled_has_content", "content", 1, (cfg) => {

@@ -539,3 +539,21 @@ describe("runHealthChecks — conversion checks see every section that does the 
         expect(status(cfg, "pdp_has_delivery_promise")).toBe("warn");
     });
 });
+
+describe("runHealthChecks — at_least_one_image_per_hero", () => {
+    it("a hero that keeps its picture in bg_image_url has an image", () => {
+        const cfg = fullyPopulatedConfig();
+        setPage(cfg, "home", [s("hero_card_float", { bg_image_url: "https://cdn/hero.webp" })]);
+        const c = runHealthChecks(cfg).checks.find((c) => c.id === "at_least_one_image_per_hero");
+        expect(c?.status).toBe("pass");
+    });
+
+    it("opens the hero that needs a picture, on its own page", () => {
+        const cfg = fullyPopulatedConfig();
+        const hero = s("hero_card_float", {});
+        setPage(cfg, "about", [hero]);
+        const c = runHealthChecks(cfg).checks.find((c) => c.id === "at_least_one_image_per_hero");
+        expect(c?.status).toBe("warn");
+        expect(c?.fix_action?.go_to).toEqual({ kind: "section", page_id: "about", section_id: hero.id });
+    });
+});
