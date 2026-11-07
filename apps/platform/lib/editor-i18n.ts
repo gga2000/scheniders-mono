@@ -801,7 +801,7 @@ export const STRINGS = {
         tabs_aria_label: { en: "Inspector tabs", ar: "تبويبات لوحة التحرير", ku: "تابەکانی پانێڵی دەستکاری" },
         tab_blocks: { en: "Blocks", ar: "العناصر", ku: "بەشەکان" },
         tab_style: { en: "Style", ar: "الهوية", ku: "شێواز" },
-        tab_seo: { en: "SEO", ar: "SEO", ku: "SEO" },
+        tab_seo: { en: "SEO", ar: "جوجل", ku: "گووگڵ" },
         tab_health: { en: "Health", ar: "الجاهزية", ku: "ئامادەیی" },
         // Site-wide parts (promo bar, header, footer) — shown on every page.
         sitewide_title: { en: "On every page", ar: "بكل الصفحات", ku: "لە هەموو پەڕەکان" },
