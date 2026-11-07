@@ -71,14 +71,14 @@ describe("I18nScreen", () => {
         expect(onSelectSection).toHaveBeenCalledWith("home", "hero-1");
     });
 
-    it("toolbar pill renders the enabled locales with percentages", () => {
+    it("toolbar pill shows one plain-words translation percentage", () => {
         const cfg = homeWithHero();
         const onClick = vi.fn();
         render(<I18nToolbarPill config={cfg} onClick={onClick} />);
         const pill = screen.getByTestId("i18n-toolbar-pill");
-        expect(pill.textContent).toMatch(/ar/);
-        expect(pill.textContent).toMatch(/en/);
-        expect(pill.textContent).toMatch(/%/);
+        expect(pill.textContent).toMatch(/Translated \d+%/);
+        // No raw locale codes.
+        expect(pill.textContent).not.toMatch(/\b(ar|en|ku)\b/);
         fireEvent.click(pill);
         expect(onClick).toHaveBeenCalled();
     });

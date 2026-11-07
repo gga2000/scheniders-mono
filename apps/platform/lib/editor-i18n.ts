@@ -689,7 +689,7 @@ export const STRINGS = {
         page_other: { en: "Another store address…", ar: "عنوان ثاني بالمتجر…", ku: "ناونیشانێکی تری فرۆشگا…" },
         page_other_label: { en: "Store address", ar: "عنوان بالمتجر", ku: "ناونیشانی فرۆشگا" },
         page_other_placeholder: { en: "/products?sort=sale", ar: "/products?sort=sale", ku: "/products?sort=sale" },
-        stored_as: { en: "Saved as", ar: "ينحفظ كـ", ku: "پاشەکەوت دەکرێت وەک" },
+        stored_as: { en: "Opens", ar: "يفتح", ku: "دەکاتەوە" },
         page_home: { en: "Home", ar: "الرئيسية", ku: "سەرەکی" },
         page_products: { en: "All products", ar: "كل المنتجات", ku: "هەموو بەرهەمەکان" },
         page_search: { en: "Search", ar: "البحث", ku: "گەڕان" },
@@ -707,7 +707,7 @@ export const STRINGS = {
     auto_form: {
         reset: { en: "Reset to default", ar: "إعادة للوضع الافتراضي", ku: "گەڕاندنەوە بۆ بنەڕەت" },
         reset_title: { en: "Reset this section to its default content", ar: "إعادة هذا القسم إلى محتواه الافتراضي", ku: "گەڕاندنەوەی ئەم بەشە بۆ ناوەڕۆکی بنەڕەتی" },
-        set: { en: "Set", ar: "تعيين", ku: "دانان" },
+        set: { en: "Add", ar: "إضافة", ku: "زیادکردن" },
         clear: { en: "Clear", ar: "مسح", ku: "سڕینەوە" },
         add: { en: "Add", ar: "إضافة", ku: "زیادکردن" },
         no_items: { en: "No items yet", ar: "لا توجد عناصر بعد", ku: "هێشتا هیچ بڕگەیەک نییە" },
@@ -923,7 +923,7 @@ export const STRINGS = {
         score_great: { en: "Looking great", ar: "ممتاز", ku: "زۆر باشە" },
         cat_ad_compliance: { en: "Ad compliance", ar: "الامتثال الإعلاني", ku: "گونجاندنی ڕیکلام" },
         cat_conversion: { en: "Conversion", ar: "التحويل", ku: "گۆڕین" },
-        cat_seo: { en: "SEO", ar: "SEO", ku: "SEO" },
+        cat_seo: { en: "Search (Google)", ar: "الظهور في جوجل", ku: "دەرکەوتن لە گووگڵ" },
         cat_trust: { en: "Trust", ar: "الثقة", ku: "متمانە" },
         cat_content: { en: "Content", ar: "المحتوى", ku: "ناوەڕۆک" },
         cat_performance: { en: "Performance", ar: "الأداء", ku: "کارایی" },
@@ -958,6 +958,15 @@ export const STRINGS = {
         launch_whatsapp_history: { en: "Set WhatsApp number", ar: "تعيين رقم الواتساب", ku: "دانانی ژمارەی واتساپ" },
         // Inline delivery-fee capture (S3-09 — moved out of the wizard)
         launch_step_delivery: { en: "Set your delivery fee", ar: "حدد رسوم التوصيل", ku: "کرێی گەیاندن دیاری بکە" },
+        // tFormat: {page}
+        on_page: { en: "On the {page} page", ar: "في صفحة {page}", ku: "لە پەڕەی {page}" },
+        // Finished launch steps read as a fact, not a crossed-out order.
+        launch_done_logo: { en: "Logo uploaded", ar: "تم رفع الشعار", ku: "لۆگۆ بارکرا" },
+        launch_done_whatsapp: { en: "WhatsApp number added", ar: "تمت إضافة رقم الواتساب", ku: "ژمارەی واتساپ زیادکرا" },
+        launch_done_delivery: { en: "Delivery fee set", ar: "تم تحديد رسوم التوصيل", ku: "کرێی گەیاندن دیاریکرا" },
+        launch_done_home: { en: "Home page built", ar: "الصفحة الرئيسية جاهزة", ku: "پەڕەی سەرەکی ئامادەیە" },
+        launch_done_policies: { en: "Policy pages filled", ar: "صفحات السياسات مكتملة", ku: "پەڕەکانی ڕێساکان تەواون" },
+        launch_done_publish: { en: "Store published", ar: "المتجر منشور", ku: "فرۆشگاکە بڵاوکراوەتەوە" },
         launch_delivery_placeholder: { en: "5000", ar: "5000", ku: "5000" },
         launch_delivery_invalid: { en: "Enter the fee in whole dinars, e.g. 5000, or 0 for free delivery.", ar: "أدخل الرسوم بالدينار، مثل 5000، أو 0 للتوصيل المجاني.", ku: "کرێیەکە بە دینار بنووسە، وەک 5000، یان 0 بۆ گەیاندنی بێبەرامبەر." },
         launch_delivery_history: { en: "Set delivery fee", ar: "تحديد رسوم التوصيل", ku: "دیاریکردنی کرێی گەیاندن" },
@@ -1179,7 +1188,6 @@ export const STRINGS = {
         tile_brand_label: { en: "Brand & theme", ar: "الهوية والمظهر", ku: "برێند و ڕووکار" },
         tile_brand_desc: { en: "Logo, colors, fonts, shapes", ar: "الشعار والألوان والخطوط والأشكال", ku: "لۆگۆ، ڕەنگ، فۆنت، شێوە" },
         tile_languages_label: { en: "Languages", ar: "اللغات", ku: "زمانەکان" },
-        tile_languages_desc: { en: "Arabic, English, Kurdish", ar: "العربية والإنجليزية والكردية", ku: "عەرەبی، ئینگلیزی، کوردی" },
         tile_seo_label: { en: "SEO", ar: "SEO", ku: "SEO" },
         tile_seo_desc: { en: "Page titles & meta descriptions", ar: "عناوين الصفحات والأوصاف التعريفية", ku: "ناونیشانی پەڕەکان و وەسفی مێتا" },
         tile_domain_label: { en: "Custom domain", ar: "نطاق مخصّص", ku: "دۆمەینی تایبەت" },
@@ -1504,20 +1512,6 @@ export const STRINGS = {
     },
 
     /* ── i18n screen ──────────────────────────────────────────── */
-    i18n_screen: {
-        heading: { en: "Translation coverage", ar: "تغطية الترجمة", ku: "بەرفراوانی وەرگێڕان" },
-        back: { en: "Back to preview", ar: "العودة إلى المعاينة", ku: "گەڕانەوە بۆ پێشبینین" },
-        locale_arabic: { en: "Arabic", ar: "العربية", ku: "عەرەبی" },
-        locale_english: { en: "English", ar: "الإنجليزية", ku: "ئینگلیزی" },
-        locale_kurdish: { en: "Kurdish", ar: "الكردية", ku: "کوردی" },
-        // tFormat: {locale}
-        instructions: { en: "Showing untranslated fields for {locale}. Switch locales using the pills above.", ar: "عرض الحقول غير المترجمة بـ {locale}. بدّل اللغات من الأزرار أعلاه.", ku: "خانە وەرنەگێڕدراوەکان بۆ {locale} پیشاندەدرێت. لە سەرەوە زمانەکان بگۆڕە." },
-        translate_button: { en: "Translate", ar: "ترجمة", ku: "وەرگێڕان" },
-        globals: { en: "Globals", ar: "العام", ku: "گشتییەکان" },
-        toolbar_pill_title: { en: "View translation coverage", ar: "عرض تغطية الترجمة", ku: "بینینی بەرفراوانی وەرگێڕان" },
-        // tFormat: {n}
-        more_count: { en: "+ {n} more…", ar: "+ {n} المزيد…", ku: "+ {n} زیاتر…" },
-    },
 
     /* ── Page templates ───────────────────────────────────────── */
     page_template: {
@@ -1562,6 +1556,25 @@ export const STRINGS = {
     },
 
     /* ── Common ──────────────────────────────────────────────── */
+    /** Language names, written in the UI's own language. */
+    languages: {
+        ar: { en: "Arabic", ar: "العربية", ku: "عەرەبی" },
+        en: { en: "English", ar: "الإنجليزية", ku: "ئینگلیزی" },
+        ku: { en: "Kurdish", ar: "الكردية", ku: "کوردی" },
+    },
+    i18n_screen: {
+        title: { en: "Translations", ar: "الترجمات", ku: "وەرگێڕانەکان" },
+        back: { en: "Back to preview", ar: "رجوع للمعاينة", ku: "گەڕانەوە بۆ پێشبینین" },
+        // tFormat: {lang}
+        showing: { en: "Text not yet written in {lang}. Pick a language above.", ar: "نصوص لم تُكتب بعد بـ{lang}. اختر لغة من الأعلى.", ku: "دەقەکانی هێشتا بە {lang} نەنووسراون. زمانێک لە سەرەوە هەڵبژێرە." },
+        globals: { en: "Top bar, header and footer", ar: "الشريط العلوي والرأس والتذييل", ku: "شریتی سەرەوە، سەرپەڕە و پێپەڕە" },
+        translate: { en: "Translate", ar: "ترجم", ku: "وەرگێڕان" },
+        // tFormat: {n}
+        more: { en: "+ {n} more", ar: "+ {n} أخرى", ku: "+ {n}ی تر" },
+        // tFormat: {pct}
+        pill: { en: "Translated {pct}%", ar: "مترجم {pct}%", ku: "وەرگێڕدراو {pct}%" },
+        pill_title: { en: "See what still needs translating", ar: "اعرض ما يحتاج ترجمة", ku: "ئەوەی هێشتا وەرگێڕانی دەوێت ببینە" },
+    },
     common: {
         close: { en: "Close", ar: "إغلاق", ku: "داخستن" },
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },

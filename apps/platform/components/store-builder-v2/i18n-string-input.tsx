@@ -20,7 +20,7 @@
 import { useMemo, useState, type ReactElement } from "react";
 import { Plus } from "lucide-react";
 import type { I18nString, LocaleCode } from "@scheniders/shared";
-import { SUPPORTED_LOCALES, LOCALE_LABELS } from "@scheniders/shared";
+import { SUPPORTED_LOCALES } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { useEditorStoreLocales } from "@/lib/editor-store-locales-context";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
@@ -83,10 +83,10 @@ export function I18nStringInput({
         [activeLocale, storeLocales],
     );
 
-    // "English ✓ · کوردی –" — at-a-glance fill state for the collapsed
-    // reveal, each language in its own name rather than a code.
+    // "الإنجليزية ✓ · الكردية –" — at-a-glance fill state for the collapsed
+    // reveal, each language named in the editor's language, not a code.
     const fillState = secondaryLocales
-        .map((loc) => `${LOCALE_LABELS[loc]} ${value?.[loc] ? "✓" : "–"}`)
+        .map((loc) => `${t(STRINGS.languages[loc], activeLocale)} ${value?.[loc] ? "✓" : "–"}`)
         .join(" · ");
 
     return (
@@ -175,7 +175,7 @@ export function I18nStringInput({
                             >
                                 <span
                                     className="inline-flex h-6 w-9 shrink-0 items-center justify-center rounded-md bg-muted/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
-                                    title={LOCALE_LABELS[loc]}
+                                    title={t(STRINGS.languages[loc], activeLocale)}
                                     aria-hidden="true"
                                 >
                                     {LOCALE_SHORT[loc]}
@@ -216,7 +216,7 @@ export function I18nStringInput({
                                         title={tFormat(
                                             STRINGS.i18n_input.copy_from_active,
                                             activeLocale,
-                                            { locale: LOCALE_LABELS[activeLocale] },
+                                            { locale: t(STRINGS.languages[activeLocale], activeLocale) },
                                         )}
                                         onClick={() => updateLocale(loc, activeValue)}
                                         className="inline-flex h-6 shrink-0 items-center rounded-md bg-muted/40 px-1.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
@@ -224,7 +224,7 @@ export function I18nStringInput({
                                         {tFormat(
                                             STRINGS.i18n_input.copy_from_active,
                                             activeLocale,
-                                            { locale: LOCALE_LABELS[activeLocale] },
+                                            { locale: t(STRINGS.languages[activeLocale], activeLocale) },
                                         )}
                                     </button>
                                 ) : null}

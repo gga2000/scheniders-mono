@@ -19,6 +19,9 @@ import type {
 import { SUPPORTED_LOCALES } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { computeCompleteness } from "@/lib/i18n-completeness";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
+import { resolveFieldLabel } from "@/lib/section-field-meta";
 import { getPageLabel } from "./page-tree";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -34,11 +37,14 @@ export interface I18nScreenProps {
     onClose?: () => void;
 }
 
-const LOCALE_LABEL: Record<LocaleCode, string> = {
-    ar: "Arabic",
-    en: "English",
-    ku: "Kurdish",
-};
+/**
+ * "items.0.title_i18n" → the field's merchant label ("العنوان"): the last
+ * named segment of the path, never the raw developer path.
+ */
+function fieldLabelFromPath(path: string, locale: LocaleCode): string {
+    const key = [...path.split(".")].reverse().find((seg) => seg && !/^\d+$/.test(seg)) ?? path;
+    return resolveFieldLabel(undefined, key, locale);
+}
 
 function pctColor(pct: number): string {
     if (pct < 40) return "bg-red-500";
@@ -57,6 +63,7 @@ export function I18nScreen({
     onSelectSection,
     onClose,
 }: I18nScreenProps) {
+    const locale = useEditorLocale();
     const result = useMemo(() => computeCompleteness(config), [config]);
     const enabled = (config.enabled_locales ?? SUPPORTED_LOCALES) as LocaleCode[];
     const [focusLocale, setFocusLocale] = useState<LocaleCode>(
@@ -77,7 +84,7 @@ export function I18nScreen({
                             data-testid="i18n-screen-back"
                             onClick={onClose}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                            aria-label="Back to preview"
+                            aria-label={t(STRINGS.i18n_screen.back, locale)}
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </button>
@@ -89,7 +96,7 @@ export function I18nScreen({
                         <Languages className="h-4 w-4" />
                     </span>
                     <h2 className="text-base font-semibold tracking-tight">
-                        Translation coverage
+                        {t(STRINGS.i18n_screen.title, locale)}
                     </h2>
                 </div>
                 <div className="flex items-center gap-2">
@@ -108,7 +115,7 @@ export function I18nScreen({
                                         : "border border-(--card-border) bg-(--background-soft) text-muted-foreground hover:border-(--border-hover) hover:text-foreground",
                                 )}
                             >
-                                <span>{LOCALE_LABEL[loc]}</span>
+                                <span>{t(STRINGS.languages[loc], locale)}</span>
                                 <span className="tabular-nums">{c.pct}%</span>
                             </button>
                         );
@@ -119,18 +126,16 @@ export function I18nScreen({
             <div className="flex-1 overflow-y-auto p-6">
                 <div className="mx-auto max-w-3xl space-y-6">
                     <p className="text-sm text-foreground/80">
-                        Showing untranslated fields for{" "}
-                        <span className="font-semibold text-foreground">
-                            {LOCALE_LABEL[focusLocale]}
-                        </span>
-                        . Switch locales using the pills above.
+                        {tFormat(STRINGS.i18n_screen.showing, locale, {
+                            lang: t(STRINGS.languages[focusLocale], locale),
+                        })}
                     </p>
 
                     {result.perPage.map((page) => {
                         const labelPage =
                             page.page_id === ("_globals" as PageId)
-                                ? "Globals"
-                                : getPageLabel(page.page_id as PageId);
+                                ? t(STRINGS.i18n_screen.globals, locale)
+                                : getPageLabel(page.page_id as PageId, locale);
                         const c = page.perLocale[focusLocale];
                         if (c.total === 0) return null;
                         const missing = page.sections.flatMap((s) =>
@@ -187,7 +192,7 @@ export function I18nScreen({
                                                         {m.section_label}
                                                     </div>
                                                     <div className="truncate text-[10px] text-muted-foreground">
-                                                        {m.path}
+                                                        {fieldLabelFromPath(m.path, locale)}
                                                     </div>
                                                 </div>
                                                 {onSelectSection &&
@@ -203,14 +208,16 @@ export function I18nScreen({
                                                         }
                                                         className="shrink-0 rounded-lg bg-primary/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-primary transition-colors hover:bg-primary/15"
                                                     >
-                                                        Translate
+                                                        {t(STRINGS.i18n_screen.translate, locale)}
                                                     </button>
                                                 ) : null}
                                             </li>
                                         ))}
                                         {missing.length > 8 && (
                                             <li className="px-2 text-[10px] text-muted-foreground">
-                                                + {missing.length - 8} more…
+                                                {tFormat(STRINGS.i18n_screen.more, locale, {
+                                                    n: missing.length - 8,
+                                                })}
                                             </li>
                                         )}
                                     </ul>
@@ -234,26 +241,26 @@ export interface I18nToolbarPillProps {
 }
 
 export function I18nToolbarPill({ config, onClick }: I18nToolbarPillProps) {
+    const locale = useEditorLocale();
     const result = useMemo(() => computeCompleteness(config), [config]);
     const enabled = (config.enabled_locales ?? SUPPORTED_LOCALES) as LocaleCode[];
+    // One number a merchant can read: how complete the LEAST-finished
+    // extra language is. A one-language store has nothing to translate.
+    const others = enabled.filter((l) => l !== config.default_locale);
+    if (others.length === 0) return null;
+    const pct = Math.min(...others.map((l) => result.perLocale[l].pct));
     return (
         <button
             type="button"
             data-testid="i18n-toolbar-pill"
             onClick={onClick}
-            title="View translation coverage"
+            title={t(STRINGS.i18n_screen.pill_title, locale)}
             className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
         >
             <Languages aria-hidden="true" className="h-3.5 w-3.5" />
-            {enabled.map((loc, i) => {
-                const c = result.perLocale[loc];
-                return (
-                    <span key={loc} className="tabular-nums">
-                        {i > 0 && <span className="mx-1 text-muted-foreground/50">/</span>}
-                        {loc} {c.pct}%
-                    </span>
-                );
-            })}
+            <span className="tabular-nums">
+                {tFormat(STRINGS.i18n_screen.pill, locale, { pct })}
+            </span>
         </button>
     );
 }

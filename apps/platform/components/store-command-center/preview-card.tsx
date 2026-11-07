@@ -163,7 +163,7 @@ export function PreviewCard({
                     </div>
 
                     {/* iframe container */}
-                    <div className="relative flex justify-center bg-muted/10 p-4" style={{ minHeight: FRAME_HEIGHT_PX }}>
+                    <div className="relative flex justify-center overflow-hidden bg-muted/10 p-4" style={{ minHeight: FRAME_HEIGHT_PX }}>
                         <div ref={boxRef} aria-hidden="true" className="pointer-events-none absolute inset-x-4" />
                         <div
                             className="relative rounded-xl overflow-hidden border border-border shadow-md transition-all duration-300 bg-white"

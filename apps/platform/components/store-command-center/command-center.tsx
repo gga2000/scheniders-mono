@@ -1,6 +1,6 @@
 "use client";
 
-import { isStorePubliclyLive } from "@scheniders/shared";
+import { isStorePubliclyLive, SUPPORTED_LOCALES } from "@scheniders/shared";
 import type { LocaleCode, StoreConfigV2 } from "@scheniders/shared";
 import { useStoreAnalytics } from "@/hooks/use-store-analytics";
 import { useStorefrontFunnel } from "@/hooks/use-storefront-funnel";
@@ -78,9 +78,12 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
             />
 
             {/* 2-column desktop layout, stacked on mobile */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+            {/* minmax(0,1fr): the preview card holds a fixed-width (1280px)
+                scaled iframe; a plain 1fr column would grow to fit it and
+                push the right column off-screen. */}
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
                 {/* Left column */}
-                <div className="space-y-6">
+                <div className="min-w-0 space-y-6">
                     <KpiStrip
                         analytics={analyticsQuery.data}
                         isLoading={analyticsQuery.isLoading}
@@ -121,6 +124,9 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                         tenantId={tenantId}
                         slug={tenant.slug}
                         locale={locale}
+                        storeLocales={SUPPORTED_LOCALES.filter(
+                            (l) => l === locale || (resolvedConfig?.enabled_locales ?? []).includes(l),
+                        )}
                     />
                 </div>
             </div>

@@ -28,6 +28,7 @@ import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import { useEditorMode } from "@/lib/editor-mode-context";
 import { CHECK_COPY, CHECK_PASSED_COPY, checkCopyFixLabel } from "@/lib/health-check-copy";
+import { getPageLabel } from "./page-tree";
 import type { LocaleCode } from "@scheniders/shared";
 import type { SettingsSectionId } from "./page-tree";
 
@@ -265,13 +266,13 @@ export function HealthChecklistScreen(
         }> = [
             {
                 key: "logo",
-                label: t(STRINGS.health.launch_step_logo, locale),
+                label: t(pass("logo_uploaded") ? STRINGS.health.launch_done_logo : STRINGS.health.launch_step_logo, locale),
                 done: pass("logo_uploaded"),
                 fix: fixOf("logo_uploaded"),
             },
             {
                 key: "whatsapp",
-                label: t(STRINGS.health.launch_step_whatsapp, locale),
+                label: t(pass("whatsapp_number_set") ? STRINGS.health.launch_done_whatsapp : STRINGS.health.launch_step_whatsapp, locale),
                 done: pass("whatsapp_number_set"),
                 fix: fixOf("whatsapp_number_set"),
                 checkId: "whatsapp_number_set",
@@ -282,7 +283,7 @@ export function HealthChecklistScreen(
                 ? [
                       {
                           key: "delivery",
-                          label: t(STRINGS.health.launch_step_delivery, locale),
+                          label: t(deliveryFeeSet ? STRINGS.health.launch_done_delivery : STRINGS.health.launch_step_delivery, locale),
                           done: deliveryFeeSet,
                           fix: null,
                       },
@@ -290,13 +291,13 @@ export function HealthChecklistScreen(
                 : []),
             {
                 key: "home",
-                label: t(STRINGS.health.launch_step_home, locale),
+                label: t(pass("home_has_content") ? STRINGS.health.launch_done_home : STRINGS.health.launch_step_home, locale),
                 done: pass("home_has_content"),
                 fix: fixOf("home_has_content"),
             },
             {
                 key: "policies",
-                label: t(STRINGS.health.launch_step_policies, locale),
+                label: t(policiesDone ? STRINGS.health.launch_done_policies : STRINGS.health.launch_step_policies, locale),
                 done: policiesDone,
                 fix:
                     fixOf("shipping_policy_has_content") ??
@@ -306,7 +307,7 @@ export function HealthChecklistScreen(
         if (hasPublished !== undefined) {
             steps.push({
                 key: "publish",
-                label: t(STRINGS.health.launch_step_publish, locale),
+                label: t(hasPublished ? STRINGS.health.launch_done_publish : STRINGS.health.launch_step_publish, locale),
                 done: hasPublished,
                 fix: null,
                 hint: t(STRINGS.health.launch_step_publish_hint, locale),
@@ -457,9 +458,7 @@ export function HealthChecklistScreen(
                                     <span
                                         className={cn(
                                             "min-w-0 flex-1 truncate text-sm",
-                                            step.done
-                                                ? "text-muted-foreground line-through decoration-emerald-500/40"
-                                                : "text-foreground",
+                                            step.done ? "text-foreground/70" : "text-foreground",
                                         )}
                                     >
                                         {step.label}
@@ -804,7 +803,14 @@ function HealthCheckRow({
         : copy
           ? t(copy.message, locale)
           : humanize(check.id);
-    const subtitle = copy ? null : check.message;
+    // Section-level fixes can live on any page; name it so the merchant
+    // doesn't look at Home when the About cover is the one missing a photo.
+    const goTo = check.fix_action?.go_to;
+    const pageHint =
+        !passed && goTo?.kind === "section"
+            ? tFormat(STRINGS.health.on_page, locale, { page: getPageLabel(goTo.page_id, locale) })
+            : null;
+    const subtitle = copy ? pageHint : check.message;
     return (
         <li
             data-testid={`health-check-row-${check.id}`}

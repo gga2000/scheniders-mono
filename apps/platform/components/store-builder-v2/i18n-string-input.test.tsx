@@ -30,8 +30,8 @@ describe("I18nStringInput — tuck-away", () => {
         expect(screen.queryByTestId("i18n-input-input-en")).toBeNull();
         expect(screen.queryByTestId("i18n-input-input-ku")).toBeNull();
         const toggle = screen.getByTestId("i18n-input-translations-toggle");
-        expect(toggle.textContent).toContain("English ✓");
-        expect(toggle.textContent).toContain("کوردی ✓");
+        expect(toggle.textContent).toContain("الإنجليزية ✓");
+        expect(toggle.textContent).toContain("الكردية ✓");
     });
 
     it("shows – fill state for empty locales", () => {
@@ -44,8 +44,8 @@ describe("I18nStringInput — tuck-away", () => {
             />,
         );
         const toggle = screen.getByTestId("i18n-input-translations-toggle");
-        expect(toggle.textContent).toContain("English –");
-        expect(toggle.textContent).toContain("کوردی –");
+        expect(toggle.textContent).toContain("الإنجليزية –");
+        expect(toggle.textContent).toContain("الكردية –");
     });
 
     it("expands secondary locales on demand and hides them again", () => {
@@ -139,8 +139,8 @@ describe("I18nStringInput — store languages", () => {
             </EditorStoreLocalesProvider>,
         );
         const toggle = screen.getByTestId("i18n-input-translations-toggle");
-        expect(toggle.textContent).toContain("English –");
-        expect(toggle.textContent).not.toContain("کوردی");
+        expect(toggle.textContent).toContain("الإنجليزية –");
+        expect(toggle.textContent).not.toContain("الكردية");
     });
 
     it("shows no translations control for a one-language store", () => {

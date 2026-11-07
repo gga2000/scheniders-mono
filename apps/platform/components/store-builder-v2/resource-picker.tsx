@@ -12,7 +12,7 @@
 
 import { useMemo, useState, type ReactElement } from "react";
 import Image from "next/image";
-import { ChevronDown, GripVertical, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, GripVertical, Search, X } from "lucide-react";
 import { resolveI18n, type LocaleCode } from "@scheniders/shared";
 import { STRINGS, t as tx } from "@/lib/editor-i18n";
 import {
@@ -282,7 +282,7 @@ export function MultiPicker({
                                 aria-label={tx(STRINGS.auto_form.move_up, locale)}
                                 className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
                             >
-                                ↑
+                                <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
                             <button
                                 type="button"
@@ -291,7 +291,7 @@ export function MultiPicker({
                                 aria-label={tx(STRINGS.auto_form.move_down, locale)}
                                 className="rounded p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
                             >
-                                ↓
+                                <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
                             <button
                                 type="button"
