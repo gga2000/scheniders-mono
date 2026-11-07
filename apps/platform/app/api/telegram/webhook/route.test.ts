@@ -126,9 +126,12 @@ function linkTelegramUser() {
     ];
 }
 
-function update(text: string) {
+const SECRET = "tg-secret";
+
+function update(text: string, token: string | null = SECRET) {
     return new NextRequest("http://x/api/telegram/webhook", {
         method: "POST",
+        headers: token === null ? {} : { "x-telegram-bot-api-secret-token": token },
         body: JSON.stringify({
             update_id: 1,
             message: { message_id: 10, from: { id: TG_USER }, chat: { id: 1 }, text },
@@ -137,11 +140,30 @@ function update(text: string) {
 }
 
 beforeEach(() => {
-    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "");
+    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", SECRET);
     state.upserts = [];
     state.sent = [];
     state.createOrder.mockReset();
     state.createOrder.mockResolvedValue({ success: true, data: { id: "o1", order_id: "A-1" } });
+});
+
+describe("telegram webhook: secret", () => {
+    it("refuses every update when no secret is configured", async () => {
+        vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "");
+        seed(true);
+        linkTelegramUser();
+        const res = await POST(update("1"));
+        expect(res.status).toBe(503);
+        expect(state.createOrder).not.toHaveBeenCalled();
+    });
+
+    it("refuses an update with a wrong or missing secret", async () => {
+        seed(true);
+        linkTelegramUser();
+        expect((await POST(update("1", "nope"))).status).toBe(403);
+        expect((await POST(update("1", null))).status).toBe(403);
+        expect(state.createOrder).not.toHaveBeenCalled();
+    });
 });
 
 describe("telegram webhook: deactivated profiles (F-087)", () => {
