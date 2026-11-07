@@ -9,6 +9,7 @@ import {
 } from "@/lib/telegram";
 import { createOrderForTenant } from "@/lib/order-service";
 import { activeTenantRole } from "@/lib/auth/active-tenant-role";
+import { constantTimeEqual } from "@/lib/webhook-auth";
 import type { Order, OrderItem } from "@/types/order";
 import {
     matchProductReply,
@@ -77,12 +78,16 @@ interface EmployeeLink {
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+    // Fails closed: without the secret anyone could post a fake update as a
+    // linked employee and create orders in that employee's store.
     const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
-    if (expected) {
-        const got = req.headers.get("x-telegram-bot-api-secret-token");
-        if (got !== expected) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-        }
+    if (!expected) {
+        console.error("[telegram] TELEGRAM_WEBHOOK_SECRET is not set; refusing updates.");
+        return NextResponse.json({ error: "Endpoint is not configured." }, { status: 503 });
+    }
+    const got = req.headers.get("x-telegram-bot-api-secret-token") ?? "";
+    if (!constantTimeEqual(got, expected)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     let update: TgUpdate;
