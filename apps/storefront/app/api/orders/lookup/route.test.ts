@@ -136,7 +136,7 @@ describe("POST /api/orders/lookup", () => {
       });
       const res = await POST(req({ tenant_id: TENANT, phone: "07701234567" }));
       const body = (await res.json()) as { orders: { order_number: string }[] };
-      expect(body.orders.map((o) => o.order_number)).toEqual(["•••0007", "•••07-1", "•••2"]);
+      expect(body.orders.map((o) => o.order_number)).toEqual(["•••", "•••", "•••"]);
       expect(JSON.stringify(body)).not.toContain("4260910007");
     });
 

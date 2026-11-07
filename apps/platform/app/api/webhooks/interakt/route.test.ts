@@ -14,7 +14,10 @@ import {
  * history rows in the last 30 days. Both writes must carry the order's tenant.
  */
 
-const state = vi.hoisted(() => ({ env: { INTERAKT_WEBHOOK_SECRET: "legacy-secret" } as Record<string, string> }));
+const state = vi.hoisted(() => ({
+    env: { INTERAKT_WEBHOOK_SECRET: "legacy-secret" } as Record<string, string>,
+    allowed: true,
+}));
 
 vi.mock("@/lib/env", () => ({ env: state.env }));
 vi.mock("@/lib/supabase-server", () => ({ createSupabaseServiceClient: () => recordingSupabase }));
@@ -22,6 +25,8 @@ vi.mock("@/lib/whatsapp-delivery-receipts", () => ({
     INTERAKT_DELIVERY_STATUSES: {},
     recordWhatsAppDeliveryReceipt: vi.fn(),
 }));
+
+vi.mock("@/lib/interakt", () => ({ sharedSenderAllows: () => state.allowed }));
 
 import { POST } from "./route";
 
@@ -32,10 +37,13 @@ const insertedRows = (table: string) =>
     queriesOn(table).flatMap((q) => q.ops.filter((o) => o.op === "insert").map((o) => o.args[0])) as Record<string, unknown>[];
 
 beforeEach(() => {
+    state.allowed = true;
     resetRecording();
     respond((q) => {
         if (q.target === "orders") {
-            return { data: { id: ORDER_UUID, order_id: "#1001", status: "contacted", tenant_id: TENANT }, error: null };
+            const row = { id: ORDER_UUID, order_id: "#1001", status: "contacted", tenant_id: TENANT };
+            // .single() answers one row; the phone fallback (.limit) answers a list.
+            return { data: q.ops.some((o) => o.op === "limit") ? [row] : row, error: null };
         }
         return { data: null, error: null };
     });
@@ -69,5 +77,26 @@ describe("POST /api/webhooks/interakt (legacy) tenant stamping", () => {
         const logs = insertedRows("whatsapp_logs");
         expect(logs).toHaveLength(1);
         expect(logs[0]).toMatchObject({ order_uuid: ORDER_UUID, direction: "inbound", tenant_id: TENANT });
+    });
+
+    it("leaves an order alone when its store is not allowed on the shared number", async () => {
+        state.allowed = false;
+        const res = await POST(
+            new NextRequest("https://app.example.com/api/webhooks/interakt", {
+                method: "POST",
+                headers: { "x-webhook-secret": "legacy-secret" },
+                body: JSON.stringify({
+                    type: "message_api_clicked",
+                    data: {
+                        customer: { phone_number: "7700000000", country_code: "+964" },
+                        message: { button_text: "تأكيد ✅", context: { callback_data: ORDER_UUID } },
+                    },
+                }),
+            }),
+        );
+
+        expect(res.status).toBe(404);
+        expect(insertedRows("order_status_history")).toHaveLength(0);
+        expect(queriesOn("orders").some((q) => q.ops.some((o) => o.op === "update"))).toBe(false);
     });
 });
