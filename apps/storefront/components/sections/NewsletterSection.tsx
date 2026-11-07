@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
 
 interface NewsletterSectionProps {
   data: Record<string, unknown>;
@@ -23,22 +22,14 @@ export default function NewsletterSection({ data, tenantId }: NewsletterSectionP
 
     setStatus("loading");
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { error } = await supabase
-        .from("newsletter_subscribers")
-        .insert({ tenant_id: tenantId, email: email.trim() });
-
-      if (error && error.code === "23505") {
-        // Already subscribed
-        setStatus("success");
-      } else if (error) {
-        setStatus("error");
-      } else {
-        setStatus("success");
-      }
+      // Through the server route: it checks the store is live and the email
+      // is valid. The database no longer takes signups from the browser.
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenant_id: tenantId, email: email.trim() }),
+      });
+      setStatus(res.ok ? "success" : "error");
     } catch {
       setStatus("error");
     }
