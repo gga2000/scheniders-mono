@@ -888,7 +888,7 @@ export const STRINGS = {
         save_as_named: { en: "Save as named snapshot", ar: "حفظ كلقطة مسمّاة", ku: "هەڵگرتن وەکو وێنەی ناودار" },
         restore_title: { en: "Restore this version?", ar: "استرجاع هذه النسخة؟", ku: "ئەم وەشانە بگەڕێنیتەوە؟" },
         restore_confirm: { en: "Restore", ar: "استرجاع", ku: "گەڕاندنەوە" },
-        diff_heading: { en: "Changes vs current draft", ar: "التغييرات مقارنة بالمسودة الحالية", ku: "گۆڕانکارییەکان بەراورد بە ڕەشنووسی ئێستا" },
+        diff_heading: { en: "What restoring changes", ar: "ما سيتغيّر عند الاسترجاع", ku: "ئەوەی بە گەڕاندنەوە دەگۆڕێت" },
         diff_empty: { en: "No differences vs your current draft.", ar: "لا توجد فروقات مقارنة بمسودتك الحالية.", ku: "هیچ جیاوازییەک نییە بەراورد بە ڕەشنووسی ئێستات." },
         diff_added: { en: "added", ar: "أُضيف", ku: "زیادکرا" },
         diff_removed: { en: "removed", ar: "أُزيل", ku: "لابرا" },
@@ -1400,8 +1400,8 @@ export const STRINGS = {
         // tFormat: {time}
         vh_restore_body_suffix: { en: "from {time}? This replaces your current draft. You can undo this in this session.", ar: "من {time}؟ سيستبدل هذا مسودتك الحالية. يمكنك التراجع خلال هذه الجلسة.", ku: "لە {time}؟ ئەمە ڕەشنووسی ئێستات دەگۆڕێت. دەتوانی لەم دانیشتنەدا پاشگەزبیتەوە." },
         vh_promote_body: { en: "Give this auto-save a memorable label so it doesn't get pruned.", ar: "أعطِ هذا الحفظ التلقائي اسماً لا يُنسى حتى لا يُحذف.", ku: "ناوێکی بیرهێنەرەوە بدە بەم خەزنە ئۆتۆماتیکە بۆ ئەوەی نەسڕدرێتەوە." },
-        vh_diff_before: { en: "before:", ar: "قبل:", ku: "پێش:" },
-        vh_diff_after: { en: "after:", ar: "بعد:", ku: "دوای:" },
+        vh_diff_before: { en: "Now:", ar: "الآن:", ku: "ئێستا:" },
+        vh_diff_after: { en: "After restoring:", ar: "بعد الاسترجاع:", ku: "دوای گەڕاندنەوە:" },
 
         // Nav-builder screen
         nav_close_aria: { en: "Close navigation", ar: "إغلاق التنقل", ku: "داخستنی ناڤیگەیشن" },

@@ -95,6 +95,8 @@ export interface InspectorRailProps {
     onSetDeliveryFee?: (feeIqd: number) => void;
 }
 
+const PAGES_WITHOUT_OWN_META: ReadonlySet<string> = new Set(["product", "category", "not_found"]);
+
 export function InspectorRail(props: InspectorRailProps): React.ReactElement {
     const {
         activeTab,
@@ -135,7 +137,11 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
     const { mode } = useEditorMode();
     // Simple hides the SEO tab (meta titles / noindex are jargon for a
     // first-week merchant; the Health checklist covers the essentials).
-    const showSeoTab = mode === "advanced";
+    // Product and category pages are one template for many URLs: the store
+    // titles each from the product or category name and never reads page
+    // meta, and the 404 page is never listed. A Google tab there would edit
+    // fields that change nothing.
+    const showSeoTab = mode === "advanced" && !PAGES_WITHOUT_OWN_META.has(pageId);
     // If the user lands in Simple while SEO was active (mode flip, stale
     // deep link), fall back to Blocks instead of rendering a hidden tab.
     // "style" also falls back: the tab is a direct launcher for the

@@ -45,6 +45,11 @@ export interface PageTemplatePickerProps {
     templatesOverride?: PageTemplate[];
 }
 
+/** The editor language's text, falling back to English. */
+function pickText(text: Partial<Record<string, string>>, locale: string): string {
+    return text[locale] ?? text.en ?? "";
+}
+
 export function PageTemplatePicker(
     props: PageTemplatePickerProps,
 ): ReactElement | null {
@@ -150,10 +155,10 @@ export function PageTemplatePicker(
                         className="flex flex-1 flex-col gap-3 overflow-y-auto p-5"
                     >
                         <h3 className="text-base font-semibold">
-                            {tFormat(STRINGS.page_template.apply_title, locale, { name: pending.name_i18n.en ?? pending.id })}
+                            {tFormat(STRINGS.page_template.apply_title, locale, { name: pickText(pending.name_i18n, locale) || pending.id })}
                         </h3>
                         <p className="text-sm text-foreground/80">
-                            {pending.description_i18n.en}
+                            {pickText(pending.description_i18n, locale)}
                         </p>
                         {currentSectionCount > 0 && (
                             <div
@@ -226,7 +231,7 @@ export function PageTemplatePicker(
                                         <TemplateThumbnail count={t.sections.length} />
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="truncate text-sm font-semibold">
-                                                {t.name_i18n.en ?? t.id}
+                                                {pickText(t.name_i18n, locale) || t.id}
                                             </span>
                                             <span
                                                 className="inline-flex h-5 items-center rounded-full bg-muted/60 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground tabular-nums"
@@ -236,7 +241,7 @@ export function PageTemplatePicker(
                                             </span>
                                         </div>
                                         <p className="line-clamp-2 text-xs text-foreground/80">
-                                            {t.description_i18n.en}
+                                            {pickText(t.description_i18n, locale)}
                                         </p>
                                     </button>
                                 </li>
