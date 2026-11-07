@@ -362,7 +362,13 @@ export function useStoreBuilderV2(
     /* ── Snapshot to history (debounced) ──────────────────────────── */
     useEffect(() => {
         const serialized = serializedConfig;
-        if (serialized === lastSnapshotRef.current) return;
+        if (serialized === lastSnapshotRef.current) {
+            // undo/redo/applyConfig already moved the snapshot to this state.
+            // Consume their skip flag HERE: left set, it would swallow the
+            // merchant's next real edit (no history entry, stale redo stack).
+            skipHistoryRef.current = false;
+            return;
+        }
 
         const timer = setTimeout(() => {
             if (skipHistoryRef.current) {
@@ -449,6 +455,22 @@ export function useStoreBuilderV2(
         attempt: number;
     }>({ timer: null, attempt: 0 });
     const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Edit generations: every change that must reach the DB bumps editGen.
+    // A save only clears the "unsaved" flag when it carried the newest
+    // generation — a slow save finishing after a newer edit must not switch
+    // off the leave-page guard for that newer edit.
+    const editGenRef = useRef(0);
+    // One full-draft save at a time; a request while one is in flight queues
+    // a single follow-up that saves the latest config. Stops an older save
+    // from landing after (and overwriting) a newer one.
+    const inFlightSaveRef = useRef<Promise<void> | null>(null);
+    const queuedSaveRef = useRef(false);
+    // What the DB draft (else published) holds, serialized — the autosave
+    // baseline. "" = unknown (after a single-field patch), so the next change
+    // always saves. Comparing against the PUBLISH baseline instead meant an
+    // undo back to the published state was never saved and the undone edit
+    // came back on reload.
+    const lastPersistedSerializedRef = useRef<string>(JSON.stringify(initialConfig));
 
     // Clears the armed autosave AND the ref, so "is a full save pending?"
     // (patchField success) never reads a cancelled timer as armed.
@@ -459,6 +481,14 @@ export function useStoreBuilderV2(
 
     const performSaveDraft = useCallback(
         async (cfg: StoreConfigV2): Promise<void> => {
+            if (inFlightSaveRef.current) {
+                // Serialize: the follow-up saves the LATEST config once the
+                // in-flight write lands.
+                queuedSaveRef.current = true;
+                return inFlightSaveRef.current;
+            }
+            const run = (async (): Promise<void> => {
+            const gen = editGenRef.current;
             set_save_state("saving");
             try {
                 const { error } = await supabase
@@ -469,7 +499,12 @@ export function useStoreBuilderV2(
                     })
                     .eq("id", tenantId);
                 if (error) throw error;
-                pendingDraftWriteRef.current = false;
+                lastPersistedSerializedRef.current = JSON.stringify(cfg);
+                // Only a save that carried the newest edit clears the flag; a
+                // newer edit (armed timer or later generation) keeps it set.
+                const newer =
+                    gen !== editGenRef.current || autoSaveTimerRef.current !== null;
+                pendingDraftWriteRef.current = newer;
                 draftSeededRef.current = true; // EC9: DB now holds a full skeleton.
                 // G2: success clears any scheduled retry.
                 saveRetryRef.current.attempt = 0;
@@ -477,12 +512,17 @@ export function useStoreBuilderV2(
                     clearTimeout(saveRetryRef.current.timer);
                     saveRetryRef.current.timer = null;
                 }
-                set_save_state("saved");
                 set_last_saved_at(new Date());
-                // Drop back to idle after a moment.
-                setTimeout(() => {
-                    set_save_state((prev) => (prev === "saved" ? "idle" : prev));
-                }, 3000);
+                if (newer) {
+                    // Not "Saved": a newer edit is still on its way.
+                    set_save_state("idle");
+                } else {
+                    set_save_state("saved");
+                    // Drop back to idle after a moment.
+                    setTimeout(() => {
+                        set_save_state((prev) => (prev === "saved" ? "idle" : prev));
+                    }, 3000);
+                }
             } catch {
                 set_save_state("error");
                 // G2: a single flaky save no longer strands the merchant — keep
@@ -505,6 +545,19 @@ export function useStoreBuilderV2(
                         if (!pendingDraftWriteRef.current) return;
                         void saveDraftRef.current?.(configRef.current);
                     }, delay);
+                }
+            }
+            })();
+            inFlightSaveRef.current = run;
+            try {
+                await run;
+            } finally {
+                inFlightSaveRef.current = null;
+            }
+            if (queuedSaveRef.current) {
+                queuedSaveRef.current = false;
+                if (pendingDraftWriteRef.current) {
+                    await saveDraftRef.current?.(configRef.current);
                 }
             }
         },
@@ -534,13 +587,14 @@ export function useStoreBuilderV2(
             return;
         }
 
-        if (serializedConfig === initialSerializedRef.current) return;
+        if (serializedConfig === lastPersistedSerializedRef.current) return;
 
         // Edits exist that aren't in the DB draft yet — guard against unload.
         // The timer is NOT cleared on re-run: a later patchField edit re-runs
         // this effect and returns early above, and clearing here would drop
         // this structural edit's save (patchField only writes its own field).
         // The timer saves configRef.current, so it always carries every edit.
+        editGenRef.current += 1;
         pendingDraftWriteRef.current = true;
         cancelAutoSave();
         autoSaveTimerRef.current = setTimeout(() => {
@@ -658,6 +712,8 @@ export function useStoreBuilderV2(
             set_save_state("saved");
             set_last_saved_at(new Date());
             initialSerializedRef.current = JSON.stringify(config);
+            // The draft is nulled; the editor reloads from published = config.
+            lastPersistedSerializedRef.current = initialSerializedRef.current;
             everPublishedRef.current = true;
             // The draft is nulled server-side by the publish RPC, so it is no
             // longer a standing reason to keep Publish enabled.
@@ -715,6 +771,7 @@ export function useStoreBuilderV2(
             skipHistoryRef.current = true;
             setConfigState(published);
             initialSerializedRef.current = JSON.stringify(published);
+            lastPersistedSerializedRef.current = initialSerializedRef.current;
             everPublishedRef.current = true; // a published config just loaded
             unpublishedDraftRef.current = false; // the draft was discarded
             set_has_unpublished_changes(false);
@@ -740,7 +797,32 @@ export function useStoreBuilderV2(
 
     /* ── Undo / Redo ──────────────────────────────────────────────── */
 
+    // Commit an edit still waiting in the 400 ms history debounce, so an
+    // undo right after typing reverts THAT edit instead of dropping it from
+    // history altogether.
+    const flushPendingHistory = useCallback((): void => {
+        if (skipHistoryRef.current) return;
+        const current = JSON.stringify(configRef.current);
+        if (current === lastSnapshotRef.current) return;
+        try {
+            const prevSnap = JSON.parse(lastSnapshotRef.current) as StoreConfigV2;
+            pastRef.current.push({
+                snapshot: prevSnap,
+                description: lastDescriptionRef.current,
+            });
+            if (pastRef.current.length > MAX_HISTORY) pastRef.current.shift();
+            futureRef.current = [];
+        } catch {
+            /* ignore parse fail */
+        }
+        lastSnapshotRef.current = current;
+        lastDescriptionRef.current =
+            pendingDescriptionRef.current ?? DEFAULT_HISTORY_DESCRIPTION;
+        pendingDescriptionRef.current = null;
+    }, []);
+
     const undo = useCallback(() => {
+        flushPendingHistory();
         if (pastRef.current.length === 0) return;
         const entry = pastRef.current.pop()!;
         try {
@@ -757,9 +839,10 @@ export function useStoreBuilderV2(
         skipHistoryRef.current = true;
         setConfigState(entry.snapshot);
         setHistoryTick((t) => t + 1);
-    }, []);
+    }, [flushPendingHistory]);
 
     const redo = useCallback(() => {
+        flushPendingHistory();
         if (futureRef.current.length === 0) return;
         const entry = futureRef.current.pop()!;
         try {
@@ -776,7 +859,7 @@ export function useStoreBuilderV2(
         skipHistoryRef.current = true;
         setConfigState(entry.snapshot);
         setHistoryTick((t) => t + 1);
-    }, []);
+    }, [flushPendingHistory]);
 
     const can_undo = useMemo(() => pastRef.current.length > 0, [historyTick]);
     const can_redo = useMemo(() => futureRef.current.length > 0, [historyTick]);
@@ -824,6 +907,8 @@ export function useStoreBuilderV2(
             // until the patch confirms; the failure paths reconcile.
             suppressAutoSaveRef.current = true;
             pendingDraftWriteRef.current = true;
+            editGenRef.current += 1;
+            const patchGen = editGenRef.current;
             // Optimistic in-memory update via the standard setConfig path —
             // this also pushes an undo entry.
             setConfig(
@@ -845,9 +930,22 @@ export function useStoreBuilderV2(
                     }),
                 }).then((r) => {
                     if (r.ok) {
-                        // A full save armed by an earlier structural edit still
-                        // owns the pending flag: this patch only wrote one field.
-                        if (!autoSaveTimerRef.current) pendingDraftWriteRef.current = false;
+                        // This patch wrote one field. Clear the flag only when
+                        // nothing else is still owed: no armed or retrying or
+                        // in-flight full save, and no newer edit since.
+                        const nothingElseOwed =
+                            autoSaveTimerRef.current === null &&
+                            saveRetryRef.current.timer === null &&
+                            inFlightSaveRef.current === null &&
+                            patchGen === editGenRef.current;
+                        if (nothingElseOwed) {
+                            pendingDraftWriteRef.current = false;
+                            lastPersistedSerializedRef.current = JSON.stringify(
+                                configRef.current,
+                            );
+                        } else {
+                            lastPersistedSerializedRef.current = "";
+                        }
                     } else {
                         // eslint-disable-next-line no-console
                         console.warn(
@@ -881,6 +979,7 @@ export function useStoreBuilderV2(
     /* ── applyConfig (replace entire draft, e.g. version restore) ── */
 
     const applyConfig = useCallback((next: StoreConfigV2): void => {
+        flushPendingHistory();
         try {
             const current = JSON.parse(lastSnapshotRef.current) as StoreConfigV2;
             pastRef.current.push({
@@ -897,7 +996,7 @@ export function useStoreBuilderV2(
         skipHistoryRef.current = true;
         setConfigState(next);
         setHistoryTick((t) => t + 1);
-    }, []);
+    }, [flushPendingHistory]);
 
     /* ── Crash-recovery: detect a newer local backup on mount ─────── */
     const [recoverableBackup, setRecoverableBackup] = useState<{
