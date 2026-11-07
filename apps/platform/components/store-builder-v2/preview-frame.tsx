@@ -6,11 +6,16 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
-/** Logical viewport width per breakpoint (px; desktop fills container). */
-export const BREAKPOINT_WIDTH_PX: Record<Breakpoint, number | null> = {
+/**
+ * Logical viewport width per breakpoint (px). The iframe always renders at
+ * this width so the store's media queries match a real device; when the
+ * canvas is narrower, the frame is scaled down to fit instead of squeezing
+ * the page into a narrower layout (desktop used to render at ~760px).
+ */
+export const BREAKPOINT_WIDTH_PX: Record<Breakpoint, number> = {
     mobile: 390,
     tablet: 820,
-    desktop: null,
+    desktop: 1280,
 };
 
 const PING_INTERVAL_MS = 30_000;
@@ -36,6 +41,20 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
         const locale = useEditorLocale();
         const innerRef = useRef<HTMLIFrameElement | null>(null);
         const [loaded, setLoaded] = useState<boolean>(false);
+        const outerRef = useRef<HTMLDivElement | null>(null);
+        // Width the canvas leaves for the frame; null until measured (and in
+        // environments without ResizeObserver), which means "no fit scaling".
+        const [availableWidth, setAvailableWidth] = useState<number | null>(null);
+
+        useEffect(() => {
+            const el = outerRef.current;
+            if (!el || typeof ResizeObserver === "undefined") return;
+            const ro = new ResizeObserver(([entry]) => {
+                if (entry) setAvailableWidth(entry.contentRect.width);
+            });
+            ro.observe(el);
+            return () => ro.disconnect();
+        }, []);
 
         // Expose the iframe to parents while still keeping a local ref
         // for the keep-alive ping below.
@@ -69,11 +88,16 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
         }, []);
 
         const deviceWidthPx = BREAKPOINT_WIDTH_PX[breakpoint];
-        const scaled = zoom !== 1;
+        // Fit the logical width into the canvas, then apply the user's zoom.
+        const fit =
+            availableWidth !== null && availableWidth > 0
+                ? Math.min(1, availableWidth / deviceWidthPx)
+                : 1;
+        const scale = fit * zoom;
+        const scaled = scale !== 1;
         // Wrapper takes the SCALED footprint; the iframe inside keeps the
-        // logical size and shrinks visually via transform.
-        const wrapperWidth =
-            deviceWidthPx !== null ? `${Math.round(deviceWidthPx * zoom)}px` : `${zoom * 100}%`;
+        // logical width and shrinks visually via transform.
+        const wrapperWidth = `${Math.round(deviceWidthPx * scale)}px`;
 
         return (
             <div
@@ -82,6 +106,8 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
                 data-zoom={zoom}
                 className="relative flex h-full w-full items-center justify-center overflow-hidden bg-muted/30 p-4"
             >
+                {/* Measures the space inside the padding. */}
+                <div ref={outerRef} aria-hidden="true" className="pointer-events-none absolute inset-4" />
                 <div
                     data-testid="preview-frame-viewport"
                     className={cn(
@@ -99,9 +125,9 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
                         style={
                             scaled
                                 ? {
-                                      width: `${100 / zoom}%`,
-                                      height: `${100 / zoom}%`,
-                                      transform: `scale(${zoom})`,
+                                      width: `${deviceWidthPx}px`,
+                                      height: `${100 / scale}%`,
+                                      transform: `scale(${scale})`,
                                       transformOrigin: "top left",
                                   }
                                 : { width: "100%", height: "100%" }

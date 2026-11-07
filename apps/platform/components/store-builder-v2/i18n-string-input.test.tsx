@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { I18nStringInput } from "./i18n-string-input";
+import { EditorStoreLocalesProvider } from "@/lib/editor-store-locales-context";
 import type { I18nString } from "@scheniders/shared";
 
 afterEach(() => {
@@ -29,8 +30,8 @@ describe("I18nStringInput — tuck-away", () => {
         expect(screen.queryByTestId("i18n-input-input-en")).toBeNull();
         expect(screen.queryByTestId("i18n-input-input-ku")).toBeNull();
         const toggle = screen.getByTestId("i18n-input-translations-toggle");
-        expect(toggle.textContent).toContain("EN ✓");
-        expect(toggle.textContent).toContain("KU ✓");
+        expect(toggle.textContent).toContain("English ✓");
+        expect(toggle.textContent).toContain("کوردی ✓");
     });
 
     it("shows – fill state for empty locales", () => {
@@ -43,8 +44,8 @@ describe("I18nStringInput — tuck-away", () => {
             />,
         );
         const toggle = screen.getByTestId("i18n-input-translations-toggle");
-        expect(toggle.textContent).toContain("EN –");
-        expect(toggle.textContent).toContain("KU –");
+        expect(toggle.textContent).toContain("English –");
+        expect(toggle.textContent).toContain("کوردی –");
     });
 
     it("expands secondary locales on demand and hides them again", () => {
@@ -127,5 +128,27 @@ describe("I18nStringInput — tuck-away", () => {
         );
         const hint = screen.getByTestId("i18n-input-fallback");
         expect(hint.textContent).toContain("Hello");
+    });
+});
+
+describe("I18nStringInput — store languages", () => {
+    it("offers only the store's own languages as translations", () => {
+        render(
+            <EditorStoreLocalesProvider defaultLocale="ar" enabledLocales={["ar", "en"]}>
+                <I18nStringInput label="T" value={{ ar: "مرحبا" }} onChange={() => {}} activeLocale="ar" />
+            </EditorStoreLocalesProvider>,
+        );
+        const toggle = screen.getByTestId("i18n-input-translations-toggle");
+        expect(toggle.textContent).toContain("English –");
+        expect(toggle.textContent).not.toContain("کوردی");
+    });
+
+    it("shows no translations control for a one-language store", () => {
+        render(
+            <EditorStoreLocalesProvider defaultLocale="ar" enabledLocales={[]}>
+                <I18nStringInput label="T" value={{ ar: "مرحبا" }} onChange={() => {}} activeLocale="ar" />
+            </EditorStoreLocalesProvider>,
+        );
+        expect(screen.queryByTestId("i18n-input-translations-toggle")).toBeNull();
     });
 });
