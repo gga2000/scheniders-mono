@@ -10,6 +10,7 @@ import type {
 } from "@scheniders/sections";
 import { resolveTrackerContact } from "@scheniders/sections/helpers/whatsapp";
 import { env } from "@/lib/env";
+import { hasUnpublishedDraft } from "@/lib/store-draft";
 import { EditorShell } from "@/components/store-builder-v2/editor-shell";
 import type { InspectorTab } from "@/components/store-builder-v2/inspector-rail";
 import type { SettingsSectionId } from "@/components/store-builder-v2/page-tree";
@@ -155,11 +156,8 @@ export default async function StoreV2Page({
         initialConfig.pages.find((p) => p.page_id === requestedPageId)?.page_id ?? null;
     const hasPublished = !!published;
     // Start dirty (Publish enabled) only when the saved draft actually differs
-    // from the live store. A draft can match the live store exactly, e.g. an
-    // edit that was autosaved and then undone; that is nothing to publish.
-    // Both columns are jsonb, so equal configs serialize identically.
-    const initiallyDirty =
-        !!draft && (!published || JSON.stringify(draft) !== JSON.stringify(published));
+    // from the live store; the hub uses the same rule.
+    const initiallyDirty = hasUnpublishedDraft(draft, published);
     // BUG25: the published "generation" counter at hydration — publish rejects
     // if the live rev has moved on (another editor published in the meantime).
     const initialRev = t.store_config_rev ?? 0;

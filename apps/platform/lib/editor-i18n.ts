@@ -893,6 +893,15 @@ export const STRINGS = {
         diff_added: { en: "added", ar: "أُضيف", ku: "زیادکرا" },
         diff_removed: { en: "removed", ar: "أُزيل", ku: "لابرا" },
         diff_changed: { en: "changed", ar: "تغيّر", ku: "گۆڕا" },
+        // Diff group titles, by the config's top-level field.
+        group_pages: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
+        group_globals: { en: "Header, footer and top bar", ar: "الترويسة والتذييل والشريط العلوي", ku: "سەرپەڕە، ژێرپەڕە و شریتی سەرەوە" },
+        group_brand_kit: { en: "Look and brand", ar: "الهوية والمظهر", ku: "برێند و ڕووکار" },
+        group_commerce: { en: "Selling settings", ar: "إعدادات البيع", ku: "ڕێکخستنەکانی فرۆشتن" },
+        group_languages: { en: "Languages", ar: "اللغات", ku: "زمانەکان" },
+        group_custom_pages: { en: "Your own pages", ar: "صفحاتك الخاصة", ku: "پەڕە تایبەتەکانت" },
+        group_redirects: { en: "Link redirects", ar: "تحويل الروابط", ku: "گواستنەوەی بەستەرەکان" },
+        group_other: { en: "Other settings", ar: "إعدادات أخرى", ku: "ڕێکخستنی تر" },
     },
 
     /* ── Scheduled changes ────────────────────────────────────── */
