@@ -42,6 +42,7 @@ import {
     isFieldEnabledBySiblings,
 } from "@/lib/section-field-meta";
 import { getManifestEntry } from "@/lib/sections-manifest";
+import { isFieldRelevant } from "@/lib/section-field-visibility";
 import {
     FieldRenderer,
     type RenderFieldAdornment,
@@ -279,7 +280,13 @@ function GroupedFormRenderer(p: GroupedFormRendererProps): ReactElement {
                                 // UX-18: dependents of a "<base>_kind" enum hide
                                 // while the kind is "none" — evaluated per render
                                 // so flipping the kind reveals them instantly.
-                                .filter((key) => isFieldEnabledBySiblings(key, p.value))
+                                .filter(
+                                    (key) =>
+                                        isFieldEnabledBySiblings(key, p.value) &&
+                                        // Inert next to a sibling switch
+                                        // (lib/section-field-visibility).
+                                        isFieldRelevant(key, p.value ?? {}, Object.keys(p.shape)),
+                                )
                                 .map((key) => (
                                 <FieldRenderer
                                     key={key}

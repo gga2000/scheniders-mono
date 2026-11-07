@@ -125,6 +125,22 @@ describe("AutoForm", () => {
         expect(sw.getAttribute("aria-checked")).toBe("false");
     });
 
+    it("offers an unset optional choice as \"Default\", and clears back to it", () => {
+        const onChange = vi.fn();
+        render(
+            <AutoForm
+                schema={z.object({ layout: z.enum(["cards", "ledger"]).optional() })}
+                value={{}}
+                onChange={onChange}
+            />,
+        );
+        expect(screen.queryByTestId("auto-form-root.layout-set")).toBeNull();
+        const def = screen.getByTestId("auto-form-root.layout-option-default");
+        expect(def.getAttribute("aria-checked")).toBe("true");
+        fireEvent.click(screen.getByTestId("auto-form-root.layout-option-ledger"));
+        expect(onChange).toHaveBeenLastCalledWith({ layout: "ledger" });
+    });
+
     it("shows an unset on/off setting in the section's default state", () => {
         const entry = getManifestEntry("pdp_buy_box");
         if (!entry) throw new Error("pdp_buy_box missing from the manifest");

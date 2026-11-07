@@ -78,6 +78,7 @@ function makeBuilder(
         save_draft: asyncNoop,
         publish_conflict: false,
         publish_error: null,
+        is_publishing: false,
         publish: async () => true,
         revert_to_published: asyncNoop,
         undo: noop,

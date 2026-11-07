@@ -22,3 +22,23 @@ describe("isFieldRelevant", () => {
         expect(isFieldRelevant("items", {}, ["items", "title_i18n"])).toBe(true);
     });
 });
+
+describe("isFieldRelevant — product FAQ", () => {
+    const faq = ["items", "product_faq", "contact_style", "heading_style", "compact", "layout"];
+
+    it("hides product-FAQ-only styling on a plain FAQ", () => {
+        expect(isFieldRelevant("contact_style", {}, faq)).toBe(false);
+        expect(isFieldRelevant("heading_style", {}, faq)).toBe(false);
+        expect(isFieldRelevant("items", {}, faq)).toBe(true);
+    });
+
+    it("keeps the heading style for the compact layout", () => {
+        expect(isFieldRelevant("heading_style", { compact: true }, faq)).toBe(true);
+    });
+
+    it("hides the hand-written questions once product questions replace them", () => {
+        const v = { product_faq: { items: [] } };
+        expect(isFieldRelevant("items", v, faq)).toBe(false);
+        expect(isFieldRelevant("contact_style", v, faq)).toBe(true);
+    });
+});
