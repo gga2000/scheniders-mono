@@ -23,6 +23,7 @@ import { Switch } from "@scheniders/ui";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import { I18nStringInput } from "./i18n-string-input";
+import { ImageControl } from "./auto-form-fields";
 
 const EMPTY_I18N: I18nString = {};
 
@@ -37,6 +38,8 @@ export interface PageSeoPanelProps {
     storefrontUrl?: string;
     /** Falls back as the title when no meta title is set. */
     businessName?: string;
+    /** For uploading the share image into the store's own storage. */
+    tenantId?: string;
 }
 
 export function PageSeoPanel({
@@ -47,6 +50,7 @@ export function PageSeoPanel({
     activeLocale = "en",
     storefrontUrl,
     businessName,
+    tenantId,
 }: PageSeoPanelProps) {
     const locale = useResolvedEditorLocale(activeLocale);
     const current: PageMeta = meta ?? {};
@@ -127,37 +131,22 @@ export function PageSeoPanel({
                 helperText={t(STRINGS.seo.description_help, locale)}
             />
 
-            {/* Social share (OG) image */}
+            {/* Social share (OG) image: the same picker as section images
+                (upload, preview, no raw storage link). */}
             <div className="flex flex-col gap-2">
-                <label
-                    htmlFor="seo-og-image"
-                    className="text-xs font-semibold text-foreground"
-                >
-                    {t(STRINGS.seo.og_label, locale)}
-                </label>
-                <input
-                    id="seo-og-image"
-                    type="url"
-                    inputMode="url"
-                    dir="ltr"
-                    data-testid="seo-og-image-input"
+                <ImageControl
+                    label={t(STRINGS.seo.og_label, locale)}
                     value={current.og_image_url ?? ""}
-                    onChange={(e) =>
-                        patch({ og_image_url: e.target.value || undefined })
+                    onChange={(v) => patch({ og_image_url: v || undefined })}
+                    onClear={
+                        current.og_image_url
+                            ? () => patch({ og_image_url: undefined })
+                            : undefined
                     }
-                    placeholder="https://…/share.jpg"
-                    className="w-full rounded-xl border border-(--card-border) bg-background px-3.5 py-2.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    tenantId={tenantId}
+                    testIdBase="seo-og-image"
                 />
-                {current.og_image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={current.og_image_url}
-                        alt=""
-                        data-testid="seo-og-image-preview"
-                        className="aspect-[1200/630] w-full rounded-lg border border-(--card-border) object-cover"
-                    />
-                ) : null}
-                <p className="text-xs text-muted-foreground">
+                <p dir="auto" className="text-left text-xs text-muted-foreground">
                     {t(STRINGS.seo.og_help, locale)}
                 </p>
             </div>
@@ -169,9 +158,7 @@ export function PageSeoPanel({
                         {t(STRINGS.seo.noindex_label, locale)}
                     </span>
                     <p className="text-xs text-muted-foreground">
-                        {t(STRINGS.seo.noindex_help_prefix, locale)}{" "}
-                        <code>noindex</code>{" "}
-                        {t(STRINGS.seo.noindex_help_suffix, locale)}
+                        {t(STRINGS.seo.noindex_help, locale)}
                     </p>
                 </div>
                 <Switch

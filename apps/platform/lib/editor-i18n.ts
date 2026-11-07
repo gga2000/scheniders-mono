@@ -133,7 +133,7 @@ export const STRINGS = {
         setting_template_updates: { en: "Template updates", ar: "تحديثات القالب", ku: "نوێکارییەکانی ڕووکار" },
         setting_custom_pages: { en: "Custom pages", ar: "صفحات مخصّصة", ku: "پەڕە تایبەتەکان" },
         setting_nav: { en: "Navigation", ar: "التنقّل", ku: "ڕێنیشاندان" },
-        setting_versions: { en: "Past versions", ar: "النسخ", ku: "وەشانەکان" },
+        setting_versions: { en: "Past versions", ar: "سجل التغييرات", ku: "مێژووی گۆڕانکارییەکان" },
         setting_redirects: { en: "Redirects", ar: "إعادة التوجيه", ku: "ئاراستەکردن" },
         group_custom_pages: { en: "Custom pages", ar: "صفحات مخصّصة", ku: "پەڕە تایبەتەکان" },
         manage_custom_pages: { en: "Manage custom pages", ar: "إدارة الصفحات المخصّصة", ku: "بەڕێوەبردنی پەڕە تایبەتەکان" },
@@ -528,9 +528,9 @@ export const STRINGS = {
         store_name_placeholder: { en: "Your store name", ar: "اسم متجرك", ku: "ناوی فرۆشگاکەت" },
         help_store_name: { en: "Used as the storefront wordmark and in the header by default.", ar: "يُستخدم كعلامة المتجر النصية وفي الترويسة افتراضياً.", ku: "بە شێوەی بنەڕەتی وەکو ناوی فرۆشگا و لە سەرپەڕەدا بەکاردێت." },
         help_tagline: { en: "Falls back to English if a locale is empty.", ar: "يُعرض بالإنجليزية إذا كانت اللغة فارغة.", ku: "دەگەڕێتەوە بۆ ئینگلیزی ئەگەر زمانێک بەتاڵ بێت." },
-        help_logo: { en: "PNG or SVG. Max 2MB. Appears in header + on receipts.", ar: "PNG أو SVG. بحد أقصى 2MB. يظهر في الترويسة وعلى الفواتير.", ku: "PNG یان SVG. زۆرترین 2MB. لە سەرپەڕە و لەسەر پسوولەکان دەردەکەوێت." },
-        help_favicon: { en: "32×32 PNG or ICO. Max 512KB.", ar: "PNG أو ICO بمقاس 32×32. بحد أقصى 512KB.", ku: "PNG یان ICO بە قەبارەی 32×32. زۆرترین 512KB." },
-        help_og_image: { en: "1200×630 JPG/PNG. Used when your store is shared on social.", ar: "JPG/PNG بمقاس 1200×630. تُستخدم عند مشاركة متجرك على وسائل التواصل.", ku: "JPG/PNG بە قەبارەی 1200×630. بەکاردێت کاتێک فرۆشگاکەت لە سۆشیال میدیا هاوبەش دەکرێت." },
+        help_logo: { en: "PNG or SVG. Max 2MB. Appears in header + on receipts.", ar: "صورة PNG أو SVG، حجمها 2MB كحد أقصى. يظهر في الترويسة وعلى الفواتير.", ku: "وێنەی PNG یان SVG، زۆرترین 2MB. لە سەرپەڕە و لەسەر پسوولەکان دەردەکەوێت." },
+        help_favicon: { en: "32×32 PNG or ICO. Max 512KB.", ar: "صورة PNG أو ICO بمقاس 32×32، حجمها 512KB كحد أقصى.", ku: "وێنەی PNG یان ICO بە قەبارەی 32×32، زۆرترین 512KB." },
+        help_og_image: { en: "1200×630 JPG/PNG. Used when your store is shared on social.", ar: "صورة JPG أو PNG بمقاس 1200×630. تُستخدم عند مشاركة متجرك على وسائل التواصل.", ku: "وێنەی JPG یان PNG بە قەبارەی 1200×630. بەکاردێت کاتێک فرۆشگاکەت لە سۆشیال میدیا هاوبەش دەکرێت." },
         help_display_font: { en: "Used for headlines and the wordmark.", ar: "يُستخدم للعناوين وعلامة المتجر.", ku: "بۆ ناونیشانەکان و ناوی فرۆشگا بەکاردێت." },
         help_body_font: { en: "Used for paragraphs, descriptions, and UI labels.", ar: "يُستخدم للفقرات والأوصاف وعناصر الواجهة.", ku: "بۆ پەرەگرافەکان، وەسفەکان و ناولێنانەکانی ڕووکار بەکاردێت." },
         help_motion_enabled: { en: "Adds subtle animations to interactive elements.", ar: "يضيف حركات خفيفة للعناصر التفاعلية.", ku: "جوڵەی نەرم بۆ توخمە کارلێککارەکان زیاد دەکات." },
@@ -871,7 +871,7 @@ export const STRINGS = {
 
     /* ── Version history ──────────────────────────────────────── */
     version_history: {
-        heading: { en: "Version History", ar: "سجل النسخ", ku: "مێژووی وەشانەکان" },
+        heading: { en: "Version History", ar: "سجل التغييرات", ku: "مێژووی گۆڕانکارییەکان" },
         subtitle: { en: "Restore any previous version of your store. Named snapshots never expire.", ar: "استرجع أي نسخة سابقة من متجرك. اللقطات المسمّاة لا تنتهي صلاحيتها.", ku: "هەر وەشانێکی پێشووی فرۆشگاکەت بگەڕێنەوە. وێنە ناودارەکان بەسەرنایەن." },
         back: { en: "Back", ar: "رجوع", ku: "گەڕانەوە" },
         refresh: { en: "Refresh", ar: "تحديث", ku: "نوێکردنەوە" },
@@ -979,21 +979,18 @@ export const STRINGS = {
     /* ── Page SEO panel ───────────────────────────────────────── */
     seo: {
         // tFormat: {page}
-        heading: { en: "Page SEO — {page}", ar: "سيو الصفحة — {page}", ku: "SEO ی پەڕە — {page}" },
+        heading: { en: "Google — {page}", ar: "الظهور في جوجل — {page}", ku: "دەرکەوتن لە گووگڵ — {page}" },
         subtitle: { en: "How this page appears in Google and when it's shared.", ar: "كيف تظهر هذه الصفحة في جوجل وعند مشاركتها.", ku: "ئەم پەڕەیە چۆن لە گووگڵ و لە کاتی هاوبەشکردندا دەردەکەوێت." },
         serp_preview: { en: "Search preview", ar: "معاينة البحث", ku: "پێشبینینی گەڕان" },
-        title_label: { en: "Meta title", ar: "عنوان الميتا", ku: "ناونیشانی مێتا" },
-        title_help: { en: "~60 characters. The blue headline in search results.", ar: "~60 حرفاً. العنوان الأزرق في نتائج البحث.", ku: "~٦٠ پیت. ناونیشانە شینەکە لە ئەنجامەکانی گەڕاندا." },
-        description_label: { en: "Meta description", ar: "وصف الميتا", ku: "وەسفی مێتا" },
-        description_help: { en: "~155 characters. The gray snippet under the title.", ar: "~155 حرفاً. المقتطف الرمادي تحت العنوان.", ku: "~١٥٥ پیت. پارچە دەقە خۆڵەمێشییەکەی ژێر ناونیشانەکە." },
+        title_label: { en: "Title in Google", ar: "العنوان في جوجل", ku: "ناونیشان لە گووگڵ" },
+        title_help: { en: "About 60 characters. The blue headline in search results.", ar: "حوالي 60 حرفاً. العنوان الأزرق في نتائج البحث.", ku: "نزیکەی 60 پیت. ناونیشانە شینەکە لە ئەنجامەکانی گەڕاندا." },
+        description_label: { en: "Description in Google", ar: "الوصف في جوجل", ku: "وەسف لە گووگڵ" },
+        description_help: { en: "About 155 characters. The grey text under the title.", ar: "حوالي 155 حرفاً. النص الرمادي تحت العنوان.", ku: "نزیکەی 155 پیت. دەقە خۆڵەمێشییەکەی ژێر ناونیشانەکە." },
         description_fallback: { en: "Add a description so Google doesn't generate its own.", ar: "أضف وصفاً حتى لا يولّد جوجل وصفاً من عنده.", ku: "وەسفێک زیاد بکە بۆ ئەوەی گووگڵ خۆی وەسف دروست نەکات." },
         og_label: { en: "Social share image", ar: "صورة المشاركة الاجتماعية", ku: "وێنەی هاوبەشکردنی سۆشیال" },
         og_help: { en: "1200×630 recommended. Shown when the page is shared on WhatsApp or social. Falls back to your store's brand-kit image.", ar: "يُنصح بمقاس 1200×630. تظهر عند مشاركة الصفحة على واتساب أو وسائل التواصل. تُستخدم صورة هوية العلامة إن لم تُحدَّد.", ku: "قەبارەی 1200×630 پێشنیار دەکرێت. دەردەکەوێت کاتێک پەڕەکە لە واتساپ یان سۆشیال میدیا هاوبەش دەکرێت. ئەگەر دانەنرێت وێنەی کیتی برێند بەکاردێت." },
         noindex_label: { en: "Hide from search engines", ar: "إخفاء عن محركات البحث", ku: "شاردنەوە لە بزوێنەرەکانی گەڕان" },
-        // Rendered around an inline <code>noindex</code> element:
-        // "{prefix} <code>noindex</code> {suffix}"
-        noindex_help_prefix: { en: "Adds", ar: "يضيف وسم", ku: "تاگی" },
-        noindex_help_suffix: { en: "— Google won't list this page.", ar: "— لن يعرض جوجل هذه الصفحة.", ku: "زیاد دەکات — گووگڵ ئەم پەڕەیە پیشان نادات." },
+        noindex_help: { en: "Google won't list this page in search results.", ar: "لن يعرض جوجل هذه الصفحة في نتائج البحث.", ku: "گووگڵ ئەم پەڕەیە لە ئەنجامەکانی گەڕاندا پیشان نادات." },
         noindex_aria: { en: "Hide this page from search engines", ar: "إخفاء هذه الصفحة عن محركات البحث", ku: "ئەم پەڕەیە لە بزوێنەرەکانی گەڕان بشارەوە" },
     },
 

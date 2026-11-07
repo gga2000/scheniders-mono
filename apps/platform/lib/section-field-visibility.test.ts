@@ -62,4 +62,11 @@ describe("isFieldRelevant — layout and bar switches", () => {
         expect(isFieldRelevant("category_links_limit", {}, grid)).toBe(false);
         expect(isFieldRelevant("category_links_limit", { show_category_links: true }, grid)).toBe(true);
     });
+
+    it("hides the photo shape and focus while the hero has no photo", () => {
+        const hero = ["bg_image_url", "media_ratio", "focal_x", "focal_y"];
+        expect(isFieldRelevant("media_ratio", {}, hero)).toBe(false);
+        expect(isFieldRelevant("focal_x", { bg_image_url: "  " }, hero)).toBe(false);
+        expect(isFieldRelevant("focal_y", { bg_image_url: "https://x/y.jpg" }, hero)).toBe(true);
+    });
 });

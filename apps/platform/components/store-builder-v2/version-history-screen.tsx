@@ -40,7 +40,7 @@ import {
     groupDiffByTop,
     type DiffEntry,
 } from "./config-diff";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -58,35 +58,30 @@ export interface VersionHistoryScreenProps {
 /* Date helpers                                                         */
 /* ─────────────────────────────────────────────────────────────────── */
 
-function relativeTime(iso: string): string {
-    try {
-        const then = new Date(iso).getTime();
-        const now = Date.now();
-        const delta = now - then;
-        if (delta < 0) return "just now";
-        const secs = Math.floor(delta / 1000);
-        if (secs < 60) return `${secs}s ago`;
-        const mins = Math.floor(secs / 60);
-        if (mins < 60) return `${mins}m ago`;
-        const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return `${hrs}h ago`;
-        const days = Math.floor(hrs / 24);
-        if (days < 30) return `${days}d ago`;
-        const months = Math.floor(days / 30);
-        if (months < 12) return `${months}mo ago`;
-        const years = Math.floor(days / 365);
-        return `${years}y ago`;
-    } catch {
-        return iso;
-    }
+/** Intl locale tag for an editor locale, with Latin digits (the app's
+ *  numerals everywhere else). Kurdish (Sorani) is `ckb`. */
+function intlLocale(locale: string): string {
+    return `${locale === "ku" ? "ckb" : locale}-u-nu-latn`;
 }
 
-function absoluteTime(iso: string): string {
-    try {
-        return new Date(iso).toLocaleString();
-    } catch {
-        return iso;
-    }
+function relativeTime(iso: string, locale: string): string {
+    const then = new Date(iso).getTime();
+    if (!Number.isFinite(then)) return iso;
+    const fmt = new Intl.RelativeTimeFormat(intlLocale(locale), { numeric: "auto" });
+    const secs = Math.round((then - Date.now()) / 1000);
+    const abs = Math.abs(secs);
+    if (abs < 60) return fmt.format(secs, "second");
+    if (abs < 3600) return fmt.format(Math.round(secs / 60), "minute");
+    if (abs < 86400) return fmt.format(Math.round(secs / 3600), "hour");
+    if (abs < 30 * 86400) return fmt.format(Math.round(secs / 86400), "day");
+    if (abs < 365 * 86400) return fmt.format(Math.round(secs / (30 * 86400)), "month");
+    return fmt.format(Math.round(secs / (365 * 86400)), "year");
+}
+
+function absoluteTime(iso: string, locale: string): string {
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return iso;
+    return d.toLocaleString(intlLocale(locale));
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -130,11 +125,11 @@ export function VersionHistoryScreen({
             setVersions(rows);
         } catch (err) {
             if (!mountedRef.current) return;
-            setError(err instanceof Error ? err.message : "Failed to load versions");
+            setError(err instanceof Error ? err.message : t(STRINGS.advanced_chrome.vh_error_load, locale));
         } finally {
             if (mountedRef.current) setLoading(false);
         }
-    }, [builder]);
+    }, [builder, locale]);
 
     useEffect(() => {
         if (initialVersions !== undefined) return;
@@ -196,11 +191,11 @@ export function VersionHistoryScreen({
             setShowSnapshotForm(false);
             await refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Snapshot failed");
+            setError(err instanceof Error ? err.message : t(STRINGS.advanced_chrome.vh_error_snapshot, locale));
         } finally {
             if (mountedRef.current) setSnapshotBusy(false);
         }
-    }, [builder, refresh, snapshotLabel]);
+    }, [builder, locale, refresh, snapshotLabel]);
 
     const handleRestore = useCallback(async (): Promise<void> => {
         if (!confirmRestore) return;
@@ -212,26 +207,28 @@ export function VersionHistoryScreen({
             const cfg =
                 confirmRestore.config ??
                 (await builder.getVersionConfig(confirmRestore.id));
-            if (!cfg) throw new Error("Version has no config payload");
+            if (!cfg) throw new Error(t(STRINGS.advanced_chrome.vh_error_no_config, locale));
             builder.applyConfig(cfg);
             const optimistic: StoredVersion = {
                 id: `optimistic-${Date.now()}`,
-                label: `Restored "${confirmRestore.label ?? "Auto-save"}"`,
+                label: tFormat(STRINGS.advanced_chrome.vh_restored_label, locale, {
+                    label: (confirmRestore.label ?? "").trim() || t(STRINGS.version_history.auto_save, locale),
+                }),
                 is_named: false,
                 config: cfg,
                 created_at: new Date().toISOString(),
                 created_by: "",
-                author_name: "You",
+                author_name: t(STRINGS.advanced_chrome.vh_you, locale),
             };
             setVersions((prev) => (prev ? [optimistic, ...prev] : [optimistic]));
             setConfirmRestore(null);
             setSelectedId(null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Restore failed");
+            setError(err instanceof Error ? err.message : t(STRINGS.advanced_chrome.vh_error_restore, locale));
         } finally {
             if (mountedRef.current) setRestoring(false);
         }
-    }, [builder, confirmRestore]);
+    }, [builder, confirmRestore, locale]);
 
     const handlePromote = useCallback(async (): Promise<void> => {
         if (!promoteVersion) return;
@@ -248,7 +245,7 @@ export function VersionHistoryScreen({
             const cfg =
                 promoteVersion.config ??
                 (await builder.getVersionConfig(promoteVersion.id));
-            if (!cfg) throw new Error("Version has no config payload");
+            if (!cfg) throw new Error(t(STRINGS.advanced_chrome.vh_error_no_config, locale));
             const previousConfig: StoreConfigV2 = builder.config;
             builder.applyConfig(cfg);
             try {
@@ -260,11 +257,11 @@ export function VersionHistoryScreen({
             setPromoteLabel("");
             await refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Snapshot failed");
+            setError(err instanceof Error ? err.message : t(STRINGS.advanced_chrome.vh_error_snapshot, locale));
         } finally {
             if (mountedRef.current) setSnapshotBusy(false);
         }
-    }, [builder, promoteLabel, promoteVersion, refresh]);
+    }, [builder, locale, promoteLabel, promoteVersion, refresh]);
 
     /* ── Render ───────────────────────────────────────────────── */
 
@@ -286,10 +283,9 @@ export function VersionHistoryScreen({
                         <ChevronLeft className="h-4 w-4" />
                     </button>
                     <div>
-                        <h2 className="text-base font-bold tracking-tight">Version History</h2>
+                        <h2 className="text-base font-bold tracking-tight">{t(STRINGS.version_history.heading, locale)}</h2>
                         <p className="text-[11px] text-foreground/80">
-                            Restore any previous version of your store. Named snapshots
-                            never expire.
+                            {t(STRINGS.version_history.subtitle, locale)}
                         </p>
                     </div>
                 </div>
@@ -301,7 +297,7 @@ export function VersionHistoryScreen({
                         className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                        Refresh
+                        {t(STRINGS.version_history.refresh, locale)}
                     </button>
                     <button
                         type="button"
@@ -310,7 +306,7 @@ export function VersionHistoryScreen({
                         className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
                     >
                         <Plus className="h-3.5 w-3.5" />
-                        Save snapshot
+                        {t(STRINGS.version_history.save_snapshot, locale)}
                     </button>
                 </div>
             </header>
@@ -325,7 +321,7 @@ export function VersionHistoryScreen({
                         type="text"
                         value={snapshotLabel}
                         onChange={(e) => setSnapshotLabel(e.target.value)}
-                        placeholder="Label, e.g. 'Before Eid sale'"
+                        placeholder={t(STRINGS.version_history.snapshot_placeholder, locale)}
                         data-testid="version-history-snapshot-input"
                         className="flex-1 rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         autoFocus
@@ -343,7 +339,7 @@ export function VersionHistoryScreen({
                         )}
                     >
                         {snapshotBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                        Save
+                        {t(STRINGS.version_history.save, locale)}
                     </button>
                     <button
                         type="button"
@@ -354,7 +350,7 @@ export function VersionHistoryScreen({
                         data-testid="version-history-snapshot-cancel"
                         className="inline-flex h-8 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
-                        Cancel
+                        {t(STRINGS.version_history.cancel, locale)}
                     </button>
                 </div>
             )}
@@ -395,7 +391,7 @@ export function VersionHistoryScreen({
                                 const isSelected = v.id === selectedId;
                                 const label =
                                     (v.label ?? "").trim() ||
-                                    (v.is_named ? "Untitled snapshot" : "Auto-save");
+                                    (v.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale));
                                 return (
                                     <li key={v.id}>
                                         <button
@@ -403,7 +399,7 @@ export function VersionHistoryScreen({
                                             onClick={() => setSelectedId(v.id)}
                                             data-testid={`version-history-row-${v.id}`}
                                             className={cn(
-                                                "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors",
+                                                "flex w-full items-start gap-3 px-4 py-3 text-start transition-colors",
                                                 isSelected
                                                     ? "bg-primary/10"
                                                     : "hover:bg-black/5",
@@ -433,9 +429,9 @@ export function VersionHistoryScreen({
                                                 </div>
                                                 <div
                                                     className="mt-0.5 text-[11px] text-muted-foreground"
-                                                    title={absoluteTime(v.created_at)}
+                                                    title={absoluteTime(v.created_at, locale)}
                                                 >
-                                                    {relativeTime(v.created_at)}
+                                                    {relativeTime(v.created_at, locale)}
                                                     {v.author_name ? ` · ${v.author_name}` : ""}
                                                 </div>
                                                 {v.diff_summary && (
@@ -476,7 +472,7 @@ export function VersionHistoryScreen({
                 >
                     {!selected ? (
                         <div className="flex h-full items-center justify-center p-8 text-center text-sm text-foreground/80">
-                            Select a version to view its details and changes.
+                            {t(STRINGS.version_history.select_to_view, locale)}
                         </div>
                     ) : (
                         <div className="space-y-5 p-5">
@@ -490,12 +486,14 @@ export function VersionHistoryScreen({
                                     )}
                                     <h3 className="text-lg font-semibold tracking-tight">
                                         {(selected.label ?? "").trim() ||
-                                            (selected.is_named ? "Untitled snapshot" : "Auto-save")}
+                                            (selected.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale))}
                                     </h3>
                                 </div>
                                 <p className="text-[12px] text-muted-foreground">
-                                    {absoluteTime(selected.created_at)}
-                                    {selected.author_name ? ` · by ${selected.author_name}` : ""}
+                                    {absoluteTime(selected.created_at, locale)}
+                                    {selected.author_name
+                                        ? ` · ${tFormat(STRINGS.advanced_chrome.vh_by_author, locale, { name: selected.author_name })}`
+                                        : ""}
                                 </p>
                             </header>
 
@@ -508,7 +506,7 @@ export function VersionHistoryScreen({
                                     className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
                                 >
                                     <RefreshCw className="h-3.5 w-3.5" />
-                                    Restore this version
+                                    {t(STRINGS.version_history.restore, locale)}
                                 </button>
                                 {!selected.is_named && (
                                     <button
@@ -521,7 +519,7 @@ export function VersionHistoryScreen({
                                         className="inline-flex items-center gap-1 rounded-md border border-(--card-border) px-3 py-1.5 text-[12px] font-semibold transition-colors hover:bg-black/5"
                                     >
                                         <Star className="h-3.5 w-3.5" />
-                                        Save as named snapshot
+                                        {t(STRINGS.version_history.save_as_named, locale)}
                                     </button>
                                 )}
                             </div>
@@ -541,15 +539,16 @@ export function VersionHistoryScreen({
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
                 >
                     <div className="w-full max-w-md rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-xl">
-                        <h4 className="text-base font-semibold tracking-tight">Restore this version?</h4>
+                        <h4 className="text-base font-semibold tracking-tight">{t(STRINGS.version_history.restore_title, locale)}</h4>
                         <p className="mt-2 text-sm text-foreground/80">
-                            Restore{" "}
+                            {t(STRINGS.advanced_chrome.vh_restore_body_prefix, locale)}{" "}
                             <span className="font-medium text-foreground">
                                 &quot;{(confirmRestore.label ?? "").trim() ||
-                                    (confirmRestore.is_named ? "Untitled snapshot" : "Auto-save")}&quot;
+                                    (confirmRestore.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale))}&quot;
                             </span>{" "}
-                            from {absoluteTime(confirmRestore.created_at)}? This replaces
-                            your current draft. You can undo this in this session.
+                            {tFormat(STRINGS.advanced_chrome.vh_restore_body_suffix, locale, {
+                                time: absoluteTime(confirmRestore.created_at, locale),
+                            })}
                         </p>
                         <div className="mt-5 flex justify-end gap-2">
                             <button
@@ -558,7 +557,7 @@ export function VersionHistoryScreen({
                                 data-testid="version-history-restore-cancel"
                                 className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                             >
-                                Cancel
+                                {t(STRINGS.version_history.cancel, locale)}
                             </button>
                             <button
                                 type="button"
@@ -573,7 +572,7 @@ export function VersionHistoryScreen({
                                 )}
                             >
                                 {restoring ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                                {t(STRINGS.advanced_chrome.vh_restore_body_prefix, locale)}
+                                {t(STRINGS.version_history.restore_confirm, locale)}
                             </button>
                         </div>
                     </div>
@@ -588,16 +587,15 @@ export function VersionHistoryScreen({
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
                 >
                     <div className="w-full max-w-md rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-xl">
-                        <h4 className="text-base font-semibold tracking-tight">Save as named snapshot</h4>
+                        <h4 className="text-base font-semibold tracking-tight">{t(STRINGS.version_history.save_as_named, locale)}</h4>
                         <p className="mt-2 text-sm text-foreground/80">
-                            Give this auto-save a memorable label so it doesn&apos;t get
-                            pruned.
+                            {t(STRINGS.advanced_chrome.vh_promote_body, locale)}
                         </p>
                         <input
                             type="text"
                             value={promoteLabel}
                             onChange={(e) => setPromoteLabel(e.target.value)}
-                            placeholder="Label, e.g. 'Before Eid sale'"
+                            placeholder={t(STRINGS.version_history.snapshot_placeholder, locale)}
                             data-testid="version-history-promote-input"
                             className="mt-3 w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             autoFocus
@@ -612,7 +610,7 @@ export function VersionHistoryScreen({
                                 data-testid="version-history-promote-cancel"
                                 className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                             >
-                                Cancel
+                                {t(STRINGS.version_history.cancel, locale)}
                             </button>
                             <button
                                 type="button"
@@ -627,7 +625,7 @@ export function VersionHistoryScreen({
                                 )}
                             >
                                 {snapshotBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                                Save snapshot
+                                {t(STRINGS.version_history.save_snapshot, locale)}
                             </button>
                         </div>
                     </div>
@@ -646,6 +644,7 @@ interface DiffViewProps {
 }
 
 function DiffView({ entries }: DiffViewProps): ReactElement {
+    const locale = useEditorLocale();
     const grouped = useMemo(() => groupDiffByTop(entries), [entries]);
     const keys = useMemo(() => Object.keys(grouped).sort(), [grouped]);
 
@@ -655,7 +654,7 @@ function DiffView({ entries }: DiffViewProps): ReactElement {
                 data-testid="version-history-diff-empty"
                 className="rounded-xl border border-dashed border-(--card-border) p-6 text-center text-sm text-foreground/80"
             >
-                No differences vs your current draft.
+                {t(STRINGS.version_history.diff_empty, locale)}
             </div>
         );
     }
@@ -663,8 +662,8 @@ function DiffView({ entries }: DiffViewProps): ReactElement {
     return (
         <div data-testid="version-history-diff" className="space-y-4">
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
-                Changes vs current draft
-                <span className="ml-2 text-muted-foreground/60">({entries.length})</span>
+                {t(STRINGS.version_history.diff_heading, locale)}
+                <span className="ms-2 text-muted-foreground/60">({entries.length})</span>
             </h4>
             {keys.map((key) => (
                 <div key={key} className="rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
@@ -692,7 +691,11 @@ function DiffRow({ entry }: { entry: DiffEntry }): ReactElement {
               : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30";
 
     const label =
-        entry.kind === "added" ? "added" : entry.kind === "removed" ? "removed" : "changed";
+        entry.kind === "added"
+            ? t(STRINGS.version_history.diff_added, locale)
+            : entry.kind === "removed"
+              ? t(STRINGS.version_history.diff_removed, locale)
+              : t(STRINGS.version_history.diff_changed, locale);
     return (
         <li
             data-testid={`version-history-diff-row-${entry.kind}`}
@@ -705,7 +708,7 @@ function DiffRow({ entry }: { entry: DiffEntry }): ReactElement {
                 <span className="rounded-sm bg-background/40 px-1 text-[10px] font-semibold uppercase tracking-wider">
                     {label}
                 </span>
-                <code className="font-mono text-[11px] opacity-90">{formatPath(entry.path)}</code>
+                <code dir="ltr" className="font-mono text-[11px] opacity-90">{formatPath(entry.path)}</code>
             </div>
             {entry.kind === "changed" && (
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">

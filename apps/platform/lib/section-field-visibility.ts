@@ -31,6 +31,8 @@ const fromCategories = (s: Record<string, unknown>): boolean => s.source === "ca
 const hasProductFaq = (s: Record<string, unknown>): boolean =>
     s.product_faq !== undefined && s.product_faq !== null;
 
+const hasText = (v: unknown): boolean => typeof v === "string" && v.trim().length > 0;
+
 const RULE_SETS: readonly RuleSet[] = [
     {
         switchKey: "source",
@@ -61,6 +63,16 @@ const RULE_SETS: readonly RuleSet[] = [
         switchKey: "show_category_links",
         rules: {
             category_links_limit: (s) => s.show_category_links === true,
+        },
+    },
+    {
+        // hero_card_float: the photo's shape and crop only exist when there
+        // is a photo; without one the hero is a plain colour block.
+        switchKey: "bg_image_url",
+        rules: {
+            media_ratio: (s) => hasText(s.bg_image_url),
+            focal_x: (s) => hasText(s.bg_image_url),
+            focal_y: (s) => hasText(s.bg_image_url),
         },
     },
     {

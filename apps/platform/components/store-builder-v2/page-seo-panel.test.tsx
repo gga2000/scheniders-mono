@@ -83,8 +83,8 @@ describe("PageSeoPanel", () => {
                 onChange={onChange}
             />,
         );
-        expect(screen.queryByTestId("seo-og-image-preview")).toBeNull();
-        fireEvent.change(screen.getByTestId("seo-og-image-input"), {
+        expect(screen.getByTestId("seo-og-image-preview").querySelector("img")).toBeNull();
+        fireEvent.change(screen.getByTestId("seo-og-image-url"), {
             target: { value: "https://x/og.jpg" },
         });
         expect(onChange).toHaveBeenCalledWith(
@@ -98,6 +98,6 @@ describe("PageSeoPanel", () => {
                 onChange={onChange}
             />,
         );
-        expect(screen.getByTestId("seo-og-image-preview")).toBeTruthy();
+        expect(screen.getByTestId("seo-og-image-preview").querySelector("img")).toBeTruthy();
     });
 });

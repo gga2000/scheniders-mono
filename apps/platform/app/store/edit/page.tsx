@@ -154,8 +154,12 @@ export default async function StoreV2Page({
     const initialPageId: PageId | null =
         initialConfig.pages.find((p) => p.page_id === requestedPageId)?.page_id ?? null;
     const hasPublished = !!published;
-    // If we started from a draft, the editor begins in a dirty state so Publish enables.
-    const initiallyDirty = !!draft;
+    // Start dirty (Publish enabled) only when the saved draft actually differs
+    // from the live store. A draft can match the live store exactly, e.g. an
+    // edit that was autosaved and then undone; that is nothing to publish.
+    // Both columns are jsonb, so equal configs serialize identically.
+    const initiallyDirty =
+        !!draft && (!published || JSON.stringify(draft) !== JSON.stringify(published));
     // BUG25: the published "generation" counter at hydration — publish rejects
     // if the live rev has moved on (another editor published in the meantime).
     const initialRev = t.store_config_rev ?? 0;

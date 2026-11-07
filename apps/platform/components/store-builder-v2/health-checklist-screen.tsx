@@ -595,7 +595,10 @@ export function HealthChecklistScreen(
 
             {/* Score card + categories — Advanced only (S3-03) */}
             {!isSimple && (
-            <section className="grid gap-6 px-6 py-6 lg:grid-cols-[auto_1fr]">
+            // Sized by its own width, not the viewport: in the 380px rail the
+            // donut sits above the cards instead of squeezing them.
+            <div className="@container">
+            <section className="grid gap-6 px-6 py-6 @2xl:grid-cols-[auto_1fr]">
                 <div
                     className="flex flex-col items-center justify-center rounded-2xl border border-(--card-border) bg-background p-6 shadow-(--card-shadow)"
                     data-testid="health-score-card"
@@ -628,12 +631,12 @@ export function HealthChecklistScreen(
                                 data-testid={`health-cat-${cat}`}
                                 className="rounded-xl border border-(--card-border) bg-background p-3"
                             >
-                                <div className="flex items-baseline justify-between">
-                                    <span className="text-xs font-medium text-foreground/80">
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="min-w-0 text-xs font-medium leading-snug text-foreground/80">
                                         {t(CATEGORY_LABEL[cat], locale)}
                                     </span>
                                     <span
-                                        className="text-sm font-semibold tabular-nums"
+                                        className="shrink-0 text-sm font-semibold tabular-nums"
                                         style={{ color: scoreColor(v) }}
                                     >
                                         {v}
@@ -653,6 +656,7 @@ export function HealthChecklistScreen(
                     })}
                 </div>
             </section>
+            </div>
             )}
 
             {/* Blocks publish banner */}

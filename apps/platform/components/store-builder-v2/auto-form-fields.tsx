@@ -140,7 +140,8 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                 {control}
                 <p
                     data-testid={`${testIdBase}-help`}
-                    className="text-[11px] leading-relaxed text-muted-foreground"
+                    dir="auto"
+                    className="text-left text-[11px] leading-relaxed text-muted-foreground"
                 >
                     {help}
                 </p>
@@ -239,7 +240,11 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
         return (
             <div className="space-y-1" data-testid={testIdBase}>
                 {picker}
-                {help && <p className="text-[11px] text-muted-foreground">{help}</p>}
+                {help && (
+                    <p dir="auto" className="text-left text-[11px] text-muted-foreground">
+                        {help}
+                    </p>
+                )}
             </div>
         );
     }
@@ -870,6 +875,9 @@ export function EnumControl(p: EnumControlProps): ReactElement {
         else p.onChange(opt);
     };
     const useSegmented = p.options.length > 0 && choices.length <= 4;
+    // Left/right choices are positions on the page, so they keep the page's
+    // left on the left even when the editor reads right-to-left.
+    const isSpatial = p.options.includes("left") && p.options.includes("right");
     return (
         <div className="space-y-1.5">
             <FieldHeader label={p.label} onClear={p.onClear} testIdBase={p.testIdBase} />
@@ -878,6 +886,7 @@ export function EnumControl(p: EnumControlProps): ReactElement {
                     role="radiogroup"
                     aria-label={p.label}
                     data-testid={`${p.testIdBase}-segmented`}
+                    dir={isSpatial ? "ltr" : undefined}
                     className="inline-flex w-full rounded-xl border border-(--card-border) bg-(--card-bg) p-1"
                 >
                     {choices.map((opt) => {
