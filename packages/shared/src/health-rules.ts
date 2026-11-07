@@ -35,9 +35,18 @@ export interface FixAction {
     go_to:
         | {
               kind: "settings";
-              key: "brand_kit" | "versions" | "scheduled" | "experiments" | "segments" | "health";
+              key:
+                  | "brand_kit"
+                  | "versions"
+                  | "scheduled"
+                  | "experiments"
+                  | "segments"
+                  | "health"
+                  | "pixels";
           }
-        | { kind: "page"; page_id: PageId }
+        /** `tab: "seo"` opens the page's SEO panel instead of its sections. */
+        | { kind: "page"; page_id: PageId; tab?: "seo" }
+
         | { kind: "section"; page_id: PageId; section_id: string }
         | { kind: "external"; href: string };
 }
@@ -52,11 +61,26 @@ export interface CheckResult {
     blocks_publish?: boolean;
 }
 
+/**
+ * Store facts that live outside `StoreConfigV2` but decide what shoppers
+ * see. The storefront resolves its WhatsApp and call numbers from the config
+ * first and then from older tenant fields (Settings, signup), so a check that
+ * reads only the config warns about a number the store is already showing.
+ * Callers resolve these with the storefront's own helpers
+ * (`resolveTenantWhatsapp` / `resolveTenantPhone`) and pass them in.
+ */
+export interface HealthContext {
+    /** The WhatsApp number the storefront will show, or null. */
+    whatsapp?: string | null;
+    /** The call number the storefront footer will show, or null. */
+    phone?: string | null;
+}
+
 export interface HealthCheck {
     id: string;
     category: HealthCategory;
     weight: number;
-    evaluate: (cfg: StoreConfigV2) => CheckResult;
+    evaluate: (cfg: StoreConfigV2, ctx: HealthContext) => CheckResult;
 }
 
 export interface HealthReport {
@@ -285,7 +309,7 @@ function check(
     id: string,
     category: HealthCategory,
     weight: number,
-    evaluate: (cfg: StoreConfigV2) => CheckResult,
+    evaluate: (cfg: StoreConfigV2, ctx: HealthContext) => CheckResult,
 ): HealthCheck {
     return { id, category, weight, evaluate };
 }
@@ -317,9 +341,10 @@ export const HEALTH_CHECKS: HealthCheck[] = [
     check("terms_has_content", "ad_compliance", 1, (cfg) =>
         policyHasContent(cfg, "policy_terms", "Terms & conditions"),
     ),
-    check("contact_phone_set", "ad_compliance", 1, (cfg) => {
-        // Real contact lives outside StoreConfigV2 today; proxy by looking
-        // at the footer section instance for a contact card / phone prop.
+    check("contact_phone_set", "ad_compliance", 1, (cfg, ctx) => {
+        // The footer shows its own phone prop, else the store's call number
+        // (ctx.phone, resolved exactly as the footer resolves it).
+        if ((ctx.phone ?? "").trim().length > 0) return { status: "pass" };
         const footer = cfg.globals?.footer;
         const phone = footer ? findKey(footer.base, (k) => /phone|contact_phone/.test(k)) : undefined;
         if (phone && resolveStr(phone).trim().length > 0) {
@@ -328,16 +353,22 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "warn",
             message: "No contact phone detected in footer — add one for ad-platform trust.",
-            fix_action: fixPage("contact", "Edit contact"),
+            // The store call number is set in Settings → Business; the footer
+            // shows it when it has no phone of its own.
+            fix_action: {
+                label: "Add store phone",
+                go_to: { kind: "external", href: "/settings?section=business" },
+            },
         };
     }),
-    check("whatsapp_number_set", "ad_compliance", 1, (cfg) => {
-        // Single source of truth: the store-level commerce config (what the
-        // onboarding wizard writes). Section-level numbers are a fallback for
-        // stores that predate the config field.
+    check("whatsapp_number_set", "ad_compliance", 1, (cfg, ctx) => {
+        // The store-level commerce config (what the onboarding wizard writes),
+        // else the number the storefront falls back to (ctx.whatsapp: older
+        // Settings/signup fields). Section-level numbers count too.
         if ((cfg.commerce?.whatsapp_number ?? "").trim().length > 0) {
             return { status: "pass" };
         }
+        if ((ctx.whatsapp ?? "").trim().length > 0) return { status: "pass" };
         for (const s of allEnabledSections(cfg)) {
             const w = findKey(
                 s.base,
@@ -358,7 +389,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
                 status: "fail",
                 message: "No analytics pixel configured — required for ad campaigns.",
                 blocks_publish: true,
-                fix_action: fixSettings("brand_kit", "Configure pixels"),
+                fix_action: fixSettings("pixels", "Configure pixels"),
             };
         }
         let hasAny = false;
@@ -373,7 +404,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
                 status: "fail",
                 message: "Pixel config is empty — fill in at least one pixel id.",
                 blocks_publish: true,
-                fix_action: fixSettings("brand_kit", "Configure pixels"),
+                fix_action: fixSettings("pixels", "Configure pixels"),
             };
         }
         return { status: "pass" };
@@ -397,7 +428,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "fail",
             message: "Home has no meta title — search results will look broken.",
-            fix_action: fixPage("home", "Edit Home SEO"),
+            fix_action: { label: "Edit Home SEO", go_to: { kind: "page", page_id: "home", tab: "seo" } },
         };
     }),
     check("home_meta_description", "seo", 1, (cfg) => {
@@ -407,7 +438,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "warn",
             message: "Home has no meta description — Google will guess one.",
-            fix_action: fixPage("home", "Edit Home SEO"),
+            fix_action: { label: "Edit Home SEO", go_to: { kind: "page", page_id: "home", tab: "seo" } },
         };
     }),
     check("every_page_has_meta_title", "seo", 1, (cfg) => {
@@ -415,7 +446,12 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         // and don't need an SEO title. Every other defined page renders a real
         // crawlable URL — even with zero sections it falls back to a legacy
         // template — so it must be checked regardless of section count.
+        // Product and category templates are titled per item by the
+        // storefront ("<product> — <store>"), so a template title is never
+        // used on any live URL and must not count as missing.
         const NON_SEO_PAGES: ReadonlySet<PageId> = new Set([
+            "product",
+            "category",
             "search",
             "cart",
             "checkout",
@@ -433,8 +469,11 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         if (missing.length === 0) return { status: "pass" };
         return {
             status: "warn",
-            message: `${missing.length} page(s) missing meta title.`,
-            fix_action: fixPage(missing[0], "Fix meta titles"),
+            message: `${missing.length} page(s) missing meta title: ${missing.join(", ")}.`,
+            fix_action: {
+                label: "Fix meta titles",
+                go_to: { kind: "page", page_id: missing[0], tab: "seo" },
+            },
         };
     }),
     check("business_name_set", "seo", 1, (cfg) => {
@@ -451,7 +490,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         if (tagline.trim()) return { status: "pass" };
         return {
             status: "warn",
-            message: "Tagline is empty — used in OG previews and metadata.",
+            message: "Tagline is empty — used as the store description when shoppers save it to their phone.",
             fix_action: fixSettings("brand_kit", "Add tagline"),
         };
     }),
@@ -531,8 +570,10 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         const t = cfg.brand_kit?.typography;
         if (!t) return { status: "pass" };
         const fonts = new Set<string>();
-        if (t.display) fonts.add(t.display);
-        if (t.body) fonts.add(t.body);
+        // Every family the storefront downloads, Arabic pairings included.
+        for (const f of [t.display, t.body, t.display_ar, t.body_ar]) {
+            if (f) fonts.add(f);
+        }
         if (fonts.size > 2) {
             return {
                 status: "warn",
@@ -765,7 +806,8 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         const enabled =
             cfg.enabled_locales && cfg.enabled_locales.length > 0
                 ? cfg.enabled_locales
-                : SUPPORTED_LOCALES;
+                : // Same default the storefront serves (resolveVisitorLocale).
+                  (["ar"] as const);
         const others = enabled.filter((l) => l !== cfg.default_locale);
         if (others.length === 0) return { status: "pass" };
 
@@ -818,9 +860,9 @@ function statusToPoints(s: RuleStatus): number {
     return 0;
 }
 
-export function runHealthChecks(cfg: StoreConfigV2): HealthReport {
+export function runHealthChecks(cfg: StoreConfigV2, ctx: HealthContext = {}): HealthReport {
     const evaluated = HEALTH_CHECKS.map((c) => {
-        const r = c.evaluate(cfg);
+        const r = c.evaluate(cfg, ctx);
         return { ...c, ...r };
     });
 

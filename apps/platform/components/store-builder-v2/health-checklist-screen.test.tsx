@@ -166,7 +166,7 @@ describe("HealthChecklistScreen", () => {
         // `privacy_policy_has_content` fails on empty config → kind=page → policy_privacy.
         const btn = screen.getByTestId("health-fix-privacy_policy_has_content");
         fireEvent.click(btn);
-        expect(onSelectPage).toHaveBeenCalledWith("policy_privacy");
+        expect(onSelectPage).toHaveBeenCalledWith("policy_privacy", undefined);
     });
 
     it("'Blocks publish' banner appears when blocking failures exist", () => {

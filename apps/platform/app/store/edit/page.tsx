@@ -27,6 +27,7 @@ const DEEP_LINK_SCREENS: readonly SettingsSectionId[] = [
     "segments",
     "i18n",
     "redirects",
+    "pixels",
 ];
 
 /**
@@ -208,6 +209,12 @@ export default async function StoreV2Page({
                 // published): its structured call number is what the tracker
                 // dials first, and its WhatsApp number what it falls back to,
                 // once this config is live.
+                // Only the contact slice crosses to the client, never the
+                // whole legacy store_config row.
+                contact_fields: {
+                    store_config: { contact: t.store_config?.contact ?? null },
+                    contact_phone: t.contact_phone,
+                },
                 tracking_contact: resolveTrackerContact({
                     store_config: t.store_config,
                     contact_phone: t.contact_phone,

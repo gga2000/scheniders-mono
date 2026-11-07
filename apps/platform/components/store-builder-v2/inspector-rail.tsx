@@ -19,6 +19,7 @@ import type {
     Experiment,
     LocaleCode,
     PageId,
+    HealthContext,
     PageMeta,
     SectionInstance,
     StoreConfigV2,
@@ -80,11 +81,13 @@ export interface InspectorRailProps {
 
     /* ── Health tab ─────────────────────────────────────────────── */
     config: StoreConfigV2;
+    /** Contact numbers the storefront resolves outside the config. */
+    healthContext?: HealthContext;
     tenantName: string;
     /** Whether the store has ever been published (launch checklist). */
     hasPublished?: boolean;
     onJumpToSetting?: (id: SettingsSectionId) => void;
-    onJumpToPage?: (page: PageId) => void;
+    onJumpToPage?: (page: PageId, opts?: { tab?: "seo" }) => void;
     onJumpToSection?: (page: PageId, sectionId: string) => void;
     /** Persist the store-level WhatsApp number (launch checklist inline capture). */
     onSetWhatsappNumber?: (value: string) => void;
@@ -119,6 +122,7 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
         storefrontUrl,
         config,
         tenantName,
+        healthContext,
         hasPublished,
         onJumpToSetting,
         onJumpToPage,
@@ -233,13 +237,14 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                     >
                         <HealthChecklistScreen
                             config={config}
+                            healthContext={healthContext}
                             tenantName={tenantName}
                             hasPublished={hasPublished}
                             onSelectSetting={(id) => {
                                 if (id === "health") return;
                                 onJumpToSetting?.(id);
                             }}
-                            onSelectPage={(page) => onJumpToPage?.(page)}
+                            onSelectPage={(page, opts) => onJumpToPage?.(page, opts)}
                             onSelectSection={(page, sectionId) =>
                                 onJumpToSection?.(page, sectionId)
                             }

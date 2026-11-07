@@ -394,3 +394,62 @@ describe("default_locale_enabled", () => {
         expect(checkStatus(cfg, "default_locale_enabled")).toBe("warn");
     });
 });
+
+describe("runHealthChecks — checks match what the storefront shows", () => {
+    it("product and category templates never count as missing a Google title", () => {
+        const cfg = fullyPopulatedConfig();
+        for (const p of cfg.pages) {
+            p.meta = { ...(p.meta ?? {}), title: { en: "T" } };
+        }
+        for (const id of ["product", "category"] as PageId[]) {
+            const page = cfg.pages.find((p) => p.page_id === id);
+            if (page) page.meta = {};
+        }
+        const c = runHealthChecks(cfg).checks.find((c) => c.id === "every_page_has_meta_title");
+        expect(c?.status).toBe("pass");
+    });
+
+    it("names the pages missing a title and opens the SEO tab", () => {
+        const cfg = fullyPopulatedConfig();
+        const about = cfg.pages.find((p) => p.page_id === "about");
+        if (about) about.meta = {};
+        const c = runHealthChecks(cfg).checks.find((c) => c.id === "every_page_has_meta_title");
+        expect(c?.message).toContain("about");
+        expect(c?.fix_action?.go_to).toMatchObject({ kind: "page", tab: "seo" });
+    });
+
+    it("an Arabic-only store (no enabled locales) is not asked for translations", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.default_locale = "ar";
+        cfg.enabled_locales = [];
+        setPage(cfg, "home", [s("hero_image", { title_i18n: { ar: "مرحبا" }, image_url: "x" })]);
+        const c = runHealthChecks(cfg).checks.find((c) => c.id === "translations_complete");
+        expect(c?.status).toBe("pass");
+    });
+
+    it("counts Arabic font pairings in the font budget", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.brand_kit.typography = {
+            ...cfg.brand_kit.typography,
+            display: "Inter",
+            body: "Inter",
+            display_ar: "Readex Pro",
+            body_ar: "Cairo",
+        };
+        const c = runHealthChecks(cfg).checks.find((c) => c.id === "font_count_reasonable");
+        expect(c?.status).toBe("warn");
+    });
+
+    it("pixel fix opens the pixels screen", () => {
+        const cfg = freshEmpty();
+        const c = runHealthChecks(cfg).checks.find((c) => c.id === "pixel_or_gtm_configured");
+        expect(c?.fix_action?.go_to).toEqual({ kind: "settings", key: "pixels" });
+    });
+
+    it("a WhatsApp number the store shows from Settings passes", () => {
+        const c = runHealthChecks(freshEmpty(), { whatsapp: "07779703832" }).checks.find(
+            (c) => c.id === "whatsapp_number_set",
+        );
+        expect(c?.status).toBe("pass");
+    });
+});

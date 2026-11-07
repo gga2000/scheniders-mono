@@ -34,6 +34,7 @@ import {
     type PreviewPageConfig,
 } from "@/hooks/use-iframe-bridge";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
+import { healthContextFor, type TenantContactFields } from "@/lib/health-context";
 import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import { PageTree, getPageLabel, type SettingsSectionId } from "./page-tree";
 import { PreviewModal } from "./preview-modal";
@@ -104,6 +105,12 @@ export interface EditorShellTenant {
     business_name: string;
     /** The number the storefront's order tracker fills `{contact}` with. */
     tracking_contact?: string | null;
+    /**
+     * Tenant-row contact fields the storefront falls back to for its
+     * WhatsApp and call numbers (Settings/signup). Health reads them so it
+     * never flags a number the store is already showing.
+     */
+    contact_fields?: TenantContactFields;
 }
 
 export interface EditorShellProps {
@@ -1241,9 +1248,16 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     );
     const [preview_modal_open, set_preview_modal_open] = useState(false);
 
+    const healthContext = useMemo(
+        () =>
+            tenant.contact_fields
+                ? healthContextFor(tenant.contact_fields, builder.config)
+                : undefined,
+        [tenant.contact_fields, builder.config],
+    );
     const healthReport = useMemo(
-        () => runHealthChecks(builder.config),
-        [builder.config],
+        () => runHealthChecks(builder.config, healthContext),
+        [builder.config, healthContext],
     );
     const healthBlocking = useMemo(
         () => blockingChecks(healthReport),
@@ -1357,6 +1371,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             if (go.kind === "page") {
                 set_system_screen(null);
                 builder.set_active_page(go.page_id);
+                if (go.tab === "seo") set_inspector_tab("seo");
                 return;
             }
             if (go.kind === "section") {
@@ -1879,12 +1894,14 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                 onChangePageMeta={handlePageMetaChange}
                                 storefrontUrl={storefrontUrl}
                                 config={builder.config}
+                                healthContext={healthContext}
                                 tenantName={tenant.business_name}
                                 hasPublished={hasPublished || published_session}
                                 onJumpToSetting={handleSelectSetting}
-                                onJumpToPage={(page) => {
+                                onJumpToPage={(page, opts) => {
                                     set_system_screen(null);
                                     builder.set_active_page(page);
+                                    if (opts?.tab === "seo") set_inspector_tab("seo");
                                 }}
                                 onJumpToSection={(page, section_id) => {
                                     set_system_screen(null);
