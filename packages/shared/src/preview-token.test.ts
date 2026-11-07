@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { signPreviewToken, verifyPreviewToken } from "./preview-token";
+import { resolvePreviewTokenSecret, signPreviewToken, verifyPreviewToken } from "./preview-token";
 
 const SECRET = "test-preview-secret-do-not-use-in-prod";
 const TENANT = "tenant_abc123";
@@ -68,5 +68,33 @@ describe("preview-token", () => {
         expect(verifyPreviewToken("no-dot-here", SECRET).ok).toBe(false);
         expect(verifyPreviewToken(".only-sig", SECRET).ok).toBe(false);
         expect(verifyPreviewToken("only-payload.", SECRET).ok).toBe(false);
+    });
+});
+
+describe("resolvePreviewTokenSecret", () => {
+    it("prefers an explicit PREVIEW_TOKEN_SECRET", () => {
+        expect(
+            resolvePreviewTokenSecret({ PREVIEW_TOKEN_SECRET: "x", SUPABASE_SERVICE_ROLE_KEY: "k" }),
+        ).toBe("x");
+    });
+
+    it("derives the same key on both apps from the shared server key", () => {
+        const a = resolvePreviewTokenSecret({ SUPABASE_SERVICE_ROLE_KEY: "k" });
+        const b = resolvePreviewTokenSecret({ SUPABASE_SERVICE_ROLE_KEY: "k" });
+        expect(a).toBe(b);
+        expect(a).not.toBe("k");
+        const token = signPreviewToken({ tenant_id: "t1" }, a as string, 60);
+        expect(verifyPreviewToken(token, b as string).ok).toBe(true);
+    });
+
+    it("a different server key cannot verify the token", () => {
+        const a = resolvePreviewTokenSecret({ SUPABASE_SERVICE_ROLE_KEY: "k" }) as string;
+        const c = resolvePreviewTokenSecret({ SUPABASE_SERVICE_ROLE_KEY: "other" }) as string;
+        const token = signPreviewToken({ tenant_id: "t1" }, a, 60);
+        expect(verifyPreviewToken(token, c).ok).toBe(false);
+    });
+
+    it("returns null with no key at all, so callers fail closed", () => {
+        expect(resolvePreviewTokenSecret({})).toBeNull();
     });
 });

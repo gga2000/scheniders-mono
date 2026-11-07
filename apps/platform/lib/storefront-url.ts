@@ -52,3 +52,33 @@ export function buildStorefrontUrl({
   // host: no subdomain to build, so fall back to the path form.
   return `http://${rootDomain}/s/${slug}`;
 }
+
+export interface VerifiedDomain {
+  domain: string;
+  created_at: string | null;
+}
+
+/** A Vercel-issued host is plumbing, not the address shoppers know. */
+function isPlatformHost(domain: string): boolean {
+  return domain.endsWith(".vercel.app");
+}
+
+/**
+ * The one domain links and the editor preview should use when a store has
+ * several verified domains (e.g. scheniders.com, www.scheniders.com and the
+ * old *.vercel.app host). Without an order the database hands back any of
+ * them, so "Visit store" sometimes opened the vercel.app address. Order:
+ * a real domain before a Vercel host, the www form before the bare one, then
+ * the oldest — so the pick is stable across loads.
+ */
+export function pickPrimaryDomain(domains: readonly VerifiedDomain[]): string | null {
+  if (domains.length === 0) return null;
+  const rank = (d: VerifiedDomain): number =>
+    (isPlatformHost(d.domain) ? 2 : 0) + (d.domain.startsWith("www.") ? 0 : 1);
+  const sorted = [...domains].sort((a, b) => {
+    const byRank = rank(a) - rank(b);
+    if (byRank !== 0) return byRank;
+    return (a.created_at ?? "").localeCompare(b.created_at ?? "");
+  });
+  return sorted[0].domain;
+}

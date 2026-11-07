@@ -9,6 +9,15 @@
 // Local-dev fallback when no token is plumbed through (tests / harnesses).
 export const DEV_PREVIEW_TOKEN = "dev-preview-token";
 
+/** The origin of a storefront URL; a bare origin string is returned as-is. */
+export function originOf(base: string): string {
+    try {
+        return new URL(base).origin;
+    } catch {
+        return base;
+    }
+}
+
 export function buildPreviewUrl(
     base: string,
     tenantSlug: string,
@@ -19,13 +28,7 @@ export function buildPreviewUrl(
 ): string {
     // Strip any tenant-suffix the storefront URL helper may have appended
     // and target the dedicated preview route under the storefront origin.
-    let origin = base;
-    try {
-        const parsed = new URL(base);
-        origin = parsed.origin;
-    } catch {
-        // Treat as already-an-origin.
-    }
+    const origin = originOf(base);
     // The page id is a PATH segment — the storefront route is
     // `/_preview/[tenant]/[page_id]`. A `?page=` query is only a
     // lower-priority alias there, so emitting the page as a query alone

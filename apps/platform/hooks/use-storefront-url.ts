@@ -3,21 +3,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { env } from "@/lib/env";
-import { buildStorefrontUrl } from "@/lib/storefront-url";
+import { buildStorefrontUrl, pickPrimaryDomain } from "@/lib/storefront-url";
 
 export function useStorefrontUrl(slug: string, tenantId: string | null): string {
     const { data: customDomain } = useQuery({
         queryKey: ["tenant-domain", tenantId],
         queryFn: async () => {
             if (!tenantId) return null;
-            const { data } = await supabase
+            const { data, error } = await supabase
                 .from("tenant_domains")
-                .select("domain, verified")
+                .select("domain, created_at")
                 .eq("tenant_id", tenantId)
-                .eq("verified", true)
-                .limit(1)
-                .maybeSingle();
-            return data?.domain ?? null;
+                .eq("verified", true);
+            if (error) throw error;
+            return pickPrimaryDomain(data ?? []);
         },
         enabled: !!tenantId,
         staleTime: 1000 * 60 * 10,

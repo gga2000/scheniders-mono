@@ -155,3 +155,29 @@ export function verifyPreviewToken(
     }
     return { ok: true, payload };
 }
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Signing key                                                          */
+/* ─────────────────────────────────────────────────────────────────── */
+
+/** Label that scopes the derived key to preview tokens only. */
+const PREVIEW_KEY_LABEL = "scheniders:preview-token:v1";
+
+/**
+ * The key both apps sign and verify preview tokens with. An explicit
+ * `PREVIEW_TOKEN_SECRET` wins. Otherwise it is derived one-way from the
+ * Supabase service-role key, which the platform and the storefront already
+ * both hold server-side: the two apps can never drift apart, and nothing
+ * extra has to be configured per deploy. The derived value reveals nothing
+ * about the service-role key (HMAC is one-way) and is never sent anywhere.
+ * Returns null when neither is set, so callers fail closed.
+ */
+export function resolvePreviewTokenSecret(
+    env: Record<string, string | undefined> = process.env,
+): string | null {
+    const explicit = env.PREVIEW_TOKEN_SECRET?.trim();
+    if (explicit) return explicit;
+    const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+    if (!serviceKey) return null;
+    return createHmac("sha256", serviceKey).update(PREVIEW_KEY_LABEL).digest("hex");
+}

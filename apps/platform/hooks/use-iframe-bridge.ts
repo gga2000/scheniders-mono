@@ -11,11 +11,10 @@
 //
 // SECURITY NOTE
 // -------------
-// Both directions are pinned to the storefront origin (`STOREFRONT_ORIGIN`):
-// outbound `postMessage` targets it, and inbound messages from any other
-// origin are dropped. This stops a page hosted at the iframe URL from
-// impersonating the storefront. Deployed environments MUST set
-// `NEXT_PUBLIC_STOREFRONT_ORIGIN`; the dev fallback is the local storefront.
+// Both directions are pinned to the origin of the preview the editor loaded
+// (`trustedOrigin`): outbound `postMessage` targets it, and inbound messages
+// from any other origin are dropped. This stops any other page or frame from
+// impersonating the storefront preview.
 // =====================================================================
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -45,11 +44,10 @@ export type PreviewPageConfig = {
 /* Trusted storefront origin                                            */
 /* ─────────────────────────────────────────────────────────────────── */
 
-// The preview iframe is served by the storefront app (port 3001 in dev).
-// In prod this MUST be set to the canonical storefront origin; the dev
-// fallback keeps the local preview working.
-const STOREFRONT_ORIGIN =
-    process.env.NEXT_PUBLIC_STOREFRONT_ORIGIN ?? "http://localhost:3001";
+// The preview iframe is served from the tenant's own storefront origin
+// (its custom domain or subdomain), which differs per store. The caller
+// passes that origin, derived from the iframe's own src, so the bridge
+// trusts exactly the page it loaded and nothing else.
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Types                                                                */
@@ -198,7 +196,15 @@ const PING_TIMEOUT_MS = 2_000;
 
 export function useIframeBridge(
     iframeRef: RefObject<HTMLIFrameElement | null>,
+    trustedOrigin: string,
 ): UseIframeBridgeReturn {
+    // Read through a ref so a late-resolving custom domain retargets the
+    // bridge without tearing down the message listener.
+    const origin_ref = useRef(trustedOrigin);
+    useEffect(() => {
+        origin_ref.current = trustedOrigin;
+    }, [trustedOrigin]);
+
     const [state, setState] = useState<BridgeState>(() => ({
         ready: false,
         scroll_y: 0,
@@ -230,7 +236,7 @@ export function useIframeBridge(
             const win = iframeRef.current?.contentWindow;
             if (!win) return;
             try {
-                win.postMessage(msg, STOREFRONT_ORIGIN);
+                win.postMessage(msg, origin_ref.current);
             } catch {
                 /* cross-origin send is best-effort */
             }
@@ -367,7 +373,7 @@ export function useIframeBridge(
 
         function onMessage(e: MessageEvent): void {
             // Only trust messages from the storefront preview origin.
-            if (e.origin !== STOREFRONT_ORIGIN) return;
+            if (e.origin !== origin_ref.current) return;
             const data = e.data as { source?: string; type?: string } | null;
             if (!data || data.source !== "schn-preview") return;
             switch (data.type) {

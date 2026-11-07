@@ -60,6 +60,11 @@ beforeEach(() => {
     get: () => ({ postMessage: parentPostMessage } as unknown as Window),
   });
 
+  // The bridge posts only to a trusted embedder, named by the referrer.
+  vi.spyOn(document, "referrer", "get").mockReturnValue(
+    "http://localhost:3000/store/edit",
+  );
+
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -97,6 +102,20 @@ describe("SchneidersPreviewBridge", () => {
       type: "ready",
     });
     expect(typeof readyCall?.[0].url).toBe("string");
+  });
+
+  it("posts to the trusted editor's origin, never to *", () => {
+    mountBridge();
+    const readyCall = parentPostMessage.mock.calls.find(
+      ([msg]) => msg?.type === "ready",
+    );
+    expect(readyCall?.[1]).toBe("http://localhost:3000");
+  });
+
+  it("posts nothing when embedded by an untrusted site (EC25)", () => {
+    vi.spyOn(document, "referrer", "get").mockReturnValue("https://evil.example.com/");
+    mountBridge();
+    expect(parentPostMessage).not.toHaveBeenCalled();
   });
 
   it("forwards section_clicked with the section id when a section is clicked", () => {

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
-import { signPreviewToken } from "@scheniders/shared/preview-token";
+import { resolvePreviewTokenSecret, signPreviewToken } from "@scheniders/shared/preview-token";
 import type { StoreConfigV2, PageId } from "@scheniders/shared";
 import type {
     Product as SectionProduct,
@@ -43,10 +43,10 @@ const PREVIEW_PRODUCTS_LIMIT = 24;
 // inside the iframe via postMessage and don't require a new token.
 const PREVIEW_TOKEN_TTL_SECONDS = 60 * 60;
 
-// Dev fallback so a developer running just the platform without
-// `PREVIEW_TOKEN_SECRET` configured still gets a working preview.
-// The storefront side accepts this exact string only when its own
-// `PREVIEW_TOKEN_SECRET` is also unset and NODE_ENV !== "production".
+// Dev fallback so a developer running just the platform with no signing
+// key (no PREVIEW_TOKEN_SECRET and no service-role key) still gets a working
+// preview. The storefront accepts this exact string only when it has no key
+// either and NODE_ENV !== "production".
 const DEV_PREVIEW_TOKEN = "dev-preview-token";
 
 interface TenantMemberRow {
@@ -162,7 +162,7 @@ export default async function StoreV2Page({
 
     // Mint the preview token server-side. The client never sees the
     // secret — only the resulting short-lived token.
-    const previewSecret = process.env.PREVIEW_TOKEN_SECRET;
+    const previewSecret = resolvePreviewTokenSecret();
     const previewToken = previewSecret
         ? signPreviewToken({ tenant_id: t.id }, previewSecret, PREVIEW_TOKEN_TTL_SECONDS)
         : DEV_PREVIEW_TOKEN;

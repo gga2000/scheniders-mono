@@ -90,6 +90,7 @@ import {
     buildPreviewUrl,
     deepCloneJson,
     generateSectionId,
+    originOf,
     parsePathSegments,
 } from "@/lib/editor-shell-utils";
 
@@ -379,7 +380,10 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     // True while a spacing-drag is streaming transient configs to the iframe —
     // pauses config-push so the committed config doesn't overwrite the preview.
     const spacing_dragging_ref = useRef<boolean>(false);
-    const bridge = useIframeBridge(iframe_ref);
+    // Trust exactly the origin the preview iframe is loaded from — the
+    // tenant's own storefront host, which differs per store.
+    const preview_origin = useMemo(() => originOf(storefrontUrl), [storefrontUrl]);
+    const bridge = useIframeBridge(iframe_ref, preview_origin);
     const [iframe_bounds, set_iframe_bounds] = useState<DOMRect | null>(null);
 
     // BUG29: pages with no valid templates (category, product, cart…)
