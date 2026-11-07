@@ -20,7 +20,7 @@ export default function StoreBuilderPage() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("tenants")
-                .select("id, slug, business_name, store_config, status, store_config_v2, store_config_v2_draft")
+                .select("id, slug, business_name, store_config, status, store_config_v2, store_config_v2_draft, contact_phone")
                 .eq("id", tenantId!)
                 .maybeSingle();
             if (error) throw error;
@@ -29,6 +29,7 @@ export default function StoreBuilderPage() {
                 slug: string;
                 business_name: string;
                 store_config: Record<string, unknown> | null;
+                contact_phone: string | null;
                 status: string | null;
                 store_config_v2: StoreConfigV2 | null;
                 store_config_v2_draft: StoreConfigV2 | null;

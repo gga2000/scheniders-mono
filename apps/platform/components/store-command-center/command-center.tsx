@@ -5,6 +5,7 @@ import type { LocaleCode, StoreConfigV2 } from "@scheniders/shared";
 import { useStoreAnalytics } from "@/hooks/use-store-analytics";
 import { useStorefrontFunnel } from "@/hooks/use-storefront-funnel";
 import { useStorefrontUrl } from "@/hooks/use-storefront-url";
+import { healthContextFor } from "@/lib/health-context";
 import { HeaderBar } from "./header-bar";
 import { PreviewCard } from "./preview-card";
 import { KpiStrip } from "./kpi-strip";
@@ -18,6 +19,7 @@ interface Tenant {
     slug: string;
     business_name: string;
     store_config: Record<string, unknown> | null;
+    contact_phone: string | null;
     status: string | null;
     store_config_v2: StoreConfigV2 | null;
     store_config_v2_draft: StoreConfigV2 | null;
@@ -104,6 +106,11 @@ export function CommandCenter({ tenant, tenantId }: CommandCenterProps) {
                 <div className="space-y-6">
                     <HealthCard
                         config={resolvedConfig}
+                        healthContext={
+                            resolvedConfig
+                                ? healthContextFor(tenant, resolvedConfig)
+                                : undefined
+                        }
                         isBrandNew={isBrandNew}
                         locale={locale}
                     />

@@ -4,12 +4,14 @@ import Link from "next/link";
 import { HeartPulse, AlertTriangle, CheckCircle2, ArrowRight, Rocket } from "lucide-react";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
 import { runHealthChecks } from "@scheniders/shared/health-rules";
-import type { LocaleCode, StoreConfigV2, FixAction } from "@scheniders/shared";
+import type { LocaleCode, StoreConfigV2, FixAction, HealthContext } from "@scheniders/shared";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";
 
 interface HealthCardProps {
     config: StoreConfigV2 | null;
+    /** Contact numbers the storefront resolves outside the config. */
+    healthContext?: HealthContext;
     /** A brand-new store (not published, nothing built) has no meaningful health
      * to score — show a neutral onboarding prompt instead of a red "failing" label. */
     isBrandNew?: boolean;
@@ -27,12 +29,14 @@ function fixHref(fix: FixAction | undefined): string {
     if (!go) return "/store/edit";
     switch (go.kind) {
         case "settings":
-            // "health" is an inline tab, not a deep-linkable screen.
+            // "health" is an inline inspector tab, not a full screen.
             return go.key === "health"
-                ? "/store/edit"
+                ? "/store/edit?tab=health"
                 : `/store/edit?screen=${go.key}`;
         case "page":
-            return `/store/edit?page=${go.page_id}`;
+            return go.tab
+                ? `/store/edit?page=${go.page_id}&tab=${go.tab}`
+                : `/store/edit?page=${go.page_id}`;
         case "section":
             return `/store/edit?page=${go.page_id}&section=${go.section_id}`;
         case "external":
@@ -85,7 +89,7 @@ function ScoreRing({ score }: { score: number }) {
     );
 }
 
-export function HealthCard({ config, isBrandNew = false, locale }: HealthCardProps) {
+export function HealthCard({ config, healthContext, isBrandNew = false, locale }: HealthCardProps) {
     if (isBrandNew) {
         return (
             <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
@@ -110,17 +114,14 @@ export function HealthCard({ config, isBrandNew = false, locale }: HealthCardPro
         );
     }
 
-    const report = runHealthChecks(config ?? emptyStoreConfigV2());
+    const report = runHealthChecks(config ?? emptyStoreConfigV2(), healthContext);
     const { score, checks } = report;
 
-    // Top 4 failing or warning checks
-    const issues = checks
-        .filter((c) => c.status !== "pass")
-        .sort((a, b) => {
-            const order: Record<string, number> = { fail: 0, warn: 1 };
-            return (order[a.status] ?? 2) - (order[b.status] ?? 2);
-        })
-        .slice(0, 4);
+    // Every failing or warning check counts; only the top 4 are listed here
+    // (the full list lives in the editor). The report is already ordered
+    // fail → warn → pass.
+    const openChecks = checks.filter((c) => c.status !== "pass");
+    const issues = openChecks.slice(0, 4);
 
     return (
         <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
@@ -138,14 +139,14 @@ export function HealthCard({ config, isBrandNew = false, locale }: HealthCardPro
                 <div className="flex flex-col justify-center gap-1">
                     <p className="text-sm font-semibold text-foreground">{t(scoreLabel(score), locale)}</p>
                     <p className="text-xs text-muted-foreground">
-                        {issues.length === 0
+                        {openChecks.length === 0
                             ? t(STRINGS.command_center.health_all_passing_detail, locale)
                             : tFormat(
-                                  issues.length === 1
+                                  openChecks.length === 1
                                       ? STRINGS.command_center.health_items_to_address_one
                                       : STRINGS.command_center.health_items_to_address_other,
                                   locale,
-                                  { n: issues.length },
+                                  { n: openChecks.length },
                               )}
                     </p>
                 </div>
@@ -191,7 +192,7 @@ export function HealthCard({ config, isBrandNew = false, locale }: HealthCardPro
             )}
 
             <Link
-                href="/store/edit"
+                href="/store/edit?tab=health"
                 className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
                 {t(STRINGS.command_center.health_full_checklist, locale)} <ArrowRight className="w-3 h-3" />

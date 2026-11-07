@@ -17,21 +17,41 @@
 // a field inside it has focus. The greeting waits for the shopper to leave
 // the name field, so it never greets a half-typed name.
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { IRAQ_GOVERNORATES, governorateLabel, cn, resolveI18n } from "@scheniders/shared";
-import { EXPRESS_VARIANTS_ID, useExpressOrderStore } from "../helpers/express-order-store";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  IRAQ_GOVERNORATES,
+  governorateLabel,
+  cn,
+  resolveI18n,
+} from "@scheniders/shared";
+import {
+  EXPRESS_VARIANTS_ID,
+  useExpressOrderStore,
+} from "../helpers/express-order-store";
 import { NOTES_MAX_LENGTH } from "../helpers/order-notes";
+import { FloatingField } from "../helpers/floating-field";
 import { MaterialIcon } from "../helpers/primitives";
 import type { FieldElement, FieldKey } from "../pdp_direct_order.client";
 import { formProgressReport } from "./form-progress";
 import type { ExpressModel } from "./model";
-import { IRAQI_MOBILE_DIGITS, phoneDigits, phoneIssue, type PhoneIssue } from "./phone";
+import {
+  IRAQI_MOBILE_DIGITS,
+  phoneDigits,
+  phoneIssue,
+  type PhoneIssue,
+} from "./phone";
 import { firstName, readsRtl, xs } from "./text";
 import { usePhoneInput } from "./use-phone-input";
 
 const inputCls =
   "h-[52px] w-full rounded-bk-input border-bk border-bk-divider bg-bk-surface px-4 font-bk-body text-base text-bk-ink placeholder:text-bk-ink-faint transition-colors duration-bk-fast focus-visible:border-bk-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bk-focus aria-[invalid=true]:border-bk-danger motion-reduce:transition-none";
-const labelCls = "mb-1 block font-bk-body text-[13px] font-bold text-bk-ink-soft";
 const errorCls = "mt-1 font-bk-body text-xs font-bold text-bk-danger";
 /** Grouped phone digits read left to right in every locale. */
 const phoneInputCls = "pr-10 text-left tabular-nums";
@@ -41,7 +61,10 @@ const phoneInputCls = "pr-10 text-left tabular-nums";
  *  debounce, not an animation — motion durations come from --bk-*. */
 const NAME_SETTLE_MS = 900;
 
-const ISSUE_KEY: Record<PhoneIssue, "phoneShort" | "phoneLong" | "phonePrefix" | "phoneOperator"> = {
+const ISSUE_KEY: Record<
+  PhoneIssue,
+  "phoneShort" | "phoneLong" | "phonePrefix" | "phoneOperator"
+> = {
   short: "phoneShort",
   long: "phoneLong",
   prefix: "phonePrefix",
@@ -107,7 +130,9 @@ function StageItem({
         // The beat is motion too: the tenant motion-off toggle zeroes
         // durations but not delays, so it zeroes this one itself (the OS
         // setting already drops the transition via motion-reduce).
-        late && open && "delay-[var(--bk-duration-fast)] [[data-bk-motion=reduce]_&]:delay-0",
+        late &&
+          open &&
+          "delay-[var(--bk-duration-fast)] [[data-bk-motion=reduce]_&]:delay-0",
         className,
       )}
     >
@@ -129,7 +154,9 @@ export function ExpressForm({
   const rtl = readsRtl(locale);
   const [altOpen, setAltOpen] = useState(false);
   const [phoneBlurred, setPhoneBlurred] = useState(false);
-  const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
+  const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>(
+    {},
+  );
   // The governorate a returning shopper's cookie prefilled: it is not
   // something typed this visit, so it alone does not open its stage.
   const [initialGovernorate] = useState(form.governorate_code);
@@ -164,7 +191,10 @@ export function ExpressForm({
   // Registered under this mount's own token: a second express form for the
   // same product (a duplicate section) unmounting never removes this entry.
   const owner = useId();
-  useEffect(() => registerForm(productId, owner), [registerForm, productId, owner]);
+  useEffect(
+    () => registerForm(productId, owner),
+    [registerForm, productId, owner],
+  );
   const progress = formProgressReport({
     form,
     fieldError: m.fieldError,
@@ -246,19 +276,22 @@ export function ExpressForm({
   // first word drops it back to the title until the field is left again.
   const greetedFirst = firstName(greetedName);
   const greetName =
-    greetedFirst.length >= 2 && firstName(name) === greetedFirst ? greetedFirst : "";
+    greetedFirst.length >= 2 && firstName(name) === greetedFirst
+      ? greetedFirst
+      : "";
   const title =
     resolveI18n(m.props.express_form_title_i18n, locale) ||
     xs("formTitle", locale);
   const heading = greetName
-    ? (resolveI18n(m.props.greeting_i18n, locale) || xs("greeting", locale)).replace(
-        "{name}",
-        greetName,
-      )
+    ? (
+        resolveI18n(m.props.greeting_i18n, locale) || xs("greeting", locale)
+      ).replace("{name}", greetName)
     : title;
   const prompt = greetName
-    ? (resolveI18n(m.props.address_prompt_i18n, locale) ||
-        xs("addressPromptNamed", locale)).replace("{name}", greetName)
+    ? (
+        resolveI18n(m.props.address_prompt_i18n, locale) ||
+        xs("addressPromptNamed", locale)
+      ).replace("{name}", greetName)
     : xs("addressPrompt", locale);
 
   function onBlur(k: FieldKey) {
@@ -274,7 +307,12 @@ export function ExpressForm({
    *  touched field whose value passes validation right now. */
   function isValidNow(k: FieldKey): boolean {
     const v = form[k];
-    if (!touched[k] || v.trim() === "" || fieldErrors[k] || m.fieldError(k, v) !== null) {
+    if (
+      !touched[k] ||
+      v.trim() === "" ||
+      fieldErrors[k] ||
+      m.fieldError(k, v) !== null
+    ) {
       return false;
     }
     // The backup number gets the same operator check as the main one.
@@ -315,7 +353,8 @@ export function ExpressForm({
     ? xs(ISSUE_KEY[liveIssue], locale, { count: digits.length })
     : (fieldErrors.phone ?? null);
   const hintId = `${phoneA11y.id}-next`;
-  const showNextHint = digits.length > 0 && !phoneComplete && !phoneMessage && !nameOpen;
+  const showNextHint =
+    digits.length > 0 && !phoneComplete && !phoneMessage && !nameOpen;
 
   return (
     <div data-layer="form" data-layer-label="Order form">
@@ -323,7 +362,10 @@ export function ExpressForm({
           when the greeting replaces the title. */}
       <h2
         aria-live="polite"
-        className={cn("font-bk-display text-[17px] font-black leading-snug text-bk-ink", text)}
+        className={cn(
+          "font-bk-display text-[17px] font-black leading-snug text-bk-ink",
+          text,
+        )}
       >
         <span
           key={heading}
@@ -334,11 +376,12 @@ export function ExpressForm({
       </h2>
 
       <div className={cn("mt-bk-sm", text)}>
-        <label htmlFor={phoneA11y.id} className={labelCls}>
-          {xs("phoneLabel", locale)}{" "}
-          <span className="font-normal text-bk-ink-faint">({xs("phoneHint", locale)})</span>
-        </label>
-        <div className="relative">
+        <FloatingField
+          label={`${xs("phoneLabel", locale)} (${xs("phoneHint", locale)})`}
+          htmlFor={phoneA11y.id}
+          filled={form.phone !== ""}
+          rtl={rtl}
+        >
           <input
             type="tel"
             name="phone"
@@ -354,11 +397,19 @@ export function ExpressForm({
               setPhoneBlurred(true);
               onBlur("phone");
             }}
-            className={cn(inputCls, phoneInputCls, "text-[17px] font-bold tracking-wide")}
+            className={cn(
+              inputCls,
+              phoneInputCls,
+              "text-[17px] font-bold tracking-wide",
+            )}
             id={phoneA11y.id}
             aria-invalid={phoneMessage ? true : undefined}
             aria-describedby={
-              phoneMessage ? m.errorId("phone") : showNextHint ? hintId : undefined
+              phoneMessage
+                ? m.errorId("phone")
+                : showNextHint
+                  ? hintId
+                  : undefined
             }
             ref={(el: FieldElement | null) => {
               phoneA11y.ref(el);
@@ -366,7 +417,7 @@ export function ExpressForm({
             }}
           />
           {tick(phoneComplete && !fieldErrors.phone, true)}
-        </div>
+        </FloatingField>
         {phoneMessage ? (
           <p id={m.errorId("phone")} role="alert" className={errorCls}>
             {phoneMessage}
@@ -405,17 +456,26 @@ export function ExpressForm({
             rtl && "flex-row-reverse",
           )}
         >
-          <MaterialIcon name={hideRest ? "expand_more" : "expand_less"} className="text-lg" />
+          <MaterialIcon
+            name={hideRest ? "expand_more" : "expand_less"}
+            className="text-lg"
+          />
           {xs(hideRest ? "showFields" : "hideFields", locale)}
         </button>
       )}
 
-      <Stage open={nameOpen && !hideRest} step="name" onFocusWithin={onStageFocus}>
+      <Stage
+        open={nameOpen && !hideRest}
+        step="name"
+        onFocusWithin={onStageFocus}
+      >
         <StageItem open={nameOpen && !hideRest} className={text}>
-          <label htmlFor={m.fieldA11yCore("customer_name").id} className={labelCls}>
-            {xs("nameLabel", locale)}
-          </label>
-          <div className="relative">
+          <FloatingField
+            label={xs("nameLabel", locale)}
+            htmlFor={m.fieldA11yCore("customer_name").id}
+            filled={form.customer_name !== ""}
+            rtl={rtl}
+          >
             <input
               type="text"
               name="name"
@@ -430,12 +490,16 @@ export function ExpressForm({
               {...m.fieldA11yCore("customer_name")}
             />
             {tick(isValidNow("customer_name"), false)}
-          </div>
+          </FloatingField>
           {err("customer_name")}
         </StageItem>
       </Stage>
 
-      <Stage open={addressOpen && !hideRest} step="address" onFocusWithin={onStageFocus}>
+      <Stage
+        open={addressOpen && !hideRest}
+        step="address"
+        onFocusWithin={onStageFocus}
+      >
         <StageItem open={addressOpen && !hideRest}>
           <p
             className={cn(
@@ -443,16 +507,21 @@ export function ExpressForm({
               rtl && "flex-row-reverse",
             )}
           >
-            <MaterialIcon name="local_shipping" className="text-lg text-bk-ink-soft" />
+            <MaterialIcon
+              name="local_shipping"
+              className="text-lg text-bk-ink-soft"
+            />
             {prompt}
           </p>
         </StageItem>
 
         <StageItem open={addressOpen && !hideRest} className={text}>
-          <label htmlFor={m.fieldA11yCore("governorate_code").id} className={labelCls}>
-            {xs("governorateLabel", locale)}
-          </label>
-          <div className="relative">
+          <FloatingField
+            label={xs("governorateLabel", locale)}
+            htmlFor={m.fieldA11yCore("governorate_code").id}
+            filled={form.governorate_code !== ""}
+            rtl={rtl}
+          >
             <select
               name="governorate"
               required
@@ -481,15 +550,17 @@ export function ExpressForm({
             >
               <MaterialIcon name="expand_more" className="text-xl" />
             </span>
-          </div>
+          </FloatingField>
           {err("governorate_code")}
         </StageItem>
 
         <StageItem open={addressOpen && !hideRest} late className={text}>
-          <label htmlFor={m.fieldA11yCore("address_details").id} className={labelCls}>
-            {xs("addressLabel", locale)}
-          </label>
-          <div className="relative">
+          <FloatingField
+            label={xs("addressLabel", locale)}
+            htmlFor={m.fieldA11yCore("address_details").id}
+            filled={form.address_details !== ""}
+            rtl={rtl}
+          >
             <input
               type="text"
               name="address"
@@ -505,39 +576,51 @@ export function ExpressForm({
               {...m.fieldA11yCore("address_details")}
             />
             {tick(isValidNow("address_details"), false)}
-          </div>
+          </FloatingField>
           {err("address_details")}
         </StageItem>
       </Stage>
 
-      <Stage open={extrasOpen && !hideRest} step="extras" onFocusWithin={onStageFocus}>
+      <Stage
+        open={extrasOpen && !hideRest}
+        step="extras"
+        onFocusWithin={onStageFocus}
+      >
         <StageItem open={extrasOpen && !hideRest} className={text}>
-          <label htmlFor={`${m.submitErrorId}-landmark`} className={labelCls}>
-            {xs("landmarkLabel", locale)}{" "}
-            <span className="font-normal text-bk-ink-faint">({xs("optional", locale)})</span>
-          </label>
-          <input
-            id={`${m.submitErrorId}-landmark`}
-            type="text"
-            name="landmark"
-            dir="auto"
-            autoComplete="off"
-            enterKeyHint="done"
-            placeholder={xs("landmarkPlaceholder", locale)}
-            value={landmark}
-            onChange={(e) => setLandmark(e.target.value)}
-            className={cn(inputCls, text)}
-          />
+          <FloatingField
+            label={`${xs("landmarkLabel", locale)} (${xs("optional", locale)})`}
+            htmlFor={`${m.submitErrorId}-landmark`}
+            filled={landmark !== ""}
+            rtl={rtl}
+          >
+            <input
+              id={`${m.submitErrorId}-landmark`}
+              type="text"
+              name="landmark"
+              dir="auto"
+              autoComplete="off"
+              enterKeyHint="done"
+              placeholder={xs("landmarkPlaceholder", locale)}
+              value={landmark}
+              onChange={(e) => setLandmark(e.target.value)}
+              className={cn(inputCls, text)}
+            />
+          </FloatingField>
         </StageItem>
 
-        <StageItem open={extrasOpen && !hideRest} late className={altVisible ? text : undefined}>
+        <StageItem
+          open={extrasOpen && !hideRest}
+          late
+          className={altVisible ? text : undefined}
+        >
           {altVisible ? (
             <>
-              <label htmlFor={altA11y.id} className={labelCls}>
-                {xs("altPhoneLabel", locale)}{" "}
-                <span className="font-normal text-bk-ink-faint">({xs("optional", locale)})</span>
-              </label>
-              <div className="relative">
+              <FloatingField
+                label={`${xs("altPhoneLabel", locale)} (${xs("optional", locale)})`}
+                htmlFor={altA11y.id}
+                filled={form.alt_phone !== ""}
+                rtl={rtl}
+              >
                 <input
                   type="tel"
                   name="alt_phone"
@@ -560,7 +643,7 @@ export function ExpressForm({
                   }}
                 />
                 {tick(isValidNow("alt_phone"), true)}
-              </div>
+              </FloatingField>
               {err("alt_phone")}
             </>
           ) : (
@@ -582,21 +665,24 @@ export function ExpressForm({
         </StageItem>
 
         <StageItem open={extrasOpen && !hideRest} late className={text}>
-          <label htmlFor={`${m.submitErrorId}-notes`} className={labelCls}>
-            {xs("notesLabel", locale)}{" "}
-            <span className="font-normal text-bk-ink-faint">({xs("optional", locale)})</span>
-          </label>
-          <textarea
-            id={`${m.submitErrorId}-notes`}
-            name="notes"
-            rows={2}
-            dir="auto"
-            maxLength={NOTES_MAX_LENGTH}
-            placeholder={xs("notesPlaceholder", locale)}
-            value={m.notes}
-            onChange={(e) => m.setNotes(e.target.value)}
-            className={cn(inputCls, text, "resize-none")}
-          />
+          <FloatingField
+            label={`${xs("notesLabel", locale)} (${xs("optional", locale)})`}
+            htmlFor={`${m.submitErrorId}-notes`}
+            filled={m.notes !== ""}
+            rtl={rtl}
+          >
+            <textarea
+              id={`${m.submitErrorId}-notes`}
+              name="notes"
+              rows={2}
+              dir="auto"
+              maxLength={NOTES_MAX_LENGTH}
+              placeholder={xs("notesPlaceholder", locale)}
+              value={m.notes}
+              onChange={(e) => m.setNotes(e.target.value)}
+              className={cn(inputCls, text, "resize-none")}
+            />
+          </FloatingField>
         </StageItem>
       </Stage>
     </div>
