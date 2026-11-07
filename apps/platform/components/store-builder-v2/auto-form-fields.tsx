@@ -1128,7 +1128,9 @@ function isReadable(s: string): boolean {
     const v = s.trim();
     if (!v) return false;
     if (/^(https?:\/\/|\/|www\.|data:)/i.test(v)) return false;
-    if (/^[a-z0-9]+([-_/.][a-z0-9]+)+$/.test(v)) return false;
+    // Slugs and keys: lowercase latin with no spaces ("work", "summer-sale").
+    // A merchant's own words have spaces, capitals or Arabic script.
+    if (/^[a-z0-9]+([-_/.][a-z0-9]+)*$/.test(v)) return false;
     return true;
 }
 

@@ -67,7 +67,9 @@ export function I18nScreen({
     const result = useMemo(() => computeCompleteness(config), [config]);
     const enabled = (config.enabled_locales ?? SUPPORTED_LOCALES) as LocaleCode[];
     const [focusLocale, setFocusLocale] = useState<LocaleCode>(
-        enabled.find((l) => l !== "en") ?? enabled[0] ?? "en",
+        // Open on the first language that still needs work — never on the
+        // store's main language, which is the source, not a translation.
+        enabled.find((l) => l !== config.default_locale) ?? enabled[0] ?? "en",
     );
 
     return (
@@ -258,7 +260,7 @@ export function I18nToolbarPill({ config, onClick }: I18nToolbarPillProps) {
             className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
         >
             <Languages aria-hidden="true" className="h-3.5 w-3.5" />
-            <span className="tabular-nums">
+            <span dir="auto" className="tabular-nums">
                 {tFormat(STRINGS.i18n_screen.pill, locale, { pct })}
             </span>
         </button>

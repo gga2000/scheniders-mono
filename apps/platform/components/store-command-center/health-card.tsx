@@ -7,6 +7,7 @@ import { runHealthChecks, blockingChecks } from "@scheniders/shared/health-rules
 import type { LocaleCode, StoreConfigV2, FixAction, HealthContext } from "@scheniders/shared";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";
+import { getPageLabel } from "@/components/store-builder-v2/page-tree";
 
 interface HealthCardProps {
     config: StoreConfigV2 | null;
@@ -179,6 +180,13 @@ export function HealthCard({ config, healthContext, isBrandNew = false, locale }
                             />
                             <p className="text-xs text-foreground flex-1">
                                 {checkCopyMessage(check.id, check.message ?? check.id, locale)}
+                                {check.fix_action?.go_to.kind === "section" ? (
+                                    <span className="block text-[11px] text-muted-foreground">
+                                        {tFormat(STRINGS.health.on_page, locale, {
+                                            page: getPageLabel(check.fix_action.go_to.page_id, locale),
+                                        })}
+                                    </span>
+                                ) : null}
                             </p>
                             <Link
                                 href={fixHref(check.fix_action)}

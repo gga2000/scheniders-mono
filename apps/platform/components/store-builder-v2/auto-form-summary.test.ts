@@ -12,6 +12,7 @@ describe("summarizeArrayItem — repeater row titles", () => {
         expect(summarizeArrayItem("summer-sale", "ar")).toBeNull();
         expect(summarizeArrayItem({ label: "/collections/men" }, "ar")).toBeNull();
         expect(summarizeArrayItem({ name: "best_sellers" }, "ar")).toBeNull();
+        expect(summarizeArrayItem({ label: "work" }, "ar")).toBeNull();
     });
 
     it("skips a slug key and keeps looking for readable text", () => {

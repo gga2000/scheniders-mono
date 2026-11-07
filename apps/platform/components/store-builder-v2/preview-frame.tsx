@@ -96,7 +96,10 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
                 <div
                     data-testid="preview-frame-viewport"
                     className={cn(
-                        "relative h-full overflow-hidden rounded-lg border border-(--card-border) bg-white shadow-sm transition-[width] duration-200 ease-out",
+                        // box-content: the 1px border sits OUTSIDE the width, so the
+                        // iframe gets the full logical width (1280, not 1278 —
+                        // 1278 is below the store's xl breakpoint).
+                        "relative h-full box-content overflow-hidden rounded-lg border border-(--card-border) bg-white shadow-sm transition-[width] duration-200 ease-out",
                     )}
                     style={{ width: wrapperWidth, flexShrink: 0 }}
                 >
@@ -115,7 +118,7 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
                                       transform: `scale(${scale})`,
                                       transformOrigin: "top left",
                                   }
-                                : { width: "100%", height: "100%" }
+                                : { width: `${deviceWidthPx}px`, height: "100%" }
                         }
                     />
                     {!loaded && (
