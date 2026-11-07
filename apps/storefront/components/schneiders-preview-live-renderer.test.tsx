@@ -38,6 +38,7 @@ interface RenderSectionCall {
 const renderSectionCalls: RenderSectionCall[] = [];
 
 vi.mock("@scheniders/sections", () => ({
+  getSection: (type: string) => ({ type, defaultProps: {} }),
   RenderSection: ({
     instance,
     runtime,
@@ -188,6 +189,50 @@ describe("SchneidersPreviewLiveRenderer", () => {
     expect(nodes.length).toBe(2);
     expect(nodes[0].getAttribute("data-section-id")).toBe("s1");
     expect(nodes[1].getAttribute("data-section-id")).toBe("s2");
+  });
+
+  it("draws the site-wide promo bar and header above the page and the footer below", () => {
+    act(() => {
+      root.render(
+        <SchneidersPreviewLiveRenderer
+          initialPageConfig={INITIAL_PAGE}
+          initialRuntime={INITIAL_RUNTIME}
+          renderCtx={RENDER_CTX}
+          initialGlobals={{ header: makeSection("hdr", "site_header") }}
+        />,
+      );
+    });
+    const ids = Array.from(container.querySelectorAll('[data-testid="rs"]')).map((n) =>
+      n.getAttribute("data-section-id"),
+    );
+    // Unset slots fall back to the built-in default, exactly as on the store.
+    expect(ids).toEqual(["__default_promo_bar__", "hdr", "s1", "s2", "__default_footer__"]);
+  });
+
+  it("updates the site-wide sections on `globals_update` and hides disabled ones", () => {
+    act(() => {
+      root.render(
+        <SchneidersPreviewLiveRenderer
+          initialPageConfig={INITIAL_PAGE}
+          initialRuntime={INITIAL_RUNTIME}
+          renderCtx={RENDER_CTX}
+          initialGlobals={{}}
+        />,
+      );
+    });
+    fireEditorMessage({
+      source: "schn-editor",
+      type: "globals_update",
+      payload: {
+        promo_bar: makeSection("promo", "announcement_bar", false),
+        header: makeSection("hdr2", "site_header"),
+        footer: makeSection("ftr", "site_footer"),
+      },
+    });
+    const ids = Array.from(container.querySelectorAll('[data-testid="rs"]')).map((n) =>
+      n.getAttribute("data-section-id"),
+    );
+    expect(ids).toEqual(["hdr2", "s1", "s2", "ftr"]);
   });
 
   it("filters out disabled sections", () => {

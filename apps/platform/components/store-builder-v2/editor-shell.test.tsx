@@ -58,6 +58,7 @@ interface MockBridgeSpies {
     postPageConfigUpdate: ReturnType<typeof vi.fn>;
     postRuntimeUpdate: ReturnType<typeof vi.fn>;
     postBrandKitUpdate: ReturnType<typeof vi.fn>;
+    postGlobalsUpdate: ReturnType<typeof vi.fn>;
     postPageIdChange: ReturnType<typeof vi.fn>;
     scrollToSection: ReturnType<typeof vi.fn>;
     requestRect: ReturnType<typeof vi.fn>;
@@ -83,6 +84,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
                 postPageConfigUpdate: vi.fn(),
                 postRuntimeUpdate: vi.fn(),
                 postBrandKitUpdate: vi.fn(),
+                postGlobalsUpdate: vi.fn(),
                 postPageIdChange: vi.fn(),
                 scrollToSection: vi.fn(),
                 requestRect: vi.fn(),
@@ -116,6 +118,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
             postPageConfigUpdate: g.__editorShellBridge.postPageConfigUpdate,
             postRuntimeUpdate: g.__editorShellBridge.postRuntimeUpdate,
             postBrandKitUpdate: vi.fn(),
+            postGlobalsUpdate: vi.fn(),
             postPageIdChange: g.__editorShellBridge.postPageIdChange,
         };
     },
@@ -391,6 +394,7 @@ describe("EditorShell", () => {
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postBrandKitUpdate: vi.fn(),
+            postGlobalsUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -456,6 +460,7 @@ describe("EditorShell", () => {
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postBrandKitUpdate: vi.fn(),
+            postGlobalsUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -601,6 +606,7 @@ describe("EditorShell", () => {
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postBrandKitUpdate: vi.fn(),
+            postGlobalsUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -663,6 +669,7 @@ describe("EditorShell", () => {
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
             postBrandKitUpdate: vi.fn(),
+            postGlobalsUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),

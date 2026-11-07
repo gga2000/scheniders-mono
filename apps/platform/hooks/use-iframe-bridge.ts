@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type {
     BrandKit,
+    GlobalSections,
     PageConfig,
     PageId,
     PageMeta,
@@ -123,6 +124,7 @@ export type EditorOutboundMessage =
       }
     | { source: "schn-editor"; type: "runtime_update"; payload: RuntimeContext }
     | { source: "schn-editor"; type: "brand_kit_update"; payload: BrandKit }
+    | { source: "schn-editor"; type: "globals_update"; payload: GlobalSections }
     | { source: "schn-editor"; type: "page_id_change"; next_url: string }
     | {
           source: "schn-editor";
@@ -163,6 +165,8 @@ export interface UseIframeBridgeReturn {
     postRuntimeUpdate: (runtime: RuntimeContext) => void;
     /** Fire-and-forget brand kit update: the preview re-themes in place. */
     postBrandKitUpdate: (kit: BrandKit) => void;
+    /** Fire-and-forget site-wide sections (promo bar, header, footer). */
+    postGlobalsUpdate: (globals: GlobalSections) => void;
     /**
      * Fire-and-forget page-navigation request. The iframe reloads at the
      * new URL so server data (products, category, etc.) refreshes.
@@ -366,6 +370,13 @@ export function useIframeBridge(
         [post],
     );
 
+    const postGlobalsUpdate = useCallback(
+        (globals: GlobalSections): void => {
+            post({ source: "schn-editor", type: "globals_update", payload: globals });
+        },
+        [post],
+    );
+
     const postPageIdChange = useCallback(
         (next_url: string): void => {
             post({
@@ -537,6 +548,7 @@ export function useIframeBridge(
         postPageConfigUpdate,
         postRuntimeUpdate,
         postBrandKitUpdate,
+        postGlobalsUpdate,
         postPageIdChange,
     };
 }
