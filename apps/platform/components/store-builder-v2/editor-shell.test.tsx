@@ -25,6 +25,9 @@ vi.mock("@/lib/supabase", () => ({
 vi.mock("@/hooks/use-storefront-url", () => ({
     useStorefrontUrl: () => "http://localhost:3001/s/test-store",
 }));
+vi.mock("@/hooks/use-editor-co-editors", () => ({
+    useEditorCoEditors: () => ({ others: [], otherTab: false }),
+}));
 
 // User preferences reach useAuth (needs AuthProvider); stub to in-memory.
 // Tests run with no saved preference → editor opens in Simple mode, same

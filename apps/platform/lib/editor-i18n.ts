@@ -454,6 +454,10 @@ export const STRINGS = {
         retry: { en: "Retry publish", ar: "إعادة المحاولة", ku: "دووبارە هەوڵبدەرەوە" },
         conflict_message: { en: "Someone else published changes since you opened the editor. Reload to get the latest before publishing again — your draft is kept.", ar: "قام شخص آخر بنشر تغييرات منذ فتحك المحرر. أعد التحميل للحصول على الأحدث قبل النشر مجدداً — مسودتك محفوظة.", ku: "کەسێکی تر گۆڕانکاری بڵاوکردەوە لەو کاتەوەی دەستکاریکەرەکەت کردەوە. دووبارە باری بکەرەوە بۆ وەرگرتنی نوێترین پێش بڵاوکردنەوە — ڕەشنووسەکەت پارێزراوە." },
         conflict_reload: { en: "Reload", ar: "إعادة التحميل", ku: "دووبارە بارکردنەوە" },
+        // Another editor open at the same time: whole-draft saves overwrite
+        // each other, so warn before work is lost.
+        co_editor_people: { en: "{names} is also editing the store. Edit one at a time, or your changes can overwrite each other.", ar: "{names} يعدّل المتجر هسه. عدّلوا واحد واحد حتى ما تمسح تعديلات أحدكم الثاني.", ku: "{names} ئێستا دەستکاری فرۆشگا دەکات. یەک یەک دەستکاری بکەن، دەنا گۆڕانکارییەکان یەکتر دەسڕنەوە." },
+        co_editor_tab: { en: "The editor is open in another tab too. Close one, or your changes can overwrite each other.", ar: "المحرر مفتوح بتبويب ثاني هم. سدّ واحد حتى ما تمسح التعديلات بعضها.", ku: "دەستکاریکەر لە تابێکی تریشدا کراوەیە. یەکێکیان دابخە، دەنا گۆڕانکارییەکان یەکتر دەسڕنەوە." },
         // Post-publish success dialog — the peak moment. Celebrate + hand
         // over the live link.
         success_title: { en: "Your store is live!", ar: "متجرك صار مباشراً!", ku: "فرۆشگاکەت بڵاوبووەوە!" },
