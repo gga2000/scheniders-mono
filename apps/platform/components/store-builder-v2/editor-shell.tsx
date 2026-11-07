@@ -33,7 +33,7 @@ import {
     useIframeBridge,
     type PreviewPageConfig,
 } from "@/hooks/use-iframe-bridge";
-import { useStorefrontUrl } from "@/hooks/use-storefront-url";
+import { useStorefrontUrlState } from "@/hooks/use-storefront-url";
 import { useEditorCoEditors } from "@/hooks/use-editor-co-editors";
 import { healthContextFor, type TenantContactFields } from "@/lib/health-context";
 import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
@@ -49,7 +49,7 @@ import {
     EMPTY_PREVIEW_AS,
     type PreviewAsState,
 } from "./preview-as-controls";
-import { PreviewFrame } from "./preview-frame";
+import { BREAKPOINT_WIDTH_PX, PreviewFrame } from "./preview-frame";
 import { SectionPicker } from "./section-picker";
 import { PageTemplatePicker } from "./page-template-picker";
 import { useSectionPresets } from "@/hooks/use-section-presets";
@@ -219,7 +219,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialUpdatedAt,
         initialRev,
     });
-    const liveStorefrontUrl = useStorefrontUrl(tenant.slug, tenant.id);
+    const liveStorefront = useStorefrontUrlState(tenant.slug, tenant.id);
+    const liveStorefrontUrl = liveStorefront.url;
+    // An override (tests, stories) is final; the live URL is final once the
+    // custom-domain lookup settles, so the iframe never loads a dead host.
+    const storefrontResolved = storefrontUrlOverride !== undefined || liveStorefront.resolved;
     const co_editors = useEditorCoEditors(tenant.id);
 
     const builder = builderOverride ?? liveBuilder;
@@ -404,17 +408,15 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     );
 
     /* ── Canvas zoom (A1) ─────────────────────────────────────────── */
-    const [zoom_setting, set_zoom_setting] = useState<"fit" | 0.5 | 0.75 | 1>(1);
+    // Default "fit": the page renders at its real device width (desktop
+    // 1280) and shrinks to the canvas. The number is the frame's actual
+    // on-screen scale, shared by the frame and the click overlay.
+    const [zoom_setting, set_zoom_setting] = useState<"fit" | 0.5 | 0.75 | 1>("fit");
     const [canvas_width, set_canvas_width] = useState<number>(0);
     const canvas_zoom = useMemo<number>(() => {
         if (zoom_setting !== "fit") return zoom_setting;
-        const deviceW =
-            builder.active_breakpoint === "mobile"
-                ? 390
-                : builder.active_breakpoint === "tablet"
-                  ? 820
-                  : null;
-        if (deviceW === null || canvas_width <= 0) return 1;
+        const deviceW = BREAKPOINT_WIDTH_PX[builder.active_breakpoint];
+        if (canvas_width <= 0) return 1;
         // 32px = the frame's own padding (p-4 both sides).
         return Math.min(1, (canvas_width - 32) / deviceW);
     }, [zoom_setting, builder.active_breakpoint, canvas_width]);
@@ -1240,7 +1242,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     const iframe_initial_locale = useRef<LocaleCode>(builder.active_locale);
     const iframePreviewUrl = useMemo(
         () =>
-            client_mounted
+            client_mounted && storefrontResolved
                 ? buildPreviewUrl(
                       storefrontUrl,
                       tenant.slug,
@@ -1250,7 +1252,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                       activePreviewToken,
                   )
                 : "about:blank",
-        [client_mounted, storefrontUrl, tenant.slug, activePreviewToken],
+        [client_mounted, storefrontResolved, storefrontUrl, tenant.slug, activePreviewToken],
     );
 
     // Build the `_preview` URL for any device — the PreviewModal swaps the

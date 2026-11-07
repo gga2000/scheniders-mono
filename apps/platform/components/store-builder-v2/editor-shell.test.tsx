@@ -24,6 +24,7 @@ vi.mock("@/lib/supabase", () => ({
 // The storefront URL hook reaches react-query + supabase; stub it to a fixed value.
 vi.mock("@/hooks/use-storefront-url", () => ({
     useStorefrontUrl: () => "http://localhost:3001/s/test-store",
+    useStorefrontUrlState: () => ({ url: "http://localhost:3001/s/test-store", resolved: true }),
 }));
 vi.mock("@/hooks/use-editor-co-editors", () => ({
     useEditorCoEditors: () => ({ others: [], otherTab: false }),

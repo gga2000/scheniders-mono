@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Monitor, Smartphone, Globe, Rocket, Pencil } from "lucide-react";
 import type { LocaleCode } from "@scheniders/shared";
@@ -29,6 +29,10 @@ interface PreviewCardProps {
 
 type ViewMode = "desktop" | "mobile";
 
+/** Real layout width per mode; the frame is scaled down to fit the card. */
+const MODE_WIDTH_PX: Record<ViewMode, number> = { desktop: 1280, mobile: 390 };
+const FRAME_HEIGHT_PX = 480;
+
 export function PreviewCard({
     storefrontUrl,
     published,
@@ -41,6 +45,22 @@ export function PreviewCard({
     const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
     const loaded = loadedUrl === storefrontUrl;
     const [claimOpen, setClaimOpen] = useState(false);
+
+    // "Desktop" must lay the store out at desktop width: the card is ~600px,
+    // which the store treats as a phone. Render at the real width and scale.
+    const boxRef = useRef<HTMLDivElement | null>(null);
+    const [boxWidth, setBoxWidth] = useState<number | null>(null);
+    useEffect(() => {
+        const el = boxRef.current;
+        if (!el || typeof ResizeObserver === "undefined") return;
+        const ro = new ResizeObserver(([entry]) => {
+            if (entry) setBoxWidth(entry.contentRect.width);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [published]);
+    const logicalWidth = MODE_WIDTH_PX[mode];
+    const scale = boxWidth && boxWidth > 0 ? Math.min(1, boxWidth / logicalWidth) : 1;
 
     return (
         <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) overflow-hidden">
@@ -143,13 +163,11 @@ export function PreviewCard({
                     </div>
 
                     {/* iframe container */}
-                    <div className="flex justify-center bg-muted/10 p-4" style={{ minHeight: 480 }}>
+                    <div className="relative flex justify-center bg-muted/10 p-4" style={{ minHeight: FRAME_HEIGHT_PX }}>
+                        <div ref={boxRef} aria-hidden="true" className="pointer-events-none absolute inset-x-4" />
                         <div
-                            className={cn(
-                                "relative rounded-xl overflow-hidden border border-border shadow-md transition-all duration-300 bg-white",
-                                mode === "desktop" ? "w-full" : "w-[390px]"
-                            )}
-                            style={{ height: 480 }}
+                            className="relative rounded-xl overflow-hidden border border-border shadow-md transition-all duration-300 bg-white"
+                            style={{ height: FRAME_HEIGHT_PX, width: Math.round(logicalWidth * scale), maxWidth: "100%" }}
                         >
                             {!loaded && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
@@ -171,7 +189,13 @@ export function PreviewCard({
                                 key={storefrontUrl}
                                 src={storefrontUrl}
                                 loading="lazy"
-                                className="w-full h-full"
+                                className="border-0"
+                                style={{
+                                    width: logicalWidth,
+                                    height: FRAME_HEIGHT_PX / scale,
+                                    transform: `scale(${scale})`,
+                                    transformOrigin: "top left",
+                                }}
                                 onLoad={() => setLoadedUrl(storefrontUrl)}
                                 title={t(STRINGS.command_center.preview_iframe_title, locale)}
                                 sandbox="allow-scripts allow-same-origin allow-forms"
