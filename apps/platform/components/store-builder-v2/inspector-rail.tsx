@@ -17,6 +17,7 @@ import type {
     AudienceSegment,
     BrandKit,
     Experiment,
+    GlobalSections,
     LocaleCode,
     PageId,
     HealthContext,
@@ -32,6 +33,7 @@ import { SectionListPanel } from "./section-list-panel";
 import { HealthChecklistScreen } from "./health-checklist-screen";
 import { PageSeoPanel } from "./page-seo-panel";
 import type { SettingsSectionId } from "./page-tree";
+import { SitewideEditor, SitewideStrip, type SitewideSlot } from "./sitewide-parts";
 
 export type InspectorTab = "blocks" | "style" | "seo" | "health";
 
@@ -64,6 +66,14 @@ export interface InspectorRailProps {
      * merchant clicks a row in the Layers strip.
      */
     onEditLayer?: (info: { field?: string; layerId?: string; el: HTMLElement }) => void;
+    /**
+     * Site-wide parts (top bar, header, footer). When `onChangeGlobal` is
+     * given, the Blocks tab shows them above the page's sections.
+     */
+    globals?: GlobalSections;
+    onChangeGlobal?: (slot: SitewideSlot, next: SectionInstance) => void;
+    editingGlobal?: SitewideSlot | null;
+    onEditGlobal?: (slot: SitewideSlot | null) => void;
 
     /* ── Style tab ──────────────────────────────────────────────── */
     /**
@@ -129,6 +139,10 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
         onJumpToSection,
         onSetWhatsappNumber,
         onSetDeliveryFee,
+        globals,
+        onChangeGlobal,
+        editingGlobal,
+        onEditGlobal,
     } = props;
 
     const locale = useResolvedEditorLocale(activeLocale);
@@ -199,7 +213,28 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
             </nav>
 
             <div className="flex flex-1 overflow-hidden">
-                {effectiveTab === "blocks" ? (
+                {effectiveTab === "blocks" && editingGlobal && onChangeGlobal && onEditGlobal ? (
+                    <SitewideEditor
+                        globals={globals}
+                        onChange={onChangeGlobal}
+                        editing={editingGlobal}
+                        onEdit={onEditGlobal}
+                        locale={locale}
+                        tenantId={tenantId}
+                        activeBreakpoint={activeBreakpoint}
+                        experiments={experiments}
+                        segments={segments}
+                    />
+                ) : effectiveTab === "blocks" ? (
+                    <div className="flex flex-1 flex-col overflow-hidden">
+                    {onChangeGlobal && onEditGlobal && (
+                        <SitewideStrip
+                            globals={globals}
+                            onChange={onChangeGlobal}
+                            onEdit={onEditGlobal}
+                            locale={locale}
+                        />
+                    )}
                     <SectionListPanel
                         pageId={pageId}
                         pageLabel={pageLabel}
@@ -220,6 +255,7 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                         segments={segments}
                         onEditLayer={onEditLayer}
                     />
+                    </div>
                 ) : effectiveTab === "seo" ? (
                     <PageSeoPanel
                         pageId={pageId}
