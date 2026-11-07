@@ -649,7 +649,12 @@ export function PageTree({
                             <button
                                 type="button"
                                 data-testid="page-tree-advanced-live-chip"
-                                onClick={() => setMode("advanced")}
+                                onClick={() => {
+                                    // The chip promises to show the live items,
+                                    // so open the group that lists them too.
+                                    setMode("advanced");
+                                    setAdvancedOpen(true);
+                                }}
                                 className="mt-1 inline-flex w-full items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-2.5 py-2 text-left text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-100"
                             >
                                 <span

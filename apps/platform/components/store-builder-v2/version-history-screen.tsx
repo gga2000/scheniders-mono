@@ -173,7 +173,9 @@ export function VersionHistoryScreen({
     const diff = useMemo<DiffEntry[] | null>(() => {
         if (!selected || !selectedConfig) return null;
         try {
-            return diffJson(selectedConfig, builder.config);
+            // From the current draft TO this version: each row says what
+            // restoring it would do (added = restoring adds it).
+            return diffJson(builder.config, selectedConfig);
         } catch {
             return null;
         }
@@ -736,11 +738,13 @@ function DiffRow({ entry }: { entry: DiffEntry }): ReactElement {
             </div>
             {entry.kind === "changed" && (
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
-                    <div>
-                        <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span> <code>{previewValue(entry.before)}</code>
+                    <div dir="auto">
+                        <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
+                        <code dir="ltr">{previewValue(entry.before)}</code>
                     </div>
-                    <div>
-                        <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_after, locale)}</span> <code>{previewValue(entry.after)}</code>
+                    <div dir="auto">
+                        <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_after, locale)}</span>{" "}
+                        <code dir="ltr">{previewValue(entry.after)}</code>
                     </div>
                 </div>
             )}
