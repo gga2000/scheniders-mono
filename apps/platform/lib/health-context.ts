@@ -26,8 +26,12 @@ export function healthContextFor(
         contact_phone: tenant.contact_phone,
         store_config_v2: { commerce: config.commerce },
     };
+    const seo = (tenant.store_config as { seo?: { og_image_url?: unknown } } | null)?.seo;
     return {
         whatsapp: resolveTenantWhatsapp(like),
         phone: resolveTenantPhone(like),
+        // The storefront falls back to the legacy SEO share image
+        // (storeOgImage), so it counts as set.
+        ogImage: typeof seo?.og_image_url === "string" ? seo.og_image_url : null,
     };
 }

@@ -74,6 +74,9 @@ export interface HealthContext {
     whatsapp?: string | null;
     /** The call number the storefront footer will show, or null. */
     phone?: string | null;
+    /** A share image the storefront uses from outside the config (older
+     *  stores keep it in the legacy SEO settings), or null. */
+    ogImage?: string | null;
 }
 
 export interface HealthCheck {
@@ -119,6 +122,56 @@ function getPage(cfg: StoreConfigV2, id: PageId) {
 
 function pageSections(cfg: StoreConfigV2, id: PageId): SectionInstance[] {
     return getPage(cfg, id)?.sections ?? [];
+}
+
+/** Enabled sections of one page: a hidden section shows the shopper nothing. */
+function livePageSections(cfg: StoreConfigV2, id: PageId): SectionInstance[] {
+    return pageSections(cfg, id).filter((s) => s.enabled !== false);
+}
+
+/** Section types that show the shopper trust badges (COD, delivery, returns). */
+const TRUST_SECTION_TYPES: ReadonlySet<string> = new Set(["trust_strip", "trust_badge_row"]);
+
+/** Section types that show other people vouching for the store. */
+const SOCIAL_PROOF_SECTION_TYPES: ReadonlySet<string> = new Set([
+    "testimonials_carousel",
+    "testimonial_cards",
+    "founder_note",
+    "press_quotes",
+]);
+
+/** Footer lockups that render the footer's newsletter row (bento has none). */
+const FOOTER_LAYOUTS_WITH_NEWSLETTER: ReadonlySet<string> = new Set(["info_panel", "boutique"]);
+
+function hasI18nText(value: unknown): boolean {
+    if (!value || typeof value !== "object") return false;
+    return Object.values(value as Record<string, unknown>).some(
+        (v) => typeof v === "string" && v.trim().length > 0,
+    );
+}
+
+/** True when the shopper can sign up for news somewhere on the store. */
+function hasNewsletterCapture(cfg: StoreConfigV2): boolean {
+    if (livePageSections(cfg, "home").some((s) => s.type === "newsletter_inline")) return true;
+    if (cfg.globals?.newsletter_popup) return true;
+    const footer = cfg.globals?.footer;
+    if (!footer || footer.enabled === false) return false;
+    const base = footer.base as { layout?: unknown; newsletter?: { enabled?: unknown } };
+    return (
+        typeof base.layout === "string" &&
+        FOOTER_LAYOUTS_WITH_NEWSLETTER.has(base.layout) &&
+        base.newsletter?.enabled === true
+    );
+}
+
+/** True when the product page states a delivery time: the dedicated section,
+ *  or an order card whose delivery line is filled in. */
+function productPageHasDeliveryPromise(cfg: StoreConfigV2): boolean {
+    return livePageSections(cfg, "product").some(
+        (s) =>
+            s.type === "delivery_promise" ||
+            hasI18nText((s.base as { delivery_sla_i18n?: unknown }).delivery_sla_i18n),
+    );
 }
 
 function allEnabledSections(cfg: StoreConfigV2): SectionInstance[] {
@@ -409,11 +462,12 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         }
         return { status: "pass" };
     }),
-    check("og_image_set", "ad_compliance", 1, (cfg) => {
+    check("og_image_set", "ad_compliance", 1, (cfg, ctx) => {
         // The storefront falls back to the home page's SEO image for every
         // page's link preview (storeOgImage), so either one is enough.
         const og =
             cfg.brand_kit?.identity?.og_image_url?.trim() ||
+            ctx.ogImage?.trim() ||
             getPage(cfg, "home")?.meta?.og_image_url?.trim();
         if (og) return { status: "pass" };
         return {
@@ -617,7 +671,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         };
     }),
     check("home_has_trust_strip", "conversion", 1, (cfg) => {
-        const hit = pageSections(cfg, "home").some((s) => s.type === "trust_strip");
+        const hit = livePageSections(cfg, "home").some((s) => TRUST_SECTION_TYPES.has(s.type));
         if (hit) return { status: "pass" };
         return {
             status: "warn",
@@ -635,8 +689,8 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         };
     }),
     check("home_has_testimonials", "conversion", 1, (cfg) => {
-        const hit = pageSections(cfg, "home").some(
-            (s) => s.type === "testimonials_carousel" || s.type === "founder_note",
+        const hit = livePageSections(cfg, "home").some((s) =>
+            SOCIAL_PROOF_SECTION_TYPES.has(s.type),
         );
         if (hit) return { status: "pass" };
         return {
@@ -646,8 +700,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         };
     }),
     check("home_has_newsletter", "conversion", 1, (cfg) => {
-        const hit = pageSections(cfg, "home").some((s) => s.type === "newsletter_inline");
-        if (hit || cfg.globals?.newsletter_popup) return { status: "pass" };
+        if (hasNewsletterCapture(cfg)) return { status: "pass" };
         return {
             status: "warn",
             message: "No newsletter capture — you're losing the visitors who don't buy today.",
@@ -655,8 +708,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         };
     }),
     check("pdp_has_delivery_promise", "conversion", 1, (cfg) => {
-        const hit = pageSections(cfg, "product").some((s) => s.type === "delivery_promise");
-        if (hit) return { status: "pass" };
+        if (productPageHasDeliveryPromise(cfg)) return { status: "pass" };
         return {
             status: "warn",
             message: "Product page has no delivery promise — boosts conversion.",
@@ -681,13 +733,11 @@ export const HEALTH_CHECKS: HealthCheck[] = [
 
     /* ── Trust (3) ───────────────────────────────────────────────── */
     check("at_least_one_testimonial", "trust", 1, (cfg) => {
-        for (const s of allEnabledSections(cfg)) {
-            if (s.type === "testimonials_carousel") {
-                const items = (s.base as { items?: unknown[] }).items;
-                if (Array.isArray(items) && items.length > 0) return { status: "pass" };
-                return { status: "pass" }; // having the section at all counts
-            }
-        }
+        // Having the section at all counts; product reviews are shopper proof too.
+        const hit = allEnabledSections(cfg).some(
+            (s) => SOCIAL_PROOF_SECTION_TYPES.has(s.type) || s.type === "product_reviews",
+        );
+        if (hit) return { status: "pass" };
         return {
             status: "warn",
             message: "No testimonials anywhere on the store.",

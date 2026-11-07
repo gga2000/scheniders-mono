@@ -482,6 +482,7 @@ export default async function PreviewPage({
       >
         <SchneidersPreviewLiveRenderer
           initialPageConfig={pageConfig}
+          initialGlobals={v2.globals}
           initialRuntime={runtime}
           renderCtx={{
             // Pruned: the live renderer is a client component, so this

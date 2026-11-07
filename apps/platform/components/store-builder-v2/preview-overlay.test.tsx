@@ -38,6 +38,7 @@ function makeBridge(state: Partial<BridgeState> = {}): UseIframeBridgeReturn {
         postPageConfigUpdate: vi.fn(),
         postRuntimeUpdate: vi.fn(),
         postBrandKitUpdate: vi.fn(),
+        postGlobalsUpdate: vi.fn(),
         postPageIdChange: vi.fn(),
     };
 }

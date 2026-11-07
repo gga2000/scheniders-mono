@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { HeartPulse, AlertTriangle, CheckCircle2, ArrowRight, Rocket } from "lucide-react";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
-import { runHealthChecks } from "@scheniders/shared/health-rules";
+import { runHealthChecks, blockingChecks } from "@scheniders/shared/health-rules";
 import type { LocaleCode, StoreConfigV2, FixAction, HealthContext } from "@scheniders/shared";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";
@@ -122,6 +122,12 @@ export function HealthCard({ config, healthContext, isBrandNew = false, locale }
     // fail → warn → pass.
     const openChecks = checks.filter((c) => c.status !== "pass");
     const issues = openChecks.slice(0, 4);
+    // Only checks that stop Publish are "before launch"; the rest are
+    // suggestions. Same rule the editor's Publish button and badge use, so
+    // the hub never says "launch-ready" and "must fix before launch" at once.
+    const blockingCount = blockingChecks(report).length;
+    const suggestionCount = openChecks.length - blockingCount;
+    const label = blockingCount > 0 ? STRINGS.command_center.health_score_needs_attention : scoreLabel(score);
 
     return (
         <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
@@ -137,17 +143,25 @@ export function HealthCard({ config, healthContext, isBrandNew = false, locale }
             <div className="flex items-start gap-4 mb-5">
                 <ScoreRing score={score} />
                 <div className="flex flex-col justify-center gap-1">
-                    <p className="text-sm font-semibold text-foreground">{t(scoreLabel(score), locale)}</p>
+                    <p className="text-sm font-semibold text-foreground">{t(label, locale)}</p>
                     <p className="text-xs text-muted-foreground">
-                        {openChecks.length === 0
-                            ? t(STRINGS.command_center.health_all_passing_detail, locale)
-                            : tFormat(
-                                  openChecks.length === 1
+                        {blockingCount > 0
+                            ? tFormat(
+                                  blockingCount === 1
                                       ? STRINGS.command_center.health_items_to_address_one
                                       : STRINGS.command_center.health_items_to_address_other,
                                   locale,
-                                  { n: openChecks.length },
-                              )}
+                                  { n: blockingCount },
+                              )
+                            : suggestionCount > 0
+                              ? tFormat(
+                                    suggestionCount === 1
+                                        ? STRINGS.command_center.health_suggestions_one
+                                        : STRINGS.command_center.health_suggestions_other,
+                                    locale,
+                                    { n: suggestionCount },
+                                )
+                              : t(STRINGS.command_center.health_all_passing_detail, locale)}
                     </p>
                 </div>
             </div>

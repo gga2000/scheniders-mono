@@ -476,3 +476,66 @@ describe("runHealthChecks — og_image_set", () => {
         expect(status(cfg)).toBe("fail");
     });
 });
+
+describe("runHealthChecks — conversion checks see every section that does the job", () => {
+    const status = (cfg: StoreConfigV2, id: string) =>
+        runHealthChecks(cfg).checks.find((c) => c.id === id)?.status;
+
+    function storeLikeScheniders(): StoreConfigV2 {
+        const cfg = fullyPopulatedConfig();
+        setPage(cfg, "home", [
+            s("hero_card_float", { title_i18n: { ar: "أهلاً" } }),
+            s("trust_badge_row", { items: [{ label_i18n: { ar: "الدفع عند الاستلام" } }] }),
+            s("product_grid"),
+            s("testimonial_cards", { items: [{ quote_i18n: { ar: "ممتاز" } }] }),
+        ]);
+        setPage(cfg, "product", [
+            s("pdp_direct_order", { delivery_sla_i18n: { ar: "توصيل خلال 24 ساعة" } }),
+            s("product_reviews"),
+        ]);
+        cfg.globals = {
+            ...cfg.globals,
+            footer: s("site_footer", {
+                layout: "boutique",
+                columns: [],
+                show_cod_badge: true,
+                newsletter: { enabled: true },
+            }),
+        };
+        return cfg;
+    }
+
+    it("passes trust, testimonials, newsletter and delivery for a store built from the signature template", () => {
+        const cfg = storeLikeScheniders();
+        for (const id of [
+            "home_has_trust_strip",
+            "home_has_testimonials",
+            "home_has_newsletter",
+            "pdp_has_delivery_promise",
+            "at_least_one_testimonial",
+        ]) {
+            expect(status(cfg, id), id).toBe("pass");
+        }
+    });
+
+    it("a hidden trust row does not count", () => {
+        const cfg = storeLikeScheniders();
+        const home = cfg.pages.find((p) => p.page_id === "home");
+        const row = home?.sections.find((x) => x.type === "trust_badge_row");
+        if (row) row.enabled = false;
+        expect(status(cfg, "home_has_trust_strip")).toBe("warn");
+    });
+
+    it("the bento footer has no newsletter row, so its newsletter settings do not count", () => {
+        const cfg = storeLikeScheniders();
+        const footer = cfg.globals?.footer;
+        if (footer) footer.base = { ...footer.base, layout: "bento" };
+        expect(status(cfg, "home_has_newsletter")).toBe("warn");
+    });
+
+    it("an order card with an empty delivery line does not count as a delivery promise", () => {
+        const cfg = storeLikeScheniders();
+        setPage(cfg, "product", [s("pdp_direct_order", { delivery_sla_i18n: { ar: " " } })]);
+        expect(status(cfg, "pdp_has_delivery_promise")).toBe("warn");
+    });
+});

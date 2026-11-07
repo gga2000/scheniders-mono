@@ -23,13 +23,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isSectionEnabled } from "@scheniders/shared";
 import type {
+  GlobalSections,
   PageConfig,
   RuntimeContext,
+  SectionInstance,
 } from "@scheniders/shared";
 import { RenderSection } from "@scheniders/sections";
 import type { SectionRenderContext } from "@scheniders/sections";
 import { isAllowedParentOrigin, isSafePreviewNavUrl } from "@/lib/preview-origin";
+import { globalSlotInstance, type GlobalSlot } from "@/lib/global-slots";
 
 export interface SchneidersPreviewLiveRendererProps {
   /** Server-rendered initial config (used until the parent sends an update). */
@@ -38,6 +42,17 @@ export interface SchneidersPreviewLiveRendererProps {
   initialRuntime: RuntimeContext;
   /** Render context (tenant, products, categories — passed verbatim from server). */
   renderCtx: Omit<SectionRenderContext, "runtime">;
+  /** Site-wide sections (promo bar, header, footer) drawn around the page,
+   *  as on the live store. Omitted → the page renders alone. */
+  initialGlobals?: GlobalSections;
+}
+
+const TOP_SLOTS: GlobalSlot[] = ["promo_bar", "header"];
+const BOTTOM_SLOTS: GlobalSlot[] = ["footer"];
+
+function coerceGlobals(input: unknown): GlobalSections | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  return input as GlobalSections;
 }
 
 /**
@@ -78,9 +93,11 @@ export function SchneidersPreviewLiveRenderer({
   initialPageConfig,
   initialRuntime,
   renderCtx,
+  initialGlobals,
 }: SchneidersPreviewLiveRendererProps): React.ReactElement {
   const [pageConfig, setPageConfig] = useState<PageConfig>(initialPageConfig);
   const [runtime, setRuntime] = useState<RuntimeContext>(initialRuntime);
+  const [globals, setGlobals] = useState<GlobalSections | null>(initialGlobals ?? null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -102,6 +119,11 @@ export function SchneidersPreviewLiveRenderer({
         case "page_config_update": {
           const next = coercePageConfig(data.payload);
           if (next) setPageConfig(next);
+          break;
+        }
+        case "globals_update": {
+          const next = coerceGlobals(data.payload);
+          if (next) setGlobals(next);
           break;
         }
         case "runtime_update": {
@@ -132,18 +154,25 @@ export function SchneidersPreviewLiveRenderer({
     };
   }, []);
 
+  const chrome = (slots: GlobalSlot[]): SectionInstance[] =>
+    globals
+      ? slots
+          .map((slot) => globalSlotInstance(globals, slot))
+          .filter((inst): inst is SectionInstance => inst !== null && isSectionEnabled(inst, runtime))
+      : [];
+
   return (
     <>
-      {pageConfig.sections
-        .filter((s) => s.enabled)
-        .map((instance) => (
+      {[...chrome(TOP_SLOTS), ...pageConfig.sections.filter((s) => s.enabled), ...chrome(BOTTOM_SLOTS)].map(
+        (instance) => (
           <RenderSection
             key={instance.id}
             instance={instance}
             runtime={runtime}
             renderCtx={renderCtx}
           />
-        ))}
+        ),
+      )}
     </>
   );
 }

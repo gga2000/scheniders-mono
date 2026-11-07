@@ -612,6 +612,17 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         return () => clearTimeout(handle);
     }, [builder.config.brand_kit, bridge_ready, postBrandKitUpdate]);
 
+    // Site-wide sections (promo bar, header, footer) → preview, live, same
+    // rule as the brand kit: the frame starts from the saved draft.
+    const postGlobalsUpdate = bridge.postGlobalsUpdate;
+    useEffect(() => {
+        if (!bridge_ready) return;
+        const handle = setTimeout(() => {
+            postGlobalsUpdate(builder.config.globals);
+        }, 100);
+        return () => clearTimeout(handle);
+    }, [builder.config.globals, bridge_ready, postGlobalsUpdate]);
+
     /* ── Page navigation: full reload of the iframe ───────────────── */
     //
     // When the merchant switches `active_page`, the iframe needs to

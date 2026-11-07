@@ -19,6 +19,7 @@
 
 import type { LocaleCode } from "@scheniders/shared";
 import { t, type EditorString } from "@/lib/editor-i18n";
+import { CATALOGUE_ENUM_LABELS, CATALOGUE_FIELD_LABELS } from "@/lib/section-field-labels";
 
 function normalizeKey(key: string): string {
     return key.toLowerCase().replace(/_i18n$/, "");
@@ -27,6 +28,7 @@ function normalizeKey(key: string): string {
 /* ── Generic labels (shared across all sections) ─────────────────── */
 
 const GENERIC_FIELD_LABELS: Record<string, EditorString> = {
+    ...CATALOGUE_FIELD_LABELS,
     title: { en: "Title", ar: "العنوان", ku: "ناونیشان" },
     subtitle: { en: "Subtitle", ar: "الوصف المختصر", ku: "ژێرناونیشان" },
     heading: { en: "Heading", ar: "العنوان", ku: "سەردێڕ" },
@@ -140,6 +142,7 @@ const SECTION_FIELD_META: Record<
 /* ── Enum value labels (segmented controls / selects) ─────────────── */
 
 const ENUM_VALUE_LABELS: Record<string, EditorString> = {
+    ...CATALOGUE_ENUM_LABELS,
     whatsapp: { en: "WhatsApp", ar: "واتساب", ku: "واتساپ" },
     call: { en: "Call", ar: "اتصال", ku: "پەیوەندی" },
     none: { en: "None", ar: "بدون", ku: "هیچ" },
