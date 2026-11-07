@@ -18,16 +18,31 @@ import {
     ArrowRight,
     AlertTriangle,
 } from "lucide-react";
-import { validateRedirects } from "@scheniders/shared";
-import type { RedirectRule } from "@scheniders/shared";
+import { redirectIssues } from "@scheniders/shared";
+import type { RedirectIssue, RedirectRule } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 export interface RedirectsScreenProps {
     builder: UseStoreBuilderV2Return;
     onClose: () => void;
+}
+
+function issueText(issue: RedirectIssue, locale: LocaleCode): string {
+    const A = STRINGS.advanced_chrome;
+    switch (issue.code) {
+        case "missing":
+            return t(A.redir_issue_missing, locale);
+        case "self":
+            return t(A.redir_issue_self, locale);
+        case "duplicate":
+            return tFormat(A.redir_issue_duplicate, locale, { n: issue.other + 1 });
+        case "chain":
+            return t(A.redir_issue_chain, locale);
+    }
 }
 
 export function RedirectsScreen({
@@ -36,16 +51,16 @@ export function RedirectsScreen({
 }: RedirectsScreenProps): React.ReactElement {
     const locale = useEditorLocale();
     const redirects: RedirectRule[] = builder.config.redirects ?? [];
-    const issues = validateRedirects(redirects);
+    const issues = redirectIssues(redirects);
 
     const setRedirects = useCallback(
         (next: RedirectRule[]): void => {
             builder.setConfig(
                 (prev) => ({ ...prev, redirects: next }),
-                "Edited redirects",
+                tFormat(STRINGS.history.edit_named, locale, { name: t(STRINGS.advanced_chrome.redir_heading, locale) }),
             );
         },
-        [builder],
+        [builder, locale],
     );
 
     const addRow = useCallback((): void => {
@@ -73,7 +88,7 @@ export function RedirectsScreen({
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        aria-label="Close redirects"
+                        aria-label={t(STRINGS.advanced_chrome.redir_close_aria, locale)}
                         data-testid="redirects-close"
                         onClick={onClose}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
@@ -83,7 +98,7 @@ export function RedirectsScreen({
                     <div className="flex items-center gap-2">
                         <Signpost className="h-4 w-4 text-amber-600" aria-hidden="true" />
                         <h2 className="text-sm font-semibold text-foreground">
-                            Redirects
+                            {t(STRINGS.advanced_chrome.redir_heading, locale)}
                         </h2>
                     </div>
                 </div>
@@ -94,16 +109,14 @@ export function RedirectsScreen({
                     className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
                 >
                     <Plus className="h-3.5 w-3.5" />
-                    Add redirect
+                    {t(STRINGS.advanced_chrome.redir_add, locale)}
                 </button>
             </header>
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">
-                    Send an old URL to a new one — useful after you change a
-                    product or category slug, so links you&apos;ve shared on
-                    WhatsApp, ads, or that Google has indexed don&apos;t break.
-                    Paths are relative to your store (e.g. <code>/products/old</code>).
+                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
+                    {t(STRINGS.advanced_chrome.redir_intro_prefix, locale)}{" "}
+                    <code dir="ltr">/products/old</code>).
                 </p>
 
                 {redirects.length === 0 ? (
@@ -170,11 +183,11 @@ export function RedirectsScreen({
                                                         })
                                                     }
                                                 />
-                                                Permanent
+                                                {t(STRINGS.advanced_chrome.redir_permanent, locale)}
                                             </label>
                                             <button
                                                 type="button"
-                                                aria-label="Remove redirect"
+                                                aria-label={t(STRINGS.advanced_chrome.redir_remove_aria, locale)}
                                                 data-testid={`redirect-remove-${i}`}
                                                 onClick={() => removeRow(i)}
                                                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
@@ -186,10 +199,11 @@ export function RedirectsScreen({
                                     {issue ? (
                                         <p
                                             data-testid={`redirect-issue-${i}`}
+                                            dir="auto"
                                             className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-700"
                                         >
                                             <AlertTriangle className="h-3 w-3" />
-                                            {issue}
+                                            {issueText(issue, locale)}
                                         </p>
                                     ) : null}
                                 </li>

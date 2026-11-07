@@ -34,7 +34,7 @@ import type {
     GovernorateCode,
 } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 
@@ -113,10 +113,10 @@ export function ShippingScreen({
                     ...prev,
                     commerce: { ...prev.commerce, shipping: next },
                 }),
-                "Edited delivery fees",
+                tFormat(STRINGS.history.edit_named, locale, { name: t(s.ship_heading, locale) }),
             );
         },
-        [builder],
+        [builder, locale, s],
     );
 
     const chooseMode = (next: ShippingMode): void => {
@@ -187,7 +187,7 @@ export function ShippingScreen({
                     },
                 };
             },
-            on ? "Promised open-before-paying" : "Removed open-before-paying",
+            t(on ? s.ship_door_on : s.ship_door_off, locale),
         );
     };
 
@@ -436,7 +436,7 @@ export function ShippingScreen({
                 {/* Promise at the door */}
                 <section className="rounded-xl border border-(--card-border) bg-(--card-bg) p-4">
                     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Promise at the door
+                        {t(s.ship_door_heading, locale)}
                     </h3>
                     <label className="flex items-start gap-2.5 text-sm text-foreground">
                         <input
@@ -446,12 +446,10 @@ export function ShippingScreen({
                             onChange={(e) => setInspectBeforePaying(e.target.checked)}
                             className="mt-0.5 h-4 w-4 accent-primary"
                         />
-                        <span>
-                            Customers may open and check the parcel before paying
+                        <span dir="auto">
+                            {t(s.ship_door_label, locale)}
                             <span className="block text-xs text-muted-foreground">
-                                Shown on the product page and delivery promise as
-                                “افتح الطلب وتأكد قبل ما تدفع”. Only turn this on if your
-                                courier honours it.
+                                {t(s.ship_door_help, locale)}
                             </span>
                         </span>
                     </label>

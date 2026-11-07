@@ -13,6 +13,8 @@ import { useCallback } from "react";
 import { X, ShoppingCart } from "lucide-react";
 import type { CartRecoveryConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { useEditorLocale } from "@/lib/editor-locale-context";
 
 export interface CartRecoveryScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -26,6 +28,8 @@ export function CartRecoveryScreen({
     builder,
     onClose,
 }: CartRecoveryScreenProps): React.ReactElement {
+    const locale = useEditorLocale();
+    const C = STRINGS.cart_recovery;
     const cfg: CartRecoveryConfig = builder.config.commerce?.cart_recovery ?? {};
     const enabled = cfg.enabled === true;
     const delay = cfg.delay_minutes ?? 30;
@@ -40,10 +44,10 @@ export function CartRecoveryScreen({
                         cart_recovery: { ...prev.commerce?.cart_recovery, ...patch },
                     },
                 }),
-                "Edited cart recovery",
+                tFormat(STRINGS.history.edit_named, locale, { name: t(C.heading, locale) }),
             );
         },
-        [builder],
+        [builder, locale, C],
     );
 
     return (
@@ -54,7 +58,7 @@ export function CartRecoveryScreen({
             <header className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
                 <button
                     type="button"
-                    aria-label="Close cart recovery"
+                    aria-label={t(C.close, locale)}
                     data-testid="cart-recovery-close"
                     onClick={onClose}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
@@ -62,19 +66,17 @@ export function CartRecoveryScreen({
                     <X className="h-4 w-4" />
                 </button>
                 <ShoppingCart className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">Cart recovery</h2>
+                <h2 className="text-sm font-semibold text-foreground">{t(C.heading, locale)}</h2>
             </header>
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">
-                    Send a WhatsApp nudge to customers who reached checkout but
-                    didn&apos;t complete their order. Off by default — turn it on to
-                    start recovering carts.
+                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
+                    {t(C.intro, locale)}
                 </p>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-sm font-medium text-foreground">
-                        Enable cart recovery
+                        {t(C.enable, locale)}
                     </span>
                     <input
                         type="checkbox"
@@ -85,10 +87,10 @@ export function CartRecoveryScreen({
                 </label>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                    <span className="text-sm text-foreground">
-                        Wait before messaging
-                        <span className="ml-1 text-xs text-muted-foreground">
-                            (minutes, 5–1440)
+                    <span dir="auto" className="text-sm text-foreground">
+                        {t(C.delay_label, locale)}
+                        <span className="ms-1 text-xs text-muted-foreground">
+                            {t(C.delay_unit, locale)}
                         </span>
                     </span>
                     <input

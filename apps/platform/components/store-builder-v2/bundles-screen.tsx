@@ -15,7 +15,7 @@ import type { Bundle } from "@scheniders/shared";
 import { useProductsQuery } from "@/hooks/use-products-query";
 import { cn } from "@/lib/utils";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 export interface BundlesScreenProps {
@@ -48,10 +48,10 @@ export function BundlesScreen({
                     ...prev,
                     commerce: { ...prev.commerce, bundles: next },
                 }),
-                "Edited bundles",
+                tFormat(STRINGS.history.edit_named, locale, { name: t(STRINGS.advanced_chrome.bun_heading, locale) }),
             );
         },
-        [builder],
+        [builder, locale],
     );
 
     const addRow = (): void =>
@@ -82,7 +82,7 @@ export function BundlesScreen({
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        aria-label="Close bundles"
+                        aria-label={t(STRINGS.advanced_chrome.bun_close_aria, locale)}
                         data-testid="bundles-close"
                         onClick={onClose}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
@@ -90,7 +90,7 @@ export function BundlesScreen({
                         <X className="h-4 w-4" />
                     </button>
                     <Boxes className="h-4 w-4 text-indigo-600" aria-hidden="true" />
-                    <h2 className="text-sm font-semibold text-foreground">Bundles</h2>
+                    <h2 className="text-sm font-semibold text-foreground">{t(STRINGS.advanced_chrome.bun_heading, locale)}</h2>
                 </div>
                 <button
                     type="button"
@@ -99,15 +99,13 @@ export function BundlesScreen({
                     className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
                 >
                     <Plus className="h-3.5 w-3.5" />
-                    Add bundle
+                    {t(STRINGS.advanced_chrome.bun_add, locale)}
                 </button>
             </header>
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">
-                    Group 2+ products into a &quot;frequently bought together&quot;
-                    bundle with a discount on their combined price. It shows on the PDP
-                    of any product in the bundle.
+                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
+                    {t(STRINGS.advanced_chrome.bun_intro, locale)}
                 </p>
 
                 {bundles.length === 0 ? (
@@ -142,11 +140,11 @@ export function BundlesScreen({
                                         }
                                         className={inputCls}
                                     >
-                                        <option value="percent">% off</option>
-                                        <option value="fixed">IQD off</option>
+                                        <option value="percent">{t(STRINGS.advanced_chrome.bun_kind_percent, locale)}</option>
+                                        <option value="fixed">{t(STRINGS.advanced_chrome.bun_kind_fixed, locale)}</option>
                                     </select>
                                     <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                        Value
+                                        {t(STRINGS.advanced_chrome.bun_value, locale)}
                                         <input
                                             type="number"
                                             min={0}
@@ -168,17 +166,17 @@ export function BundlesScreen({
                                                 updateRow(i, { enabled: e.target.checked })
                                             }
                                         />
-                                        Active
+                                        {t(STRINGS.advanced_chrome.bun_active, locale)}
                                     </label>
                                     <span className="text-xs text-muted-foreground">
-                                        {b.product_ids.length} product(s)
+                                        {tFormat(STRINGS.advanced_chrome.bun_count, locale, { n: b.product_ids.length })}
                                     </span>
                                     <button
                                         type="button"
-                                        aria-label="Remove bundle"
+                                        aria-label={t(STRINGS.advanced_chrome.bun_remove_aria, locale)}
                                         data-testid={`bundle-remove-${i}`}
                                         onClick={() => removeRow(i)}
-                                        className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                        className="ms-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>
@@ -187,7 +185,7 @@ export function BundlesScreen({
                                 <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-(--card-border) p-1.5">
                                     {products.length === 0 ? (
                                         <p className="p-2 text-xs text-muted-foreground">
-                                            No products to add.
+                                            {t(STRINGS.advanced_chrome.bun_no_products, locale)}
                                         </p>
                                     ) : (
                                         products.map((p) => (

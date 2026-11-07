@@ -112,6 +112,9 @@ export default async function StoreV2Page({
         rawTab && (DEEP_LINK_TABS as readonly string[]).includes(rawTab)
             ? (rawTab as InspectorTab)
             : null;
+    // Health fix "add a section here" (?open=add_section): land with the
+    // section picker open on the requested page.
+    const initialOpenPicker = sp.open === "add_section";
     // Wizard handoff (?welcome=1): show the one-time Arabic welcome card.
     const initialWelcome = sp.welcome === "1";
 
@@ -238,6 +241,7 @@ export default async function StoreV2Page({
             initialWelcome={initialWelcome}
             initialSectionId={initialSectionId}
             initialInspectorTab={initialInspectorTab}
+            initialOpenPicker={initialOpenPicker}
         />
     );
 }

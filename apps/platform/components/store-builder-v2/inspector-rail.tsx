@@ -87,7 +87,10 @@ export interface InspectorRailProps {
     /** Whether the store has ever been published (launch checklist). */
     hasPublished?: boolean;
     onJumpToSetting?: (id: SettingsSectionId) => void;
-    onJumpToPage?: (page: PageId, opts?: { tab?: "seo" }) => void;
+    onJumpToPage?: (
+        page: PageId,
+        opts?: { tab?: "seo"; open?: "add_section" },
+    ) => void;
     onJumpToSection?: (page: PageId, sectionId: string) => void;
     /** Persist the store-level WhatsApp number (launch checklist inline capture). */
     onSetWhatsappNumber?: (value: string) => void;

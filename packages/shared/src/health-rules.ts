@@ -44,8 +44,10 @@ export interface FixAction {
                   | "health"
                   | "pixels";
           }
-        /** `tab: "seo"` opens the page's SEO panel instead of its sections. */
-        | { kind: "page"; page_id: PageId; tab?: "seo" }
+        /** `tab: "seo"` opens the page's SEO panel instead of its sections;
+         *  `open: "add_section"` lands on the page with the section picker
+         *  open, for fixes whose remedy is "add a section here". */
+        | { kind: "page"; page_id: PageId; tab?: "seo"; open?: "add_section" }
 
         | { kind: "section"; page_id: PageId; section_id: string }
         | { kind: "external"; href: string };
@@ -344,6 +346,11 @@ function tallyI18n(
 
 function fixPage(page_id: PageId, label: string): FixAction {
     return { label, go_to: { kind: "page", page_id } };
+}
+
+/** Fix whose remedy is adding a section: opens the page with the picker up. */
+function fixAddSection(page_id: PageId, label: string): FixAction {
+    return { label, go_to: { kind: "page", page_id, open: "add_section" } };
 }
 
 function fixSettings(
@@ -667,7 +674,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "fail",
             message: "Home has no hero — first impression is empty.",
-            fix_action: fixPage("home", "Add a hero"),
+            fix_action: fixAddSection("home", "Add a hero"),
         };
     }),
     check("home_has_trust_strip", "conversion", 1, (cfg) => {
@@ -676,7 +683,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "warn",
             message: "Home has no trust strip — adds credibility above the fold.",
-            fix_action: fixPage("home", "Add trust strip"),
+            fix_action: fixAddSection("home", "Add trust strip"),
         };
     }),
     check("home_has_product_grid", "conversion", 1, (cfg) => {
@@ -685,7 +692,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "fail",
             message: "Home has no product grid — visitors can't browse.",
-            fix_action: fixPage("home", "Add product grid"),
+            fix_action: fixAddSection("home", "Add product grid"),
         };
     }),
     check("home_has_testimonials", "conversion", 1, (cfg) => {
@@ -696,7 +703,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "warn",
             message: "Home has no testimonials or founder note — social proof builds trust.",
-            fix_action: fixPage("home", "Add testimonials"),
+            fix_action: fixAddSection("home", "Add testimonials"),
         };
     }),
     check("home_has_newsletter", "conversion", 1, (cfg) => {
@@ -704,7 +711,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "warn",
             message: "No newsletter capture — you're losing the visitors who don't buy today.",
-            fix_action: fixPage("home", "Add newsletter"),
+            fix_action: fixAddSection("home", "Add newsletter"),
         };
     }),
     check("pdp_has_delivery_promise", "conversion", 1, (cfg) => {
@@ -727,7 +734,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "warn",
             message: "Cart has no promo or upsell module — leave AOV on the table.",
-            fix_action: fixPage("cart", "Edit Cart"),
+            fix_action: fixAddSection("cart", "Add to Cart page"),
         };
     }),
 
@@ -741,7 +748,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         return {
             status: "warn",
             message: "No testimonials anywhere on the store.",
-            fix_action: fixPage("home", "Add testimonials"),
+            fix_action: fixAddSection("home", "Add testimonials"),
         };
     }),
     check("social_links_set", "trust", 1, (cfg) => {

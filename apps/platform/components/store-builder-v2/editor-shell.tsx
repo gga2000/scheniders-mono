@@ -176,6 +176,8 @@ export interface EditorShellProps {
      * the plain first-run banner.
      */
     initialWelcome?: boolean;
+    /** Open the section picker on load (health fix deep-link). */
+    initialOpenPicker?: boolean;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -201,6 +203,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialSectionId,
         initialInspectorTab,
         initialWelcome,
+        initialOpenPicker,
     } = props;
 
     const activePreviewToken = previewToken ?? DEV_PREVIEW_TOKEN;
@@ -360,7 +363,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     const [published_session, set_published_session] = useState<boolean>(false);
 
     // Section picker open state.
-    const [picker_open, set_picker_open] = useState<boolean>(false);
+    const [picker_open, set_picker_open] = useState<boolean>(initialOpenPicker === true);
     // When the picker opens via the canvas-side `+` button, stash the
     // insertion index so the dropped section lands at that position.
     // `null` means "append to the end" (the existing default).
@@ -1989,6 +1992,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     set_system_screen(null);
                                     builder.set_active_page(page);
                                     if (opts?.tab === "seo") set_inspector_tab("seo");
+                                    if (opts?.open === "add_section") {
+                                        set_inspector_tab("blocks");
+                                        set_picker_insert_at(null);
+                                        set_picker_open(true);
+                                    }
                                 }}
                                 onJumpToSection={(page, section_id) => {
                                     set_system_screen(null);
