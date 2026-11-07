@@ -135,7 +135,13 @@ export function TillDoneView({ receipt, phone, printed, held, onOpenHeld, onNext
                             className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-5 text-sm font-semibold text-[#0B2E17]"
                         >
                             <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                            {t("till.done.whatsapp")}
+                            {phone ? (
+                                <span>
+                                    {t("till.done.whatsappTo")} <bdi dir="ltr" className="tabular-nums">{phone}</bdi>
+                                </span>
+                            ) : (
+                                t("till.done.whatsapp")
+                            )}
                         </a>
                     ) : (
                         <span className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--card-border)] px-5 text-sm font-semibold text-muted">

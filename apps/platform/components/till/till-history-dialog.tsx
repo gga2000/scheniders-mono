@@ -120,13 +120,22 @@ export function TillHistoryDialog({ sessionId, shop, storeName, initialQuery = "
                     ) : past.isFetching ? (
                         <div className="h-16 animate-pulse rounded-2xl bg-[var(--card-border)]/40" aria-busy="true" />
                     ) : shown.length === 0 ? (
-                        <p className="py-10 text-center text-sm text-muted" dir="auto">{past.isError
-                                ? t("till.history.failed")
-                                : past.isSuccess
-                                  ? t("till.history.notFound", { code })
-                                  : sales.data.length
-                                    ? t("till.history.noMatch")
-                                    : t("till.history.none")}</p>
+                        <div className="flex flex-col items-center gap-4 py-10">
+                            <p className="text-center text-sm text-muted" dir="auto">
+                                {past.isError
+                                    ? t("till.history.failed")
+                                    : past.isSuccess
+                                      ? t("till.history.notFound", { code })
+                                      : sales.data.length
+                                        ? t("till.history.noMatch")
+                                        : t("till.history.none")}
+                            </p>
+                            {code && sales.data.length > 0 && (
+                                <button type="button" onClick={() => setQ("")} className="h-12 rounded-2xl border border-[var(--card-border)] px-5 text-sm font-semibold text-foreground">
+                                    {t("till.history.showAll", { n: sales.data.length })}
+                                </button>
+                            )}
+                        </div>
                     ) : (
                         <ul className="flex flex-col divide-y divide-[var(--card-border)]">
                             {shown.map((s) => (

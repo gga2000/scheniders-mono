@@ -128,6 +128,7 @@ export function TillCustomerScreen() {
                     </div>
                 ) : state.view === "pay" ? (
                     <div className="mt-auto flex flex-col gap-4">
+                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
                         <Row
                             label={state.method === "cash" ? t("till.customer.toPayCash") : t("till.customer.toPay", { method: t(`till.pay.method.${state.method}`) })}
                             value={formatIqd(state.due)}
