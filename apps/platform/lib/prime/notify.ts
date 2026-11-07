@@ -144,13 +144,19 @@ export interface PrimeTicketReplyNotice {
     preview: string | null;
 }
 
-/** Prime answered in a ticket: one line for the store, unless this message was already announced. Returns whether it wrote one. */
+/** Postgres unique_violation: the row is already there. */
+const UNIQUE_VIOLATION = "23505";
+
+/**
+ * Prime answered in a ticket: one line for the store, unless this message was
+ * already announced. The database keeps it to one (unique index
+ * notifications_prime_ticket_reply_once on tenant and group key), so a second
+ * call from Prime, even at the same moment, writes nothing. Returns whether it
+ * wrote one.
+ */
 export async function noticeTicketReply(db: ServiceDb, tenantId: string, order: PrimeNoticeOrder, reply: PrimeTicketReplyNotice): Promise<boolean> {
     const groupKey = `prime.ticket_reply:${reply.ticketId}:${reply.messageKey}`;
-    const { data, error } = await db.from("notifications").select("id").eq("tenant_id", tenantId).eq("group_key", groupKey).limit(1);
-    if (error) throw new Error(error.message);
-    if ((data ?? []).length > 0) return false;
-    await insert(db, [
+    const { error } = await db.from("notifications").insert([
         {
             tenant_id: tenantId,
             type: "prime.ticket_reply",
@@ -165,6 +171,8 @@ export async function noticeTicketReply(db: ServiceDb, tenantId: string, order: 
             priority: "high",
             group_key: groupKey,
         },
-    ]);
+    ] satisfies NoticeRow[]);
+    if (error?.code === UNIQUE_VIOLATION) return false;
+    if (error) throw new Error(`Prime notification failed: ${error.message}`);
     return true;
 }
