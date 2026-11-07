@@ -627,18 +627,21 @@ export function useStoreBuilderV2(
     /* ── localStorage backup (every 30s) ──────────────────────────── */
     useEffect(() => {
         if (typeof window === "undefined") return;
+        // Reads the latest config through configRef so the interval is NOT
+        // restarted on every edit (it used to depend on `config`, so during
+        // steady editing the 30s tick never arrived and no backup was kept).
         const interval = setInterval(() => {
             try {
                 window.localStorage.setItem(
                     localBackupKey(tenantId),
-                    JSON.stringify({ saved_at: Date.now(), config }),
+                    JSON.stringify({ saved_at: Date.now(), config: configRef.current }),
                 );
             } catch {
                 // Swallow quota / serialization errors.
             }
         }, LOCALSTORAGE_BACKUP_MS);
         return () => clearInterval(interval);
-    }, [config, tenantId]);
+    }, [tenantId]);
 
     /* ── Unsaved-changes unload guard ─────────────────────────────── */
     // When edits haven't reached the DB draft yet (pendingDraftWriteRef),

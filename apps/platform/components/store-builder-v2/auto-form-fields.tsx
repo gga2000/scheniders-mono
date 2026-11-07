@@ -15,6 +15,8 @@ import {
     type ReactElement,
 } from "react";
 import {
+    ArrowDown,
+    ArrowUp,
     ChevronDown,
     ChevronRight,
     Copy as CopyIcon,
@@ -71,7 +73,10 @@ export interface FieldRendererProps {
     tenantId?: string;
     /** Active editor locale — propagated down to I18nStringInput. */
     activeLocale?: LocaleCode;
-    /** If true, this is a top-level form — render flat (no card wrapper). */
+    /**
+     * Render an object flat, with no titled card of its own. Used for
+     * repeater items: the row is already the card and carries the title.
+     */
     inline?: boolean;
     /**
      * When set + `isTopLevel`, the renderer emits the adornment ABOVE the
@@ -94,6 +99,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
         activeLocale,
         renderAdornment,
         isTopLevel,
+        inline = false,
     } = props;
     const { field, optional } = useMemo(() => inferField(schema), [schema]);
     // Localized label + optional help via the field-meta channel.
@@ -323,6 +329,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                     tenantId={tenantId}
                     activeLocale={activeLocale}
                     testIdBase={testIdBase}
+                    flat={inline}
                 />
             );
             break;
@@ -1003,7 +1010,11 @@ export function ArrayControl(p: ArrayControlProps): ReactElement {
                                         aria-hidden="true"
                                         className="text-[10px] text-muted-foreground"
                                     >
-                                        {isOpen ? "▾" : "▸"}
+                                        {isOpen ? (
+                                            <ChevronDown className="h-3 w-3" />
+                                        ) : (
+                                            <ChevronRight className="h-3 w-3" />
+                                        )}
                                     </span>
                                 </button>
                                 <div className="flex shrink-0 items-center gap-1">
@@ -1015,7 +1026,7 @@ export function ArrayControl(p: ArrayControlProps): ReactElement {
                                         onClick={() => handleMove(i, i - 1)}
                                         className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                                     >
-                                        ↑
+                                        <ArrowUp className="h-3 w-3" aria-hidden="true" />
                                     </button>
                                     <button
                                         type="button"
@@ -1025,7 +1036,7 @@ export function ArrayControl(p: ArrayControlProps): ReactElement {
                                         onClick={() => handleMove(i, i + 1)}
                                         className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
                                     >
-                                        ↓
+                                        <ArrowDown className="h-3 w-3" aria-hidden="true" />
                                     </button>
                                     <button
                                         type="button"
@@ -1058,6 +1069,7 @@ export function ArrayControl(p: ArrayControlProps): ReactElement {
                                         fieldKey={`item_${i}`}
                                         tenantId={p.tenantId}
                                         activeLocale={p.activeLocale}
+                                        inline
                                     />
                                 </div>
                             )}
@@ -1092,19 +1104,32 @@ const SUMMARY_KEYS = [
 
 export function summarizeArrayItem(item: unknown, locale: LocaleCode): string | null {
     if (!item || typeof item !== "object") {
-        return typeof item === "string" && item.trim() ? truncate(item) : null;
+        return typeof item === "string" && isReadable(item) ? truncate(item) : null;
     }
     const rec = item as Record<string, unknown>;
     for (const key of SUMMARY_KEYS) {
         const v = rec[key];
-        if (typeof v === "string" && v.trim()) return truncate(v);
+        if (typeof v === "string" && isReadable(v)) return truncate(v);
         if (v && typeof v === "object") {
             const i18n = v as Record<string, unknown>;
             const s = i18n[locale] ?? i18n.en ?? i18n.ar;
-            if (typeof s === "string" && s.trim()) return truncate(s);
+            if (typeof s === "string" && isReadable(s)) return truncate(s);
         }
     }
     return null;
+}
+
+/**
+ * A row title must be something the merchant wrote. Links, paths and
+ * slugs ("summer-sale", "/collections/x", "https://…") are machine values;
+ * the row falls back to "Item N" instead of showing them.
+ */
+function isReadable(s: string): boolean {
+    const v = s.trim();
+    if (!v) return false;
+    if (/^(https?:\/\/|\/|www\.|data:)/i.test(v)) return false;
+    if (/^[a-z0-9]+([-_/.][a-z0-9]+)+$/.test(v)) return false;
+    return true;
 }
 
 function truncate(s: string): string {
@@ -1121,6 +1146,8 @@ interface ObjectControlProps {
     tenantId?: string;
     activeLocale?: LocaleCode;
     testIdBase: string;
+    /** No titled card — the parent (a repeater row) already frames it. */
+    flat?: boolean;
 }
 
 export function ObjectControl(p: ObjectControlProps): ReactElement {
@@ -1159,8 +1186,7 @@ export function ObjectControl(p: ObjectControlProps): ReactElement {
         </div>
     );
 
-    if (isRoot) return body;
-    if (isInline) return body;
+    if (isRoot || isInline || p.flat) return body;
 
     return (
         <section

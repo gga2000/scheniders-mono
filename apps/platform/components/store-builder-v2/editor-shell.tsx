@@ -447,9 +447,13 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             ro.observe(container);
         }
         window.addEventListener("resize", update);
+        // At a fixed zoom wider than the canvas the frame scrolls sideways;
+        // scroll doesn't bubble, so listen in the capture phase.
+        container.addEventListener("scroll", update, true);
         return () => {
             ro?.disconnect();
             window.removeEventListener("resize", update);
+            container.removeEventListener("scroll", update, true);
         };
     }, [system_screen, builder.active_breakpoint]);
 

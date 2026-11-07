@@ -15,6 +15,8 @@ interface SettingsTilesProps {
     slug: string;
     /** Hub chrome locale — the store's `default_locale` (UX2-14). */
     locale: LocaleCode;
+    /** The languages this store is written in (default + enabled). */
+    storeLocales: readonly LocaleCode[];
 }
 
 interface TileProps {
@@ -48,7 +50,7 @@ function Tile({ icon, label, description, onClick, href }: TileProps) {
     );
 }
 
-export function SettingsTiles({ storefrontUrl, businessName, tenantId, slug, locale }: SettingsTilesProps) {
+export function SettingsTiles({ storefrontUrl, businessName, tenantId, slug, locale, storeLocales }: SettingsTilesProps) {
     const [shareOpen, setShareOpen] = useState(false);
     const [domainOpen, setDomainOpen] = useState(false);
 
@@ -69,7 +71,7 @@ export function SettingsTiles({ storefrontUrl, businessName, tenantId, slug, loc
                         href="/store/edit?screen=i18n"
                         icon={<Globe2 className="w-4 h-4" />}
                         label={t(STRINGS.command_center.tile_languages_label, locale)}
-                        description={t(STRINGS.command_center.tile_languages_desc, locale)}
+                        description={storeLocales.map((l) => t(STRINGS.languages[l], locale)).join(locale === "en" ? ", " : "، ")}
                     />
                     <Tile
                         href="/store/edit?page=home&tab=seo"

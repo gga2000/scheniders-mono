@@ -87,14 +87,18 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
                 data-testid="preview-frame"
                 data-breakpoint={breakpoint}
                 data-zoom={zoom}
-                className="relative flex h-full w-full items-center justify-center overflow-hidden bg-muted/30 p-4"
+                className="relative flex h-full w-full items-center overflow-auto bg-muted/30 p-4"
+                // "safe center": centred when it fits; when a fixed zoom makes
+                // the frame wider than the canvas it starts at the left edge
+                // and scrolls, instead of being squeezed or cut off.
+                style={{ justifyContent: "safe center" }}
             >
                 <div
                     data-testid="preview-frame-viewport"
                     className={cn(
                         "relative h-full overflow-hidden rounded-lg border border-(--card-border) bg-white shadow-sm transition-[width] duration-200 ease-out",
                     )}
-                    style={{ width: wrapperWidth, maxWidth: "100%" }}
+                    style={{ width: wrapperWidth, flexShrink: 0 }}
                 >
                     <iframe
                         ref={innerRef}
