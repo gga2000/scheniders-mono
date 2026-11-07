@@ -69,6 +69,7 @@ import { StoreBaseProvider } from "@/lib/store-context";
 import { toSectionTenant } from "@scheniders/sections"; // also registers all built-in sections (barrel side effect)
 import { SchneidersPreviewBridge } from "@/components/schneiders-preview-bridge";
 import { SchneidersPreviewLiveRenderer } from "@/components/schneiders-preview-live-renderer";
+import { PreviewBrandSurface } from "@/components/preview-brand-surface";
 import { getTemplate } from "@/templates/registry";
 import type { Tenant, Product, Category } from "@/lib/types";
 
@@ -469,18 +470,15 @@ export default async function PreviewPage({
 
   return (
     <StoreBaseProvider base={`/_preview/${tenantParam}`}>
-      {bkFontsUrl && (
-         
-        <link rel="stylesheet" href={bkFontsUrl} />
-      )}
-      <div
-        data-preview="true"
-        data-bk-motion={bkMotion}
-        data-tenant-slug={tenant.slug}
-        data-page-id={pageId}
-        data-breakpoint={breakpoint}
-        data-locale={locale}
-        style={bkSurface}
+      <PreviewBrandSurface
+        initialBrandKit={brandKit}
+        locale={locale}
+        dataAttrs={{
+          "data-tenant-slug": tenant.slug,
+          "data-page-id": pageId,
+          "data-breakpoint": breakpoint,
+          "data-locale": locale,
+        }}
       >
         <SchneidersPreviewLiveRenderer
           initialPageConfig={pageConfig}
@@ -499,7 +497,7 @@ export default async function PreviewPage({
             public_stats: publicStats ?? undefined,
           }}
         />
-      </div>
+      </PreviewBrandSurface>
       <SchneidersPreviewBridge />
     </StoreBaseProvider>
   );

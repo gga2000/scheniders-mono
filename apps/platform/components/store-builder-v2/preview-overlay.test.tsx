@@ -37,6 +37,7 @@ function makeBridge(state: Partial<BridgeState> = {}): UseIframeBridgeReturn {
         onContextMenu: vi.fn().mockReturnValue(() => {}),
         postPageConfigUpdate: vi.fn(),
         postRuntimeUpdate: vi.fn(),
+        postBrandKitUpdate: vi.fn(),
         postPageIdChange: vi.fn(),
     };
 }

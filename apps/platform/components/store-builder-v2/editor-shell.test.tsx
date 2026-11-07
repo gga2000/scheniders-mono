@@ -54,6 +54,7 @@ interface MockBridgeSpies {
     state: { ready: boolean; inline_editing?: boolean };
     postPageConfigUpdate: ReturnType<typeof vi.fn>;
     postRuntimeUpdate: ReturnType<typeof vi.fn>;
+    postBrandKitUpdate: ReturnType<typeof vi.fn>;
     postPageIdChange: ReturnType<typeof vi.fn>;
     scrollToSection: ReturnType<typeof vi.fn>;
     requestRect: ReturnType<typeof vi.fn>;
@@ -78,6 +79,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
                 state: { ready: false, inline_editing: false },
                 postPageConfigUpdate: vi.fn(),
                 postRuntimeUpdate: vi.fn(),
+                postBrandKitUpdate: vi.fn(),
                 postPageIdChange: vi.fn(),
                 scrollToSection: vi.fn(),
                 requestRect: vi.fn(),
@@ -110,6 +112,7 @@ vi.mock("@/hooks/use-iframe-bridge", () => ({
             onContextMenu: g.__editorShellBridge.onContextMenu,
             postPageConfigUpdate: g.__editorShellBridge.postPageConfigUpdate,
             postRuntimeUpdate: g.__editorShellBridge.postRuntimeUpdate,
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: g.__editorShellBridge.postPageIdChange,
         };
     },
@@ -384,6 +387,7 @@ describe("EditorShell", () => {
             state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -448,6 +452,7 @@ describe("EditorShell", () => {
             state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -592,6 +597,7 @@ describe("EditorShell", () => {
             state: { ready: true, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),
@@ -653,6 +659,7 @@ describe("EditorShell", () => {
             state: { ready: false, inline_editing: false },
             postPageConfigUpdate: vi.fn(),
             postRuntimeUpdate: vi.fn(),
+            postBrandKitUpdate: vi.fn(),
             postPageIdChange: vi.fn(),
             scrollToSection: vi.fn(),
             requestRect: vi.fn(),

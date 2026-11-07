@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type {
+    BrandKit,
     PageConfig,
     PageId,
     PageMeta,
@@ -121,6 +122,7 @@ export type EditorOutboundMessage =
           payload: PreviewPageConfig;
       }
     | { source: "schn-editor"; type: "runtime_update"; payload: RuntimeContext }
+    | { source: "schn-editor"; type: "brand_kit_update"; payload: BrandKit }
     | { source: "schn-editor"; type: "page_id_change"; next_url: string }
     | {
           source: "schn-editor";
@@ -159,6 +161,8 @@ export interface UseIframeBridgeReturn {
     postPageConfigUpdate: (page: PreviewPageConfig) => void;
     /** Fire-and-forget runtime (locale / breakpoint / page_id) update. */
     postRuntimeUpdate: (runtime: RuntimeContext) => void;
+    /** Fire-and-forget brand kit update: the preview re-themes in place. */
+    postBrandKitUpdate: (kit: BrandKit) => void;
     /**
      * Fire-and-forget page-navigation request. The iframe reloads at the
      * new URL so server data (products, category, etc.) refreshes.
@@ -355,6 +359,13 @@ export function useIframeBridge(
         [post],
     );
 
+    const postBrandKitUpdate = useCallback(
+        (kit: BrandKit): void => {
+            post({ source: "schn-editor", type: "brand_kit_update", payload: kit });
+        },
+        [post],
+    );
+
     const postPageIdChange = useCallback(
         (next_url: string): void => {
             post({
@@ -525,6 +536,7 @@ export function useIframeBridge(
         onContextMenu,
         postPageConfigUpdate,
         postRuntimeUpdate,
+        postBrandKitUpdate,
         postPageIdChange,
     };
 }

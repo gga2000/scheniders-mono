@@ -26,8 +26,13 @@ describe("page ground", () => {
 
   it("both _preview wrappers paint the same ground (editor canvas + iframe)", () => {
     const src = read("%5Fpreview/[tenant]/[page_id]/page.tsx");
+    // Legacy path: inline ground. v2 path: PreviewBrandSurface (live kit).
     expect(src).toContain('backgroundColor: "var(--bk-surface, #fff7ed)"');
-    expect(src.match(/style=\{bkSurface\}/g)).toHaveLength(2);
+    expect(src.match(/style=\{bkSurface\}/g)).toHaveLength(1);
+    expect(src).toContain("<PreviewBrandSurface");
     expect(src).not.toMatch(/style=\{bkVars\}/);
+    const surface = read("../components/preview-brand-surface.tsx");
+    expect(surface).toContain('backgroundColor: "var(--bk-surface, #fff7ed)"');
+    expect(surface).toContain('color: "var(--bk-ink, #1a1a1a)"');
   });
 });

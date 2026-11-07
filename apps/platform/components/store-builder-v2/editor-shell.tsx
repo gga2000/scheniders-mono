@@ -597,6 +597,19 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         bridge,
     ]);
 
+    // Brand kit → preview, live. The iframe renders the SAVED draft's kit;
+    // push the current one whenever it changes or the frame (re)connects,
+    // so colour/font edits show before the autosave lands.
+    const bridge_ready = bridge.state.ready;
+    const postBrandKitUpdate = bridge.postBrandKitUpdate;
+    useEffect(() => {
+        if (!bridge_ready) return;
+        const handle = setTimeout(() => {
+            postBrandKitUpdate(builder.config.brand_kit);
+        }, 100);
+        return () => clearTimeout(handle);
+    }, [builder.config.brand_kit, bridge_ready, postBrandKitUpdate]);
+
     /* ── Page navigation: full reload of the iframe ───────────────── */
     //
     // When the merchant switches `active_page`, the iframe needs to
