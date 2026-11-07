@@ -22,8 +22,8 @@ export interface TicketApproval {
     expiresAt: number;
 }
 
-/** How long a manager's OK lasts; matches till_approve on the server. */
-export const APPROVAL_MS = 3 * 60 * 1000;
+/** How long a manager's OK lasts; matches till_approve on the server. Long enough for a slow FIB payment; the amount is locked anyway. */
+export const APPROVAL_MS = 15 * 60 * 1000;
 
 /** The approval still covers this much off and has not run out. */
 export function approvalCovers(a: TicketApproval | null, off: number, now: number): boolean {

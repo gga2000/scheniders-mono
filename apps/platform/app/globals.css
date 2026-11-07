@@ -3432,3 +3432,8 @@ body:has(.till-screen) .toast-card {
   .ambient-backdrop__dots,
   .ambient-backdrop__twinkle { animation: none; }
 }
+
+/* Letter-spacing pulls Arabic letters apart; small caps-style labels stay joined in Arabic. */
+html[lang="ar"] .till-screen .tracking-wide {
+    letter-spacing: normal;
+}

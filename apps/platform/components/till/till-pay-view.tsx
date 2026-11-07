@@ -325,8 +325,8 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                               ? t("till.pay.completeChange", { change: formatIqd(change) })
                               : needsNotice
                                 ? noticeIn
-                                    ? t("till.pay.completeNotice", { amount: formatIqd(due) })
-                                    : t("till.pay.waitNotice", { method: t(`till.pay.method.${method}`) })
+                                    ? <span dir="auto">{t("till.pay.completeNotice", { amount: formatIqd(due) })}</span>
+                                    : <span dir="auto">{t("till.pay.waitNotice", { method: t(`till.pay.method.${method}`) })}</span>
                                 : t("till.pay.complete")}
                     </button>
                 </div>
