@@ -49,8 +49,10 @@ function acquire(
     let entry = registry.get(topic);
 
     if (!entry) {
+        // Private: realtime.messages lets only members of the order's own store
+        // join presence:<orderId> (migration realtime_order_presence_private).
         const channel = supabase.channel(`presence:${topic}`, {
-            config: { presence: { key: identity.id } },
+            config: { private: true, presence: { key: identity.id } },
         });
         const created: Entry = { channel, refs: 0, users: [], connected: false, listeners: new Set() };
         registry.set(topic, created);
