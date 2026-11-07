@@ -52,6 +52,8 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
     const fromNotes = Object.entries(notes).reduce((s, [note, n]) => s + Number(note) * n, 0);
     const given = typed !== null ? parseDinars(typed) : fromNotes;
     const result = finishPayment(total, parts, method, given);
+    // Same "saved" figure the customer screen and the receipt show: price cuts plus the discount.
+    const saved = ticket.discount + ticket.cart.reduce((s, l) => s + Math.max(0, l.list_price - l.price) * l.quantity, 0);
     const change = result.ok ? result.change : 0;
     const name = ticket.customerName.trim();
 
@@ -346,13 +348,22 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 {l.variant_name ? ` ${l.variant_name}` : ""}
                                 {l.quantity > 1 ? ` × ${l.quantity}` : ""}
                             </span>
-                            <span className="tabular-nums">{formatIqd(l.price * l.quantity)}</span>
+                            <span className="flex shrink-0 items-baseline gap-2 tabular-nums">
+                                {l.list_price > l.price && <span className="text-xs text-muted line-through">{formatIqd(l.list_price * l.quantity)}</span>}
+                                {formatIqd(l.price * l.quantity)}
+                            </span>
                         </p>
                     ))}
                     {ticket.discount > 0 && (
                         <p className="flex justify-between text-sm text-foreground">
                             <span>{t("till.cart.discount")}</span>
                             <span className="tabular-nums">−{formatIqd(ticket.discount)}</span>
+                        </p>
+                    )}
+                    {saved > 0 && (
+                        <p className="flex justify-between text-sm font-semibold text-[#14532D] dark:text-emerald-300">
+                            <span dir="auto">{t("till.done.saved")}</span>
+                            <span className="tabular-nums">{formatIqd(saved)}</span>
                         </p>
                     )}
                     <p className="mt-1 flex justify-between border-t border-[var(--card-border)] pt-2 text-base font-bold text-foreground">
