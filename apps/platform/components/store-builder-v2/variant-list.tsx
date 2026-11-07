@@ -67,23 +67,8 @@ import { summarizeOverrides } from "./variant-override-paths";
 import { summarizeVariantConditions } from "@/lib/variant-summary";
 
 /* ─────────────────────────────────────────────────────────────────── */
-/* Condition kind → emoji + summary helper                              */
+/* Condition kind → icon + summary helper                               */
 /* ─────────────────────────────────────────────────────────────────── */
-
-// Legacy emoji map kept for backwards compatibility with consumers that
-// still import VARIANT_KIND_EMOJI (notably variant-editor.tsx). New code
-// uses VARIANT_KIND_ICON.
-export const VARIANT_KIND_EMOJI: Record<VariantCondition["kind"], string> = {
-    locale: "🌐",
-    breakpoint: "📱",
-    time_window: "📅",
-    audience: "🎯",
-    ab_test: "⚗️",
-    governorate: "📍",
-    product: "🛍",
-    category: "📁",
-    page: "📄",
-};
 
 export const VARIANT_KIND_ICON: Record<
     VariantCondition["kind"],
@@ -148,11 +133,6 @@ export const VARIANT_KIND_LABEL: Record<VariantCondition["kind"], string> = {
 
 function variantPrimaryKind(v: Variant): VariantCondition["kind"] | null {
     return v.conditions[0]?.kind ?? null;
-}
-
-function variantEmoji(v: Variant): string {
-    const k = variantPrimaryKind(v);
-    return k ? VARIANT_KIND_EMOJI[k] : "✨";
 }
 
 function variantDisplayLabel(v: Variant, locale: LocaleCode): string {
@@ -304,16 +284,6 @@ function VariantRow({
                         <KindIcon className="h-3.5 w-3.5" />
                     </span>
                 )}
-
-                {/* Keep the legacy emoji testid available so older tests
-                 *  asserting it still pass. */}
-                <span
-                    aria-hidden="true"
-                    data-testid={`variant-row-${variant.id}-emoji`}
-                    className="sr-only"
-                >
-                    {variantEmoji(variant)}
-                </span>
 
                 <div className="min-w-0 flex-1">
                     <div

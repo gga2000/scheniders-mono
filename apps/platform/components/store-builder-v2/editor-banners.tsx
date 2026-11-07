@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { useEffect, useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, PartyPopper, Sparkles } from "lucide-react";
 import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
@@ -68,9 +68,7 @@ export function FirstRunBanner({
             data-testid="editor-shell-first-run-banner"
             className="mx-3 mt-3 flex items-center gap-3 rounded-xl border border-(--card-border) bg-gradient-to-r from-pink-500/10 via-amber-500/10 to-violet-500/10 px-4 py-3 text-sm"
         >
-            <span aria-hidden="true" className="text-base">
-                ✨
-            </span>
+            <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0 text-amber-600" />
             <p className="flex-1 text-foreground/90">
                 {isHome
                     ? t(STRINGS.first_run.message_home, locale)
@@ -124,8 +122,8 @@ export function WelcomeCard({
                 className="w-full max-w-md rounded-2xl border border-(--card-border) bg-(--card-bg) p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-2xl">
-                    <span aria-hidden="true">🎉</span>
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-700">
+                    <PartyPopper aria-hidden="true" className="h-6 w-6" />
                 </div>
                 <h2 className="text-lg font-bold text-foreground">
                     {t(STRINGS.welcome.title, locale)}
@@ -276,8 +274,8 @@ export function PublishSuccessDialog({
                 className="w-full max-w-sm rounded-2xl border border-(--card-border) bg-(--card-bg) p-6 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.5)]"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-3xl">
-                    <span aria-hidden="true">🎉</span>
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-700">
+                    <PartyPopper aria-hidden="true" className="h-7 w-7" />
                 </div>
                 <h2 className="text-lg font-bold text-foreground">
                     {t(STRINGS.publish.success_title, locale)}

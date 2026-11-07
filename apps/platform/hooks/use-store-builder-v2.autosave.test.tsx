@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import type { StoreConfigV2 } from "@scheniders/shared";
+import { supabase } from "@/lib/supabase";
 import { useStoreBuilderV2 } from "./use-store-builder-v2";
 
 const update = vi.fn();
@@ -133,5 +134,30 @@ describe("builder autosave", () => {
       result.current.undo();
     });
     expect(result.current.config.default_locale).toBe("ar");
+  });
+
+  it("tells the publish sheet why a publish failed", async () => {
+    const rpc = vi.mocked(supabase.rpc);
+    const { result } = render();
+
+    rpc.mockResolvedValueOnce({ data: null, error: { code: "40001", message: "config_conflict" } } as never);
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.publish();
+    });
+    expect(ok).toBe(false);
+    expect(result.current.publish_error).toBe("conflict");
+
+    rpc.mockResolvedValueOnce({ data: null, error: { code: "500", message: "boom" } } as never);
+    await act(async () => {
+      ok = await result.current.publish();
+    });
+    expect(result.current.publish_error).toBe("failed");
+
+    await act(async () => {
+      ok = await result.current.publish();
+    });
+    expect(ok).toBe(true);
+    expect(result.current.publish_error).toBeNull();
   });
 });

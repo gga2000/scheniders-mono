@@ -456,7 +456,7 @@ export const STRINGS = {
         conflict_reload: { en: "Reload", ar: "إعادة التحميل", ku: "دووبارە بارکردنەوە" },
         // Post-publish success dialog — the peak moment. Celebrate + hand
         // over the live link.
-        success_title: { en: "Your store is live! 🎉", ar: "متجرك صار مباشراً! 🎉", ku: "فرۆشگاکەت بڵاوبووەوە! 🎉" },
+        success_title: { en: "Your store is live!", ar: "متجرك صار مباشراً!", ku: "فرۆشگاکەت بڵاوبووەوە!" },
         success_subtitle: { en: "Share the link with your customers — orders can start right now.", ar: "شارك الرابط مع زبائنك — تكدر تستقبل الطلبات من الآن.", ku: "بەستەرەکە لەگەڵ کڕیارەکانت هاوبەش بکە — لە ئێستاوە داواکاری وەربگرە." },
         success_view: { en: "View my store", ar: "شاهد متجرك", ku: "فرۆشگاکەم ببینە" },
         success_copy: { en: "Copy link", ar: "نسخ الرابط", ku: "بەستەر کۆپی بکە" },
@@ -845,7 +845,7 @@ export const STRINGS = {
 
     /* ── Post-wizard welcome (one-time overlay) ───────────────── */
     welcome: {
-        title: { en: "Your store is ready! 🎉", ar: "متجرك جاهز! 🎉", ku: "فرۆشگاکەت ئامادەیە! 🎉" },
+        title: { en: "Your store is ready!", ar: "متجرك جاهز!", ku: "فرۆشگاکەت ئامادەیە!" },
         subtitle: { en: "We built it from your answers — here's all you need to know:", ar: "بنيناه من إجاباتك — هذا كل اللي تحتاج تعرفه:", ku: "لە وەڵامەکانتەوە دروستمان کرد — ئەمە هەموو ئەوەیە کە پێویستە بیزانیت:" },
         bullet_edit: { en: "Click any text or image on the page to edit it.", ar: "اضغط على أي نص أو صورة بالصفحة لتعديلها.", ku: "کلیک لە هەر دەق یان وێنەیەک بکە لە پەڕەکە بۆ دەستکاری." },
         bullet_autosave: { en: "Everything saves automatically as you work.", ar: "كل شيء يُحفظ تلقائياً وأنت تشتغل.", ku: "هەموو شتێک بە خۆکار خەزن دەبێت کاتێک کاردەکەیت." },
@@ -946,7 +946,7 @@ export const STRINGS = {
         launch_step_publish: { en: "Publish your store", ar: "انشر متجرك", ku: "فرۆشگاکەت بڵاوبکەرەوە" },
         launch_step_publish_hint: { en: "Use the Publish button at the top when the steps above are done.", ar: "استخدم زر «نشر» في الأعلى بعد إكمال الخطوات.", ku: "دوگمەی «بڵاوکردنەوە» لە سەرەوە بەکاربهێنە دوای تەواوکردنی هەنگاوەکان." },
         launch_fix: { en: "Do it", ar: "أكملها", ku: "تەواوی بکە" },
-        launch_all_done: { en: "All set — your store is live! 🎉", ar: "كل شيء تمام — متجرك مباشر! 🎉", ku: "هەموو شت تەواوە — فرۆشگاکەت بڵاوە! 🎉" },
+        launch_all_done: { en: "All set — your store is live!", ar: "كل شيء تمام — متجرك مباشر!", ku: "هەموو شت تەواوە — فرۆشگاکەت بڵاوە!" },
         // Inline WhatsApp capture inside the checklist row (S3-01)
         launch_whatsapp_placeholder: { en: "07XXXXXXXXX", ar: "07XXXXXXXXX", ku: "07XXXXXXXXX" },
         launch_whatsapp_save: { en: "Save", ar: "حفظ", ku: "پاشەکەوت" },

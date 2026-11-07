@@ -40,7 +40,7 @@ import {
     VariantAddWizard,
     type VariantKind,
 } from "./variant-add-wizard";
-import { VARIANT_KIND_EMOJI, VARIANT_KIND_LABEL } from "./variant-list";
+import { VARIANT_KIND_ICON, VARIANT_KIND_LABEL } from "./variant-list";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { summarizeVariantConditions } from "@/lib/variant-summary";
@@ -314,9 +314,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                                         data-testid={`variant-editor-condition-${i}`}
                                         className="flex items-center gap-2 rounded-md border border-(--card-border) bg-(--card-bg) px-3 py-1.5"
                                     >
-                                        <span aria-hidden="true" className="text-base">
-                                            {VARIANT_KIND_EMOJI[c.kind]}
-                                        </span>
+                                        <KindIcon kind={c.kind} />
                                         <div className="min-w-0 flex-1">
                                             <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
                                                 {VARIANT_KIND_LABEL[c.kind]}
@@ -532,7 +530,7 @@ function ConditionAddMenu({
                                 }}
                                 className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-muted/40"
                             >
-                                <span aria-hidden="true">{VARIANT_KIND_EMOJI[k]}</span>
+                                <KindIcon kind={k} />
                                 <span>{VARIANT_KIND_LABEL[k]}</span>
                             </button>
                         ))}
@@ -711,4 +709,9 @@ function OverridePathRow(p: OverridePathRowProps): ReactElement {
             </div>
         </li>
     );
+}
+
+function KindIcon({ kind }: { kind: keyof typeof VARIANT_KIND_ICON }): React.ReactElement {
+    const Icon = VARIANT_KIND_ICON[kind];
+    return <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
 }

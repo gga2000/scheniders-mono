@@ -1571,7 +1571,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     onPublishAnyway={handlePublishAnyway}
                     onJumpToFix={handlePublishJumpToFix}
                     busy={publishBusy}
-                    error={builder.save_state === "error"}
+                    error={builder.publish_error}
                     config={builder.config}
                     publishedConfig={publishedConfig ?? null}
                 />
@@ -1992,7 +1992,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 onPublishAnyway={handlePublishAnyway}
                 onJumpToFix={handlePublishJumpToFix}
                 busy={publishBusy}
-                error={builder.save_state === "error"}
+                error={builder.publish_error}
                 config={builder.config}
                 publishedConfig={publishedConfig ?? null}
             />

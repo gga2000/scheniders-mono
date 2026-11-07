@@ -20,6 +20,7 @@ import {
     Pencil,
     Plus,
     Rocket,
+    RotateCw,
     Sparkles,
     X,
 } from "lucide-react";
@@ -83,9 +84,10 @@ export interface PublishConfirmSheetProps {
     onPublishAnyway: () => void;
     onJumpToFix: (fix: NonNullable<CheckResult["fix_action"]>) => void;
     busy?: boolean;
-    /** True when the last publish attempt failed — the sheet stays open and the
-     *  action button becomes a Retry, with an inline error line. */
-    error?: boolean;
+    /** Why the last publish attempt failed. "failed": the sheet stays open and
+     *  the action button becomes a Retry. "conflict": someone else published
+     *  first, so a retry cannot work; the action becomes Reload. */
+    error?: "failed" | "conflict" | null;
     /** Required for the diff section. */
     config?: StoreConfigV2;
     /**
@@ -278,7 +280,12 @@ export function PublishConfirmSheet({
                             role="alert"
                             className="mr-auto text-sm font-medium text-rose-600"
                         >
-                            {t(STRINGS.publish.failed, locale)}
+                            {t(
+                                error === "conflict"
+                                    ? STRINGS.publish.conflict_message
+                                    : STRINGS.publish.failed,
+                                locale,
+                            )}
                         </span>
                     ) : null}
                     <button
@@ -289,20 +296,32 @@ export function PublishConfirmSheet({
                     >
                         {t(STRINGS.publish.cancel, locale)}
                     </button>
-                    <button
-                        type="button"
-                        onClick={onPublishAnyway}
-                        disabled={busy}
-                        data-testid="publish-confirm-sheet-publish-anyway"
-                        className="sb-publish inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                    >
-                        <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
-                        {busy
-                            ? t(STRINGS.publish.publishing, locale)
-                            : error
-                              ? t(STRINGS.publish.retry, locale)
-                              : t(STRINGS.publish.publish_cta, locale)}
-                    </button>
+                    {error === "conflict" && !busy ? (
+                        <button
+                            type="button"
+                            onClick={() => window.location.reload()}
+                            data-testid="publish-confirm-sheet-reload"
+                            className="sb-publish inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-primary-foreground"
+                        >
+                            <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+                            {t(STRINGS.publish.conflict_reload, locale)}
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={onPublishAnyway}
+                            disabled={busy}
+                            data-testid="publish-confirm-sheet-publish-anyway"
+                            className="sb-publish inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                        >
+                            <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
+                            {busy
+                                ? t(STRINGS.publish.publishing, locale)
+                                : error
+                                  ? t(STRINGS.publish.retry, locale)
+                                  : t(STRINGS.publish.publish_cta, locale)}
+                        </button>
+                    )}
                 </footer>
             </div>
         </div>

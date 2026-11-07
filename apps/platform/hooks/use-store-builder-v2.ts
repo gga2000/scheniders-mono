@@ -125,6 +125,9 @@ export interface UseStoreBuilderV2Return {
     /** BUG25: true when the last publish was rejected because another editor
      *  published since this session loaded — the UI should prompt a reload. */
     publish_conflict: boolean;
+    /** Why the last publish failed ("conflict" = reload needed, "failed" =
+     *  retry), or null. Drives the publish sheet error line and action. */
+    publish_error: "failed" | "conflict" | null;
 
     /** Actions. */
     save_draft: () => Promise<void>;
@@ -276,6 +279,10 @@ export function useStoreBuilderV2(
     // got there first → conflict (reject, prompt reload).
     const expectedRevRef = useRef<number>(initialRev);
     const [publish_conflict, set_publish_conflict] = useState<boolean>(false);
+    // Why the last publish failed, for the publish sheet. "conflict" = another
+    // editor published first (reload needed); "failed" = network/server error
+    // (retry). Cleared when a publish starts.
+    const [publish_error, set_publish_error] = useState<"failed" | "conflict" | null>(null);
 
     /* ── Editor UI state ──────────────────────────────────────────── */
     const [active_page, _set_active_page] = useState<PageId>("home");
@@ -661,11 +668,16 @@ export function useStoreBuilderV2(
 
     const publish = useCallback(async (): Promise<boolean> => {
         cancelAutoSave();
+        set_publish_error(null);
         set_save_state("saving");
         // EC8: let any in-flight field PATCH land BEFORE this publish nulls the
         // draft, so a late patch can't resurrect a dirty draft from the freshly
         // published config via the patch RPC's COALESCE seed.
         await inFlightPatchRef.current?.catch(() => {});
+        // Same for an in-flight full draft save. Its queued follow-up is
+        // dropped: this publish already carries the latest config.
+        queuedSaveRef.current = false;
+        await inFlightSaveRef.current?.catch(() => {});
         try {
             // Summarise what this publish changes vs the last save point so the
             // inserted version row's diff badges aren't empty. Baseline is the
@@ -694,6 +706,7 @@ export function useStoreBuilderV2(
                     /config_conflict/i.test(error.message ?? "")
                 ) {
                     set_publish_conflict(true);
+                    set_publish_error("conflict");
                     // The DRAFT is intact — an error save-pill would send the
                     // merchant retrying the wrong operation (UX2-04). The
                     // conflict banner owns this failure.
@@ -734,6 +747,7 @@ export function useStoreBuilderV2(
             console.error("[store-builder-v2] publish failed:", err);
             // Draft is safe; the publish sheet shows its own localized
             // failure state. Don't turn the save pill red (UX2-04).
+            set_publish_error("failed");
             set_save_state("idle");
             return false;
         }
@@ -1562,6 +1576,7 @@ export function useStoreBuilderV2(
         has_unpublished_changes,
 
         publish_conflict,
+        publish_error,
         save_draft,
         publish,
         revert_to_published,
