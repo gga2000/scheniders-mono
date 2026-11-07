@@ -97,7 +97,7 @@ export const STRINGS = {
         group_policies: { en: "Policies", ar: "السياسات", ku: "ڕێسـاکان" },
         group_system: { en: "System", ar: "النظام", ku: "سیستەم" },
         // Simple-mode collapsed page groups (S3-03): tFormat {n}
-        all_pages: { en: "All pages ({n})", ar: "كل الصفحات ({n})", ku: "هەموو پەڕەکان ({n})" },
+        all_pages: { en: "More pages ({n})", ar: "صفحات أخرى ({n})", ku: "پەڕەی تر ({n})" },
         // Pages
         page_home: { en: "Home", ar: "الرئيسية", ku: "ماڵەوە" },
         page_category: { en: "Category", ar: "الفئة", ku: "پۆل" },
@@ -722,6 +722,8 @@ export const STRINGS = {
         duplicate_item: { en: "Duplicate item", ar: "تكرار العنصر", ku: "لەبەرگرتنەوەی بڕگە" },
         expand_item: { en: "Expand item", ar: "فتح العنصر", ku: "کردنەوەی بڕگە" },
         collapse_item: { en: "Collapse item", ar: "طي العنصر", ku: "داخستنی بڕگە" },
+        // An optional choice left unset: the section's built-in look.
+        enum_default: { en: "Default", ar: "الافتراضي", ku: "بنەڕەت" },
         upload_image: { en: "Upload image", ar: "رفع صورة", ku: "بارکردنی وێنە" },
         uploading: { en: "Uploading…", ar: "جاري الرفع…", ku: "باردەکرێت…" },
         image_url_placeholder: { en: "https://… or paste an image URL", ar: "https://… أو الصق رابط صورة", ku: "https://… یان بەستەری وێنەیەک دابنێ" },
@@ -1568,7 +1570,7 @@ export const STRINGS = {
         title: { en: "Translations", ar: "الترجمات", ku: "وەرگێڕانەکان" },
         back: { en: "Back to preview", ar: "رجوع للمعاينة", ku: "گەڕانەوە بۆ پێشبینین" },
         // tFormat: {lang}
-        showing: { en: "Text not yet written in {lang}. Pick a language above.", ar: "نصوص لم تُكتب بعد بـ{lang}. اختر لغة من الأعلى.", ku: "دەقەکانی هێشتا بە {lang} نەنووسراون. زمانێک لە سەرەوە هەڵبژێرە." },
+        showing: { en: "Text not yet written in {lang}. Pick a language above.", ar: "نصوص لم تُترجم بعد إلى {lang}. اختر لغة من الأعلى.", ku: "دەقەکانی هێشتا بە {lang} نەنووسراون. زمانێک لە سەرەوە هەڵبژێرە." },
         globals: { en: "Top bar, header and footer", ar: "الشريط العلوي والرأس والتذييل", ku: "شریتی سەرەوە، سەرپەڕە و پێپەڕە" },
         translate: { en: "Translate", ar: "ترجم", ku: "وەرگێڕان" },
         page_meta: { en: "Page title and description in Google", ar: "عنوان الصفحة ووصفها في جوجل", ku: "ناونیشان و وەسفی پەڕە لە گووگڵ" },

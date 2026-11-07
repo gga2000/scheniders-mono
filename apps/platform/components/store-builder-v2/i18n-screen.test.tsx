@@ -110,6 +110,14 @@ describe("sourceSnippet", () => {
         expect(sourceSnippet(cfg, "home", "hero-1", "base.title_i18n")).toBe(`${"x".repeat(40)}…`);
     });
 
+    it("shows words, not rich-text markup", () => {
+        const cfg = homeWithHero();
+        const hero = cfg.pages.find((p) => p.page_id === "home")?.sections[0];
+        if (!hero) throw new Error("hero missing");
+        hero.base.title_i18n = { en: "**In short:** 7 days" };
+        expect(sourceSnippet(cfg, "home", "hero-1", "base.title_i18n")).toBe("In short: 7 days");
+    });
+
     it("returns null for an unknown section or a path with no text", () => {
         const cfg = homeWithHero();
         expect(sourceSnippet(cfg, "home", "nope", "base.subtitle_i18n")).toBeNull();

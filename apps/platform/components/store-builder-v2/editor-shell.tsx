@@ -1299,7 +1299,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     );
     // Health no longer blocks publish — surfaced via PublishConfirmSheet.
     const publishDisabled = !builder.has_unpublished_changes;
-    const publishBusy = builder.save_state === "saving";
+    const publishBusy = builder.is_publishing;
     // Health does NOT block publishing — these warnings are surfaced
     // (non-blocking) in the PublishConfirmSheet. The tooltip copy must say so,
     // otherwise it contradicts the enabled Publish button.

@@ -87,7 +87,12 @@ export function sourceSnippet(
     for (const loc of order) {
         const text = cells[loc];
         if (typeof text === "string" && text.trim()) {
-            const clean = text.trim().replace(/\s+/g, " ");
+            // Policy texts are rich text: drop the markup characters so the
+            // owner sees words, not "**".
+            const clean = text
+                .replace(/[*_#`>~]+/g, "")
+                .trim()
+                .replace(/\s+/g, " ");
             return clean.length > 40 ? `${clean.slice(0, 40)}…` : clean;
         }
     }
@@ -165,8 +170,11 @@ export function I18nScreen({
                                         : "border border-(--card-border) bg-(--background-soft) text-muted-foreground hover:border-(--border-hover) hover:text-foreground",
                                 )}
                             >
-                                <span>{t(STRINGS.languages[loc], locale)}</span>
-                                <span className="tabular-nums">{c.pct}%</span>
+                                {/* One run of text, so every chip reads in the same
+                                    order (name, then percent) in either direction. */}
+                                <span dir="auto" className="tabular-nums">
+                                    {`${t(STRINGS.languages[loc], locale)} ${c.pct}%`}
+                                </span>
                             </button>
                         );
                     })}
@@ -242,7 +250,12 @@ export function I18nScreen({
                                                     <div className="truncate font-medium">
                                                         {m.section_label}
                                                     </div>
-                                                    <div className="truncate text-[10px] text-muted-foreground">
+                                                    <div
+                                                        // The label leads in the reader's direction,
+                                                        // then the quoted text.
+                                                        dir="auto"
+                                                        className="truncate text-[10px] text-muted-foreground"
+                                                    >
                                                         {fieldLabelFromPath(m.path, locale)}
                                                         {m.snippet ? (
                                                             <>

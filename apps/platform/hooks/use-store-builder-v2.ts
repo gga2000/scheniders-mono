@@ -128,6 +128,8 @@ export interface UseStoreBuilderV2Return {
     /** Why the last publish failed ("conflict" = reload needed, "failed" =
      *  retry), or null. Drives the publish sheet error line and action. */
     publish_error: "failed" | "conflict" | null;
+    /** A publish is in flight (draft autosaves do not count). */
+    is_publishing: boolean;
 
     /** Actions. */
     save_draft: () => Promise<void>;
@@ -232,6 +234,17 @@ const HISTORY_DEBOUNCE_MS = 400;
 /** Exponential backoff for autosave retries (capped). The last value repeats. */
 const SAVE_BACKOFF_MS = [2_000, 5_000, 15_000] as const;
 
+/**
+ * The newest editor instance per tenant in this tab. An editor that was left
+ * (unmounted) keeps retrying a failed save in the background; once the owner
+ * opens the editor again, that stale copy must stop writing, or a late retry
+ * would overwrite the newer draft or bring a draft back after a publish. Its
+ * unsaved edits are not lost: they sit in the local backup, which the new
+ * editor offers to restore.
+ */
+const activeEditorInstance = new Map<string, number>();
+let editorInstanceSeq = 0;
+
 function localBackupKey(tenantId: string): string {
     return `schn-builder-v2-${tenantId}`;
 }
@@ -315,6 +328,9 @@ export function useStoreBuilderV2(
 
     /* ── Save state ───────────────────────────────────────────────── */
     const [save_state, set_save_state] = useState<SaveStateV2>("idle");
+    // True only while a publish is in flight — draft autosaves also use
+    // save_state "saving", so the Publish button must not read that.
+    const [is_publishing, set_is_publishing] = useState<boolean>(false);
     const [last_saved_at, set_last_saved_at] = useState<Date | null>(null);
     const [has_unpublished_changes, set_has_unpublished_changes] = useState<boolean>(
         initiallyDirty || !hasPublished,
@@ -437,6 +453,20 @@ export function useStoreBuilderV2(
     // from has_unpublished_changes, which stays true after a draft autosave.
     // Drives the beforeunload guard so we only warn on genuine loss risk.
     const pendingDraftWriteRef = useRef(false);
+    // This editor's id in activeEditorInstance (see there). Assigned once per
+    // mount; a newer mount for the same tenant supersedes it.
+    const instanceIdRef = useRef(0);
+    useEffect(() => {
+        editorInstanceSeq += 1;
+        instanceIdRef.current = editorInstanceSeq;
+        activeEditorInstance.set(tenantId, editorInstanceSeq);
+    }, [tenantId]);
+    const isSuperseded = useCallback(
+        (): boolean =>
+            instanceIdRef.current !== 0 &&
+            activeEditorInstance.get(tenantId) !== instanceIdRef.current,
+        [tenantId],
+    );
     // EC9: false until the DB has a full config skeleton (published OR a draft).
     // While false, edits must persist via a FULL config save, never an atomic
     // jsonb_set patch — a patch into a NULL/`{}` base would write only the edited
@@ -488,6 +518,8 @@ export function useStoreBuilderV2(
 
     const performSaveDraft = useCallback(
         async (cfg: StoreConfigV2): Promise<void> => {
+            // A newer editor owns this store's draft now: never write over it.
+            if (isSuperseded()) return;
             if (inFlightSaveRef.current) {
                 // Serialize: the follow-up saves the LATEST config once the
                 // in-flight write lands.
@@ -549,7 +581,7 @@ export function useStoreBuilderV2(
                         saveRetryRef.current.timer = null;
                         // A publish/revert in the meantime clears the pending
                         // flag — don't resurrect a just-cleared draft.
-                        if (!pendingDraftWriteRef.current) return;
+                        if (!pendingDraftWriteRef.current || isSuperseded()) return;
                         void saveDraftRef.current?.(configRef.current);
                     }, delay);
                 }
@@ -568,7 +600,7 @@ export function useStoreBuilderV2(
                 }
             }
         },
-        [tenantId],
+        [tenantId, isSuperseded],
     );
     saveDraftRef.current = performSaveDraft;
 
@@ -638,7 +670,7 @@ export function useStoreBuilderV2(
                 // Swallow quota / serialization errors.
             }
             const guardWhileOwed = (e: BeforeUnloadEvent): void => {
-                if (!pendingDraftWriteRef.current) {
+                if (!pendingDraftWriteRef.current || isSuperseded()) {
                     window.removeEventListener("beforeunload", guardWhileOwed);
                     return;
                 }
@@ -653,7 +685,7 @@ export function useStoreBuilderV2(
             });
         },
         // tenantId is fixed for the editor's lifetime.
-        [tenantId],
+        [tenantId, isSuperseded],
     );
 
     /* ── localStorage backup (every 30s) ──────────────────────────── */
@@ -707,7 +739,7 @@ export function useStoreBuilderV2(
         await performSaveDraft(config);
     }, [config, performSaveDraft]);
 
-    const publish = useCallback(async (): Promise<boolean> => {
+    const publishOnce = useCallback(async (): Promise<boolean> => {
         cancelAutoSave();
         set_publish_error(null);
         set_save_state("saving");
@@ -793,6 +825,15 @@ export function useStoreBuilderV2(
             return false;
         }
     }, [config, tenantId]);
+
+    const publish = useCallback(async (): Promise<boolean> => {
+        set_is_publishing(true);
+        try {
+            return await publishOnce();
+        } finally {
+            set_is_publishing(false);
+        }
+    }, [publishOnce]);
 
     const revert_to_published = useCallback(async (): Promise<void> => {
         cancelAutoSave();
@@ -1618,6 +1659,7 @@ export function useStoreBuilderV2(
 
         publish_conflict,
         publish_error,
+        is_publishing,
         save_draft,
         publish,
         revert_to_published,

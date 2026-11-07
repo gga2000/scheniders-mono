@@ -163,12 +163,14 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
     };
 
     // Optional + currently unset → show "Set" affordance. On/off settings
-    // are excluded: they always render as a switch (see the boolean case).
+    // and choice lists are excluded: a switch / a list with a "Default"
+    // choice says what the page does today (see their cases).
     if (
         optional &&
         value === undefined &&
         field.kind !== "i18n_string" &&
-        field.kind !== "boolean"
+        field.kind !== "boolean" &&
+        field.kind !== "enum"
     ) {
         return wrap(
             <div
@@ -622,12 +624,20 @@ export function ImageControl(p: ImageControlProps): ReactElement {
             const file = e.target.files?.[0];
             if (!file) return;
             if (!p.tenantId) {
-                toast.error("Missing tenant context for upload");
+                toast.error(
+                    tx(STRINGS.brand_kit_body.upload_failed_title, imageLocale),
+                    tx(STRINGS.brand_kit_body.upload_failed_body, imageLocale),
+                );
                 return;
             }
             const max = 4 * 1024 * 1024;
             if (file.size > max) {
-                toast.error(`${p.label} must be under 4MB`);
+                toast.error(
+                    tFormat(STRINGS.brand_kit_body.upload_too_large, imageLocale, {
+                        label: p.label,
+                        mb: 4,
+                    }),
+                );
                 return;
             }
             const ext = file.name.split(".").pop()?.toLowerCase() || "png";
@@ -642,16 +652,28 @@ export function ImageControl(p: ImageControlProps): ReactElement {
                     data: { publicUrl },
                 } = supabase.storage.from("tenant-assets").getPublicUrl(path);
                 p.onChange(publicUrl);
-                toast.success(`${p.label} uploaded`);
+                toast.success(
+                    tFormat(STRINGS.brand_kit_body.upload_success, imageLocale, {
+                        label: p.label,
+                    }),
+                );
             } catch (err: unknown) {
-                const msg = err instanceof Error ? err.message : "Upload failed";
-                toast.error("Upload failed", msg);
+                console.error("[auto-form] image upload failed:", err);
+                toast.error(
+                    tx(STRINGS.brand_kit_body.upload_failed_title, imageLocale),
+                    tx(STRINGS.brand_kit_body.upload_failed_body, imageLocale),
+                );
             } finally {
                 setUploading(false);
             }
         },
-        [p],
+        [p, imageLocale],
     );
+    // An image the owner uploaded here lives in our own storage: its address
+    // means nothing to them, so the link box is only for pasting an outside
+    // image (or when there is no image yet).
+    const isOwnUpload =
+        !!p.value && p.value.includes("/storage/v1/object/public/tenant-assets/");
 
     return (
         <div className="space-y-1.5">
@@ -696,8 +718,10 @@ export function ImageControl(p: ImageControlProps): ReactElement {
                     />
                 </label>
             </div>
+            {!isOwnUpload && (
             <input
                 type="url"
+                dir="ltr"
                 data-testid={`${p.testIdBase}-url`}
                 value={p.value}
                 onChange={(e) => p.onChange(e.target.value)}
@@ -707,6 +731,7 @@ export function ImageControl(p: ImageControlProps): ReactElement {
                     "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
                 )}
             />
+            )}
         </div>
     );
 }
@@ -834,7 +859,18 @@ interface EnumControlProps {
 
 export function EnumControl(p: EnumControlProps): ReactElement {
     const locale = useResolvedEditorLocale();
-    const useSegmented = p.options.length > 0 && p.options.length <= 4;
+    // An optional choice that is unset uses the section's built-in look,
+    // which is often none of the listed options — so "Default" is a real
+    // choice of its own (picking it clears the value).
+    const DEFAULT = "";
+    const choices = p.optional ? [DEFAULT, ...p.options] : p.options;
+    const labelFor = (opt: string): string =>
+        opt === DEFAULT ? tx(STRINGS.auto_form.enum_default, locale) : resolveEnumValueLabel(opt, locale);
+    const pick = (opt: string): void => {
+        if (opt === DEFAULT) p.onClear?.();
+        else p.onChange(opt);
+    };
+    const useSegmented = p.options.length > 0 && choices.length <= 4;
     return (
         <div className="space-y-1.5">
             <FieldHeader label={p.label} onClear={p.onClear} testIdBase={p.testIdBase} />
@@ -845,16 +881,16 @@ export function EnumControl(p: EnumControlProps): ReactElement {
                     data-testid={`${p.testIdBase}-segmented`}
                     className="inline-flex w-full rounded-xl border border-(--card-border) bg-(--card-bg) p-1"
                 >
-                    {p.options.map((opt) => {
+                    {choices.map((opt) => {
                         const active = opt === p.value;
                         return (
                             <button
-                                key={opt}
+                                key={opt || "default"}
                                 type="button"
                                 role="radio"
                                 aria-checked={active}
-                                data-testid={`${p.testIdBase}-option-${opt}`}
-                                onClick={() => p.onChange(opt)}
+                                data-testid={`${p.testIdBase}-option-${opt || "default"}`}
+                                onClick={() => pick(opt)}
                                 className={cn(
                                     "flex-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
                                     active
@@ -862,7 +898,7 @@ export function EnumControl(p: EnumControlProps): ReactElement {
                                         : "text-muted-foreground hover:bg-muted/40 hover:text-foreground",
                                 )}
                             >
-                                {resolveEnumValueLabel(opt, locale)}
+                                {labelFor(opt)}
                             </button>
                         );
                     })}
@@ -871,15 +907,15 @@ export function EnumControl(p: EnumControlProps): ReactElement {
                 <select
                     data-testid={`${p.testIdBase}-select`}
                     value={p.value}
-                    onChange={(e) => p.onChange(e.target.value)}
+                    onChange={(e) => pick(e.target.value)}
                     className={cn(
                         "w-full rounded-xl border border-(--card-border) bg-background px-3 py-2.5 text-sm",
                         "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
                     )}
                 >
-                    {p.options.map((opt) => (
-                        <option key={opt} value={opt}>
-                            {resolveEnumValueLabel(opt, locale)}
+                    {choices.map((opt) => (
+                        <option key={opt || "default"} value={opt}>
+                            {labelFor(opt)}
                         </option>
                     ))}
                 </select>
