@@ -58,6 +58,42 @@ function fieldLabelFromPath(path: string, locale: LocaleCode): string {
     return resolveFieldLabel(undefined, key, locale);
 }
 
+/**
+ * The text the row is about, in a language it already has (the store's
+ * default first), so rows for repeated fields — three quotes in one
+ * gallery — can be told apart. Null when there is nothing to show.
+ */
+export function sourceSnippet(
+    config: StoreConfigV2,
+    pageId: string,
+    sectionId: string,
+    path: string,
+): string | null {
+    const section = config.pages
+        .find((p) => p.page_id === pageId)
+        ?.sections.find((sec) => sec.id === sectionId);
+    if (!section) return null;
+    let node: unknown = section;
+    for (const seg of path.split(".")) {
+        if (node === null || typeof node !== "object") return null;
+        node = (node as Record<string, unknown>)[seg];
+    }
+    if (node === null || typeof node !== "object") return null;
+    const cells = node as Partial<Record<LocaleCode, unknown>>;
+    const order: LocaleCode[] = [
+        config.default_locale,
+        ...SUPPORTED_LOCALES.filter((l) => l !== config.default_locale),
+    ];
+    for (const loc of order) {
+        const text = cells[loc];
+        if (typeof text === "string" && text.trim()) {
+            const clean = text.trim().replace(/\s+/g, " ");
+            return clean.length > 40 ? `${clean.slice(0, 40)}…` : clean;
+        }
+    }
+    return null;
+}
+
 function pctColor(pct: number): string {
     if (pct < 40) return "bg-red-500";
     if (pct < 70) return "bg-amber-500";
@@ -157,6 +193,7 @@ export function I18nScreen({
                                 section_id: s.section_id,
                                 section_label: sectionLabel(s.section_id, s.type, s.label, locale),
                                 path,
+                                snippet: sourceSnippet(config, page.page_id, s.section_id, path),
                             })),
                         );
                         return (
@@ -207,6 +244,12 @@ export function I18nScreen({
                                                     </div>
                                                     <div className="truncate text-[10px] text-muted-foreground">
                                                         {fieldLabelFromPath(m.path, locale)}
+                                                        {m.snippet ? (
+                                                            <>
+                                                                {" · "}
+                                                                <bdi>«{m.snippet}»</bdi>
+                                                            </>
+                                                        ) : null}
                                                     </div>
                                                 </div>
                                                 {onSelectSection &&

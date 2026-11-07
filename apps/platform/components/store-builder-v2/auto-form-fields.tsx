@@ -87,6 +87,12 @@ export interface FieldRendererProps {
      */
     renderAdornment?: RenderFieldAdornment;
     isTopLevel?: boolean;
+    /**
+     * What the store does when this field is unset (the section's own
+     * default). An unset on/off setting shows as a switch in that state,
+     * never as an "add" button; without a default, unset means off.
+     */
+    unsetDefault?: unknown;
 }
 
 export function FieldRenderer(props: FieldRendererProps): ReactElement {
@@ -101,6 +107,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
         renderAdornment,
         isTopLevel,
         inline = false,
+        unsetDefault,
     } = props;
     const { field, optional } = useMemo(() => inferField(schema), [schema]);
     // Localized label + optional help via the field-meta channel.
@@ -155,8 +162,14 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
         );
     };
 
-    // Optional + currently unset → show "Set" affordance.
-    if (optional && value === undefined && field.kind !== "i18n_string") {
+    // Optional + currently unset → show "Set" affordance. On/off settings
+    // are excluded: they always render as a switch (see the boolean case).
+    if (
+        optional &&
+        value === undefined &&
+        field.kind !== "i18n_string" &&
+        field.kind !== "boolean"
+    ) {
         return wrap(
             <div
                 className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-(--card-border) px-3 py-2"
@@ -265,7 +278,11 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
             control = (
                 <BooleanControl
                     label={label}
-                    value={value as boolean | undefined}
+                    value={
+                        value === undefined
+                            ? unsetDefault === true
+                            : (value as boolean)
+                    }
                     onChange={onChange}
                     testIdBase={testIdBase}
                 />
@@ -757,13 +774,14 @@ export function NumberControl(p: NumberControlProps): ReactElement {
                     )}
                 />
             </div>
-            {(p.min !== undefined || p.max !== undefined) && (
+            {/* A bounded value already has a slider that shows its range;
+                only a one-sided limit needs spelling out. */}
+            {/* "Minimum: 0" on a count says nothing, so it is left out. */}
+            {!bounded && ((p.min !== undefined && p.min !== 0) || p.max !== undefined) && (
                 <p className="text-[11px] text-muted-foreground">
-                    {p.min !== undefined && p.max !== undefined
-                        ? tFormat(STRINGS.auto_form.range_hint, locale, { min: p.min, max: p.max })
-                        : p.min !== undefined
-                          ? tFormat(STRINGS.auto_form.min_hint, locale, { min: p.min })
-                          : tFormat(STRINGS.auto_form.max_hint, locale, { max: p.max ?? "" })}
+                    {p.min !== undefined && p.min !== 0
+                        ? tFormat(STRINGS.auto_form.min_hint, locale, { min: p.min })
+                        : tFormat(STRINGS.auto_form.max_hint, locale, { max: p.max ?? "" })}
                 </p>
             )}
         </div>

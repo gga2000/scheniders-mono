@@ -161,7 +161,11 @@ export function WelcomeCard({
 /* Mode intro popover + deep-link elevation toast                       */
 /* ─────────────────────────────────────────────────────────────────── */
 
-/** One-time card shown under the toolbar on the first manual switch to Advanced. */
+/**
+ * One-time card on the first manual switch to Advanced. Rendered by the
+ * toolbar inside the mode toggle's wrapper so it points at the control it
+ * explains instead of covering the middle of the screen.
+ */
 export function ModeIntroPopover({
     locale,
     onDismiss,
@@ -174,7 +178,7 @@ export function ModeIntroPopover({
             data-testid="mode-intro-popover"
             role="dialog"
             aria-label={t(STRINGS.mode.intro_title, locale)}
-            className="fixed left-1/2 top-16 z-50 w-full max-w-sm -translate-x-1/2 rounded-2xl border border-(--card-border) bg-(--card-bg) p-4 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.35)]"
+            className="absolute left-0 top-full z-50 mt-2 w-80 rounded-2xl border border-(--card-border) bg-(--card-bg) p-4 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.35)]"
         >
             <h3 className="text-sm font-bold text-foreground">
                 {t(STRINGS.mode.intro_title, locale)}

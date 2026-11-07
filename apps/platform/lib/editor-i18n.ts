@@ -114,7 +114,7 @@ export const STRINGS = {
         page_policy_returns: { en: "Returns", ar: "الإرجاع", ku: "گەڕاندنەوە" },
         page_policy_privacy: { en: "Privacy", ar: "الخصوصية", ku: "تایبەتمەندێتی" },
         page_policy_terms: { en: "Terms", ar: "الشروط", ku: "مەرجەکان" },
-        page_not_found: { en: "404", ar: "404", ku: "404" },
+        page_not_found: { en: "Page not found", ar: "صفحة غير موجودة", ku: "پەڕە نەدۆزرایەوە" },
         // Settings
         setting_brand_kit: { en: "Style & branding", ar: "هوية العلامة", ku: "کیتی برێند" },
         setting_health: { en: "Store health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },
@@ -238,7 +238,7 @@ export const STRINGS = {
     variant: {
         heading: { en: "Versions", ar: "النسخ", ku: "وەشانەکان" },
         add: { en: "New version", ar: "نسخة جديدة", ku: "وەشانی نوێ" },
-        empty_hint: { en: "No versions yet. Versions let you show this section differently — by date, device, city, language, or as an A/B test.", ar: "لا توجد نسخ بعد. تتيح لك النسخ عرض هذا القسم بشكل مختلف — حسب التاريخ أو الجهاز أو المدينة أو اللغة أو كاختبار A/B.", ku: "هێشتا هیچ وەشانێک نییە. وەشانەکان ڕێگەت دەدەن ئەم بەشە بە جیاوازی پیشانبدەیت — بەپێی بەروار، ئامێر، شار، زمان، یان وەکو تاقیکردنەوەی A/B." },
+        empty_hint: { en: "No versions yet. Versions let you show this section differently — by date, device, city, language, or as an A/B test.", ar: "لا توجد نسخ بعد. تتيح لك النسخ عرض هذا القسم بشكل مختلف — حسب التاريخ أو الجهاز أو المدينة أو اللغة أو كتجربة تقارن بين نسختين.", ku: "هێشتا هیچ وەشانێک نییە. وەشانەکان ڕێگەت دەدەن ئەم بەشە بە جیاوازی پیشانبدەیت — بەپێی بەروار، ئامێر، شار، زمان، یان وەکو تاقیکردنەوەی A/B." },
         empty_first_button: { en: "Add your first version", ar: "أضف أول نسخة", ku: "یەکەم وەشانت زیاد بکە" },
         row_drag: { en: "Drag to reorder", ar: "اسحب لإعادة الترتيب", ku: "ڕایبکێشە بۆ ڕێکخستنەوە" },
         row_enabled: { en: "On", ar: "تشغيل", ku: "هەڵکراو" },
@@ -281,7 +281,7 @@ export const STRINGS = {
         preset_mobile_desc: { en: "Show different content on phones.", ar: "اعرض محتوى مختلفاً على الهواتف.", ku: "ناوەڕۆکی جیاواز لەسەر مۆبایلەکان پیشان بدە." },
         preset_governorate_title: { en: "Different city / governorate", ar: "مدينة / محافظة مختلفة", ku: "شار / پارێزگای جیاواز" },
         preset_governorate_desc: { en: "Target a specific Iraqi governorate.", ar: "استهدف محافظة عراقية محددة.", ku: "پارێزگایەکی عێراقی دیاریکراو ئامانج بکە." },
-        preset_ab_title: { en: "A/B test two versions", ar: "اختبار A/B لنسختين", ku: "تاقیکردنەوەی A/B بۆ دوو وەشان" },
+        preset_ab_title: { en: "A/B test two versions", ar: "قارن بين نسختين", ku: "تاقیکردنەوەی A/B بۆ دوو وەشان" },
         preset_ab_desc: { en: "Split traffic to find the winner.", ar: "قسّم الزوار لإيجاد الفائز.", ku: "سەردانیکەران دابەش بکە بۆ دۆزینەوەی براوە." },
         preset_advanced: { en: "Advanced — choose any rule", ar: "متقدم — اختر أي قاعدة", ku: "پێشکەوتوو — هەر ڕێسایەک هەڵبژێرە" },
         preset_ab_auto_name: { en: "Test on {section}", ar: "اختبار على {section}", ku: "تاقیکردنەوە لەسەر {section}" },
@@ -449,6 +449,9 @@ export const STRINGS = {
         diff_hide: { en: "Hide", ar: "إخفاء", ku: "شاردنەوە" },
         // Simple-mode collapsed recommendations (S3-05): tFormat {n}
         recommendations_toggle: { en: "Recommendations ({n})", ar: "توصيات ({n})", ku: "پێشنیارەکان ({n})" },
+        // Always-visible state beside the Publish button (no hover needed).
+        state_up_to_date: { en: "Live store is up to date", ar: "المتجر المنشور محدَّث", ku: "فرۆشگای بڵاوکراوە نوێیە" },
+        state_pending: { en: "Changes not live yet", ar: "تعديلات لم تُنشر بعد", ku: "گۆڕانکاری هێشتا بڵاونەکراونەتەوە" },
         disabled_no_changes: { en: "Nothing to publish — make a change first.", ar: "لا شيء للنشر — قم بإجراء تغيير أولاً.", ku: "هیچ شت بۆ بڵاوکردنەوە نییە — سەرەتا گۆڕانکارییەک بکە." },
         failed: { en: "Publish failed — please try again.", ar: "فشل النشر — يرجى المحاولة مرة أخرى.", ku: "بڵاوکردنەوە سەرنەکەوت — تکایە دووبارە هەوڵبدەرەوە." },
         retry: { en: "Retry publish", ar: "إعادة المحاولة", ku: "دووبارە هەوڵبدەرەوە" },
@@ -688,8 +691,8 @@ export const STRINGS = {
         hidden_page: { en: "Hidden", ar: "مخفية", ku: "شاراوە" },
         page_other: { en: "Another store address…", ar: "عنوان ثاني بالمتجر…", ku: "ناونیشانێکی تری فرۆشگا…" },
         page_other_label: { en: "Store address", ar: "عنوان بالمتجر", ku: "ناونیشانی فرۆشگا" },
+        still_opens: { en: "Until you pick one it still opens", ar: "إلى أن تختار، يبقى يفتح", ku: "تا هەڵدەبژێریت هێشتا دەکاتەوە" },
         page_other_placeholder: { en: "/products?sort=sale", ar: "/products?sort=sale", ku: "/products?sort=sale" },
-        stored_as: { en: "Opens", ar: "يفتح", ku: "دەکاتەوە" },
         page_home: { en: "Home", ar: "الرئيسية", ku: "سەرەکی" },
         page_products: { en: "All products", ar: "كل المنتجات", ku: "هەموو بەرهەمەکان" },
         page_search: { en: "Search", ar: "البحث", ku: "گەڕان" },
@@ -737,7 +740,6 @@ export const STRINGS = {
         bp_use_base: { en: "Use base value", ar: "استخدم القيمة الأساسية", ku: "بەهای بنەڕەت بەکاربهێنە" },
         bp_unavailable: { en: "Override unavailable for this field type.", ar: "التخصيص غير متاح لهذا النوع من الحقول.", ku: "دەستکاری بەردەست نییە بۆ ئەم جۆرە خانەیە." },
         // tFormat: {min} {max} — numeric bound hints
-        range_hint: { en: "Range: {min}–{max}", ar: "النطاق: {min}–{max}", ku: "مەودا: {min}–{max}" },
         min_hint: { en: "Min: {min}", ar: "الأدنى: {min}", ku: "کەمترین: {min}" },
         max_hint: { en: "Max: {max}", ar: "الأقصى: {max}", ku: "زۆرترین: {max}" },
     },
@@ -1271,7 +1273,7 @@ export const STRINGS = {
 
         // Experiments screen
         exp_empty_title: { en: "No experiments yet", ar: "لا توجد تجارب بعد", ku: "هێشتا هیچ تاقیکردنەوەیەک نییە" },
-        exp_empty_body: { en: "Run A/B tests against any section variant. Pick a primary metric, split traffic across arms, and promote the winner.", ar: "شغّل اختبارات A/B على أي نسخة من عنصر. اختر مقياساً أساسياً، قسّم الزوار على الأذرع، ثم رقّ الفائز.", ku: "تاقیکردنەوەی A/B لەسەر هەر وەشانێکی بەش ئەنجام بدە. پێوەرێکی سەرەکی هەڵبژێرە، سەردانیکەران دابەش بکە، پاشان براوە پلەی بەرز بکەرەوە." },
+        exp_empty_body: { en: "Run A/B tests against any section variant. Pick a primary metric, split traffic across arms, and promote the winner.", ar: "قارن بين نسختين من أي قسم: اختر ما تريد قياسه، قسّم الزوار بينهما، ثم اعتمد النسخة الأفضل.", ku: "تاقیکردنەوەی A/B لەسەر هەر وەشانێکی بەش ئەنجام بدە. پێوەرێکی سەرەکی هەڵبژێرە، سەردانیکەران دابەش بکە، پاشان براوە پلەی بەرز بکەرەوە." },
         exp_empty_new: { en: "Create your first experiment", ar: "أنشئ أول تجربة", ku: "یەکەم تاقیکردنەوەت دروست بکە" },
         exp_primary_metric_label: { en: "Primary metric:", ar: "المقياس الأساسي:", ku: "پێوەری سەرەکی:" },
         exp_traffic_split: { en: "Traffic split:", ar: "تقسيم الزوار:", ku: "دابەشکردنی سەردانیکەران:" },

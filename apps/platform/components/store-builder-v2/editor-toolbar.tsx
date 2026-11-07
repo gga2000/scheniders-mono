@@ -20,6 +20,7 @@ import {
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import type { EditorMode } from "@/lib/editor-mode-context";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { cn } from "@/lib/utils";
 import {
     BreakpointToggle,
     LocaleSelect,
@@ -34,6 +35,8 @@ import {
 import { I18nToolbarPill } from "./i18n-screen";
 
 export interface EditorToolbarProps {
+    /** One-time card anchored under the mode toggle. */
+    modeIntro?: React.ReactNode;
     tenantName: string;
     builder: UseStoreBuilderV2Return;
     editorMode: EditorMode;
@@ -64,6 +67,7 @@ export function EditorToolbar({
     publishDisabled,
     publishBusy,
     publishBlockedReason,
+    modeIntro,
 }: EditorToolbarProps): React.ReactElement {
     return (
         <header
@@ -99,7 +103,10 @@ export function EditorToolbar({
             </div>
 
             <div className="flex items-center gap-2.5">
-                <ModeToggle value={editorMode} onChange={onChangeMode} />
+                <span className="relative">
+                    <ModeToggle value={editorMode} onChange={onChangeMode} />
+                    {modeIntro}
+                </span>
                 <LocaleSelect
                     value={builder.active_locale}
                     onChange={builder.set_active_locale}
@@ -210,6 +217,28 @@ export function EditorToolbar({
                         void builder.save_draft();
                     }}
                 />
+                <span
+                    data-testid="publish-state"
+                    data-pending={publishDisabled ? "false" : "true"}
+                    className={cn(
+                        "inline-flex items-center gap-1.5 text-xs font-medium",
+                        publishDisabled ? "text-muted-foreground" : "text-amber-700 dark:text-amber-400",
+                    )}
+                >
+                    <span
+                        aria-hidden="true"
+                        className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            publishDisabled ? "bg-emerald-500" : "bg-amber-500",
+                        )}
+                    />
+                    {t(
+                        publishDisabled
+                            ? STRINGS.publish.state_up_to_date
+                            : STRINGS.publish.state_pending,
+                        builder.active_locale,
+                    )}
+                </span>
                 <PublishButton
                     onPublish={onPublish}
                     disabled={publishDisabled}

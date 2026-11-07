@@ -1677,6 +1677,15 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 publishDisabled={publishDisabled}
                 publishBusy={publishBusy}
                 publishBlockedReason={publishBlockedReason}
+                modeIntro={
+                    // One-time Advanced-mode intro (first manual switch)
+                    mode_intro_open ? (
+                        <ModeIntroPopover
+                            locale={builder.active_locale}
+                            onDismiss={dismiss_mode_intro}
+                        />
+                    ) : null
+                }
             />
 
             {/* BUG25: another editor published since we loaded — publishing was
@@ -1727,13 +1736,6 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 />
             )}
 
-            {/* One-time Advanced-mode intro (first manual switch) */}
-            {mode_intro_open && (
-                <ModeIntroPopover
-                    locale={builder.active_locale}
-                    onDismiss={dismiss_mode_intro}
-                />
-            )}
             {/* Deep link forced Advanced for this visit */}
             {mode_elevated_toast && (
                 <ModeElevatedToast

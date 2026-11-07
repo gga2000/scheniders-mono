@@ -87,7 +87,9 @@ export const PreviewFrame = forwardRef<HTMLIFrameElement, PreviewFrameProps>(
                 data-testid="preview-frame"
                 data-breakpoint={breakpoint}
                 data-zoom={zoom}
-                className="relative flex h-full w-full items-center overflow-auto bg-muted/30 p-4"
+                // pb-12: a strip under the frame for the shell's zoom pill, so
+                // the pill never sits on top of the store page.
+                className="relative flex h-full w-full items-center overflow-auto bg-muted/30 px-4 pt-4 pb-12"
                 // "safe center": centred when it fits; when a fixed zoom makes
                 // the frame wider than the canvas it starts at the left edge
                 // and scrolls, instead of being squeezed or cut off.

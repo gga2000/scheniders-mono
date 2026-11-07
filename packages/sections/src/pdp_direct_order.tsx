@@ -363,6 +363,11 @@ const schema = z.object({
 export type Props = z.infer<typeof schema>;
 
 const defaultProps: Props = {
+  // On unless turned off (render reads `!== false`); listed so the
+  // editor shows these switches as on while they are unset. show_gallery
+  // is left out: classic reads it as off-when-unset, express as on.
+  show_notice: true,
+  show_scroll_hint: true,
   show_price_row: true,
   form_title_i18n: {
     en: "Fill in your details below to reserve your order:",

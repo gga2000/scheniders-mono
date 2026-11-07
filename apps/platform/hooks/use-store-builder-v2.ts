@@ -613,15 +613,47 @@ export function useStoreBuilderV2(
     // Leaving the editor in-app (the back link is a client navigation, so no
     // beforeunload fires) must not drop an edit still inside the 2s debounce:
     // replace the pending timer with an immediate save of the latest config.
+    // The same applies after a FAILED save: the backoff retry (up to 15s away)
+    // would otherwise be the only write left, so it is pulled forward too.
     useEffect(
         () => () => {
-            const hadPendingTimer = autoSaveTimerRef.current !== null;
             cancelAutoSave();
-            if (hadPendingTimer && pendingDraftWriteRef.current) {
-                void saveDraftRef.current?.(configRef.current);
+            const retry = saveRetryRef.current;
+            if (retry.timer) {
+                clearTimeout(retry.timer);
+                retry.timer = null;
             }
+            if (!pendingDraftWriteRef.current) return;
+            // The editor is gone but a save is still owed. Keep a local
+            // backup right now (the 30s one may be stale) and keep warning on
+            // tab close until the write lands: the component's own guard
+            // below is removed with it. Failed saves keep retrying in the
+            // background, and a later success clears the pending flag.
+            try {
+                window.localStorage.setItem(
+                    localBackupKey(tenantId),
+                    JSON.stringify({ saved_at: Date.now(), config: configRef.current }),
+                );
+            } catch {
+                // Swallow quota / serialization errors.
+            }
+            const guardWhileOwed = (e: BeforeUnloadEvent): void => {
+                if (!pendingDraftWriteRef.current) {
+                    window.removeEventListener("beforeunload", guardWhileOwed);
+                    return;
+                }
+                e.preventDefault();
+                e.returnValue = "";
+            };
+            window.addEventListener("beforeunload", guardWhileOwed);
+            void saveDraftRef.current?.(configRef.current)?.finally(() => {
+                if (!pendingDraftWriteRef.current) {
+                    window.removeEventListener("beforeunload", guardWhileOwed);
+                }
+            });
         },
-        [],
+        // tenantId is fixed for the editor's lifetime.
+        [tenantId],
     );
 
     /* ── localStorage backup (every 30s) ──────────────────────────── */

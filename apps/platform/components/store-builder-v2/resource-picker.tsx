@@ -661,6 +661,8 @@ export function LinkPickerField({
                         <input
                             data-testid={testId ? `${testId}-path` : undefined}
                             className={FIELD_CLS}
+                            // A path / URL reads left to right even in Arabic.
+                            dir="ltr"
                             value={typedFor("page")}
                             onChange={(e) => write(e.target.value)}
                             placeholder={tx(STRINGS.picker.page_other_placeholder, locale)}
@@ -685,6 +687,7 @@ export function LinkPickerField({
                 <input
                     data-testid={testId}
                     className={FIELD_CLS}
+                    dir="ltr"
                     value={typedFor("external")}
                     onChange={(e) => write(e.target.value)}
                     placeholder={tx(STRINGS.picker.external_placeholder, locale)}
@@ -692,9 +695,12 @@ export function LinkPickerField({
                 />
             )}
 
-            {href && (
+            {/* Only while the owner is switching to a new kind of target
+                (nothing picked yet) does the old link still apply — say so. */}
+            {href && kind !== stored.kind && (
                 <p className="text-[11px] text-muted-foreground">
-                    {tx(STRINGS.picker.stored_as, locale)} <code>{href}</code>
+                    {tx(STRINGS.picker.still_opens, locale)}{" "}
+                    <bdi dir="ltr">{href}</bdi>
                 </p>
             )}
         </div>

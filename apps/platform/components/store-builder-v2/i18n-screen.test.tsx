@@ -6,7 +6,7 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
 
-import { I18nScreen, I18nToolbarPill } from "./i18n-screen";
+import { I18nScreen, I18nToolbarPill, sourceSnippet } from "./i18n-screen";
 
 afterEach(() => {
     cleanup();
@@ -91,5 +91,28 @@ describe("I18nScreen", () => {
         expect(pill.textContent).not.toMatch(/\b(ar|en|ku)\b/);
         fireEvent.click(pill);
         expect(onClick).toHaveBeenCalled();
+    });
+});
+
+describe("sourceSnippet", () => {
+    it("shows the text in the store's own language so repeated rows differ", () => {
+        const cfg = homeWithHero();
+        expect(sourceSnippet(cfg, "home", "hero-1", "base.subtitle_i18n")).toBe("Welcome");
+    });
+
+    it("falls back to another language and shortens long text", () => {
+        const cfg = homeWithHero();
+        cfg.default_locale = "ku";
+        const long = "x".repeat(60);
+        const hero = cfg.pages.find((p) => p.page_id === "home")?.sections[0];
+        if (!hero) throw new Error("hero missing");
+        hero.base.title_i18n = { en: long };
+        expect(sourceSnippet(cfg, "home", "hero-1", "base.title_i18n")).toBe(`${"x".repeat(40)}…`);
+    });
+
+    it("returns null for an unknown section or a path with no text", () => {
+        const cfg = homeWithHero();
+        expect(sourceSnippet(cfg, "home", "nope", "base.subtitle_i18n")).toBeNull();
+        expect(sourceSnippet(cfg, "home", "hero-1", "base.missing_i18n")).toBeNull();
     });
 });

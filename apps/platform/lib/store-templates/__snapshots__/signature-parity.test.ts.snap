@@ -742,7 +742,9 @@ exports[`scheniders_signature parity > produces the same config as before the di
             },
             "show_description": true,
             "show_gallery": true,
+            "show_notice": true,
             "show_price_row": true,
+            "show_scroll_hint": true,
             "show_whatsapp": true,
             "stock_urgency_i18n": {
               "ar": "هذا العطر عليه طلب كبير ✨ سارع بالطلب — باقي {count} قطع فقط",
