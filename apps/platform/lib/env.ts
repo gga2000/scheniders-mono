@@ -97,6 +97,10 @@ const serverSchema = z.object({
     // (app/api/webhooks/storefront-order). Interakt is one global sender, so
     // list only tenants whose customers expect messages from that number.
     STOREFRONT_WA_CONFIRM_TENANT_IDS: tenantIdList.optional(),
+    // Stores allowed to send ANY WhatsApp through the one platform Interakt
+    // number (INTERAKT_API_KEY). Unset = nobody sends: a store not listed here
+    // must never message customers from another store's number.
+    INTERAKT_SENDER_TENANT_IDS: tenantIdList.optional(),
 });
 
 // =============================================
@@ -156,6 +160,7 @@ function validateEnv() {
             TELEGRAM_BOT_TOKEN: orUndef(process.env.TELEGRAM_BOT_TOKEN),
             TELEGRAM_WEBHOOK_SECRET: orUndef(process.env.TELEGRAM_WEBHOOK_SECRET),
             STOREFRONT_WA_CONFIRM_TENANT_IDS: orUndef(process.env.STOREFRONT_WA_CONFIRM_TENANT_IDS),
+            INTERAKT_SENDER_TENANT_IDS: orUndef(process.env.INTERAKT_SENDER_TENANT_IDS),
         });
 
         if (!serverResult.success) {

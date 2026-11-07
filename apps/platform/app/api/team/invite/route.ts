@@ -56,7 +56,9 @@ export async function POST(request: Request) {
         const { data: existingProfile } = await admin
             .from("user_profiles")
             .select("id")
-            .ilike("email", email)
+            // Exact match: emails are stored lower-case, and ilike treats "_" and "%"
+            // as wildcards, so "john_doe@" would match a different person's "john1doe@".
+            .eq("email", email)
             .maybeSingle();
         if (existingProfile) {
             const { data: existingMember } = await admin

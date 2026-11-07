@@ -136,6 +136,7 @@ async function deliver(db: ServiceDb, tenantId: string, raw: Row, image: string,
     if (!claimed || claimed.length === 0) return "taken";
 
     const result = await sendNamedTemplate({
+        tenantId,
         phone: order.phone,
         name: PRIME_FAILED_NOTICE_TEMPLATE,
         languageCode: TEMPLATE_LANGUAGE,
