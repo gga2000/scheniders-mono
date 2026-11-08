@@ -45,3 +45,14 @@ describe("ProductInventorySection storefront stock toggle", () => {
         expect(updateField).toHaveBeenCalledWith("storefront_sold_out", true);
     });
 });
+
+describe("ProductInventorySection stock field", () => {
+    it("is found by its label and starts empty at 0, so typing 20 is not read as 020", () => {
+        const updateField = vi.fn();
+        render(<ProductInventorySection formData={{ ...form(null), stock_quantity: 0 }} updateField={updateField} />);
+        const stock = screen.getByLabelText("products.ed.stock") as HTMLInputElement;
+        expect(stock.value).toBe("");
+        fireEvent.change(stock, { target: { value: "20" } });
+        expect(updateField).toHaveBeenCalledWith("stock_quantity", 20);
+    });
+});
