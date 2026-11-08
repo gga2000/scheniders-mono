@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
 import { scheduleReminderAfterConfirmation } from "@/lib/follow-up-schedule";
-import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
+import { sendTemplateMessage, TEMPLATE_NAMES } from "@/lib/interakt";
 import type { Order } from "@/types/order";
 import { flagOrderForWhatsAppFailure, clearWhatsAppFailureFlags } from "@/lib/whatsapp-error-handler";
-import { createSupabaseServiceClient, createSupabaseServerClientWithToken, verifyAccessToken } from "@/lib/supabase-server";
+import { createSupabaseServiceClient, createSupabaseServerClientWithToken } from "@/lib/supabase-server";
 import { normalizePhoneForSearch } from "@/lib/order-utils";
 import { followUpStamp, senderDisplayName } from "@/lib/follow-up-state";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+
+/**
+ * Hand sends per store per hour. The busiest real hour so far was 17
+ * (whatsapp_logs, 2026-11-08), so 120 never stops real work while bounding
+ * what one compromised staff login can spend on the store's WhatsApp bill.
+ */
+const MANUAL_SENDS_PER_STORE_PER_HOUR = 120;
+
+const sendBodySchema = z.object({
+    order: z.object({ id: z.string().uuid() }).passthrough(),
+    overridePhone: z.string().trim().min(1).max(32).optional(),
+    templateType: z.enum(["confirmation", "reminder", "discount"]).default("confirmation"),
+    discountPercent: z.number().int().min(1).max(90).optional(),
+    customPrice: z.number().min(0).max(100_000_000).transform(Math.round).optional(),
+});
 
 let _supabaseAdmin: ReturnType<typeof createSupabaseServiceClient> | null = null;
 const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
@@ -33,35 +50,44 @@ const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
  */
 export async function POST(request: NextRequest) {
     try {
-        const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-        if (!token) {
-            return NextResponse.json({ success: false, error: "Missing Authorization header" }, { status: 401 });
+        // A paid send: only an active store member, metered per store, failing
+        // closed when the meter is down.
+        const caller = await requireMeteredCaller(request, {
+            bucket: "wa-manual-send",
+            limit: MANUAL_SENDS_PER_STORE_PER_HOUR,
+            windowSeconds: 3600,
+        });
+        if (!caller.ok) return caller.response;
+        const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+        const userClient = createSupabaseServerClientWithToken(token);
+
+        // Messaging a customer is order work: a read-only viewer may not.
+        const { data: canEdit, error: permError } = await userClient.rpc("has_tenant_permission", {
+            p_tenant_id: caller.tenantId,
+            p_permission: "orders.edit",
+        });
+        if (permError) {
+            console.error("[Interakt Send API] permission check failed:", permError);
+            return NextResponse.json({ success: false, error: "Permission check failed" }, { status: 500 });
         }
-        const { user, error: authError } = await verifyAccessToken(token);
-        if (authError || !user) {
-            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+        if (canEdit !== true) {
+            return NextResponse.json({ success: false, error: "Your role cannot send messages" }, { status: 403 });
         }
 
-        const payload = await request.json();
-        const requestedOrderId = (payload.order as Order | undefined)?.id;
-        const overridePhone = payload.overridePhone as string | undefined;
-        const templateType = (payload.templateType as TemplateType) || 'confirmation';
-        const discountPercent = payload.discountPercent as number | undefined;
-        const customPrice = payload.customPrice as number | undefined;
-
-        if (!requestedOrderId) {
-            return NextResponse.json(
-                { success: false, error: "Invalid order data" },
-                { status: 400 }
-            );
+        const parsed = sendBodySchema.safeParse(await request.json());
+        if (!parsed.success) {
+            return NextResponse.json({ success: false, error: "Invalid order data" }, { status: 400 });
         }
+        const requestedOrderId = parsed.data.order.id;
+        const { overridePhone, templateType, discountPercent, customPrice } = parsed.data;
 
         // Read under the caller's RLS, so tenant scoping is enforced by the same
         // policy the rest of the app uses rather than re-implemented here.
-        const { data: order, error: orderError } = await createSupabaseServerClientWithToken(token)
+        const { data: order, error: orderError } = await userClient
             .from("orders")
             .select(ORDER_READ_COLUMNS)
             .eq("id", requestedOrderId)
+            .eq("tenant_id", caller.tenantId)
             .maybeSingle<Order>();
 
         if (orderError || !order || !order.phone) {
@@ -108,7 +134,7 @@ export async function POST(request: NextRequest) {
                     // Which path sent it, and on whose behalf: without these the
                     // log cannot tell an agent's send from an automatic one.
                     source: "interakt-send",
-                    sentByUserId: user.id,
+                    sentByUserId: caller.userId,
                 },
             });
         } catch (logErr) {
@@ -139,16 +165,16 @@ export async function POST(request: NextRequest) {
             // Who sent it, from the verified token rather than the request body,
             // so the card's sender avatar cannot be forged. Read under the
             // caller's own RLS: a profile they cannot see is not theirs to claim.
-            const { data: senderProfile, error: profileError } = await createSupabaseServerClientWithToken(token)
+            const { data: senderProfile, error: profileError } = await userClient
                 .from("user_profiles")
                 .select("display_name, avatar_url")
-                .eq("id", user.id)
+                .eq("id", caller.userId)
                 .maybeSingle<{ display_name: string | null; avatar_url: string | null }>();
             if (profileError) {
                 // Still attributed — under the account email instead of the display name.
                 console.error("[Interakt Send API] Failed to read sender profile:", profileError);
             }
-            const senderName = senderDisplayName(senderProfile, user.email);
+            const senderName = senderDisplayName(senderProfile, caller.email);
 
             await supabaseAdmin()
                 .from("orders")

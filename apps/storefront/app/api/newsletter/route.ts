@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveI18n } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { clientIp, consumeRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -51,6 +52,9 @@ function successMessageFrom(config: unknown, locale: string | undefined): string
   return resolved?.trim() ? resolved : null;
 }
 
+const NEWSLETTER_PER_IP_PER_HOUR = 5;
+const NEWSLETTER_PER_STORE_PER_HOUR = 200;
+
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     let body: unknown;
@@ -71,6 +75,21 @@ export async function POST(req: Request): Promise<NextResponse> {
       );
     }
     const { tenant_id, email, locale } = parsed.data;
+
+    // A script could otherwise fill a store's list with addresses it does not
+    // own. Real visitors sign up once; fail-closed, since nobody loses an
+    // order when a sign-up waits a minute.
+    const ip = clientIp(req.headers);
+    const caps = await Promise.all([
+      consumeRateLimit(`newsletter:ip:${ip}`, NEWSLETTER_PER_IP_PER_HOUR, 3600, "fail-closed"),
+      consumeRateLimit(`newsletter:store:${tenant_id}`, NEWSLETTER_PER_STORE_PER_HOUR, 3600, "fail-closed"),
+    ]);
+    if (caps.some((c) => !c.allowed)) {
+      return NextResponse.json(
+        { ok: false, error: "محاولات كثيرة. حاول لاحقاً." },
+        { status: 429 },
+      );
+    }
 
     // Service client — same trusted-server pattern as /api/reviews. Anon RLS
     // does allow this INSERT (policy `public_subscribe_with_tenant`), but the

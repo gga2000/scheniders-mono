@@ -4,6 +4,7 @@ import { z } from "zod";
 import { assignAbArm } from "@scheniders/shared";
 import type { Experiment } from "@scheniders/shared";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { clientIp, consumeRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,6 +17,13 @@ const bodySchema = z.object({
   arm_id: z.string().min(1).optional(),
   event_type: z.enum(["view", "add_to_cart", "click"]),
 });
+
+// Forged beacons (a rival scripting fake funnel events) would skew the store's
+// ad optimisation or A/B result. A real shopper sends a handful per page; the
+// cap is far above that. Fail-open: an analytics beacon must never break a
+// page, and a limiter outage only loses the cap, not the event's checks.
+const BEACONS_PER_IP = 120;
+const BEACON_WINDOW_SECONDS = 600;
 
 export async function POST(req: Request): Promise<NextResponse> {
   try {
@@ -39,6 +47,12 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (!visitor_key) {
       // Can't attribute — no-op (beacon is fire-and-forget; 204 is fine).
       return new NextResponse(null, { status: 204 });
+    }
+
+    const ip = clientIp(req.headers);
+    if (ip !== "unknown") {
+      const cap = await consumeRateLimit(`exp-event:ip:${ip}`, BEACONS_PER_IP, BEACON_WINDOW_SECONDS, "fail-open");
+      if (!cap.allowed) return new NextResponse(null, { status: 204 });
     }
 
     const serviceClient = createSupabaseServiceClient();
