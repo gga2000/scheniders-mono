@@ -11,6 +11,7 @@ import FAQSection from "@/components/sections/FAQSection";
 import PoliciesSection from "@/components/sections/PoliciesSection";
 import type { TemplateHomeProps } from "../registry";
 import type { SectionConfig } from "@scheniders/shared";
+import { AboutBody } from "@/components/storefront/AboutBody";
 
 const DEFAULT_SECTIONS_ORDER = ["hero", "products", "about"];
 
@@ -66,7 +67,7 @@ export default function ElectronicsHome({ tenant, products, categories }: Templa
       <section key="about" className="py-16 border-t border-zinc-800">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-6">{about.title || "من نحن"}</h2>
-          <div className="text-zinc-400 leading-relaxed text-lg prose prose-sm max-w-none prose-invert" dangerouslySetInnerHTML={{ __html: about.body || "" }} />
+          <AboutBody className="text-zinc-400 leading-relaxed text-lg prose prose-sm max-w-none prose-invert" body={about.body} />
         </div>
       </section>
     ) : null,

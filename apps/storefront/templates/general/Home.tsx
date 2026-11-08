@@ -11,6 +11,7 @@ import FAQSection from "@/components/sections/FAQSection";
 import PoliciesSection from "@/components/sections/PoliciesSection";
 import type { TemplateHomeProps } from "../registry";
 import type { SectionConfig } from "@scheniders/shared";
+import { AboutBody } from "@/components/storefront/AboutBody";
 
 const DEFAULT_SECTIONS_ORDER = ["hero", "categories", "products", "about"];
 
@@ -82,7 +83,7 @@ export default function GeneralHome({ tenant, products, categories }: TemplateHo
     about: about?.enabled ? (
       <section key="about" className="py-12 px-4 max-w-4xl mx-auto text-center">
         <h2 className="text-2xl font-bold mb-4">{about.title || "من نحن"}</h2>
-        <div className="text-zinc-600 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: about.body || "" }} />
+        <AboutBody className="text-zinc-600 leading-relaxed prose prose-sm max-w-none" body={about.body} />
       </section>
     ) : null,
   };
