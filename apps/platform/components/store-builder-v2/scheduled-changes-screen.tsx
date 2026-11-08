@@ -1116,6 +1116,7 @@ function ScheduleCreatorModal({
                             value={label}
                             onChange={(e) => setLabel(e.target.value)}
                             placeholder={tx(STRINGS.advanced_chrome.sched_label_placeholder, locale)}
+                            dir="auto"
                             data-testid="schedule-creator-label"
                             className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
@@ -1232,6 +1233,7 @@ function ScheduleCreatorModal({
                                 value={newVariantLabel}
                                 onChange={(e) => setNewVariantLabel(e.target.value)}
                                 placeholder={tx(STRINGS.advanced_chrome.sched_new_variant_placeholder, locale)}
+                                dir="auto"
                                 data-testid="schedule-creator-new-variant-label"
                                 className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                             />

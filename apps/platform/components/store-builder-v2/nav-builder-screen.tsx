@@ -137,6 +137,16 @@ export function NavBuilderScreen({
                         {t(STRINGS.advanced_chrome.nav_empty, locale)}
                     </button>
                 ) : (
+                    <div className="flex flex-col gap-1.5">
+                    <div
+                        aria-hidden="true"
+                        data-testid="nav-builder-columns"
+                        className="flex items-center gap-2.5 px-3 text-[11px] font-medium text-muted-foreground"
+                    >
+                        <span dir="auto" className="w-32">{t(STRINGS.advanced_chrome.nav_label_en_aria, locale)}</span>
+                        <span dir="auto" className="w-32">{t(STRINGS.advanced_chrome.nav_label_ar_aria, locale)}</span>
+                        <span dir="auto" className="flex-1">{t(STRINGS.advanced_chrome.nav_href_aria, locale)}</span>
+                    </div>
                     <ul className="flex flex-col gap-2.5">
                         {links.map((l, i) => (
                             <li
@@ -217,6 +227,7 @@ export function NavBuilderScreen({
                             </li>
                         ))}
                     </ul>
+                    </div>
                 )}
             </div>
         </div>

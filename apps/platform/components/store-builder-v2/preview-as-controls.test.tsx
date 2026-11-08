@@ -122,7 +122,7 @@ describe("PreviewAsControls", () => {
             />,
         );
         fireEvent.click(screen.getByTestId("preview-as-button"));
-        expect(screen.getByText(/No segments defined/i)).toBeTruthy();
-        expect(screen.getByText(/No experiments defined/i)).toBeTruthy();
+        expect(screen.getByText(/No audiences yet/i)).toBeTruthy();
+        expect(screen.getByText(/No tests yet/i)).toBeTruthy();
     });
 });
