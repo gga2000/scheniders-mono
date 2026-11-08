@@ -195,7 +195,7 @@ export function DiscountsScreen({
                                             />
                                         </label>
                                     )}
-                                    <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                                    <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground">
                                         <input
                                             type="checkbox"
                                             data-testid={`discount-enabled-${i}`}
@@ -211,7 +211,7 @@ export function DiscountsScreen({
                                         aria-label={t(STRINGS.advanced_chrome.disc_remove_aria, locale)}
                                         data-testid={`discount-remove-${i}`}
                                         onClick={() => removeRow(i)}
-                                        className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                        className="mb-px ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>

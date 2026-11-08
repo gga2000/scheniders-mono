@@ -49,7 +49,7 @@ const ID_FIELDS: Field[] = [
         placeholder: STRINGS.pixels.tiktok_placeholder,
     },
     { key: "google_analytics_id", label: STRINGS.pixels.ga_id, placeholder: "G-XXXXXXX" },
-    { key: "snapchat_pixel_id", label: STRINGS.pixels.snap_pixel },
+    { key: "snapchat_pixel_id", label: STRINGS.pixels.snap_pixel, placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" },
     { key: "gtm_container_id", label: STRINGS.pixels.gtm_id, placeholder: "GTM-XXXXX" },
 ];
 

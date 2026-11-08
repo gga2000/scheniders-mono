@@ -15,6 +15,7 @@ import { useCallback } from "react";
 
 import { resolveFreeGift, type FreeGiftRewardConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { cn } from "@/lib/utils";
 import { STRINGS, t as tx } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ProductPickerField } from "./resource-picker";
@@ -70,7 +71,7 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-3xl">
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                    <span className="text-sm font-medium text-foreground">{tx(STRINGS.free_gift.enable, locale)}</span>
+                    <span className="text-left! text-sm font-medium text-foreground">{tx(STRINGS.free_gift.enable, locale)}</span>
                     <input
                         type="checkbox"
                         data-testid="free-gift-enabled"
@@ -79,7 +80,10 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                     />
                 </label>
 
-                <div className="rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
+                <div
+                    data-testid="free-gift-product-row"
+                    className={cn("rounded-xl border border-(--card-border) bg-(--card-bg) p-3 transition-opacity", !enabled && "opacity-60")}
+                >
                     <ProductPickerField
                         label={tx(STRINGS.free_gift.product, locale)}
                         value={cfg.product_id}
@@ -91,7 +95,13 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                     <p className="mt-1 text-left! text-xs text-muted-foreground">{tx(STRINGS.free_gift.product_hint, locale)}</p>
                 </div>
 
-                <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
+                <label
+                    data-testid="free-gift-threshold-row"
+                    className={cn(
+                        "flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3 transition-opacity",
+                        !enabled && "opacity-60",
+                    )}
+                >
                     <span className="min-w-0 text-left! text-sm text-foreground">
                         {tx(STRINGS.free_gift.threshold, locale)}
                         <span className="mt-0.5 block text-xs text-muted-foreground">

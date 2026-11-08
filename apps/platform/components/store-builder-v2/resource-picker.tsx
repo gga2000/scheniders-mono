@@ -36,7 +36,7 @@ const FIELD_CLS =
     "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
 function Label({ children }: { children: React.ReactNode }) {
-    return <span className="mb-1 block text-xs font-medium text-muted-foreground">{children}</span>;
+    return <span className="mb-1 block text-left! text-xs font-medium text-muted-foreground">{children}</span>;
 }
 
 /** Thumbnail + name row, shared by both entity pickers. */

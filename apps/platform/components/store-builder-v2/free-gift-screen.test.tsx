@@ -73,4 +73,11 @@ describe("FreeGiftScreen", () => {
         fireEvent.click(screen.getByTestId("free-gift-close"));
         expect(onClose).toHaveBeenCalled();
     });
+
+    it("dims the gift fields while the feature is off", () => {
+        const { builder } = makeBuilder({ enabled: false });
+        render(<FreeGiftScreen builder={builder} onClose={() => {}} />);
+        expect(screen.getByTestId("free-gift-product-row").className).toContain("opacity-60");
+        expect(screen.getByTestId("free-gift-threshold-row").className).toContain("opacity-60");
+    });
 });

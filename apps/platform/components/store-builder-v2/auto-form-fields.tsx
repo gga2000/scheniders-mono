@@ -160,8 +160,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                 {control}
                 <p
                     data-testid={`${testIdBase}-help`}
-                    dir="auto"
-                    className="text-[11px] leading-relaxed text-muted-foreground"
+                    className="text-left! text-[11px] leading-relaxed text-muted-foreground"
                 >
                     {help}
                 </p>
@@ -261,7 +260,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
             <div className="space-y-1" data-testid={testIdBase}>
                 {picker}
                 {help && (
-                    <p dir="auto" className="text-[11px] text-muted-foreground">
+                    <p className="text-left! text-[11px] text-muted-foreground">
                         {help}
                     </p>
                 )}

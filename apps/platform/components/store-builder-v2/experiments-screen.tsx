@@ -358,7 +358,7 @@ export function ExperimentsScreen({
                 </div>
             ) : (
                 <div className="flex flex-1 overflow-hidden">
-                    <div className="flex-1 space-y-5 overflow-y-auto p-5">
+                    <div className="flex-1 space-y-5 overflow-y-auto p-5 *:max-w-3xl">
                         {STATUSES.map((status) =>
                             buckets[status].length === 0 ? null : (
                                 <StatusBucket
@@ -506,6 +506,9 @@ function ExperimentRow({
     onDelete,
 }: ExperimentRowProps): ReactElement {
     const locale = useEditorLocale();
+    // Ending a test sends everyone back to the first arm; it adopts nothing.
+    const [confirmStop, setConfirmStop] = useState(false);
+    const controlLabel = experiment.arms[0]?.label ?? "";
     return (
         <article
             data-testid={`experiment-row-${experiment.id}`}
@@ -515,19 +518,19 @@ function ExperimentRow({
             <header className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                        <h4 className="truncate text-sm font-semibold tracking-tight">
+                        <h4 className="truncate text-left! text-sm font-semibold tracking-tight">
                             {experiment.name || t(STRINGS.advanced_chrome.exp_untitled, locale)}
                         </h4>
                         <StatusBadge status={experiment.status} />
                     </div>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    <p className="mt-0.5 text-left! text-[11px] text-muted-foreground">
                         {relativeStarted(experiment.starts_at, now, locale)} ·{" "}
                         {t(STRINGS.advanced_chrome.exp_primary_metric_label, locale)}{" "}
                         <span className="font-medium text-foreground/80">
                             {t(METRIC_LABELS[experiment.primary_metric], locale)}
                         </span>
                     </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-left! text-[11px] text-muted-foreground">
                         {t(STRINGS.advanced_chrome.exp_traffic_split, locale)}{" "}
                         {/* Each arm isolated so a Latin name keeps its own percent. */}
                         <span className="inline-flex flex-wrap gap-x-1.5 font-medium text-foreground/80">
@@ -573,7 +576,8 @@ function ExperimentRow({
                         </button>
                         <button
                             type="button"
-                            onClick={onStop}
+                            onClick={() => setConfirmStop(true)}
+                            aria-expanded={confirmStop}
                             data-testid={`experiment-row-${experiment.id}-stop`}
                             className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-rose-500/10 hover:text-rose-700"
                         >
@@ -607,6 +611,35 @@ function ExperimentRow({
                     </button>
                 )}
             </div>
+            {confirmStop && experiment.status === "running" ? (
+                <div
+                    role="alert"
+                    data-testid={`experiment-row-${experiment.id}-stop-confirm`}
+                    className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2"
+                >
+                    <p className="min-w-0 flex-1 text-left! text-[11px] text-amber-900 dark:text-amber-200">
+                        {tFormat(STRINGS.advanced_chrome.exp_stop_confirm, locale, { control: controlLabel })}
+                    </p>
+                    <button
+                        type="button"
+                        data-testid={`experiment-row-${experiment.id}-stop-yes`}
+                        onClick={() => {
+                            setConfirmStop(false);
+                            onStop();
+                        }}
+                        className="inline-flex h-7 items-center rounded-md bg-rose-600 px-2 text-[11px] font-semibold text-white transition-colors hover:bg-rose-700"
+                    >
+                        {t(STRINGS.advanced_chrome.exp_stop_yes, locale)}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setConfirmStop(false)}
+                        className="inline-flex h-7 items-center rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-black/5"
+                    >
+                        {t(STRINGS.advanced_chrome.exp_stop_cancel, locale)}
+                    </button>
+                </div>
+            ) : null}
         </article>
     );
 }
