@@ -14,7 +14,7 @@
 // expanded before non-array siblings.
 // =====================================================================
 
-import type { StoreConfigV2 } from "@scheniders/shared";
+import { isDiscountActive, type Bundle, type StoreConfigV2 } from "@scheniders/shared";
 
 export type DiffKind = "added" | "removed" | "changed";
 
@@ -192,15 +192,19 @@ export interface RestoreLosses {
 
 const isOn = (c: { enabled?: boolean } | undefined): boolean => c?.enabled === true;
 
-/** Active list items (enabled unless explicitly false) missing from `target`. */
-function losesActiveItem<T extends { enabled?: boolean }>(
+/** Items live now (by `isLive`) that are not live in `target`. */
+function losesLiveItem<T>(
     now: readonly T[] | undefined,
     target: readonly T[] | undefined,
     key: (x: T) => string,
+    isLive: (x: T) => boolean,
 ): boolean {
-    const kept = new Set((target ?? []).filter((x) => x.enabled !== false).map(key));
-    return (now ?? []).some((x) => x.enabled !== false && !kept.has(key(x)));
+    const kept = new Set((target ?? []).filter(isLive).map(key));
+    return (now ?? []).some((x) => isLive(x) && !kept.has(key(x)));
 }
+
+/** The bundles screen's own rule: on, with at least two products picked. */
+const isBundleLive = (b: Bundle): boolean => b.enabled !== false && b.product_ids.length >= 2;
 
 /**
  * Live things a restore of `target` over `current` would stop. A long diff
@@ -222,7 +226,10 @@ export function restoreLosses(current: StoreConfigV2, target: StoreConfigV2): Re
     }
     if (isOn(now?.free_gift) && !isOn(after?.free_gift)) programs.push("free_gift");
     if (isOn(now?.cart_recovery) && !isOn(after?.cart_recovery)) programs.push("cart_recovery");
-    if (losesActiveItem(now?.bundles, after?.bundles, (b) => b.id)) programs.push("bundles");
-    if (losesActiveItem(now?.discounts, after?.discounts, (d) => d.code.toLowerCase())) programs.push("discounts");
+    if (losesLiveItem(now?.bundles, after?.bundles, (b) => b.id, isBundleLive)) programs.push("bundles");
+    const at = Date.now();
+    if (losesLiveItem(now?.discounts, after?.discounts, (d) => d.code.toLowerCase(), (d) => isDiscountActive(d, at))) {
+        programs.push("discounts");
+    }
     return { tests, programs };
 }

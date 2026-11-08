@@ -16,7 +16,8 @@ export interface DiscountResult {
   amount_iqd: number;
 }
 
-function isActive(d: DiscountCode, now: number): boolean {
+/** A code customers can use at `now`: enabled and inside its dates. */
+export function isDiscountActive(d: DiscountCode, now: number): boolean {
   if (d.enabled === false) return false;
   if (d.starts_iso) {
     const s = Date.parse(d.starts_iso);
@@ -44,7 +45,7 @@ export function findActiveDiscount(
   const code = rawCode.trim().toLowerCase();
   if (!code) return null;
   const d = discounts.find((x) => x.code.trim().toLowerCase() === code);
-  if (!d || !isActive(d, now.getTime())) return null;
+  if (!d || !isDiscountActive(d, now.getTime())) return null;
   return d;
 }
 

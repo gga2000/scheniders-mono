@@ -96,7 +96,7 @@ export function NavBuilderScreen({
         >
             <ScreenHeader
                 setting="nav"
-                subtitle={<>{t(STRINGS.advanced_chrome.nav_intro_prefix, locale)}{" "} <code dir="ltr" className="rounded bg-black/5 px-1">/products</code>{" · "} <code dir="ltr" className="rounded bg-black/5 px-1">/p/summer-sale</code> {t(STRINGS.advanced_chrome.nav_intro_suffix, locale)}</>}
+                subtitle={<>{t(STRINGS.advanced_chrome.nav_intro_prefix, locale)}{" "} <code dir="ltr" className="rounded bg-black/5 px-1">/products</code>{" · "} <code dir="ltr" className="rounded bg-black/5 px-1">/p/summer-sale</code>{t(STRINGS.advanced_chrome.nav_intro_suffix, locale)}</>}
                 onBack={onClose}
                 backTestId="nav-builder-close"
                 actions={

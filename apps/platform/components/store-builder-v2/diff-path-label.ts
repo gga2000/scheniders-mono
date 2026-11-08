@@ -8,7 +8,7 @@ import type { LocaleCode, SectionInstance, StoreConfigV2 } from "@scheniders/sha
 import { getPageLabel } from "./page-tree";
 import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import { resolveFieldLabel } from "@/lib/section-field-meta";
-import { STRINGS, t, type EditorString } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 
 const SECRET_KEY = /token|secret|password|api_?key/i;
 
@@ -137,6 +137,7 @@ const CONFIG_KEYS: Record<string, EditorString> = {
     kind: STRINGS.version_history.key_kind,
     rules: STRINGS.version_history.key_rules,
     values: STRINGS.version_history.key_values,
+    sections: STRINGS.version_history.key_sections,
     code: STRINGS.version_history.key_code,
     value: STRINGS.version_history.key_value,
     min_subtotal_iqd: STRINGS.version_history.key_min_subtotal_iqd,
@@ -174,8 +175,8 @@ function itemName(item: unknown, locale: LocaleCode): string | null {
 }
 
 /**
- * Words for path[from..]: `base` dropped, list items named (else numbered
- * from 1), language keys spelled out.
+ * Words for path[from..]: `base` dropped, list items named (else «Item n»,
+ * counted from 1), language keys spelled out.
  */
 function tailParts(
     path: readonly string[],
@@ -192,7 +193,8 @@ function tailParts(
         if (parentIsList || /^\d+$/.test(seg)) {
             const prefix = path.slice(0, i + 1);
             const name = configs.map((c) => itemName(valueAt(c, prefix), locale)).find((n) => n !== null);
-            out.push(name ?? `${listPosition(configs, path.slice(0, i), seg)}`);
+            // An unnamed item reads «العنصر 2», not a bare index in the trail.
+            out.push(name ?? tFormat(STRINGS.version_history.diff_item_n, locale, { n: listPosition(configs, path.slice(0, i), seg) }));
         } else if (LOCALES.has(seg)) {
             out.push(t(STRINGS.languages[seg as LocaleCode], locale));
         } else if (CONFIG_KEYS[seg]) {

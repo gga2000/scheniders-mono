@@ -44,6 +44,8 @@ import {
     type RestoreLosses,
 } from "./config-diff";
 import { getSettingLabel } from "./page-tree";
+import { resolveEnumValueLabel } from "@/lib/section-field-meta";
+import type { LocaleCode } from "@scheniders/shared";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { describeDiffPath, isSecretDiffPath } from "./diff-path-label";
 import { useEditorLocale } from "@/lib/editor-locale-context";
@@ -551,8 +553,8 @@ export function VersionHistoryScreen({
                         <p className="mt-2 text-sm text-foreground/80">
                             {t(STRINGS.advanced_chrome.vh_restore_body_prefix, locale)}{" "}
                             <span className="font-medium text-foreground">
-                                &quot;{(confirmRestore.label ?? "").trim() ||
-                                    (confirmRestore.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale))}&quot;
+                                «<bdi>{(confirmRestore.label ?? "").trim() ||
+                                    (confirmRestore.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale))}</bdi>»
                             </span>{" "}
                             {tFormat(STRINGS.advanced_chrome.vh_restore_body_suffix, locale, {
                                 time: absoluteTime(confirmRestore.created_at, locale),
@@ -779,11 +781,11 @@ function DiffRow({
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
-                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before)}</bdi>
+                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before, locale)}</bdi>
                     </div>
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_after, locale)}</span>{" "}
-                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.after)}</bdi>
+                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.after, locale)}</bdi>
                     </div>
                 </div>
             )}
@@ -808,9 +810,16 @@ function RestoreLossNote({ losses, testId }: { losses: RestoreLosses; testId: st
             <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
                 {losses.tests.length > 0 ? (
                     <li>
-                        {tFormat(STRINGS.version_history.restore_stops_tests, locale, {
-                            names: losses.tests.join("، "),
-                        })}
+                        {t(STRINGS.version_history.restore_stops_tests, locale)}
+                        {/* One name per line, each isolated, so a Latin test
+                            name never splits the Arabic label mid-line. */}
+                        <ul className="mt-0.5 list-[circle] pl-4">
+                            {losses.tests.map((name, i) => (
+                                <li key={i}>
+                                    <bdi>{name}</bdi>
+                                </li>
+                            ))}
+                        </ul>
                     </li>
                 ) : null}
                 {losses.programs.map((p) => (
@@ -823,10 +832,23 @@ function RestoreLossNote({ losses, testId }: { losses: RestoreLosses; testId: st
 
 const SECRET_MASK = "••••••";
 
-function previewValue(v: unknown): string {
+const ID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+const OPTION_KEY = /^[a-z][a-z0-9]*(_[a-z0-9]+)+$/;
+
+function previewValue(v: unknown, locale: LocaleCode): string {
     // Unset reads as a dash, not a programmer word.
     if (v === undefined || v === null || v === "") return "—";
+    if (typeof v === "boolean") {
+        return t(v ? STRINGS.version_history.value_on : STRINGS.version_history.value_off, locale);
+    }
+    // A list of ids means nothing to a merchant; say how many.
+    if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && ID_LIKE.test(x))) {
+        return tFormat(STRINGS.version_history.value_items_n, locale, { n: v.length });
+    }
     if (typeof v === "string") {
+        // An option key («scroll_to_form») reads as the label the editor's
+        // own choice control shows for it.
+        if (OPTION_KEY.test(v)) return `«${resolveEnumValueLabel(v, locale)}»`;
         // Policy and page bodies are markdown: show the words, not the syntax.
         const text = v
             .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
@@ -838,7 +860,7 @@ function previewValue(v: unknown): string {
         // instead of leaving a stray straight quote at the line end.
         return text.length > 60 ? `«${text.slice(0, 57)}…»` : `«${text}»`;
     }
-    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (typeof v === "number") return v.toLocaleString("en-US");
     try {
         const s = JSON.stringify(v);
         return s.length > 60 ? `${s.slice(0, 57)}…` : s;

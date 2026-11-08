@@ -674,6 +674,8 @@ describe("ExperimentsScreen", () => {
         });
         // No headline percent while the result is not sure yet.
         expect(screen.queryByTestId("experiment-viewer-arm-arm_b-uplift")).toBeNull();
+        // Instead it says how far the test is from a verdict.
+        expect(screen.getByTestId("experiment-viewer-arm-arm_b-progress").textContent).toMatch(/more visitors/);
     });
 
     it("ending a test asks first and says everyone goes back to the first version", () => {
