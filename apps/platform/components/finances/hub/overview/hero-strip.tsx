@@ -38,6 +38,8 @@ type TileSpec = {
     decimals?: number;
     inverseDelta?: boolean;
     suffix?: string;
+    /** How the number is worked out, shown on hover. */
+    hint?: string;
 };
 
 export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
@@ -111,6 +113,7 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
             currency: "none",
             decimals: 1,
             suffix: "%",
+            hint: t("analytics.deliveryRate.def"),
         },
     ];
 
@@ -135,6 +138,7 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
                         key={tile.id}
                         variants={item}
                         onClick={() => onTileClick?.(tile.id)}
+                        title={tile.hint}
                         className={cn(
                             "group relative flex flex-col items-stretch justify-start text-left rounded-2xl border p-4 transition-all overflow-hidden",
                             "bg-[var(--card-bg)] border-[var(--card-border)] hover:border-[var(--ink)]",

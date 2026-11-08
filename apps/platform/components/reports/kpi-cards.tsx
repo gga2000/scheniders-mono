@@ -47,6 +47,7 @@ export function KPICards({ metrics }: KPICardsProps) {
             value: `${metrics.deliveryRate.toFixed(1)}%`,
             change: metrics.deliveryRateChange,
             icon: CheckCircle2,
+            hint: t("analytics.deliveryRate.def"),
         },
         {
             title: t("reports.kpi.contact"),
@@ -97,6 +98,7 @@ export function KPICards({ metrics }: KPICardsProps) {
                         key={kpi.title}
                         variants={item}
                         className="pastel-card p-4"
+                        title={"hint" in kpi ? kpi.hint : undefined}
                     >
                         <div className="flex items-center justify-between mb-3">
                             <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-300">
