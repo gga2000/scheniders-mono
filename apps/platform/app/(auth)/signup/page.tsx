@@ -19,6 +19,7 @@ import {
 import Link from "next/link";
 import { useLanguage } from "@/hooks/use-language";
 import { supabase } from "@/lib/supabase";
+import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 
 function SignupForm() {
     const { t } = useLanguage();
@@ -33,6 +34,7 @@ function SignupForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const captcha = useAuthCaptcha();
 
     const isFormValid =
         email.length > 0 &&
@@ -85,7 +87,9 @@ function SignupForm() {
             const { error: signInError } = await supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password,
+                options: { captchaToken: captcha.token },
             });
+            captcha.reset();
             if (signInError) {
                 // Extremely unlikely (account was just created) — fall back to
                 // the login screen rather than stranding them here.
@@ -262,11 +266,13 @@ function SignupForm() {
                         </div>
                     </motion.div>
 
+                    <AuthCaptcha captcha={captcha} />
+
                     {/* Submit */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
                         <button
                             type="submit"
-                            disabled={isLoading || !isFormValid}
+                            disabled={isLoading || !isFormValid || !captcha.ready}
                             className="w-full h-12 rounded-xl font-semibold text-white bg-gradient-to-r from-[#1E1E1E] to-[#3D3D3D] hover:from-[#2D2D2D] hover:to-[#4D4D4D] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
                         >
                             {isLoading ? (

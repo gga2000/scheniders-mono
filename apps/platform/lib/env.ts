@@ -33,6 +33,9 @@ const clientSchema = z.object({
         .string()
         .min(1)
         .default("scheniders.com"),
+    // Cloudflare Turnstile site key (public). Unset = no CAPTCHA box; only
+    // safe while Supabase Auth CAPTCHA protection is off.
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
 });
 
 // =============================================
@@ -117,6 +120,7 @@ function validateEnv() {
         NEXT_PUBLIC_SUPABASE_ANON_KEY: (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim(),
         NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL?.trim() || undefined,
         NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN: process.env.NEXT_PUBLIC_STOREFRONT_ROOT_DOMAIN?.trim() || undefined,
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() || undefined,
     });
 
     if (!clientResult.success) {

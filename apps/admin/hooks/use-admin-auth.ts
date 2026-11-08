@@ -32,7 +32,7 @@ interface AdminAuthState {
 }
 
 interface AdminAuthContextValue extends AdminAuthState {
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -198,12 +198,13 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   // ── Auth actions ──
   const signIn = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, captchaToken?: string) => {
       setIsLoading(true);
       setError(null);
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: { captchaToken },
       });
       if (signInError) {
         setIsLoading(false);
