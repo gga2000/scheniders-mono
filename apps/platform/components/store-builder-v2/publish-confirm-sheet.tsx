@@ -36,13 +36,14 @@ import { useEditorLocale } from "@/lib/editor-locale-context";
 import { useEditorMode } from "@/lib/editor-mode-context";
 import {
     computePublishDiff,
-    humaniseFieldName,
     summarisePageChangeCounts,
     type FieldDelta,
     type PageDiff,
     type PublishDiff,
     type SectionChange,
+    type SettingsArea,
 } from "@/lib/publish-diff";
+import { resolveFieldLabel } from "@/lib/section-field-meta";
 import type { EditorString } from "@/lib/editor-i18n";
 import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import type { LocaleCode } from "@scheniders/shared";
@@ -194,14 +195,7 @@ export function PublishConfirmSheet({
                             diff && diff.pages.length > 0 && "border-t border-(--card-border) pt-3",
                         )}
                     >
-                        {blockingChecks.length === 0 ? (
-                            <div
-                                data-testid="publish-confirm-sheet-no-warnings"
-                                className="rounded-xl border border-dashed border-(--card-border) p-6 text-center text-sm text-foreground/80"
-                            >
-                                {t(STRINGS.publish.confirm_all_clear, locale)}
-                            </div>
-                        ) : collapseRecs && !recsOpen ? (
+                        {blockingChecks.length === 0 ? null : collapseRecs && !recsOpen ? (
                             <button
                                 type="button"
                                 data-testid="publish-confirm-sheet-recs-toggle"
@@ -360,7 +354,12 @@ function PublishDiffSection({
         );
     }
 
-    if (diff.totalChanges === 0 && !diff.brandKitChanged && diff.globalsChanged.length === 0) {
+    if (
+        diff.totalChanges === 0 &&
+        !diff.brandKitChanged &&
+        diff.globalsChanged.length === 0 &&
+        diff.settingsChanged.length === 0
+    ) {
         return (
             <section
                 data-testid="publish-diff"
@@ -408,14 +407,35 @@ function PublishDiffSection({
                         className="flex flex-wrap items-center gap-1.5 border-b border-(--card-border) px-3 py-2 text-xs"
                     >
                         <Pencil className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-                        <span className="font-semibold text-foreground">Globals</span>
-                        <span className="text-muted-foreground">—</span>
+                        <span className="font-semibold text-foreground">
+                            {t(STRINGS.publish.diff_globals, locale)}
+                        </span>
                         {diff.globalsChanged.map((slot) => (
                             <span
                                 key={slot}
                                 className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
                             >
-                                {humaniseFieldName(slot)}
+                                {t(STRINGS.publish[`global_${slot}`], locale)}
+                            </span>
+                        ))}
+                    </div>
+                )}
+                {diff.settingsChanged.length > 0 && (
+                    <div
+                        data-testid="publish-diff-settings"
+                        className="flex flex-wrap items-center gap-1.5 border-b border-(--card-border) px-3 py-2 text-xs"
+                    >
+                        <Pencil className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
+                        <span className="font-semibold text-foreground">
+                            {t(STRINGS.publish.diff_settings, locale)}
+                        </span>
+                        {diff.settingsChanged.map((area) => (
+                            <span
+                                key={area}
+                                data-testid={`publish-diff-settings-${area}`}
+                                className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300"
+                            >
+                                {t(settingsAreaLabel(area), locale)}
                             </span>
                         ))}
                     </div>
@@ -581,7 +601,7 @@ function SectionChangeRow({
                 >
                     {deltas.map((delta, i) => (
                         <li key={i} className="text-[11px]">
-                            <FieldDeltaRow delta={delta} />
+                            <FieldDeltaRow delta={delta} sectionType={change.section_type} />
                         </li>
                     ))}
                 </ul>
@@ -590,17 +610,25 @@ function SectionChangeRow({
     );
 }
 
-function FieldDeltaRow({ delta }: { delta: FieldDelta }): React.ReactElement {
+function FieldDeltaRow({
+    delta,
+    sectionType,
+}: {
+    delta: FieldDelta;
+    sectionType: string;
+}): React.ReactElement {
+    const locale = useEditorLocale();
+    const field = resolveFieldLabel(sectionType, delta.field, locale);
     const label =
         delta.kind === "i18n" && delta.locale
-            ? `${humaniseFieldName(delta.field)} (${delta.locale})`
-            : humaniseFieldName(delta.field);
+            ? `${field} (${t(STRINGS.languages[delta.locale], locale)})`
+            : field;
 
     return (
         <div className="flex flex-col gap-0.5">
             <span className="font-semibold text-foreground/80">{label}</span>
             {delta.kind === "complex" ? (
-                <span className="text-muted-foreground">changed</span>
+                <span className="text-muted-foreground">{t(STRINGS.version_history.diff_changed, locale)}</span>
             ) : (
                 <span className="font-mono text-[10px] text-muted-foreground">
                     <span className="line-through text-rose-700/80 dark:text-rose-300/80">{stringifyPreview(delta.before)}</span>
@@ -628,3 +656,24 @@ function stringifyPreview(v: unknown): string {
 }
 
 export type { PageId };
+
+function settingsAreaLabel(area: SettingsArea): EditorString {
+    switch (area) {
+        case "segments":
+            return STRINGS.page_tree.setting_segments;
+        case "experiments":
+            return STRINGS.page_tree.setting_experiments;
+        case "schedules":
+            return STRINGS.page_tree.setting_scheduled;
+        case "languages":
+            return STRINGS.version_history.group_languages;
+        case "commerce":
+            return STRINGS.version_history.group_commerce;
+        case "redirects":
+            return STRINGS.page_tree.setting_redirects;
+        case "custom_pages":
+            return STRINGS.page_tree.setting_custom_pages;
+        case "custom_css":
+            return STRINGS.publish.diff_custom_css;
+    }
+}

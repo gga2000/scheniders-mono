@@ -231,3 +231,25 @@ describe("computePublishDiff", () => {
         expect(aboutPage.changes[0]).toMatchObject({ kind: "removed", section_id: "a" });
     });
 });
+
+describe("computePublishDiff settings", () => {
+    it("lists a new audience so publishing never ships a change the merchant didn't see", () => {
+        const prev = makeConfig();
+        const next = makeConfig({
+            segments: [{ id: "a1", name: "New", rules: [] }] as unknown as StoreConfigV2["segments"],
+        });
+        expect(computePublishDiff(prev, next).settingsChanged).toEqual(["segments"]);
+    });
+
+    it("treats an absent list and an empty one as the same store", () => {
+        const prev = makeConfig({ redirects: undefined });
+        const next = makeConfig({ redirects: [] });
+        expect(computePublishDiff(prev, next).settingsChanged).toEqual([]);
+    });
+
+    it("groups both language fields under one area", () => {
+        const prev = makeConfig();
+        const next = makeConfig({ default_locale: "en", enabled_locales: ["ar", "en"] });
+        expect(computePublishDiff(prev, next).settingsChanged).toEqual(["languages"]);
+    });
+});

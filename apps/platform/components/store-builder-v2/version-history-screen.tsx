@@ -664,6 +664,12 @@ function diffGroupLabel(key: string): EditorString {
             return V.group_custom_pages;
         case "redirects":
             return V.group_redirects;
+        case "segments":
+            return V.group_segments;
+        case "experiments":
+            return V.group_experiments;
+        case "schedules":
+            return V.group_schedules;
         default:
             return V.group_other;
     }
@@ -774,7 +780,14 @@ function previewValue(v: unknown): string {
     if (v === undefined) return "undefined";
     if (v === null) return "null";
     if (typeof v === "string") {
-        return v.length > 60 ? `"${v.slice(0, 57)}…"` : `"${v}"`;
+        // Policy and page bodies are markdown: show the words, not the syntax.
+        const text = v
+            .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+            .replace(/^#+\s*/gm, "")
+            .replace(/\*\*|`/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+        return text.length > 60 ? `"${text.slice(0, 57)}…"` : `"${text}"`;
     }
     if (typeof v === "number" || typeof v === "boolean") return String(v);
     try {

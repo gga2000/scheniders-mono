@@ -506,6 +506,10 @@ export function useStoreBuilderV2(
     // undo back to the published state was never saved and the undone edit
     // came back on reload.
     const lastPersistedSerializedRef = useRef<string>(JSON.stringify(initialConfig));
+    // What the save currently in flight is writing. While it is in flight,
+    // the DB is about to hold THIS, not lastPersisted: an undo back to the
+    // old baseline must still be saved, or the in-flight write wins on reload.
+    const inFlightSerializedRef = useRef<string | null>(null);
 
     // Clears the armed autosave AND the ref, so "is a full save pending?"
     // (patchField success) never reads a cancelled timer as armed.
@@ -524,6 +528,7 @@ export function useStoreBuilderV2(
                 queuedSaveRef.current = true;
                 return inFlightSaveRef.current;
             }
+            inFlightSerializedRef.current = JSON.stringify(cfg);
             const run = (async (): Promise<void> => {
             const gen = editGenRef.current;
             set_save_state("saving");
@@ -590,6 +595,7 @@ export function useStoreBuilderV2(
                 await run;
             } finally {
                 inFlightSaveRef.current = null;
+                inFlightSerializedRef.current = null;
             }
             if (queuedSaveRef.current) {
                 queuedSaveRef.current = false;
@@ -624,7 +630,8 @@ export function useStoreBuilderV2(
             return;
         }
 
-        if (serializedConfig === lastPersistedSerializedRef.current) return;
+        const baseline = inFlightSerializedRef.current ?? lastPersistedSerializedRef.current;
+        if (serializedConfig === baseline) return;
 
         // Edits exist that aren't in the DB draft yet — guard against unload.
         // The timer is NOT cleared on re-run: a later patchField edit re-runs

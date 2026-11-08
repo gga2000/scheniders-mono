@@ -83,10 +83,16 @@ export function I18nStringInput({
         [activeLocale, storeLocales],
     );
 
-    // "الإنجليزية ✓ · الكردية –" — at-a-glance fill state for the collapsed
-    // reveal, each language named in the editor's language, not a code.
+    // "الإنجليزية مكتملة · الكردية غير مترجمة" — at-a-glance fill state for
+    // the collapsed reveal, each language named in the editor's language.
     const fillState = secondaryLocales
-        .map((loc) => `${t(STRINGS.languages[loc], activeLocale)} ${value?.[loc] ? "✓" : "–"}`)
+        .map((loc) =>
+            tFormat(
+                value?.[loc] ? STRINGS.i18n_input.lang_filled : STRINGS.i18n_input.lang_missing,
+                activeLocale,
+                { lang: t(STRINGS.languages[loc], activeLocale) },
+            ),
+        )
         .join(" · ");
 
     return (

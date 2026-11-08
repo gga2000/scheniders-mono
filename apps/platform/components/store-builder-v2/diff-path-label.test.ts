@@ -49,3 +49,26 @@ describe("isSecretDiffPath", () => {
         expect(isSecretDiffPath(["pages", "0", "sections", "s-1", "base", "title"])).toBe(false);
     });
 });
+
+describe("describeDiffPath settings", () => {
+    const withSettings = {
+        ...config,
+        segments: [{ id: "seg-a", name: "Baghdad buyers", rules: [] }],
+        commerce: { shipping: { default_rate: 5000 } },
+    } as unknown as StoreConfigV2;
+
+    it("names a list item by its own name, addressed by id or index", () => {
+        expect(describeDiffPath(["segments", "seg-a"], [withSettings], "en")).toEqual(["Baghdad buyers"]);
+        expect(describeDiffPath(["segments", "0", "rules"], [withSettings], "en")[0]).toBe("Baghdad buyers");
+    });
+
+    it("names commerce areas after their settings screen, in Arabic", () => {
+        const parts = describeDiffPath(["commerce", "shipping", "default_rate"], [withSettings], "ar");
+        expect(parts[0]).toBe("أجور التوصيل");
+    });
+
+    it("spells out language keys", () => {
+        const parts = describeDiffPath(["pages", "0", "sections", "s-1", "base", "title_i18n", "en"], [config], "ar");
+        expect(parts.at(-1)).toBe("الإنجليزية");
+    });
+});

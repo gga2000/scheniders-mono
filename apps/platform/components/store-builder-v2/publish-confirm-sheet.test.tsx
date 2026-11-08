@@ -181,7 +181,7 @@ describe("PublishConfirmSheet — diff section", () => {
         expect(deltas).toBeTruthy();
         // The new title shows up inside the deltas list.
         expect(deltas.textContent).toContain("Grand Opening 20% OFF");
-        expect(deltas.textContent).toContain("Image URL");
+        expect(deltas.textContent).toContain("Image");
     });
 
     it("renders the existing blocking warnings list when checks are passed", () => {
