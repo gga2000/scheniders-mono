@@ -3377,6 +3377,7 @@ export type Database = {
           created_at: string
           done_seen_at: string | null
           foundation_done_at: string | null
+          phases: Json
           sound_on: boolean
           tenant_id: string
           updated_at: string
@@ -3387,6 +3388,7 @@ export type Database = {
           created_at?: string
           done_seen_at?: string | null
           foundation_done_at?: string | null
+          phases?: Json
           sound_on?: boolean
           tenant_id: string
           updated_at?: string
@@ -3397,6 +3399,7 @@ export type Database = {
           created_at?: string
           done_seen_at?: string | null
           foundation_done_at?: string | null
+          phases?: Json
           sound_on?: boolean
           tenant_id?: string
           updated_at?: string
@@ -4153,6 +4156,7 @@ export type Database = {
           is_return: boolean | null
           is_reviewed: boolean | null
           is_shop_order: boolean | null
+          guide_practice: boolean
           is_test: boolean | null
           is_verified_customer: boolean | null
           item_unit_costs: number[] | null
@@ -4251,6 +4255,7 @@ export type Database = {
           is_return?: boolean | null
           is_reviewed?: boolean | null
           is_shop_order?: boolean | null
+          guide_practice?: boolean
           is_test?: boolean | null
           is_verified_customer?: boolean | null
           item_unit_costs?: number[] | null
@@ -4349,6 +4354,7 @@ export type Database = {
           is_return?: boolean | null
           is_reviewed?: boolean | null
           is_shop_order?: boolean | null
+          guide_practice?: boolean
           is_test?: boolean | null
           is_verified_customer?: boolean | null
           item_unit_costs?: number[] | null
@@ -9147,6 +9153,14 @@ export type Database = {
         Returns: Json
       }
       get_user_tenant_ids: { Args: never; Returns: string[] }
+      guide_end_practice_orders: {
+        Args: { _tenant_id: string }
+        Returns: number
+      }
+      guide_start_practice_orders: {
+        Args: { _tenant_id: string }
+        Returns: string[]
+      }
       in_quiet_hours: {
         Args: { p_tenant_id: string; p_user_id: string }
         Returns: boolean

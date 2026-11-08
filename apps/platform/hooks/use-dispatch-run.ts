@@ -177,17 +177,21 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
         setPrimeProgress(null);
         try {
             if (!(await renderPdf(orders, names.labels))) return false;
-            const handedOff = await handOff(orders, names.prime, moveToTransit);
+            // Test orders (the guide's practice orders) are printed only: they
+            // never reach the courier and never move to in transit.
+            const real = orders.filter((o) => !o.is_test);
+            const handedOff = real.length > 0 ? await handOff(real, names.prime, moveToTransit) : { ok: true, excel: false };
             if (!handedOff.ok) {
                 toast.error(t("printing.exportFailedTitle"), t("printing.exportFailedAfterPdf"));
                 return false;
             }
-            const moved = moveToTransit ? (await bulkUpdateStatus(orders.map((o) => o.id), "in_transit")).count : 0;
+            const moved = moveToTransit && real.length > 0 ? (await bulkUpdateStatus(real.map((o) => o.id), "in_transit")).count : 0;
             const recorded = await printing.recordPrimeRun(orders);
             if (!recorded) toast.warning(t("printing.exportNotRecordedTitle"), t("printing.exportNotRecordedBody"));
             const downloads = t(handedOff.excel ? "printing.handedOffBody" : "printing.handedOffPdfOnlyBody");
             if (!moveToTransit) toast.success(t("printing.filesOnlyTitle", { count: orders.length }), downloads);
             else if (moved > 0) toast.success(t("printing.handedOffTitle", { count: moved }), downloads);
+            else if (real.length === 0) toast.success(t("printing.practiceOnlyTitle", { count: orders.length }), t("printing.practiceOnlyBody"));
             return true;
         } finally {
             setShipping(false);
@@ -196,8 +200,9 @@ export function useDispatchRun({ printing, bulkUpdateStatus, prime }: DispatchRu
 
     /** The Prime file of an old run again. Nothing is recorded and no order moves. */
     const primeFileAgain = async (orders: Order[]) => {
-        if (orders.length === 0) return;
-        const result = await printing.downloadPrimeFile(orders, runFileNames(orders.length).prime);
+        const real = orders.filter((o) => !o.is_test);
+        if (real.length === 0) return;
+        const result = await printing.downloadPrimeFile(real, runFileNames(real.length).prime);
         if (!result.success) toast.error(t("printing.exportFailedTitle"), result.error);
     };
 

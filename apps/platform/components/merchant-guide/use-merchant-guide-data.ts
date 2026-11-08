@@ -11,6 +11,9 @@ import { z } from "zod";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { supabase } from "@/lib/supabase";
 import { foundationStatus, type FoundationStatus } from "@/lib/merchant-guide/foundation";
+import type { PracticeOrder } from "@/lib/merchant-guide/first-order";
+import { orderKeys } from "@/hooks/use-orders-query";
+import { DISPATCH_QUEUE_KEY } from "@/hooks/use-dispatch-queue";
 
 const answersSchema = z.object({
     channel: z.enum(["online", "online_and_shop"]).optional(),
@@ -18,12 +21,27 @@ const answersSchema = z.object({
 });
 export type GuideAnswers = z.infer<typeof answersSchema>;
 
+const firstOrderSchema = z.object({
+    started_at: z.string().optional(),
+    later_at: z.string().optional(),
+    done_at: z.string().optional(),
+    seen: z.array(z.enum(["statuses", "whatsapp"])).optional(),
+});
+
+const phasesSchema = z.object({
+    first_order: firstOrderSchema.optional(),
+});
+export type GuidePhases = z.infer<typeof phasesSchema>;
+
 const progressSchema = z.object({
     answers: answersSchema,
     sound_on: z.boolean(),
     foundation_done_at: z.string().nullable(),
     done_seen_at: z.string().nullable(),
+    phases: phasesSchema,
 });
+
+const PROGRESS_COLUMNS = "answers, sound_on, foundation_done_at, done_seen_at, phases";
 export type GuideProgress = z.infer<typeof progressSchema>;
 
 /** The oldest ready product, drawn on the done card. */
@@ -54,7 +72,7 @@ export function guideShopKey(tenantId: string) {
 async function fetchProgress(tenantId: string, userId: string): Promise<GuideProgress | null> {
     const { data, error } = await supabase
         .from("merchant_guide_progress")
-        .select("answers, sound_on, foundation_done_at, done_seen_at")
+        .select(PROGRESS_COLUMNS)
         .eq("tenant_id", tenantId)
         .eq("user_id", userId)
         .maybeSingle();
@@ -135,6 +153,7 @@ export type GuidePatch = Partial<{
     sound_on: boolean;
     foundation_done_at: string | null;
     done_seen_at: string | null;
+    phases: GuidePhases;
 }>;
 
 /**
@@ -151,7 +170,7 @@ export function useSaveGuideProgress(tenantId: string | null, userId: string | n
                     { tenant_id: required(tenantId, "store"), user_id: required(userId, "user"), ...patch },
                     { onConflict: "tenant_id,user_id" },
                 )
-                .select("answers, sound_on, foundation_done_at, done_seen_at")
+                .select(PROGRESS_COLUMNS)
                 .single();
             if (error) throw error;
             return progressSchema.parse(data);
@@ -162,4 +181,77 @@ export function useSaveGuideProgress(tenantId: string | null, userId: string | n
     });
     const save = useCallback((patch: GuidePatch) => mutation.mutateAsync(patch), [mutation]);
     return { save, saving: mutation.isPending, error: mutation.error };
+}
+
+// ---------------------------------------------------------------------
+// Phase 2: the practice orders
+// ---------------------------------------------------------------------
+
+/** How often the practice orders are re-read while a stop waits on them. */
+const PRACTICE_REFRESH_MS = 4000;
+
+const practiceOrderSchema = z.object({
+    id: z.string(),
+    status: z.string(),
+    print_count: z.number().nullable(),
+});
+
+export function practiceOrdersKey(tenantId: string) {
+    return ["merchant-guide-practice-orders", tenantId] as const;
+}
+
+/** This shop's live practice orders (binned ones are gone). */
+export function usePracticeOrders(tenantId: string | null, enabled: boolean) {
+    return useQuery({
+        queryKey: practiceOrdersKey(tenantId ?? ""),
+        queryFn: async (): Promise<PracticeOrder[]> => {
+            const { data, error } = await supabase
+                .from("orders")
+                .select("id, status, print_count")
+                .eq("tenant_id", required(tenantId, "store"))
+                .eq("guide_practice", true)
+                .is("deleted_at", null);
+            if (error) throw error;
+            return z.array(practiceOrderSchema).parse(data);
+        },
+        enabled: enabled && !!tenantId,
+        refetchInterval: enabled ? PRACTICE_REFRESH_MS : false,
+        refetchOnWindowFocus: true,
+    });
+}
+
+/**
+ * Makes (or finds) the three practice orders and ends them. Both refresh
+ * the Orders page so the cards appear and leave at once.
+ */
+export function usePracticeOrderActions(tenantId: string | null) {
+    const queryClient = useQueryClient();
+    const refresh = useCallback(async () => {
+        await Promise.all([
+            queryClient.invalidateQueries({ queryKey: orderKeys.all }),
+            queryClient.invalidateQueries({ queryKey: DISPATCH_QUEUE_KEY }),
+            queryClient.refetchQueries({ queryKey: practiceOrdersKey(tenantId ?? "") }),
+        ]);
+    }, [queryClient, tenantId]);
+
+    const start = useMutation({
+        mutationFn: async () => {
+            const { error } = await supabase.rpc("guide_start_practice_orders", { _tenant_id: required(tenantId, "store") });
+            if (error) throw error;
+            await refresh();
+        },
+    });
+    const end = useMutation({
+        mutationFn: async () => {
+            const { error } = await supabase.rpc("guide_end_practice_orders", { _tenant_id: required(tenantId, "store") });
+            if (error) throw error;
+            await refresh();
+        },
+    });
+    return {
+        start: start.mutateAsync,
+        starting: start.isPending,
+        end: end.mutateAsync,
+        ending: end.isPending,
+    };
 }

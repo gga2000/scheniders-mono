@@ -39,7 +39,7 @@ const chunkSchema = z.discriminatedUnion("connected", [
         success: z.literal(true),
         connected: z.literal(true),
         sent: z.array(z.object({ orderId: z.string(), caseId: z.number() })),
-        skipped: z.array(z.object({ orderId: z.string(), reason: z.literal("after_sale") })),
+        skipped: z.array(z.object({ orderId: z.string(), reason: z.enum(["after_sale", "test_order"]) })),
         failed: z.array(z.object({ orderId: z.string(), reason: failureReason, message: z.string().optional() })),
     }),
 ]);

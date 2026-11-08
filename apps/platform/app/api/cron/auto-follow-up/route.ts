@@ -70,6 +70,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ skipped: true, reason: "order_not_found" });
     }
 
+    if (order.is_test) {
+        return NextResponse.json({ skipped: true, reason: "test_order" });
+    }
+
     // Check if auto-send is enabled for this tenant
     let settingsQuery = supabaseAdmin()
         .from("app_settings")

@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
         .from("orders")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", lead.converted_tenant_id)
+        // Test orders (incl. the guide's practice orders) earn no commission.
+        .not("is_test", "is", true)
         .gte("created_at", period_start)
         .lte("created_at", period_end);
 
