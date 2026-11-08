@@ -39,3 +39,30 @@ describe("settings strings exist in both languages", () => {
         });
     }
 });
+
+describe("permission and page names exist in both languages", async () => {
+    const { PERMISSIONS, PERMISSION_CATEGORIES } = await import("./permissions");
+    const { ROUTE_PERMISSIONS } = await import("./route-permissions");
+    const { ROUTE_LABEL_KEYS } = await import("@/components/settings/pages-settings");
+
+    it("every matrix row is a real permission and every permission has a row", () => {
+        const rows = PERMISSION_CATEGORIES.flatMap((c) => c.items.map((i) => i.key)).sort();
+        expect(rows).toEqual([...Object.values(PERMISSIONS)].sort());
+    });
+
+    it("the Pages list covers every gated route", () => {
+        expect(Object.keys(ROUTE_LABEL_KEYS).sort()).toEqual(Object.keys(ROUTE_PERMISSIONS).sort());
+    });
+
+    const keys = [
+        ...PERMISSION_CATEGORIES.map((c) => `team.permCat.${c.id}`),
+        ...Object.values(PERMISSIONS).map((p) => `team.perm.${p}`),
+        ...Object.values(ROUTE_LABEL_KEYS),
+        ...["admin", "employee", "viewer"].map((r) => `team.role.${r}`),
+    ];
+    for (const locale of ["en", "ar"] as const) {
+        it(`${locale}: no missing key`, () => {
+            expect(keys.filter((key) => !(key in translations[locale]))).toEqual([]);
+        });
+    }
+});

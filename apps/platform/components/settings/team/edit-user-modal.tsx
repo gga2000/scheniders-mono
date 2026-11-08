@@ -465,9 +465,9 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                             ) : (
                                 <div className="divide-y divide-border">
                                     {PERMISSION_CATEGORIES.map(category => (
-                                        <div key={category.category} className="py-4 first:pt-0">
+                                        <div key={category.id} className="py-4 first:pt-0">
                                             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
-                                                {category.category}
+                                                {t(`team.permCat.${category.id}`)}
                                             </h4>
                                             <div className="grid gap-2">
                                                 {category.items.map(item => {
@@ -483,7 +483,7 @@ export function EditUserModal({ user, onClose, onUpdate }: EditUserModalProps) {
                                                     return (
                                                         <div key={item.key} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
                                                             <div>
-                                                                <p className="font-medium text-sm">{item.label}</p>
+                                                                <p className="font-medium text-sm">{t(`team.perm.${item.key}`)}</p>
                                                                 <div className="flex items-center gap-2 mt-1">
                                                                     <div className={cn(
                                                                         "text-[10px] px-1.5 py-0.5 rounded border uppercase font-semibold",
