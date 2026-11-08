@@ -92,7 +92,7 @@ export function useTillRules() {
             const { data, error } = await supabase
                 .from("till_settings")
                 .select(
-                    "cashier_discount_pct, pay_later_default_limit, commission_pct, return_days, lock_after_minutes, pin_for_refunds, whatsapp_receipt_default",
+                    "cashier_discount_pct, pay_later_default_limit, commission_pct, return_days, lock_after_minutes, pin_for_refunds, whatsapp_receipt_default, payout_pin_above",
                 )
                 .eq("tenant_id", tenantId)
                 .maybeSingle();
@@ -105,6 +105,7 @@ export function useTillRules() {
                 cashier_discount_pct: row.cashier_discount_pct === null ? null : Number(row.cashier_discount_pct),
                 commission_pct: Number(row.commission_pct),
                 pay_later_default_limit: Number(row.pay_later_default_limit),
+                payout_pin_above: Number(row.payout_pin_above),
             });
         },
     });

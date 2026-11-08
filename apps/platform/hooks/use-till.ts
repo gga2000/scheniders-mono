@@ -281,18 +281,27 @@ export function useTillClockSet() {
     });
 }
 
+const payoutSchema = z.union([
+    z.object({ expense_id: z.string(), replay: z.boolean() }),
+    // Over the store's limit and no valid manager's OK: the till asks for a PIN and tries again.
+    z.object({ error: z.literal("needs_manager"), limit: z.number() }),
+]);
+export type PayoutResult = z.infer<typeof payoutSchema>;
+
 /** Cash taken from the drawer for a shop cost; it lands in Finances as an expense. */
 export function useTillPayout() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: async (input: { sessionId: string; clientId: string; amount: number; note: string }) => {
-            const { error } = await supabase.rpc("till_payout", {
+        mutationFn: async (input: { sessionId: string; clientId: string; amount: number; note: string; approvalId: string | null }): Promise<PayoutResult> => {
+            const { data, error } = await supabase.rpc("till_payout", {
                 p_session_id: input.sessionId,
                 p_client_id: input.clientId,
                 p_amount: input.amount,
                 p_note: input.note,
+                ...(input.approvalId ? { p_approval_id: input.approvalId } : {}),
             });
             if (error) throw error;
+            return payoutSchema.parse(data);
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["till", "events"] });
