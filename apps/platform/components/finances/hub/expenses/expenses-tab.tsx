@@ -233,7 +233,7 @@ export function ExpensesTab({ period, comparePeriod, dateRangeStrings }: Expense
                         <Download className="w-4 h-4" />
                         {t("finances.expense.exportCsv")}
                     </button>
-                    <button
+                    <button data-guide="add-expense"
                         onClick={() => { setEditing(null); setModalOpen(true); }}
                         className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-[var(--ink)] text-white hover:opacity-90 transition-opacity"
                     >

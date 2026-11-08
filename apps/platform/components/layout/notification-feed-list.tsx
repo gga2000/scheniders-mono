@@ -175,6 +175,8 @@ export function NotificationFeedList({
                     ? t("notifications.prime.ticketReply", { name: customerOf(n), preview })
                     : t("notifications.prime.ticketReplyNoText", { name: customerOf(n) });
             }
+            case "prime.link_done":
+                return t("notifications.prime.linkDone");
             case "prime.daily":
                 return t("notifications.prime.daily", {
                     delivered: payloadNumber(n, "delivered"),

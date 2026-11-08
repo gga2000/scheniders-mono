@@ -935,7 +935,7 @@ function ProductsContent() {
                             </button>
                             )}
                             {canEditProducts && (
-                            <button
+                            <button data-guide="stock-count"
                                 onClick={() => setIsStockCountOpen(true)}
                                 className="flex items-center gap-2 px-4 py-3 rounded-xl font-medium border border-[var(--card-border)] bg-[var(--card-bg)] text-foreground hover:bg-[var(--background)] transition-all"
                                 title={t("products.count.description")}

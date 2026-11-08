@@ -18,6 +18,9 @@ import type { AdminRole, AdminAction } from "@/types/admin";
  *                         lead is the sales team's job and it is what earns
  *                         their commission. The plan is not caller-chosen;
  *                         upgrading afterwards is `change_plan`.
+ *   link_prime          — mark a shop's Prime link request done («تم الربط»),
+ *                         which tells the shop. Open to support_staff: linking
+ *                         couriers is day-to-day onboarding work.
  */
 const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
   super_admin: new Set([
@@ -37,6 +40,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "manage_tags",
     "manage_commissions",
     "convert_lead",
+    "link_prime",
   ]),
   support_staff: new Set([
     "extend_trial",
@@ -46,6 +50,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, Set<AdminAction>> = {
     "export_data",
     "manage_tags",
     "convert_lead",
+    "link_prime",
   ]),
 };
 
