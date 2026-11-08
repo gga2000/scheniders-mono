@@ -12,7 +12,7 @@ import { CART_TARGET_ID } from "@/lib/till/feedback";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
 import { TillManagerDialog } from "./till-manager-dialog";
-import { APPROVAL_MS, approvalCovers, type Ticket } from "./till-ticket";
+import { APPROVAL_MS, approvalClock, approvalCovers, approvalTone, type Ticket } from "./till-ticket";
 import { useLinesAbove, useShowChangedLine } from "./use-show-changed-line";
 
 interface Props {
@@ -193,10 +193,19 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
 
             <div className="relative flex min-h-0 flex-1 flex-col">
             {above > 0 && (
-                <span className="pointer-events-none absolute left-1/2 top-2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-[var(--ink)] px-3 py-1 text-xs font-semibold text-white shadow-sm dark:bg-white dark:text-zinc-900" dir="auto">
-                    <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t("till.cart.moreAbove", { n: above })}
-                </span>
+                <>
+                    {/* A soft edge so a half-hidden line reads as "more up there", not as a cut row. */}
+                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-[var(--card-bg)] to-transparent" aria-hidden="true" />
+                    <button
+                        type="button"
+                        onClick={() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+                        className="absolute left-1/2 top-1 z-20 flex h-10 -translate-x-1/2 items-center gap-1.5 rounded-full bg-[var(--ink)] px-4 text-sm font-semibold text-white shadow-md dark:bg-white dark:text-zinc-900"
+                        dir="auto"
+                    >
+                        <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                        {t("till.cart.moreAbove", { n: above })}
+                    </button>
+                </>
             )}
             <ul
                 ref={(el) => {
@@ -312,11 +321,11 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             </button>
                         )}
                         {approval && approved && overLimit ? (
-                            <span className="flex items-center gap-1.5 rounded-xl bg-[#B8E8E0] px-3 py-1.5 text-sm font-semibold text-[#1E1E1E]" dir="auto">
+                            <span className={cn("flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors", approvalTone(approval.expiresAt - now))} dir="auto">
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                                 <span>
                                     {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqd(approval.maxOff) })}{" "}
-                                    <span className="whitespace-nowrap font-bold tabular-nums">· {clock(Math.min(APPROVAL_MS, approval.expiresAt - now))}</span>
+                                    <span className="whitespace-nowrap font-bold tabular-nums">· {approvalClock(approval.expiresAt - now)}</span>
                                 </span>
                             </span>
                         ) : discountTooBig ? null : (
@@ -541,7 +550,3 @@ function CustomerCard({
 }
 
 /** Time left as m:ss, never below 0:00. */
-function clock(ms: number): string {
-    const s = Math.max(0, Math.ceil(ms / 1000));
-    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-}

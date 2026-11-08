@@ -87,10 +87,13 @@ export function TillCustomerScreen() {
         <div className="till-screen grid h-screen grid-cols-[1fr_minmax(360px,38%)] bg-[#F6F1E9] text-[#1E1E1E] dark:bg-[#121212] dark:text-white" onDoubleClick={() => void document.documentElement.requestFullscreen?.()}>
             <div className="relative min-h-0">
             {above > 0 && (
-                <span className="pointer-events-none absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[#1E1E1E] px-4 py-1.5 text-lg font-semibold text-white shadow-sm" dir="auto">
-                    <ArrowUp className="h-5 w-5" aria-hidden="true" />
-                    {t("till.cart.moreAbove", { n: above })}
-                </span>
+                // The customer can't touch this screen, so it is a quiet note over a fade, not a button.
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-16 items-start justify-center bg-gradient-to-b from-[#F6F1E9] via-[#F6F1E9]/90 to-transparent pt-2 dark:from-[#121212] dark:via-[#121212]/90" aria-hidden="true">
+                    <span className="flex items-center gap-1.5 text-lg font-semibold text-[#1E1E1E]/70 dark:text-white/70" dir="auto">
+                        <ArrowUp className="h-5 w-5" />
+                        {t("till.cart.moreAbove", { n: above })}
+                    </span>
+                </div>
             )}
             {/* scroll-py keeps a scrolled-to line clear of the list's edge padding. */}
             <ul
