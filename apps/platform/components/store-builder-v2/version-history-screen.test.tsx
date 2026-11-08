@@ -321,6 +321,31 @@ describe("VersionHistoryScreen", () => {
         expect(text).not.toContain("false");
     });
 
+    it("a setting the older version never stored goes back to default, not «removes»", () => {
+        const builder = makeBuilder();
+        builder.config.commerce = { ...builder.config.commerce, enable_whatsapp_order: true };
+        const base = emptyStoreConfigV2();
+        const { enable_whatsapp_order: _drop, ...olderCommerce } = { ...base.commerce, enable_whatsapp_order: false };
+        void _drop;
+        const v = makeVersion({
+            id: "v-old",
+            is_named: true,
+            label: "Old",
+            config: { ...base, commerce: olderCommerce },
+        });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-old"));
+        const row = screen.getByTestId("version-history-diff-row-to-default");
+        expect(row.textContent).toContain("back to default");
+        expect(screen.queryByTestId("version-history-diff-row-removed")).toBeNull();
+    });
+
     it("a reordered section list says the order changes, not «2 items → 2 items»", () => {
         const a = "11111111-1111-4111-8111-111111111111";
         const b = "22222222-2222-4222-8222-222222222222";

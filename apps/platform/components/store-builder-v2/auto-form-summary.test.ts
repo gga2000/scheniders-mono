@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { summarizeArrayItem } from "./auto-form-fields";
 
 describe("summarizeArrayItem — repeater row titles", () => {
+    it("a stat reads as its number and caption together", () => {
+        expect(summarizeArrayItem({ value: "+3,000", label_i18n: { ar: "طلب وصل" } }, "ar")).toBe("+3,000 طلب وصل");
+    });
+
     it("uses the merchant's own words", () => {
         expect(summarizeArrayItem({ title_i18n: { ar: "عطور رجالية", en: "Men" } }, "ar")).toBe("عطور رجالية");
         expect(summarizeArrayItem({ author_name: "Ali" }, "ar")).toBe("Ali");

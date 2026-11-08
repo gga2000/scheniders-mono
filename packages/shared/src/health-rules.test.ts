@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runHealthChecks, blockingChecks } from "./health-rules";
+import { runHealthChecks, blockingChecks, healthBand } from "./health-rules";
 import { emptyStoreConfigV2 } from "./types/store-config-v2-resolver";
 import type {
     PageId,
@@ -574,17 +574,55 @@ describe("runHealthChecks — brand_colors_readable", () => {
         expect(find(cfg)?.status).toBe("pass");
     });
 
-    it("warns when the main colour nearly disappears into the page", () => {
+    it("warns when the main colour is weak but visible", () => {
         const cfg = fullyPopulatedConfig();
-        cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#111111", primary: "#f7db17" } };
+        cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#111111", primary: "#d4a017" } };
         const c = find(cfg);
         expect(c?.status).toBe("warn");
         expect(c?.fix_action?.go_to).toEqual({ kind: "settings", key: "brand_kit" });
     });
 
-    it("warns when body text is too light to read", () => {
+    it("fails when the main colour nearly disappears into the page", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#111111", primary: "#f7db17" } };
+        const c = find(cfg);
+        expect(c?.status).toBe("fail");
+        expect(c?.blocks_publish).toBeUndefined();
+    });
+
+    it("fails when body text is too light to read", () => {
         const cfg = fullyPopulatedConfig();
         cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#aaaaaa", primary: "#1d4ed8" } };
-        expect(find(cfg)?.message).toMatch(/text/);
+        const c = find(cfg);
+        expect(c?.status).toBe("fail");
+        expect(c?.message).toMatch(/text/);
+    });
+});
+
+describe("healthBand", () => {
+    it("is great for a clean store", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#111111", primary: "#1d4ed8" } };
+        const report = runHealthChecks(cfg);
+        expect(report.checks.some((c) => c.status === "fail")).toBe(false);
+        expect(report.score).toBeGreaterThanOrEqual(85);
+        expect(healthBand(report)).toBe("great");
+    });
+
+    it("caps a high score at almost while any check fails", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#111111", primary: "#f7db17" } };
+        const report = runHealthChecks(cfg);
+        expect(report.score).toBeGreaterThanOrEqual(85);
+        expect(healthBand(report)).toBe("almost");
+    });
+
+    it("is needs_work while a check blocks publish", () => {
+        const report = runHealthChecks(fullyPopulatedConfig());
+        const blocked = {
+            ...report,
+            checks: [{ ...report.checks[0], status: "fail" as const, blocks_publish: true }, ...report.checks.slice(1)],
+        };
+        expect(healthBand(blocked)).toBe("needs_work");
     });
 });

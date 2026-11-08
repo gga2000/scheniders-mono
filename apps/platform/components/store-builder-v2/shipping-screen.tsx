@@ -419,6 +419,14 @@ export function ShippingScreen({
                             </span>
                         </span>
                     </label>
+                    {!inspectBeforePaying && (
+                        <p
+                            data-testid="shipping-inspect-off-note"
+                            className="text-left! mt-2 ps-6.5 text-xs text-muted-foreground"
+                        >
+                            {t(s.ship_door_off_note, locale)}
+                        </p>
+                    )}
                 </section>
 
                 {/* Priced by computeDeliveryFee — the function checkout calls. */}

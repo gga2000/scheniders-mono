@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { HeartPulse, AlertTriangle, CheckCircle2, ArrowRight, Rocket } from "lucide-react";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
-import { runHealthChecks, blockingChecks } from "@scheniders/shared/health-rules";
+import { runHealthChecks, blockingChecks, healthBand, type HealthBand } from "@scheniders/shared/health-rules";
 import type { LocaleCode, StoreConfigV2, FixAction, HealthContext } from "@scheniders/shared";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { checkCopyFixLabel, checkCopyMessage } from "@/lib/health-check-copy";
@@ -51,26 +51,25 @@ function fixHref(fix: FixAction | undefined): string {
     }
 }
 
-function scoreColor(score: number): string {
-    if (score < 40) return "#ef4444";
-    if (score < 70) return "#f59e0b";
-    if (score < 85) return "#22d3a5";
-    return "#16a34a";
-}
+const BAND_COLOR: Record<HealthBand, string> = {
+    needs_work: "#ef4444",
+    almost: "#f59e0b",
+    ready: "#22d3a5",
+    great: "#16a34a",
+};
 
-function scoreLabel(score: number): EditorString {
-    if (score < 40) return STRINGS.command_center.health_score_needs_attention;
-    if (score < 70) return STRINGS.command_center.health_score_getting_there;
-    if (score < 85) return STRINGS.command_center.health_score_looking_good;
-    return STRINGS.command_center.health_score_launch_ready;
-}
+const BAND_LABEL: Record<HealthBand, EditorString> = {
+    needs_work: STRINGS.command_center.health_score_needs_attention,
+    almost: STRINGS.command_center.health_score_getting_there,
+    ready: STRINGS.command_center.health_score_looking_good,
+    great: STRINGS.command_center.health_score_launch_ready,
+};
 
 /** Simple SVG ring showing the score 0–100. */
-function ScoreRing({ score }: { score: number }) {
+function ScoreRing({ score, color }: { score: number; color: string }) {
     const r = 32;
     const circ = 2 * Math.PI * r;
     const filled = (score / 100) * circ;
-    const color = scoreColor(score);
 
     return (
         <svg width="80" height="80" viewBox="0 0 80 80" className="shrink-0">
@@ -132,7 +131,8 @@ export function HealthCard({ config, healthContext, isBrandNew = false, locale }
     // the hub never says "launch-ready" and "must fix before launch" at once.
     const blockingCount = blockingChecks(report).length;
     const suggestionCount = openChecks.length - blockingCount;
-    const label = blockingCount > 0 ? STRINGS.command_center.health_score_needs_attention : scoreLabel(score);
+    const band = healthBand(report);
+    const label = BAND_LABEL[band];
 
     return (
         <div className="rounded-2xl border border-border bg-(--card-bg) shadow-(--card-shadow) p-6">
@@ -146,7 +146,7 @@ export function HealthCard({ config, healthContext, isBrandNew = false, locale }
             </div>
 
             <div className="flex items-start gap-4 mb-5">
-                <ScoreRing score={score} />
+                <ScoreRing score={score} color={BAND_COLOR[band]} />
                 <div className="flex flex-col justify-center gap-1">
                     <p className="text-sm font-semibold text-foreground">{t(label, locale)}</p>
                     <p className="text-xs text-muted-foreground">

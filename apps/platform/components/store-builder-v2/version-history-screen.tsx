@@ -433,11 +433,19 @@ export function VersionHistoryScreen({
                                                     </span>
                                                 </div>
                                                 <div
-                                                    className="mt-0.5 text-[11px] text-muted-foreground"
+                                                    className="mt-0.5 flex min-w-0 text-[11px] text-muted-foreground"
                                                     title={absoluteTime(v.created_at, locale)}
                                                 >
-                                                    {relativeTime(v.created_at, locale)}
-                                                    {v.author_name ? ` · ${v.author_name}` : ""}
+                                                    <span className="shrink-0">{relativeTime(v.created_at, locale)}</span>
+                                                    {v.author_name && (
+                                                        <>
+                                                            <span className="shrink-0">{"\u00a0·\u00a0"}</span>
+                                                            {/* A long name or email ends in … instead of wrapping the row. */}
+                                                            <bdi className="min-w-0 truncate" title={v.author_name}>
+                                                                {v.author_name}
+                                                            </bdi>
+                                                        </>
+                                                    )}
                                                 </div>
                                                 {v.diff_summary && (
                                                     <div className="mt-1 flex flex-wrap gap-1">
@@ -752,22 +760,27 @@ function DiffRow({
     const secret = isSecretDiffPath(entry.path);
     // Two same-size id lists would both read «8 عناصر»; say what moved instead.
     const listShift = idListShift(entry.before, entry.after);
+    // A single setting the older version never stored is not deleted on
+    // restore: the store falls back to that setting's default.
+    const toDefault = entry.kind === "removed" && isPlainSetting(entry.before);
     const tone =
         entry.kind === "added"
             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
-            : entry.kind === "removed"
+            : entry.kind === "removed" && !toDefault
               ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30"
               : "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30";
 
     const label =
         entry.kind === "added"
             ? t(STRINGS.version_history.diff_added, locale)
-            : entry.kind === "removed"
+            : toDefault
+              ? t(STRINGS.version_history.diff_to_default, locale)
+              : entry.kind === "removed"
               ? t(STRINGS.version_history.diff_removed, locale)
               : t(STRINGS.version_history.diff_changed, locale);
     return (
         <li
-            data-testid={`version-history-diff-row-${entry.kind}`}
+            data-testid={`version-history-diff-row-${toDefault ? "to-default" : entry.kind}`}
             className={cn(
                 "flex flex-col gap-1 rounded-md border px-2.5 py-1.5 text-[12px]",
                 tone,
@@ -788,6 +801,11 @@ function DiffRow({
                         locale,
                     )}
                 </div>
+            ) : toDefault ? (
+                <div dir="auto" className="text-[11px] opacity-80">
+                    <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
+                    <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before, locale)}</bdi>
+                </div>
             ) : entry.kind === "changed" && (
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
                     <div dir="auto">
@@ -802,6 +820,11 @@ function DiffRow({
             )}
         </li>
     );
+}
+
+/** One stored value (text, number, switch), not a section, list or group. */
+function isPlainSetting(v: unknown): boolean {
+    return typeof v === "string" || typeof v === "number" || typeof v === "boolean";
 }
 
 /** Names the live tests and programmes a restore would stop. */

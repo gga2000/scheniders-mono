@@ -22,9 +22,9 @@ import type {
     RuleStatus,
     StoreConfigV2,
 } from "@scheniders/shared";
-import { blockingChecks, runHealthChecks } from "@scheniders/shared/health-rules";
+import { blockingChecks, healthBand, runHealthChecks, type HealthBand } from "@scheniders/shared/health-rules";
 import { cn } from "@/lib/utils";
-import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import { useEditorMode } from "@/lib/editor-mode-context";
 import { CHECK_COPY, CHECK_PASSED_COPY, checkCopyFixLabel } from "@/lib/health-check-copy";
@@ -100,19 +100,26 @@ const CATEGORY_ORDER: HealthCategory[] = [
 /* Visual helpers                                                      */
 /* ─────────────────────────────────────────────────────────────────── */
 
+const BAND_COLOR: Record<HealthBand, string> = {
+    needs_work: "#ef4444", // red
+    almost: "#f59e0b", // amber
+    ready: "#22d3a5", // mint
+    great: "#16a34a", // green
+};
+
 function scoreColor(score: number): string {
-    if (score < 40) return "#ef4444"; // red
-    if (score < 70) return "#f59e0b"; // amber
-    if (score < 85) return "#22d3a5"; // mint
-    return "#16a34a"; // green
+    if (score < 40) return BAND_COLOR.needs_work;
+    if (score < 70) return BAND_COLOR.almost;
+    if (score < 85) return BAND_COLOR.ready;
+    return BAND_COLOR.great;
 }
 
-function scoreLabel(score: number, locale: LocaleCode): string {
-    if (score < 40) return t(STRINGS.health.score_needs_work, locale);
-    if (score < 70) return t(STRINGS.health.score_almost, locale);
-    if (score < 85) return t(STRINGS.health.score_ready, locale);
-    return t(STRINGS.health.score_great, locale);
-}
+const BAND_LABEL: Record<HealthBand, EditorString> = {
+    needs_work: STRINGS.health.score_needs_work,
+    almost: STRINGS.health.score_almost,
+    ready: STRINGS.health.score_ready,
+    great: STRINGS.health.score_great,
+};
 
 function statusDotColor(s: RuleStatus): string {
     if (s === "fail") return "bg-red-500";
@@ -124,13 +131,12 @@ function statusDotColor(s: RuleStatus): string {
 /* Donut                                                               */
 /* ─────────────────────────────────────────────────────────────────── */
 
-function ScoreDonut({ score }: { score: number }): ReactElement {
+function ScoreDonut({ score, color }: { score: number; color: string }): ReactElement {
     const size = 156;
     const stroke = 14;
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference * (1 - Math.max(0, Math.min(100, score)) / 100);
-    const color = scoreColor(score);
     return (
         <svg
             width={size}
@@ -196,6 +202,7 @@ export function HealthChecklistScreen(
         [config, healthContext],
     );
     const blocking = useMemo(() => blockingChecks(report), [report]);
+    const band = healthBand(report);
     // Open checks that do not block Publish. Simple mode lists them under
     // the blockers, the same items the hub card shows with a Fix button.
     const suggestions = useMemo(() => {
@@ -595,14 +602,14 @@ export function HealthChecklistScreen(
                     className="flex flex-col items-center justify-center rounded-2xl border border-(--card-border) bg-background p-6 shadow-(--card-shadow)"
                     data-testid="health-score-card"
                 >
-                    <ScoreDonut score={report.score} />
+                    <ScoreDonut score={report.score} color={BAND_COLOR[band]} />
                     <div className="mt-3 text-center">
                         <div
                             className="text-sm font-semibold"
-                            style={{ color: scoreColor(report.score) }}
+                            style={{ color: BAND_COLOR[band] }}
                             data-testid="health-score-label"
                         >
-                            {scoreLabel(report.score, locale)}
+                            {t(BAND_LABEL[band], locale)}
                         </div>
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
                             {t(STRINGS.health.out_of_100, locale)}
