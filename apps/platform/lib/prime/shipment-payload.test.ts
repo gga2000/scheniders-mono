@@ -148,18 +148,19 @@ describe("buildPrimeShipment", () => {
 });
 
 describe("buildPrimeShipment for refunds and replacements", () => {
-    it("sends a refund with the money the driver pays the customer, as a negative amount, and the item coming back", () => {
+    it("sends a refund as 1 IQD (Prime takes no negative amount) with the money to pay leading the note, and the item coming back", () => {
         // The orders page's refund card: -36,750 refunded, 5,000 pickup fee kept → driver pays 31,750.
         const built = buildPrimeShipment(order({ order_id: "RTN-4136-1", is_return: true, price: -36750, delivery_fee: 5000 }), merchant);
         expect(built.ok).toBe(true);
         if (!built.ok) return;
-        expect(built.payload.receiptAmtIqd).toBe(-31750);
+        expect(built.payload.receiptAmtIqd).toBe(1);
+        expect(built.payload.undeclaredShipmentValue).toBeUndefined();
+        expect(built.payload.rmk).toBe("تنبيه: ادفع للزبون 31,750 د.ع · لا تستلم أي مبلغ · استلم من الزبون: Envoy - Call before");
         expect(built.payload.custReceiptNoOri).toBe("4136");
         expect(built.payload.senderSystemCaseIdWithCharacters).toBe("RTN-4136-1");
         expect(built.payload.haveReturnItems).toBe("Y");
         expect(built.payload.haveReturnItemsDesc).toBe("Envoy");
-        expect(built.payload.undeclaredShipmentValue).toBeUndefined();
-        expect(primeUpdateFields(built.payload)).toMatchObject({ receiptAmtIqd: -31750, haveReturnItems: "Y", haveReturnItemsDesc: "Envoy" });
+        expect(primeUpdateFields(built.payload)).toMatchObject({ receiptAmtIqd: 1, haveReturnItems: "Y", haveReturnItemsDesc: "Envoy" });
     });
 
     it("sends a refund paid at the store (nothing at the door) with the goods' value declared", () => {
@@ -170,10 +171,11 @@ describe("buildPrimeShipment for refunds and replacements", () => {
 
     it.each<[string, number, number, number]>([
         ["collects the difference on a dearer new item", 10000, 5000, 15000],
-        ["pays the customer on a cheaper new item", -10000, 0, -10000],
+        ["pays the customer on a cheaper new item (sent as 1 IQD)", -10000, 0, 1],
     ])("replacement %s", (_label, price, deliveryFee, amount) => {
         const built = buildPrimeShipment(order({ order_id: "RPL-4030-1", is_replacement: true, price, delivery_fee: deliveryFee }), merchant);
         expect(built.ok && built.payload.receiptAmtIqd).toBe(amount);
+        expect(built.ok && built.payload.rmk.startsWith("تنبيه: ادفع للزبون")).toBe(amount === 1);
         expect(built.ok && built.payload.haveReturnItems).toBe("Y");
     });
 
