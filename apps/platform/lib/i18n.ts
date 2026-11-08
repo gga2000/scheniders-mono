@@ -440,9 +440,9 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.stats.boxesNeeded": "Boxes needed for packing",
         "dashboard.stats.readyToPack": "Ready to pack",
         "dashboard.stats.review": "Review",
-        "dashboard.stats.flaggedFake": "Flagged / Fake",
-        "dashboard.stats.reviewBeforeBlocking": "Review before blocking",
-        "dashboard.stats.needsReview": "Needs review",
+        "dashboard.stats.flaggedFake": "Refused on delivery",
+        "dashboard.stats.reviewBeforeBlocking": "All time: the customer refused the parcel",
+        "dashboard.stats.needsReview": "All time",
         "dashboard.stats.vsLastMonth": "vs last month",
 
         // Today Strip
@@ -7569,9 +7569,9 @@ export const translations: Record<Locale, Record<string, string>> = {
         "dashboard.stats.boxesNeeded": "صناديق جاهزة للتغليف",
         "dashboard.stats.readyToPack": "جاهز للتغليف",
         "dashboard.stats.review": "مراجعة",
-        "dashboard.stats.flaggedFake": "مشبوه / وهمي",
-        "dashboard.stats.reviewBeforeBlocking": "مراجعة قبل الحظر",
-        "dashboard.stats.needsReview": "يحتاج مراجعة",
+        "dashboard.stats.flaggedFake": "مرفوض عند التوصيل",
+        "dashboard.stats.reviewBeforeBlocking": "من البداية: الزبون رفض الطلبية",
+        "dashboard.stats.needsReview": "من البداية",
         "dashboard.stats.vsLastMonth": "مقارنة بالشهر الماضي",
 
         // شريط اليوم
