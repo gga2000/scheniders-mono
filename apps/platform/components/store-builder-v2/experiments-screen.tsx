@@ -39,9 +39,10 @@ import type {
     Experiment,
     ExperimentArm,
 } from "@scheniders/shared";
-import type {
-    UseStoreBuilderV2Return,
-    ExperimentStats,
+import {
+    EXPERIMENT_MIN_VISITORS_PER_ARM,
+    type UseStoreBuilderV2Return,
+    type ExperimentStats,
 } from "@/hooks/use-store-builder-v2";
 import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
@@ -1174,6 +1175,7 @@ function ExperimentViewer({
                     ) : (
                         <ul className="space-y-3" data-testid="experiment-viewer-arms">
                             {experiment.arms.map((arm) => {
+                                const controlVisitors = controlId ? (stats.per_arm[controlId]?.visitors ?? 0) : 0;
                                 const armStats = stats.per_arm[arm.id] ?? {
                                     visitors: 0,
                                     add_to_cart: 0,
@@ -1275,6 +1277,22 @@ function ExperimentViewer({
                                                 />
                                             )}
                                         </div>
+                                        {sig && !sig.significant && !isControl ? (
+                                            <p
+                                                data-testid={`experiment-viewer-arm-${arm.id}-progress`}
+                                                className="mt-2 text-left! text-[11px] text-muted-foreground"
+                                            >
+                                                {sig.needs_more_data
+                                                    ? tFormat(STRINGS.advanced_chrome.exp_needs_visitors, locale, {
+                                                          n: Math.max(
+                                                              0,
+                                                              EXPERIMENT_MIN_VISITORS_PER_ARM -
+                                                                  Math.min(armStats.visitors, controlVisitors),
+                                                          ).toLocaleString("en-US"),
+                                                      })
+                                                    : t(STRINGS.advanced_chrome.exp_gap_too_small, locale)}
+                                            </p>
+                                        ) : null}
                                     </li>
                                 );
                             })}

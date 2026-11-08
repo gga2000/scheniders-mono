@@ -296,6 +296,31 @@ describe("VersionHistoryScreen", () => {
         expect(screen.getByTestId("version-history-restore-losses")).toBeTruthy();
     });
 
+    it("diff values read as words: on/off, not true/false", () => {
+        const builder = makeBuilder();
+        builder.config.commerce = { ...builder.config.commerce, enable_whatsapp_order: true };
+        const base = emptyStoreConfigV2();
+        const v = makeVersion({
+            id: "v-bool",
+            is_named: true,
+            label: "Bool",
+            config: { ...base, commerce: { ...base.commerce, enable_whatsapp_order: false } },
+        });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-bool"));
+        const text = screen.getByTestId("version-history-diff").textContent ?? "";
+        expect(text).toContain("On");
+        expect(text).toContain("Off");
+        expect(text).not.toContain("true");
+        expect(text).not.toContain("false");
+    });
+
     it("shows no warning when nothing live would stop", () => {
         const builder = makeBuilder();
         builder.config.default_locale = "ar";

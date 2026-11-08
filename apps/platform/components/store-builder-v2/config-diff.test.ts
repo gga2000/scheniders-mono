@@ -82,7 +82,11 @@ describe("restoreLosses", () => {
             ...now.commerce,
             loyalty: { enabled: true },
             free_gift: { enabled: true },
-            bundles: [{ id: "x", product_ids: [], kind: "percent", value: 10 }],
+            bundles: [
+                { id: "x", product_ids: ["p1", "p2"], kind: "percent", value: 10 },
+                // Unset flag but no products picked: not live, so not a loss.
+                { id: "y", product_ids: [], kind: "percent", value: 10 },
+            ],
             discounts: [{ code: "EID", kind: "percent", value: 10 }],
         };
         const target = emptyStoreConfigV2();
@@ -91,6 +95,12 @@ describe("restoreLosses", () => {
         const out = restoreLosses(now, target);
         expect(out.tests).toEqual(["Stops"]);
         expect(out.programs).toEqual(["loyalty", "free_gift", "bundles"]);
+    });
+
+    it("does not warn about a bundle that is not live now", () => {
+        const now = emptyStoreConfigV2();
+        now.commerce = { ...now.commerce, bundles: [{ id: "z", product_ids: [], kind: "percent", value: 10 }] };
+        expect(restoreLosses(now, emptyStoreConfigV2()).programs).toEqual([]);
     });
 
     it("is empty when nothing live is lost", () => {

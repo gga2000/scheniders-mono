@@ -544,7 +544,7 @@ export const STRINGS = {
         card_shape: { en: "Shape", ar: "الشكل", ku: "شێوە" },
         card_motion: { en: "Motion", ar: "الحركة", ku: "جوڵە" },
         card_voice: { en: "Voice & tone", ar: "الصوت والنبرة", ku: "دەنگ و شێوازی قسە" },
-        reset: { en: "Reset", ar: "إعادة تعيين", ku: "ڕێکخستنەوە" },
+        reset: { en: "Use default", ar: "استخدم الافتراضي", ku: "بنەڕەت بەکاربهێنە" },
         // Field labels
         field_store_name: { en: "Store name", ar: "اسم المتجر", ku: "ناوی فرۆشگا" },
         field_tagline: { en: "Slogan", ar: "العبارة التعريفية", ku: "دروشم" },
@@ -947,11 +947,12 @@ export const STRINGS = {
         diff_added: { en: "adds", ar: "سيُضاف", ku: "زیاد دەکرێت" },
         diff_removed: { en: "removes", ar: "سيُحذف", ku: "لادەبرێت" },
         diff_changed: { en: "changes", ar: "سيتغيّر", ku: "دەگۆڕێت" },
+        // tFormat: {n} — an unnamed list item in a change trail
+        diff_item_n: { en: "Item {n}", ar: "العنصر {n}", ku: "بڕگەی {n}" },
         // Past tense, for the publish sheet (what you changed in the draft).
         changed_past: { en: "changed", ar: "تغيّر", ku: "گۆڕا" },
         restore_stops_title: { en: "Restoring this stops what is live now:", ar: "استرجاع هذه النسخة يوقف ما يعمل الآن:", ku: "گەڕاندنەوەی ئەمە ئەوەی ئێستا کار دەکات ڕادەگرێت:" },
-        // tFormat: {names}
-        restore_stops_tests: { en: "Running tests: {names}", ar: "اختبارات قيد التشغيل: {names}", ku: "تاقیکردنەوە چالاکەکان: {names}" },
+        restore_stops_tests: { en: "Running tests:", ar: "اختبارات قيد التشغيل:", ku: "تاقیکردنەوە چالاکەکان:" },
         // Diff group titles, by the config's top-level field.
         group_pages: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
         group_globals: { en: "Header, footer and top bar", ar: "الترويسة والتذييل والشريط العلوي", ku: "سەرپەڕە، ژێرپەڕە و شریتی سەرەوە" },
@@ -977,6 +978,12 @@ export const STRINGS = {
         key_kind: { en: "Type", ar: "النوع", ku: "جۆر" },
         key_rules: { en: "Conditions", ar: "الشروط", ku: "مەرجەکان" },
         key_values: { en: "Values", ar: "القيم", ku: "بەهاکان" },
+        key_sections: { en: "Sections", ar: "الأقسام", ku: "بەشەکان" },
+        // Diff value words: on/off fields and a list of ids.
+        value_on: { en: "On", ar: "مفعّل", ku: "چالاک" },
+        value_off: { en: "Off", ar: "متوقف", ku: "ناچالاک" },
+        // tFormat: {n}
+        value_items_n: { en: "{n} items", ar: "{n} عناصر", ku: "{n} بڕگە" },
         key_code: { en: "Code", ar: "الكود", ku: "کۆد" },
         key_value: { en: "Value", ar: "القيمة", ku: "بەها" },
         key_min_subtotal_iqd: { en: "Minimum order", ar: "الحد الأدنى للطلب", ku: "کەمترین داواکاری" },
@@ -1411,6 +1418,17 @@ export const STRINGS = {
         exp_stat_checkout: { en: "Checkout", ar: "الدفع", ku: "پارەدان" },
         exp_stat_aov: { en: "AOV", ar: "متوسط الطلب", ku: "تێکڕای داواکاری" },
         exp_stat_uplift_control: { en: "Conversion vs original", ar: "تحسن التحويل مقابل الأصل", ku: "گۆڕانی گۆڕین بەراورد بە بنەڕەت" },
+        // tFormat: {n} — under a "still learning" version in the test drawer
+        exp_needs_visitors: {
+            en: "About {n} more visitors per version before a winner can be called.",
+            ar: "يلزم نحو {n} زائر إضافي لكل نسخة قبل تحديد الفائز.",
+            ku: "نزیکەی {n} سەردانکەری زیاتر بۆ هەر وەشانێک پێویستە پێش دیاریکردنی براوە.",
+        },
+        exp_gap_too_small: {
+            en: "Enough visitors, but the gap is still too small to be sure. Keep it running.",
+            ar: "الزوار كافون، لكن الفرق ما زال صغيراً لنتأكد منه. اترك الاختبار يعمل.",
+            ku: "سەردانکەر بەسە، بەڵام جیاوازییەکە هێشتا بچووکە بۆ دڵنیابوون. با بەردەوام بێت.",
+        },
         exp_card_stats_error: {
             en: "Numbers did not load. Open View to try again.",
             ar: "تعذّر تحميل الأرقام. افتح «عرض» للمحاولة مرة أخرى.",
@@ -1598,8 +1616,8 @@ export const STRINGS = {
         disc_add_code: { en: "Add code", ar: "إضافة كود", ku: "زیادکردنی کۆد" },
         disc_intro: { en: "Coupon codes customers type at checkout: a percent off or a fixed amount (IQD).", ar: "أكواد خصم يكتبها الزبون عند الطلب: نسبة من السلة أو مبلغ ثابت (د.ع).", ku: "کۆدی داشکاندن کە کڕیار لە کاتی داواکردن دەینووسێت: ڕێژەیەک یان بڕێکی جێگیر (IQD)." },
         disc_empty: { en: "No codes yet — add your first", ar: "لا توجد أكواد بعد — أضف أول كود", ku: "هێشتا هیچ کۆدێک نییە — یەکەمیان زیاد بکە" },
-        disc_min_subtotal: { en: "Min subtotal", ar: "الحد الأدنى للإجمالي", ku: "کەمترین کۆ" },
-        disc_max_off: { en: "Max off", ar: "أقصى خصم", ku: "زۆرترین داشکاندن" },
+        disc_min_subtotal: { en: "Min subtotal (IQD)", ar: "الحد الأدنى للإجمالي (د.ع)", ku: "کەمترین کۆ" },
+        disc_max_off: { en: "Max off (IQD)", ar: "أقصى خصم (د.ع)", ku: "زۆرترین داشکاندن" },
         disc_code_label: { en: "Code", ar: "الكود", ku: "کۆد" },
         disc_kind_label: { en: "Type", ar: "النوع", ku: "جۆر" },
         disc_remove_aria: { en: "Remove code", ar: "إزالة الكود", ku: "لابردنی کۆد" },
@@ -1767,7 +1785,7 @@ export const STRINGS = {
         // tFormat: {n}
         more: { en: "+ {n} more", ar: "+ {n} أخرى", ku: "+ {n}ی تر" },
         // tFormat: {pct}
-        pill: { en: "Translated {pct}%", ar: "مترجم {pct}%", ku: "وەرگێڕدراو {pct}%" },
+        pill_word: { en: "Translated", ar: "مترجم", ku: "وەرگێڕدراو" },
         pill_title: { en: "See what still needs translating", ar: "اعرض ما يحتاج ترجمة", ku: "ئەوەی هێشتا وەرگێڕانی دەوێت ببینە" },
     },
     loyalty: {

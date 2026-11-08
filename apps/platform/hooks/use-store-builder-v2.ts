@@ -50,6 +50,9 @@ export interface ExperimentArmSignificance {
     uplift_pct: number;
 }
 
+/** Visitors each version needs before a test can call a winner. */
+export const EXPERIMENT_MIN_VISITORS_PER_ARM = 100;
+
 export interface ExperimentStats {
     experiment_id: string;
     per_arm: Record<string, ExperimentArmStats>;
@@ -1589,7 +1592,6 @@ export function useStoreBuilderV2(
             const controlArmId =
                 experiment?.arms[0]?.id ?? Array.from(armIds).sort()[0] ?? null;
             const significance: Record<string, ExperimentArmSignificance> = {};
-            const MIN_PER_ARM = 100;
             const Z_THRESHOLD = 1.96;
             if (controlArmId) {
                 const ctrl = per_arm[controlArmId];
@@ -1605,8 +1607,8 @@ export function useStoreBuilderV2(
                     }
                     const arm = per_arm[armId];
                     const needs_more_data =
-                        arm.visitors < MIN_PER_ARM ||
-                        ctrl.visitors < MIN_PER_ARM;
+                        arm.visitors < EXPERIMENT_MIN_VISITORS_PER_ARM ||
+                        ctrl.visitors < EXPERIMENT_MIN_VISITORS_PER_ARM;
                     const p1 = arm.conversion_rate;
                     const p2 = ctrl.conversion_rate;
                     let z: number | null = null;

@@ -39,7 +39,7 @@ describe("describeDiffPath", () => {
     });
 
     it("counts list positions from 1", () => {
-        expect(describeDiffPath(["redirects", "0", "from"], [config], "en")[0]).toBe("1");
+        expect(describeDiffPath(["redirects", "0", "from"], [config], "en")[0]).toBe("Item 1");
     });
 });
 
