@@ -11,13 +11,11 @@ type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
  *    Prime has no price for the governorate or did not answer).
  *  - fix: the order holds something Prime refuses (a 10-digit phone, no
  *    governorate…); it would go in the Excel file unless fixed first.
- *  - after_sale: refunds and replacements always go in the Excel file.
  * `caseId` is set when Prime already has the parcel.
  */
 export type PrimeDeskRow =
     | { orderId: string; kind: "ready"; fee: number | null; caseId: number | null }
-    | { orderId: string; kind: "fix"; reason: Exclude<PrimeSkipReason, "after_sale">; caseId: number | null }
-    | { orderId: string; kind: "after_sale"; caseId: number | null };
+    | { orderId: string; kind: "fix"; reason: PrimeSkipReason; caseId: number | null };
 
 /** Charge look-ups at once; Prime answers each in ~0.13s. */
 const CONCURRENCY = 4;
@@ -59,10 +57,7 @@ export async function previewPrimeRun(
         const caseId = caseOf.get(order.id) ?? null;
         const built = buildPrimeShipment(order, merchant);
         if (!built.ok) {
-            rows.set(
-                order.id,
-                built.reason === "after_sale" ? { orderId: order.id, kind: "after_sale", caseId } : { orderId: order.id, kind: "fix", reason: built.reason, caseId },
-            );
+            rows.set(order.id, { orderId: order.id, kind: "fix", reason: built.reason, caseId });
             continue;
         }
         const { state, district, receiptAmtIqd } = built.payload;

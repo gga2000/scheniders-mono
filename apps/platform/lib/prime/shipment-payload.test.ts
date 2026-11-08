@@ -140,12 +140,46 @@ describe("buildPrimeShipment", () => {
     });
 
     it.each<[string, Partial<CourierSheetOrder>, string]>([
-        ["refunds", { is_return: true }, "after_sale"],
-        ["replacements", { is_replacement: true }, "after_sale"],
         ["no governorate", { governorate_code: undefined, city: "" }, "no_governorate"],
         ["a phone Prime would reject", { phone: "0770123" }, "bad_phone"],
     ])("leaves %s to the Excel file", (_label, extra, reason) => {
         expect(buildPrimeShipment(order(extra), merchant)).toEqual({ ok: false, reason });
+    });
+});
+
+describe("buildPrimeShipment for refunds and replacements", () => {
+    it("sends a refund with the money the driver pays the customer, as a negative amount, and the item coming back", () => {
+        // The orders page's refund card: -36,750 refunded, 5,000 pickup fee kept → driver pays 31,750.
+        const built = buildPrimeShipment(order({ order_id: "RTN-4136-1", is_return: true, price: -36750, delivery_fee: 5000 }), merchant);
+        expect(built.ok).toBe(true);
+        if (!built.ok) return;
+        expect(built.payload.receiptAmtIqd).toBe(-31750);
+        expect(built.payload.custReceiptNoOri).toBe("4136");
+        expect(built.payload.senderSystemCaseIdWithCharacters).toBe("RTN-4136-1");
+        expect(built.payload.haveReturnItems).toBe("Y");
+        expect(built.payload.haveReturnItemsDesc).toBe("Envoy");
+        expect(built.payload.undeclaredShipmentValue).toBeUndefined();
+        expect(primeUpdateFields(built.payload)).toMatchObject({ receiptAmtIqd: -31750, haveReturnItems: "Y", haveReturnItemsDesc: "Envoy" });
+    });
+
+    it("sends a refund paid at the store (nothing at the door) with the goods' value declared", () => {
+        const built = buildPrimeShipment(order({ order_id: "RTN-4200-1", is_return: true, price: -5000, delivery_fee: 5000 }), merchant);
+        expect(built.ok && built.payload.receiptAmtIqd).toBe(0);
+        expect(built.ok && built.payload.undeclaredShipmentValue).toBe(5000);
+    });
+
+    it.each<[string, number, number, number]>([
+        ["collects the difference on a dearer new item", 10000, 5000, 15000],
+        ["pays the customer on a cheaper new item", -10000, 0, -10000],
+    ])("replacement %s", (_label, price, deliveryFee, amount) => {
+        const built = buildPrimeShipment(order({ order_id: "RPL-4030-1", is_replacement: true, price, delivery_fee: deliveryFee }), merchant);
+        expect(built.ok && built.payload.receiptAmtIqd).toBe(amount);
+        expect(built.ok && built.payload.haveReturnItems).toBe("Y");
+    });
+
+    it("refuses a refund beyond Prime's amount limit", () => {
+        const built = buildPrimeShipment(order({ is_return: true, price: -(PRIME_LIMITS.maxAmountIqd + 10000), delivery_fee: 0 }), merchant);
+        expect(built).toEqual({ ok: false, reason: "amount_out_of_range" });
     });
 });
 

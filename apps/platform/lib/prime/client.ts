@@ -77,6 +77,8 @@ export interface PrimeShipmentPayload {
     productInfo: string;
     rmk: string;
     haveReturnItems: "Y" | "N";
+    /** What the driver brings back, on a refund or replacement. */
+    haveReturnItemsDesc?: string;
 }
 
 /**
@@ -91,7 +93,7 @@ export const PRIME_LIMITS = {
     productInfo: 500,
     /** custReceiptNoOri and senderSystemCaseIdWithCharacters. */
     reference: 40,
-    /** receiptAmtIqd above this (or below 0) is refused with code 21. */
+    /** receiptAmtIqd beyond this (either way: refunds are negative) is refused with code 21. */
     maxAmountIqd: 5_000_000,
 } as const;
 
@@ -250,6 +252,7 @@ export type PrimeShipmentUpdate = Pick<
     | "productInfo"
     | "rmk"
     | "haveReturnItems"
+    | "haveReturnItemsDesc"
 >;
 
 /** A column a resend request may change (update-case-status allowlist), with its new value. */

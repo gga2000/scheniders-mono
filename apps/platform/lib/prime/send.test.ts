@@ -57,14 +57,25 @@ const order = (id: string, extra: Row = {}): Row => ({
 const clientWith = (createShipment: PrimeClient["createShipment"]) => ({ createShipment }) as unknown as PrimeClient;
 
 describe("sendOrdersToPrime", () => {
-    it("sends each confirmed order once and saves Prime's case; refunds are skipped, not failed", async () => {
-        const { db, inserts } = fakeDb([order("o1"), order("o2", { is_return: true, status: "return_pending" })]);
+    it("sends a waiting refund too, with the money the driver pays the customer", async () => {
+        const { db, inserts } = fakeDb([order("o2", { order_id: "RTN-4136-1", is_return: true, status: "return_pending", price: -36750, delivery_fee: 5000 })]);
+        const create = vi.fn(async () => 202);
+
+        const outcome = await sendOrdersToPrime(db, clientWith(create), "t1", merchant, ["o2"]);
+
+        expect(outcome).toEqual({ sent: [{ orderId: "o2", caseId: 202 }], skipped: [], failed: [] });
+        expect(create).toHaveBeenCalledWith(expect.objectContaining({ custReceiptNoOri: "4136", receiptAmtIqd: -31750, haveReturnItems: "Y" }));
+        expect(inserts).toEqual([expect.objectContaining({ order_id: "o2", receipt_no: "4136", case_id: 202, receipt_amount_iqd: -31750 })]);
+    });
+
+    it("sends each confirmed order once and saves Prime's case", async () => {
+        const { db, inserts } = fakeDb([order("o1")]);
         let next = 100;
         const client = clientWith(vi.fn(async () => (next += 1)));
 
-        const outcome = await sendOrdersToPrime(db, client, "t1", merchant, ["o1", "o2"]);
+        const outcome = await sendOrdersToPrime(db, client, "t1", merchant, ["o1"]);
 
-        expect(outcome).toEqual({ sent: [{ orderId: "o1", caseId: 101 }], skipped: [{ orderId: "o2", reason: "after_sale" }], failed: [] });
+        expect(outcome).toEqual({ sent: [{ orderId: "o1", caseId: 101 }], skipped: [], failed: [] });
         expect(inserts).toEqual([
             {
                 tenant_id: "t1",
@@ -148,9 +159,17 @@ describe("sendOrdersToPrime", () => {
         expect(outcome.failed).toEqual([{ orderId: "o2", reason: "duplicate_receipt" }]);
     });
 
-    it("a confirmed order is the only kind the desk ships", async () => {
-        const { db } = fakeDb([order("o1", { status: "in_transit" })]);
-        const outcome = await sendOrdersToPrime(db, clientWith(vi.fn()), "t1", merchant, ["o1"]);
-        expect(outcome.failed).toEqual([{ orderId: "o1", reason: "not_confirmed" }]);
+    it("ships only orders waiting for the courier: confirmed, or return_pending for a refund", async () => {
+        const { db } = fakeDb([
+            order("o1", { status: "in_transit" }),
+            order("o2", { status: "return_pending" }),
+            order("o3", { is_return: true, status: "confirmed" }),
+        ]);
+        const outcome = await sendOrdersToPrime(db, clientWith(vi.fn()), "t1", merchant, ["o1", "o2", "o3"]);
+        expect(outcome.failed).toEqual([
+            { orderId: "o1", reason: "not_confirmed" },
+            { orderId: "o2", reason: "not_confirmed" },
+            { orderId: "o3", reason: "not_confirmed" },
+        ]);
     });
 });
