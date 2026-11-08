@@ -11,6 +11,7 @@ import {
     storefrontOrderGateRowSchema,
 } from "@/lib/storefront-order-confirmation";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import type { Order } from "@/types/order";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const LOG = "[storefront-order]";
+
+// Instant confirmations per store per 10 minutes. The busiest real store does
+// about 45 orders a day; 30 in ten minutes only happens in a flood.
+const STORE_CONFIRM_BURST_LIMIT = 30;
+const STORE_CONFIRM_BURST_WINDOW_SECONDS = 600;
 
 const deliverySchema = z.object({ order_id: z.string().uuid() });
 
@@ -106,6 +112,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!verdict.send) {
         console.log(`${LOG} order ${orderId}: skipped (${verdict.reason})`);
         return NextResponse.json({ skipped: verdict.reason });
+    }
+
+    // A burst of orders far above any real store's pace is a fake-order
+    // flood: each one would send paid WhatsApp to a number the attacker
+    // picked. Past the cap the order still lands for staff, unsent.
+    const burst = await consumeRateLimit(
+        `wa-confirm:${verdict.tenantId}`,
+        STORE_CONFIRM_BURST_LIMIT,
+        STORE_CONFIRM_BURST_WINDOW_SECONDS,
+    );
+    if (burst.error) {
+        console.error(`${LOG} order ${orderId}: burst limiter unavailable, sending anyway: ${burst.error}`);
+    } else if (!burst.allowed) {
+        console.warn(`${LOG} order ${orderId}: skipped (store_burst) tenant=${verdict.tenantId}`);
+        return NextResponse.json({ skipped: "store_burst" });
     }
 
     // The claim repeats the gates, so a row that changed between the read and

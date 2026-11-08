@@ -18,7 +18,7 @@ vi.mock("@/lib/env", () => ({
     providerBaseUrls: { INTERAKT_API_BASE_URL: "https://api.interakt.ai" },
 }));
 
-import { sendTemplateMessage } from "./interakt";
+import { sendTemplateMessage, shopperText } from "./interakt";
 
 const fetchMock = vi.fn();
 
@@ -96,5 +96,20 @@ describe("Interakt template header picture", () => {
         expect(sent.template.name).toBe(name);
         expect(sent.template.languageCode).toBe(language);
         expect(sent.template.headerValues).toEqual([`https://schenidersapp.xyz/whatsapp/${picture}`]);
+    });
+});
+
+describe("shopperText: typed name/address cannot carry a link to the recipient", () => {
+    it("removes links and bare domains, keeps Arabic text", () => {
+        expect(shopperText("طلبك ملغى استرجع فلوسك https://evil.example/x", 60)).toBe("طلبك ملغى استرجع فلوسك");
+        expect(shopperText("علي www.bad.io كرادة", 60)).toBe("علي كرادة");
+        expect(shopperText("visit evil.example/refund now", 60)).toBe("visit now");
+        expect(shopperText("بغداد - الكرادة قرب جامع ١٢", 160)).toBe("بغداد - الكرادة قرب جامع ١٢");
+    });
+
+    it("caps length", () => {
+        const out = shopperText("أ".repeat(300), 60);
+        expect(out.length).toBe(60);
+        expect(out.endsWith("…")).toBe(true);
     });
 });

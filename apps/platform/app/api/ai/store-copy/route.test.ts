@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@/lib/supabase-server", () => ({ verifyAccessToken: vi.fn() }));
+vi.mock("@/lib/auth/resolve-active-tenant", () => ({
+    resolveActiveTenant: vi.fn(async () => ({ ok: true, tenantId: "t1", role: "employee", platformAdmin: false })),
+}));
+vi.mock("@/lib/rate-limit", () => ({
+    consumeRateLimit: vi.fn(async () => ({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })),
+    rateLimitHeaders: () => ({}),
+}));
 
 import { POST } from "./route";
 import { verifyAccessToken } from "@/lib/supabase-server";

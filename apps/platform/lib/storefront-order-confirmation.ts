@@ -26,6 +26,8 @@ export const storefrontOrderGateRowSchema = z.object({
     status: z.string(),
     deleted_at: z.string().nullable(),
     confirmation_dispatched_at: z.string().nullable(),
+    // Stamped at checkout by stampCodRisk; absent on older rows.
+    risk_metadata: z.object({ is_blacklisted: z.boolean().optional() }).passthrough().nullable().optional(),
 });
 
 export type StorefrontOrderGateRow = z.infer<typeof storefrontOrderGateRowSchema>;
@@ -36,7 +38,8 @@ export type StorefrontConfirmationSkip =
     | "deleted"
     | "not_new"
     | "tenant_not_enabled"
-    | "already_dispatched";
+    | "already_dispatched"
+    | "blacklisted";
 
 export type StorefrontConfirmationVerdict =
     | { send: true; tenantId: string }
@@ -67,5 +70,8 @@ export function storefrontConfirmationVerdict(
         return { send: false, reason: "tenant_not_enabled" };
     }
     if (row.confirmation_dispatched_at !== null) return { send: false, reason: "already_dispatched" };
+    // A blacklisted number never gets a paid message on our sender: staff
+    // still see the order (with its risk flag) and decide.
+    if (row.risk_metadata?.is_blacklisted === true) return { send: false, reason: "blacklisted" };
     return { send: true, tenantId: row.tenant_id };
 }

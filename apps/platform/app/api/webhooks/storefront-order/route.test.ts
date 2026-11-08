@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     env: {} as Record<string, string | undefined>,
     triggerImmediateConfirmation: vi.fn(),
     sendNewOrderAlertToStaff: vi.fn(),
+    consumeRateLimit: vi.fn(async () => ({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })),
     db: {
         rows: [] as Array<Record<string, unknown>>,
         failRead: false,
@@ -25,6 +26,7 @@ vi.mock("@/lib/whatsapp-dispatcher", () => ({
     triggerImmediateConfirmation: mocks.triggerImmediateConfirmation,
 }));
 vi.mock("@/lib/staff-alerts", () => ({ sendNewOrderAlertToStaff: mocks.sendNewOrderAlertToStaff }));
+vi.mock("@/lib/rate-limit", () => ({ consumeRateLimit: mocks.consumeRateLimit }));
 // A PostgREST double that APPLIES the filters, so the claim only matches
 // when the route really scoped it to the row, its tenant, and NULL.
 vi.mock("@/lib/supabase-server", () => ({
@@ -280,6 +282,16 @@ describe("POST /api/webhooks/storefront-order — what gets sent", () => {
         expect(await res.json()).toEqual({ skipped: "claimed_elsewhere" });
         expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
         expect(mocks.sendNewOrderAlertToStaff).not.toHaveBeenCalled();
+    });
+
+    it("a store-wide burst of orders holds the paid send and leaves the order unclaimed", async () => {
+        mocks.consumeRateLimit.mockResolvedValueOnce({ allowed: false, remaining: 0, resetAt: null, retryAfterSeconds: 300 });
+        const res = await POST(delivery({ order_id: ORDER }));
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual({ skipped: "store_burst" });
+        expect(mocks.consumeRateLimit).toHaveBeenCalledWith(`wa-confirm:${TENANT}`, 30, 600);
+        expect(mocks.db.claims).toHaveLength(0);
+        expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
     });
 
     it("a staff-alert failure is logged and does not undo the confirmation", async () => {
