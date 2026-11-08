@@ -88,8 +88,8 @@ export function CartRecoveryScreen({
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span dir="auto" className="text-sm text-foreground">
-                        {t(C.delay_label, locale)}
-                        <span className="ms-1 text-xs text-muted-foreground">
+                        {t(C.delay_label, locale)}{" "}
+                        <span className=" text-xs text-muted-foreground">
                             {t(C.delay_unit, locale)}
                         </span>
                     </span>

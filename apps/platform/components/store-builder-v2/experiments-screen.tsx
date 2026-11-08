@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { formatRelativeTime } from "@/lib/relative-time";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                                */
@@ -130,13 +131,10 @@ function relativeStarted(iso: string | undefined, now: Date, locale: LocaleCode)
     if (Number.isNaN(then)) return t(A.exp_not_started, locale);
     const delta = now.getTime() - then;
     if (delta < 0) return t(A.exp_starts_soon, locale);
-    const days = Math.floor(delta / 86_400_000);
-    if (days === 0) {
-        const hours = Math.floor(delta / 3_600_000);
-        if (hours === 0) return t(A.exp_started_now, locale);
-        return tFormat(A.exp_started_hours, locale, { n: hours });
-    }
-    return tFormat(A.exp_started_days, locale, { n: days });
+    if (delta < 3_600_000) return t(A.exp_started_now, locale);
+    return tFormat(A.exp_started_when, locale, {
+        when: formatRelativeTime(new Date(then), now, locale),
+    });
 }
 
 function dateInputValue(iso: string | undefined): string {

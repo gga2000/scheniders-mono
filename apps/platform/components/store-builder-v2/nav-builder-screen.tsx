@@ -119,10 +119,10 @@ export function NavBuilderScreen({
             </header>
 
             <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">
+                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
                     {t(STRINGS.advanced_chrome.nav_intro_prefix, locale)}{" "}
-                    <code className="rounded bg-black/5 px-1">/products</code>,{" "}
-                    <code className="rounded bg-black/5 px-1">/p/&lt;slug&gt;</code>
+                    <code dir="ltr" className="rounded bg-black/5 px-1">/products</code>{" · "}
+                    <code dir="ltr" className="rounded bg-black/5 px-1">/p/summer-sale</code>
                     {t(STRINGS.advanced_chrome.nav_intro_suffix, locale)}
                 </p>
 

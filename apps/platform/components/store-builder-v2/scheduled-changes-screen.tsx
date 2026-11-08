@@ -54,6 +54,7 @@ import { cn } from "@/lib/utils";
 import { getPageLabel } from "./page-tree";
 import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { formatRelativeTime } from "@/lib/relative-time";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                                */
@@ -72,19 +73,6 @@ export interface ScheduledChangesScreenProps {
 /* Helpers                                                              */
 /* ─────────────────────────────────────────────────────────────────── */
 
-/** "3 days ago" / "in 2 hours", worded in the editor's language. */
-function describeRelative(target: Date, now: Date, locale: LocaleCode): string {
-    const fmt = new Intl.RelativeTimeFormat(
-        `${locale === "ku" ? "ckb" : locale}-u-nu-latn`,
-        { numeric: "auto" },
-    );
-    const sign = target.getTime() >= now.getTime() ? 1 : -1;
-    const mins = Math.floor(Math.abs(target.getTime() - now.getTime()) / 60_000);
-    if (mins < 60) return fmt.format(sign * mins, "minute");
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return fmt.format(sign * hrs, "hour");
-    return fmt.format(sign * Math.floor(hrs / 24), "day");
-}
 
 function deriveStatus(s: StoredSchedule, now: Date): ScheduleStatus {
     if (s.status === "cancelled") return "cancelled";
@@ -656,10 +644,10 @@ function ScheduleRow({
     const start = new Date(schedule.starts_at_iso);
     const end = schedule.ends_at_iso ? new Date(schedule.ends_at_iso) : null;
 
-    const startedAgo = describeRelative(start, now, locale);
-    const endsIn = end ? describeRelative(end, now, locale) : null;
-    const startsIn = describeRelative(start, now, locale);
-    const endsAgo = end ? describeRelative(end, now, locale) : null;
+    const startedAgo = formatRelativeTime(start, now, locale);
+    const endsIn = end ? formatRelativeTime(end, now, locale) : null;
+    const startsIn = formatRelativeTime(start, now, locale);
+    const endsAgo = end ? formatRelativeTime(end, now, locale) : null;
 
     const resolved = useMemo(
         () => resolveTargets(builder, schedule.targets),
@@ -1104,7 +1092,7 @@ function ScheduleCreatorModal({
             <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <div>
-                        <h3 className="text-base font-semibold tracking-tight">New schedule</h3>
+                        <h3 className="text-base font-semibold tracking-tight">{tx(STRINGS.scheduled.new, locale)}</h3>
                         <p className="text-[11px] text-foreground/80">
                             {tx(STRINGS.advanced_chrome.sched_creator_subtitle, locale)}
                         </p>
@@ -1163,10 +1151,10 @@ function ScheduleCreatorModal({
                             data-testid="schedule-creator-timezone"
                             className="w-full rounded-md border border-(--card-border) bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         >
-                            <option value="Asia/Baghdad">Asia/Baghdad</option>
-                            <option value="UTC">UTC</option>
-                            <option value="Asia/Dubai">Asia/Dubai</option>
-                            <option value="Europe/Istanbul">Europe/Istanbul</option>
+                            <option value="Asia/Baghdad">{tx(STRINGS.advanced_chrome.sched_tz_baghdad, locale)}</option>
+                            <option value="UTC">{tx(STRINGS.advanced_chrome.sched_tz_utc, locale)}</option>
+                            <option value="Asia/Dubai">{tx(STRINGS.advanced_chrome.sched_tz_dubai, locale)}</option>
+                            <option value="Europe/Istanbul">{tx(STRINGS.advanced_chrome.sched_tz_istanbul, locale)}</option>
                         </select>
                     </Field>
 

@@ -205,7 +205,7 @@ describe("SegmentsScreen", () => {
         });
         rerender();
         expect(handle.getConfig().segments.length).toBe(1);
-        expect(handle.getConfig().segments[0].name).toBe("New segment");
+        expect(handle.getConfig().segments[0].name).toBe("New audience");
         expect(screen.getByTestId("segment-editor")).toBeTruthy();
     });
 

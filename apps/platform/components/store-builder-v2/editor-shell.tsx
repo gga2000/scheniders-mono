@@ -502,6 +502,11 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     useEffect(() => {
         return bridge.onSectionClicked((e) => {
             set_selected_section_id(e.section_id);
+            // When another section's fields are open, follow the click so the
+            // panel never shows section A's fields while B is selected.
+            set_editing_section_id((curr) =>
+                curr !== null && curr !== e.section_id ? e.section_id : curr,
+            );
         });
     }, [bridge]);
 
@@ -2003,6 +2008,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     builder.set_active_page(page);
                                     set_selected_section_id(section_id);
                                     set_editing_section_id(section_id);
+                                    // Leave the health tab so the section's
+                                    // fields are what the merchant sees.
+                                    set_inspector_tab("blocks");
                                 }}
                                 onSetWhatsappNumber={(value) => {
                                     builder.setConfig(

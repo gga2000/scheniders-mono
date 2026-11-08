@@ -34,27 +34,26 @@ const inputCls =
 
 type Field = {
     key: keyof AnalyticsConfig;
-    /** Brand names stay as-is; a translated label comes from `labelKey`. */
-    label: string | EditorString;
+    label: EditorString;
     secret?: boolean;
     placeholder?: string | EditorString;
 };
 
 const ID_FIELDS: Field[] = [
-    { key: "meta_pixel_id", label: "Meta Pixel ID", placeholder: STRINGS.pixels.meta_placeholder },
+    { key: "meta_pixel_id", label: STRINGS.pixels.meta_pixel, placeholder: STRINGS.pixels.meta_placeholder },
     {
         key: "tiktok_pixel_id",
-        label: "TikTok Pixel ID",
+        label: STRINGS.pixels.tiktok_pixel,
         placeholder: STRINGS.pixels.tiktok_placeholder,
     },
-    { key: "google_analytics_id", label: "Google Analytics ID", placeholder: "G-XXXXXXX" },
-    { key: "snapchat_pixel_id", label: "Snapchat Pixel ID" },
-    { key: "gtm_container_id", label: "Google Tag Manager ID", placeholder: "GTM-XXXXX" },
+    { key: "google_analytics_id", label: STRINGS.pixels.ga_id, placeholder: "G-XXXXXXX" },
+    { key: "snapchat_pixel_id", label: STRINGS.pixels.snap_pixel },
+    { key: "gtm_container_id", label: STRINGS.pixels.gtm_id, placeholder: "GTM-XXXXX" },
 ];
 
 const CAPI_FIELDS: Field[] = [
-    { key: "meta_capi_token", label: "Meta CAPI token", secret: true },
-    { key: "tiktok_capi_token", label: "TikTok Events API token", secret: true },
+    { key: "meta_capi_token", label: STRINGS.pixels.meta_capi, secret: true },
+    { key: "tiktok_capi_token", label: STRINGS.pixels.tiktok_capi, secret: true },
     { key: "capi_test_event_code", label: STRINGS.pixels.meta_test_code, placeholder: "TESTxxxx" },
 ];
 

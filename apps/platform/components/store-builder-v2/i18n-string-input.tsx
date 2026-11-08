@@ -157,9 +157,11 @@ export function I18nStringInput({
                     onClick={() => setTranslationsOpen(true)}
                     className="inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
                 >
-                    {tFormat(STRINGS.i18n_input.translations_toggle, activeLocale, {
-                        state: fillState,
-                    })}
+                    <span dir="auto">
+                        {tFormat(STRINGS.i18n_input.translations_toggle, activeLocale, {
+                            state: fillState,
+                        })}
+                    </span>
                     <Plus className="h-3 w-3" aria-hidden="true" />
                 </button>
             ) : (
