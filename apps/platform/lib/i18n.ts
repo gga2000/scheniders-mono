@@ -9,6 +9,7 @@ import { teamTranslations } from "@/lib/i18n-team";
 import { orderHistoryTranslations } from "@/lib/i18n-order-history";
 import { shieldTranslations } from "@/lib/i18n-shield";
 import { tillTranslations } from "@/lib/i18n-till";
+import { guideTranslations } from "@/lib/i18n-guide";
 
 export type Locale = "en" | "ar";
 
@@ -19,6 +20,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         ...orderHistoryTranslations("en"),
         ...shieldTranslations("en"),
         ...tillTranslations("en"),
+        ...guideTranslations("en"),
         // ── Navigation ──
         "nav.dashboard": "Dashboard",
         "nav.orders": "Orders",
@@ -6906,6 +6908,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         ...orderHistoryTranslations("ar"),
         ...shieldTranslations("ar"),
         ...tillTranslations("ar"),
+        ...guideTranslations("ar"),
         // ── Navigation ──
         "nav.dashboard": "لوحة التحكم",
         "nav.orders": "الطلبات",

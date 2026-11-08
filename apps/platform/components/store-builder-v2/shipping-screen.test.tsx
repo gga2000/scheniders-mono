@@ -5,7 +5,8 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { computeDeliveryFee } from "@scheniders/shared";
 import type { StoreConfigV2, GovernorateShippingConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
-import { ShippingScreen, shippingModeOf } from "./shipping-screen";
+import { ShippingScreen } from "./shipping-screen";
+import { shippingModeOf } from "@/lib/shipping-mode";
 
 afterEach(cleanup);
 

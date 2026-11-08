@@ -38,6 +38,7 @@ import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { ScreenHeader } from "./screen-header";
+import { shippingModeOf, type ShippingMode } from "@/lib/shipping-mode";
 
 export interface ShippingScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -50,26 +51,6 @@ function num(v: string): number | undefined {
     if (t2 === "") return undefined;
     const n = Math.round(Number(t2));
     return Number.isFinite(n) && n >= 0 ? n : undefined;
-}
-
-export type ShippingMode = "unset" | "free" | "flat" | "by_governorate";
-
-/**
- * Which of the three answers the stored config represents.
- *
- * Derived rather than stored: a `mode` field would be a second source of
- * truth that could disagree with the rates underneath it, and every store
- * configured before this screen existed has no such field anyway.
- */
-export function shippingModeOf(
-    shipping: GovernorateShippingConfig | undefined,
-): ShippingMode {
-    const def = shipping?.default_rate;
-    const overrides = Object.keys(shipping?.rates ?? {}).length > 0;
-    if (!def && !overrides) return "unset";
-    if (overrides) return "by_governorate";
-    if (def?.fee_iqd === 0 && def.free_threshold_iqd === undefined) return "free";
-    return "flat";
 }
 
 /** The baskets the preview strip prices. Small enough to read at a glance. */
@@ -274,7 +255,7 @@ export function ShippingScreen({
                 )}
 
                 {/* The three answers. */}
-                <div className="grid gap-2 sm:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-3" data-guide="shipping-modes">
                     {modes.map((m) => {
                         const active = mode === m.id;
                         return (
