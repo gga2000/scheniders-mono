@@ -1265,7 +1265,9 @@ function ExperimentViewer({
                                                         : "—"
                                                 }
                                             />
-                                            {sig && !isControl && (
+                                            {/* Only a sure result gets a headline percent; while
+                                                the verdict says it is still learning, a +6% is noise. */}
+                                            {sig?.significant && !isControl && (
                                                 <Stat
                                                     label={t(STRINGS.advanced_chrome.exp_stat_uplift_control, locale)}
                                                     value={`${sig.uplift_pct >= 0 ? "+" : ""}${sig.uplift_pct.toFixed(2)}%`}

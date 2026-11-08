@@ -672,6 +672,8 @@ describe("ExperimentsScreen", () => {
         await waitFor(() => {
             expect(screen.getByTestId("experiment-verdict-learning")).toBeTruthy();
         });
+        // No headline percent while the result is not sure yet.
+        expect(screen.queryByTestId("experiment-viewer-arm-arm_b-uplift")).toBeNull();
     });
 
     it("ending a test asks first and says everyone goes back to the first version", () => {

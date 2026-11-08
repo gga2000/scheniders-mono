@@ -14,6 +14,8 @@
 // expanded before non-array siblings.
 // =====================================================================
 
+import type { StoreConfigV2 } from "@scheniders/shared";
+
 export type DiffKind = "added" | "removed" | "changed";
 
 export interface DiffEntry {
@@ -172,4 +174,55 @@ export function groupDiffByTop(entries: DiffEntry[]): Record<string, DiffEntry[]
         out[key].push(e);
     }
     return out;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* What a restore would switch off                                      */
+/* ─────────────────────────────────────────────────────────────────── */
+
+/** Selling programmes a restore can switch off, by their settings screen. */
+export type LiveProgram = "loyalty" | "free_gift" | "cart_recovery" | "bundles" | "discounts";
+
+export interface RestoreLosses {
+    /** Names of tests running now that would no longer be running. */
+    tests: string[];
+    /** Programmes on now that would be off (or gone) after the restore. */
+    programs: LiveProgram[];
+}
+
+const isOn = (c: { enabled?: boolean } | undefined): boolean => c?.enabled === true;
+
+/** Active list items (enabled unless explicitly false) missing from `target`. */
+function losesActiveItem<T extends { enabled?: boolean }>(
+    now: readonly T[] | undefined,
+    target: readonly T[] | undefined,
+    key: (x: T) => string,
+): boolean {
+    const kept = new Set((target ?? []).filter((x) => x.enabled !== false).map(key));
+    return (now ?? []).some((x) => x.enabled !== false && !kept.has(key(x)));
+}
+
+/**
+ * Live things a restore of `target` over `current` would stop. A long diff
+ * lists these as ordinary rows; the restore screen names them up front so
+ * stopping a running test or the points programme is never a surprise.
+ */
+export function restoreLosses(current: StoreConfigV2, target: StoreConfigV2): RestoreLosses {
+    const runningAfter = new Set(
+        (target.experiments ?? []).filter((e) => e.status === "running").map((e) => e.id),
+    );
+    const tests = (current.experiments ?? [])
+        .filter((e) => e.status === "running" && !runningAfter.has(e.id))
+        .map((e) => e.name);
+    const now = current.commerce;
+    const after = target.commerce;
+    const programs: LiveProgram[] = [];
+    if ((isOn(now?.loyalty) && !isOn(after?.loyalty)) || (isOn(now?.referral) && !isOn(after?.referral))) {
+        programs.push("loyalty");
+    }
+    if (isOn(now?.free_gift) && !isOn(after?.free_gift)) programs.push("free_gift");
+    if (isOn(now?.cart_recovery) && !isOn(after?.cart_recovery)) programs.push("cart_recovery");
+    if (losesActiveItem(now?.bundles, after?.bundles, (b) => b.id)) programs.push("bundles");
+    if (losesActiveItem(now?.discounts, after?.discounts, (d) => d.code.toLowerCase())) programs.push("discounts");
+    return { tests, programs };
 }

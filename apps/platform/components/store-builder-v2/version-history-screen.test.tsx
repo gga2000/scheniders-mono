@@ -275,6 +275,42 @@ describe("VersionHistoryScreen", () => {
         expect(screen.getAllByTestId("version-history-diff-row-changed").length).toBeGreaterThan(0);
     });
 
+    it("warns up front when restoring would stop a running test and loyalty", () => {
+        const builder = makeBuilder();
+        builder.config.experiments = [
+            { id: "e1", name: "Hero test", status: "running", primary_metric: "orders", arms: [] },
+        ];
+        builder.config.commerce = { ...builder.config.commerce, loyalty: { enabled: true } };
+        const v = makeVersion({ id: "v-old", label: "Old", is_named: true, config: emptyStoreConfigV2() });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-old"));
+        const note = screen.getByTestId("version-history-losses").textContent ?? "";
+        expect(note).toContain("Hero test");
+        fireEvent.click(screen.getByTestId("version-history-restore-button"));
+        expect(screen.getByTestId("version-history-restore-losses")).toBeTruthy();
+    });
+
+    it("shows no warning when nothing live would stop", () => {
+        const builder = makeBuilder();
+        builder.config.default_locale = "ar";
+        const v = makeVersion({ id: "v-calm", is_named: true, label: "Calm", config: { ...emptyStoreConfigV2(), default_locale: "en" } });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-calm"));
+        expect(screen.queryByTestId("version-history-losses")).toBeNull();
+    });
+
     it("fetches a version's config on demand for the diff (EC28 lazy load)", async () => {
         const builder = makeBuilder({
             getVersionConfig: async () => ({
