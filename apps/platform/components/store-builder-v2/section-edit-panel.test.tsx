@@ -238,6 +238,10 @@ describe("SectionEditPanel focusField", () => {
             scrolled.push(this);
         };
         const onDone = vi.fn();
+        const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+            cb(0);
+            return 0;
+        });
         try {
             render(
                 <SectionEditPanel
@@ -250,6 +254,7 @@ describe("SectionEditPanel focusField", () => {
             );
         } finally {
             Element.prototype.scrollIntoView = original;
+            raf.mockRestore();
         }
         expect(scrolled).toHaveLength(1);
         expect((scrolled[0] as HTMLElement).dataset.testid).toMatch(/^auto-form-(?:\w+\.)*image_url(?:-|$)/);

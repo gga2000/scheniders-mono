@@ -36,8 +36,6 @@ export const GOOGLE_FONTS: readonly string[] = [
     "Raleway",
     "Roboto",
     "Work Sans",
-    "Bricolage",
-    "Playfair",
 ] as const;
 
 export const CANDY_DEFAULTS: Readonly<BrandColors> = {

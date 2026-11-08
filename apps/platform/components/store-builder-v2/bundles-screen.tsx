@@ -168,9 +168,20 @@ export function BundlesScreen({
                                         />
                                         {t(STRINGS.advanced_chrome.bun_active, locale)}
                                     </label>
-                                    <span className="text-xs text-muted-foreground">
-                                        {tFormat(STRINGS.advanced_chrome.bun_count, locale, { n: b.product_ids.length })}
-                                    </span>
+                                    {b.product_ids.length < 2 ? (
+                                        // A bundle applies only when every one of its products is
+                                        // in the cart; with fewer than two it is not a bundle.
+                                        <span
+                                            data-testid={`bundle-needs-products-${i}`}
+                                            className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                                        >
+                                            {t(STRINGS.advanced_chrome.bun_needs_products, locale)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">
+                                            {tFormat(STRINGS.advanced_chrome.bun_count, locale, { n: b.product_ids.length })}
+                                        </span>
+                                    )}
                                     <button
                                         type="button"
                                         aria-label={t(STRINGS.advanced_chrome.bun_remove_aria, locale)}

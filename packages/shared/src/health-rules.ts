@@ -650,17 +650,17 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         }
         return { status: "pass" };
     }),
-    check("brand_colors_readable", "conversion", 1, (cfg) => {
+    check("brand_colors_readable", "content", 1, (cfg) => {
         // Body text needs WCAG AA (4.5:1) on the page; the main colour
         // carries buttons, prices and links, which need 3:1 (WCAG 1.4.11).
         const { inkOnSurface, primaryOnSurface } = brandKitContrast(cfg.brand_kit);
         if (inkOnSurface >= 4.5 && primaryOnSurface >= 3) return { status: "pass" };
-        const weak = inkOnSurface < 4.5 ? "text" : "main colour";
+        const weak = inkOnSurface < 4.5 ? "text" : "main color";
         const ratio = inkOnSurface < 4.5 ? inkOnSurface : primaryOnSurface;
         return {
             status: "warn",
             message: `The ${weak} is hard to read on the page background (${ratio.toFixed(2)}:1).`,
-            fix_action: fixSettings("brand_kit", "Adjust colours"),
+            fix_action: fixSettings("brand_kit", "Adjust colors"),
         };
     }),
     check("logo_uploaded", "performance", 1, (cfg) => {

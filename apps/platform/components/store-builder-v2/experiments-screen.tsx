@@ -16,6 +16,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ReactElement,
 } from "react";
@@ -992,16 +993,38 @@ function ExperimentViewer({
 
     const controlId = experiment.arms[0]?.id ?? null;
 
+    // Focus moves into the sheet so Escape and screen readers land here.
+    const sheetRef = useRef<HTMLElement>(null);
+    useEffect(() => {
+        sheetRef.current?.focus();
+    }, []);
+
     return (
         <div
             data-testid="experiment-viewer"
             role="dialog"
+            aria-modal="true"
+            aria-labelledby="experiment-viewer-title"
+            onMouseDown={(e) => {
+                // A press on the dimmed backdrop, not the sheet, closes it.
+                if (e.target === e.currentTarget) onClose();
+            }}
+            onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                    e.stopPropagation();
+                    onClose();
+                }
+            }}
             className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40"
         >
-            <aside className="flex w-full max-w-2xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl">
+            <aside
+                ref={sheetRef}
+                tabIndex={-1}
+                className="flex w-full max-w-2xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl outline-none"
+            >
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <div className="min-w-0">
-                        <h3 className="truncate text-base font-bold tracking-tight">
+                        <h3 id="experiment-viewer-title" dir="auto" className="truncate text-base font-bold tracking-tight">
                             {experiment.name || t(STRINGS.advanced_chrome.exp_untitled, locale)}
                         </h3>
                         <p className="text-[11px] text-muted-foreground">

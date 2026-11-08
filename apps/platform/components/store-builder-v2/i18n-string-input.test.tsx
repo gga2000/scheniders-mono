@@ -48,6 +48,14 @@ describe("I18nStringInput — tuck-away", () => {
         expect(toggle.textContent).toContain("الكردية غير مترجمة");
     });
 
+    it("names no missing language when the field is empty everywhere", () => {
+        render(
+            <I18nStringInput label="Title" value={{}} onChange={() => {}} activeLocale="ar" />,
+        );
+        const toggle = screen.getByTestId("i18n-input-translations-toggle");
+        expect(toggle.textContent).toBe("الترجمات");
+    });
+
     it("expands secondary locales on demand and hides them again", () => {
         render(
             <I18nStringInput

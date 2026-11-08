@@ -648,7 +648,7 @@ export function ContrastBadge({ label, fg, bg, testId }: ContrastBadgeProps): Re
                 <span
                     data-testid={`${testId}-grade`}
                     data-grade={grade}
-                    className={cn("rounded px-1.5 py-0.5 text-[10px] font-bold", tone)}
+                    className={cn("shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold", tone)}
                 >
                     {gradeLabel}
                 </span>
@@ -680,6 +680,11 @@ export function FontCombo({
     allowEmpty = false,
     emptyLabel = "—",
 }: FontComboProps): ReactElement {
+    // A saved font that is not in the catalogue (set by a template, an
+    // import or an older list) is still the font the store renders, so it
+    // must be the option shown. Without it the select falls back to its
+    // first option and an unrelated edit would save that font instead.
+    const options = value && !fonts.includes(value) ? [value, ...fonts] : fonts;
     return (
         <div className="relative">
             <select
@@ -693,7 +698,7 @@ export function FontCombo({
                 style={{ fontFamily: value ? `'${value}', system-ui, sans-serif` : undefined }}
             >
                 {allowEmpty && <option value="">{emptyLabel}</option>}
-                {fonts.map((f) => (
+                {options.map((f) => (
                     <option
                         key={f}
                         value={f}
@@ -717,6 +722,7 @@ export const ARABIC_GOOGLE_FONTS: readonly string[] = [
     "Tajawal",
     "Almarai",
     "IBM Plex Sans Arabic",
+    "Readex Pro",
     "Noto Kufi Arabic",
     "Noto Naskh Arabic",
     "Noto Sans Arabic",
