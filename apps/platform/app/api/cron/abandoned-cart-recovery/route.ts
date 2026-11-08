@@ -8,6 +8,7 @@ import {
     type RecoverableCart,
 } from "@/lib/abandoned-cart-sender";
 import { resolveCartRecovery } from "@scheniders/shared";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import type { AbandonedCartItem, StoreConfigV2 } from "@scheniders/shared";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,10 @@ const MIN_DELAY_MINUTES = 5;
 const BATCH_SIZE = 50;
 // Owner decision 2026-10-27: an abandoned checkout nobody contacted for 14 days goes to the trash.
 const CHECKOUT_EXPIRE_AFTER = "14 days";
+// Consent on a capture is the shopper's claim (any caller can send the line),
+// so a store's paid recovery sends are capped per day: a flood of fake phones
+// costs at most this many messages, and a real store rarely has more.
+const RECOVERY_SENDS_PER_STORE_PER_DAY = 40;
 
 interface SweepResult {
     processed: number;
@@ -102,6 +107,22 @@ async function sweepAbandonedCarts(): Promise<SweepResult> {
         const dueAt =
             new Date(c.updated_at).getTime() + cfg.delayMinutes * 60_000;
         if (now < dueAt) {
+            skipped += 1;
+            continue;
+        }
+
+        const budget = await consumeRateLimit(
+            `cart-recovery:${c.tenant_id}`,
+            RECOVERY_SENDS_PER_STORE_PER_DAY,
+            86_400,
+        );
+        if (budget.error) {
+            // Fail closed: a send costs money and reaches a stranger's phone.
+            console.error(`[abandoned-cart-recovery] limiter unavailable: ${budget.error}`);
+            skipped += 1;
+            continue;
+        }
+        if (!budget.allowed) {
             skipped += 1;
             continue;
         }
