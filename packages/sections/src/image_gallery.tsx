@@ -572,7 +572,7 @@ const definition: SectionDefinition<Props> = {
   name: SECTION_NAME,
   description: {
     en: "Masonry, grid, or carousel layout of images with captions and links.",
-    ar: "ألبوم صور بتخطيط ماسوني أو شبكي أو شريطي مع تسميات وروابط.",
+    ar: "ألبوم صور بتخطيط متدرّج أو شبكي أو شريطي مع تسميات وروابط.",
   },
   thumbnail: "/sections/image_gallery.svg",
   valid_on: ["home", "about", "product"],

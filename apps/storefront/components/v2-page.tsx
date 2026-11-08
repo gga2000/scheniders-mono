@@ -13,7 +13,7 @@ import { ExperimentBeacon } from "./experiment-beacon";
 import { CartSignal } from "./cart-signal";
 import { FunnelBeacon } from "./funnel-beacon";
 import { SectionReveal } from "./section-reveal";
-import { isDraftViewRequest } from "@/lib/draft-view";
+import { isDraftViewRequest, isQuietViewRequest } from "@/lib/draft-view";
 import type {
   StoreConfigV2,
   PageConfig,
@@ -71,7 +71,9 @@ export async function V2Page({
   // not skew the experiment's results. `renderCtx.tenant` is typed as the
   // sections' tenant, which has no `is_draft_view`, so re-check the same
   // gate `withDraftView` used rather than widening that shared type.
-  const draftView = await isDraftViewRequest(renderCtx.tenant.id);
+  // The hub's live preview (quiet view) is the merchant too: same silence.
+  const draftView =
+    (await isDraftViewRequest(renderCtx.tenant.id)) || (await isQuietViewRequest());
 
   // Build the segment evaluation context from cookies set by middleware.
   // sb_first is set only on second+ visits (response-only on first visit),

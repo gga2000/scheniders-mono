@@ -72,7 +72,7 @@ describe("PublishConfirmSheet — diff section", () => {
         render(
             <PublishConfirmSheet
                 open
-                blockingChecks={[]}
+                openChecks={[]}
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}
@@ -118,7 +118,7 @@ describe("PublishConfirmSheet — diff section", () => {
         render(
             <PublishConfirmSheet
                 open
-                blockingChecks={[]}
+                openChecks={[]}
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}
@@ -167,7 +167,7 @@ describe("PublishConfirmSheet — diff section", () => {
         render(
             <PublishConfirmSheet
                 open
-                blockingChecks={[]}
+                openChecks={[]}
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}
@@ -198,7 +198,7 @@ describe("PublishConfirmSheet — diff section", () => {
         render(
             <PublishConfirmSheet
                 open
-                blockingChecks={[check]}
+                openChecks={[check]}
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}
@@ -214,7 +214,7 @@ describe("PublishConfirmSheet — diff section", () => {
         render(
             <PublishConfirmSheet
                 open
-                blockingChecks={[]}
+                openChecks={[]}
                 onClose={() => {}}
                 onPublishAnyway={onPublishAnyway}
                 onJumpToFix={() => {}}
@@ -230,7 +230,7 @@ describe("PublishConfirmSheet — diff section", () => {
         render(
             <PublishConfirmSheet
                 open
-                blockingChecks={[]}
+                openChecks={[]}
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}
@@ -249,7 +249,7 @@ describe("PublishConfirmSheet — diff section", () => {
         render(
             <PublishConfirmSheet
                 open
-                blockingChecks={[]}
+                openChecks={[]}
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}
@@ -266,7 +266,7 @@ describe("PublishConfirmSheet — diff section", () => {
         render(
             <PublishConfirmSheet
                 open
-                blockingChecks={[]}
+                openChecks={[]}
                 onClose={() => {}}
                 onPublishAnyway={() => {}}
                 onJumpToFix={() => {}}

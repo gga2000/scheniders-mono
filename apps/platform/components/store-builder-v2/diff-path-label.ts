@@ -78,6 +78,29 @@ function listPosition(configs: readonly StoreConfigV2[], listPath: readonly stri
     return 1;
 }
 
+/** Config keys outside section schemas, named like the screens that edit them. */
+const CONFIG_KEYS: Record<string, EditorString> = {
+    default_rate: STRINGS.version_history.key_default_rate,
+    rates: STRINGS.version_history.key_rates,
+    eta_hours: STRINGS.version_history.key_eta_hours,
+    variants: STRINGS.version_history.key_variants,
+    kind: STRINGS.version_history.key_kind,
+    rules: STRINGS.version_history.key_rules,
+    values: STRINGS.version_history.key_values,
+    code: STRINGS.version_history.key_code,
+    value: STRINGS.version_history.key_value,
+    min_subtotal_iqd: STRINGS.version_history.key_min_subtotal_iqd,
+    max_discount_iqd: STRINGS.version_history.key_max_discount_iqd,
+    meta_pixel_id: STRINGS.pixels.meta_pixel,
+    tiktok_pixel_id: STRINGS.pixels.tiktok_pixel,
+    google_analytics_id: STRINGS.pixels.ga_id,
+    snapchat_pixel_id: STRINGS.pixels.snap_pixel,
+    gtm_container_id: STRINGS.pixels.gtm_id,
+    meta_capi_token: STRINGS.pixels.meta_capi,
+    tiktok_capi_token: STRINGS.pixels.tiktok_capi,
+    capi_test_event_code: STRINGS.pixels.meta_test_code,
+};
+
 function valueAt(config: unknown, path: readonly string[]): unknown {
     let cur: unknown = config;
     for (const seg of path) cur = step(cur, seg);
@@ -122,6 +145,8 @@ function tailParts(
             out.push(name ?? `${listPosition(configs, path.slice(0, i), seg)}`);
         } else if (LOCALES.has(seg)) {
             out.push(t(STRINGS.languages[seg as LocaleCode], locale));
+        } else if (CONFIG_KEYS[seg]) {
+            out.push(t(CONFIG_KEYS[seg], locale));
         } else {
             out.push(resolveFieldLabel(sectionType, seg, locale));
         }

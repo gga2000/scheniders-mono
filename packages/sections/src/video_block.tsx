@@ -143,7 +143,7 @@ function VideoBlock({
 const definition: SectionDefinition<Props> = {
   type: "video_block",
   category: "content",
-  name: { en: "Video block", ar: "كتلة فيديو" },
+  name: { en: "Video block", ar: "فيديو" },
   description: {
     en: "Embedded YouTube, Vimeo, or MP4 video with optional caption.",
     ar: "فيديو مضمَّن من يوتيوب أو فيميو أو ملف MP4 مع نص اختياري.",

@@ -20,6 +20,7 @@ import { SchneidersAnalyticsPixels } from "@/components/schneiders/analytics-pix
 import { visitorExternalIdHash } from "@/lib/capi-context";
 import { SchneidersNewsletterPopup } from "@/components/schneiders/newsletter-popup";
 import type { Tenant } from "@/lib/types";
+import { isQuietViewRequest } from "@/lib/draft-view";
 
 interface Props {
   params: Promise<{ tenant: string }>;
@@ -211,7 +212,9 @@ export default async function TenantLayout({ params, children }: Props) {
   };
 
   // The pixel's per-visitor external id; the order's server event sends it too.
-  const visitorExternalId = tenant.is_draft_view ? null : await visitorExternalIdHash(tenant.id);
+  // Draft view and the hub's live preview are the merchant, not a shopper.
+  const merchantView = Boolean(tenant.is_draft_view) || (await isQuietViewRequest());
+  const visitorExternalId = merchantView ? null : await visitorExternalIdHash(tenant.id);
 
   return (
     <StoreBaseProvider base={storeBase}>
@@ -232,7 +235,7 @@ export default async function TenantLayout({ params, children }: Props) {
       {/* Draft view is the merchant previewing unpublished changes, not a
           shopper: no pixel init means no PageView here and no ViewContent /
           Purchase later (the section trackers no-op without fbq/ttq). */}
-      {!tenant.is_draft_view && (
+      {!merchantView && (
         <SchneidersAnalyticsPixels
           analytics={{
             // V2 takes precedence — the globals.analytics_pixels section is

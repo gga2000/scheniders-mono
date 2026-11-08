@@ -80,7 +80,8 @@ function categoryLabel(category: string, locale: LocaleCode): string {
 
 export interface PublishConfirmSheetProps {
     open: boolean;
-    blockingChecks: Array<HealthCheck & CheckResult>;
+    /** Every Store Health check that is not passing (none of them block). */
+    openChecks: Array<HealthCheck & CheckResult>;
     onClose: () => void;
     onPublishAnyway: () => void;
     onJumpToFix: (fix: NonNullable<CheckResult["fix_action"]>) => void;
@@ -100,7 +101,7 @@ export interface PublishConfirmSheetProps {
 
 export function PublishConfirmSheet({
     open,
-    blockingChecks,
+    openChecks,
     onClose,
     onPublishAnyway,
     onJumpToFix,
@@ -115,7 +116,7 @@ export function PublishConfirmSheet({
     // ad-tech checks don't stand between a first-timer and «انشر متجري».
     // Advanced keeps them expanded.
     const [recsOpen, setRecsOpen] = useState<boolean>(false);
-    const collapseRecs = mode === "simple" && blockingChecks.length > 0;
+    const collapseRecs = mode === "simple" && openChecks.length > 0;
     useEffect(() => {
         if (!open) return;
         const onKey = (e: KeyboardEvent): void => {
@@ -158,14 +159,14 @@ export function PublishConfirmSheet({
                                 {t(STRINGS.publish.confirm_title, locale)}
                             </h2>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                                {blockingChecks.length === 0
+                                {openChecks.length === 0
                                     ? t(STRINGS.publish.confirm_all_clear, locale)
                                     : tFormat(
-                                          blockingChecks.length === 1
+                                          openChecks.length === 1
                                               ? STRINGS.publish.confirm_subtitle_one
                                               : STRINGS.publish.confirm_subtitle_many,
                                           locale,
-                                          { n: blockingChecks.length },
+                                          { n: openChecks.length },
                                       )}
                             </p>
                         </div>
@@ -195,7 +196,7 @@ export function PublishConfirmSheet({
                             diff && diff.pages.length > 0 && "border-t border-(--card-border) pt-3",
                         )}
                     >
-                        {blockingChecks.length === 0 ? null : collapseRecs && !recsOpen ? (
+                        {openChecks.length === 0 ? null : collapseRecs && !recsOpen ? (
                             <button
                                 type="button"
                                 data-testid="publish-confirm-sheet-recs-toggle"
@@ -206,7 +207,7 @@ export function PublishConfirmSheet({
                                 <span className="inline-flex items-center gap-2">
                                     <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
                                     {tFormat(STRINGS.publish.recommendations_toggle, locale, {
-                                        n: blockingChecks.length,
+                                        n: openChecks.length,
                                     })}
                                 </span>
                                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
@@ -217,7 +218,7 @@ export function PublishConfirmSheet({
                                     {t(STRINGS.publish.checks_heading, locale)}
                                 </h3>
                                 <ul className="flex flex-col gap-2">
-                                    {blockingChecks.map((check) => (
+                                    {openChecks.map((check) => (
                                         <li
                                             key={check.id}
                                             data-testid={`publish-confirm-sheet-item-${check.id}`}

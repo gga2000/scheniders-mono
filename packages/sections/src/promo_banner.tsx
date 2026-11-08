@@ -48,10 +48,10 @@ const defaultProps: Props = {
 const definition: SectionDefinition<Props> = {
   type: "promo_banner",
   category: "conversion",
-  name: { en: "Promo banner", ar: "بانر عرض" },
+  name: { en: "Promo banner", ar: "لافتة عرض" },
   description: {
     en: "Full-width promo announcement with optional CTA and live countdown.",
-    ar: "بانر عرض كبير مع زر اختياري وعدّاد تنازلي مباشر.",
+    ar: "لافتة عرض كبيرة مع زر اختياري وعدّاد تنازلي مباشر.",
   },
   thumbnail: "/sections/promo_banner.svg",
   valid_on: ["home", "category", "product"],
