@@ -8,6 +8,7 @@ import type { Granularity } from "./use-finance-period";
 import { isRealizedRevenue, isSaleOrder, NON_SALE_STATUSES } from "@/lib/order-revenue";
 import { resolveOrderLineCost, type CostSnapshots } from "@/lib/finance/item-cost";
 import { isRefundRow, reportDate } from "@/lib/refunds/refund-reporting";
+import { deliveryRatePct } from "@/lib/analytics/delivery-rate";
 import { addDaysToDayKey, baghdadDayKey, baghdadDayStart, toBaghdadDayKey } from "@/lib/order-window";
 
 export interface DateInterval {
@@ -200,9 +201,10 @@ export function useFinanceOverview(
             const margin_pct = delivered_revenue > 0 ? (net_profit / delivered_revenue) * 100 : 0;
             const orders_count = non_rejected.length;
             const aov = orders_count > 0 ? gross / orders_count : 0;
-            const TERMINAL = new Set(["delivered", "completed", "rejected", "cancelled", "refund_delivered"]);
-            const attempted = oList.filter((o) => TERMINAL.has(o.status as string) || o.is_return).length;
-            const delivery_rate = attempted > 0 ? Math.min(100, (delivered_count / attempted) * 100) : 0;
+            // Same definition as Reports and the dashboard (lib/analytics/delivery-rate.ts).
+            // Cancelled orders never left the shop, so they are not failed deliveries.
+            const rejected_count = oList.filter((o) => o.status === "rejected" && !isRefundRow(o)).length;
+            const delivery_rate = deliveryRatePct(delivered_count, rejected_count) ?? 0;
 
             // time series
             const map = new Map<string, BucketPoint>();

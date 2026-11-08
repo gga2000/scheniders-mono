@@ -2,6 +2,7 @@
 
 import { baghdadHour, baghdadDayOfWeek } from "@/lib/analytics/dashboard-calculations";
 import type { ReportOrder } from "@/lib/analytics/report-order-facts";
+import { deliveryRatePct } from "@/lib/analytics/delivery-rate";
 
 // ============================================
 // TYPE DEFINITIONS
@@ -132,7 +133,7 @@ export function calculateKPIs(currentOrders: ReportOrder[], previousOrders: Repo
         const noResponse = orders.filter(o => o.status === 'no_response').length;
 
         const shipped = delivered + rejected;
-        const deliveryRate = shipped > 0 ? (delivered / shipped) * 100 : 0;
+        const deliveryRate = deliveryRatePct(delivered, rejected) ?? 0;
         const contactSuccessRate = contacted > 0 ? (confirmed / contacted) * 100 : 0;
         const rejectionRate = shipped > 0 ? (rejected / shipped) * 100 : 0;
         const noResponseRate = contacted > 0 ? (noResponse / contacted) * 100 : 0;
