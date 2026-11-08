@@ -238,4 +238,4 @@ The oldest open finding (07-02 audit) — `/store/edit` no longer renders inside
 
 ---
 
-*Test artifacts: tenant #100053 (`noor.simplify3@example.com` / `NoorSimplify3_2026!`) created and left unpublished with hero text «تشكيلة للعيد جديدة»; tenant #100051 gained one publish + a شبكة منتجات section during T3/T5 measurement, and `commerce.whatsapp_number = 07709998877` during the S3-01 verification; tenant #100054 (`reem.simplify3@example.com`) created during the S3-02 verification, wizard not completed.*
+*Test artifacts: tenant #100053 (`noor.simplify3@example.com` / `[password removed 2026-11-08]`) created and left unpublished with hero text «تشكيلة للعيد جديدة»; tenant #100051 gained one publish + a شبكة منتجات section during T3/T5 measurement, and `commerce.whatsapp_number = 07709998877` during the S3-01 verification; tenant #100054 (`reem.simplify3@example.com`) created during the S3-02 verification, wizard not completed.*

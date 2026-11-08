@@ -12,7 +12,9 @@ const mocks = vi.hoisted(() => ({
     env: {} as Record<string, string | undefined>,
     triggerImmediateConfirmation: vi.fn(),
     sendNewOrderAlertToStaff: vi.fn(),
-    consumeRateLimit: vi.fn(async () => ({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })),
+    consumeRateLimit: vi.fn(async (): Promise<{
+        allowed: boolean; remaining: number; resetAt: null; retryAfterSeconds: number; error?: string;
+    }> => ({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })),
     db: {
         rows: [] as Array<Record<string, unknown>>,
         failRead: false,
@@ -290,6 +292,26 @@ describe("POST /api/webhooks/storefront-order — what gets sent", () => {
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({ skipped: "store_burst" });
         expect(mocks.consumeRateLimit).toHaveBeenCalledWith(`wa-confirm:${TENANT}`, 30, 600);
+        expect(mocks.db.claims).toHaveLength(0);
+        expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
+    });
+
+    it("a store's daily confirmation cap holds the paid send", async () => {
+        mocks.consumeRateLimit
+            .mockResolvedValueOnce({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })
+            .mockResolvedValueOnce({ allowed: false, remaining: 0, resetAt: null, retryAfterSeconds: 3600 });
+        const res = await POST(delivery({ order_id: ORDER }));
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual({ skipped: "store_daily" });
+        expect(mocks.consumeRateLimit).toHaveBeenCalledWith(`wa-confirm-day:${TENANT}`, 200, 86_400);
+        expect(mocks.db.claims).toHaveLength(0);
+        expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
+    });
+
+    it("asks QStash to retry, unclaimed and unsent, when the limiter cannot answer", async () => {
+        mocks.consumeRateLimit.mockResolvedValueOnce({ allowed: true, remaining: 30, resetAt: null, retryAfterSeconds: 0, error: "db down" });
+        const res = await POST(delivery({ order_id: ORDER }));
+        expect(res.status).toBe(503);
         expect(mocks.db.claims).toHaveLength(0);
         expect(mocks.triggerImmediateConfirmation).not.toHaveBeenCalled();
     });

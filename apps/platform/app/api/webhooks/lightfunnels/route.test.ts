@@ -50,8 +50,15 @@ describe("POST /api/webhooks/lightfunnels — auth", () => {
     });
     afterEach(() => vi.restoreAllMocks());
 
-    it("monitor (default): processes a request with no credential and logs it", async () => {
+    it("with no mode set, refuses a request with no credential (default enforce)", async () => {
         setEnv({ LIGHTFUNNELS_WEBHOOK_SECRET: SECRET });
+        const out = await POST(await post());
+        expect(out.status).toBe(401);
+        expect(mocks.createOrderFromWebhook).not.toHaveBeenCalled();
+    });
+
+    it("monitor: processes a request with no credential and logs it", async () => {
+        setEnv({ LIGHTFUNNELS_WEBHOOK_SECRET: SECRET, WEBHOOK_AUTH_MODE: "monitor" });
         const res = await post();
         const out = await POST(res);
         expect(out.status).toBe(201);
