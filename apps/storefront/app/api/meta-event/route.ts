@@ -5,6 +5,7 @@ import { isLikelyBot } from "@/lib/bot-user-agent";
 import { META_BROWSE_EVENTS, sendMetaBrowseCapi } from "@/lib/capi";
 import { liveStoreAnalytics } from "@/lib/capi-config";
 import { capiRequestContext } from "@/lib/capi-context";
+import { clientIp, consumeRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -35,6 +36,13 @@ const bodySchema = z.object({
   contents: z.array(contentSchema).min(1).max(50),
 });
 
+// Forged beacons (a rival scripting fake funnel events) would skew the store's
+// ad optimisation or A/B result. A real shopper sends a handful per page; the
+// cap is far above that. Fail-open: an analytics beacon must never break a
+// page, and a limiter outage only loses the cap, not the event's checks.
+const BEACONS_PER_IP = 120;
+const BEACON_WINDOW_SECONDS = 600;
+
 const NO_CONTENT = (): NextResponse => new NextResponse(null, { status: 204 });
 
 export async function POST(req: Request): Promise<NextResponse> {
@@ -52,6 +60,11 @@ export async function POST(req: Request): Promise<NextResponse> {
   // proxy's visitor cookie did not come from a store page.
   if (isLikelyBot(req.headers.get("user-agent"))) return NO_CONTENT();
   if (!(await cookies()).get("sb_vid")?.value) return NO_CONTENT();
+  const ip = clientIp(req.headers);
+  if (ip !== "unknown") {
+    const cap = await consumeRateLimit(`meta-event:ip:${ip}`, BEACONS_PER_IP, BEACON_WINDOW_SECONDS, "fail-open");
+    if (!cap.allowed) return NO_CONTENT();
+  }
 
   const analytics = await liveStoreAnalytics(body.tenant_id);
   if (!analytics?.meta_pixel_id || !analytics.meta_capi_token) return NO_CONTENT();

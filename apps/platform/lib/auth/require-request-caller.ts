@@ -5,7 +5,7 @@ import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 
 export type RequestCaller =
     /** `role` is the caller's effective role in `tenantId` (see resolveActiveTenant). */
-    | { ok: true; userId: string; tenantId: string; role: UserRole; platformAdmin: boolean }
+    | { ok: true; userId: string; email?: string; tenantId: string; role: UserRole; platformAdmin: boolean }
     | { ok: false; response: NextResponse };
 
 type Requirement = "member" | "tenant-admin" | "platform-admin";
@@ -42,5 +42,5 @@ export async function requireRequestCaller(
         return deny(403, "This action requires an administrator.");
     }
 
-    return { ok: true, userId: user.id, tenantId: active.tenantId, role: active.role, platformAdmin: active.platformAdmin };
+    return { ok: true, userId: user.id, email: user.email, tenantId: active.tenantId, role: active.role, platformAdmin: active.platformAdmin };
 }

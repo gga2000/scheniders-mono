@@ -107,6 +107,15 @@ describe("shopperText: typed name/address cannot carry a link to the recipient",
         expect(shopperText("بغداد - الكرادة قرب جامع ١٢", 160)).toBe("بغداد - الكرادة قرب جامع ١٢");
     });
 
+    it("drops every spelling of a dot, so look-alike domains cannot form a link", () => {
+        expect(shopperText("evil。com/x", 60)).not.toMatch(/[.。]/);
+        expect(shopperText("ﻫ.com", 60)).not.toContain(".");
+        expect(shopperText("bit . ly/abc", 60)).not.toContain(".");
+        expect(shopperText("evil．com", 60)).not.toMatch(/[.．]/);
+        expect(shopperText("محمد علي", 60)).toBe("محمد علي");
+        expect(shopperText("O'Neil-Smith", 60)).toBe("O'Neil-Smith");
+    });
+
     it("caps length", () => {
         const out = shopperText("أ".repeat(300), 60);
         expect(out.length).toBe(60);
