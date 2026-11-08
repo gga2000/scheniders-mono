@@ -1,6 +1,6 @@
 "use client";
 
-import { safeRedirectPath } from "@/lib/safe-redirect-path";
+import { safeRedirectPath } from "@scheniders/shared/safe-redirect-path";
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";

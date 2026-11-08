@@ -12,9 +12,22 @@ const withSerwist = withSerwistInit({
 // pnpm keeps the real package under the workspace root's .pnpm store.
 const SPARTICUZ_CHROMIUM_BIN = "../../node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**";
 
+// Sent on every response. frame-ancestors 'self' stops other sites from
+// loading the merchant admin in a hidden frame (clickjacking); the admin's own
+// label and payslip previews are same-origin and keep working.
+const SECURITY_HEADERS = [
+  { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  // Scanner (camera) and voice notes (microphone) run on our own pages only.
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()" },
+];
+
 const nextConfig: NextConfig = {
   // StrictMode helps catch bugs in development
   reactStrictMode: true,
+  poweredByHeader: false,
 
   // Transpile workspace packages
   transpilePackages: ["@scheniders/sections", "@scheniders/shared", "@scheniders/supabase", "@scheniders/ui"],
@@ -118,6 +131,7 @@ const nextConfig: NextConfig = {
   // Edge Caching Strategy
   async headers() {
     return [
+      { source: "/:path*", headers: SECURITY_HEADERS },
       {
         // Cache fonts aggressively (immutable)
         source: '/fonts/(.*)',

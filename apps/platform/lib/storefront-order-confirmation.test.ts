@@ -50,6 +50,7 @@ describe("storefrontConfirmationVerdict", () => {
         ["tenant_not_enabled", { tenant_id: OTHER }],
         ["tenant_not_enabled", { tenant_id: null }],
         ["already_dispatched", { confirmation_dispatched_at: "2026-10-21T10:00:00Z" }],
+        ["blacklisted", { risk_metadata: { is_blacklisted: true, level: "high" } }],
     ])("skips with %s", (reason, overrides) => {
         expect(storefrontConfirmationVerdict(row(overrides), enabled)).toEqual({ send: false, reason });
     });

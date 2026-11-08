@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer-core';
-import { verifyAccessToken } from "@/lib/supabase-server";
+import { z } from 'zod';
+import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Allow up to 60s for large batches
 
 const IS_DEV = process.env.NODE_ENV === 'development';
+
+// Labels only ever load Google Fonts (see lib/shipping-labels.ts) and inline
+// data. Everything else is refused, so a caller cannot make our server fetch
+// internal or third-party URLs and read the answer back in the PDF.
+const ALLOWED_REQUEST_ORIGINS = new Set(['https://fonts.googleapis.com', 'https://fonts.gstatic.com']);
+
+function isAllowedLabelRequest(url: string): boolean {
+  if (url.startsWith('data:') || url === 'about:blank') return true;
+  try {
+    return ALLOWED_REQUEST_ORIGINS.has(new URL(url).origin);
+  } catch {
+    return false;
+  }
+}
+
+const CSS_LENGTH = /^\d{1,4}(\.\d{1,2})?(mm|cm|in|px)$/;
+const bodySchema = z.object({
+  html: z.string().min(1).max(8_000_000),
+  pageWidth: z.string().regex(CSS_LENGTH).default('80mm'),
+  pageHeight: z.string().regex(CSS_LENGTH).default('120mm'),
+});
 
 // Common Chrome paths on macOS for local development
 const LOCAL_CHROME_PATHS = [
@@ -30,25 +52,15 @@ async function getLocalChromePath(): Promise<string> {
  */
 export async function POST(req: NextRequest) {
   try {
-    // Auth
-    const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const { user, error: authError } = await verifyAccessToken(token);
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Headless Chrome is billed compute: store members only, capped per store.
+    const caller = await requireMeteredCaller(req, { bucket: "label-pdf", limit: 120, windowSeconds: 3600 });
+    if (!caller.ok) return caller.response;
 
-    const { html, pageWidth = '80mm', pageHeight = '120mm' } = await req.json();
-
-    if (!html) {
-      return NextResponse.json(
-        { error: 'HTML content is required' },
-        { status: 400 }
-      );
+    const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid label request' }, { status: 400 });
     }
+    const { html, pageWidth, pageHeight } = parsed.data;
 
     let browser;
     if (IS_DEV) {
@@ -72,6 +84,11 @@ export async function POST(req: NextRequest) {
     let pdf: Uint8Array;
     try {
       const page = await browser.newPage();
+      await page.setRequestInterception(true);
+      page.on('request', (request) => {
+        if (isAllowedLabelRequest(request.url())) void request.continue();
+        else void request.abort('blockedbyclient');
+      });
 
       // Wait for the label font (Google Fonts) and inline SVG codes to load.
       await page.setContent(html, {

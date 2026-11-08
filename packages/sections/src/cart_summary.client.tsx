@@ -23,7 +23,7 @@ import {
   summarizeDelivery,
   formatHours,
 } from "@scheniders/shared";
-import type { StoreConfigV2 } from "@scheniders/shared";
+import type { DiscountCode, StoreConfigV2 } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { CenteredSectionHeader, ChunkyButton, ChunkyLink, WhatsAppButton } from "./helpers/primitives";
 import { ChapterHeading } from "./helpers/chapter-heading";
@@ -67,7 +67,9 @@ export function CartSummaryRender({
   const items = useCart((s) => s.items);
   const subtotal = useCart((s) => s.getTotal());
   const couponCode = useCart((s) => s.couponCode);
-  const setCouponCode = useCart((s) => s.setCouponCode);
+  const coupon = useCart((s) => s.coupon);
+  const setCoupon = useCart((s) => s.setCoupon);
+  const tenantId = ctx.tenant.id;
   const heading = resolveI18n(props.heading_i18n, locale);
   const checkoutLabel = resolveI18n(props.checkout_label_i18n, locale);
   const [promoCode, setPromoCode] = useState(couponCode ?? "");
@@ -93,7 +95,7 @@ export function CartSummaryRender({
   });
   // Discount: a client-side PREVIEW of the applied coupon (the server
   // re-validates + records the authoritative amount at checkout).
-  const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
+  const discount = computeDiscount(subtotal, couponCode, coupon ? [coupon] : null);
   const couponAmount = discount?.amount_iqd ?? 0;
   // Bundle savings preview ("frequently bought together"); server re-resolves.
   const bundleAmount = computeBundleDiscounts(
@@ -103,14 +105,25 @@ export function CartSummaryRender({
   const discountAmount = couponAmount + bundleAmount;
   const total = subtotal - discountAmount + delivery;
 
-  function applyPromo(): void {
-    const d = computeDiscount(subtotal, promoCode, commerce?.discounts);
-    if (d) {
-      setCouponCode(d.code);
+  async function applyPromo(): Promise<void> {
+    const typed = promoCode.trim();
+    if (!typed) {
+      setCoupon(null);
+      setPromoStatus("idle");
+      return;
+    }
+    // The store's codes are not in the page: ask the server about this one.
+    const params = new URLSearchParams({ tenant_id: tenantId, code: typed });
+    const answer = await fetch(`/api/coupon/validate?${params.toString()}`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ valid: boolean; discount?: DiscountCode }>) : null))
+      .catch(() => null);
+    const found = answer?.valid === true && answer.discount ? answer.discount : null;
+    if (found && computeDiscount(subtotal, typed, [found])) {
+      setCoupon(found);
       setPromoStatus("applied");
     } else {
-      setCouponCode(null);
-      setPromoStatus(promoCode.trim() ? "invalid" : "idle");
+      setCoupon(null);
+      setPromoStatus("invalid");
     }
   }
 
@@ -170,7 +183,7 @@ export function CartSummaryRender({
                   setPromoCode(v);
                   setPromoStatus("idle");
                 },
-                onApply: applyPromo,
+                onApply: () => void applyPromo(),
               }
             : null
         }
@@ -303,7 +316,7 @@ export function CartSummaryRender({
                 type="button"
                 bg="butter"
                 size="sm"
-                onClick={applyPromo}
+                onClick={() => void applyPromo()}
               >
                 {t ? "تطبيق" : "Apply"}
               </ChunkyButton>

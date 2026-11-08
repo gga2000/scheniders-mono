@@ -16,7 +16,8 @@
     "./health-rules": "./src/health-rules.ts",
     "./provider-base-url": "./src/provider-base-url.ts",
     "./font-stack": "./src/font-stack.ts",
-    "./ad-attribution": "./src/ad-attribution.ts"
+    "./ad-attribution": "./src/ad-attribution.ts",
+    "./safe-redirect-path": "./src/safe-redirect-path.ts"
   },
   "scripts": {
     "test": "vitest run"
