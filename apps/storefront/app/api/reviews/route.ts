@@ -7,11 +7,16 @@ import {
   createSupabaseServerClient,
   createSupabaseServiceClient,
 } from "@/lib/supabase/server";
+import { clientIp, consumeRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_PHOTOS = 4;
+// A shopper writes one review; a flood fills the moderation queue and uses the
+// store's public photo bucket as free hosting. Per caller and per store.
+const REVIEWS_PER_CALLER_PER_HOUR = 5;
+const REVIEWS_PER_STORE_PER_HOUR = 60;
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB — mirrors the bucket's file_size_limit.
 const MIME_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -98,6 +103,16 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
   const { tenant_id, product_id, rating, author_name, title, body } = parsed.data;
+
+  for (const [key, limit] of [
+    [`reviews:ip:${tenant_id}:${clientIp(req.headers)}`, REVIEWS_PER_CALLER_PER_HOUR],
+    [`reviews:store:${tenant_id}`, REVIEWS_PER_STORE_PER_HOUR],
+  ] as const) {
+    const verdict = await consumeRateLimit(key, limit, 3600, "fail-closed");
+    if (!verdict.allowed) {
+      return NextResponse.json({ error: "Too many reviews, try again later" }, { status: 429 });
+    }
+  }
 
   const photos = form
     .getAll("photos")
