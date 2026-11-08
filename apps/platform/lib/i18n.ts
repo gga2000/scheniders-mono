@@ -6889,6 +6889,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.success": "Account created! Taking you to your store…",
         "signup.signOutFailed": "Your account was created, but this browser is still signed in to another account and we could not sign it out. Sign out of it, then sign in with your new account.",
         // ── Password reset flow ──
+        "auth.captcha.failed": "The security check did not load. Refresh the page, or try another browser.",
         "pwreset.backToSignIn": "Back to sign in",
         "pwreset.brandFooter": "Stored encrypted. Only you know it.",
         "pwreset.forgot.title": "Reset your password",
@@ -13869,6 +13870,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.success": "تم إنشاء حسابك! جاري نقلك إلى متجرك…",
         "signup.signOutFailed": "تم إنشاء حسابك، لكن هذا المتصفح ما زال مسجلاً بحساب آخر ولم نتمكن من تسجيل الخروج منه. سجّل الخروج منه ثم سجّل الدخول بحسابك الجديد.",
         // ── Password reset flow ──
+        "auth.captcha.failed": "فحص الأمان ما اشتغل. حدّث الصفحة أو جرّب متصفح ثاني.",
         "pwreset.backToSignIn": "رجوع لتسجيل الدخول",
         "pwreset.brandFooter": "كلمة المرور محفوظة بشكل مشفّر. محد يعرفها غيرك.",
         "pwreset.forgot.title": "تغيير كلمة المرور",

@@ -49,19 +49,23 @@ export type TurnstileBoxProps = {
     siteKey: string;
     /** Called with a token when solved, and with null when it expires or fails. */
     onToken: (token: string | null) => void;
+    /** Called when the check cannot run (script blocked, browser refused). */
+    onFailure?: () => void;
     /** "ar" or "en"; Turnstile shows its own small text in this language. */
     language?: string;
     className?: string;
 };
 
 export const TurnstileBox = forwardRef<TurnstileHandle, TurnstileBoxProps>(function TurnstileBox(
-    { siteKey, onToken, language, className },
+    { siteKey, onToken, onFailure, language, className },
     ref,
 ) {
     const holder = useRef<HTMLDivElement>(null);
     const widgetId = useRef<string | null>(null);
     const onTokenRef = useRef(onToken);
     onTokenRef.current = onToken;
+    const onFailureRef = useRef(onFailure);
+    onFailureRef.current = onFailure;
 
     useImperativeHandle(ref, () => ({
         reset: () => {
@@ -83,10 +87,16 @@ export const TurnstileBox = forwardRef<TurnstileHandle, TurnstileBoxProps>(funct
                     appearance: "interaction-only",
                     callback: (token: string) => onTokenRef.current(token),
                     "expired-callback": () => onTokenRef.current(null),
-                    "error-callback": () => onTokenRef.current(null),
+                    "error-callback": () => {
+                        onTokenRef.current(null);
+                        onFailureRef.current?.();
+                    },
                 });
             })
-            .catch(() => onTokenRef.current(null));
+            .catch(() => {
+                onTokenRef.current(null);
+                onFailureRef.current?.();
+            });
         return () => {
             cancelled = true;
             if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current);

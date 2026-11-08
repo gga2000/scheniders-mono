@@ -1,34 +1,32 @@
 // /orders end-to-end, against the real app with a real login.
 //
-//   E2E_EMAIL=… E2E_PASSWORD=… E2E_BASE_URL=https://schenidersapp.xyz \
+//   E2E_EMAIL=… SUPABASE_SERVICE_ROLE_KEY=… E2E_BASE_URL=https://schenidersapp.xyz \
 //     pnpm --filter @scheniders/platform exec playwright test e2e/orders.spec.ts --project=chromium
 //
 // Touches ONE fixture order only: is_test = true, order number E2E0000001, a fake
 // phone, one item with no product (so no stock moves). The status change is made
 // and then put back, also when the test fails half way. Skipped when the login
-// variables are not set. The password is only ever typed into the login form.
+// variables are not set. Signs in by minting a session (see auth-session.ts),
+// because the live login form's Turnstile check refuses headless browsers.
 
 import { expect, test, type Page } from "@playwright/test";
+import { canMintSession, loginWithSession } from "./auth-session";
 
 const EMAIL = process.env.E2E_EMAIL;
-const PASSWORD = process.env.E2E_PASSWORD;
 
 const FIXTURE_ORDER_NUMBER = "E2E0000001";
 const FIXTURE_CUSTOMER = "E2E TEST ORDER";
 const STATUS_NEW = "جديد";
 const STATUS_CONTACTED = "تم الاتصال";
 
-test.skip(!EMAIL || !PASSWORD, "E2E_EMAIL and E2E_PASSWORD are not set");
+test.skip(!canMintSession(EMAIL), "E2E_EMAIL and SUPABASE_SERVICE_ROLE_KEY are not set");
 test.use({ viewport: { width: 1440, height: 900 } });
 // Login, a search, a status change, a reload and a revert take ~30s on the live
 // site, the default per-test limit; give the flow room instead of flaking.
 test.setTimeout(120_000);
 
 async function login(page: Page): Promise<void> {
-    await page.goto("/login");
-    await page.locator("input[type=email]").first().fill(EMAIL ?? "");
-    await page.locator("input[type=password]").first().fill(PASSWORD ?? "");
-    await page.locator("button[type=submit]").first().click();
+    await loginWithSession(page, EMAIL ?? "");
     await page.waitForURL(/\/orders/, { timeout: 60_000 });
 }
 
