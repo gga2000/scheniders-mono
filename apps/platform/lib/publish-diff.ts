@@ -21,6 +21,7 @@ import type {
     SectionInstance,
     StoreConfigV2,
 } from "@scheniders/shared";
+import { canonicalConfigJson } from "@/lib/store-draft";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Types                                                                */
@@ -62,8 +63,42 @@ export interface PublishDiff {
     /** Slots that differ between prev / next globals. */
     globalsChanged: Array<keyof GlobalSections>;
     pages: PageDiff[];
+    /** Store-wide settings that differ (audiences, tests, selling settings…). */
+    settingsChanged: SettingsArea[];
     /** Sum across all pages — useful for "N changes" summaries. */
     totalChanges: number;
+}
+
+/** Store-wide parts of the config outside pages, globals and brand kit. */
+export type SettingsArea =
+    | "segments"
+    | "experiments"
+    | "schedules"
+    | "languages"
+    | "commerce"
+    | "redirects"
+    | "custom_pages"
+    | "custom_css";
+
+const SETTINGS_AREAS: ReadonlyArray<{
+    area: SettingsArea;
+    keys: ReadonlyArray<keyof StoreConfigV2>;
+}> = [
+    { area: "segments", keys: ["segments"] },
+    { area: "experiments", keys: ["experiments"] },
+    { area: "schedules", keys: ["schedules"] },
+    { area: "languages", keys: ["default_locale", "enabled_locales"] },
+    { area: "commerce", keys: ["commerce"] },
+    { area: "redirects", keys: ["redirects"] },
+    { area: "custom_pages", keys: ["custom_pages"] },
+    { area: "custom_css", keys: ["custom_css"] },
+];
+
+function diffSettings(prev: StoreConfigV2 | null | undefined, next: StoreConfigV2): SettingsArea[] {
+    return SETTINGS_AREAS.filter(({ keys }) =>
+        // Canonical JSON: an absent list and an empty one are the same store.
+        keys.some((k) => canonicalConfigJson(prev?.[k]) !== canonicalConfigJson(next[k])),
+    ).map(({ area }) => area);
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -300,6 +335,7 @@ export function computePublishDiff(
             brandKitChanged: true,
             globalsChanged: diffGlobals(undefined, next.globals),
             pages,
+            settingsChanged: [],
             totalChanges,
         };
     }
@@ -342,6 +378,7 @@ export function computePublishDiff(
         brandKitChanged: brandKitChanged(prev.brand_kit, next.brand_kit),
         globalsChanged: diffGlobals(prev.globals, next.globals),
         pages,
+        settingsChanged: diffSettings(prev, next),
         totalChanges,
     };
 }
@@ -362,15 +399,4 @@ export function summarisePageChangeCounts(
         else modified++;
     }
     return { added, removed, modified };
-}
-
-export function humaniseFieldName(field: string): string {
-    return field
-        .replace(/_i18n$/g, "")
-        .replace(/_/g, " ")
-        .replace(/\bid\b/gi, "ID")
-        .replace(/\bcta\b/gi, "CTA")
-        .replace(/\burl\b/gi, "URL")
-        .replace(/\b\w/g, (c) => c.toUpperCase())
-        .trim();
 }

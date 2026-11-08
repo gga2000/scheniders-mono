@@ -197,7 +197,7 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "template_updates", icon: Sparkles, labelKey: "setting_template_updates", label: "Template updates" },
     { id: "custom_pages", icon: FileText, labelKey: "setting_custom_pages", label: "Custom pages" },
     { id: "nav", icon: Menu, labelKey: "setting_nav", label: "Navigation" },
-    { id: "versions", icon: History, labelKey: "setting_versions", label: "Past versions" },
+    { id: "versions", icon: History, labelKey: "setting_versions", label: "Version history" },
     { id: "redirects", icon: Signpost, labelKey: "setting_redirects", label: "Redirects" },
 ];
 

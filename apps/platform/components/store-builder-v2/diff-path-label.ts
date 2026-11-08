@@ -8,6 +8,7 @@ import type { LocaleCode, SectionInstance, StoreConfigV2 } from "@scheniders/sha
 import { getPageLabel } from "./page-tree";
 import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import { resolveFieldLabel } from "@/lib/section-field-meta";
+import { STRINGS, t, type EditorString } from "@/lib/editor-i18n";
 
 const SECRET_KEY = /token|secret|password|api_?key/i;
 
@@ -34,12 +35,98 @@ function findSection(
     return undefined;
 }
 
-/** Field words for the tail of a path (`base` dropped, list positions 1-based). */
-function fieldParts(rest: readonly string[], sectionType: string | undefined, locale: LocaleCode): string[] {
-    const tail = rest[0] === "base" ? rest.slice(1) : rest;
-    return tail.map((seg) =>
-        /^\d+$/.test(seg) ? `${Number(seg) + 1}` : resolveFieldLabel(sectionType, seg, locale),
-    );
+const LOCALES: ReadonlySet<string> = new Set(["ar", "en", "ku"]);
+
+/** Commerce sub-areas carry the name of the settings screen that edits them. */
+const COMMERCE_AREAS: Record<string, EditorString> = {
+    shipping: STRINGS.page_tree.setting_shipping,
+    discounts: STRINGS.page_tree.setting_discounts,
+    cart_recovery: STRINGS.page_tree.setting_cart_recovery,
+    bundles: STRINGS.page_tree.setting_bundles,
+    loyalty: STRINGS.page_tree.setting_loyalty,
+    free_gift: STRINGS.page_tree.setting_free_gift,
+    order_status_narratives: STRINGS.page_tree.setting_order_status,
+    whatsapp_number: STRINGS.version_history.area_whatsapp,
+    enable_whatsapp_order: STRINGS.version_history.area_whatsapp,
+    whatsapp_templates: STRINGS.version_history.area_whatsapp,
+    socials: STRINGS.version_history.area_socials,
+    returns_policy: STRINGS.version_history.area_returns,
+    delivery_promise: STRINGS.version_history.area_delivery_promise,
+    contact: STRINGS.version_history.area_contact,
+    referral: STRINGS.version_history.area_referral,
+};
+
+/** One step into a config value; list items resolve by index or by `id`. */
+function step(cur: unknown, seg: string): unknown {
+    if (Array.isArray(cur)) {
+        if (/^\d+$/.test(seg)) return cur[Number(seg)];
+        return cur.find((el) => el !== null && typeof el === "object" && (el as { id?: unknown }).id === seg);
+    }
+    if (cur === null || typeof cur !== "object") return undefined;
+    return (cur as Record<string, unknown>)[seg];
+}
+
+/** 1-based position of a list item addressed by index or by `id`. */
+function listPosition(configs: readonly StoreConfigV2[], listPath: readonly string[], seg: string): number {
+    if (/^\d+$/.test(seg)) return Number(seg) + 1;
+    for (const c of configs) {
+        const list = valueAt(c, listPath);
+        if (!Array.isArray(list)) continue;
+        const at = list.findIndex((el) => el !== null && typeof el === "object" && (el as { id?: unknown }).id === seg);
+        if (at >= 0) return at + 1;
+    }
+    return 1;
+}
+
+function valueAt(config: unknown, path: readonly string[]): unknown {
+    let cur: unknown = config;
+    for (const seg of path) cur = step(cur, seg);
+    return cur;
+}
+
+/** A list item's own name (audience, bundle, rule…), when it has one. */
+function itemName(item: unknown, locale: LocaleCode): string | null {
+    if (item === null || typeof item !== "object") return null;
+    const rec = item as Record<string, unknown>;
+    for (const key of ["name", "label", "title", "name_i18n", "label_i18n", "title_i18n"]) {
+        const v = rec[key];
+        if (typeof v === "string" && v.trim()) return v.trim();
+        if (v && typeof v === "object") {
+            const i18n = v as Partial<Record<LocaleCode, string>>;
+            const text = i18n[locale] ?? i18n.ar ?? i18n.en;
+            if (text?.trim()) return text.trim();
+        }
+    }
+    return null;
+}
+
+/**
+ * Words for path[from..]: `base` dropped, list items named (else numbered
+ * from 1), language keys spelled out.
+ */
+function tailParts(
+    path: readonly string[],
+    from: number,
+    configs: readonly StoreConfigV2[],
+    sectionType: string | undefined,
+    locale: LocaleCode,
+): string[] {
+    const out: string[] = [];
+    for (let i = from; i < path.length; i++) {
+        const seg = path[i];
+        if (seg === "base" && i === from) continue;
+        const parentIsList = configs.some((c) => Array.isArray(valueAt(c, path.slice(0, i))));
+        if (parentIsList || /^\d+$/.test(seg)) {
+            const prefix = path.slice(0, i + 1);
+            const name = configs.map((c) => itemName(valueAt(c, prefix), locale)).find((n) => n !== null);
+            out.push(name ?? `${listPosition(configs, path.slice(0, i), seg)}`);
+        } else if (LOCALES.has(seg)) {
+            out.push(t(STRINGS.languages[seg as LocaleCode], locale));
+        } else {
+            out.push(resolveFieldLabel(sectionType, seg, locale));
+        }
+    }
+    return out;
 }
 
 export function describeDiffPath(
@@ -55,15 +142,18 @@ export function describeDiffPath(
         if (third === "sections" && fourth !== undefined) {
             const section = findSection(configs, pageIndex, fourth);
             parts.push(section ? sectionName(section, locale) : resolveFieldLabel(undefined, "section", locale));
-            return [...parts, ...fieldParts(path.slice(4), section?.type, locale)];
+            return [...parts, ...tailParts(path, 4, configs, section?.type, locale)];
         }
-        return [...parts, ...fieldParts(path.slice(2), undefined, locale)];
+        return [...parts, ...tailParts(path, 2, configs, undefined, locale)];
     }
     if (top === "globals" && second !== undefined) {
         const key = second as keyof StoreConfigV2["globals"];
         const section = configs.map((c) => c.globals[key]).find((s) => s !== undefined);
         const name = section ? sectionName(section, locale) : resolveFieldLabel(undefined, second, locale);
-        return [name, ...fieldParts(path.slice(2), section?.type, locale)];
+        return [name, ...tailParts(path, 2, configs, section?.type, locale)];
     }
-    return fieldParts(path.slice(1), undefined, locale);
+    if (top === "commerce" && second !== undefined && COMMERCE_AREAS[second]) {
+        return [t(COMMERCE_AREAS[second], locale), ...tailParts(path, 2, configs, undefined, locale)];
+    }
+    return tailParts(path, 1, configs, undefined, locale);
 }

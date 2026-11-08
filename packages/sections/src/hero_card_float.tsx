@@ -394,7 +394,10 @@ function HeroCardFloatRender({
                   fontFamily: "var(--bk-font-display, inherit)",
                 }}
               >
-                {badge}
+                {/* One inline box: as direct flex items, the text parts
+                    around the <bdi> would lose their edge spaces
+                    ("Up to36%off"). */}
+                <span>{badge}</span>
               </span>
             )}
             <h1

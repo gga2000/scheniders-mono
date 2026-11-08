@@ -9,13 +9,17 @@ import { supabase } from "@/lib/supabase";
 import { useStoreBuilderV2 } from "./use-store-builder-v2";
 
 const update = vi.fn();
+// Set to hold the next save open (resolve it to land the write).
+let holdNextSave: Promise<{ error: null }> | null = null;
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
     from: () => ({
       update: (row: unknown) => {
         update(row);
-        return { eq: () => Promise.resolve({ error: null }) };
+        const held = holdNextSave;
+        holdNextSave = null;
+        return { eq: () => held ?? Promise.resolve({ error: null }) };
       },
       select: () => ({
         eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }),
@@ -107,6 +111,36 @@ describe("builder autosave", () => {
     expect(update).toHaveBeenCalledTimes(2);
     const saved = update.mock.calls[1]?.[0] as { store_config_v2_draft: Record<string, unknown> };
     expect(saved.store_config_v2_draft.default_locale).toBe("ar");
+  });
+
+  it("an undo made while the edit's save is still in flight is saved too", async () => {
+    const { result } = render();
+    let landSave: (v: { error: null }) => void = () => undefined;
+    holdNextSave = new Promise((resolve) => {
+      landSave = resolve;
+    });
+
+    act(() => {
+      result.current.setConfig((prev) => ({ ...prev, default_locale: "en" }) as StoreConfigV2, "structural");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(update).toHaveBeenCalledTimes(1);
+
+    // The "en" write has not landed yet when the merchant undoes.
+    act(() => {
+      result.current.undo();
+    });
+    await act(async () => {
+      landSave({ error: null });
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+
+    expect(result.current.config.default_locale).toBe("ar");
+    const last = update.mock.calls.at(-1)?.[0] as { store_config_v2_draft: Record<string, unknown> };
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(last.store_config_v2_draft.default_locale).toBe("ar");
   });
 
   it("undo right after an edit (inside the history debounce) reverts that edit", async () => {

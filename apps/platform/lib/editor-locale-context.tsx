@@ -7,12 +7,8 @@
 // list, settings screens) can read the active editor locale without
 // every parent threading it through props.
 //
-// Editor-shell is expected to wrap its return in
-// `<EditorLocaleProvider value={builder.active_locale}>…</EditorLocaleProvider>`
-// (TODO Phase 2 — currently the shell is owned by a parallel agent so
-// wiring lands separately). Until that wiring exists, `useEditorLocale()`
-// defaults to `"en"` and chrome renders in English. Any consumer that
-// receives an explicit `activeLocale` prop should pass it through.
+// Editor-shell wraps its tree in `<EditorLocaleProvider>`. Outside a
+// provider `useEditorLocale()` falls back to `"en"`.
 // =====================================================================
 
 import { createContext, useContext, type ReactNode } from "react";
