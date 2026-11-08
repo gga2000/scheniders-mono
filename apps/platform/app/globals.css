@@ -3448,3 +3448,62 @@ body:has(.till-screen) .toast-card {
 html[lang="ar"] .till-screen .tracking-wide {
     letter-spacing: normal;
 }
+
+/* ── Merchant guide (components/merchant-guide) ──────────────────────
+   The light on a real element: a ring plus a page-wide dim cut around it.
+   The dim never takes clicks, so the merchant works the real page under it. */
+.merchant-guide-spot {
+  position: fixed;
+  z-index: 44;
+  border-radius: 12px;
+  pointer-events: none;
+  box-shadow: 0 0 0 200vmax rgb(10 10 10 / 0.5);
+  outline: 3px solid #EFFF00;
+  outline-offset: 3px;
+  transition: top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.merchant-guide-spot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 14px;
+  border: 2px solid #EFFF00;
+  animation: merchant-guide-pulse 1.8s ease-out infinite;
+}
+@keyframes merchant-guide-pulse {
+  0% { opacity: 0.9; inset: -3px; }
+  100% { opacity: 0; inset: -14px; }
+}
+.merchant-guide-card { animation: merchant-guide-in 0.3s ease both; }
+.merchant-guide-card[data-placed="true"] {
+  transition: top 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes merchant-guide-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.merchant-guide-word { opacity: 0.38; transition: opacity 0.18s ease; }
+.merchant-guide-word[data-lit="true"] { opacity: 1; }
+.merchant-guide-wave i {
+  display: block;
+  width: 2px;
+  height: 30%;
+  border-radius: 2px;
+  background: #EFFF00;
+}
+.merchant-guide-wave[data-speaking="true"] i { animation: merchant-guide-wave 0.9s ease-in-out infinite; }
+.merchant-guide-wave i:nth-child(2) { animation-delay: 0.15s; }
+.merchant-guide-wave i:nth-child(3) { animation-delay: 0.3s; }
+.merchant-guide-wave i:nth-child(4) { animation-delay: 0.45s; }
+@keyframes merchant-guide-wave {
+  0%, 100% { height: 30%; }
+  50% { height: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .merchant-guide-spot,
+  .merchant-guide-card,
+  .merchant-guide-card[data-placed="true"] { transition: none; animation: none; }
+  .merchant-guide-spot::after,
+  .merchant-guide-wave[data-speaking="true"] i { animation: none; }
+  .merchant-guide-word { transition: none; }
+}

@@ -12,7 +12,7 @@ interface ProductBasicSectionProps {
 export function ProductBasicSection({ formData, updateField }: ProductBasicSectionProps) {
     const { t } = useLanguage();
     return (
-        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
+        <div data-guide="product-name" className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
                 {t("products.ed.basic")}
             </h2>

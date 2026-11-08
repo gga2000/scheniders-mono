@@ -267,7 +267,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                     resetTestId="reset-identity"
                 >
                     <div className="space-y-4">
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5" data-guide="identity-name">
                             <div className="flex items-center justify-between">
                                 <label className="text-sm font-medium">
                                     {tChrome(STRINGS.brand_kit.field_store_name, chromeLocale)}
@@ -307,6 +307,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                             testIdPrefix="identity-tagline"
                         />
 
+                        <div data-guide="identity-logo">
                         <ImageField
                             label={tChrome(STRINGS.brand_kit.field_logo, chromeLocale)}
                             value={identity.logo_url}
@@ -318,6 +319,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                             onReset={() => setLogo(undefined)}
                             testIdPrefix="identity-logo"
                         />
+                        </div>
 
                         {/* S3-03: the favicon is a web-dev nicety (warn-level
                             check) — Advanced only. The OG image STAYS in
