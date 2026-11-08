@@ -8,12 +8,13 @@ const state = vi.hoisted(() => ({
     updated: false,
     resolve: vi.fn(),
     resolveTxt: vi.fn(),
+    resolve4: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/require-request-caller", () => ({
     requireRequestCaller: async () => state.caller,
 }));
-vi.mock("dns/promises", () => ({ default: { resolveCname: state.resolve, resolveTxt: state.resolveTxt } }));
+vi.mock("dns/promises", () => ({ default: { resolveCname: state.resolve, resolveTxt: state.resolveTxt, resolve4: state.resolve4 } }));
 vi.mock("@/lib/supabase-server", () => ({
     createSupabaseServiceClient: () => ({
         from: () => ({
@@ -56,6 +57,8 @@ beforeEach(() => {
     state.resolve.mockReset();
     state.resolveTxt.mockReset();
     state.resolveTxt.mockResolvedValue([["scheniders-verify=tok123"]]);
+    state.resolve4.mockReset();
+    state.resolve4.mockRejectedValue(Object.assign(new Error("x"), { code: "ENODATA" }));
     vercel.provision.mockReset();
     vercel.provision.mockResolvedValue("active");
 });
@@ -117,6 +120,37 @@ describe("POST /api/domains/verify", () => {
         state.resolve.mockResolvedValue(["cname.vercel-dns.com.attacker.net"]);
         const res = await POST(req({ domain_id: ID }));
         expect((await res.json()).verified).toBe(false);
+        expect(state.updated).toBe(false);
+    });
+
+    it("verifies a project-specific Vercel CNAME target", async () => {
+        state.resolve.mockResolvedValue(["497c02790ff6f357.vercel-dns-017.com"]);
+        const res = await POST(req({ domain_id: ID }));
+        expect(await res.json()).toMatchObject({ verified: true });
+        expect(state.updated).toBe(true);
+    });
+
+    it("verifies an apex through its A record when it has no CNAME", async () => {
+        state.row = { id: ID, domain: "example.com", verified: false, verification_token: "tok123" };
+        state.resolve.mockRejectedValue(Object.assign(new Error("x"), { code: "ENODATA" }));
+        state.resolve4.mockResolvedValue(["76.76.21.21"]);
+        const res = await POST(req({ domain_id: ID }));
+        expect(await res.json()).toMatchObject({ verified: true });
+        expect(vercel.provision).toHaveBeenCalledWith("example.com");
+    });
+
+    it("does not verify an apex whose A record points somewhere else", async () => {
+        state.resolve.mockRejectedValue(Object.assign(new Error("x"), { code: "ENODATA" }));
+        state.resolve4.mockResolvedValue(["192.64.119.16"]);
+        expect((await (await POST(req({ domain_id: ID }))).json()).verified).toBe(false);
+        expect(vercel.provision).not.toHaveBeenCalled();
+        expect(state.updated).toBe(false);
+    });
+
+    it("answers 502 when the A lookup itself fails", async () => {
+        state.resolve.mockRejectedValue(Object.assign(new Error("x"), { code: "ENODATA" }));
+        state.resolve4.mockRejectedValue(Object.assign(new Error("x"), { code: "ETIMEOUT" }));
+        expect((await POST(req({ domain_id: ID }))).status).toBe(502);
         expect(state.updated).toBe(false);
     });
 

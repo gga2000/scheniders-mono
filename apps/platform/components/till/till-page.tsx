@@ -25,6 +25,7 @@ import {
 import { addToCart, commissionOf, dateLocale, formatIqd, onShelf, setQuantity, subtotalOf, type CartLine, type PaymentLine, type TillProduct, type TillVariant } from "@/lib/till/cart";
 import { connectDrawer, drawerSupported, openDrawer } from "@/lib/till/cash-drawer";
 import type { DisplayState, PayShown } from "@/lib/till/customer-display";
+import { DEFAULT_TILL_RULES } from "@/lib/till/shop-forms";
 import { readPrefs, TEXT_ZOOM, writePrefs, type TextSize, type TillPrefs } from "@/lib/till/prefs";
 import { printReceipt, receiptDocument, type ReceiptData } from "@/lib/till/receipt";
 import { TillLockScreen } from "./till-lock-screen";
@@ -529,7 +530,15 @@ export function TillPage() {
                 <TillLabelsDialog sessionId={session.id} products={products.data ?? []} storeName={storeName.data ?? ""} onClose={() => setLabelsOpen(false)} />
             )}
             {scentOpen && <TillScentDialog sessionId={session.id} products={products.data ?? []} onClose={() => setScentOpen(false)} />}
-            {payoutOpen && <TillPayoutDialog sessionId={session.id} onClose={() => setPayoutOpen(false)} />}
+            {payoutOpen && (
+                <TillPayoutDialog
+                    sessionId={session.id}
+                    isManager={isManager}
+                    pinAbove={rules.data?.payout_pin_above ?? DEFAULT_TILL_RULES.payout_pin_above}
+                    managers={(members.data ?? []).filter((m) => m.role === "admin" && m.has_pin && m.user_id !== session.cashier.user_id)}
+                    onClose={() => setPayoutOpen(false)}
+                />
+            )}
             {historyOpen && <TillHistoryDialog sessionId={session.id} shop={shop} initialQuery={historyQuery} storeName={storeName.data ?? ""} onClose={() => setHistoryOpen(false)} />}
         </TillFrame>
     );

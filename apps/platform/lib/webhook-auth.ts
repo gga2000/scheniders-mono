@@ -13,10 +13,10 @@ import { NextResponse } from "next/server";
  * traffic, because neither dashboard was configured to send a credential. So
  * the check runs in one of two modes:
  *
- *   monitor  (default) — a request with no credential is still processed, and a
+ *   monitor  — a request with no credential is still processed, and a
  *            structured warning is logged so the owner can see whether the real
  *            traffic is authenticated yet.
- *   enforce  — a request with no credential is refused with 401.
+ *   enforce  (default) — a request with no credential is refused with 401.
  *
  * A credential that is present but WRONG is refused in both modes: nothing
  * legitimate sends a bad one, and that was already the behaviour before.

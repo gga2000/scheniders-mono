@@ -1,20 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { HandCoins } from "lucide-react";
+import { HandCoins, ShieldCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { useTillPayout } from "@/hooks/use-till";
+import type { TillMember } from "@/hooks/use-shops";
 import { formatIqd, parseDinars } from "@/lib/till/cart";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
+import { TillManagerDialog } from "./till-manager-dialog";
+
+interface Props {
+    sessionId: string;
+    /** Managers pay out any amount; anyone else needs a manager's PIN above pinAbove. */
+    isManager: boolean;
+    /** The store's rule: a pay-out above this needs a manager's PIN (0 = every pay-out). */
+    pinAbove: number;
+    /** Managers with a PIN who can allow it on this till. */
+    managers: TillMember[];
+    onClose: () => void;
+}
 
 const AMOUNTS = [1_000, 2_000, 5_000, 10_000, 25_000] as const;
 const REASONS = ["water", "delivery", "cleaning", "food", "supplies"] as const;
 
 /** Cash taken out of the drawer for a shop cost. It is saved as an expense in Finances. */
-export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onClose }: Props) {
     const { t } = useLanguage();
     const payout = useTillPayout();
     // One id per open dialog, so a double tap or a retry saves one expense.
@@ -26,18 +39,28 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
     const note = [reason, detail.trim()].filter(Boolean).join(" · ");
     const amount = parseDinars(amountText);
     const ready = amount > 0 && note.trim().length > 0 && !payout.isPending;
+    // The server has the last word (the rule may have changed); this only saves a round trip.
+    const [limit, setLimit] = useState(pinAbove);
+    const needsPin = !isManager && amount > limit;
+    const [askManager, setAskManager] = useState(false);
 
-    const submit = () =>
+    const save = (approvalId: string | null) =>
         payout.mutate(
-            { sessionId, clientId, amount, note },
+            { sessionId, clientId, amount, note, approvalId },
             {
-                onSuccess: () => {
+                onSuccess: (r) => {
+                    if ("error" in r) {
+                        setLimit(r.limit);
+                        setAskManager(true);
+                        return;
+                    }
                     toast({ title: t("till.payout.saved", { amount: formatIqd(amount) }), variant: "success" });
                     onClose();
                 },
                 onError: () => toast({ title: t("till.payout.failed"), variant: "error" }),
             },
         );
+    const submit = () => (needsPin ? setAskManager(true) : save(null));
 
     return (
         <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -78,6 +101,12 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
                             </button>
                         ))}
                     </div>
+                    {needsPin && (
+                        <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-800 dark:text-amber-300" dir="auto">
+                            <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            {t("till.payout.needsPin", { limit: formatIqd(limit) })}
+                        </p>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -117,10 +146,27 @@ export function TillPayoutDialog({ sessionId, onClose }: { sessionId: string; on
                     disabled={!ready}
                     className={cn("h-14 w-full rounded-2xl text-base font-bold", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70")}
                 >
-                    {payout.isPending ? t("till.payout.saving") : amount > 0 ? t("till.payout.take", { amount: formatIqd(amount) }) : t("till.payout.title")}
+                    {payout.isPending
+                        ? t("till.payout.saving")
+                        : amount > 0
+                          ? t(needsPin ? "till.payout.takeWithPin" : "till.payout.take", { amount: formatIqd(amount) })
+                          : t("till.payout.title")}
                 </button>
                 </div>
             </DialogContent>
+            {askManager && (
+                <TillManagerDialog
+                    sessionId={sessionId}
+                    managers={managers}
+                    reason={t("till.payout.askReason", { amount: formatIqd(amount) })}
+                    maxOff={amount}
+                    onApproved={(ok) => {
+                        setAskManager(false);
+                        save(ok.id);
+                    }}
+                    onClose={() => setAskManager(false)}
+                />
+            )}
         </Dialog>
     );
 }

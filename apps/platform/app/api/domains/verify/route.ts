@@ -3,7 +3,7 @@ import dns from "dns/promises";
 import { z } from "zod";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
-import { domainTxtName, isAcceptedCnameTarget, txtRecordsProve } from "@/lib/custom-domain";
+import { domainTxtName, isAcceptedApexIp, isAcceptedCnameTarget, txtRecordsProve } from "@/lib/custom-domain";
 import { DomainConflictError, provisionCustomDomain, type DomainSsl } from "@/lib/vercel-domains";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +17,9 @@ const NO_RECORD_CODES = new Set(["ENODATA", "ENOTFOUND", "NXDOMAIN"]);
  * POST /api/domains/verify  Body: { domain_id }   (tenant admin)
  *
  * Marks the caller's own custom domain verified once the store proves it owns
- * it (TXT `_scheniders.<domain>` = this row's token) and its CNAME points at
- * Scheniders. The CNAME alone would let one store claim a domain another
- * store pointed at us. The tenant comes from the caller's session, never the request, so
+ * it (TXT `_scheniders.<domain>` = this row's token) and its CNAME (or, on an
+ * apex, its A record) points at Scheniders. The DNS pointer alone would let
+ * one store claim a domain another store pointed at us. The tenant comes from the caller's session, never the request, so
  * one tenant cannot probe or verify another tenant's domain ids.
  */
 export async function POST(request: Request): Promise<NextResponse> {
@@ -62,28 +62,20 @@ export async function POST(request: Request): Promise<NextResponse> {
         });
     }
 
-    let records: string[];
-    try {
-        records = await dns.resolveCname(domain.domain);
-    } catch (err) {
-        const code = (err as NodeJS.ErrnoException).code;
-        if (code && NO_RECORD_CODES.has(code)) {
-            return NextResponse.json({
-                verified: false,
-                error: "CNAME record not found. DNS changes can take up to 48 hours to propagate.",
-            });
-        }
-        console.error("[domains/verify] DNS lookup failed:", err);
-        return NextResponse.json(
-            { error: "DNS lookup failed. Try again in a minute." },
-            { status: 502 },
-        );
+    const routed = await pointsAtScheniders(domain.domain);
+    if (routed === "dns_error") {
+        return NextResponse.json({ error: "DNS lookup failed. Try again in a minute." }, { status: 502 });
     }
-
-    if (!records.some(isAcceptedCnameTarget)) {
+    if (routed === "missing") {
         return NextResponse.json({
             verified: false,
-            error: "CNAME record found, but it does not point to Scheniders.",
+            error: "CNAME / A record not found. DNS changes can take up to 48 hours to propagate.",
+        });
+    }
+    if (routed === "elsewhere") {
+        return NextResponse.json({
+            verified: false,
+            error: "The domain's DNS record does not point to Scheniders yet.",
         });
     }
 
@@ -121,6 +113,34 @@ async function ownershipProved(domain: string, token: string): Promise<boolean |
         const code = (err as NodeJS.ErrnoException).code;
         if (code && NO_RECORD_CODES.has(code)) return false;
         console.error("[domains/verify] TXT lookup failed:", err);
+        return "dns_error";
+    }
+}
+
+/**
+ * Whether the domain's DNS sends shoppers to Scheniders: a CNAME into Vercel's
+ * DNS (subdomains), or, where there is no CNAME, an A record on a Vercel IP
+ * (an apex cannot hold a CNAME, so a CNAME-only check never let one verify).
+ */
+async function pointsAtScheniders(domain: string): Promise<"ok" | "missing" | "elsewhere" | "dns_error"> {
+    const cnames = await lookup(() => dns.resolveCname(domain));
+    if (cnames === "dns_error") return "dns_error";
+    if (cnames.length > 0) return cnames.some(isAcceptedCnameTarget) ? "ok" : "elsewhere";
+
+    const ips = await lookup(() => dns.resolve4(domain));
+    if (ips === "dns_error") return "dns_error";
+    if (ips.length === 0) return "missing";
+    return ips.some(isAcceptedApexIp) ? "ok" : "elsewhere";
+}
+
+/** A DNS answer, `[]` when the name has no such record yet, or a resolver failure. */
+async function lookup(query: () => Promise<string[]>): Promise<string[] | "dns_error"> {
+    try {
+        return await query();
+    } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code && NO_RECORD_CODES.has(code)) return [];
+        console.error("[domains/verify] DNS lookup failed:", err);
         return "dns_error";
     }
 }

@@ -1,223 +1,207 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Loader2, AlertCircle, CheckCircle2, ArrowLeft, Sparkles } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, Clock, KeyRound, Loader2, Mail, MailCheck, RotateCcw, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import Link from "next/link";
+import { useLanguage, useTextDir } from "@/hooks/use-language";
+import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
 
-export default function ForgotPasswordPage() {
+const RESEND_COOLDOWN_SECONDS = 60;
+
+function ForgotPasswordForm() {
     const { resetPassword } = useAuth();
+    const { t } = useLanguage();
+    const dir = useTextDir();
+    const linkExpired = useSearchParams().get("link") === "expired";
+
     const [email, setEmail] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isSuccess, setIsSuccess] = useState(false);
+    const [sentTo, setSentTo] = useState<string | null>(null);
+    const [cooldown, setCooldown] = useState(0);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    useEffect(() => {
+        if (cooldown <= 0) return;
+        const id = setTimeout(() => setCooldown((s) => s - 1), 1000);
+        return () => clearTimeout(id);
+    }, [cooldown]);
+
+    const send = async (address: string) => {
         setError(null);
         setIsLoading(true);
-
         try {
-            const { error: resetError } = await resetPassword(email);
-
+            const { error: resetError } = await resetPassword(address);
             if (resetError) {
                 setError(resetError.message);
-                setIsLoading(false);
                 return;
             }
-
-            setIsSuccess(true);
+            setSentTo(address);
+            setCooldown(RESEND_COOLDOWN_SECONDS);
         } catch {
-            setError("An unexpected error occurred. Please try again.");
+            setError(t("pwreset.forgot.unexpected"));
         } finally {
             setIsLoading(false);
         }
     };
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        void send(email.trim());
+    };
+
+    const startOver = () => {
+        setSentTo(null);
+        setError(null);
+        setEmail("");
+    };
+
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-            {/* Animated Background */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <motion.div
-                    className="absolute w-[600px] h-[600px] rounded-full opacity-30"
-                    style={{
-                        background: "radial-gradient(circle, var(--pastel-mint) 0%, transparent 70%)",
-                        top: "-200px",
-                        right: "-200px",
-                    }}
-                    animate={{
-                        scale: [1, 1.1, 1],
-                        x: [0, 30, 0],
-                    }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-                />
-                <motion.div
-                    className="absolute w-[500px] h-[500px] rounded-full opacity-25"
-                    style={{
-                        background: "radial-gradient(circle, var(--pastel-purple) 0%, transparent 70%)",
-                        bottom: "-150px",
-                        left: "-150px",
-                    }}
-                    animate={{
-                        scale: [1, 1.15, 1],
-                        y: [0, 30, 0],
-                    }}
-                    transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-                />
-            </div>
+        <AuthCardShell>
+            <AnimatePresence mode="wait">
+                {sentTo === null ? (
+                    <motion.div
+                        key="form"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="px-6 sm:px-8 pb-8"
+                    >
+                        <AuthCardHeading
+                            icon={<KeyRound className="w-5 h-5" />}
+                            title={t("pwreset.forgot.title")}
+                            subtitle={t("pwreset.forgot.subtitle")}
+                        />
 
-            {/* Card */}
-            <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className="w-full max-w-md relative z-10"
-            >
-                <div className="bg-white/70 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden">
-                    {/* Back Button */}
-                    <div className="px-8 pt-6">
-                        <Link
-                            href="/login"
-                            className="inline-flex items-center gap-2 text-[#6B6B6B] hover:text-[#1E1E1E] transition-colors text-sm"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            Back to sign in
-                        </Link>
-                    </div>
-
-                    <AnimatePresence mode="wait">
-                        {!isSuccess ? (
-                            <motion.div
-                                key="form"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                            >
-                                {/* Header */}
-                                <div className="px-8 pt-4 pb-6 text-center">
-                                    <motion.div
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        transition={{ delay: 0.2, type: "spring" }}
-                                        className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[#B8E8E0] to-[#E5F6F3] shadow-lg mb-4"
-                                    >
-                                        <Mail className="w-8 h-8 text-[#1E1E1E]" />
-                                    </motion.div>
-
-                                    <h1 className="text-2xl font-bold text-[#1E1E1E] mb-1">
-                                        Forgot Password?
-                                    </h1>
-                                    <p className="text-[#6B6B6B] text-sm">
-                                        No worries, we&apos;ll send you reset instructions
-                                    </p>
+                        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                            {linkExpired && !error && (
+                                <div
+                                    role="status"
+                                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-[#FFF8E1] border border-[#F3E2A9] text-[13px] text-[#1E1E1E]"
+                                >
+                                    <Clock className="w-4 h-4 mt-0.5 shrink-0 text-[#A07800]" />
+                                    <span dir={dir} className="text-left">{t("pwreset.forgot.expired")}</span>
                                 </div>
+                            )}
+                            {error && (
+                                <div
+                                    role="alert"
+                                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-[#FCEEF1] border border-[#F4C7CF] text-[13px] text-[#1E1E1E]"
+                                >
+                                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+                                    <span dir={dir} className="text-left">{error}</span>
+                                </div>
+                            )}
 
-                                {/* Form */}
-                                <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5">
-                                    {error && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="flex items-center gap-3 p-4 rounded-xl bg-[#FCEEF1] border border-[#F4C7CF]"
-                                        >
-                                            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-                                            <p className="text-sm text-[#1E1E1E]">{error}</p>
-                                        </motion.div>
-                                    )}
+                            <div>
+                                <label htmlFor="reset-email" className="block text-[13px] font-medium text-[#1E1E1E] mb-2">
+                                    {t("pwreset.forgot.email")}
+                                </label>
+                                <div className="relative group">
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#A8A196] group-focus-within:text-[#1E1E1E] transition-colors pointer-events-none" />
+                                    <input
+                                        id="reset-email"
+                                        type="email"
+                                        inputMode="email"
+                                        dir="ltr"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="you@example.com"
+                                        autoComplete="email"
+                                        autoFocus
+                                        required
+                                        className="w-full h-12 pl-11 pr-4 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[15px] text-[#1E1E1E] placeholder:text-[#B5AFA4] focus:bg-white focus:border-[#1E1E1E] focus:outline-none focus:ring-4 focus:ring-[#EFFF00]/40 transition"
+                                    />
+                                </div>
+                            </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-[#1E1E1E] mb-2">
-                                            Email Address
-                                        </label>
-                                        <div className="relative group">
-                                            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                                                <Mail className="w-5 h-5 text-[#9A9A9A] group-focus-within:text-[#1E1E1E] transition-colors" />
-                                            </div>
-                                            <input
-                                                type="email"
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
-                                                placeholder="you@example.com"
-                                                autoComplete="email"
-                                                required
-                                                className="w-full h-12 pl-12 pr-4 rounded-xl bg-white/80 border-2 border-transparent 
-                                                         text-[#1E1E1E] placeholder:text-[#9A9A9A]
-                                                         focus:border-[#B8E8E0] focus:bg-white focus:outline-none
-                                                         transition-all duration-200"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        type="submit"
-                                        disabled={isLoading || !email}
-                                        className="w-full h-12 rounded-xl font-semibold text-white
-                                                 bg-gradient-to-r from-[#1E1E1E] to-[#3D3D3D]
-                                                 hover:from-[#2D2D2D] hover:to-[#4D4D4D]
-                                                 disabled:opacity-50 disabled:cursor-not-allowed
-                                                 shadow-lg hover:shadow-xl
-                                                 transform hover:scale-[1.02] active:scale-[0.98]
-                                                 transition-all duration-200
-                                                 flex items-center justify-center gap-2"
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <Loader2 className="w-5 h-5 animate-spin" />
-                                                <span>Sending...</span>
-                                            </>
-                                        ) : (
-                                            <span>Reset Password</span>
-                                        )}
-                                    </button>
-                                </form>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="success"
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="px-8 py-12 text-center"
+                            <button
+                                type="submit"
+                                disabled={isLoading || !email.trim()}
+                                className="w-full h-12 rounded-2xl font-semibold text-[15px] text-white bg-[#1E1E1E] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                             >
-                                <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    transition={{ delay: 0.2, type: "spring" }}
-                                    className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-[#C0EBA6] to-[#E8F8E0] shadow-lg mb-6"
-                                >
-                                    <CheckCircle2 className="w-10 h-10 text-green-600" />
-                                </motion.div>
-
-                                <h2 className="text-2xl font-bold text-[#1E1E1E] mb-2">
-                                    Check Your Email
-                                </h2>
-                                <p className="text-[#6B6B6B] mb-6">
-                                    We sent a password reset link to<br />
-                                    <span className="font-medium text-[#1E1E1E]">{email}</span>
-                                </p>
-
-                                <Link
-                                    href="/login"
-                                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl
-                                             bg-[#F5F0E8] text-[#1E1E1E] font-medium
-                                             hover:bg-[#E8E4DC] transition-colors"
-                                >
-                                    <ArrowLeft className="w-4 h-4" />
-                                    Back to Sign In
-                                </Link>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* Footer */}
-                    <div className="px-8 py-6 bg-[#F5F0E8]/50 border-t border-[#E8E4DC]/50 text-center">
-                        <p className="text-sm text-[#6B6B6B]">
-                            <Sparkles className="w-3 h-3 inline mr-1" />
-                            Protected by Schenider Security
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        {t("pwreset.forgot.sending")}
+                                    </>
+                                ) : (
+                                    t("pwreset.forgot.submit")
+                                )}
+                            </button>
+                        </form>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="sent"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="px-6 sm:px-8 pb-8"
+                    >
+                        <AuthCardHeading
+                            icon={<MailCheck className="w-5 h-5" />}
+                            title={t("pwreset.sent.title")}
+                            subtitle={t("pwreset.sent.body")}
+                        />
+                        <p
+                            role="status"
+                            className="mt-5 px-4 py-3 rounded-2xl bg-[#FAF8F3] border border-[#ECE8DD] text-[14px] font-medium text-[#1E1E1E] break-all"
+                            dir="ltr"
+                        >
+                            {sentTo}
                         </p>
-                    </div>
-                </div>
-            </motion.div>
-        </div>
+
+                        <ul className="mt-5 space-y-2.5 text-[13px] text-[#5F5A52]">
+                            <li className="flex items-start gap-2.5">
+                                <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0 text-[#8A847A]" />
+                                <span dir={dir} className="text-left">{t("pwreset.sent.tipSpam")}</span>
+                            </li>
+                            <li className="flex items-start gap-2.5">
+                                <Clock className="w-4 h-4 mt-0.5 shrink-0 text-[#8A847A]" />
+                                <span dir={dir} className="text-left">{t("pwreset.sent.tipOnce")}</span>
+                            </li>
+                        </ul>
+
+                        {error && (
+                            <div
+                                role="alert"
+                                className="mt-5 flex items-start gap-3 p-3.5 rounded-2xl bg-[#FCEEF1] border border-[#F4C7CF] text-[13px] text-[#1E1E1E]"
+                            >
+                                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+                                <span dir={dir} className="text-left">{error}</span>
+                            </div>
+                        )}
+
+                        <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                onClick={() => void send(sentTo)}
+                                disabled={isLoading || cooldown > 0}
+                                className="h-11 px-3 rounded-2xl font-semibold text-[14px] text-white bg-[#1E1E1E] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                            >
+                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                                {cooldown > 0 ? t("pwreset.sent.resendIn", { s: cooldown }) : t("pwreset.sent.resend")}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={startOver}
+                                className="h-11 px-3 rounded-2xl font-medium text-[14px] text-[#1E1E1E] bg-[#F3F0E8] hover:bg-[#ECE8DD] transition-colors"
+                            >
+                                {t("pwreset.sent.other")}
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </AuthCardShell>
+    );
+}
+
+export default function ForgotPasswordPage() {
+    return (
+        <Suspense fallback={null}>
+            <ForgotPasswordForm />
+        </Suspense>
     );
 }

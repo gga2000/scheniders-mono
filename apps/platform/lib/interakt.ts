@@ -227,17 +227,24 @@ const NAME_MAX = 60;
 const ADDRESS_MAX = 160;
 // Links and bare domains ("evil.example/x", "www.x", "https://…").
 const LINK_PATTERN = /(?:https?:\/\/|www\.)\S*|\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}(?:\/\S*)?/gi;
+// What a real name or address is made of: letters and marks in any script,
+// digits, spaces and a few separators. Everything else (every kind of dot,
+// "@", ":", emoji…) becomes a space, so no form of link survives, however it
+// is spelled ("evil。com", "x . ly", full-width or Arabic presentation forms).
+const NOT_NAME_OR_ADDRESS = /[^\p{L}\p{M}\p{N}\s\-،,/()']/gu;
 
 /**
  * Name and address are typed by whoever places the order, and we send them to
  * the phone number they typed, from the platform's one WhatsApp number. Left
  * as-is, anyone could relay their own text (a phishing link) to any number
- * under our name. Links are removed and length is capped; a real Iraqi name
- * or address never needs either.
+ * under our name. Links are removed, only name/address characters are kept,
+ * and length is capped; a real Iraqi name or address never needs more.
  */
 export function shopperText(value: string, max: number): string {
     const cleaned = value
+        .normalize("NFKC")
         .replace(LINK_PATTERN, " ")
+        .replace(NOT_NAME_OR_ADDRESS, " ")
         .replace(/\s+/g, " ")
         .trim();
     return cleaned.length > max ? `${cleaned.slice(0, max - 1).trimEnd()}…` : cleaned;
