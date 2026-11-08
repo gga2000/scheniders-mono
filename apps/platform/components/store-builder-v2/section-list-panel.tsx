@@ -14,7 +14,7 @@
 // writes back via `setConfig`.
 // =====================================================================
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     DndContext,
     type DragEndEvent,
@@ -239,6 +239,25 @@ function SectionRow({
 
     const closeMenu = useCallback(() => setMenuOpen(false), []);
 
+    // Close on Escape or a press anywhere outside the menu. A document
+    // listener, not a fixed scrim: the sortable row carries a transform,
+    // which traps a `position: fixed` layer inside the row itself.
+    useEffect(() => {
+        if (!menuOpen) return;
+        const onPointerDown = (e: PointerEvent): void => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+        };
+        const onKeyDown = (e: KeyboardEvent): void => {
+            if (e.key === "Escape") setMenuOpen(false);
+        };
+        document.addEventListener("pointerdown", onPointerDown);
+        document.addEventListener("keydown", onKeyDown);
+        return () => {
+            document.removeEventListener("pointerdown", onPointerDown);
+            document.removeEventListener("keydown", onKeyDown);
+        };
+    }, [menuOpen]);
+
     const {
         attributes,
         listeners,
@@ -378,14 +397,6 @@ function SectionRow({
                     </button>
                     {menuOpen && (
                         <>
-                            {/* Click-outside scrim */}
-                            <button
-                                type="button"
-                                aria-hidden="true"
-                                tabIndex={-1}
-                                onClick={closeMenu}
-                                className="fixed inset-0 z-40 cursor-default"
-                            />
                             <div
                                 role="menu"
                                 data-testid={`section-row-${section.id}-menu`}

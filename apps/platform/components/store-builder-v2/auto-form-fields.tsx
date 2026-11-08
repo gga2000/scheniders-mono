@@ -346,7 +346,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                     onChange={(next) => onChange(next)}
                     testIdPrefix={testIdBase}
                     activeLocale={activeLocale}
-                    multiline={LONG_COPY_KEYS.has(fieldKey)}
+                    multiline={LONG_COPY_KEYS.has(fieldKey.replace(/_i18n$/, ""))}
                 />
             );
             break;

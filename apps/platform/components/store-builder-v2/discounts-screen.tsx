@@ -32,7 +32,7 @@ function num(v: string): number | undefined {
 }
 
 const inputCls =
-    "rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm tabular-nums transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
+    "text-foreground placeholder:text-muted-foreground rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm tabular-nums transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
 
 export function DiscountsScreen({
     builder,
@@ -115,7 +115,7 @@ export function DiscountsScreen({
                                 )}
                             >
                                 <div className="flex flex-wrap items-end gap-2.5">
-                                    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                    <label className="flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                     {t(STRINGS.advanced_chrome.disc_code_label, locale)}
                                     <input
                                         type="text"
@@ -129,7 +129,7 @@ export function DiscountsScreen({
                                         className={cn(inputCls, "w-32 uppercase")}
                                     />
                                     </label>
-                                    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                    <label className="flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                     {t(STRINGS.advanced_chrome.disc_kind_label, locale)}
                                     <select
                                         data-testid={`discount-kind-${i}`}
@@ -145,7 +145,7 @@ export function DiscountsScreen({
                                         <option value="fixed">{t(STRINGS.advanced_chrome.adv_iqd_off, locale)}</option>
                                     </select>
                                     </label>
-                                    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                    <label className="flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                         {t(STRINGS.advanced_chrome.adv_value, locale)}
                                         <input
                                             type="number"
@@ -159,7 +159,7 @@ export function DiscountsScreen({
                                             className={cn(inputCls, "w-20")}
                                         />
                                     </label>
-                                    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                    <label className="flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                         {t(STRINGS.advanced_chrome.disc_min_subtotal, locale)}
                                         <input
                                             type="number"
@@ -177,7 +177,7 @@ export function DiscountsScreen({
                                         />
                                     </label>
                                     {d.kind === "percent" && (
-                                        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                                        <label className="flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                             {t(STRINGS.advanced_chrome.disc_max_off, locale)}
                                             <input
                                                 type="number"

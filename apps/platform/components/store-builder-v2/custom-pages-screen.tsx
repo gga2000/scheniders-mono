@@ -68,7 +68,7 @@ export function redirectsAfterSlugChange(
 }
 
 const inputCls =
-    "rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
+    "text-foreground placeholder:text-muted-foreground rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
 
 export function CustomPagesScreen({
     builder,
