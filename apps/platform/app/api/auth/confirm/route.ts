@@ -63,6 +63,6 @@ export async function GET(request: NextRequest) {
 
     // Expired, already used or malformed link: a reset link sends the user back
     // to ask for a fresh one; anything else goes to login.
-    const fallback = type.success && type.data === 'recovery' ? '/forgot-password' : '/login';
+    const fallback = type.success && type.data === 'recovery' ? '/forgot-password?link=expired' : '/login';
     return NextResponse.redirect(`${origin}${fallback}`);
 }
