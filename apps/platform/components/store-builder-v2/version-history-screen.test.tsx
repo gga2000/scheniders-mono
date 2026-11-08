@@ -346,6 +346,34 @@ describe("VersionHistoryScreen", () => {
         expect(screen.queryByTestId("version-history-diff-row-removed")).toBeNull();
     });
 
+    it("a translated text, money and a file read as words, not raw data", () => {
+        const builder = makeBuilder();
+        const base = emptyStoreConfigV2();
+        builder.config.commerce = {
+            ...builder.config.commerce,
+            shipping: { ...builder.config.commerce?.shipping, default_rate: { fee_iqd: 0 } },
+        };
+        builder.config.brand_kit = {
+            ...builder.config.brand_kit,
+            identity: { ...builder.config.brand_kit?.identity, logo_url: "https://x.supabase.co/storage/v1/object/public/a/logo%20main.png" },
+        };
+        const v = makeVersion({
+            id: "v-words",
+            is_named: true,
+            label: "Words",
+            config: {
+                ...base,
+                commerce: { ...base.commerce, shipping: { ...base.commerce?.shipping, default_rate: { fee_iqd: 5000 } } },
+            },
+        });
+        render(<VersionHistoryScreen builder={builder} onClose={() => {}} initialVersions={[v]} />);
+        fireEvent.click(screen.getByTestId("version-history-row-v-words"));
+        const text = screen.getByTestId("version-history-diff").textContent ?? "";
+        expect(text).toContain("5,000 IQD");
+        expect(text).toContain("«logo main.png»");
+        expect(text).not.toContain("supabase.co");
+    });
+
     it("a reordered section list says the order changes, not «2 items → 2 items»", () => {
         const a = "11111111-1111-4111-8111-111111111111";
         const b = "22222222-2222-4222-8222-222222222222";

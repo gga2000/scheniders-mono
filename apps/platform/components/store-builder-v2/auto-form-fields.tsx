@@ -36,6 +36,7 @@ import { toast } from "@/hooks/use-toast";
 import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import {
+    knownEnumValueLabel,
     resolveEnumValueLabel,
     resolveFieldHelp,
     resolveFieldLabel,
@@ -1201,6 +1202,14 @@ export function summarizeArrayItem(item: unknown, locale: LocaleCode): string | 
     if (typeof rec.value === "string" && rec.value.trim() && rec.label_i18n && typeof rec.label_i18n === "object") {
         const caption = pickI18n(rec.label_i18n as Record<string, unknown>, locale);
         if (caption) return truncate(`${rec.value.trim()} ${caption}`);
+    }
+    // A live proof slot ({ metric: "completed_orders", label_i18n: "طلب وصل" })
+    // shows a number the store counts itself: name that number beside the
+    // caption so the row says which figure it is.
+    if (typeof rec.metric === "string" && rec.label_i18n && typeof rec.label_i18n === "object") {
+        const caption = pickI18n(rec.label_i18n as Record<string, unknown>, locale);
+        const live = knownEnumValueLabel(rec.metric, locale);
+        if (caption && live) return truncate(`${caption} · ${live}`);
     }
     // Known title-ish keys first, then any other text the merchant wrote.
     const keys = [...SUMMARY_KEYS, ...Object.keys(rec).filter((k) => !(SUMMARY_KEYS as readonly string[]).includes(k))];

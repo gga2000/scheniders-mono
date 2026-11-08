@@ -205,7 +205,13 @@ export function PublishConfirmSheet({
                                 className="flex w-full items-center justify-between gap-2 rounded-xl border border-(--card-border) bg-background px-3 py-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted/40"
                             >
                                 <span className="inline-flex items-center gap-2">
-                                    <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
+                                    <AlertTriangle
+                                        className={cn(
+                                            "h-4 w-4",
+                                            openChecks.some((c) => c.status === "fail") ? "text-red-600" : "text-amber-500",
+                                        )}
+                                        aria-hidden="true"
+                                    />
                                     {tFormat(STRINGS.publish.recommendations_toggle, locale, {
                                         n: openChecks.length,
                                     })}
@@ -226,7 +232,10 @@ export function PublishConfirmSheet({
                                         >
                                             <div className="flex items-start gap-2">
                                                 <AlertTriangle
-                                                    className="mt-0.5 h-4 w-4 shrink-0 text-amber-500"
+                                                    className={cn(
+                                                        "mt-0.5 h-4 w-4 shrink-0",
+                                                        check.status === "fail" ? "text-red-600" : "text-amber-500",
+                                                    )}
                                                     aria-hidden="true"
                                                 />
                                                 <div className="min-w-0 flex-1">
@@ -237,12 +246,15 @@ export function PublishConfirmSheet({
                                                         <span
                                                             className={cn(
                                                                 "inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
-                                                                "bg-amber-500/15 text-amber-600 dark:text-amber-300",
+                                                                check.status === "fail"
+                                                                    ? "bg-red-500/15 text-red-600 dark:text-red-300"
+                                                                    : "bg-amber-500/15 text-amber-600 dark:text-amber-300",
                                                             )}
                                                         >
                                                             {/* Publishing is never actually gated on these —
-                                                                the chip must read as advice, not prohibition. */}
-                                                            {t(STRINGS.publish.warn_chip, locale)}
+                                                                the chip must read as advice, not prohibition.
+                                                                A fault still says it is one. */}
+                                                            {t(check.status === "fail" ? STRINGS.publish.fail_chip : STRINGS.publish.warn_chip, locale)}
                                                         </span>
                                                     </div>
                                                     <span className="text-[11px] uppercase tracking-wide text-muted-foreground">

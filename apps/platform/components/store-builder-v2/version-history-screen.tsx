@@ -18,6 +18,7 @@ import {
     type ReactElement,
     type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
     Circle,
     Loader2,
@@ -550,17 +551,21 @@ export function VersionHistoryScreen({
             </div>
 
             {/* Restore confirmation */}
-            {confirmRestore && (
+            {/* On document.body, so no editor layer or floating guide card sits
+                above the confirm or outside its dim. */}
+            {confirmRestore && createPortal(
                 <div
                     data-testid="version-history-restore-dialog"
                     role="dialog"
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                    className="sb-bidi fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
                 >
                     <div className="w-full max-w-md rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-xl">
                         <h4 className="text-base font-semibold tracking-tight">{t(STRINGS.version_history.restore_title, locale)}</h4>
                         <p className="mt-2 text-sm text-foreground/80">
                             {t(STRINGS.advanced_chrome.vh_restore_body_prefix, locale)}{" "}
-                            <span className="font-medium text-foreground">
+                            {/* The quoted name stays one unit: it never splits
+                                across lines or loses a «» to the next line. */}
+                            <span className="inline-block max-w-full truncate align-bottom font-medium text-foreground">
                                 «<bdi>{(confirmRestore.label ?? "").trim() ||
                                     (confirmRestore.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale))}</bdi>»
                             </span>{" "}
@@ -599,7 +604,8 @@ export function VersionHistoryScreen({
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
 
             {/* Promote-to-named modal */}
@@ -763,6 +769,9 @@ function DiffRow({
     // A single setting the older version never stored is not deleted on
     // restore: the store falls back to that setting's default.
     const toDefault = entry.kind === "removed" && isPlainSetting(entry.before);
+    // The setting's own key (skipping a language key) tells previewValue
+    // when a number is money.
+    const valueKey = [...entry.path].reverse().find((seg) => !/^(ar|en|ku|\d+)$/.test(seg));
     const tone =
         entry.kind === "added"
             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
@@ -804,17 +813,17 @@ function DiffRow({
             ) : toDefault ? (
                 <div dir="auto" className="text-[11px] opacity-80">
                     <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
-                    <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before, locale)}</bdi>
+                    <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before, locale, valueKey)}</bdi>
                 </div>
             ) : entry.kind === "changed" && (
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
-                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before, locale)}</bdi>
+                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before, locale, valueKey)}</bdi>
                     </div>
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_after, locale)}</span>{" "}
-                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.after, locale)}</bdi>
+                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.after, locale, valueKey)}</bdi>
                     </div>
                 </div>
             )}
@@ -824,7 +833,14 @@ function DiffRow({
 
 /** One stored value (text, number, switch), not a section, list or group. */
 function isPlainSetting(v: unknown): boolean {
-    return typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+    return typeof v === "string" || typeof v === "number" || typeof v === "boolean" || isI18nText(v);
+}
+
+/** A translated text ({ ar, en }): one setting in several languages. */
+function isI18nText(v: unknown): v is Partial<Record<LocaleCode, string>> {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+    const entries = Object.entries(v);
+    return entries.length > 0 && entries.every(([k, x]) => /^(ar|en|ku)$/.test(k) && typeof x === "string");
 }
 
 /** Names the live tests and programmes a restore would stop. */
@@ -879,9 +895,16 @@ function idListShift(before: unknown, after: unknown): "order" | "items" | null 
     return after.every((x) => had.has(x)) ? "order" : "items";
 }
 
-function previewValue(v: unknown, locale: LocaleCode): string {
+function previewValue(v: unknown, locale: LocaleCode, key?: string): string {
     // Unset reads as a dash, not a programmer word.
     if (v === undefined || v === null || v === "") return "—";
+    // A translated text shows in the editor's language.
+    if (isI18nText(v)) return previewValue(v[locale] ?? v.ar ?? v.en ?? v.ku, locale);
+    // An uploaded file reads as its file name, not a storage link.
+    if (typeof v === "string" && /^https?:\/\//i.test(v)) {
+        const file = decodeURIComponent(v.split(/[?#]/)[0].split("/").pop() ?? "");
+        return file ? `«${file.length > 40 ? `${file.slice(0, 37)}…` : file}»` : "—";
+    }
     if (typeof v === "boolean") {
         return t(v ? STRINGS.version_history.value_on : STRINGS.version_history.value_off, locale);
     }
@@ -906,7 +929,10 @@ function previewValue(v: unknown, locale: LocaleCode): string {
         // instead of leaving a stray straight quote at the line end.
         return text.length > 60 ? `«${text.slice(0, 57)}…»` : `«${text}»`;
     }
-    if (typeof v === "number") return v.toLocaleString("en-US");
+    if (typeof v === "number") {
+        const n = v.toLocaleString("en-US");
+        return key?.endsWith("_iqd") ? tFormat(STRINGS.version_history.value_iqd, locale, { n }) : n;
+    }
     try {
         const s = JSON.stringify(v);
         return s.length > 60 ? `${s.slice(0, 57)}…` : s;

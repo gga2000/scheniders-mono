@@ -31,5 +31,6 @@ export function formatCompactCount(value?: number | null): string | null {
   const rounded = roundDownCompact(value);
   if (rounded <= 0) return null;
   const prefix = rounded < value ? "+" : "";
-  return `${prefix}${rounded}`;
+  // Grouped digits, the way every other amount in the store reads (3,200).
+  return `${prefix}${rounded.toLocaleString("en-US")}`;
 }

@@ -702,7 +702,7 @@ describe("trust_badge_row — proof ledge", () => {
 
   it("renders the rounded-down count and the exact small one", () => {
     const html = render(trust_badge_row, ledgeProps, { public_stats: stats });
-    expect(html).toContain("+2600");
+    expect(html).toContain("+2,600");
     expect(html).toContain("18");
     expect(html).not.toContain("2693");
   });
@@ -714,11 +714,11 @@ describe("trust_badge_row — proof ledge", () => {
   it("drops a metric slot when there are no stats at all", () => {
     const html = render(trust_badge_row, ledgeProps);
     // Counting slots, not just looking for the missing figure: without
-    // stats a metric slot must VANISH. Asserting only that "+2600" is
+    // stats a metric slot must VANISH. Asserting only that "+2,600" is
     // absent passes even when the slot degrades into a plain badge
     // labelled "طلب وصل" — a unit with no number, live on the page.
     expect(slotCount(html)).toBe(2);
-    expect(html).not.toContain("+2600");
+    expect(html).not.toContain("+2,600");
     expect(html).not.toContain("طلب وصل");
     expect(html).not.toContain("محافظة");
     // Static slots survive — they are merchant claims, not derived.
@@ -755,7 +755,7 @@ describe("trust_badge_row — proof ledge", () => {
       ],
     };
     const html = render(trust_badge_row, plainProps, { public_stats: stats });
-    expect(html).not.toContain("+2600");
+    expect(html).not.toContain("+2,600");
     expect(html).toContain("تغليف هدايا");
     expect(slotCount(html)).toBe(2);
   });

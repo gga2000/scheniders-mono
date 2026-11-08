@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { summarizeArrayItem } from "./auto-form-fields";
 
 describe("summarizeArrayItem — repeater row titles", () => {
+    it("a live proof slot names the figure it counts", () => {
+        expect(summarizeArrayItem({ metric: "completed_orders", label_i18n: { ar: "طلب وصل" } }, "ar")).toBe("طلب وصل · الطلبات المسلّمة");
+    });
+
     it("a stat reads as its number and caption together", () => {
         expect(summarizeArrayItem({ value: "+3,000", label_i18n: { ar: "طلب وصل" } }, "ar")).toBe("+3,000 طلب وصل");
     });
