@@ -77,7 +77,8 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
         setTyped(null);
         setNoticeIn(false);
     };
-    const needsNotice = method === "fib" || method === "zaincash";
+    // Every non-cash method has its tick (FIB/ZainCash notice, card machine slip), and none closes before it is ticked.
+    const needsNotice = method !== "cash";
     const tapNote = (note: number) => {
         setTyped(null);
         setNotes((n) => ({ ...n, [note]: (n[note] ?? 0) + 1 }));
@@ -166,8 +167,11 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                 </div>
 
                 {picking ? (
-                    <div className="flex flex-col items-center justify-center gap-2 rounded-[24px] bg-[var(--card-border)]/30 px-5 py-8 text-center">
-                        <p className="text-2xl font-bold text-foreground" dir="auto">{t("till.pay.pickRest", { rest: formatIqd(rest) })}</p>
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-[24px] bg-[var(--card-border)]/30 p-5 text-center">
+                        <p className="text-xl font-semibold text-foreground" dir="auto">{t("till.pay.pickRest")}</p>
+                        <p className="text-7xl font-bold tabular-nums tracking-tight text-foreground">
+                            {formatIqd(rest)} <span className="text-2xl font-semibold text-muted">{t("till.iqd")}</span>
+                        </p>
                         <p className="text-base text-muted-foreground" dir="auto">{t("till.pay.pickRestHint")}</p>
                     </div>
                 ) : method === "cash" ? (
@@ -334,7 +338,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             <span className={cn("flex h-6 w-6 items-center justify-center rounded-md border-2", noticeIn ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-500 dark:border-white/50")}>
                                 {noticeIn && <Check className="h-4 w-4" aria-hidden="true" />}
                             </span>
-                            <span dir="auto">{t("till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
+                            <span dir="auto">{t(method === "card" ? "till.pay.cardIn" : "till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
                         </button>
                     </div>
                 )}
@@ -384,7 +388,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                               : needsNotice
                                 ? noticeIn
                                     ? <span dir="auto">{t("till.pay.completeNotice", { amount: formatIqd(due) })}</span>
-                                    : <span dir="auto">{t("till.pay.waitNotice", { method: t(`till.pay.method.${method}`) })}</span>
+                                    : <span dir="auto">{t(method === "card" ? "till.pay.waitCard" : "till.pay.waitNotice", { method: t(`till.pay.method.${method}`) })}</span>
                                 : t("till.pay.complete")}
                     </button>
                 </div>
