@@ -160,7 +160,7 @@ export function NotificationsDropdown({ onOpenChange, ownsTitleBadge = false }: 
                         <h3 className="font-semibold text-foreground">{t("notifications.title")}</h3>
                         {unreadCount > 0 && (
                             <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
-                                {unreadCount}
+                                {unreadCount > 99 ? "99+" : unreadCount}
                             </span>
                         )}
                     </div>
