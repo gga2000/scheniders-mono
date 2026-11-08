@@ -1,20 +1,9 @@
 import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
+import { extractSlug, storefrontRootDomain } from "@/lib/store-host";
 
 // Allow crawling of storefront content; keep API, preview, and the
 // non-indexable cart/checkout funnel out of the index.
-/**
- * The platform root, so a store host can be told apart from it.
- * Mirrors `proxy.ts`, which is the only other place this distinction matters.
- */
-const ROOT_DOMAIN = (
-  process.env.NEXT_PUBLIC_ROOT_DOMAIN ||
-  process.env.NEXT_PUBLIC_DEV_ROOT_DOMAIN ||
-  "localhost:3001"
-)
-  .split(":")[0]
-  .toLowerCase();
-
 /**
  * The store's own sitemap, when this request arrived on a store's host.
  *
@@ -26,15 +15,15 @@ const ROOT_DOMAIN = (
  */
 async function sitemapForHost(): Promise<string | undefined> {
   const h = await headers();
-  const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "")
-    .split(":")[0]
-    .toLowerCase();
+  const rawHost = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const host = rawHost.split(":")[0].toLowerCase();
   if (!host) return undefined;
-  if (host === ROOT_DOMAIN || host === `www.${ROOT_DOMAIN}`) return undefined;
+  // Same reading as the proxy: only the bare root is path mode (no one store).
+  if (!extractSlug(rawHost, storefrontRootDomain()).slug) return undefined;
   const proto =
     h.get("x-forwarded-proto") ??
     (host === "localhost" || host === "127.0.0.1" ? "http" : "https");
-  return `${proto}://${h.get("x-forwarded-host") ?? h.get("host")}/sitemap.xml`;
+  return `${proto}://${rawHost}/sitemap.xml`;
 }
 
 export default async function robots(): Promise<MetadataRoute.Robots> {

@@ -10,14 +10,11 @@ import {
   resolveTenantKeyFromHeaders,
 } from "@/lib/storefront-runtime";
 import { V2Page } from "@/components/v2-page";
+import { storefrontRootDomain } from "@/lib/store-host";
 import type { Tenant } from "@/lib/types";
 
-/** Same fallback chain as proxy.ts, which owns the subdomain → tenant
- *  mapping; the 404 has to undo it from the host header. */
-const ROOT_DOMAIN =
-  process.env.NEXT_PUBLIC_ROOT_DOMAIN ||
-  process.env.NEXT_PUBLIC_DEV_ROOT_DOMAIN ||
-  "localhost:3001";
+/** The proxy's own root domain: the 404 has to undo its host → tenant mapping. */
+const ROOT_DOMAIN = storefrontRootDomain();
 
 /** Products a merchant-authored 404 page may draw on (a grid seeded there
  *  should not be empty), without paying for the catalogue on every miss. */

@@ -1299,7 +1299,33 @@ export const STRINGS = {
             ku: "دۆمەین پشتڕاست کرایەوە، بەڵام DNS هێشتا ئاماژە بە Scheniders ناکات.",
         },
         domain_toast_verify_failed: { en: "Verification failed", ar: "فشل التحقق", ku: "پشتڕاستکردنەوە سەرکەوتوو نەبوو" },
-        domain_toast_not_pointing: { en: "Not verified yet. Make sure the CNAME record is saved; DNS can take up to 48 hours.", ar: "لم يتم التحقق بعد. تأكد من حفظ سجل CNAME؛ قد يستغرق DNS حتى 48 ساعة.", ku: "هێشتا پشتڕاست نەکراوەتەوە. دڵنیابە CNAME پاشەکەوت کراوە؛ DNS دەکرێت تا ٤٨ کاتژمێر بخایەنێت." },
+        domain_toast_not_pointing: { en: "Not verified yet. Make sure the CNAME (or A) record is saved; DNS can take up to 48 hours.", ar: "لم يتم التحقق بعد. تأكد من حفظ سجل CNAME (أو A)؛ قد يستغرق DNS حتى 48 ساعة.", ku: "هێشتا پشتڕاست نەکراوەتەوە. دڵنیابە تۆماری CNAME (یان A) پاشەکەوت کراوە؛ DNS دەکرێت تا ٤٨ کاتژمێر بخایەنێت." },
+        domain_steps_heading: { en: "How to connect, step by step", ar: "خطوات الربط", ku: "هەنگاوەکانی بەستنەوە" },
+        domain_step_open: {
+            en: "Open the DNS settings of your domain at the company you bought it from (Namecheap, GoDaddy, Cloudflare...).",
+            ar: "افتح إعدادات DNS لنطاقك في الشركة التي اشتريته منها (Namecheap أو GoDaddy أو Cloudflare...).",
+            ku: "ڕێکخستنەکانی DNS ی دۆمەینەکەت بکەرەوە لای ئەو کۆمپانیایەی لێی کڕیوە (Namecheap، GoDaddy، Cloudflare...).",
+        },
+        domain_step_cname: {
+            en: "Add a CNAME record with the name and value below.",
+            ar: "أضف سجل CNAME بالاسم والقيمة الظاهرين في الأسفل.",
+            ku: "تۆمارێکی CNAME بەو ناو و بەهایەی خوارەوە زیاد بکە.",
+        },
+        domain_step_a: {
+            en: "This is a main domain, so add an A record (not CNAME) with name @ and the value below. Delete any old A record on @ first.",
+            ar: "هذا نطاق رئيسي، لذلك أضف سجل A (وليس CNAME) بالاسم @ والقيمة الظاهرة في الأسفل. احذف أولاً أي سجل A قديم على @.",
+            ku: "ئەمە دۆمەینی سەرەکییە، بۆیە تۆماری A (نەک CNAME) بە ناوی @ و بەهای خوارەوە زیاد بکە. سەرەتا هەر تۆمارێکی A ی کۆن لەسەر @ بسڕەوە.",
+        },
+        domain_step_txt: {
+            en: "Add the TXT record below too. It proves the domain is yours.",
+            ar: "أضف سجل TXT الظاهر في الأسفل أيضاً، فهو يثبت أن النطاق ملكك.",
+            ku: "تۆماری TXT ی خوارەوەش زیاد بکە. دەیسەلمێنێت دۆمەینەکە هی تۆیە.",
+        },
+        domain_step_verify: {
+            en: "Save, come back and press Verify. DNS takes minutes to 48 hours; the SSL certificate is issued automatically.",
+            ar: "احفظ، ثم ارجع هنا واضغط «تحقّق». يأخذ DNS من دقائق إلى 48 ساعة، وتُصدر شهادة الأمان SSL تلقائياً.",
+            ku: "پاشەکەوت بکە، بگەڕێوە و پشتڕاستکردنەوە دابگرە. DNS لە چەند خولەکێکەوە تا ٤٨ کاتژمێر دەخایەنێت؛ بڕوانامەی SSL خۆکارانە دەردەچێت.",
+        },
         domain_dns_records_heading: {
             en: "Add both records at your domain provider, then press Verify. The TXT record proves the domain is yours.",
             ar: "أضف السجلين عند مزوّد النطاق، ثم اضغط تحقّق. سجل TXT يثبت أن النطاق ملكك.",
