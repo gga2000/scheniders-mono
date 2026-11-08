@@ -1732,6 +1732,31 @@ export const STRINGS = {
         meta_capi: { en: "Meta Conversions API token", ar: "رمز واجهة تحويلات Meta", ku: "تۆکنی API ی گۆڕانکاری Meta" },
         tiktok_capi: { en: "TikTok Events API token", ar: "رمز واجهة أحداث TikTok", ku: "تۆکنی API ی ڕووداوی TikTok" },
         meta_test_code: { en: "Meta test event code", ar: "رمز اختبار أحداث Meta", ku: "کۆدی تاقیکردنەوەی ڕووداوی Meta" },
+        // Send keys live in a lockbox: saved / ends with / replace / delete.
+        key_saved: { en: "Saved", ar: "محفوظ", ku: "پاشەکەوتکراوە" },
+        // tFormat: {last4}
+        key_ends_with: { en: "Ends with …{last4}", ar: "ينتهي بـ …{last4}", ku: "کۆتایی بە …{last4}" },
+        key_replace: { en: "Replace", ar: "استبدال", ku: "گۆڕین" },
+        key_delete: { en: "Delete", ar: "حذف", ku: "سڕینەوە" },
+        key_save: { en: "Save token", ar: "حفظ الرمز", ku: "پاشەکەوتکردنی تۆکن" },
+        key_cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوونەوە" },
+        key_delete_confirm: {
+            en: "Delete this token? Orders stop being sent from our server.",
+            ar: "حذف الرمز؟ سيتوقف إرسال الطلبات من خادمنا.",
+            ku: "ئەم تۆکنە بسڕدرێتەوە؟ ناردنی داواکارییەکان لە ڕاژەکاری ئێمەوە ڕادەوەستێت.",
+        },
+        key_delete_yes: { en: "Yes, delete", ar: "نعم، احذف", ku: "بەڵێ، بیسڕەوە" },
+        key_paste: { en: "Paste the token", ar: "الصق الرمز", ku: "تۆکنەکە دابنێ" },
+        key_locked_help: {
+            en: "A saved token is locked: nobody can read it back, not even you. Changes apply right away, no publish needed.",
+            ar: "الرمز المحفوظ مقفل: لا يستطيع أحد قراءته، ولا حتى أنت. التغيير يُطبَّق فوراً دون نشر.",
+            ku: "تۆکنی پاشەکەوتکراو قفڵکراوە: کەس ناتوانێت بیخوێنێتەوە، تەنانەت تۆش. گۆڕانکاری دەستبەجێ جێبەجێ دەبێت، بێ بڵاوکردنەوە.",
+        },
+        key_loading: { en: "Checking saved tokens…", ar: "جارٍ التحقق من الرموز المحفوظة…", ku: "پشکنینی تۆکنە پاشەکەوتکراوەکان…" },
+        key_load_error: { en: "Could not check the saved tokens.", ar: "تعذّر التحقق من الرموز المحفوظة.", ku: "نەتوانرا تۆکنە پاشەکەوتکراوەکان بپشکنرێن." },
+        key_retry: { en: "Try again", ar: "حاول مرة أخرى", ku: "دووبارە هەوڵبدەرەوە" },
+        key_save_error: { en: "Could not save. Try again.", ar: "تعذّر الحفظ. حاول مرة أخرى.", ku: "پاشەکەوت نەکرا. دووبارە هەوڵبدەرەوە." },
+        key_forbidden: { en: "Only store admins can change tokens.", ar: "تغيير الرموز متاح لمدير المتجر فقط.", ku: "تەنها بەڕێوەبەری فرۆشگا دەتوانێت تۆکنەکان بگۆڕێت." },
     },
     cart_recovery: {
         heading: { en: "Cart recovery", ar: "استرجاع السلات المتروكة", ku: "گەڕاندنەوەی سەبەتە بەجێهێڵراوەکان" },

@@ -7567,6 +7567,38 @@ export type Database = {
           },
         ]
       }
+      tenant_capi_secrets: {
+        Row: {
+          meta_capi_token: string | null
+          tenant_id: string
+          tiktok_capi_token: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          meta_capi_token?: string | null
+          tenant_id: string
+          tiktok_capi_token?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          meta_capi_token?: string | null
+          tenant_id?: string
+          tiktok_capi_token?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_capi_secrets_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_domains: {
         Row: {
           created_at: string
@@ -8577,6 +8609,15 @@ export type Database = {
         Returns: undefined
       }
       calculate_lead_score: { Args: { p_lead_id: string }; Returns: number }
+      capi_token_status: {
+        Args: { p_tenant_id: string }
+        Returns: {
+          last4: string
+          network: string
+          saved: boolean
+          updated_at: string
+        }[]
+      }
       capture_abandoned_cart: {
         Args: {
           _consent_text_version?: string
@@ -9306,6 +9347,10 @@ export type Database = {
       }
       save_product_children: {
         Args: { p_children: Json; p_product_id: string }
+        Returns: undefined
+      }
+      set_capi_token: {
+        Args: { p_network: string; p_tenant_id: string; p_token: string }
         Returns: undefined
       }
       set_counted_open_box: {

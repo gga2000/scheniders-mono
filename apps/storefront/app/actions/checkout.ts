@@ -23,6 +23,7 @@ import { AD_ATTRIBUTION_COOKIE, deserializeAdAttribution } from "@scheniders/sha
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { sendPurchaseCapi } from "@/lib/capi";
 import { capiRequestContext } from "@/lib/capi-context";
+import { withCapiKeys } from "@/lib/capi-config";
 import { after } from "next/server";
 import { isDraftViewRequest } from "@/lib/draft-view";
 import { tenantOrderBlock, type TenantOrderGateRow } from "@/lib/tenant-order-gate";
@@ -858,9 +859,12 @@ export async function submitCheckout(
   // the shared event_id. Best-effort — never block or fail the order.
   // A draft-view order never reaches the merchant's ad accounts (the browser
   // pixels are not even mounted in draft view).
-  const analytics = tenant.store_config_v2?.globals?.analytics_pixels?.base as
+  // The send keys come from the lockbox, never from the store design.
+  const pixelBase = tenant.store_config_v2?.globals?.analytics_pixels?.base as
     | AnalyticsConfig
     | undefined;
+  const analytics =
+    pixelBase && !draftView ? await withCapiKeys(pixelBase, payload.tenantId) : pixelBase;
   // Sent after the response (next/server `after`): a slow ad API never
   // delays the shopper's thank-you page. sendPurchaseCapi logs its own
   // failures and never throws.
