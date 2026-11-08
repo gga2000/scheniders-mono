@@ -31,10 +31,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import dns from "node:dns";
-import http from "node:http";
+import http, { type IncomingMessage } from "node:http";
 import https from "node:https";
 import net from "node:net";
 import { Readable } from "node:stream";
+import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { isPrivateAddress } from "@/lib/chat/ssrf";
@@ -120,6 +121,19 @@ const pinnedLookup: net.LookupFunction = (hostname, options, callback) => {
 };
 
 /** One GET with no redirect following, connecting only to public addresses. */
+function decoded(res: IncomingMessage, headers: Headers): Readable {
+    const encoding = (headers.get("content-encoding") ?? "").trim().toLowerCase();
+    const decoder =
+        encoding === "gzip" || encoding === "x-gzip" ? createGunzip()
+        : encoding === "deflate" ? createInflate()
+        : encoding === "br" ? createBrotliDecompress()
+        : null;
+    if (!decoder) return res;
+    headers.delete("content-encoding");
+    headers.delete("content-length");
+    return res.pipe(decoder);
+}
+
 function pinnedGet(url: URL, signal: AbortSignal): Promise<Response> {
     const client = url.protocol === "https:" ? https : http;
     return new Promise((resolve, reject) => {
@@ -135,6 +149,7 @@ function pinnedGet(url: URL, signal: AbortSignal): Promise<Response> {
                     // A neutral UA + accept; some sites 403 an empty UA.
                     "user-agent": "Mozilla/5.0 (compatible; SchenidersChatUnfurl/1.0)",
                     accept: "text/html,application/xhtml+xml",
+                    "accept-encoding": "gzip, deflate, br",
                 },
             },
             res => {
@@ -147,9 +162,12 @@ function pinnedGet(url: URL, signal: AbortSignal): Promise<Response> {
                 // Response() forbids a body on these statuses.
                 const bodyless = status === 204 || status === 304 || (status >= 100 && status < 200);
                 if (bodyless) res.resume();
+                // node:http does not decompress; a body we cannot read would
+                // just give an empty preview, so undo the common encodings.
+                const body = bodyless ? null : decoded(res, headers);
                 resolve(
                     new Response(
-                        bodyless ? null : (Readable.toWeb(res) as ReadableStream<Uint8Array>),
+                        body ? (Readable.toWeb(body) as ReadableStream<Uint8Array>) : null,
                         { status: status < 200 || status > 599 ? 502 : status, headers },
                     ),
                 );

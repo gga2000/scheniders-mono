@@ -18,6 +18,7 @@ vi.mock("@/lib/rate-limit", () => ({
     rateLimitHeaders: () => ({}),
 }));
 
+import { gzipSync } from "node:zlib";
 import { GET } from "./route";
 import { consumeRateLimit } from "@/lib/rate-limit";
 
@@ -26,8 +27,13 @@ let base: string;
 let hits = 0;
 
 beforeAll(async () => {
-    server = http.createServer((_req, res) => {
+    server = http.createServer((req, res) => {
         hits += 1;
+        if (req.url === "/gz") {
+            res.writeHead(200, { "content-type": "text/html", "content-encoding": "gzip" });
+            res.end(gzipSync("<html><head><title>Packed page</title></head></html>"));
+            return;
+        }
         res.writeHead(200, { "content-type": "text/html" });
         res.end("<html><head><title>Hello page</title></head></html>");
     });
@@ -64,6 +70,11 @@ describe("GET /api/chat/unfurl", () => {
         expect((await res.json()).title).toBe("Hello page");
         expect(hits).toBe(1);
         expect(consumeRateLimit).toHaveBeenCalledWith("chat-unfurl:t1", 60, 60);
+    });
+
+    it("reads a gzip-compressed page", async () => {
+        const res = await call(`${base}/gz`);
+        expect((await res.json()).title).toBe("Packed page");
     });
 
     it("refuses at connect time when the name rebinds to a private address after the check", async () => {
