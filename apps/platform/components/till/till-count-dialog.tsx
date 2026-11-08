@@ -256,7 +256,7 @@ export function TillCountDialog({
                                     type="button"
                                     onClick={() => setReviewing(true)}
                                     disabled={summary.changes.length === 0}
-                                    className={cn("h-12 rounded-2xl px-6 text-sm font-bold", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-muted dark:disabled:bg-white/10 dark:disabled:text-white/40")}
+                                    className={cn("h-12 rounded-2xl px-6 text-sm font-bold", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70")}
                                 >
                                     {summary.changes.length ? t("till.count.review", { n: summary.changes.length }) : t("till.count.allMatch")}
                                 </button>
