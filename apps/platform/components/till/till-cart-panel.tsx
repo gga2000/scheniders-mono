@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { AlertTriangle, Bookmark, FlaskConical, Minus, Package, Pencil, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, ArrowUp, Bookmark, FlaskConical, Minus, Package, Pencil, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
 import { logRemovedLines, useTillCustomer } from "@/hooks/use-till";
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
 import { TillManagerDialog } from "./till-manager-dialog";
 import { APPROVAL_MS, approvalCovers, type Ticket } from "./till-ticket";
-import { useShowChangedLine } from "./use-show-changed-line";
+import { useLinesAbove, useShowChangedLine } from "./use-show-changed-line";
 
 interface Props {
     tickets: Ticket[];
@@ -57,6 +57,8 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const listRef = useRef<HTMLUListElement>(null);
     const shownLines = useMemo(() => ticket.cart.map((l) => ({ id: l.key, quantity: l.quantity })), [ticket.cart]);
     useShowChangedLine(listRef, shownLines, ticket.id);
+    const [listEl, setListEl] = useState<HTMLUListElement | null>(null);
+    const above = useLinesAbove(listEl);
 
     const normalPhone = ticket.phone.trim() ? normalizeIraqiMobile(ticket.phone) : null;
     const phoneBad = ticket.phone.trim() !== "" && !normalPhone;
@@ -189,7 +191,19 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 )}
             </div>
 
-            <ul ref={listRef} id={CART_TARGET_ID} className="min-h-0 flex-1 overflow-y-auto">
+            <div className="relative flex min-h-0 flex-1 flex-col">
+            {above > 0 && (
+                <span className="pointer-events-none absolute left-1/2 top-2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-[var(--ink)] px-3 py-1 text-xs font-semibold text-white shadow-sm dark:bg-white dark:text-zinc-900" dir="auto">
+                    <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("till.cart.moreAbove", { n: above })}
+                </span>
+            )}
+            <ul
+                ref={(el) => {
+                    listRef.current = el;
+                    setListEl(el);
+                }}
+                id={CART_TARGET_ID} className="min-h-0 flex-1 overflow-y-auto">
                 {ticket.cart.length === 0 ? (
                     <li className="flex h-full flex-col items-center justify-center gap-3 px-6 py-12 text-center">
                         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--card-border)]/40 text-muted">
@@ -267,6 +281,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     ))
                 )}
             </ul>
+            </div>
 
             <div className="flex flex-col gap-3 border-t border-[var(--card-border)] p-4">
                 {canDiscount && ticket.cart.length > 0 && (
