@@ -60,7 +60,6 @@ export function CartRecoveryScreen({
                 setting="cart_recovery"
                 subtitle={t(C.intro, locale)}
                 onBack={onClose}
-                backLabel={t(C.close, locale)}
                 backTestId="cart-recovery-close"
             />
 

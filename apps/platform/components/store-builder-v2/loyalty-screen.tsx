@@ -145,7 +145,6 @@ export function LoyaltyScreen({
                 setting="loyalty"
                 subtitle={t(L.intro, locale)}
                 onBack={onClose}
-                backLabel={t(L.close, locale)}
                 backTestId="loyalty-close"
             />
 
@@ -168,7 +167,7 @@ export function LoyaltyScreen({
                         key={row.key}
                         className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3"
                     >
-                        <span dir="auto" className="min-w-0 text-sm text-foreground">
+                        <span className="min-w-0 text-left! text-sm text-foreground">
                             {row.label}
                             <span className="mt-0.5 block text-xs text-muted-foreground">
                                 {row.hint}
@@ -194,7 +193,7 @@ export function LoyaltyScreen({
                         <h3 id="referral-heading" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             {t(L.referral_heading, locale)}
                         </h3>
-                        <p dir="auto" className="mt-1 max-w-prose text-xs text-muted-foreground">
+                        <p className="mt-1 max-w-prose text-left! text-xs text-muted-foreground">
                             {t(L.referral_intro, locale)}
                         </p>
                     </div>
@@ -212,7 +211,7 @@ export function LoyaltyScreen({
                             key={row.key}
                             className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3"
                         >
-                            <span dir="auto" className="min-w-0 text-sm text-foreground">
+                            <span className="min-w-0 text-left! text-sm text-foreground">
                                 {row.label}
                                 <span className="mt-0.5 block text-xs text-muted-foreground">{row.hint}</span>
                             </span>

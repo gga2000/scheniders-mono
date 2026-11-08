@@ -17,7 +17,6 @@ describe("ScreenHeader", () => {
                 setting="bundles"
                 subtitle="اشترِ معاً"
                 onBack={onBack}
-                backLabel="رجوع"
                 backTestId="bundles-close"
                 actions={<button type="button">إضافة</button>}
             />,

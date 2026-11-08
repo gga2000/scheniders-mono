@@ -381,7 +381,6 @@ export function ScheduledChangesScreen({
                 setting="scheduled"
                 subtitle={tx(STRINGS.advanced_chrome.sched_subtitle, locale)}
                 onBack={onClose}
-                backLabel={tx(STRINGS.advanced_chrome.adv_back, locale)}
                 backTestId="scheduled-changes-back"
                 actions={
                     <>

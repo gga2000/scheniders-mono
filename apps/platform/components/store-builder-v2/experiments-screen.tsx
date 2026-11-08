@@ -316,7 +316,6 @@ export function ExperimentsScreen({
                 setting="experiments"
                 subtitle={<ExpSubtitle />}
                 onBack={onClose}
-                backLabel={t(STRINGS.advanced_chrome.adv_back, locale)}
                 backTestId="experiments-back"
                 actions={
                     <>

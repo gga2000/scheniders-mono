@@ -253,7 +253,6 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                 setting="brand_kit"
                 subtitle={tChrome(STRINGS.brand_kit.intro, chromeLocale)}
                 onBack={onClose}
-                backLabel={tChrome(STRINGS.toolbar.back_to_canvas, chromeLocale)}
                 backTestId="brand-kit-back"
             />
             <div className="grid flex-1 grid-cols-1 gap-6 overflow-y-auto p-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">

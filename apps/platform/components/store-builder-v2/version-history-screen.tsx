@@ -279,7 +279,6 @@ export function VersionHistoryScreen({
                 setting="versions"
                 subtitle={t(STRINGS.version_history.subtitle, locale)}
                 onBack={onClose}
-                backLabel={t(STRINGS.advanced_chrome.adv_back, locale)}
                 backTestId="version-history-back"
                 actions={
                     <>
@@ -693,8 +692,8 @@ function DiffView({ entries, configs }: DiffViewProps): ReactElement {
     return (
         <div data-testid="version-history-diff" className="space-y-4">
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-foreground/80">
-                {t(STRINGS.version_history.diff_heading, locale)}
-                <span className="ms-2 text-muted-foreground/60">({entries.length})</span>
+                {/* One run of text so the count lands at the end in either direction. */}
+                {tFormat(STRINGS.version_history.diff_heading_count, locale, { n: entries.length })}
             </h4>
             {keys.map((key) => (
                 <div key={key} className="rounded-xl border border-(--card-border) bg-(--card-bg) p-3">

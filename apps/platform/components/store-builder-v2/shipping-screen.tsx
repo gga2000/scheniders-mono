@@ -258,7 +258,6 @@ export function ShippingScreen({
                 setting="shipping"
                 subtitle={t(s.ship_intro, locale)}
                 onBack={onClose}
-                backLabel={t(s.ship_close_aria, locale)}
                 backTestId="shipping-close"
             />
 
@@ -432,7 +431,7 @@ export function ShippingScreen({
                             onChange={(e) => setInspectBeforePaying(e.target.checked)}
                             className="mt-0.5 h-4 w-4 accent-primary"
                         />
-                        <span dir="auto">
+                        <span className="text-left!">
                             {t(s.ship_door_label, locale)}
                             <span className="block text-xs text-muted-foreground">
                                 {t(s.ship_door_help, locale)}

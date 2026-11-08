@@ -64,7 +64,6 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                 setting="free_gift"
                 subtitle={tx(STRINGS.free_gift.intro, locale)}
                 onBack={onClose}
-                backLabel={tx(STRINGS.free_gift.close, locale)}
                 backTestId="free-gift-close"
             />
 
@@ -89,11 +88,11 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                         locale={locale}
                         testId="free-gift-product"
                     />
-                    <p className="mt-1 text-xs text-muted-foreground">{tx(STRINGS.free_gift.product_hint, locale)}</p>
+                    <p className="mt-1 text-left! text-xs text-muted-foreground">{tx(STRINGS.free_gift.product_hint, locale)}</p>
                 </div>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                    <span className="min-w-0 text-sm text-foreground">
+                    <span className="min-w-0 text-left! text-sm text-foreground">
                         {tx(STRINGS.free_gift.threshold, locale)}
                         <span className="mt-0.5 block text-xs text-muted-foreground">
                             {tx(STRINGS.free_gift.threshold_hint, locale)}

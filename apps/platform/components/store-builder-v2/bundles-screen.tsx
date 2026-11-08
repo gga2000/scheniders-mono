@@ -40,7 +40,7 @@ export function BundlesScreen({
 }: BundlesScreenProps): React.ReactElement {
     const locale = useEditorLocale();
     const bundles: Bundle[] = builder.config.commerce?.bundles ?? [];
-    const { data: products = [] } = useProductsQuery();
+    const { data: products = [], isLoading: productsLoading, isError: productsError } = useProductsQuery();
 
     const setBundles = useCallback(
         (next: Bundle[]): void => {
@@ -83,7 +83,6 @@ export function BundlesScreen({
                 setting="bundles"
                 subtitle={t(STRINGS.advanced_chrome.bun_intro, locale)}
                 onBack={onClose}
-                backLabel={t(STRINGS.advanced_chrome.bun_close_aria, locale)}
                 backTestId="bundles-close"
                 actions={
                     <>
@@ -188,7 +187,16 @@ export function BundlesScreen({
                                 </div>
 
                                 <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-(--card-border) p-1.5">
-                                    {products.length === 0 ? (
+                                    {productsError ? (
+                                        // A failed read is not an empty catalogue: say so.
+                                        <p role="alert" data-testid={`bundle-${i}-products-error`} className="p-2 text-xs text-destructive">
+                                            {t(STRINGS.advanced_chrome.bun_products_error, locale)}
+                                        </p>
+                                    ) : productsLoading ? (
+                                        <p className="p-2 text-xs text-muted-foreground">
+                                            {t(STRINGS.advanced_chrome.bun_products_loading, locale)}
+                                        </p>
+                                    ) : products.length === 0 ? (
                                         <p className="p-2 text-xs text-muted-foreground">
                                             {t(STRINGS.advanced_chrome.bun_no_products, locale)}
                                         </p>

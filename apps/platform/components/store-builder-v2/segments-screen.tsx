@@ -218,7 +218,6 @@ export function SegmentsScreen({
                 setting="segments"
                 subtitle={t(STRINGS.segment.subtitle, locale)}
                 onBack={onClose}
-                backLabel={t(STRINGS.advanced_chrome.adv_back, locale)}
                 backTestId="segments-back"
                 actions={
                     <>
