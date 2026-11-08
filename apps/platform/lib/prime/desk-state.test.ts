@@ -6,17 +6,15 @@ const rows = new Map<string, PrimeDeskRow>([
     ["a", { orderId: "a", kind: "ready", fee: 3000, caseId: null }],
     ["b", { orderId: "b", kind: "ready", fee: null, caseId: null }],
     ["c", { orderId: "c", kind: "fix", reason: "bad_phone", caseId: null }],
-    ["d", { orderId: "d", kind: "after_sale", caseId: null }],
     ["e", { orderId: "e", kind: "ready", fee: 6000, caseId: 52176701 }],
 ]);
 
 const progress = (over: Partial<PrimeRunProgress> = {}): PrimeRunProgress => ({ sent: new Map(), failed: new Set(), sending: new Set(), ...over });
 
 describe("primeDeskState", () => {
-    it("before a run: waiting, what to fix, the Excel file, or the case Prime already has", () => {
+    it("before a run: waiting, what to fix, or the case Prime already has", () => {
         expect(primeDeskState("a", rows.get("a"), null)).toEqual({ kind: "waiting" });
         expect(primeDeskState("c", rows.get("c"), null)).toEqual({ kind: "fix", reason: "bad_phone" });
-        expect(primeDeskState("d", rows.get("d"), null)).toEqual({ kind: "excel" });
         expect(primeDeskState("e", rows.get("e"), null)).toEqual({ kind: "sent", caseId: 52176701 });
     });
 

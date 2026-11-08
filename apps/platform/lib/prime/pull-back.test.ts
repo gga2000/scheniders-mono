@@ -49,6 +49,12 @@ describe("pullBackPrimeShipment", () => {
         expect(move.filters).toEqual([["eq", "tenant_id", "t1"], ["eq", "id", "o1"], ["eq", "status", "in_transit"]]);
     });
 
+    it("moves a refund back to return_pending, where the desk picks refunds up", async () => {
+        const { db, calls } = fakeDb(sent, { status: "in_transit", is_return: true });
+        await pullBackPrimeShipment(db, clientWith(vi.fn().mockResolvedValue(undefined)), "t1", "o1", "Noor");
+        expect(moves(calls)[0]?.payload).toMatchObject({ status: "return_pending" });
+    });
+
     it("says so when someone changed the order meanwhile", async () => {
         const { db } = fakeDb(sent, { status: "in_transit" }, 0);
         expect(await pullBackPrimeShipment(db, clientWith(vi.fn().mockResolvedValue(undefined)), "t1", "o1")).toEqual({ ok: false, reason: "status_not_moved" });
