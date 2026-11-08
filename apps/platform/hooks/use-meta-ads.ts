@@ -70,6 +70,8 @@ export interface MetaAdsReport {
     coverage: AttributionCoverage;
     /** Ad orders that could not be matched to any campaign. */
     unmatched: { orders: number; delivered: number };
+    /** Ad and ad set id -> campaign id, so links that carry only those still match. */
+    linkedIds: Record<string, string>;
 }
 
 /** Supabase returns at most 1000 rows per request; walk the pages. */
@@ -129,10 +131,16 @@ function countByDay(stamps: readonly string[]): Map<string, number> {
 }
 
 async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
-    const [spend, placed, delivered] = await Promise.all([
+    const [spend, ads, placed, delivered] = await Promise.all([
         supabase
             .from("ad_spend_daily")
             .select("spend_date, campaign_id, campaign_name, spend_usd, spend_iqd, impressions, clicks, results")
+            .gte("spend_date", range.since)
+            .lte("spend_date", range.until)
+            .limit(10000),
+        supabase
+            .from("ad_insights_daily")
+            .select("ad_id, adset_id, campaign_id")
             .gte("spend_date", range.since)
             .lte("spend_date", range.until)
             .limit(10000),
@@ -140,13 +148,19 @@ async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
         fetchDelivered(range),
     ]);
     if (spend.error) throw new Error(spend.error.message);
+    if (ads.error) throw new Error(ads.error.message);
+    const linkedIds: Record<string, string> = {};
+    for (const a of ads.data ?? []) {
+        linkedIds[a.ad_id] = a.campaign_id;
+        if (a.adset_id) linkedIds[a.adset_id] = a.campaign_id;
+    }
 
     const byCampaign = new Map<string, CampaignTotals>();
     const spendByDay = new Map<string, number>();
     const report: MetaAdsReport = {
         spendUsd: 0, spendIqd: 0, impressions: 0, clicks: 0, results: 0,
         orders: placed.length, deliveredOrders: delivered.length,
-        campaigns: [], daily: [], coverage: attributionCoverage(placed), unmatched: { orders: 0, delivered: 0 },
+        campaigns: [], daily: [], coverage: attributionCoverage(placed), unmatched: { orders: 0, delivered: 0 }, linkedIds,
     };
 
     for (const r of spend.data ?? []) {
@@ -171,8 +185,8 @@ async function fetchReport(range: DayRange): Promise<MetaAdsReport> {
         spendByDay.set(r.spend_date, (spendByDay.get(r.spend_date) ?? 0) + Number(r.spend_iqd));
     }
     report.campaigns = [...byCampaign.values()].sort((a, b) => b.spendIqd - a.spendIqd);
-    const placedMatch = matchOrdersToCampaigns(report.campaigns, placed);
-    const deliveredMatch = matchOrdersToCampaigns(report.campaigns, delivered);
+    const placedMatch = matchOrdersToCampaigns(report.campaigns, placed, linkedIds);
+    const deliveredMatch = matchOrdersToCampaigns(report.campaigns, delivered, linkedIds);
     for (const c of report.campaigns) {
         c.orders = placedMatch.byCampaign.get(c.campaignId) ?? 0;
         c.delivered = deliveredMatch.byCampaign.get(c.campaignId) ?? 0;

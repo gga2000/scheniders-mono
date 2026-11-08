@@ -33,7 +33,7 @@ function AcquiredViaBody({ phone, lifetimeValue }: { phone: string; lifetimeValu
 
     const attribution = first.attribution as AdAttribution | null;
     const campaignId = report
-        ? [...matchOrdersToCampaigns(report.campaigns, [{ ad_channel: first.ad_channel, attribution: first.attribution }]).byCampaign.keys()][0]
+        ? [...matchOrdersToCampaigns(report.campaigns, [{ ad_channel: first.ad_channel, attribution: first.attribution }], report.linkedIds).byCampaign.keys()][0]
         : undefined;
     const campaign = report?.campaigns.find((c) => c.campaignId === campaignId);
     const campaignName = campaign?.campaignName ?? attribution?.campaign ?? null;

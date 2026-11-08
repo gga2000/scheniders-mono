@@ -109,12 +109,18 @@ export function attributionCoverage(orders: readonly AdsOrderRow[]): Attribution
 export const META_URL_PARAMETERS =
     "utm_source={{site_source_name}}&utm_medium={{placement}}&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_id={{ad.id}}&utm_term={{adset.id}}&campaign_id={{campaign.id}}";
 
-/** The parts of an order's attribution that name its campaign. */
-function campaignRefOf(attribution: unknown): { id: string | null; name: string | null } {
-    if (typeof attribution !== "object" || attribution === null) return { id: null, name: null };
-    const a = attribution as { campaignId?: unknown; campaign?: unknown };
+/**
+ * The parts of an order's attribution that can name its campaign: every Meta
+ * id the ad link carried (campaign, ad, ad set; in that order) and the
+ * campaign name. All ids are kept because ads made before our URL parameters
+ * often fill the slots differently (e.g. utm_id holding the campaign id).
+ */
+function campaignRefOf(attribution: unknown): { ids: string[]; name: string | null } {
+    if (typeof attribution !== "object" || attribution === null) return { ids: [], name: null };
+    const a = attribution as { campaignId?: unknown; adId?: unknown; term?: unknown; campaign?: unknown };
     const clean = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
-    return { id: clean(a.campaignId), name: clean(a.campaign) };
+    const ids = [a.campaignId, a.adId, a.term].map(clean).filter((v): v is string => v !== null);
+    return { ids, name: clean(a.campaign) };
 }
 
 export interface MatchResult {
@@ -125,17 +131,22 @@ export interface MatchResult {
 }
 
 /**
- * Credit each ad order to a Meta campaign. The campaign id wins when the
- * order carries one (our own ad links); otherwise the campaign name from the
- * link is compared with Meta's, ignoring case and spacing (LightFunnels
- * orders). An order with neither, or a name Meta does not know, is counted as
- * unmatched instead of being guessed onto a campaign.
+ * Credit each ad order to a Meta campaign. Any Meta id the link carried wins:
+ * a campaign id directly, or an ad / ad set id through `linkedIds` (ad or ad
+ * set id -> its campaign id, from the ad-level insights). Meta ids are unique
+ * across campaigns, ad sets and ads, so whichever slot an id sits in, it can
+ * only mean one thing. Otherwise the campaign name from the link is compared
+ * with Meta's, ignoring case, spacing and invisible direction marks
+ * (LightFunnels orders). An order with none of these, or a name Meta does not
+ * know, is counted as unmatched instead of being guessed onto a campaign.
  */
 export function matchOrdersToCampaigns(
     campaigns: ReadonlyArray<{ campaignId: string; campaignName: string }>,
     orders: ReadonlyArray<{ ad_channel: string | null; attribution: unknown }>,
+    linkedIds: Readonly<Record<string, string>> = {},
 ): MatchResult {
-    const norm = (v: string) => v.trim().replace(/\s+/g, " ").toLowerCase();
+    // U+200E/U+200F/U+061C are direction marks Meta keeps around Arabic names.
+    const norm = (v: string) => v.replace(/[\u200e\u200f\u061c]/g, "").trim().replace(/\s+/g, " ").toLowerCase();
     const ids = new Set(campaigns.map((c) => c.campaignId));
     const byName = new Map<string, string>();
     const ambiguous = new Set<string>();
@@ -151,8 +162,12 @@ export function matchOrdersToCampaigns(
         if (!o.ad_channel) continue;
         const ref = campaignRefOf(o.attribution);
         let target: string | undefined;
-        if (ref.id && ids.has(ref.id)) target = ref.id;
-        else if (ref.name) {
+        for (const id of ref.ids) {
+            if (ids.has(id)) target = id;
+            else if (linkedIds[id] && ids.has(linkedIds[id])) target = linkedIds[id];
+            if (target) break;
+        }
+        if (!target && ref.name) {
             const key = norm(ref.name);
             if (!ambiguous.has(key)) target = byName.get(key);
         }
