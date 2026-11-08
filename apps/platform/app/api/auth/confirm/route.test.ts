@@ -34,7 +34,7 @@ describe("auth confirm (email link) route", () => {
     it("sends an expired reset link back to forgot-password", async () => {
         verifyOtp.mockResolvedValue({ data: { user: null }, error: { message: "expired" } });
         expect(await redirectFor("token_hash=h&type=recovery&next=/reset-password")).toBe(
-            "https://app.test/forgot-password",
+            "https://app.test/forgot-password?link=expired",
         );
     });
 
