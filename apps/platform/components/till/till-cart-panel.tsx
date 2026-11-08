@@ -382,9 +382,12 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     // Over the limit, the one big button takes the next step: asking a manager.
                     onClick={discountTooBig ? () => setAskManager(true) : onPay}
                     disabled={ticket.cart.length === 0 || phoneBad}
-                    className={cn("h-16 rounded-2xl text-xl font-bold transition-colors", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-muted dark:disabled:bg-white/10 dark:disabled:text-white/40")}
+                    className={cn("h-16 rounded-2xl text-xl font-bold transition-colors", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70")}
                 >
-                    {discountTooBig ? (
+                    {phoneBad ? (
+                        // Says why it can't be pressed, even with the customer row folded away.
+                        <span className="text-base" dir="auto">{t("till.cart.phoneBad")}</span>
+                    ) : discountTooBig ? (
                         <span className="inline-flex items-center gap-2">
                             <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                             {t("till.manager.ask")}
@@ -440,10 +443,14 @@ function LinePriceEditor({ line, onPrice, onDone }: { line: CartLine; onPrice: (
             })}
             <input
                 value={text}
-                onChange={(e) => {
-                    setText(e.target.value);
-                    const n = parseDinars(e.target.value);
-                    if (n > 0) onPrice(n);
+                // Applied when the cashier finishes typing, so the total and the customer screen never flash 4, 40, 407...
+                onChange={(e) => setText(e.target.value)}
+                onBlur={() => {
+                    const n = parseDinars(text);
+                    if (n > 0 && n !== line.price) onPrice(n);
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
                 }}
                 inputMode="numeric"
                 placeholder={formatIqd(line.list_price)}

@@ -152,7 +152,7 @@ export function TillProductGrid({ products, loading, overview, sound, compact, o
                         }}
                         placeholder={t("till.sell.search")}
                         aria-label={t("till.sell.search")}
-                        className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted"
+                        className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
                         dir="auto"
                     />
                     {query && (

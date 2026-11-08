@@ -201,7 +201,7 @@ export function TillLabelsDialog({
                             type="button"
                             onClick={print}
                             disabled={!total || codes.isPending}
-                            className={cn("h-12 rounded-2xl px-6 text-sm font-bold", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-muted dark:disabled:bg-white/10 dark:disabled:text-white/40")}
+                            className={cn("h-12 rounded-2xl px-6 text-sm font-bold", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70")}
                         >
                             {codes.isPending ? t("till.labels.printing") : t("till.labels.print", { n: total })}
                         </button>

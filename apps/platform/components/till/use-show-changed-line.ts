@@ -40,7 +40,8 @@ export function useLinesAbove(ul: HTMLElement | null): number {
     useEffect(() => {
         if (!ul) return;
         const count = () => {
-            const top = ul.getBoundingClientRect().top + 4;
+            // A line counts only once some of it has scrolled past the top edge.
+            const top = ul.getBoundingClientRect().top - 1;
             let n = 0;
             for (const li of Array.from(ul.children)) if (li.getBoundingClientRect().top < top) n += 1;
             setAbove(n);

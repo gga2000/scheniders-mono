@@ -98,7 +98,7 @@ export function TillCustomerScreen() {
                     listRef.current = el;
                     setListEl(el);
                 }}
-                className={cn("flex h-full min-h-0 scroll-py-10 flex-col gap-3 overflow-y-auto p-10 transition-opacity", state.view === "done" && "opacity-50")}>
+                className={cn("flex h-full min-h-0 scroll-py-10 flex-col gap-3 overflow-y-auto p-10 transition-opacity", state.view === "done" && "opacity-70")}>
                 {state.lines.map((l, i) => (
                     <li key={i} className="flex items-center gap-5 rounded-[24px] bg-white p-4 dark:bg-white/5">
                         <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F6F1E9] dark:bg-white/10">

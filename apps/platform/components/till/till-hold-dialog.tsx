@@ -159,7 +159,7 @@ export function TillHoldDialog({
                         type="button"
                         onClick={submit}
                         disabled={!ready}
-                        className={cn("h-14 w-full rounded-2xl text-base font-bold", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-muted dark:disabled:bg-white/10 dark:disabled:text-white/40")}
+                        className={cn("h-14 w-full rounded-2xl text-base font-bold", INK_BUTTON, "disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70")}
                     >
                         {hold.isPending
                             ? t("till.hold.saving")

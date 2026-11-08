@@ -278,7 +278,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                     autoFocus
                                     placeholder={t("till.pay.partAmount")}
                                     aria-label={t("till.pay.partAmount")}
-                                    className="h-12 w-40 rounded-2xl border border-stone-400 dark:border-white/25 bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none placeholder:font-normal placeholder:text-muted focus:border-[var(--ink)]"
+                                    className="h-12 w-40 rounded-2xl border border-stone-400 dark:border-white/25 bg-[var(--card-bg)] px-4 text-center font-semibold tabular-nums text-foreground outline-none placeholder:font-normal placeholder:text-muted-foreground focus:border-[var(--ink)]"
                                 />
                             )}
                         </div>
