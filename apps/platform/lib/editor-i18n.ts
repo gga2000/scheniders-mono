@@ -114,6 +114,14 @@ export const STRINGS = {
         group_system: { en: "System", ar: "النظام", ku: "سیستەم" },
         // Simple-mode collapsed page groups (S3-03): tFormat {n}
         all_pages: { en: "More pages ({n})", ar: "صفحات أخرى ({n})", ku: "پەڕەی تر ({n})" },
+        // Setup mode: while the setup guide runs the basics, the rail shows
+        // only the two screens the basics need and locks the rest.
+        setup_heading: { en: "Set up your shop", ar: "جهّز محلك", ku: "فرۆشگاکەت ئامادە بکە" },
+        setup_locked: { en: "Opens after the basics", ar: "تنفتح بعد الأساس", ku: "دوای بنەڕەتەکان دەکرێتەوە" },
+        setup_locked_pages: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
+        setup_locked_offers: { en: "Discounts and offers", ar: "الخصومات والعروض", ku: "داشکاندن و پێشکەشکراوەکان" },
+        setup_locked_tracking: { en: "Pixels and ads", ar: "البكسل والإعلانات", ku: "پیکسڵ و ڕیکلام" },
+        setup_locked_advanced: { en: "Advanced mode", ar: "الوضع المتقدم", ku: "دۆخی پێشکەوتوو" },
         // Pages
         page_home: { en: "Home", ar: "الرئيسية", ku: "ماڵەوە" },
         page_category: { en: "Category", ar: "الفئة", ku: "پۆل" },
