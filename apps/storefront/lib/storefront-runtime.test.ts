@@ -327,18 +327,20 @@ describe("resolveTenantKeyFromHeaders (404 tenant recovery)", () => {
       }),
     ).toBe("__domain__shop.example.iq");
   });
-  it("root / www host or nothing at all → null", () => {
-    expect(
-      resolveTenantKeyFromHeaders({
-        storeBase: null,
-        host: "scheniders.com",
-        rootDomain,
-      }),
-    ).toBeNull();
+  it("www.<root> → the store that verified it, like any custom domain", () => {
     expect(
       resolveTenantKeyFromHeaders({
         storeBase: null,
         host: "www.scheniders.com",
+        rootDomain,
+      }),
+    ).toBe("__domain__www.scheniders.com");
+  });
+  it("bare root host or nothing at all → null", () => {
+    expect(
+      resolveTenantKeyFromHeaders({
+        storeBase: null,
+        host: "scheniders.com",
         rootDomain,
       }),
     ).toBeNull();

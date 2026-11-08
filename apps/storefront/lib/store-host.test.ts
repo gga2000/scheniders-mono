@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { extractSlug, storeKeyFromRequest } from "./store-host";
+import { extractSlug, storeKeyFromRequest, storefrontRootDomain } from "./store-host";
 
 const ROOT = "scheniders.test";
 const h = (init: Record<string, string>): Headers => new Headers(init);
@@ -17,13 +17,33 @@ describe("extractSlug", () => {
     expect(extractSlug("shop.localhost:3001", "localhost:3001")).toEqual({ slug: "shop", isCustom: false });
   });
 
-  it("treats the root domain and www as no store", () => {
+  it("treats the bare root domain as no store", () => {
     expect(extractSlug("scheniders.test", ROOT)).toEqual({ slug: null, isCustom: false });
-    expect(extractSlug("www.scheniders.test", ROOT)).toEqual({ slug: null, isCustom: false });
+  });
+
+  it("serves www.<root> as the store that verified it, never as a subdomain slug", () => {
+    expect(extractSlug("www.scheniders.test", ROOT)).toEqual({ slug: "www.scheniders.test", isCustom: true });
+  });
+
+  it("matches hosts case-insensitively and ignores a trailing newline in the root", () => {
+    expect(extractSlug("Shop.Scheniders.TEST", "scheniders.test\n")).toEqual({ slug: "shop", isCustom: false });
+    expect(extractSlug("scheniders.test", "scheniders.test\n")).toEqual({ slug: null, isCustom: false });
+  });
+
+  it("reads an unknown or reserved subdomain as a slug, so it resolves to no store", () => {
+    expect(extractSlug("doesnotexist123.scheniders.test", ROOT)).toEqual({ slug: "doesnotexist123", isCustom: false });
+    expect(extractSlug("admin.scheniders.test", ROOT)).toEqual({ slug: "admin", isCustom: false });
   });
 
   it("treats any other host as a store's own domain", () => {
     expect(extractSlug("shop.example.com", ROOT)).toEqual({ slug: "shop.example.com", isCustom: true });
+  });
+});
+
+describe("storefrontRootDomain", () => {
+  it("trims and lowercases the configured root", () => {
+    vi.stubEnv("NEXT_PUBLIC_ROOT_DOMAIN", "Scheniders.com\n");
+    expect(storefrontRootDomain()).toBe("scheniders.com");
   });
 });
 

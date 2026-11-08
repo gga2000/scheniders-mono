@@ -63,8 +63,11 @@ describe("robots names a sitemap only where one exists", () => {
         // no single sitemap it could honestly point at.
         onHost("localhost");
         expect((await robots()).sitemap).toBeUndefined();
+    });
+
+    it("names the store's own sitemap on www.<root>, which is a store's address", async () => {
         onHost("www.localhost");
-        expect((await robots()).sitemap).toBeUndefined();
+        expect((await robots()).sitemap).toBe("https://www.localhost/sitemap.xml");
     });
 
     it("names none when the request carries no host", async () => {

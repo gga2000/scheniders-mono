@@ -8,18 +8,24 @@
 //
 //   shop.<root>        → "shop"
 //   shop.example.com   → "__domain__shop.example.com" (a store's own domain)
-//   <root> / www.<root>: path-based access (/s/{slug}/…). The page that sent
+//   www.<root>         → "__domain__www.<root>" (the store that verified it)
+//   <root>:              path-based access (/s/{slug}/…). The page that sent
 //                        the request names the store in its same-origin
 //                        Referer; anything else names none.
 // =====================================================================
 
-/** The platform's root domain, read the way the proxy always has. */
+/**
+ * The platform's root domain, lowercased and trimmed. A value pasted into the
+ * Vercel dashboard can carry a trailing newline; untrimmed, it never equals a
+ * Host header, so every store subdomain fell through to the custom-domain
+ * lookup and showed "store not found".
+ */
 export function storefrontRootDomain(): string {
   return (
-    process.env.NEXT_PUBLIC_ROOT_DOMAIN ||
-    process.env.NEXT_PUBLIC_DEV_ROOT_DOMAIN ||
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() ||
+    process.env.NEXT_PUBLIC_DEV_ROOT_DOMAIN?.trim() ||
     "localhost:3001"
-  );
+  ).toLowerCase();
 }
 
 /**
@@ -28,22 +34,28 @@ export function storefrontRootDomain(): string {
  * Examples:
  *   acme.scheniders.com   → "acme"
  *   acme.localhost:3001   → "acme"
- *   scheniders.com        → null (root domain)
+ *   scheniders.com        → null (root domain: path mode, /s/<slug>)
+ *   www.scheniders.com    → "www.scheniders.com", isCustom
  *   custom-domain.com     → "custom-domain.com", isCustom
+ *
+ * `www.<root>` is not a platform page: it is the address of whichever store
+ * verified it in tenant_domains (Scheniders' own perfume store today), and of
+ * no store at all otherwise, so it resolves exactly like a custom domain.
+ * "www" is a reserved slug, so no merchant can claim it as a subdomain.
  */
 export function extractSlug(
   host: string,
   rootDomain: string,
 ): { slug: string | null; isCustom: boolean } {
-  // Strip port for matching
-  const hostNoPort = host.split(":")[0];
-  const rootNoPort = rootDomain.split(":")[0];
+  // Strip port for matching; hostnames are case-insensitive.
+  const hostNoPort = host.split(":")[0].trim().toLowerCase();
+  const rootNoPort = rootDomain.split(":")[0].trim().toLowerCase();
 
-  if (hostNoPort === rootNoPort || hostNoPort === `www.${rootNoPort}`) {
+  if (hostNoPort === rootNoPort) {
     return { slug: null, isCustom: false };
   }
 
-  if (hostNoPort.endsWith(`.${rootNoPort}`)) {
+  if (hostNoPort !== `www.${rootNoPort}` && hostNoPort.endsWith(`.${rootNoPort}`)) {
     const slug = hostNoPort.slice(0, -1 - rootNoPort.length);
     return { slug, isCustom: false };
   }

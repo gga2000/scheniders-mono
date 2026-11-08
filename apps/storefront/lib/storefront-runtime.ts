@@ -9,6 +9,7 @@ import type {
   SectionInstance,
 } from "@scheniders/shared";
 import { resolveI18n } from "@scheniders/shared";
+import { extractSlug } from "@/lib/store-host";
 
 /** Return the v2 PageConfig for `pageId` ONLY if it exists and has >=1 section.
  *  Returns null otherwise so the caller falls back to the legacy template
@@ -267,7 +268,7 @@ export function deriveCatalogPage(v2: StoreConfigV2): PageConfig {
  *   - subdomain mode → `x-store-base: ""` + host `<slug>.<root>` → "<slug>"
  *   - custom domain  → `x-store-base: ""` + any other host  → "__domain__<host>"
  *
- * Mirrors `extractSlug` in proxy.ts (root / www → null). Returns null when
+ * Reads the host with the proxy's own `extractSlug` (bare root → null). Returns null when
  * nothing identifies a tenant so the caller renders the tenant-less fallback.
  */
 /** The proxy copies the raw pathname segment, which may still be
@@ -292,15 +293,8 @@ export function resolveTenantKeyFromHeaders(input: {
     const slug = base.slice(3).split("/")[0];
     return slug ? safeDecode(slug) : null;
   }
-  const hostNoPort = (input.host ?? "").split(":")[0].toLowerCase();
-  if (!hostNoPort) return null;
-  const rootNoPort = input.rootDomain.split(":")[0].toLowerCase();
-  if (hostNoPort === rootNoPort || hostNoPort === `www.${rootNoPort}`) {
-    return null;
-  }
-  if (hostNoPort.endsWith(`.${rootNoPort}`)) {
-    const slug = hostNoPort.slice(0, -1 - rootNoPort.length);
-    return slug || null;
-  }
-  return `__domain__${hostNoPort}`;
+  if (!input.host) return null;
+  const { slug, isCustom } = extractSlug(input.host, input.rootDomain);
+  if (!slug) return null;
+  return isCustom ? `__domain__${slug}` : slug;
 }

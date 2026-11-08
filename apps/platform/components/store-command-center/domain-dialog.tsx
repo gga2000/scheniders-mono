@@ -18,7 +18,15 @@ import { STRINGS, t } from "@/lib/editor-i18n";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { CUSTOM_DOMAIN_CNAME_TARGET, domainTxtName, domainTxtValue, normalizeCustomDomain } from "@/lib/custom-domain";
+import {
+    CUSTOM_DOMAIN_A_RECORD,
+    CUSTOM_DOMAIN_CNAME_TARGET,
+    dnsHostLabel,
+    domainTxtValue,
+    isApexDomain,
+    normalizeCustomDomain,
+    txtHostLabel,
+} from "@/lib/custom-domain";
 
 interface DomainDialogProps {
     tenantId: string;
@@ -58,6 +66,9 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
     const verifyFailed = t(STRINGS.command_center.domain_toast_verify_failed, locale);
     const [showConnect, setShowConnect] = useState(false);
     const [domainInput, setDomainInput] = useState("");
+    // The DNS hint follows what is typed: an apex needs an A record, not a CNAME.
+    const typedDomain = normalizeCustomDomain(domainInput);
+    const typedApex = typedDomain ? isApexDomain(typedDomain) : false;
 
     // Escape key to close
     useEffect(() => {
@@ -250,16 +261,12 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                                         <p className="text-[11px] text-muted-foreground">
                                             {t(STRINGS.command_center.domain_dns_records_heading, locale)}
                                         </p>
-                                        <DnsRecord
-                                            locale={locale}
-                                            type="CNAME"
-                                            name={domain.domain}
-                                            value={CUSTOM_DOMAIN_CNAME_TARGET}
-                                        />
+                                        <ConnectSteps locale={locale} apex={isApexDomain(domain.domain)} />
+                                        <RoutingRecord locale={locale} domain={domain.domain} />
                                         <DnsRecord
                                             locale={locale}
                                             type="TXT"
-                                            name={domainTxtName(domain.domain)}
+                                            name={txtHostLabel(domain.domain)}
                                             value={domainTxtValue(domain.verification_token)}
                                         />
                                     </div>
@@ -302,18 +309,18 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                             <p className="text-xs font-medium text-blue-800 dark:text-blue-200 mb-2">
                                 {t(STRINGS.command_center.domain_dns_heading, locale)}
                             </p>
-                            <div className="text-[11px] text-blue-700 dark:text-blue-300 font-mono space-y-1">
+                            <div className="text-[11px] text-blue-700 dark:text-blue-300 font-mono space-y-1" dir="ltr">
                                 <p>
                                     {t(STRINGS.command_center.domain_dns_type, locale)}{" "}
-                                    <strong>CNAME</strong>
+                                    <strong>{typedApex ? "A" : "CNAME"}</strong>
                                 </p>
                                 <p>
                                     {t(STRINGS.command_center.domain_dns_name, locale)}{" "}
-                                    <strong>{domainInput || slug}</strong>
+                                    <strong>{typedDomain ? dnsHostLabel(typedDomain) : slug}</strong>
                                 </p>
                                 <p>
                                     {t(STRINGS.command_center.domain_dns_value, locale)}{" "}
-                                    <strong>{CUSTOM_DOMAIN_CNAME_TARGET}</strong>
+                                    <strong>{typedApex ? CUSTOM_DOMAIN_A_RECORD : CUSTOM_DOMAIN_CNAME_TARGET}</strong>
                                 </p>
                             </div>
                         </div>
@@ -345,6 +352,35 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                 )}
             </div>
         </div>
+    );
+}
+
+/** The numbered how-to above a pending domain's records. */
+function ConnectSteps({ locale, apex }: { locale: LocaleCode; apex: boolean }) {
+    const cc = STRINGS.command_center;
+    const steps = [cc.domain_step_open, apex ? cc.domain_step_a : cc.domain_step_cname, cc.domain_step_txt, cc.domain_step_verify];
+    return (
+        <div className="rounded-lg bg-muted/20 px-2 py-1.5">
+            <p className="text-[11px] font-medium text-foreground mb-1">{t(cc.domain_steps_heading, locale)}</p>
+            <ol className="list-decimal ps-4 space-y-0.5 text-[11px] text-muted-foreground">
+                {steps.map((step) => (
+                    <li key={step.en}>{t(step, locale)}</li>
+                ))}
+            </ol>
+        </div>
+    );
+}
+
+/** The record that sends shoppers here: A on an apex (no CNAME allowed there), CNAME otherwise. */
+function RoutingRecord({ locale, domain }: { locale: LocaleCode; domain: string }) {
+    const apex = isApexDomain(domain);
+    return (
+        <DnsRecord
+            locale={locale}
+            type={apex ? "A" : "CNAME"}
+            name={dnsHostLabel(domain)}
+            value={apex ? CUSTOM_DOMAIN_A_RECORD : CUSTOM_DOMAIN_CNAME_TARGET}
+        />
     );
 }
 
