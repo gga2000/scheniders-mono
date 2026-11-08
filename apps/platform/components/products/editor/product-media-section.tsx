@@ -20,7 +20,7 @@ export function ProductMediaSection({ formData, updateField, productId }: Produc
     const { t } = useLanguage();
 
     return (
-        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
+        <div data-guide="product-media" className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                     <ImageIcon className="w-4 h-4" />

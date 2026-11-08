@@ -3371,6 +3371,47 @@ export type Database = {
           },
         ]
       }
+      merchant_guide_progress: {
+        Row: {
+          answers: Json
+          created_at: string
+          done_seen_at: string | null
+          foundation_done_at: string | null
+          sound_on: boolean
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          done_seen_at?: string | null
+          foundation_done_at?: string | null
+          sound_on?: boolean
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          done_seen_at?: string | null
+          foundation_done_at?: string | null
+          sound_on?: boolean
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "merchant_guide_progress_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meta_ads_connections: {
         Row: {
           access_token: string

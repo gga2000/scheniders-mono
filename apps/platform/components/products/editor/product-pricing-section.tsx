@@ -26,7 +26,7 @@ export function ProductPricingSection({
 }: ProductPricingSectionProps) {
     const { t } = useLanguage();
     return (
-        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
+        <div data-guide="product-price" className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-6 space-y-5">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
                 {formData.is_supply ? t("products.ed.costPricing") : t("products.ed.pricing")}

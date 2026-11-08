@@ -57,6 +57,7 @@ import { templatesForPage } from "@/lib/page-templates";
 import { checkCopyMessage } from "@/lib/health-check-copy";
 import { InspectorRail, type InspectorTab } from "./inspector-rail";
 import { cn } from "@/lib/utils";
+import { OPEN_EDITOR_SCREEN_EVENT, isGuideEditorScreen } from "@/lib/merchant-guide/steps";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
 import { EditorModeProvider, type EditorMode } from "@/lib/editor-mode-context";
 import { EditorLinkTargetsProvider } from "@/lib/editor-link-targets-context";
@@ -243,6 +244,18 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
     const [system_screen, set_system_screen] = useState<SettingsSectionId | null>(
         initialSystemScreen !== undefined ? initialSystemScreen : null,
     );
+
+    // The merchant guide moves between the shop-details and delivery screens
+    // without reloading the editor (lib/merchant-guide/steps.ts).
+    useEffect(() => {
+        const onOpen = (event: Event): void => {
+            if (!(event instanceof CustomEvent)) return;
+            const screen: unknown = event.detail;
+            if (isGuideEditorScreen(screen)) set_system_screen(screen);
+        };
+        window.addEventListener(OPEN_EDITOR_SCREEN_EVENT, onOpen);
+        return () => window.removeEventListener(OPEN_EDITOR_SCREEN_EVENT, onOpen);
+    }, []);
 
     // Inspector rail tab (Blocks / Style / SEO / Health). A Command Center
     // deep-link (?tab=) can preselect a tab on mount.

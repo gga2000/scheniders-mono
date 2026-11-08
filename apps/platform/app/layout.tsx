@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { geistFontVars } from "./fonts/geist";
 import "./globals.css";
 // Fail-fast: validate all environment variables at app startup
 import "@/lib/env";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { ChatRuntime } from "@/components/chat/chat-runtime";
+import { MerchantGuide } from "@/components/merchant-guide/merchant-guide";
 import { PWAProvider } from "@/components/pwa/pwa-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { NewOrderAlerts } from "@/components/orders/new-order-alerts";
@@ -103,6 +105,9 @@ export default function RootLayout({
                         <DashboardLayout>
                           {children}
                           <ChatRuntime />
+                          <Suspense fallback={null}>
+                            <MerchantGuide />
+                          </Suspense>
                         </DashboardLayout>
                       </LanguageProvider>
                     </FinancialVisibilityProvider>
