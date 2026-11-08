@@ -31,7 +31,7 @@ function AdProfitCard({ order }: { order: Order }) {
     const { calculateOrderCost } = useOrderProfits([], products, 0, snapshots, costDefaults);
 
     if (!report) return null;
-    const campaignId = [...matchOrdersToCampaigns(report.campaigns, [{ ad_channel: order.ad_channel ?? null, attribution: order.attribution }]).byCampaign.keys()][0];
+    const campaignId = [...matchOrdersToCampaigns(report.campaigns, [{ ad_channel: order.ad_channel ?? null, attribution: order.attribution }], report.linkedIds).byCampaign.keys()][0];
     const campaign = report.campaigns.find((c) => c.campaignId === campaignId);
     const adCost = campaign ? campaignAdCostPerOrder(campaign) : null;
     if (!campaign || adCost === null) return null;
