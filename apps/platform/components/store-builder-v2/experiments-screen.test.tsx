@@ -700,4 +700,65 @@ describe("ExperimentsScreen", () => {
         rerender();
         expect(handle.getConfig().experiments[0]?.status).toBe("completed");
     });
+
+    it("shows each running arm's orders and visitors on the card", async () => {
+        const handle = makeBuilder(
+            {
+                experiments: [
+                    {
+                        id: "exp_c",
+                        name: "Card numbers",
+                        status: "running",
+                        primary_metric: "orders",
+                        arms: [
+                            { id: "control", label: "Today", traffic_pct: 50 },
+                            { id: "arm_b", label: "New", traffic_pct: 50 },
+                        ],
+                    },
+                ],
+            },
+            {
+                exp_c: {
+                    experiment_id: "exp_c",
+                    per_arm: {
+                        control: { visitors: 1200, add_to_cart: 0, checkout_start: 0, orders: 12, revenue_iqd: 0, conversion_rate: 0.01, avg_order_value: 0 },
+                        arm_b: { visitors: 1180, add_to_cart: 0, checkout_start: 0, orders: 18, revenue_iqd: 0, conversion_rate: 0.015, avg_order_value: 0 },
+                    },
+                    significance: {},
+                },
+            },
+        );
+        renderScreen(handle);
+        await waitFor(() => {
+            const text = screen.getByTestId("experiment-row-exp_c-results").textContent ?? "";
+            expect(text).toContain("1,200");
+            expect(text).toContain("18");
+        });
+    });
+
+    it("a failed stats load shows one error with a retry, not the empty state too", async () => {
+        const handle = makeBuilder({
+            experiments: [
+                {
+                    id: "exp_e",
+                    name: "Broken",
+                    status: "running",
+                    primary_metric: "orders",
+                    arms: [
+                        { id: "control", label: "Today", traffic_pct: 50 },
+                        { id: "arm_b", label: "New", traffic_pct: 50 },
+                    ],
+                },
+            ],
+        });
+        handle.builder.fetchExperimentStats = () => Promise.reject(new Error("rpc down"));
+        renderScreen(handle);
+        fireEvent.click(screen.getByTestId("experiment-row-exp_e-view"));
+        await waitFor(() => {
+            expect(screen.getByTestId("experiment-viewer-error")).toBeTruthy();
+        });
+        expect(screen.getByTestId("experiment-viewer-retry")).toBeTruthy();
+        expect(screen.getByTestId("experiment-viewer").textContent).not.toContain("No data yet");
+        expect(screen.getByTestId("experiment-viewer").textContent).not.toContain("rpc down");
+    });
 });
