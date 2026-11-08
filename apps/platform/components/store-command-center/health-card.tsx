@@ -41,7 +41,9 @@ function fixHref(fix: FixAction | undefined): string {
                   ? `/store/edit?page=${go.page_id}&open=${go.open}`
                   : `/store/edit?page=${go.page_id}`;
         case "section":
-            return `/store/edit?page=${go.page_id}&section=${go.section_id}`;
+            return go.field
+                ? `/store/edit?page=${go.page_id}&section=${go.section_id}&field=${go.field}`
+                : `/store/edit?page=${go.page_id}&section=${go.section_id}`;
         case "external":
             return go.href;
         default:

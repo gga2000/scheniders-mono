@@ -49,7 +49,7 @@ export interface HealthChecklistScreenProps {
         opts?: { tab?: "seo"; open?: "add_section" },
     ) => void;
     /** Open a specific section's edit panel on a page. */
-    onSelectSection?: (page_id: PageId, section_id: string) => void;
+    onSelectSection?: (page_id: PageId, section_id: string, field?: string) => void;
     /** Close the health screen and return to the live preview. */
     onClose?: () => void;
     /**
@@ -381,7 +381,7 @@ export function HealthChecklistScreen(
             return;
         }
         if (go.kind === "section") {
-            if (onSelectSection) onSelectSection(go.page_id, go.section_id);
+            if (onSelectSection) onSelectSection(go.page_id, go.section_id, go.field);
             else onSelectPage(go.page_id);
             return;
         }

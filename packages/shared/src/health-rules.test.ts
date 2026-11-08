@@ -84,8 +84,8 @@ describe("runHealthChecks — empty config", () => {
     const empty = freshEmpty();
     const report = runHealthChecks(empty);
 
-    it("evaluates 36 checks", () => {
-        expect(report.checks).toHaveLength(36);
+    it("evaluates 37 checks", () => {
+        expect(report.checks).toHaveLength(37);
     });
 
     it("scores below 30", () => {
@@ -554,6 +554,37 @@ describe("runHealthChecks — at_least_one_image_per_hero", () => {
         setPage(cfg, "about", [hero]);
         const c = runHealthChecks(cfg).checks.find((c) => c.id === "at_least_one_image_per_hero");
         expect(c?.status).toBe("warn");
-        expect(c?.fix_action?.go_to).toEqual({ kind: "section", page_id: "about", section_id: hero.id });
+        // ...and points at the field the picture goes in.
+        expect(c?.fix_action?.go_to).toEqual({
+            kind: "section",
+            page_id: "about",
+            section_id: hero.id,
+            field: "bg_image_url",
+        });
+    });
+});
+
+describe("runHealthChecks — brand_colors_readable", () => {
+    const find = (cfg: ReturnType<typeof fullyPopulatedConfig>) =>
+        runHealthChecks(cfg).checks.find((c) => c.id === "brand_colors_readable");
+
+    it("passes dark text and a strong main colour on a light page", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#111111", primary: "#1d4ed8" } };
+        expect(find(cfg)?.status).toBe("pass");
+    });
+
+    it("warns when the main colour nearly disappears into the page", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#111111", primary: "#f7db17" } };
+        const c = find(cfg);
+        expect(c?.status).toBe("warn");
+        expect(c?.fix_action?.go_to).toEqual({ kind: "settings", key: "brand_kit" });
+    });
+
+    it("warns when body text is too light to read", () => {
+        const cfg = fullyPopulatedConfig();
+        cfg.brand_kit = { ...cfg.brand_kit, colors: { ...cfg.brand_kit.colors, surface: "#ffffff", ink: "#aaaaaa", primary: "#1d4ed8" } };
+        expect(find(cfg)?.message).toMatch(/text/);
     });
 });

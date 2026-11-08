@@ -261,6 +261,9 @@ export function evaluateSegments(
 ): string[] {
   return segments
     .filter((s) => {
+      // An audience with no conditions yet is a draft: it reaches no one.
+      // (An empty "all of" is vacuously true and would reach everyone.)
+      if (s.rules.length === 0) return false;
       const results = s.rules.map((r) => evalRule(r, ctx));
       return s.combine === "any" ? results.some(Boolean) : results.every(Boolean);
     })

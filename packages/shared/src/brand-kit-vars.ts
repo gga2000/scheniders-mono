@@ -103,6 +103,24 @@ function contrastRatio(a: Rgb, b: Rgb): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+/**
+ * How readable the kit is on the storefront's page colour: body text
+ * (`ink`) and the main colour (`primary`, used for buttons, prices and
+ * links), each as a WCAG contrast ratio against `surface`. Invalid colours
+ * read as the storefront's own defaults, as they render.
+ */
+export function brandKitContrast(kit: Pick<BrandKit, "colors"> | undefined): {
+  inkOnSurface: number;
+  primaryOnSurface: number;
+} {
+  const d = EMPTY_BRAND_KIT.colors;
+  const surface = safeColor(kit?.colors?.surface, d.surface).rgb;
+  return {
+    inkOnSurface: contrastRatio(safeColor(kit?.colors?.ink, d.ink).rgb, surface),
+    primaryOnSurface: contrastRatio(safeColor(kit?.colors?.primary, d.primary).rgb, surface),
+  };
+}
+
 /** Linear blend of two RGB colours. `t` is the weight of `b` (0..1). */
 function mix(a: Rgb, b: Rgb, t: number): Rgb {
   const w = Math.max(0, Math.min(1, t));

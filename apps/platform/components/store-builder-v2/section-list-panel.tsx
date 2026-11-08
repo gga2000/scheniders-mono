@@ -132,6 +132,9 @@ export interface SectionListPanelProps {
      * clicks a row in the Layers strip.
      */
     onEditLayer?: (info: { field?: string; layerId?: string; el: HTMLElement }) => void;
+    /** Field the open section's form scrolls to once (health fix). */
+    focusField?: string | null;
+    onFocusFieldDone?: () => void;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -487,6 +490,8 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
         experiments,
         segments,
         onEditLayer,
+        focusField,
+        onFocusFieldDone,
     } = props;
 
     // BUG29: hide template entry points on pages no curated pack fits.
@@ -802,6 +807,8 @@ export function SectionListPanel(props: SectionListPanelProps): React.ReactEleme
                                                         activeLocale={activeLocale}
                                                         activeBreakpoint={activeBreakpoint}
                                                         onEditLayer={onEditLayer}
+                                                        focusField={focusField}
+                                                        onFocusFieldDone={onFocusFieldDone}
                                                         inline
                                                     />
                                                 ) : null

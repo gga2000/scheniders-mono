@@ -107,6 +107,8 @@ export default async function StoreV2Page({
     const requestedPageId = typeof sp.page === "string" ? sp.page : null;
     const initialSectionId =
         typeof sp.section === "string" ? sp.section : null;
+    const initialFieldKey =
+        initialSectionId && typeof sp.field === "string" ? sp.field : null;
     const rawTab = typeof sp.tab === "string" ? sp.tab : undefined;
     const initialInspectorTab =
         rawTab && (DEEP_LINK_TABS as readonly string[]).includes(rawTab)
@@ -240,6 +242,7 @@ export default async function StoreV2Page({
             initialPageId={initialPageId}
             initialWelcome={initialWelcome}
             initialSectionId={initialSectionId}
+            initialFieldKey={initialFieldKey}
             initialInspectorTab={initialInspectorTab}
             initialOpenPicker={initialOpenPicker}
         />
