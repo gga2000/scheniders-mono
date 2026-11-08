@@ -81,7 +81,7 @@ export function BundlesScreen({
         >
             <ScreenHeader
                 setting="bundles"
-                title={t(STRINGS.advanced_chrome.bun_heading, locale)}
+                subtitle={t(STRINGS.advanced_chrome.bun_intro, locale)}
                 onBack={onClose}
                 backLabel={t(STRINGS.advanced_chrome.bun_close_aria, locale)}
                 backTestId="bundles-close"
@@ -101,9 +101,6 @@ export function BundlesScreen({
             />
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
-                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
-                    {t(STRINGS.advanced_chrome.bun_intro, locale)}
-                </p>
 
                 {bundles.length === 0 ? (
                     <button

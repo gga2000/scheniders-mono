@@ -216,7 +216,6 @@ export function SegmentsScreen({
             {/* Header */}
             <ScreenHeader
                 setting="segments"
-                title={t(STRINGS.segment.heading, locale)}
                 subtitle={t(STRINGS.segment.subtitle, locale)}
                 onBack={onClose}
                 backLabel={t(STRINGS.advanced_chrome.adv_back, locale)}

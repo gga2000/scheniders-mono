@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { ScreenHeader } from "./screen-header";
+import { getSettingLabel } from "./page-tree";
 
 afterEach(() => {
     cleanup();
@@ -14,7 +15,6 @@ describe("ScreenHeader", () => {
         render(
             <ScreenHeader
                 setting="bundles"
-                title="الحزم"
                 subtitle="اشترِ معاً"
                 onBack={onBack}
                 backLabel="رجوع"
@@ -22,7 +22,8 @@ describe("ScreenHeader", () => {
                 actions={<button type="button">إضافة</button>}
             />,
         );
-        expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("الحزم");
+        // The title is the rail's name for the screen (English when no editor locale is provided).
+        expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(getSettingLabel("bundles", "en"));
         expect(screen.getByText("اشترِ معاً")).toBeTruthy();
         expect(screen.getByRole("button", { name: "إضافة" })).toBeTruthy();
         fireEvent.click(screen.getByTestId("bundles-close"));
@@ -30,12 +31,12 @@ describe("ScreenHeader", () => {
     });
 
     it("has no back arrow when the screen gives no way back", () => {
-        render(<ScreenHeader setting="brand_kit" title="هوية العلامة" />);
+        render(<ScreenHeader setting="brand_kit" />);
         expect(screen.queryByRole("button")).toBeNull();
     });
 
     it("uses the left rail's tint for the screen", () => {
-        render(<ScreenHeader setting="health" title="صحة المتجر" />);
+        render(<ScreenHeader setting="health" />);
         const tile = screen.getByTestId("screen-header").querySelector(".sb-tile");
         expect(tile?.className).toContain("sb-tile--story");
     });

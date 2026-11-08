@@ -214,14 +214,12 @@ describe("ShippingScreen — the preview", () => {
         expect(over).not.toContain("5,000");
     });
 
-    it("says free, not a zero figure, when delivery is free", () => {
+    it("says free to every governorate, not a zero figure per basket, when delivery is free", () => {
         const { builder } = makeBuilder({ default_rate: { fee_iqd: 0 } });
         render(<ShippingScreen builder={builder} onClose={() => {}} />);
-        const row = screen.getByTestId("shipping-preview-30000").textContent ?? "";
-        // The basket amount itself contains a zero, so match the rendered fee:
-        // the part after the governorate name.
-        const fee = row.split(":").pop()?.trim() ?? "";
-        expect(fee).toBe("Free");
-        expect(fee).not.toMatch(/^0$/);
+        const line = screen.getByTestId("shipping-preview-free-everywhere").textContent ?? "";
+        expect(line).toContain("free to every governorate");
+        // One line, not a per-basket list that reads like a threshold offer.
+        expect(screen.queryByTestId("shipping-preview-30000")).toBeNull();
     });
 });

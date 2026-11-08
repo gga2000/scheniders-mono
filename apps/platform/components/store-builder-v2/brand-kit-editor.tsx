@@ -98,6 +98,8 @@ export interface BrandKitEditorProps {
     onChange: (next: BrandKit) => void;
     /** Tenant id — needed for asset uploads. Optional in tests. */
     tenantId?: string;
+    /** Back to the canvas. */
+    onClose?: () => void;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -111,7 +113,7 @@ type ResetKey = keyof BrandKit;
 /* ─────────────────────────────────────────────────────────────────── */
 
 export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
-    const { value, onChange, tenantId } = props;
+    const { value, onChange, tenantId, onClose } = props;
     const chromeLocale = useResolvedEditorLocale();
     const { mode: editorMode } = useEditorMode();
 
@@ -249,8 +251,10 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
         <div data-testid="brand-kit-editor" className="flex h-full flex-col bg-background">
             <ScreenHeader
                 setting="brand_kit"
-                title={tChrome(STRINGS.brand_kit.heading, chromeLocale)}
                 subtitle={tChrome(STRINGS.brand_kit.intro, chromeLocale)}
+                onBack={onClose}
+                backLabel={tChrome(STRINGS.toolbar.back_to_canvas, chromeLocale)}
+                backTestId="brand-kit-back"
             />
             <div className="grid flex-1 grid-cols-1 gap-6 overflow-y-auto p-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
             {/* Left: form */}

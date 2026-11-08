@@ -256,16 +256,13 @@ export function ShippingScreen({
         >
             <ScreenHeader
                 setting="shipping"
-                title={t(s.ship_heading, locale)}
+                subtitle={t(s.ship_intro, locale)}
                 onBack={onClose}
                 backLabel={t(s.ship_close_aria, locale)}
                 backTestId="shipping-close"
             />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">
-                    {t(s.ship_intro, locale)}
-                </p>
 
                 {mode === "unset" && (
                     <p
@@ -452,6 +449,11 @@ export function ShippingScreen({
                     <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         {t(s.ship_preview_heading, locale)}
                     </h3>
+                    {preview.every((row) => row.baghdad === 0 && row.dearest === 0) ? (
+                        <p data-testid="shipping-preview-free-everywhere" className="text-sm font-semibold text-foreground">
+                            {t(s.ship_preview_free_everywhere, locale)}
+                        </p>
+                    ) : (
                     <ul className="flex flex-col gap-1.5 text-sm tabular-nums">
                         {preview.map((row) => (
                             <li
@@ -487,6 +489,7 @@ export function ShippingScreen({
                             </li>
                         ))}
                     </ul>
+                    )}
                 </section>
             </div>
         </div>

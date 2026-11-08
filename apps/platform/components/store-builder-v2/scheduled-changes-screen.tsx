@@ -379,7 +379,6 @@ export function ScheduledChangesScreen({
             {/* Header */}
             <ScreenHeader
                 setting="scheduled"
-                title={tx(STRINGS.scheduled.heading, locale)}
                 subtitle={tx(STRINGS.advanced_chrome.sched_subtitle, locale)}
                 onBack={onClose}
                 backLabel={tx(STRINGS.advanced_chrome.adv_back, locale)}

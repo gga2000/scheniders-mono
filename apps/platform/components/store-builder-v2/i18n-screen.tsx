@@ -134,7 +134,6 @@ export function I18nScreen({
             {/* Header */}
             <ScreenHeader
                 setting="i18n"
-                title={t(STRINGS.i18n_screen.title, locale)}
                 onBack={onClose}
                 backLabel={t(STRINGS.i18n_screen.back, locale)}
                 backTestId="i18n-screen-back"

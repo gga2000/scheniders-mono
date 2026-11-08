@@ -143,16 +143,13 @@ export function LoyaltyScreen({
         >
             <ScreenHeader
                 setting="loyalty"
-                title={t(L.heading, locale)}
+                subtitle={t(L.intro, locale)}
                 onBack={onClose}
                 backLabel={t(L.close, locale)}
                 backTestId="loyalty-close"
             />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
-                    {t(L.intro, locale)}
-                </p>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-sm font-medium text-foreground">
