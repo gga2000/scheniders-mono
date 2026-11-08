@@ -118,9 +118,11 @@ export default function PrintingPage() {
     const run = useDispatchRun({ printing, bulkUpdateStatus, prime });
 
     // With the Prime link: each order's fee and readiness before the run, and its case number as the run goes.
-    const primeDesk = usePrimeDeskPreview(orders, prime.connected);
+    // Test orders (the guide's practice orders) are printed only and never shown as going to Prime.
+    const courierOrders = useMemo(() => orders.filter((o) => !o.is_test), [orders]);
+    const primeDesk = usePrimeDeskPreview(courierOrders, prime.connected);
     const primeOf = (order: Order) => {
-        if (!prime.connected) return undefined;
+        if (!prime.connected || order.is_test) return undefined;
         const row = primeDesk.rows.get(order.id);
         return {
             state: primeDeskState(order.id, row, run.primeProgress),
@@ -129,8 +131,8 @@ export default function PrintingPage() {
         };
     };
     const primeCounts = useMemo(
-        () => primeDeskCounts(orders.map((o) => o.id), primeDesk.rows, run.primeProgress),
-        [orders, primeDesk.rows, run.primeProgress],
+        () => primeDeskCounts(courierOrders.map((o) => o.id), primeDesk.rows, run.primeProgress),
+        [courierOrders, primeDesk.rows, run.primeProgress],
     );
 
     // The 48h double-dispatch check: the queue plus the orders already out.
@@ -301,7 +303,7 @@ export default function PrintingPage() {
                                 primeLinked={prime.connected}
                                 onShip={() => setShipOpen(true)}
                                 onPrint={startPrint}
-                                primeMoney={prime.connected ? primeRunMoney(selected.map((o) => ({ id: o.id, cash: doorCash(o) })), primeDesk.rows) : undefined}
+                                primeMoney={prime.connected ? primeRunMoney(selected.filter((o) => !o.is_test).map((o) => ({ id: o.id, cash: doorCash(o) })), primeDesk.rows) : undefined}
                                 primeProgress={run.primeProgress}
                             />
                         </div>

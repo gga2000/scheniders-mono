@@ -194,6 +194,8 @@ export interface Order {
     last_followup_at?: string | null;
     last_followup_type?: 'reminder' | 'discount' | 'confirmation' | 'manual' | null;
     is_test?: boolean;
+    /** A practice order made by the merchant guide; always also is_test. */
+    guide_practice?: boolean;
     /** When /api/webhooks/storefront-order claimed this order's automatic
      *  WhatsApp confirmation. Null = not claimed (every non-storefront order). */
     confirmation_dispatched_at?: string | null;

@@ -112,7 +112,9 @@ export function registerDeliveryTools(server: McpServer): void {
         async run(caller, input) {
             requireWriter(caller);
             const found = await findOrders(caller, [...new Set(input.orders)]);
-            const unique = [...new Map(found.map((o) => [o.id, o])).values()];
+            // Test orders (the guide's practice orders) never go to a courier.
+            const unique = [...new Map(found.filter((o) => !o.is_test).map((o) => [o.id, o])).values()];
+            if (unique.length === 0) throw new McpToolError("Every order listed is a test order; test orders are never sent to a courier.");
             const { shippable, scheduledLater } = partitionByShipDay(unique);
             const orders = input.include_scheduled_later ? unique : shippable;
             const held = input.include_scheduled_later ? [] : scheduledLater;

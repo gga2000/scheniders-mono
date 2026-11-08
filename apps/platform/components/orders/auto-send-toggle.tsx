@@ -27,7 +27,7 @@ export function AutoSendToggle({ variant = "mobile" }: AutoSendToggleProps) {
         }
 
         return (
-            <div className="relative">
+            <div className="relative" data-guide="auto-send">
                 <button
                     onClick={handleToggle}
                     disabled={toggling}

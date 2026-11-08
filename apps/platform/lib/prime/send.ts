@@ -18,8 +18,11 @@ export type PrimeSendFailure =
 
 export interface PrimeSendOutcome {
     sent: { orderId: string; caseId: number }[];
-    /** Left to the Excel file on purpose (refunds and replacements), not a failure. */
-    skipped: { orderId: string; reason: "after_sale" }[];
+    /**
+     * Not sent on purpose, not a failure: refunds and replacements go in the
+     * Excel file; test orders (the guide's practice orders) go nowhere.
+     */
+    skipped: { orderId: string; reason: "after_sale" | "test_order" }[];
     failed: { orderId: string; reason: PrimeSendFailure; message?: string }[];
 }
 
@@ -76,6 +79,7 @@ export async function sendOrdersToPrime(
             outcome.failed.push({ orderId: id, reason: "prime_closed", message: `Prime case ${sent.caseId} is ${sent.status}` });
         } else if (sent) outcome.sent.push({ orderId: id, caseId: sent.caseId });
         else if (!order) outcome.failed.push({ orderId: id, reason: "not_found" });
+        else if (order.is_test) outcome.skipped.push({ orderId: id, reason: "test_order" });
         else if (order.is_return || order.is_replacement) outcome.skipped.push({ orderId: id, reason: "after_sale" });
         // The desk ships confirmed orders and moves them to in transit afterwards.
         else if (order.status !== "confirmed") outcome.failed.push({ orderId: id, reason: "not_confirmed" });

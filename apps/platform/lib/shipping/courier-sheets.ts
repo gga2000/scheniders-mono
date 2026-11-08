@@ -34,12 +34,13 @@ export type CourierSheetOrder = Pick<
     | "is_return"
     | "is_replacement"
     | "prime_district"
+    | "is_test"
 >;
 
 /** The columns the sheets read, for a select. */
 export const COURIER_SHEET_COLUMNS =
     "id, order_id, customer_name, phone, secondary_phone, city, governorate_code, validated_governorate_code, " +
-    "address_details, items, notes, price, delivery_fee, discount_amount, payment_status, is_return, is_replacement, prime_district";
+    "address_details, items, notes, price, delivery_fee, discount_amount, payment_status, is_return, is_replacement, prime_district, is_test";
 
 export type CourierSheet = {
     sheetName: string;

@@ -41,16 +41,19 @@ export const REALIZED_REVENUE_STATUSES: readonly Order["status"][] = ["delivered
  */
 export const NON_SALE_STATUSES: readonly Order["status"][] = ["rejected", "cancelled", "no_response", "pending_checkout"];
 
-/** Whether an order counts as a sale: not a non-sale status and not a refund/return row. */
-export function isSaleOrder(order: Pick<Order, "status" | "is_return">): boolean {
-    if (order.is_return) return false;
+/** The fields the sale rules read. `is_test` is optional: rows read without it are real orders. */
+type SaleFields = Pick<Order, "status" | "is_return"> & { is_test?: boolean | null };
+
+/** Whether an order counts as a sale: not a test, not a non-sale status and not a refund/return row. */
+export function isSaleOrder(order: SaleFields): boolean {
+    if (order.is_test || order.is_return) return false;
     if (order.status === "refund_delivered" || order.status === "refund_failed" || order.status === "return_pending") return false;
     return !NON_SALE_STATUSES.includes(order.status);
 }
 
-/** Whether an order's price counts as earned. Returns never do. */
-export function isRealizedRevenue(order: Pick<Order, "status" | "is_return">): boolean {
-    return REALIZED_REVENUE_STATUSES.includes(order.status) && !order.is_return;
+/** Whether an order's price counts as earned. Returns and test orders never do. */
+export function isRealizedRevenue(order: SaleFields): boolean {
+    return REALIZED_REVENUE_STATUSES.includes(order.status) && !order.is_return && !order.is_test;
 }
 
 /**

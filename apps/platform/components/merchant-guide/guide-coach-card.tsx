@@ -56,6 +56,8 @@ export interface GuideCoachCardProps {
     part?: { index: number; count: number; onBack: () => void; onNext: () => void };
     /** Shown when the merchant isn't on the step's page or screen. */
     onGo?: () => void;
+    /** A stop that only explains: the merchant moves on with this button. */
+    next?: { label: string; onClick: () => void; busy?: boolean };
     onMinimize: () => void;
     children?: ReactNode;
 }
@@ -70,6 +72,7 @@ export function GuideCoachCard({
     dockLeft,
     part,
     onGo,
+    next,
     onMinimize,
     children,
 }: GuideCoachCardProps) {
@@ -132,6 +135,17 @@ export function GuideCoachCard({
                     >
                         {t("guide.takeMeThere")}
                         <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                ) : next ? (
+                    <button
+                        type="button"
+                        onClick={next.onClick}
+                        disabled={next.busy}
+                        data-testid="merchant-guide-next"
+                        className="inline-flex h-9 items-center gap-1 rounded-full bg-[#EFFF00] px-4 text-sm font-bold text-neutral-900 hover:opacity-90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    >
+                        {next.label}
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </button>
                 ) : part && part.count > 1 ? (
                     <>

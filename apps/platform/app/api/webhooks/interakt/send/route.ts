@@ -97,6 +97,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // A test order (the guide's practice orders, the Test button) never
+        // messages a real phone.
+        if (order.is_test) {
+            return NextResponse.json(
+                { success: false, error: "Test orders never send WhatsApp messages" },
+                { status: 422 }
+            );
+        }
+
         if (overridePhone) {
             const allowed = [order.phone, order.secondary_phone]
                 .filter(Boolean)

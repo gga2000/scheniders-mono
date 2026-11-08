@@ -83,6 +83,38 @@ export const GUIDE_LINES = {
         ar: "هذا رابط محلك. انسخه وحطه بالبايو، وشاركه بالانستغرام والتيك توك.",
         en: "Here's your shop link. Copy it into your bio and share it on Instagram and TikTok.",
     },
+    "fo.offer": {
+        ar: "أول مرة بصفحة الطلبات؟ سوينالك ٣ طلبات تجربة، تعال نمشي بيها سوه.",
+        en: "First time on Orders? We made you 3 practice orders. Let's walk through them together.",
+    },
+    "fo.statuses": {
+        ar: "كل طلب يمشي بهالمراحل من اليسار لليمين. «مكتمل» يعني الفلوس وصلتك بإيدك.",
+        en: "Every order moves through these stages, left to right. Completed means the money is in your hand.",
+    },
+    "fo.confirm": {
+        ar: "هذا طلب تجربة من محلك. أكّده من هنا مثل أي طلب حقيقي.",
+        en: "This is a practice order from your shop. Confirm it here, like a real one.",
+    },
+    "fo.whatsapp": {
+        ar: "من يوصل طلب، الواتساب يدز للزبون رسالة تأكيد وحده. يضغط تأكيد، الطلب يتأكد بدون ما تتصل.",
+        en: "When an order comes in, WhatsApp sends the customer a confirmation by itself. They tap Confirm, and the order is confirmed without a call.",
+    },
+    "fo.whatsappOff": {
+        ar: "الإرسال التلقائي طافي هسه. اضغط زر الواتساب اللي فوق حتى يشتغل.",
+        en: "Auto-send is off right now. Tap the WhatsApp button at the top to turn it on.",
+    },
+    "fo.dispatch": {
+        ar: "مكتب الشحن تجيه آخر اليوم: تطبع كل الوصولات مرة وحدة، وتسلمها للمندوب.",
+        en: "Come to the dispatch desk at the end of the day: print all the labels at once and hand them to the courier.",
+    },
+    "fo.done": {
+        ar: "عاشت إيدك! هيچ يمشي يومك. اضغط «خلصنا» وتنشال طلبات التجربة، وإنت جاهز للطلبات الحقيقية.",
+        en: "Well done! That's your day. Tap Finish and the practice orders go away. You're ready for real ones.",
+    },
+    "fo.expired": {
+        ar: "طلبات التجربة خلص وقتها وانشالت. تكدر ترجع تجربها بأي وقت.",
+        en: "The practice orders ran out of time and were removed. You can try them again any time.",
+    },
 } as const satisfies Record<string, GuideLine>;
 
 export type GuideLineId = keyof typeof GUIDE_LINES;

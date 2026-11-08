@@ -147,7 +147,7 @@ export const StickyFilterBar = memo(function StickyFilterBar({
                 className
             )}
         >
-            <div className={cn(
+            <div data-guide="order-status-tabs" className={cn(
                 "flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x py-6 pl-8 pr-6",
                 // Mobile adjustments for touch targets
                 isMobile ? "min-h-[50px]" : ""
