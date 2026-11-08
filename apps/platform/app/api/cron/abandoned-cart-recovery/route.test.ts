@@ -10,6 +10,8 @@ vi.mock("@/lib/env", () => ({ env: { CRON_SECRET: "test-cron-secret" } }));
 vi.mock("@/lib/abandoned-cart-sender", () => ({
     sendCartRecoveryMessage: vi.fn(),
 }));
+const limiter = vi.hoisted(() => ({ consumeRateLimit: vi.fn() }));
+vi.mock("@/lib/rate-limit", () => limiter);
 
 import { GET } from "./route";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
@@ -82,7 +84,10 @@ const optedIn = {
     store_config_v2: { commerce: { cart_recovery: { enabled: true, delay_minutes: 30 } } },
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+    vi.clearAllMocks();
+    limiter.consumeRateLimit.mockResolvedValue({ allowed: true, remaining: 39, retryAfterSeconds: 0 });
+});
 
 describe("GET /api/cron/abandoned-cart-recovery", () => {
     it("nudges + marks reminded for a consented cart of an opted-in tenant past its delay", async () => {
@@ -98,6 +103,23 @@ describe("GET /api/cron/abandoned-cart-recovery", () => {
         expect(json.skipped).toBe(0);
         expect(sendCartRecoveryMessage).toHaveBeenCalledTimes(1);
         expect(updateEq).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops a store's paid sends at the daily cap, and when the limiter is down", async () => {
+        for (const verdict of [
+            { allowed: false, remaining: 0, retryAfterSeconds: 60 },
+            { allowed: false, remaining: 0, retryAfterSeconds: 0, error: "down" },
+        ]) {
+            const { client, updateEq } = makeClient([cart()], [optedIn]);
+            (createSupabaseServiceClient as ReturnType<typeof vi.fn>).mockReturnValue(client);
+            limiter.consumeRateLimit.mockResolvedValueOnce(verdict);
+            const json = await (await GET(authedRequest())).json();
+            expect(json.sent).toBe(0);
+            expect(json.skipped).toBe(1);
+            expect(updateEq).not.toHaveBeenCalled();
+        }
+        expect(sendCartRecoveryMessage).not.toHaveBeenCalled();
+        expect(limiter.consumeRateLimit).toHaveBeenCalledWith("cart-recovery:t1", 40, 86_400);
     });
 
     it("never messages a capture without consent, even for an opted-in tenant", async () => {

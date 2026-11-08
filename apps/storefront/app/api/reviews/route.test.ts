@@ -6,6 +6,12 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServiceClient: vi.fn(),
 }));
 
+const limiter = vi.hoisted(() => ({
+  consumeRateLimit: vi.fn(),
+  clientIp: () => "1.2.3.4",
+}));
+vi.mock("@/lib/rate-limit", () => limiter);
+
 import { GET, POST } from "./route";
 import {
   createSupabaseServerClient,
@@ -25,7 +31,10 @@ function selectChain(result: unknown) {
   return b;
 }
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  limiter.consumeRateLimit.mockResolvedValue({ allowed: true, remaining: 4 });
+});
 
 describe("GET /api/reviews", () => {
   it("400s on a missing/invalid query", async () => {
@@ -82,6 +91,20 @@ describe("POST /api/reviews", () => {
   it("400s when rating is missing", async () => {
     const res = await POST(postForm({ tenant_id: UUID, product_id: UUID }));
     expect(res.status).toBe(400);
+  });
+
+  it("429s past the per-caller limit before touching storage", async () => {
+    limiter.consumeRateLimit.mockResolvedValueOnce({ allowed: false, remaining: 0 });
+    const form = new FormData();
+    form.set("tenant_id", UUID);
+    form.set("product_id", UUID);
+    form.set("rating", "5");
+    form.set("author_name", "Ali");
+    form.set("body", "great");
+    const res = await POST(new Request("http://x/api/reviews", { method: "POST", body: form }));
+    expect(res.status).toBe(429);
+    expect(createSupabaseServiceClient).not.toHaveBeenCalled();
+    expect(limiter.consumeRateLimit).toHaveBeenCalledWith(`reviews:ip:${UUID}:1.2.3.4`, 5, 3600, "fail-closed");
   });
 
   it("404s for an unknown product", async () => {

@@ -89,6 +89,12 @@ describe("ensureUniqueSlug", () => {
         );
     });
 
+    it("never gives a new store a platform-looking address", async () => {
+        await expect(ensureUniqueSlug("support")).resolves.toBe("store-support");
+        await expect(ensureUniqueSlug("admin")).resolves.toBe("store-admin");
+        await expect(ensureUniqueSlug("scheniders-official")).resolves.toBe("store-scheniders-official");
+    });
+
     it("fails loudly when a lookup fails instead of assuming the slug is free", async () => {
         db.failTable = "tenants";
         await expect(ensureUniqueSlug("noor")).rejects.toThrow(/slug/i);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServiceClient, verifyAccessToken } from "@/lib/supabase-server";
-import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { createSupabaseServiceClient } from "@/lib/supabase-server";
+import { requireRequestCaller } from "@/lib/auth/require-request-caller";
 import { normalizeIraqiPhone, STAFF_ALERT_SETTINGS_KEY, type StaffNumberEntry, type StaffAlertSettings } from "@/lib/staff-alerts";
 
 export const dynamic = "force-dynamic";
@@ -10,26 +10,17 @@ function getDefault(): StaffAlertSettings {
 }
 
 /**
- * Resolve the caller's tenant_id from the Authorization bearer token.
- * Returns { error: Response } if the token is missing/invalid; otherwise { tenantId }.
+ * Any active member may read the list; only a store admin may change it. The
+ * write goes through the service role, so this check is the only thing
+ * standing in for the admin-only RLS policy on app_settings.
  */
-async function resolveTenant(request: NextRequest): Promise<{ tenantId: string } | { error: NextResponse }> {
-    const auth = request.headers.get("Authorization");
-    const token = auth?.replace("Bearer ", "");
-    if (!token) {
-        return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-    }
-    const { user, error } = await verifyAccessToken(token);
-    if (error || !user) {
-        return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-    }
-    // current_tenant_id is accepted only while the caller is an active member
-    // of it with an active profile (resolveActiveTenant; F-087).
-    const active = await resolveActiveTenant(user.id);
-    if (!active.ok) {
-        return { error: NextResponse.json({ error: active.error }, { status: active.status }) };
-    }
-    return { tenantId: active.tenantId };
+async function resolveTenant(
+    request: NextRequest,
+    mode: "member" | "tenant-admin",
+): Promise<{ tenantId: string } | { error: NextResponse }> {
+    const caller = await requireRequestCaller(request, mode);
+    if (!caller.ok) return { error: caller.response };
+    return { tenantId: caller.tenantId };
 }
 
 async function readSettings(tenantId: string): Promise<StaffAlertSettings> {
@@ -62,7 +53,7 @@ async function writeSettings(tenantId: string, value: StaffAlertSettings) {
 }
 
 export async function GET(request: NextRequest) {
-    const r = await resolveTenant(request);
+    const r = await resolveTenant(request, "member");
     if ("error" in r) return r.error;
     try {
         return NextResponse.json(await readSettings(r.tenantId));
@@ -72,7 +63,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-    const r = await resolveTenant(request);
+    const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
         const body = await request.json();
@@ -113,7 +104,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-    const r = await resolveTenant(request);
+    const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
         const body = await request.json();
@@ -142,7 +133,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-    const r = await resolveTenant(request);
+    const r = await resolveTenant(request, "tenant-admin");
     if ("error" in r) return r.error;
     try {
         const phone = new URL(request.url).searchParams.get("phone") || "";
