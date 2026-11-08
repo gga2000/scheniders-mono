@@ -29,10 +29,10 @@ describe("roundDownCompact", () => {
 
 describe("formatCompactCount", () => {
   it("prefixes + only when the figure was rounded down", () => {
-    expect(formatCompactCount(2693)).toBe("+2600");
+    expect(formatCompactCount(2693)).toBe("+2,600");
     expect(formatCompactCount(18)).toBe("18");
     // Already on the step: nothing was dropped, so nothing is implied.
-    expect(formatCompactCount(2600)).toBe("2600");
+    expect(formatCompactCount(2600)).toBe("2,600");
   });
 
   it("returns null when there is nothing true to show", () => {

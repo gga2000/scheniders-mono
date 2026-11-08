@@ -459,6 +459,7 @@ export const STRINGS = {
         // control), so the chip must read as advice — not prohibition.
         blocks_chip: { en: "Blocks", ar: "يمنع النشر", ku: "ڕێگری لە بڵاوکردنەوە دەکات" },
         warn_chip: { en: "Recommended", ar: "ننصح بإصلاحه", ku: "پێشنیار دەکرێت" },
+        fail_chip: { en: "Problem", ar: "مشكلة", ku: "کێشە" },
         diff_heading: { en: "Changes since last publish", ar: "التغييرات منذ آخر نشر", ku: "گۆڕانکارییەکان لە دوایین بڵاوکردنەوەوە" },
         diff_first_publish: { en: "First publish — everything is new.", ar: "أول نشر — كل شيء جديد.", ku: "یەکەم بڵاوکردنەوە — هەموو شتێک نوێیە." },
         diff_no_changes: { en: "No content changes — config matches what's already live.", ar: "لا توجد تغييرات — الإعدادات مطابقة لما هو منشور.", ku: "هیچ گۆڕانکارییەک نییە — ڕێکخستنەکان لەگەڵ ئەوەی بڵاوکراوەتەوە یەکدەگرنەوە." },
@@ -978,10 +979,14 @@ export const STRINGS = {
         key_rules: { en: "Conditions", ar: "الشروط", ku: "مەرجەکان" },
         key_values: { en: "Values", ar: "القيم", ku: "بەهاکان" },
         key_sections: { en: "Sections", ar: "الأقسام", ku: "بەشەکان" },
+        key_meta: { en: "Search & sharing", ar: "الظهور في البحث والمشاركة", ku: "دەرکەوتن لە گەڕان و هاوبەشکردن" },
+        key_fee_iqd: { en: "Delivery fee (IQD)", ar: "أجرة التوصيل (د.ع)", ku: "کرێی گەیاندن (د.ع)" },
+        key_free_threshold_iqd: { en: "Free delivery from (IQD)", ar: "توصيل مجاني من (د.ع)", ku: "گەیاندنی بەخۆڕایی لە (د.ع)" },
         // Diff value words: on/off fields and a list of ids.
         value_on: { en: "On", ar: "مفعّل", ku: "چالاک" },
         value_off: { en: "Off", ar: "متوقف", ku: "ناچالاک" },
         // tFormat: {n}
+        value_iqd: { en: "{n} IQD", ar: "{n} د.ع", ku: "{n} د.ع" },
         value_reordered: { en: "The order changes.", ar: "سيتغيّر الترتيب.", ku: "ڕیزبەندی دەگۆڕێت." },
         value_items_swapped: { en: "Same number of items, but different ones.", ar: "العدد نفسه، لكن بعناصر مختلفة.", ku: "هەمان ژمارە، بەڵام بڕگەی جیاواز." },
         value_items_n: { en: "{n} items", ar: "{n} عناصر", ku: "{n} بڕگە" },
@@ -1253,6 +1258,8 @@ export const STRINGS = {
         health_items_to_address_one: { en: "{n} item blocks publishing.", ar: "عنصر واحد يمنع النشر.", ku: "{n} بابەت ڕێگری لە بڵاوکردنەوە دەکات." },
         health_items_to_address_other: { en: "{n} items block publishing.", ar: "عناصر تمنع النشر: {n}", ku: "{n} بابەت ڕێگری لە بڵاوکردنەوە دەکەن." },
         // tFormat: {n} — open checks that do not stop publishing.
+        health_problems_one: { en: "1 problem shoppers will notice. Fix it first.", ar: "مشكلة واحدة سيلاحظها الزبائن، أصلحها أولاً.", ku: "1 کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکی بکە." },
+        health_problems_other: { en: "{n} problems shoppers will notice. Fix them first.", ar: "مشاكل سيلاحظها الزبائن: {n}، أصلحها أولاً.", ku: "{n} کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکیان بکە." },
         health_suggestions_one: { en: "{n} suggestion to make the store better.", ar: "اقتراح واحد لتحسين المتجر.", ku: "{n} پێشنیار بۆ باشترکردنی فرۆشگا." },
         health_suggestions_other: { en: "{n} suggestions to make the store better.", ar: "اقتراحات لتحسين المتجر: {n}", ku: "{n} پێشنیار بۆ باشترکردنی فرۆشگا." },
         health_fix: { en: "Fix", ar: "إصلاح", ku: "چاککردن" },

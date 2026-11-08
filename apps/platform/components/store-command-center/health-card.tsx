@@ -131,6 +131,9 @@ export function HealthCard({ config, healthContext, isBrandNew = false, locale }
     // the hub never says "launch-ready" and "must fix before launch" at once.
     const blockingCount = blockingChecks(report).length;
     const suggestionCount = openChecks.length - blockingCount;
+    // Faults that don't stop Publish (e.g. unreadable colours) are still
+    // faults: name them as problems, not suggestions.
+    const problemCount = openChecks.filter((c) => c.status === "fail" && c.blocks_publish !== true).length;
     const band = healthBand(report);
     const label = BAND_LABEL[band];
 
@@ -158,7 +161,15 @@ export function HealthCard({ config, healthContext, isBrandNew = false, locale }
                                   locale,
                                   { n: blockingCount },
                               )
-                            : suggestionCount > 0
+                            : problemCount > 0
+                              ? tFormat(
+                                    problemCount === 1
+                                        ? STRINGS.command_center.health_problems_one
+                                        : STRINGS.command_center.health_problems_other,
+                                    locale,
+                                    { n: problemCount },
+                                )
+                              : suggestionCount > 0
                               ? tFormat(
                                     suggestionCount === 1
                                         ? STRINGS.command_center.health_suggestions_one
