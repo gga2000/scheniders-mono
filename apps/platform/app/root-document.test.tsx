@@ -40,6 +40,7 @@ vi.mock("@sentry/nextjs", () => ({ captureException: vi.fn() }));
 vi.mock("@/lib/env", () => ({}));
 vi.mock("@/components/layout/dashboard-layout", () => ({ DashboardLayout: Passthrough }));
 vi.mock("@/components/chat/chat-runtime", () => ({ ChatRuntime: Nothing }));
+vi.mock("@/components/merchant-guide/merchant-guide", () => ({ MerchantGuide: Nothing }));
 vi.mock("@/components/pwa/pwa-provider", () => ({ PWAProvider: Passthrough }));
 vi.mock("@/components/auth/auth-provider", () => ({ AuthProvider: Passthrough }));
 vi.mock("@/components/orders/new-order-alerts", () => ({ NewOrderAlerts: Nothing }));
