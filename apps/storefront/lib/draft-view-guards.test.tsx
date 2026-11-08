@@ -32,6 +32,11 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/capi", () => ({
   sendPurchaseCapi: vi.fn(),
 }));
+// The lockbox read is cached and service-role; the keys it adds do not
+// change whether a draft-view order reaches the ad networks.
+vi.mock("@/lib/capi-config", () => ({
+  withCapiKeys: vi.fn(async (base: Record<string, unknown>) => base),
+}));
 vi.mock("@/lib/capi-context", () => ({
   capiRequestContext: vi.fn(async () => ({})),
   visitorExternalIdHash: vi.fn(async () => null),

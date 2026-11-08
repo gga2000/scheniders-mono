@@ -4,10 +4,9 @@
 // PixelsScreen — marketing pixels + Conversions API (pixels R3)
 // =====================================================================
 // Edits config.globals.analytics_pixels.base (AnalyticsConfig). Pixel IDs are
-// public (rendered in the storefront <head>); CAPI tokens are server-only
-// secrets — they're redacted from the config before it reaches the browser
-// (redactServerOnlyConfig in the storefront tenant loader) and read only by
-// the checkout server action for the Conversions API.
+// public (rendered in the storefront <head>). The Conversions API send keys
+// are not part of the design at all: they live in a server-only lockbox and
+// the editor only sees "saved" and the last four characters (use-capi-keys).
 // =====================================================================
 
 import { useCallback } from "react";
@@ -16,10 +15,13 @@ import type { AnalyticsConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { CapiKeyField } from "./capi-key-field";
 import { ScreenHeader } from "./screen-header";
+import { useCapiKeys, type CapiNetwork } from "./use-capi-keys";
 
 export interface PixelsScreenProps {
     builder: UseStoreBuilderV2Return;
+    tenantId: string;
     onClose: () => void;
 }
 
@@ -36,7 +38,6 @@ const inputCls =
 type Field = {
     key: keyof AnalyticsConfig;
     label: EditorString;
-    secret?: boolean;
     placeholder?: string | EditorString;
 };
 
@@ -52,17 +53,25 @@ const ID_FIELDS: Field[] = [
     { key: "gtm_container_id", label: STRINGS.pixels.gtm_id, placeholder: "GTM-XXXXX" },
 ];
 
-const CAPI_FIELDS: Field[] = [
-    { key: "meta_capi_token", label: STRINGS.pixels.meta_capi, secret: true },
-    { key: "tiktok_capi_token", label: STRINGS.pixels.tiktok_capi, secret: true },
-    { key: "capi_test_event_code", label: STRINGS.pixels.meta_test_code, placeholder: "TESTxxxx" },
+const CAPI_KEYS: { network: CapiNetwork; label: EditorString }[] = [
+    { network: "meta", label: STRINGS.pixels.meta_capi },
+    { network: "tiktok", label: STRINGS.pixels.tiktok_capi },
 ];
+
+const TEST_CODE_FIELD: Field = {
+    key: "capi_test_event_code",
+    label: STRINGS.pixels.meta_test_code,
+    placeholder: "TESTxxxx",
+};
 
 export function PixelsScreen({
     builder,
+    tenantId,
     onClose,
 }: PixelsScreenProps): React.ReactElement {
     const locale = useEditorLocale();
+    const keys = useCapiKeys(tenantId);
+    const keysData = keys.status.data;
     const P = STRINGS.pixels;
     const tr = (v: string | EditorString | undefined): string | undefined =>
         v === undefined || typeof v === "string" ? v : t(v, locale);
@@ -99,7 +108,7 @@ export function PixelsScreen({
                 {tr(f.label)}
             </span>
             <input
-                type={f.secret ? "password" : "text"}
+                type="text"
                 autoComplete="off"
                 dir="ltr"
                 data-testid={`pixel-${f.key}`}
@@ -139,9 +148,38 @@ export function PixelsScreen({
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         {t(P.capi_group, locale)}
                     </p>
-                    {CAPI_FIELDS.map(renderField)}
+                    {keys.status.isPending ? (
+                        <p data-testid="capi-keys-loading" className="text-xs text-muted-foreground">
+                            {t(P.key_loading, locale)}
+                        </p>
+                    ) : keys.status.isError || !keysData ? (
+                        <p role="alert" className="flex items-center gap-2 text-xs text-red-600">
+                            {t(P.key_load_error, locale)}
+                            <button
+                                type="button"
+                                onClick={() => void keys.status.refetch()}
+                                className="font-semibold underline underline-offset-2"
+                            >
+                                {t(P.key_retry, locale)}
+                            </button>
+                        </p>
+                    ) : (
+                        CAPI_KEYS.map(({ network, label }) => (
+                            <CapiKeyField
+                                key={network}
+                                network={network}
+                                label={label}
+                                status={keysData[network]}
+                                pending={keys.save.isPending}
+                                onSave={async (token) => {
+                                    await keys.save.mutateAsync({ network, token });
+                                }}
+                            />
+                        ))
+                    )}
+                    {renderField(TEST_CODE_FIELD)}
                     <p dir="auto" className="text-xs text-muted-foreground">
-                        {t(P.capi_help, locale)}
+                        {t(P.capi_help, locale)} {t(P.key_locked_help, locale)}
                     </p>
                 </section>
             </div>

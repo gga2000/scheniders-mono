@@ -258,9 +258,13 @@ export interface AnalyticsConfig {
   snapchat_pixel_id?: string;
   /** Custom GTM container (overrides individual pixels if set). */
   gtm_container_id?: string;
-  /** Meta Conversions API access token (server-side Purchase dedup). */
+  /**
+   * Meta Conversions API access token. Never stored in the design: it lives
+   * in the server-only `tenant_capi_secrets` lockbox and the storefront
+   * server fills it in (withCapiKeys) just before sending.
+   */
   meta_capi_token?: string;
-  /** TikTok Events API access token (server-side Purchase dedup). */
+  /** TikTok Events API access token. Lockbox only, like meta_capi_token. */
   tiktok_capi_token?: string;
   /** Meta test_event_code for validating CAPI events in the dashboard. */
   capi_test_event_code?: string;

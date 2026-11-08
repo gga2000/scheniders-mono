@@ -91,7 +91,7 @@ export function SystemScreenRouter({
             ) : screen === "bundles" ? (
                 <BundlesScreen builder={builder} onClose={onClose} />
             ) : screen === "pixels" ? (
-                <PixelsScreen builder={builder} onClose={onClose} />
+                <PixelsScreen builder={builder} tenantId={tenantId} onClose={onClose} />
             ) : screen === "loyalty" ? (
                 <LoyaltyScreen builder={builder} onClose={onClose} />
             ) : screen === "order_status" ? (
