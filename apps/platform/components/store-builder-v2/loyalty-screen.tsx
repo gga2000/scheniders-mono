@@ -223,7 +223,7 @@ export function LoyaltyScreen({
                         <h3 id="referral-heading" className="text-left! text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             {t(L.referral_heading, locale)}
                         </h3>
-                        <p className="mt-1 max-w-prose text-left! text-xs text-muted-foreground">
+                        <p className="mt-1 text-left! text-xs text-muted-foreground">
                             {t(L.referral_intro, locale)}
                         </p>
                     </div>

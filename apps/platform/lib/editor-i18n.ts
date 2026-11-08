@@ -474,8 +474,6 @@ export const STRINGS = {
         global_newsletter_popup: { en: "Sign-up popup", ar: "نافذة الاشتراك", ku: "پەنجەرەی بەشداربوون" },
         global_analytics_pixels: { en: "Pixels & tracking", ar: "البكسلات والتتبّع", ku: "پیکسڵ و شوێنکەوتن" },
         // tFormat: {n}
-        diff_change_count_one: { en: "1 change", ar: "تغيير واحد", ku: "گۆڕانکارییەک" },
-        diff_change_count_many: { en: "{n} changes", ar: "التغييرات: {n}", ku: "{n} گۆڕانکاری" },
         diff_fields_one: { en: "1 field", ar: "حقل واحد", ku: "خانەیەک" },
         // tFormat: {n}
         diff_fields_many: { en: "{n} fields", ar: "الحقول: {n}", ku: "{n} خانە" },
@@ -983,6 +981,8 @@ export const STRINGS = {
         value_on: { en: "On", ar: "مفعّل", ku: "چالاک" },
         value_off: { en: "Off", ar: "متوقف", ku: "ناچالاک" },
         // tFormat: {n}
+        value_reordered: { en: "The order changes.", ar: "سيتغيّر الترتيب.", ku: "ڕیزبەندی دەگۆڕێت." },
+        value_items_swapped: { en: "Same number of items, but different ones.", ar: "العدد نفسه، لكن بعناصر مختلفة.", ku: "هەمان ژمارە، بەڵام بڕگەی جیاواز." },
         value_items_n: { en: "{n} items", ar: "{n} عناصر", ku: "{n} بڕگە" },
         key_code: { en: "Code", ar: "الكود", ku: "کۆد" },
         key_value: { en: "Value", ar: "القيمة", ku: "بەها" },
@@ -1616,7 +1616,7 @@ export const STRINGS = {
         disc_add_code: { en: "Add code", ar: "إضافة كود", ku: "زیادکردنی کۆد" },
         disc_intro: { en: "Coupon codes customers type at checkout: a percent off or a fixed amount (IQD).", ar: "أكواد خصم يكتبها الزبون عند الطلب: نسبة من السلة أو مبلغ ثابت (د.ع).", ku: "کۆدی داشکاندن کە کڕیار لە کاتی داواکردن دەینووسێت: ڕێژەیەک یان بڕێکی جێگیر (IQD)." },
         disc_empty: { en: "No codes yet — add your first", ar: "لا توجد أكواد بعد — أضف أول كود", ku: "هێشتا هیچ کۆدێک نییە — یەکەمیان زیاد بکە" },
-        disc_min_subtotal: { en: "Min subtotal (IQD)", ar: "الحد الأدنى للإجمالي (د.ع)", ku: "کەمترین کۆ" },
+        disc_min_subtotal: { en: "Min order (IQD)", ar: "أقل طلب (د.ع)", ku: "کەمترین کۆ" },
         disc_max_off: { en: "Max off (IQD)", ar: "أقصى خصم (د.ع)", ku: "زۆرترین داشکاندن" },
         disc_code_label: { en: "Code", ar: "الكود", ku: "کۆد" },
         disc_kind_label: { en: "Type", ar: "النوع", ku: "جۆر" },
