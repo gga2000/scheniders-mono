@@ -1,9 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { TurnstileBox, type TurnstileHandle } from "@scheniders/ui/turnstile";
+
+// Public Cloudflare Turnstile key. Unset = no box (only while Supabase CAPTCHA is off).
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +17,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const captchaRef = useRef<TurnstileHandle>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaReady = TURNSTILE_SITE_KEY === "" || captchaToken !== null;
 
   useEffect(() => {
     if (user) {
@@ -26,7 +33,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await signIn(email, password);
+      const result = await signIn(email, password, captchaToken ?? undefined);
       if (result.error) {
         setError(result.error);
       } else {
@@ -37,6 +44,7 @@ export default function LoginPage() {
       setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setLoading(false);
+      captchaRef.current?.reset();
     }
   };
 
@@ -105,9 +113,11 @@ export default function LoginPage() {
             />
           </div>
 
+          <TurnstileBox ref={captchaRef} siteKey={TURNSTILE_SITE_KEY} onToken={setCaptchaToken} language="en" />
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !captchaReady}
             className="w-full h-11 rounded-xl bg-[#1E1E1E] text-white font-semibold text-sm hover:bg-[#2D2D2D] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}

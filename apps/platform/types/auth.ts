@@ -34,10 +34,10 @@ export interface AuthContextType {
     profileLoaded: boolean;
     profileMissing: boolean; // signed in, but no user_profiles row (unprovisioned / not invited)
     clientReady: boolean; // Supabase client's internal session ready (not just React state)
-    signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+    signIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: AuthError | null }>;
     signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
-    resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+    resetPassword: (email: string, captchaToken?: string) => Promise<{ error: AuthError | null }>;
     updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
     signInWithGoogle: (returnTo?: string) => Promise<{ error: AuthError | null }>;
     linkGoogle: () => Promise<{ error: AuthError | null }>;

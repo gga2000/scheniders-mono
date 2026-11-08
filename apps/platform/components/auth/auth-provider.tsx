@@ -303,10 +303,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     // ── Auth actions ──
-    const signIn = useCallback(async (email: string, password: string) => {
+    const signIn = useCallback(async (email: string, password: string, captchaToken?: string) => {
         setIsLoading(true);
         try {
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
             return { error };
         } finally {
             setIsLoading(false);
@@ -332,9 +332,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    const resetPassword = useCallback(async (email: string) => {
+    const resetPassword = useCallback(async (email: string, captchaToken?: string) => {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
             redirectTo: `${window.location.origin}/reset-password`,
+            captchaToken,
         });
         return { error };
     }, []);
