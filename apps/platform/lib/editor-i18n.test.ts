@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
     STRINGS,
     countUntranslated,
+    sectionCount,
     listStringKeys,
     t,
     tFormat,
@@ -113,5 +114,20 @@ describe("STRINGS dictionary", () => {
     it("leaves few enough Kurdish strings untranslated (TODO budget)", () => {
         const n = countUntranslated("ku");
         expect(n).toBeLessThanOrEqual(5);
+    });
+});
+
+describe("sectionCount", () => {
+    it("uses the Arabic number forms", () => {
+        expect(sectionCount(1, "ar")).toBe("قسم واحد");
+        expect(sectionCount(2, "ar")).toBe("قسمان");
+        expect(sectionCount(5, "ar")).toBe("5 أقسام");
+        expect(sectionCount(10, "ar")).toBe("10 أقسام");
+        expect(sectionCount(11, "ar")).toBe("11 قسماً");
+        expect(sectionCount(0, "ar")).toBe("لا أقسام");
+    });
+    it("pluralises English", () => {
+        expect(sectionCount(1, "en")).toBe("1 section");
+        expect(sectionCount(3, "en")).toBe("3 sections");
     });
 });

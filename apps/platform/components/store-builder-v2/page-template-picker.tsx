@@ -26,7 +26,7 @@ import {
     templatesForPage,
     type PageTemplate,
 } from "@/lib/page-templates";
-import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
+import { STRINGS, sectionCount, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 export interface PageTemplatePickerProps {
@@ -237,9 +237,7 @@ export function PageTemplatePicker(
                                                 className="inline-flex h-5 shrink-0 items-center rounded-full bg-muted/60 px-1.5 text-[10px] font-semibold text-muted-foreground tabular-nums"
                                                 data-testid={`page-template-picker-card-${t.id}-count`}
                                             >
-                                                {t.sections.length === 1
-                                                    ? tx(STRINGS.page_template.card_count_one, locale)
-                                                    : tFormat(STRINGS.page_template.card_count_many, locale, { n: t.sections.length })}
+                                                {sectionCount(t.sections.length, locale)}
                                             </span>
                                         </div>
                                         <p className="line-clamp-2 text-xs text-foreground/80">

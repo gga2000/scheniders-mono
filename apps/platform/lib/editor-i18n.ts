@@ -68,6 +68,22 @@ export function tFormat(
     );
 }
 
+/**
+ * "N sections" with the right Arabic number form: لا أقسام, قسم واحد,
+ * قسمان, 3–10 أقسام, 11+ قسماً. One helper so every count in the editor reads alike.
+ */
+export function sectionCount(n: number, locale: LocaleCode): string {
+    if (n === 0) return locale === "ar" ? "لا أقسام" : locale === "ku" ? "هیچ بەشێک" : "No sections";
+    if (locale === "ar") {
+        if (n === 1) return "قسم واحد";
+        if (n === 2) return "قسمان";
+        if (n >= 3 && n <= 10) return `${n} أقسام`;
+        return `${n} قسماً`;
+    }
+    if (locale === "ku") return `${n} بەش`;
+    return n === 1 ? "1 section" : `${n} sections`;
+}
+
 /* ─────────────────────────────────────────────────────────────────── */
 /* STRINGS — grouped by editor area                                     */
 /* ─────────────────────────────────────────────────────────────────── */
@@ -597,6 +613,11 @@ export const STRINGS = {
     template_updates: {
         title: { en: "Template updates", ar: "تحديثات القالب", ku: "نوێکارییەکانی ڕووکار" },
         close: { en: "Close template updates", ar: "إغلاق تحديثات القالب", ku: "داخستنی نوێکارییەکان" },
+        subtitle: {
+            en: "New sections from the template your store started from.",
+            ar: "أقسام جديدة من القالب الذي بدأ منه متجرك.",
+            ku: "بەشە نوێیەکان لەو ڕووکارەی فرۆشگاکەت لێیەوە دەستی پێکرد.",
+        },
         intro: {
             en: "Your store's look came from {template}. When we improve it, the new sections show up here — you choose which to take. Nothing you wrote is ever replaced, and nothing is removed.",
             ar: "شكل متجرك مأخوذ من قالب {template}. عندما نطوّره تظهر الأقسام الجديدة هنا وتختار أنت ما تأخذه. لن تتغير أي كلمة كتبتها ولن يُحذف شيء.",
@@ -1219,8 +1240,6 @@ export const STRINGS = {
         pages_heading: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
         // tFormat: {n}
         pages_count: { en: "{n} pages", ar: "{n} صفحة", ku: "{n} پەڕە" },
-        pages_section_count_one: { en: "{n} section", ar: "قسم واحد", ku: "{n} بەش" },
-        pages_section_count_other: { en: "{n} sections", ar: "الأقسام: {n}", ku: "{n} بەش" },
         pages_empty: { en: "No pages configured. Open the editor to start.", ar: "لا توجد صفحات مُعدّة. افتح المحرّر للبدء.", ku: "هیچ پەڕەیەک ڕێکنەخراوە. دەستکاریکەر بکەرەوە بۆ دەستپێکردن." },
         pages_edit: { en: "Edit", ar: "تعديل", ku: "دەستکاری" },
         /* Quick-settings tiles */
@@ -1562,6 +1581,13 @@ export const STRINGS = {
         redir_issue_duplicate: { en: "Same source as rule {n}.", ar: "نفس الرابط القديم في القاعدة رقم {n}.", ku: "هەمان بەستەری کۆن لە ئاراستەکردنی ژمارە {n}." },
         redir_issue_chain: { en: "Destination is itself redirected, so visitors take two hops.", ar: "الرابط الجديد يُعاد توجيهه هو أيضاً، فيمرّ الزائر بخطوتين.", ku: "بەستەری نوێ خۆی ئاراستە کراوە، بۆیە سەردانکەر دوو جار دەگوازرێتەوە." },
         redir_permanent: { en: "Permanent (Google updates its link)", ar: "دائم (يحدّث جوجل الرابط)", ku: "هەمیشەیی (گووگڵ بەستەرەکە نوێ دەکاتەوە)" },
+        redir_col_from: { en: "Old link", ar: "الرابط القديم", ku: "بەستەری کۆن" },
+        redir_col_to: { en: "New link", ar: "الرابط الجديد", ku: "بەستەری نوێ" },
+        redir_permanent_hint: {
+            en: "Leave «Permanent» ticked when the old link is gone for good. Untick it for a short move, like a sale page you will bring back.",
+            ar: "اترك «دائم» مفعّلاً إذا انتهى الرابط القديم نهائياً. ألغِه لنقل مؤقت، مثل صفحة تخفيضات ستعيدها لاحقاً.",
+            ku: "«هەمیشەیی» هەڵبژێردراو بهێڵەوە ئەگەر بەستەری کۆن بۆ هەمیشە نەماوە. بۆ گواستنەوەی کاتی لای ببە، وەک پەڕەی داشکاندن کە دەیگەڕێنیتەوە.",
+        },
         redir_remove_aria: { en: "Remove redirect", ar: "إزالة القاعدة", ku: "لابردنی ئاراستەکردن" },
 
         // Bundles screen
@@ -1621,10 +1647,6 @@ export const STRINGS = {
         // tFormat: {n}
         warning_replace_one: { en: "This will replace 1 section already on this page. The original will be discarded.", ar: "سيستبدل هذا قسماً واحداً على هذه الصفحة. سيتم تجاهل الأصلي.", ku: "ئەمە بەشێکی ئەم پەڕەیە دەگۆڕێت. ئەو بەشە بنەڕەتییە لاندەبرێت." },
         warning_replace_many: { en: "This will replace {n} sections already on this page. The originals will be discarded.", ar: "سيحلّ هذا محل الأقسام الموجودة على هذه الصفحة (عددها: {n}). سيتم تجاهل الأصلية.", ku: "ئەمە {n} بەشی ئەم پەڕەیە دەگۆڕێت. ئەو بەشە بنەڕەتییەکان لاندەبرێن." },
-        // tFormat: {n}
-        card_count_one: { en: "1 section", ar: "قسم واحد", ku: "1 بەش" },
-        // tFormat: {n}
-        card_count_many: { en: "{n} sections", ar: "{n} أقسام", ku: "{n} بەش" },
         includes_count_one: { en: "Includes 1 section", ar: "يحتوي على قسم واحد", ku: "بەشێک لەخۆدەگرێت" },
         includes_count_many: { en: "Includes {n} sections", ar: "عدد الأقسام: {n}", ku: "{n} بەش لەخۆدەگرێت" },
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
@@ -1719,6 +1741,11 @@ export const STRINGS = {
     pixels: {
         heading: { en: "Pixels & tracking", ar: "البكسلات والتتبع", ku: "پیکسڵ و بەدواداچوون" },
         close: { en: "Close pixels", ar: "إغلاق البكسلات", ku: "داخستنی پیکسڵەکان" },
+        intro: {
+            en: "Tell Meta and TikTok about visits and orders so your ads reach buyers.",
+            ar: "أخبر ميتا وتيك توك بالزيارات والطلبات حتى تصل إعلاناتك لمن يشتري.",
+            ku: "سەردان و داواکارییەکان بە مێتا و تیکتۆک ڕابگەیەنە بۆ ئەوەی ڕیکلامەکانت بگەنە کڕیاران.",
+        },
         pixels_group: { en: "Pixels", ar: "البكسلات", ku: "پیکسڵەکان" },
         meta_placeholder: { en: "15–16 digit ID", ar: "رقم من 15–16 خانة", ku: "ژمارەی 15–16 ڕەقەمی" },
         tiktok_placeholder: { en: "one or more IDs, comma-separated", ar: "رقم أو أكثر، تفصل بينها فاصلة", ku: "یەک یان زیاتر، بە کۆما جیا بکەرەوە" },
@@ -1779,6 +1806,18 @@ export const STRINGS = {
         enable: { en: "Enable cart recovery", ar: "تشغيل استرجاع السلات", ku: "چالاککردنی گەڕاندنەوەی سەبەتە" },
         delay_label: { en: "Wait before messaging", ar: "الانتظار قبل الإرسال", ku: "چاوەڕوانی پێش ناردن" },
         delay_unit: { en: "(minutes, 5–1440)", ar: "(بالدقائق، 5–1440)", ku: "(بە خولەک، 5–1440)" },
+        preview_title: { en: "What the customer gets", ar: "ما يصل للزبون", ku: "ئەوەی دەگاتە کڕیار" },
+        preview_name: { en: "Greeting", ar: "التحية", ku: "سڵاو" },
+        preview_name_value: { en: "عميلنا العزيز", ar: "عميلنا العزيز", ku: "عميلنا العزيز" },
+        preview_items: { en: "Products", ar: "المنتجات", ku: "بەرهەمەکان" },
+        preview_items_value: { en: "what is in their cart, e.g. «Product A × 2، Product B»", ar: "ما في سلّته، مثلاً «منتج أ × 2، منتج ب»", ku: "ئەوەی لە سەبەتەکەیدایە، وەک «بەرهەمی A × 2، بەرهەمی B»" },
+        preview_total: { en: "Total", ar: "المجموع", ku: "کۆ" },
+        preview_total_value: { en: "the cart total, e.g. IQD 45,000", ar: "مجموع السلة، مثلاً IQD 45,000", ku: "کۆی سەبەتە، وەک IQD 45,000" },
+        preview_note: {
+            en: "These three fill your approved WhatsApp cart message. Each cart gets one message only, and only customers who left a valid phone number.",
+            ar: "هذه الثلاثة تُملأ في رسالة واتساب المعتمدة لاسترجاع السلة. كل سلة تصلها رسالة واحدة فقط، وفقط إذا ترك الزبون رقماً صحيحاً.",
+            ku: "ئەم سێیانە لە نامەی پەسەندکراوی واتسئاپی سەبەتە پڕ دەکرێنەوە. هەر سەبەتەیەک تەنها یەک نامە وەردەگرێت، تەنها ئەگەر ژمارەیەکی دروست بەجێهێشترابێت.",
+        },
     },
     custom_pages: {
         heading: { en: "Custom pages", ar: "صفحات مخصّصة", ku: "پەڕە تایبەتەکان" },
@@ -1807,8 +1846,6 @@ export const STRINGS = {
         // tFormat: {path}
         forwarded: { en: "Old link {path} now opens this page.", ar: "الرابط القديم {path} يفتح هذه الصفحة الآن.", ku: "بەستەری کۆن {path} ئێستا ئەم پەڕەیە دەکاتەوە." },
         forward_history: { en: "Forwarded old page address", ar: "إعادة توجيه رابط الصفحة القديم", ku: "گواستنەوەی بەستەری کۆنی پەڕە" },
-        // tFormat: {n}
-        section_count: { en: "Sections: {n}", ar: "الأقسام: {n}", ku: "بەشەکان: {n}" },
         is_guide: { en: "This page is a guide", ar: "هذه الصفحة دليل إرشادي", ku: "ئەم پەڕەیە ڕێنمایییە" },
         published: { en: "Published", ar: "تاريخ النشر", ku: "بەرواری بڵاوکردنەوە" },
         author: { en: "Author", ar: "الكاتب", ku: "نووسەر" },

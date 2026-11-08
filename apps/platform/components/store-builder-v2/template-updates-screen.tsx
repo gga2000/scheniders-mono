@@ -68,11 +68,12 @@ export function TemplateUpdatesScreen({ builder, onClose }: TemplateUpdatesScree
         <div data-testid="template-updates-screen" className="flex h-full w-full flex-col bg-background">
             <ScreenHeader
                 setting="template_updates"
+                subtitle={tx(s.subtitle, locale)}
                 onBack={onClose}
                 backTestId="template-updates-close"
             />
 
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-3xl">
                 {!plan ? (
                     <div
                         data-testid="template-updates-unknown"

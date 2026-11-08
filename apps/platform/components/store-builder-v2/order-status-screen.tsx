@@ -112,7 +112,7 @@ export function OrderStatusScreen({ builder, contact: rawContact, onClose }: Ord
                 backTestId="order-status-close"
             />
 
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5 *:max-w-3xl">
                 {!contact && (
                     <p role="status" data-testid="order-status-no-contact" className="max-w-prose text-xs text-amber-700">
                         {tx(STRINGS.order_status.no_contact, locale)}
@@ -205,8 +205,8 @@ export function OrderStatusScreen({ builder, contact: rawContact, onClose }: Ord
                                         testIdPrefix={`order-status-next-${stage}`}
                                     />
 
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <label className="flex items-center gap-2 text-sm text-foreground">
+                                    <div className="flex flex-wrap items-end gap-3">
+                                        <label className="flex flex-col items-start gap-1.5 text-left! text-sm font-medium text-foreground">
                                             {tx(STRINGS.order_status.field_cta, locale)}
                                             <select
                                                 data-testid={`order-status-cta-${stage}`}

@@ -129,11 +129,12 @@ export function PixelsScreen({
         >
             <ScreenHeader
                 setting="pixels"
+                subtitle={t(STRINGS.pixels.intro, locale)}
                 onBack={onClose}
                 backTestId="pixels-close"
             />
 
-            <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5 *:max-w-3xl">
                 <section className="flex flex-col gap-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground text-left!">
                         {t(P.pixels_group, locale)}

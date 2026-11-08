@@ -10,11 +10,13 @@
 // =====================================================================
 
 import { useCallback } from "react";
+import { MessageCircle } from "lucide-react";
 
 import type { CartRecoveryConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { cn } from "@/lib/utils";
 import { ScreenHeader } from "./screen-header";
 
 export interface CartRecoveryScreenProps {
@@ -63,7 +65,7 @@ export function CartRecoveryScreen({
                 backTestId="cart-recovery-close"
             />
 
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-2xl">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-3xl">
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-left! text-sm font-medium text-foreground">
@@ -77,7 +79,13 @@ export function CartRecoveryScreen({
                     />
                 </label>
 
-                <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
+                <label
+                    data-testid="cart-recovery-delay-row"
+                    className={cn(
+                        "flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3 transition-opacity",
+                        !enabled && "opacity-60",
+                    )}
+                >
                     <span className="text-left! text-sm text-foreground">
                         {t(C.delay_label, locale)}{" "}
                         <span className=" text-xs text-muted-foreground">
@@ -99,6 +107,36 @@ export function CartRecoveryScreen({
                         className={inputCls}
                     />
                 </label>
+
+                {/* What the message carries: the wording itself is the
+                    approved WhatsApp template; the app fills these three. */}
+                <section
+                    data-testid="cart-recovery-preview"
+                    className={cn(
+                        "rounded-xl border border-(--card-border) bg-(--card-bg) p-3 transition-opacity",
+                        !enabled && "opacity-60",
+                    )}
+                >
+                    <h3 className="text-left! inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                        <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t(C.preview_title, locale)}
+                    </h3>
+                    <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                        {(
+                            [
+                                [C.preview_name, C.preview_name_value],
+                                [C.preview_items, C.preview_items_value],
+                                [C.preview_total, C.preview_total_value],
+                            ] as const
+                        ).map(([label, value]) => (
+                            <div key={label.en} className="contents">
+                                <dt className="text-left! text-muted-foreground">{t(label, locale)}</dt>
+                                <dd className="text-left! text-foreground">{t(value, locale)}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                    <p className="mt-2 text-left! text-xs text-muted-foreground">{t(C.preview_note, locale)}</p>
+                </section>
             </div>
         </div>
     );

@@ -38,4 +38,20 @@ describe("CartRecoveryScreen", () => {
         });
         expect(applyLast(setConfig, config).commerce?.cart_recovery?.delay_minutes).toBe(120);
     });
+
+    it("shows what the customer gets, dimmed while recovery is off", () => {
+        const { builder } = makeBuilder({ enabled: false });
+        render(<CartRecoveryScreen builder={builder} onClose={() => {}} />);
+        const preview = screen.getByTestId("cart-recovery-preview");
+        expect(preview.textContent).toContain("عميلنا العزيز");
+        expect(preview.className).toContain("opacity-60");
+        expect(screen.getByTestId("cart-recovery-delay-row").className).toContain("opacity-60");
+    });
+
+    it("drops the dimming once recovery is on", () => {
+        const { builder } = makeBuilder({ enabled: true });
+        render(<CartRecoveryScreen builder={builder} onClose={() => {}} />);
+        expect(screen.getByTestId("cart-recovery-preview").className).not.toContain("opacity-60");
+        expect(screen.getByTestId("cart-recovery-delay-row").className).not.toContain("opacity-60");
+    });
 });

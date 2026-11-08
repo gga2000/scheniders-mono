@@ -164,7 +164,7 @@ export function LoyaltyScreen({
                 backTestId="loyalty-close"
             />
 
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-2xl">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-3xl">
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-left! text-sm font-medium text-foreground">
@@ -207,7 +207,7 @@ export function LoyaltyScreen({
                 {summary ? (
                     <p
                         data-testid="loyalty-summary"
-                        className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-left! text-sm text-foreground"
+                        className="border-l-2 border-primary/60 py-1 pl-3 text-left! text-sm text-foreground"
                     >
                         {summary}
                     </p>
