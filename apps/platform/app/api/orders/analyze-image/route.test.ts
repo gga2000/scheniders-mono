@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const perm = vi.hoisted(() => ({ allowed: true }));
 vi.mock("@/lib/supabase-server", () => ({
     verifyAccessToken: vi.fn(),
+    createSupabaseServerClientWithToken: () => ({
+        rpc: async () => ({ data: perm.allowed, error: null }),
+    }),
 }));
 vi.mock("@/lib/auth/resolve-active-tenant", () => ({
     resolveActiveTenant: vi.fn(async () => ({ ok: true, tenantId: "t1", role: "employee", platformAdmin: false })),
@@ -44,6 +48,15 @@ describe("POST /api/orders/analyze-image", () => {
         vi.mocked(resolveActiveTenant).mockResolvedValueOnce({ ok: false, status: 403, error: "No store" } as never);
         const res = await POST(req() as never);
         expect(res.status).toBe(403);
+        expect(extractOrderFromImage).not.toHaveBeenCalled();
+    });
+
+    it("403s a member without orders.create, before charging the meter", async () => {
+        perm.allowed = false;
+        const res = await POST(req() as never);
+        perm.allowed = true;
+        expect(res.status).toBe(403);
+        expect(consumeRateLimit).not.toHaveBeenCalled();
         expect(extractOrderFromImage).not.toHaveBeenCalled();
     });
 

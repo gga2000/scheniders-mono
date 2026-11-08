@@ -11,8 +11,8 @@ import { followUpStamp, senderDisplayName } from "@/lib/follow-up-state";
 import { ORDER_READ_COLUMNS } from "@/lib/repositories/order-columns";
 
 /**
- * Hand sends per store per hour. The busiest real hour so far was 17
- * (whatsapp_logs, 2026-11-08), so 120 never stops real work while bounding
+ * Hand sends per store per hour. The busiest real hour so far was 33
+ * (whatsapp_logs, 2026-11-08), so 120 leaves room for bulk sends while bounding
  * what one compromised staff login can spend on the store's WhatsApp bill.
  */
 const MANUAL_SENDS_PER_STORE_PER_HOUR = 120;
@@ -50,29 +50,18 @@ const supabaseAdmin = () => (_supabaseAdmin ??= createSupabaseServiceClient());
  */
 export async function POST(request: NextRequest) {
     try {
-        // A paid send: only an active store member, metered per store, failing
+        // A paid send: only a store member who may edit orders (viewers are
+        // refused before anything is charged), metered per store, failing
         // closed when the meter is down.
         const caller = await requireMeteredCaller(request, {
             bucket: "wa-manual-send",
             limit: MANUAL_SENDS_PER_STORE_PER_HOUR,
             windowSeconds: 3600,
+            permission: "orders.edit",
         });
         if (!caller.ok) return caller.response;
         const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
         const userClient = createSupabaseServerClientWithToken(token);
-
-        // Messaging a customer is order work: a read-only viewer may not.
-        const { data: canEdit, error: permError } = await userClient.rpc("has_tenant_permission", {
-            p_tenant_id: caller.tenantId,
-            p_permission: "orders.edit",
-        });
-        if (permError) {
-            console.error("[Interakt Send API] permission check failed:", permError);
-            return NextResponse.json({ success: false, error: "Permission check failed" }, { status: 500 });
-        }
-        if (canEdit !== true) {
-            return NextResponse.json({ success: false, error: "Your role cannot send messages" }, { status: 403 });
-        }
 
         const parsed = sendBodySchema.safeParse(await request.json());
         if (!parsed.success) {
@@ -103,6 +92,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { success: false, error: "Test orders never send WhatsApp messages" },
                 { status: 422 }
+            );
+        }
+
+        // A custom price is a discount: it can never exceed what the order costs.
+        if (customPrice !== undefined && customPrice > order.price) {
+            return NextResponse.json(
+                { success: false, error: "Custom price cannot be higher than the order total" },
+                { status: 400 }
             );
         }
 
