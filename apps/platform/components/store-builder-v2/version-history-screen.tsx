@@ -36,11 +36,11 @@ import type {
 import { cn } from "@/lib/utils";
 import {
     diffJson,
-    formatPath,
     groupDiffByTop,
     type DiffEntry,
 } from "./config-diff";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
+import { describeDiffPath, isSecretDiffPath } from "./diff-path-label";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -378,6 +378,7 @@ export function VersionHistoryScreen({
                     ) : !versions || versions.length === 0 ? (
                         <div
                             data-testid="version-history-empty"
+                            dir="auto"
                             className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center"
                         >
                             <div className="text-sm font-medium">
@@ -473,7 +474,7 @@ export function VersionHistoryScreen({
                     className="flex flex-col overflow-y-auto bg-background"
                 >
                     {!selected ? (
-                        <div className="flex h-full items-center justify-center p-8 text-center text-sm text-foreground/80">
+                        <div dir="auto" className="flex h-full items-center justify-center p-8 text-center text-sm text-foreground/80">
                             {t(STRINGS.version_history.select_to_view, locale)}
                         </div>
                     ) : (
@@ -527,7 +528,10 @@ export function VersionHistoryScreen({
                             </div>
 
                             {/* Diff */}
-                            <DiffView entries={diff ?? []} />
+                            <DiffView
+                                entries={diff ?? []}
+                                configs={selectedConfig ? [builder.config, selectedConfig] : [builder.config]}
+                            />
                         </div>
                     )}
                 </section>
@@ -667,9 +671,11 @@ function diffGroupLabel(key: string): EditorString {
 
 interface DiffViewProps {
     entries: DiffEntry[];
+    /** Draft + compared version, used to name pages and sections. */
+    configs: readonly StoreConfigV2[];
 }
 
-function DiffView({ entries }: DiffViewProps): ReactElement {
+function DiffView({ entries, configs }: DiffViewProps): ReactElement {
     const locale = useEditorLocale();
     const grouped = useMemo(() => groupDiffByTop(entries), [entries]);
     const keys = useMemo(() => Object.keys(grouped).sort(), [grouped]);
@@ -678,6 +684,7 @@ function DiffView({ entries }: DiffViewProps): ReactElement {
         return (
             <div
                 data-testid="version-history-diff-empty"
+                dir="auto"
                 className="rounded-xl border border-dashed border-(--card-border) p-6 text-center text-sm text-foreground/80"
             >
                 {t(STRINGS.version_history.diff_empty, locale)}
@@ -698,7 +705,7 @@ function DiffView({ entries }: DiffViewProps): ReactElement {
                     </div>
                     <ul className="space-y-1">
                         {grouped[key].map((e, i) => (
-                            <DiffRow key={`${key}-${i}`} entry={e} />
+                            <DiffRow key={`${key}-${i}`} entry={e} configs={configs} />
                         ))}
                     </ul>
                 </div>
@@ -707,8 +714,17 @@ function DiffView({ entries }: DiffViewProps): ReactElement {
     );
 }
 
-function DiffRow({ entry }: { entry: DiffEntry }): ReactElement {
+function DiffRow({
+    entry,
+    configs,
+}: {
+    entry: DiffEntry;
+    configs: readonly StoreConfigV2[];
+}): ReactElement {
     const locale = useEditorLocale();
+    const parts = describeDiffPath(entry.path, configs, locale);
+    const where = parts.length > 0 ? parts.join(" › ") : t(diffGroupLabel(entry.path[0] ?? ""), locale);
+    const secret = isSecretDiffPath(entry.path);
     const tone =
         entry.kind === "added"
             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
@@ -734,23 +750,25 @@ function DiffRow({ entry }: { entry: DiffEntry }): ReactElement {
                 <span className="rounded-sm bg-background/40 px-1 text-[10px] font-semibold uppercase tracking-wider">
                     {label}
                 </span>
-                <code dir="ltr" className="font-mono text-[11px] opacity-90">{formatPath(entry.path)}</code>
+                <span dir="auto" className="text-[12px] font-medium">{where}</span>
             </div>
             {entry.kind === "changed" && (
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
-                        <code dir="ltr">{previewValue(entry.before)}</code>
+                        <code dir="ltr">{secret ? SECRET_MASK : previewValue(entry.before)}</code>
                     </div>
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_after, locale)}</span>{" "}
-                        <code dir="ltr">{previewValue(entry.after)}</code>
+                        <code dir="ltr">{secret ? SECRET_MASK : previewValue(entry.after)}</code>
                     </div>
                 </div>
             )}
         </li>
     );
 }
+
+const SECRET_MASK = "••••••";
 
 function previewValue(v: unknown): string {
     if (v === undefined) return "undefined";

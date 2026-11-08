@@ -1,7 +1,6 @@
 "use client";
 
 import { ShoppingBag, Banknote, TrendingUp } from "lucide-react";
-import { formatIQD } from "@scheniders/shared";
 import type { LocaleCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
@@ -52,6 +51,9 @@ export function KpiStrip({ analytics, isLoading, isError = false, locale }: KpiS
     const revenue = analytics?.revenue ?? 0;
     const aov = orderCount > 0 ? revenue / orderCount : null;
     const last7Days = t(STRINGS.command_center.kpi_last_7_days, locale);
+    // Whole dinars with Latin digits and the same currency word the editor uses.
+    const formatMoney = (amount: number): string =>
+        `${Math.round(amount).toLocaleString("en-US")} ${t(STRINGS.advanced_chrome.seg_iqd, locale)}`;
 
     return (
         <div className="grid grid-cols-3 gap-3">
@@ -65,7 +67,7 @@ export function KpiStrip({ analytics, isLoading, isError = false, locale }: KpiS
             />
             <KpiCard
                 label={t(STRINGS.command_center.kpi_revenue, locale)}
-                value={isLoading || isError ? "—" : formatIQD(revenue)}
+                value={isLoading || isError ? "—" : formatMoney(revenue)}
                 icon={<Banknote className="h-4 w-4" />}
                 tint="bg-emerald-100 text-emerald-700"
                 sub={last7Days}
@@ -73,7 +75,7 @@ export function KpiStrip({ analytics, isLoading, isError = false, locale }: KpiS
             />
             <KpiCard
                 label={t(STRINGS.command_center.kpi_aov, locale)}
-                value={isLoading || isError ? "—" : aov !== null ? formatIQD(aov) : "—"}
+                value={isLoading || isError ? "—" : aov !== null ? formatMoney(aov) : "—"}
                 icon={<TrendingUp className="h-4 w-4" />}
                 tint="bg-violet-100 text-violet-700"
                 sub={isError ? undefined : orderCount === 0 ? t(STRINGS.command_center.kpi_no_orders_yet, locale) : last7Days}

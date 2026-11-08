@@ -328,9 +328,6 @@ export function SegmentsScreen({
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="mt-1 text-[10px] text-muted-foreground">
-                                            {t(STRINGS.advanced_chrome.seg_visitors_label, locale)} <span className="font-medium">—</span>
-                                        </div>
                                     </button>
                                 </li>
                             ))}
@@ -669,8 +666,9 @@ function RuleConfig({ rule, index, onChange }: RuleConfigProps): ReactElement | 
                                         ? "border-primary/40 bg-primary/10 text-primary"
                                         : "border-(--card-border) text-muted-foreground hover:bg-black/5",
                                 )}
+                                aria-pressed={selected}
                             >
-                                {g.code}
+                                {locale === "ar" ? g.name : locale === "ku" ? g.name_ku : g.name_en}
                             </button>
                         );
                     })}

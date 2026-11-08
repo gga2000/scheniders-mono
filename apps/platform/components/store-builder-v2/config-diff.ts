@@ -163,21 +163,6 @@ export function summarizeDiff(entries: DiffEntry[]): DiffSummary {
     return { added, removed, changed };
 }
 
-export function formatPath(path: string[]): string {
-    if (path.length === 0) return "(root)";
-    let out = "";
-    for (const segment of path) {
-        if (/^\d+$/.test(segment)) {
-            out += `[${segment}]`;
-        } else if (out === "") {
-            out = segment;
-        } else {
-            out += `.${segment}`;
-        }
-    }
-    return out;
-}
-
 /** Group diff entries by a stable top-level bucket (first path segment). */
 export function groupDiffByTop(entries: DiffEntry[]): Record<string, DiffEntry[]> {
     const out: Record<string, DiffEntry[]> = {};
