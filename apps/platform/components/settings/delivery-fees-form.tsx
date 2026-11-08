@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { useEffect, useState } from "react";
 import { useSettings } from "@/hooks/use-settings";
 import { Save, MapPin } from "lucide-react";
@@ -10,6 +11,7 @@ import { DELIVERY_FEE_GOVERNORATES as IRAQ_GOVERNORATES } from "@/lib/governorat
 
 
 export function DeliveryFeesForm() {
+    const { t } = useLanguage();
     const { settings, updateSetting, loading } = useSettings();
     const [govFees, setGovFees] = useState<Record<string, number>>({});
     const [defaultFee, setDefaultFee] = useState<number>(8000);
@@ -71,7 +73,7 @@ export function DeliveryFeesForm() {
             g.nameAr.includes(govSearch)
     );
 
-    if (loading) return <div className="text-sm text-muted-foreground">Loading...</div>;
+    if (loading) return <div className="text-sm text-muted-foreground">{t("settings.fees.loading")}</div>;
 
     return (
         <div className="space-y-4">
@@ -80,7 +82,7 @@ export function DeliveryFeesForm() {
                 <MapPin className="h-3.5 w-3.5 text-teal-600 shrink-0" />
                 <input
                     type="number"
-                    placeholder="Amount (IQD)"
+                    placeholder={t("settings.fees.amount")}
                     value={bulkValue}
                     onChange={(e) => setBulkValue(e.target.value)}
                     className="flex-1 h-8 rounded-lg border border-(--card-border) bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-(--pastel-mint)"
@@ -90,21 +92,21 @@ export function DeliveryFeesForm() {
                     disabled={!bulkValue}
                     className="h-8 px-3 rounded-lg bg-(--pastel-mint) text-teal-800 text-xs font-medium hover:opacity-80 disabled:opacity-40 transition-opacity whitespace-nowrap"
                 >
-                    All
+                    {t("settings.fees.all")}
                 </button>
                 <button
                     onClick={applyBulkToProvinces}
                     disabled={!bulkValue}
                     className="h-8 px-3 rounded-lg bg-(--pastel-blue) text-blue-800 text-xs font-medium hover:opacity-80 disabled:opacity-40 transition-opacity whitespace-nowrap"
                 >
-                    Provinces
+                    {t("settings.fees.provinces")}
                 </button>
             </div>
 
             {/* Governorate search */}
             <input
                 type="text"
-                placeholder="Search governorate..."
+                placeholder={t("settings.fees.search")}
                 value={govSearch}
                 onChange={(e) => setGovSearch(e.target.value)}
                 className="w-full h-8 rounded-xl border border-(--card-border) bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-(--pastel-blue)"
@@ -126,7 +128,7 @@ export function DeliveryFeesForm() {
                             <span className="text-xs text-muted-foreground">{g.nameAr}</span>
                             {g.capital && (
                                 <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">
-                                    Capital
+                                    {t("settings.fees.capital")}
                                 </span>
                             )}
                         </div>
@@ -149,7 +151,7 @@ export function DeliveryFeesForm() {
             <div className="grid grid-cols-2 gap-3 pt-3 border-t border-(--card-border)">
                 <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Default fee (fallback)
+                        {t("settings.fees.default")}
                     </label>
                     <div className="flex items-center gap-1.5">
                         <input
@@ -163,14 +165,14 @@ export function DeliveryFeesForm() {
                 </div>
                 <div className="space-y-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Free shipping threshold
+                        {t("settings.fees.freeFrom")}
                     </label>
                     <div className="flex items-center gap-1.5">
                         <input
                             type="number"
                             value={freeShipping}
                             onChange={(e) => setFreeShipping(Number(e.target.value))}
-                            placeholder="0 = disabled"
+                            placeholder={t("settings.fees.freeOff")}
                             className="w-full h-9 rounded-xl border border-(--card-border) bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-(--pastel-mint)"
                         />
                         <span className="text-xs text-muted-foreground shrink-0">IQD</span>
@@ -183,7 +185,7 @@ export function DeliveryFeesForm() {
                 disabled={isSaving}
                 className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold bg-(--button-success) text-white hover:bg-(--button-success-hover) disabled:opacity-50 transition-colors"
             >
-                {isSaving ? "Saving..." : <><Save className="h-4 w-4" /> Save Delivery Fees</>}
+                {isSaving ? t("settings.fees.saving") : <><Save className="h-4 w-4" /> {t("settings.fees.save")}</>}
             </button>
         </div>
     );

@@ -10,6 +10,7 @@ import {
     type TelegramLinkStatus,
 } from "@/app/actions/telegram-link";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
 
 interface Props {
     userProfileId: string;
@@ -21,6 +22,7 @@ const BOT_HANDLE = "Scheniderbot";
 
 export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }: Props) {
     const { tenantId, session } = useAuth();
+    const { t } = useLanguage();
     const [status, setStatus] = useState<TelegramLinkStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -43,30 +45,30 @@ export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }:
 
     const onGenerate = async () => {
         if (!tenantId) {
-            toast.error("Tenant context required");
+            toast.error(t("settings.tg.noTenant"));
             return;
         }
         setGenerating(true);
         const res = await generateTelegramLinkCodeAction(userProfileId, tenantId, currentAdminId, session?.access_token ?? "");
         setGenerating(false);
         if (res.success) {
-            toast.success("تم توليد كود الربط");
+            toast.success(t("settings.tg.generated"));
             await refresh();
         } else {
-            toast.error(res.error || "Failed to generate code");
+            toast.error(res.error || t("settings.tg.generateFailed"));
         }
     };
 
     const onUnlink = async () => {
-        if (!confirm(`فك ربط ${displayName} عن تليكرام؟`)) return;
+        if (!confirm(t("settings.tg.unlinkConfirm", { name: displayName }))) return;
         setUnlinking(true);
         const res = await unlinkTelegramAction(userProfileId, tenantId, session?.access_token ?? "");
         setUnlinking(false);
         if (res.success) {
-            toast.success("تم فك الربط");
+            toast.success(t("settings.tg.unlinked"));
             await refresh();
         } else {
-            toast.error(res.error || "Failed to unlink");
+            toast.error(res.error || t("settings.tg.unlinkFailed"));
         }
     };
 
@@ -76,9 +78,9 @@ export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }:
             await navigator.clipboard.writeText(text);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
-            toast.success("تم النسخ");
+            toast.success(t("settings.tg.copied"));
         } catch {
-            toast.error("Couldn't copy");
+            toast.error(t("settings.tg.copyFailed"));
         }
     };
 
@@ -86,13 +88,13 @@ export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }:
         <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
                 <Send className="w-4 h-4 text-sky-500" />
-                Telegram Bot
+                {t("settings.tg.title")}
             </label>
             <div className="rounded-xl border border-border bg-background p-4">
                 {loading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading…
+                        {t("common.loading")}
                     </div>
                 ) : status?.linked ? (
                     <LinkedView status={status} onUnlink={onUnlink} unlinking={unlinking} />
@@ -110,25 +112,25 @@ export function TelegramLinkCard({ userProfileId, currentAdminId, displayName }:
                 )}
             </div>
             <p className="text-xs text-muted-foreground">
-                ربط حساب الموظف ببوت{" "}
+                {t("settings.tg.hintBefore")}{" "}
                 <a href={`https://t.me/${BOT_HANDLE}`} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">
                     @{BOT_HANDLE}
                 </a>{" "}
-                ليرسل صور المحادثات ويُنشئ طلبات تلقائياً.
+                {t("settings.tg.hintAfter")}
             </p>
         </div>
     );
 }
 
 function NoLinkView({ onGenerate, generating }: { onGenerate: () => void; generating: boolean }) {
+    const { t } = useLanguage();
     return (
         <div className="flex items-center justify-between gap-3">
             <div className="text-sm">
-                <p className="font-medium">Not linked</p>
+                <p className="font-medium">{t("settings.tg.notLinked")}</p>
                 <p className="text-muted-foreground">
-                    Generate a one-time code, share it with the employee, and they message{" "}
+                    {t("settings.tg.howTo")}{" "}
                     <span className="font-mono mx-1">/start CODE</span>
-                    to the bot.
                 </p>
             </div>
             <button
@@ -137,7 +139,7 @@ function NoLinkView({ onGenerate, generating }: { onGenerate: () => void; genera
                 className="shrink-0 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
             >
                 {generating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Generate code
+                {t("settings.tg.generate")}
             </button>
         </div>
     );
@@ -158,21 +160,22 @@ function ActiveCodeView({
     copied: boolean;
     onCopy: (code: string) => void;
 }) {
-    const expiresIn = formatExpiresIn(expiresAt);
+    const { t } = useLanguage();
+    const expiresIn = formatExpiresIn(expiresAt, t("settings.tg.expired"));
     return (
         <div className="space-y-3">
             <div className="text-sm">
-                <p className="font-medium text-amber-700 dark:text-amber-400">Code generated — not yet used</p>
-                <p className="text-muted-foreground">Send the employee these instructions. The code expires in {expiresIn}.</p>
+                <p className="font-medium text-amber-700 dark:text-amber-400">{t("settings.tg.codeReady")}</p>
+                <p className="text-muted-foreground">{t("settings.tg.codeHint", { time: expiresIn })}</p>
             </div>
             <div className="rounded-lg bg-muted/40 border border-border/60 p-3 font-mono text-sm">
-                <div className="text-xs text-muted-foreground mb-1">Open</div>
+                <div className="text-xs text-muted-foreground mb-1">{t("settings.tg.open")}</div>
                 <div className="mb-2">
                     <a href={`https://t.me/${BOT_HANDLE}`} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">
                         t.me/{BOT_HANDLE}
                     </a>
                 </div>
-                <div className="text-xs text-muted-foreground mb-1">And send</div>
+                <div className="text-xs text-muted-foreground mb-1">{t("settings.tg.andSend")}</div>
                 <div className="flex items-center justify-between gap-2 bg-background rounded-md border border-border px-3 py-2">
                     <span className="select-all">/start {code}</span>
                     <button
@@ -180,7 +183,7 @@ function ActiveCodeView({
                         className="text-sky-600 hover:text-sky-700 inline-flex items-center gap-1 text-xs font-medium font-sans"
                     >
                         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        {copied ? "Copied" : "Copy"}
+                        {copied ? t("settings.tg.copiedShort") : t("settings.tg.copy")}
                     </button>
                 </div>
             </div>
@@ -190,7 +193,7 @@ function ActiveCodeView({
                     disabled={generating}
                     className="text-xs text-muted-foreground hover:text-foreground underline disabled:opacity-50"
                 >
-                    {generating ? "Regenerating…" : "Generate a new code (invalidates this one)"}
+                    {generating ? t("settings.tg.regenerating") : t("settings.tg.regenerate")}
                 </button>
             </div>
         </div>
@@ -206,16 +209,17 @@ function LinkedView({
     onUnlink: () => void;
     unlinking: boolean;
 }) {
+    const { t } = useLanguage();
     return (
         <div className="flex items-center justify-between gap-3">
             <div className="text-sm min-w-0">
                 <p className="font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
                     <Check className="w-3.5 h-3.5" />
-                    Linked
+                    {t("settings.tg.linked")}
                 </p>
                 <p className="text-muted-foreground truncate">
-                    {status.telegram_username ? `@${status.telegram_username}` : `Telegram ID ${status.telegram_user_id}`}
-                    {status.linked_at && <span className="opacity-70"> · since {new Date(status.linked_at).toLocaleDateString()}</span>}
+                    {status.telegram_username ? `@${status.telegram_username}` : t("settings.tg.id", { id: String(status.telegram_user_id) })}
+                    {status.linked_at && <span className="opacity-70"> · {t("settings.tg.since", { date: new Date(status.linked_at).toLocaleDateString() })}</span>}
                 </p>
             </div>
             <button
@@ -224,15 +228,15 @@ function LinkedView({
                 className="shrink-0 px-3 py-2 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 text-sm font-medium hover:bg-rose-500/20 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
             >
                 {unlinking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlink className="w-3.5 h-3.5" />}
-                Unlink
+                {t("settings.tg.unlink")}
             </button>
         </div>
     );
 }
 
-function formatExpiresIn(expiresAt: string): string {
+function formatExpiresIn(expiresAt: string, expiredLabel: string): string {
     const diffMs = new Date(expiresAt).getTime() - Date.now();
-    if (diffMs <= 0) return "expired";
+    if (diffMs <= 0) return expiredLabel;
     const hours = Math.floor(diffMs / (60 * 60 * 1000));
     if (hours > 1) return `${hours}h`;
     const minutes = Math.floor(diffMs / (60 * 1000));
