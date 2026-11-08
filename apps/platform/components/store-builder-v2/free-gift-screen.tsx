@@ -12,12 +12,13 @@
 // =====================================================================
 
 import { useCallback } from "react";
-import { X, Gift } from "lucide-react";
+
 import { resolveFreeGift, type FreeGiftRewardConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t as tx } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ProductPickerField } from "./resource-picker";
+import { ScreenHeader } from "./screen-header";
 
 export interface FreeGiftScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -59,19 +60,13 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
 
     return (
         <div data-testid="free-gift-screen" className="flex h-full w-full flex-col bg-background">
-            <header className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <button
-                    type="button"
-                    aria-label={tx(STRINGS.free_gift.close, locale)}
-                    data-testid="free-gift-close"
-                    onClick={onClose}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-                <Gift className="h-4 w-4 text-pink-600" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">{tx(STRINGS.free_gift.title, locale)}</h2>
-            </header>
+            <ScreenHeader
+                setting="free_gift"
+                title={tx(STRINGS.free_gift.title, locale)}
+                onBack={onClose}
+                backLabel={tx(STRINGS.free_gift.close, locale)}
+                backTestId="free-gift-close"
+            />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
                 <p className="max-w-prose text-xs text-muted-foreground">{tx(STRINGS.free_gift.intro, locale)}</p>

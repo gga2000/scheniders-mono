@@ -12,7 +12,7 @@
 // =====================================================================
 
 import { useMemo, useState, type ReactElement } from "react";
-import { AlertTriangle, CheckCircle2, ChevronLeft, ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 import type {
     FixAction,
     HealthCategory,
@@ -31,6 +31,7 @@ import { CHECK_COPY, CHECK_PASSED_COPY, checkCopyFixLabel } from "@/lib/health-c
 import { getPageLabel } from "./page-tree";
 import type { LocaleCode } from "@scheniders/shared";
 import type { SettingsSectionId } from "./page-tree";
+import { ScreenHeader } from "./screen-header";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                               */
@@ -398,27 +399,14 @@ export function HealthChecklistScreen(
             className="flex flex-1 flex-col overflow-y-auto bg-(--card-bg)"
         >
             {/* Header */}
-            <header className="flex items-center gap-3 border-b border-(--card-border) px-6 py-4">
-                {onClose ? (
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        data-testid="health-close"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                        aria-label={t(STRINGS.health.close, locale)}
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </button>
-                ) : null}
-                <div>
-                    <h1 className="text-lg font-semibold tracking-tight">
-                        {t(STRINGS.health.heading, locale)}
-                    </h1>
-                    <p className="text-xs text-foreground/80">
-                        {tFormat(STRINGS.health.subtitle, locale, { tenant: tenantName })}
-                    </p>
-                </div>
-            </header>
+            <ScreenHeader
+                setting="health"
+                title={t(STRINGS.health.heading, locale)}
+                subtitle={tFormat(STRINGS.health.subtitle, locale, { tenant: tenantName })}
+                onBack={onClose}
+                backLabel={t(STRINGS.health.close, locale)}
+                backTestId="health-close"
+            />
 
             {/* First-launch ordered checklist */}
             {showLaunchCard && (

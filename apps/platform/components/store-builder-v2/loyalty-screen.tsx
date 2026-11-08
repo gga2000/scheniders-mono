@@ -10,11 +10,12 @@
 // =====================================================================
 
 import { useCallback } from "react";
-import { X, Award } from "lucide-react";
+
 import type { LoyaltyConfig, ReferralConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { ScreenHeader } from "./screen-header";
 
 export interface LoyaltyScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -140,19 +141,13 @@ export function LoyaltyScreen({
             data-testid="loyalty-screen"
             className="flex h-full w-full flex-col bg-background"
         >
-            <header className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <button
-                    type="button"
-                    aria-label={t(L.close, locale)}
-                    data-testid="loyalty-close"
-                    onClick={onClose}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-                <Award className="h-4 w-4 text-amber-600" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">{t(L.heading, locale)}</h2>
-            </header>
+            <ScreenHeader
+                setting="loyalty"
+                title={t(L.heading, locale)}
+                onBack={onClose}
+                backLabel={t(L.close, locale)}
+                backTestId="loyalty-close"
+            />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
                 <p dir="auto" className="max-w-prose text-xs text-muted-foreground">

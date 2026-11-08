@@ -19,7 +19,6 @@ import {
     type ReactNode,
 } from "react";
 import {
-    ChevronLeft,
     Circle,
     Loader2,
     Plus,
@@ -44,6 +43,7 @@ import {
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { describeDiffPath, isSecretDiffPath } from "./diff-path-label";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { ScreenHeader, screenHeaderActionCls, screenHeaderQuietCls } from "./screen-header";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                                */
@@ -275,45 +275,36 @@ export function VersionHistoryScreen({
             className="flex h-full w-full flex-col bg-background"
         >
             {/* Header */}
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        data-testid="version-history-back"
-                        aria-label={t(STRINGS.advanced_chrome.adv_back, locale)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <div>
-                        <h2 className="text-base font-bold tracking-tight">{t(STRINGS.version_history.heading, locale)}</h2>
-                        <p className="text-[11px] text-foreground/80">
-                            {t(STRINGS.version_history.subtitle, locale)}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => void refresh()}
-                        data-testid="version-history-refresh"
-                        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                        {t(STRINGS.version_history.refresh, locale)}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setShowSnapshotForm((v) => !v)}
-                        data-testid="version-history-new"
-                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                        {t(STRINGS.version_history.save_snapshot, locale)}
-                    </button>
-                </div>
-            </header>
+            <ScreenHeader
+                setting="versions"
+                title={t(STRINGS.version_history.heading, locale)}
+                subtitle={t(STRINGS.version_history.subtitle, locale)}
+                onBack={onClose}
+                backLabel={t(STRINGS.advanced_chrome.adv_back, locale)}
+                backTestId="version-history-back"
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => void refresh()}
+                            data-testid="version-history-refresh"
+                            className={screenHeaderQuietCls}
+                        >
+                            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                            {t(STRINGS.version_history.refresh, locale)}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowSnapshotForm((v) => !v)}
+                            data-testid="version-history-new"
+                            className={screenHeaderActionCls}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            {t(STRINGS.version_history.save_snapshot, locale)}
+                        </button>
+                    </>
+                }
+            />
 
             {/* Inline snapshot form */}
             {showSnapshotForm && (

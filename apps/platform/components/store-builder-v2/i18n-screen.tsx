@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, Languages } from "lucide-react";
+import { Languages } from "lucide-react";
 import type {
     LocaleCode,
     PageId,
@@ -24,6 +24,7 @@ import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { resolveFieldLabel } from "@/lib/section-field-meta";
 import { getPageLabel } from "./page-tree";
+import { ScreenHeader } from "./screen-header";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                                */
@@ -131,30 +132,14 @@ export function I18nScreen({
             className="flex flex-1 flex-col overflow-hidden bg-background"
         >
             {/* Header */}
-            <header className="flex h-14 items-center justify-between border-b border-(--card-border) bg-(--card-bg) px-5">
-                <div className="flex items-center gap-2.5">
-                    {onClose && (
-                        <button
-                            type="button"
-                            data-testid="i18n-screen-back"
-                            onClick={onClose}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                            aria-label={t(STRINGS.i18n_screen.back, locale)}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                    )}
-                    <span
-                        aria-hidden="true"
-                        className="sb-tile sb-tile--hero flex h-8 w-8 shrink-0"
-                    >
-                        <Languages className="h-4 w-4" />
-                    </span>
-                    <h2 className="text-base font-semibold tracking-tight">
-                        {t(STRINGS.i18n_screen.title, locale)}
-                    </h2>
-                </div>
-                <div className="flex items-center gap-2">
+            <ScreenHeader
+                setting="i18n"
+                title={t(STRINGS.i18n_screen.title, locale)}
+                onBack={onClose}
+                backLabel={t(STRINGS.i18n_screen.back, locale)}
+                backTestId="i18n-screen-back"
+                actions={
+                    <>
                     {enabled.map((loc) => {
                         const c = result.perLocale[loc];
                         return (
@@ -178,8 +163,9 @@ export function I18nScreen({
                             </button>
                         );
                     })}
-                </div>
-            </header>
+                    </>
+                }
+            />
 
             <div className="flex-1 overflow-y-auto p-6">
                 <div className="mx-auto max-w-3xl space-y-6">

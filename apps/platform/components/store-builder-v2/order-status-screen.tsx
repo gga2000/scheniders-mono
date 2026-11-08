@@ -13,7 +13,7 @@
 // =====================================================================
 
 import { useCallback, useState } from "react";
-import { X, MessageSquareText, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import {
     CUSTOMER_ORDER_STAGES,
     DEFAULT_NARRATIVES,
@@ -29,6 +29,7 @@ import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t as tx } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { I18nStringInput } from "./i18n-string-input";
+import { ScreenHeader } from "./screen-header";
 
 export interface OrderStatusScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -104,19 +105,13 @@ export function OrderStatusScreen({ builder, contact: rawContact, onClose }: Ord
 
     return (
         <div data-testid="order-status-screen" className="flex h-full w-full flex-col bg-background">
-            <header className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <button
-                    type="button"
-                    aria-label={tx(STRINGS.order_status.close, locale)}
-                    data-testid="order-status-close"
-                    onClick={onClose}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-                <MessageSquareText className="h-4 w-4 text-sky-600" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">{tx(STRINGS.order_status.title, locale)}</h2>
-            </header>
+            <ScreenHeader
+                setting="order_status"
+                title={tx(STRINGS.order_status.title, locale)}
+                onBack={onClose}
+                backLabel={tx(STRINGS.order_status.close, locale)}
+                backTestId="order-status-close"
+            />
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
                 <p className="max-w-prose text-xs text-muted-foreground">{tx(STRINGS.order_status.intro, locale)}</p>

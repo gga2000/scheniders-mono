@@ -21,7 +21,6 @@ import {
     AlertCircle,
     Calendar,
     Check,
-    ChevronLeft,
     Clock,
     Loader2,
     Plus,
@@ -55,6 +54,7 @@ import { getPageLabel } from "./page-tree";
 import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { formatRelativeTime } from "@/lib/relative-time";
+import { ScreenHeader, screenHeaderActionCls, screenHeaderQuietCls } from "./screen-header";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                                */
@@ -377,45 +377,36 @@ export function ScheduledChangesScreen({
             className="flex h-full w-full flex-col bg-background"
         >
             {/* Header */}
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        data-testid="scheduled-changes-back"
-                        aria-label={tx(STRINGS.advanced_chrome.adv_back, locale)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <div>
-                        <h2 className="text-base font-bold tracking-tight">{tx(STRINGS.scheduled.heading, locale)}</h2>
-                        <p dir="auto" className="text-[11px] text-foreground/80">
-                            {tx(STRINGS.advanced_chrome.sched_subtitle, locale)}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => void refresh()}
-                        data-testid="scheduled-changes-refresh"
-                        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                        {tx(STRINGS.advanced_chrome.adv_refresh, locale)}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setCreatorOpen(true)}
-                        data-testid="scheduled-changes-new"
-                        className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                        {tx(STRINGS.scheduled.new, locale)}
-                    </button>
-                </div>
-            </header>
+            <ScreenHeader
+                setting="scheduled"
+                title={tx(STRINGS.scheduled.heading, locale)}
+                subtitle={tx(STRINGS.advanced_chrome.sched_subtitle, locale)}
+                onBack={onClose}
+                backLabel={tx(STRINGS.advanced_chrome.adv_back, locale)}
+                backTestId="scheduled-changes-back"
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => void refresh()}
+                            data-testid="scheduled-changes-refresh"
+                            className={screenHeaderQuietCls}
+                        >
+                            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                            {tx(STRINGS.advanced_chrome.adv_refresh, locale)}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setCreatorOpen(true)}
+                            data-testid="scheduled-changes-new"
+                            className={screenHeaderActionCls}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            {tx(STRINGS.scheduled.new, locale)}
+                        </button>
+                    </>
+                }
+            />
 
             {error && (
                 <div className="flex shrink-0 items-center gap-2 border-b border-rose-500/20 bg-rose-500/10 px-5 py-2 text-[12px] text-rose-700 dark:text-rose-300">

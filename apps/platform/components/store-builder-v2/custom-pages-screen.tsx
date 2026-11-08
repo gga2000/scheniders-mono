@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { useCallback, useRef, useState } from "react";
-import { X, Plus, Trash2, FileText, EyeOff, PencilRuler, BookOpen } from "lucide-react";
+import { Plus, Trash2, EyeOff, PencilRuler, BookOpen } from "lucide-react";
 import {
     normalizeSlug,
     validateSlug,
@@ -23,6 +23,7 @@ import { resolveI18n } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { ScreenHeader } from "./screen-header";
 
 export interface CustomPagesScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -139,19 +140,13 @@ export function CustomPagesScreen({
             data-testid="custom-pages-screen"
             className="flex h-full w-full flex-col bg-background"
         >
-            <header className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <button
-                    type="button"
-                    aria-label={t(C.close, ui)}
-                    data-testid="custom-pages-close"
-                    onClick={onClose}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-                <FileText className="h-4 w-4 text-violet-600" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">{t(C.heading, ui)}</h2>
-            </header>
+            <ScreenHeader
+                setting="custom_pages"
+                title={t(C.heading, ui)}
+                onBack={onClose}
+                backLabel={t(C.close, ui)}
+                backTestId="custom-pages-close"
+            />
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
                 <p dir="auto" className="max-w-prose text-xs text-muted-foreground">

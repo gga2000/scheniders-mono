@@ -10,12 +10,13 @@
 // =====================================================================
 
 import { useCallback } from "react";
-import { X, Plus, Trash2, Ticket } from "lucide-react";
+import { Plus, Trash2, Ticket } from "lucide-react";
 import type { DiscountCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
 
 export interface DiscountsScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -68,34 +69,26 @@ export function DiscountsScreen({
             data-testid="discounts-screen"
             className="flex h-full w-full flex-col bg-background"
         >
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        aria-label={t(STRINGS.advanced_chrome.disc_close_aria, locale)}
-                        data-testid="discounts-close"
-                        onClick={onClose}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <Ticket className="h-4 w-4 text-fuchsia-600" aria-hidden="true" />
-                        <h2 className="text-sm font-semibold text-foreground">
-                            {t(STRINGS.advanced_chrome.disc_heading, locale)}
-                        </h2>
-                    </div>
-                </div>
-                <button
-                    type="button"
-                    data-testid="discounts-add"
-                    onClick={addRow}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
-                >
-                    <Plus className="h-3.5 w-3.5" />
-                    {t(STRINGS.advanced_chrome.disc_add_code, locale)}
-                </button>
-            </header>
+            <ScreenHeader
+                setting="discounts"
+                title={t(STRINGS.advanced_chrome.disc_heading, locale)}
+                onBack={onClose}
+                backLabel={t(STRINGS.advanced_chrome.disc_close_aria, locale)}
+                backTestId="discounts-close"
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            data-testid="discounts-add"
+                            onClick={addRow}
+                            className={screenHeaderActionCls}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            {t(STRINGS.advanced_chrome.disc_add_code, locale)}
+                        </button>
+                    </>
+                }
+            />
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
                 <p className="max-w-prose text-xs text-muted-foreground">
