@@ -52,7 +52,8 @@ function decodeClaims(token: string): unknown {
  *   - is valid according to Supabase Auth,
  *   - was issued through the OAuth server (carries `client_id`) — an app
  *     session token pasted into a client would skip the database guard,
- *   - belongs to a user on the `mcp_access` list.
+ *   - belongs to a user on the `mcp_access` list,
+ *   - came from Claude's own OAuth client (see isClaudeClient).
  */
 export async function verifyMcpToken(req: Request, bearerToken?: string): Promise<AuthInfo | undefined> {
     if (!bearerToken) return undefined;
@@ -64,6 +65,7 @@ export async function verifyMcpToken(req: Request, bearerToken?: string): Promis
     if (error || !user || user.id !== claims.data.sub) return undefined;
 
     if (!(await hasMcpAccess(user.id))) return undefined;
+    if (!(await isClaudeClient(claims.data.client_id))) return undefined;
 
     const exp = (decodeClaims(bearerToken) as { exp?: unknown } | null)?.exp;
     return {
@@ -73,6 +75,18 @@ export async function verifyMcpToken(req: Request, bearerToken?: string): Promis
         expiresAt: typeof exp === "number" ? exp : undefined,
         extra: { userId: user.id, email: user.email ?? null, appUrl: new URL(req.url).origin },
     };
+}
+
+/**
+ * Only Claude may use the store tools. Clients register themselves and pick
+ * their own name, so the check is on what cannot be faked: every redirect URI
+ * the client registered is on claude.ai / claude.com (DB function
+ * mcp_client_is_claude, service-role only).
+ */
+export async function isClaudeClient(clientId: string): Promise<boolean> {
+    const { data, error } = await createSupabaseServiceClient().rpc("mcp_client_is_claude", { p_client_id: clientId });
+    if (error) throw new Error(`Could not check the Claude client: ${error.message}`);
+    return data === true;
 }
 
 /** `mcp_access` is service-role only; this is the one place the app reads it. */

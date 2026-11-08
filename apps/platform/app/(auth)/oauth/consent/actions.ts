@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { hasMcpAccess } from "@/lib/mcp/caller";
+import { hasMcpAccess, isClaudeClient } from "@/lib/mcp/caller";
 
 const decisionSchema = z.object({
     authorization_id: z.string().min(1).max(200),
@@ -14,7 +14,8 @@ const decisionSchema = z.object({
  * Approve or deny a Claude (OAuth) connection request for the signed-in user.
  * Supabase Auth ties the authorization id to the user who opened it, so one
  * user cannot approve another's request; the access list is re-checked here
- * because a server action is reachable without the page.
+ * because a server action is reachable without the page. So is the client:
+ * only Claude's own OAuth client may be approved.
  */
 export async function decideAuthorization(formData: FormData): Promise<void> {
     const parsed = decisionSchema.safeParse({
@@ -30,7 +31,7 @@ export async function decideAuthorization(formData: FormData): Promise<void> {
     } = await supabase.auth.getUser();
     if (!user) redirect(`/login?returnTo=${encodeURIComponent(`/oauth/consent?authorization_id=${authorizationId}`)}`);
 
-    const approve = decision === "approve" && (await hasMcpAccess(user.id));
+    const approve = decision === "approve" && (await hasMcpAccess(user.id)) && (await requestIsFromClaude(supabase, authorizationId));
     const { data, error } = approve
         ? await supabase.auth.oauth.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
         : await supabase.auth.oauth.denyAuthorization(authorizationId, { skipBrowserRedirect: true });
@@ -38,4 +39,13 @@ export async function decideAuthorization(formData: FormData): Promise<void> {
         redirect(`/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}&error=decision`);
     }
     redirect(data.redirect_url);
+}
+
+async function requestIsFromClaude(
+    supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+    authorizationId: string,
+): Promise<boolean> {
+    const { data: details, error } = await supabase.auth.oauth.getAuthorizationDetails(authorizationId);
+    if (error || !details || !("authorization_id" in details)) return false;
+    return isClaudeClient(details.client.id);
 }

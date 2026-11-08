@@ -33,7 +33,7 @@ export function useProductReviews() {
                 const { data: page, error, count } = await supabase
                     .from("product_reviews")
                     .select(
-                        "id, product_id, rating, title, body, author_name, photo_urls, status, created_at, products(name)",
+                        "id, product_id, rating, title, body, author_name, photo_urls, photo_paths, status, created_at, products(name)",
                         { count: "exact" },
                     )
                     .eq("tenant_id", tenantId)
@@ -44,14 +44,30 @@ export function useProductReviews() {
                 return { rows: (page ?? []) as Record<string, unknown>[], total: count ?? 0 };
             });
             const rows = (data ?? []) as unknown as Array<
-                Omit<AdminReview, "product_name"> & { products: { name: string } | null }
+                Omit<AdminReview, "product_name"> & { photo_paths: string[]; products: { name: string } | null }
             >;
-            return rows.map(({ products, ...r }) => ({
+            const photos = await signedReviewPhotos(rows.flatMap((r) => r.photo_paths));
+            return rows.map(({ products, photo_paths, ...r }) => ({
                 ...r,
+                // Photos sit in a private bucket (shown on the store only once
+                // approved), so staff see them, pending ones too, via short links.
+                photo_urls: photo_paths.length > 0 ? photo_paths.flatMap((p) => photos.get(p) ?? []) : r.photo_urls,
                 product_name: products?.name ?? null,
             }));
         },
     });
+}
+
+const PHOTO_LINK_SECONDS = 60 * 60;
+
+/** Path → signed link for review photos; staff can sign their own store's only (storage policy). */
+async function signedReviewPhotos(paths: string[]): Promise<Map<string, string>> {
+    if (paths.length === 0) return new Map();
+    const { data, error } = await supabase.storage.from("review-photos").createSignedUrls(paths, PHOTO_LINK_SECONDS);
+    if (error) throw error;
+    return new Map(
+        data.flatMap((d) => (d.path && d.signedUrl ? [[d.path, d.signedUrl] as const] : [])),
+    );
 }
 
 /** Approve / reject / delete a review. RLS confines writes to the tenant. */
