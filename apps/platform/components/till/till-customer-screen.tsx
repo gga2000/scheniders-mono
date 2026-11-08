@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Package } from "lucide-react";
 import { useTenantBrand } from "@/hooks/chat/use-tenant-brand";
 import { useLanguage } from "@/hooks/use-language";
 import { formatIqd } from "@/lib/till/cart";
 import { cn } from "@/lib/utils";
 import { CUSTOMER_CHANNEL, HELLO, readDisplayMessage, type DisplayState } from "@/lib/till/customer-display";
+import { useShowChangedLine } from "./use-show-changed-line";
 
 /**
  * The screen that faces the customer. It only listens to the till window on this
@@ -20,6 +21,10 @@ export function TillCustomerScreen() {
     const [noChannel, setNoChannel] = useState(false);
     const [badLogo, setBadLogo] = useState<string | null>(null);
     const [readyLogo, setReadyLogo] = useState<string | null>(null);
+    const listRef = useRef<HTMLUListElement>(null);
+    const saleLines = state && state.view !== "idle" ? state.lines : null;
+    const shownLines = useMemo(() => (saleLines ?? []).map((l) => ({ id: `${l.name}|${l.variant ?? ""}|${l.price}`, quantity: l.quantity })), [saleLines]);
+    useShowChangedLine(listRef, shownLines, "customer");
 
     useEffect(() => {
         if (typeof BroadcastChannel === "undefined") {
@@ -78,7 +83,7 @@ export function TillCustomerScreen() {
     // One layout at every step: the sale on the left, the dark panel on the right. Only the panel changes.
     return (
         <div className="till-screen grid h-screen grid-cols-[1fr_minmax(360px,38%)] bg-[#F6F1E9] text-[#1E1E1E] dark:bg-[#121212] dark:text-white" onDoubleClick={() => void document.documentElement.requestFullscreen?.()}>
-            <ul className={cn("flex min-h-0 flex-col gap-3 overflow-y-auto p-10 transition-opacity", state.view === "done" && "opacity-50")}>
+            <ul ref={listRef} className={cn("flex min-h-0 flex-col gap-3 overflow-y-auto p-10 transition-opacity", state.view === "done" && "opacity-50")}>
                 {state.lines.map((l, i) => (
                     <li key={i} className="flex items-center gap-5 rounded-[24px] bg-white p-4 dark:bg-white/5">
                         <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F6F1E9] dark:bg-white/10">
