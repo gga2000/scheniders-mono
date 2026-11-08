@@ -58,7 +58,22 @@ export function primeReadyStatus(order: { is_return?: boolean | null }): "return
 }
 
 /**
- * The cash on Prime's receipt, signed like Prime's own statements: positive
+ * What Prime's receipt carries when the driver pays the customer. Prime takes
+ * no negative amount (it refuses the parcel), so such a parcel goes as 1 IQD
+ * and the money to hand over leads the note (primePayNote).
+ */
+export const PRIME_PAY_PLACEHOLDER_IQD = 1;
+
+const iqd = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+
+/** The note's first line on a parcel where the driver pays the customer: the amount, collect nothing, bring the item back. */
+export function primePayNote(payIqd: number, items: string): string {
+    const back = items ? ` · استلم من الزبون: ${items}` : "";
+    return `تنبيه: ادفع للزبون ${iqd.format(payIqd)} د.ع · لا تستلم أي مبلغ${back}`;
+}
+
+/**
+ * The cash at the door, signed: positive
  * when the driver collects it, negative when the driver pays the customer.
  * A refund pays the customer back (the label's «ادفع للزبون»); a replacement
  * collects the difference, or pays it when the new item is cheaper.
@@ -76,7 +91,8 @@ export function primeReceiptAmount(order: CourierSheetOrder): number {
  * governorate's OMS code; Prime's 18 state codes are the same set.
  *
  * Refunds and replacements go the same way, marked as carrying items back
- * (the old item the driver picks up), with their signed door cash.
+ * (the old item the driver picks up). When the driver pays the customer, the
+ * receipt says 1 IQD and the note opens with the amount to pay.
  */
 export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerchant): PrimePayloadResult {
     const afterSale = Boolean(order.is_return || order.is_replacement);
@@ -92,12 +108,16 @@ export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerc
         return { ok: false, reason: "bad_receipt" };
     }
 
-    const cod = primeReceiptAmount(order);
+    const doorCash = primeReceiptAmount(order);
+    const pays = doorCash < 0;
+    const cod = pays ? PRIME_PAY_PLACEHOLDER_IQD : doorCash;
     // A shipment with nothing to collect must declare the goods' value instead
     // (an after-sale order's price is negative when it pays the customer).
     const goodsValue = Math.abs(Math.round(Number(order.price) || 0));
     if (cod === 0 && goodsValue <= 0) return { ok: false, reason: "no_value" };
-    if (Math.abs(cod) > PRIME_LIMITS.maxAmountIqd) return { ok: false, reason: "amount_out_of_range" };
+    if (Math.abs(doorCash) > PRIME_LIMITS.maxAmountIqd) return { ok: false, reason: "amount_out_of_range" };
+    const items = productType(order);
+    const notes = courierNotes(order);
 
     const secondPhone = primePhone(order.secondary_phone);
     const numericId = numericCaseId(order.order_id);
@@ -119,10 +139,10 @@ export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerc
             receiptAmtIqd: cod,
             ...(cod === 0 ? { undeclaredShipmentValue: goodsValue } : {}),
             qty: totalQuantity(order),
-            productInfo: clip(productType(order), PRIME_LIMITS.productInfo),
-            rmk: clip(courierNotes(order), PRIME_LIMITS.rmk),
+            productInfo: clip(items, PRIME_LIMITS.productInfo),
+            rmk: clip(pays ? [primePayNote(-doorCash, items), notes].filter(Boolean).join(" - ") : notes, PRIME_LIMITS.rmk),
             haveReturnItems: afterSale ? "Y" : "N",
-            ...(afterSale ? { haveReturnItemsDesc: clip(productType(order), PRIME_LIMITS.productInfo) } : {}),
+            ...(afterSale ? { haveReturnItemsDesc: clip(items, PRIME_LIMITS.productInfo) } : {}),
         },
     };
 }

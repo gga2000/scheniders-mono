@@ -57,15 +57,15 @@ const order = (id: string, extra: Row = {}): Row => ({
 const clientWith = (createShipment: PrimeClient["createShipment"]) => ({ createShipment }) as unknown as PrimeClient;
 
 describe("sendOrdersToPrime", () => {
-    it("sends a waiting refund too, with the money the driver pays the customer", async () => {
+    it("sends a waiting refund too, as 1 IQD with the money to pay in the note", async () => {
         const { db, inserts } = fakeDb([order("o2", { order_id: "RTN-4136-1", is_return: true, status: "return_pending", price: -36750, delivery_fee: 5000 })]);
         const create = vi.fn(async () => 202);
 
         const outcome = await sendOrdersToPrime(db, clientWith(create), "t1", merchant, ["o2"]);
 
         expect(outcome).toEqual({ sent: [{ orderId: "o2", caseId: 202 }], skipped: [], failed: [] });
-        expect(create).toHaveBeenCalledWith(expect.objectContaining({ custReceiptNoOri: "4136", receiptAmtIqd: -31750, haveReturnItems: "Y" }));
-        expect(inserts).toEqual([expect.objectContaining({ order_id: "o2", receipt_no: "4136", case_id: 202, receipt_amount_iqd: -31750 })]);
+        expect(create).toHaveBeenCalledWith(expect.objectContaining({ custReceiptNoOri: "4136", receiptAmtIqd: 1, haveReturnItems: "Y", rmk: expect.stringContaining("ادفع للزبون 31,750") }));
+        expect(inserts).toEqual([expect.objectContaining({ order_id: "o2", receipt_no: "4136", case_id: 202, receipt_amount_iqd: 1 })]);
     });
 
     it("sends each confirmed order once and saves Prime's case", async () => {
