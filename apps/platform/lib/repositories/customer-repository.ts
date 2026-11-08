@@ -63,7 +63,7 @@ export const customerRepository = {
         return withRetry('customerRepository.findTagAssignmentsByPhone', async () => {
             const { data, error } = await supabase
                 .from("customer_tag_assignments")
-                .select(`*, tag:customer_tags(*)`)
+                .select(`*, tag:customer_tags!customer_tag_assignments_tag_same_store_fkey(*)`)
                 .eq("tenant_id", tenantId)
                 .eq("customer_phone", normalizePhoneForSearch(phone));
 
