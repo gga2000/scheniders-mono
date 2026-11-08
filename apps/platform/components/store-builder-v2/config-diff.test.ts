@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { diffJson, summarizeDiff } from "./config-diff";
+import { diffJson, restoreLosses, summarizeDiff } from "./config-diff";
+import { emptyStoreConfigV2 } from "@scheniders/shared";
 
 const sec = (id: string, base: Record<string, unknown> = {}) => ({
     id,
@@ -66,5 +67,34 @@ describe("diffJson — non-keyed arrays fall back to index", () => {
         const before = [{ x: 1 }, { x: 2 }];
         const after = [{ x: 1 }, { x: 3 }];
         expect(summarizeDiff(diffJson(before, after)).changed).toBe(1);
+    });
+});
+
+describe("restoreLosses", () => {
+    it("names running tests and programmes the target would stop", () => {
+        const now = emptyStoreConfigV2();
+        now.experiments = [
+            { id: "a", name: "Kept", status: "running", primary_metric: "orders", arms: [] },
+            { id: "b", name: "Stops", status: "running", primary_metric: "orders", arms: [] },
+            { id: "c", name: "Draft", status: "draft", primary_metric: "orders", arms: [] },
+        ];
+        now.commerce = {
+            ...now.commerce,
+            loyalty: { enabled: true },
+            free_gift: { enabled: true },
+            bundles: [{ id: "x", product_ids: [], kind: "percent", value: 10 }],
+            discounts: [{ code: "EID", kind: "percent", value: 10 }],
+        };
+        const target = emptyStoreConfigV2();
+        target.experiments = [{ id: "a", name: "Kept", status: "running", primary_metric: "orders", arms: [] }];
+        target.commerce = { ...target.commerce, discounts: [{ code: "eid", kind: "percent", value: 5 }] };
+        const out = restoreLosses(now, target);
+        expect(out.tests).toEqual(["Stops"]);
+        expect(out.programs).toEqual(["loyalty", "free_gift", "bundles"]);
+    });
+
+    it("is empty when nothing live is lost", () => {
+        const c = emptyStoreConfigV2();
+        expect(restoreLosses(c, c)).toEqual({ tests: [], programs: [] });
     });
 });

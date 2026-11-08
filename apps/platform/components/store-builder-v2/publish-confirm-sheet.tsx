@@ -629,7 +629,7 @@ function FieldDeltaRow({
         <div className="flex flex-col gap-0.5">
             <span className="font-semibold text-foreground/80">{label}</span>
             {delta.kind === "complex" ? (
-                <span className="text-muted-foreground">{t(STRINGS.version_history.diff_changed, locale)}</span>
+                <span className="text-muted-foreground">{t(STRINGS.version_history.changed_past, locale)}</span>
             ) : (
                 <span className="font-mono text-[10px] text-muted-foreground">
                     <span className="line-through text-rose-700/80 dark:text-rose-300/80">{stringifyPreview(delta.before)}</span>

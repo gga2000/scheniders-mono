@@ -25,6 +25,7 @@ import {
     RefreshCw,
     Star,
     AlertCircle,
+    AlertTriangle,
     Check,
     Minus,
     Pencil,
@@ -38,8 +39,11 @@ import { cn } from "@/lib/utils";
 import {
     diffJson,
     groupDiffByTop,
+    restoreLosses,
     type DiffEntry,
+    type RestoreLosses,
 } from "./config-diff";
+import { getSettingLabel } from "./page-tree";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { describeDiffPath, isSecretDiffPath } from "./diff-path-label";
 import { useEditorLocale } from "@/lib/editor-locale-context";
@@ -182,6 +186,11 @@ export function VersionHistoryScreen({
             return null;
         }
     }, [builder.config, selected, selectedConfig]);
+
+    const losses = useMemo<RestoreLosses | null>(
+        () => (selectedConfig ? restoreLosses(builder.config, selectedConfig) : null),
+        [builder.config, selectedConfig],
+    );
 
     /* ── Actions ──────────────────────────────────────────────── */
 
@@ -518,6 +527,8 @@ export function VersionHistoryScreen({
                                 )}
                             </div>
 
+                            {losses ? <RestoreLossNote losses={losses} testId="version-history-losses" /> : null}
+
                             {/* Diff */}
                             <DiffView
                                 entries={diff ?? []}
@@ -547,6 +558,11 @@ export function VersionHistoryScreen({
                                 time: absoluteTime(confirmRestore.created_at, locale),
                             })}
                         </p>
+                        {losses && confirmRestore.id === selected?.id ? (
+                            <div className="mt-3">
+                                <RestoreLossNote losses={losses} testId="version-history-restore-losses" />
+                            </div>
+                        ) : null}
                         <div className="mt-5 flex justify-end gap-2">
                             <button
                                 type="button"
@@ -775,11 +791,41 @@ function DiffRow({
     );
 }
 
+/** Names the live tests and programmes a restore would stop. */
+function RestoreLossNote({ losses, testId }: { losses: RestoreLosses; testId: string }): ReactElement | null {
+    const locale = useEditorLocale();
+    if (losses.tests.length === 0 && losses.programs.length === 0) return null;
+    return (
+        <div
+            role="note"
+            data-testid={testId}
+            className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-[12px] text-amber-800 dark:text-amber-200"
+        >
+            <p className="flex items-center gap-1.5 font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {t(STRINGS.version_history.restore_stops_title, locale)}
+            </p>
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+                {losses.tests.length > 0 ? (
+                    <li>
+                        {tFormat(STRINGS.version_history.restore_stops_tests, locale, {
+                            names: losses.tests.join("، "),
+                        })}
+                    </li>
+                ) : null}
+                {losses.programs.map((p) => (
+                    <li key={p}>{getSettingLabel(p, locale)}</li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
 const SECRET_MASK = "••••••";
 
 function previewValue(v: unknown): string {
-    if (v === undefined) return "undefined";
-    if (v === null) return "null";
+    // Unset reads as a dash, not a programmer word.
+    if (v === undefined || v === null || v === "") return "—";
     if (typeof v === "string") {
         // Policy and page bodies are markdown: show the words, not the syntax.
         const text = v
@@ -788,7 +834,9 @@ function previewValue(v: unknown): string {
             .replace(/\*\*|`/g, "")
             .replace(/\s+/g, " ")
             .trim();
-        return text.length > 60 ? `"${text.slice(0, 57)}…"` : `"${text}"`;
+        // «» are mirrored by bidi, so they wrap the text in either direction
+        // instead of leaving a stray straight quote at the line end.
+        return text.length > 60 ? `«${text.slice(0, 57)}…»` : `«${text}»`;
     }
     if (typeof v === "number" || typeof v === "boolean") return String(v);
     try {

@@ -760,6 +760,8 @@ export const STRINGS = {
         reset_title: { en: "Reset this section to its default content", ar: "إعادة هذا القسم إلى محتواه الافتراضي", ku: "گەڕاندنەوەی ئەم بەشە بۆ ناوەڕۆکی بنەڕەتی" },
         set: { en: "Add", ar: "إضافة", ku: "زیادکردن" },
         clear: { en: "Clear", ar: "مسح", ku: "سڕینەوە" },
+        // Field-header link on optional fields: unsets the value so the section's own default shows.
+        use_default: { en: "Use default", ar: "استخدم الافتراضي", ku: "بنەڕەت بەکاربهێنە" },
         add: { en: "Add", ar: "إضافة", ku: "زیادکردن" },
         no_items: { en: "No items yet", ar: "لا توجد عناصر بعد", ku: "هێشتا هیچ بڕگەیەک نییە" },
         // tFormat: {n}
@@ -942,9 +944,14 @@ export const STRINGS = {
         restore_confirm: { en: "Restore", ar: "استرجاع", ku: "گەڕاندنەوە" },
         diff_heading_count: { en: "What restoring changes: {n}", ar: "ما سيتغيّر عند الاسترجاع: {n}", ku: "ئەوەی بە گەڕاندنەوە دەگۆڕێت: {n}" },
         diff_empty: { en: "No differences vs your current draft.", ar: "لا توجد فروقات مقارنة بمسودتك الحالية.", ku: "هیچ جیاوازییەک نییە بەراورد بە ڕەشنووسی ئێستات." },
-        diff_added: { en: "added", ar: "أُضيف", ku: "زیادکرا" },
-        diff_removed: { en: "removed", ar: "أُزيل", ku: "لابرا" },
-        diff_changed: { en: "changed", ar: "تغيّر", ku: "گۆڕا" },
+        diff_added: { en: "adds", ar: "سيُضاف", ku: "زیاد دەکرێت" },
+        diff_removed: { en: "removes", ar: "سيُحذف", ku: "لادەبرێت" },
+        diff_changed: { en: "changes", ar: "سيتغيّر", ku: "دەگۆڕێت" },
+        // Past tense, for the publish sheet (what you changed in the draft).
+        changed_past: { en: "changed", ar: "تغيّر", ku: "گۆڕا" },
+        restore_stops_title: { en: "Restoring this stops what is live now:", ar: "استرجاع هذه النسخة يوقف ما يعمل الآن:", ku: "گەڕاندنەوەی ئەمە ئەوەی ئێستا کار دەکات ڕادەگرێت:" },
+        // tFormat: {names}
+        restore_stops_tests: { en: "Running tests: {names}", ar: "اختبارات قيد التشغيل: {names}", ku: "تاقیکردنەوە چالاکەکان: {names}" },
         // Diff group titles, by the config's top-level field.
         group_pages: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
         group_globals: { en: "Header, footer and top bar", ar: "الترويسة والتذييل والشريط العلوي", ku: "سەرپەڕە، ژێرپەڕە و شریتی سەرەوە" },

@@ -159,7 +159,9 @@ export function I18nScreen({
                                 {/* One run of text, so every chip reads in the same
                                     order (name, then percent) in either direction. */}
                                 <span dir="auto" className="tabular-nums">
-                                    {`${t(STRINGS.languages[loc], locale)} ${c.pct}%`}
+                                    {t(STRINGS.languages[loc], locale)}{" "}
+                                    {/* Isolated LTR so the sign stays after the number in Arabic. */}
+                                    <bdi dir="ltr">{`${c.pct}%`}</bdi>
                                 </span>
                             </button>
                         );
