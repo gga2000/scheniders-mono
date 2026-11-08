@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withBotId } from "botid/next/config";
 import { SAFE_PARENT_ORIGINS } from "./lib/preview-origin";
 
 // Only the store itself and the merchant admin's store-builder preview may
@@ -52,4 +53,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBotId(nextConfig);

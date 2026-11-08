@@ -5359,6 +5359,7 @@ export type Database = {
           body: string | null
           created_at: string
           id: string
+          photo_paths: string[]
           photo_urls: string[]
           product_id: string
           rating: number
@@ -5371,6 +5372,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          photo_paths?: string[]
           photo_urls?: string[]
           product_id: string
           rating: number
@@ -5383,6 +5385,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          photo_paths?: string[]
           photo_urls?: string[]
           product_id?: string
           rating?: number

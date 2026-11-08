@@ -8,13 +8,14 @@ import {
   createSupabaseServiceClient,
 } from "@/lib/supabase/server";
 import { clientIp, consumeRateLimit } from "@/lib/rate-limit";
+import { reviewPhotoUrl } from "@/lib/review-photo-url";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const MAX_PHOTOS = 4;
 // A shopper writes one review; a flood fills the moderation queue and uses the
-// store's public photo bucket as free hosting. Per caller and per store.
+// store's photo bucket as free hosting. Per caller and per store.
 const REVIEWS_PER_CALLER_PER_HOUR = 5;
 const REVIEWS_PER_STORE_PER_HOUR = 60;
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB — mirrors the bucket's file_size_limit.
@@ -149,8 +150,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Unknown product" }, { status: 404 });
   }
 
+  // Photos go to the PRIVATE review-photos bucket. The store shows them only
+  // through /api/reviews/photo/<review>/<n>, which serves an approved review's
+  // photo and nothing else, so an unmoderated upload is never public.
+  const reviewId = randomUUID();
+  const photo_paths: string[] = [];
   const photo_urls: string[] = [];
-  for (const photo of photos) {
+  for (const [i, photo] of photos.entries()) {
     const ext = MIME_EXT[photo.type];
     const path = `${tenant_id}/${product_id}/${randomUUID()}.${ext}`;
     const bytes = Buffer.from(await photo.arrayBuffer());
@@ -160,17 +166,19 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (uploadErr) {
       return NextResponse.json({ error: "Upload failed" }, { status: 500 });
     }
-    const { data: pub } = service.storage.from("review-photos").getPublicUrl(path);
-    photo_urls.push(pub.publicUrl);
+    photo_paths.push(path);
+    photo_urls.push(reviewPhotoUrl(reviewId, i));
   }
 
   const { error: insertErr } = await service.from("product_reviews").insert({
+    id: reviewId,
     tenant_id,
     product_id,
     rating,
     title: title ?? null,
     body: body ?? null,
     author_name: author_name ?? null,
+    photo_paths,
     photo_urls,
     status: "pending",
   });

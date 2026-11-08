@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const verifyAccessToken = vi.fn();
 let accessList: string[] = [];
+let claudeClients: string[] = [];
 
 vi.mock("@/lib/supabase-server", () => ({
     verifyAccessToken: (...a: unknown[]) => verifyAccessToken(...a),
     createSupabaseServerClientWithToken: vi.fn(),
     createSupabaseServiceClient: () => ({
+        rpc: (_fn: string, args: { p_client_id: string }) =>
+            Promise.resolve({ data: claudeClients.includes(args.p_client_id), error: null }),
         from: () => {
             let id = "";
             const chain = {
@@ -33,6 +36,7 @@ const req = new Request("https://app.test/api/mcp");
 beforeEach(() => {
     vi.clearAllMocks();
     accessList = [USER];
+    claudeClients = ["claude-client", "c"];
     verifyAccessToken.mockResolvedValue({ user: { id: USER, email: "ali@example.com" }, error: null });
 });
 
@@ -55,6 +59,10 @@ describe("verifyMcpToken", () => {
     it("rejects a user who is not on the access list", async () => {
         accessList = [];
         await expect(verifyMcpToken(req, jwt({ sub: USER, client_id: "c" }))).resolves.toBeUndefined();
+    });
+
+    it("rejects a token issued to an app that is not Claude", async () => {
+        await expect(verifyMcpToken(req, jwt({ sub: USER, client_id: "other-app" }))).resolves.toBeUndefined();
     });
 
     it("rejects a token Supabase does not accept", async () => {

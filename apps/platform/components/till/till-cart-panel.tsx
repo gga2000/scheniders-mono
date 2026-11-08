@@ -413,6 +413,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     managers={managers}
                     reason={overText}
                     maxOff={given}
+                    purpose="sale"
                     onApproved={(ok) => {
                         setAskManager(false);
                         onChange({ ...ticket, approval: { ...ok, maxOff: given, expiresAt: Date.now() + APPROVAL_MS } });

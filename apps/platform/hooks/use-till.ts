@@ -217,14 +217,18 @@ export type ApproveResult = z.infer<typeof approveSchema>;
  * A manager types their PIN on the till to allow one sale over the cashier's limit.
  * maxOff is the price cuts + discount they are allowing; the sale may not go over it.
  */
+/** The one job a manager's OK is for; the server only lets that job spend it. */
+export type TillApprovalPurpose = "sale" | "payout" | "tester";
+
 export function useTillApprove() {
     return useMutation({
-        mutationFn: async (input: { sessionId: string; managerId: string; pin: string; maxOff: number | null }): Promise<ApproveResult> => {
+        mutationFn: async (input: { sessionId: string; managerId: string; pin: string; maxOff: number | null; purpose: TillApprovalPurpose }): Promise<ApproveResult> => {
             const { data, error } = await supabase.rpc("till_approve", {
                 p_session_id: input.sessionId,
                 p_manager_id: input.managerId,
                 p_pin: input.pin,
                 ...(input.maxOff !== null ? { p_max_off: input.maxOff } : {}),
+                p_purpose: input.purpose,
             });
             if (error) throw error;
             return approveSchema.parse(data);

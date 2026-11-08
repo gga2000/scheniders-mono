@@ -35,6 +35,7 @@ import { storefrontAvailable } from "@/lib/storefront-stock";
 import { DUPLICATE_ORDER_WINDOW_MINUTES, isDuplicateGuardRow } from "@/lib/order-duplicate-guard";
 import { queueOrderConfirmation } from "@/lib/order-confirmation-queue";
 import { checkoutRateLimited } from "@/lib/checkout-rate-limit";
+import { checkoutIsBot } from "@/lib/checkout-bot-check";
 import { submitCheckoutPayloadSchema, type SubmitCheckoutPayload } from "@/lib/checkout-payload";
 import { clientIp } from "@/lib/rate-limit";
 import { verifyLoyaltyProof } from "@/lib/loyalty-proof";
@@ -244,6 +245,12 @@ export async function submitCheckout(
       return { success: false, error: "فشل إنشاء الطلب. حاول مرة أخرى.", retryable: isTransientDbError(existingErr) };
     }
     if (existing) return replayResult(existing);
+  }
+
+  // Invisible bot check (Vercel BotID): scripted fake orders are refused
+  // before they reach the rate limits, stock, WhatsApp or the courier.
+  if (await checkoutIsBot(payload.tenantId)) {
+    return { success: false, error: "تعذر إرسال الطلب. حدّث الصفحة وحاول مرة أخرى." };
   }
 
   // F-041: a public endpoint where every call is a real COD order, so it is
