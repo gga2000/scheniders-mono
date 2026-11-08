@@ -314,7 +314,6 @@ export function ExperimentsScreen({
         >
             <ScreenHeader
                 setting="experiments"
-                title={<ExpHeading />}
                 subtitle={<ExpSubtitle />}
                 onBack={onClose}
                 backLabel={t(STRINGS.advanced_chrome.adv_back, locale)}
@@ -1252,11 +1251,6 @@ function SignificanceBadge({
 /* ─────────────────────────────────────────────────────────────────── */
 /* i18n helper components                                               */
 /* ─────────────────────────────────────────────────────────────────── */
-
-function ExpHeading(): ReactElement {
-    const locale = useEditorLocale();
-    return <>{t(STRINGS.experiment.heading, locale)}</>;
-}
 
 function ExpSubtitle(): ReactElement {
     const locale = useEditorLocale();

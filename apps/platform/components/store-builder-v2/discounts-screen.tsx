@@ -71,7 +71,7 @@ export function DiscountsScreen({
         >
             <ScreenHeader
                 setting="discounts"
-                title={t(STRINGS.advanced_chrome.disc_heading, locale)}
+                subtitle={t(STRINGS.advanced_chrome.disc_intro, locale)}
                 onBack={onClose}
                 backLabel={t(STRINGS.advanced_chrome.disc_close_aria, locale)}
                 backTestId="discounts-close"
@@ -91,9 +91,6 @@ export function DiscountsScreen({
             />
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">
-                    {t(STRINGS.advanced_chrome.disc_intro, locale)}
-                </p>
 
                 {discounts.length === 0 ? (
                     <button

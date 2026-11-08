@@ -68,7 +68,6 @@ export function TemplateUpdatesScreen({ builder, onClose }: TemplateUpdatesScree
         <div data-testid="template-updates-screen" className="flex h-full w-full flex-col bg-background">
             <ScreenHeader
                 setting="template_updates"
-                title={tx(s.title, locale)}
                 onBack={onClose}
                 backLabel={tx(s.close, locale)}
                 backTestId="template-updates-close"

@@ -62,14 +62,13 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
         <div data-testid="free-gift-screen" className="flex h-full w-full flex-col bg-background">
             <ScreenHeader
                 setting="free_gift"
-                title={tx(STRINGS.free_gift.title, locale)}
+                subtitle={tx(STRINGS.free_gift.intro, locale)}
                 onBack={onClose}
                 backLabel={tx(STRINGS.free_gift.close, locale)}
                 backTestId="free-gift-close"
             />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">{tx(STRINGS.free_gift.intro, locale)}</p>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-sm font-medium text-foreground">{tx(STRINGS.free_gift.enable, locale)}</span>

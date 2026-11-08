@@ -364,7 +364,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         ).length;
         return {
             experiments: running,
-            segments: builder.config.segments.length,
+            // An audience with no rules reaches no one, so it is not live.
+            segments: builder.config.segments.filter((sg) => sg.rules.length > 0).length,
             scheduled: builder.config.schedules.length,
         };
     }, [builder.config.experiments, builder.config.segments, builder.config.schedules]);

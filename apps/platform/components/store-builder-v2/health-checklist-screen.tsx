@@ -401,7 +401,6 @@ export function HealthChecklistScreen(
             {/* Header */}
             <ScreenHeader
                 setting="health"
-                title={t(STRINGS.health.heading, locale)}
                 subtitle={tFormat(STRINGS.health.subtitle, locale, { tenant: tenantName })}
                 onBack={onClose}
                 backLabel={t(STRINGS.health.close, locale)}

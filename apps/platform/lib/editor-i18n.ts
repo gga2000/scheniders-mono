@@ -1545,6 +1545,7 @@ export const STRINGS = {
         ship_door_off: { en: "Removed open-before-paying", ar: "إلغاء الفحص قبل الدفع", ku: "لابردنی پشکنین پێش پارەدان" },
         ship_preview_heading: { en: "What a customer pays", ar: "ما يدفعه الزبون", ku: "ئەوەی کڕیار دەیدات" },
         ship_preview_free: { en: "Free", ar: "مجاني", ku: "بەخۆڕایی" },
+        ship_preview_free_everywhere: { en: "Delivery is free to every governorate, whatever the basket.", ar: "التوصيل مجاني لكل المحافظات مهما كانت قيمة السلة.", ku: "گەیاندن بۆ هەموو پارێزگاکان بەخۆڕاییە، بەهەر بڕێکی سەبەتە." },
         ship_preview_basket: { en: "For a basket of {n} IQD", ar: "على سلة بـ {n} د.ع", ku: "لەسەر سەبەتەی {n} IQD" },
 
         // Redirects screen

@@ -107,14 +107,13 @@ export function OrderStatusScreen({ builder, contact: rawContact, onClose }: Ord
         <div data-testid="order-status-screen" className="flex h-full w-full flex-col bg-background">
             <ScreenHeader
                 setting="order_status"
-                title={tx(STRINGS.order_status.title, locale)}
+                subtitle={tx(STRINGS.order_status.intro, locale)}
                 onBack={onClose}
                 backLabel={tx(STRINGS.order_status.close, locale)}
                 backTestId="order-status-close"
             />
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
-                <p className="max-w-prose text-xs text-muted-foreground">{tx(STRINGS.order_status.intro, locale)}</p>
                 {!contact && (
                     <p role="status" data-testid="order-status-no-contact" className="max-w-prose text-xs text-amber-700">
                         {tx(STRINGS.order_status.no_contact, locale)}

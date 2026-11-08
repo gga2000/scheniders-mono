@@ -277,7 +277,6 @@ export function VersionHistoryScreen({
             {/* Header */}
             <ScreenHeader
                 setting="versions"
-                title={t(STRINGS.version_history.heading, locale)}
                 subtitle={t(STRINGS.version_history.subtitle, locale)}
                 onBack={onClose}
                 backLabel={t(STRINGS.advanced_chrome.adv_back, locale)}
@@ -765,11 +764,11 @@ function DiffRow({
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
-                        <code dir="ltr">{secret ? SECRET_MASK : previewValue(entry.before)}</code>
+                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before)}</bdi>
                     </div>
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_after, locale)}</span>{" "}
-                        <code dir="ltr">{secret ? SECRET_MASK : previewValue(entry.after)}</code>
+                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.after)}</bdi>
                     </div>
                 </div>
             )}

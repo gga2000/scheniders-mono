@@ -12,7 +12,8 @@
 import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SETTING_TINT, settingIcon, type SettingsSectionId } from "./page-tree";
+import { useEditorLocale } from "@/lib/editor-locale-context";
+import { SETTING_TINT, getSettingLabel, settingIcon, type SettingsSectionId } from "./page-tree";
 
 /** Primary action button style for a screen header ("Add", "New", "Save snapshot"). */
 export const screenHeaderActionCls =
@@ -23,8 +24,9 @@ export const screenHeaderQuietCls =
     "inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground";
 
 export interface ScreenHeaderProps {
+    /** Picks the icon, tint and title: the title is the screen's name in
+     *  the left rail, so the rail and the screen never name it differently. */
     setting: SettingsSectionId;
-    title: ReactNode;
     subtitle?: ReactNode;
     /** Omitted when the screen is shown without a way back (e.g. embedded). */
     onBack?: () => void;
@@ -35,13 +37,13 @@ export interface ScreenHeaderProps {
 
 export function ScreenHeader({
     setting,
-    title,
     subtitle,
     onBack,
     backLabel,
     backTestId,
     actions,
 }: ScreenHeaderProps): React.ReactElement {
+    const locale = useEditorLocale();
     const Icon = settingIcon(setting);
     return (
         <header
@@ -63,8 +65,13 @@ export function ScreenHeader({
                 <span aria-hidden="true" className={cn("sb-tile flex h-8 w-8 shrink-0", SETTING_TINT[setting])}>
                     <Icon className="h-4 w-4" />
                 </span>
-                <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold tracking-tight text-foreground">{title}</h2>
+                {/* text-left: the title and subtitle sit beside the tile. Arabic
+                    runs would otherwise right-align inside the block the
+                    subtitle widens and drift away from it. */}
+                <div className="min-w-0 [&_*]:text-left!">
+                    <h2 className="truncate text-base font-semibold tracking-tight text-foreground">
+                        {getSettingLabel(setting, locale)}
+                    </h2>
                     {subtitle ? (
                         <p dir="auto" className="text-[11px] text-muted-foreground">
                             {subtitle}

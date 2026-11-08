@@ -3,18 +3,16 @@
 // =====================================================================
 // SystemScreenRouter (extracted from editor-shell, 4.1)
 // =====================================================================
-// Renders the breadcrumb bar + the full-screen settings screen that
+// Renders the full-screen settings screen (each brings its own ScreenHeader) that
 // replaces the canvas when a tree "setting" is selected (brand kit,
 // versions, experiments, shipping…). Pure routing — every screen keeps
 // its own state; the shell owns which screen is open.
 // =====================================================================
 
-import { ChevronLeft } from "lucide-react";
 import type { PageId } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import type { BrandKit } from "@scheniders/shared";
-import { STRINGS, t } from "@/lib/editor-i18n";
-import { getSettingLabel, type SettingsSectionId } from "./page-tree";
+import type { SettingsSectionId } from "./page-tree";
 import { BrandKitEditor } from "./brand-kit-editor";
 import { VersionHistoryScreen } from "./version-history-screen";
 import { ScheduledChangesScreen } from "./scheduled-changes-screen";
@@ -62,33 +60,12 @@ export function SystemScreenRouter({
 }: SystemScreenRouterProps): React.ReactElement {
     return (
         <>
-            {/* O2: system screens replace the canvas — give the
-                merchant a persistent "you are here" + way back. */}
-            <div
-                data-testid="system-screen-breadcrumb"
-                className="flex h-10 shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--background-soft) px-4"
-            >
-                <button
-                    type="button"
-                    data-testid="system-screen-back"
-                    onClick={onClose}
-                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                >
-                    <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t(STRINGS.toolbar.back_to_canvas, builder.active_locale)}
-                </button>
-                <span aria-hidden="true" className="text-muted-foreground/50">
-                    /
-                </span>
-                <span className="truncate text-xs font-semibold text-foreground">
-                    {getSettingLabel(screen, builder.active_locale)}
-                </span>
-            </div>
             {screen === "brand_kit" ? (
                 <BrandKitEditor
                     value={builder.config.brand_kit}
                     onChange={onBrandKitChange}
                     tenantId={tenantId}
+                    onClose={onClose}
                 />
             ) : screen === "versions" ? (
                 <VersionHistoryScreen builder={builder} onClose={onClose} />

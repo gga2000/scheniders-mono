@@ -58,16 +58,13 @@ export function CartRecoveryScreen({
         >
             <ScreenHeader
                 setting="cart_recovery"
-                title={t(C.heading, locale)}
+                subtitle={t(C.intro, locale)}
                 onBack={onClose}
                 backLabel={t(C.close, locale)}
                 backTestId="cart-recovery-close"
             />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
-                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
-                    {t(C.intro, locale)}
-                </p>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-sm font-medium text-foreground">

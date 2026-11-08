@@ -142,16 +142,13 @@ export function CustomPagesScreen({
         >
             <ScreenHeader
                 setting="custom_pages"
-                title={t(C.heading, ui)}
+                subtitle={t(C.intro, ui)}
                 onBack={onClose}
                 backLabel={t(C.close, ui)}
                 backTestId="custom-pages-close"
             />
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
-                <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
-                    {t(C.intro, ui)}
-                </p>
 
                 {/* New page */}
                 <div className="flex items-center gap-2">
