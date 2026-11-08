@@ -61,7 +61,7 @@ export function MessageTemplatesList() {
 
         if (editingTemplate.id === "new") {
             if (!tenantId) {
-                toast.error("Couldn't save template", "No workspace selected");
+                toast.error(t("templates.saveFailed"), t("templates.noWorkspace"));
                 return;
             }
             const { data, error } = await supabase
@@ -78,7 +78,7 @@ export function MessageTemplatesList() {
                 .single();
 
             if (error || !data) {
-                toast.error("Couldn't save template", error?.message);
+                toast.error(t("templates.saveFailed"), error?.message);
                 return;
             }
             setTemplates([...templates, data]);
@@ -94,19 +94,23 @@ export function MessageTemplatesList() {
                 .eq("id", editingTemplate.id);
 
             if (error) {
-                toast.error("Couldn't save template", error.message);
+                toast.error(t("templates.saveFailed"), error.message);
                 return;
             }
-            setTemplates(templates.map(t => t.id === editingTemplate.id ? editingTemplate : t));
+            setTemplates(templates.map(row => row.id === editingTemplate.id ? editingTemplate : row));
         }
         setIsDialogOpen(false);
         setEditingTemplate(null);
     }
 
     async function handleDelete(id: string) {
-        if (!confirm("Delete this template?")) return;
-        setTemplates(templates.filter(t => t.id !== id));
-        await supabase.from("message_templates").delete().eq("id", id);
+        if (!confirm(t("templates.deleteConfirm"))) return;
+        const { error } = await supabase.from("message_templates").delete().eq("id", id);
+        if (error) {
+            toast.error(t("templates.deleteFailed"), error.message);
+            return;
+        }
+        setTemplates(templates.filter(row => row.id !== id));
     }
 
     function openNew() {
@@ -137,10 +141,10 @@ export function MessageTemplatesList() {
         setShowEmojiPicker(false);
     }
 
-    const filteredTemplates = templates.filter(t => {
+    const filteredTemplates = templates.filter(row => {
         if (filter === 'all') return true;
-        if (filter === 'workflow') return !!t.template_type;
-        return !t.template_type;
+        if (filter === 'workflow') return !!row.template_type;
+        return !row.template_type;
     });
 
     const getTypeBadge = (type: Template['template_type']) => {
@@ -160,7 +164,7 @@ export function MessageTemplatesList() {
         );
     };
 
-    if (loading) return <div className="text-sm">Loading templates...</div>;
+    if (loading) return <div className="text-sm">{t("templates.loading")}</div>;
 
     const emojiList = getEmojiList();
 
@@ -179,14 +183,12 @@ export function MessageTemplatesList() {
                                 : "text-muted-foreground hover:bg-muted"
                         )}
                     >
-                        {f === 'all' && 'All'}
-                        {f === 'workflow' && 'Workflow'}
-                        {f === 'other' && 'Other'}
+                        {t(`templates.filter.${f}`)}
                         <span className="ml-1.5 text-xs opacity-70">
-                            ({templates.filter(t =>
+                            ({templates.filter(row =>
                                 f === 'all' ? true :
-                                    f === 'workflow' ? !!t.template_type :
-                                        !t.template_type
+                                    f === 'workflow' ? !!row.template_type :
+                                        !row.template_type
                             ).length})
                         </span>
                     </button>
@@ -204,7 +206,7 @@ export function MessageTemplatesList() {
                             <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-medium text-sm">{template.name}</h4>
                                 {getTypeBadge(template.template_type)}
-                                {!template.is_active && <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-muted rounded">Disabled</span>}
+                                {!template.is_active && <span className="text-xs text-muted-foreground px-1.5 py-0.5 bg-muted rounded">{t("templates.disabled")}</span>}
                             </div>
                             <p className="text-xs text-muted-foreground line-clamp-2 max-w-md" dir="rtl">
                                 {processEmojis(template.content_ar || template.content)}
@@ -227,38 +229,38 @@ export function MessageTemplatesList() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="w-full border-dashed" onClick={openNew}>
-                        <Plus className="mr-2 h-3.5 w-3.5" /> New Template
+                        <Plus className="mr-2 h-3.5 w-3.5" /> {t("templates.new")}
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>{editingTemplate?.id === 'new' ? 'New Template' : 'Edit Template'}</DialogTitle>
+                        <DialogTitle>{editingTemplate?.id === 'new' ? t("templates.new") : t("templates.edit")}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         {/* Name */}
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Template Name</label>
+                            <label className="text-sm font-medium">{t("templates.name")}</label>
                             <Input
                                 value={editingTemplate?.name || ''}
                                 onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, name: e.target.value } : null)}
-                                placeholder="e.g. Order Confirmation"
+                                placeholder={t("templates.namePlaceholder")}
                             />
                         </div>
 
                         {/* Template Type */}
                         <div className="space-y-2">
-                            <label className="text-sm font-medium">Template Type</label>
+                            <label className="text-sm font-medium">{t("templates.type")}</label>
                             <div className="flex gap-2">
-                                {[
-                                    { value: null, label: 'General' },
+                                {([
+                                    { value: null, label: t("templates.general") },
                                     { value: 'confirmation', label: t('templates.confirmation') },
                                     { value: 'reminder', label: t('templates.reminder') },
                                     { value: 'discount', label: t('templates.discount') },
-                                ].map(opt => (
+                                ] satisfies { value: Template['template_type']; label: string }[]).map(opt => (
                                     <button
                                         key={opt.value || 'none'}
                                         onClick={() => setEditingTemplate(prev =>
-                                            prev ? { ...prev, template_type: opt.value as any } : null
+                                            prev ? { ...prev, template_type: opt.value } : null
                                         )}
                                         className={cn(
                                             "px-3 py-1.5 text-sm rounded-md border transition-colors",
@@ -276,7 +278,7 @@ export function MessageTemplatesList() {
                         {/* Arabic Content */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <label className="text-sm font-medium">Arabic Content</label>
+                                <label className="text-sm font-medium">{t("templates.arabicContent")}</label>
                                 <button
                                     onClick={() => {
                                         setActiveField('content_ar');
@@ -290,7 +292,7 @@ export function MessageTemplatesList() {
                                     )}
                                 >
                                     <Smile className="w-3 h-3" />
-                                    Emoji
+                                    {t("templates.emoji")}
                                 </button>
                             </div>
                             <Textarea
@@ -305,7 +307,7 @@ export function MessageTemplatesList() {
                             {/* Emoji Picker Dropdown */}
                             {showEmojiPicker && activeField === 'content_ar' && (
                                 <div className="border rounded-lg p-3 bg-muted/50 space-y-2">
-                                    <p className="text-xs font-medium text-muted-foreground">Click to insert emoji shortcode:</p>
+                                    <p className="text-xs font-medium text-muted-foreground">{t("templates.emojiHint")}</p>
                                     <div className="flex flex-wrap gap-1">
                                         {emojiList.slice(0, 24).map(item => (
                                             <button
@@ -325,7 +327,7 @@ export function MessageTemplatesList() {
                         {/* Preview */}
                         {editingTemplate?.content_ar && (
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Preview</label>
+                                <label className="text-sm font-medium text-muted-foreground">{t("templates.preview")}</label>
                                 <div className="p-3 rounded-lg bg-[#e5ddd5] border">
                                     <div className="bg-[#dcf8c6] rounded-lg p-3 max-w-[80%] ml-auto">
                                         <p className="text-sm whitespace-pre-wrap" dir="rtl">
@@ -338,7 +340,7 @@ export function MessageTemplatesList() {
 
                         {/* Variable Hints */}
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                            <p className="text-xs font-medium text-blue-800 mb-2">Available Variables:</p>
+                            <p className="text-xs font-medium text-blue-800 mb-2">{t("templates.variables")}</p>
                             <div className="flex flex-wrap gap-1.5">
                                 {['{customer_name}', '{order_id}', '{sequence_number}', '{product}', '{price}', '{address}', '{phone}'].map(v => (
                                     <code key={v} className="px-1.5 py-0.5 bg-white rounded text-xs text-blue-700 border border-blue-200">{v}</code>
@@ -346,7 +348,7 @@ export function MessageTemplatesList() {
                             </div>
                         </div>
 
-                        <Button onClick={handleSave} className="w-full">Save Template</Button>
+                        <Button onClick={handleSave} className="w-full">{t("templates.save")}</Button>
                     </div>
                 </DialogContent>
             </Dialog>

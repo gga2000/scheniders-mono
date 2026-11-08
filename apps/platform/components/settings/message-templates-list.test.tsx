@@ -10,12 +10,15 @@ vi.mock("@/hooks/use-toast", () => ({ toast: { error: (...a: unknown[]) => toast
 vi.mock("@/components/auth/auth-provider", () => ({ useAuth: () => ({ tenantId: "tenant-1" }) }));
 
 let insertPayload: unknown;
+let listRows: unknown[] = [];
+let deleteError: { message: string } | null = null;
 let insertResult: { data: unknown; error: { message: string } | null };
 
 vi.mock("@/lib/supabase", () => ({
     supabase: {
         from: () => ({
-            select: () => ({ order: async () => ({ data: [], error: null }) }),
+            select: () => ({ order: async () => ({ data: listRows, error: null }) }),
+            delete: () => ({ eq: async () => ({ error: deleteError }) }),
             insert: (rows: unknown) => {
                 insertPayload = rows;
                 return { select: () => ({ single: async () => insertResult }) };
@@ -26,15 +29,17 @@ vi.mock("@/lib/supabase", () => ({
 
 beforeEach(() => {
     insertPayload = undefined;
+    listRows = [];
+    deleteError = null;
     insertResult = { data: { id: "t1", name: "Hi", content: "", is_active: true }, error: null };
 });
 afterEach(() => { cleanup(); toastError.mockReset(); });
 
 async function saveNewTemplate() {
     render(<LanguageProvider><MessageTemplatesList /></LanguageProvider>);
-    fireEvent.click(await screen.findByText("New Template"));
-    fireEvent.change(await screen.findByPlaceholderText("e.g. Order Confirmation"), { target: { value: "Hi" } });
-    fireEvent.click(screen.getByText("Save Template"));
+    fireEvent.click(await screen.findByText("قالب جديد"));
+    fireEvent.change(await screen.findByPlaceholderText("مثلاً: تأكيد الطلب"), { target: { value: "Hi" } });
+    fireEvent.click(screen.getByText("حفظ القالب"));
 }
 
 describe("MessageTemplatesList save", () => {
@@ -48,6 +53,21 @@ describe("MessageTemplatesList save", () => {
         insertResult = { data: null, error: { message: "new row violates row-level security policy" } };
         await saveNewTemplate();
         await waitFor(() => expect(toastError).toHaveBeenCalled());
-        expect(screen.getByText("Save Template")).toBeTruthy();
+        expect(screen.getByText("حفظ القالب")).toBeTruthy();
+    });
+});
+
+describe("MessageTemplatesList delete", () => {
+    it("keeps the template and shows the error when the delete is refused", async () => {
+        listRows = [{ id: "t9", name: "Old offer", content: "x", is_active: true, template_type: null }];
+        deleteError = { message: "permission denied" };
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        render(<LanguageProvider><MessageTemplatesList /></LanguageProvider>);
+        await screen.findByText("Old offer");
+        const row = screen.getByText("Old offer").closest("div.flex.items-start") as HTMLElement;
+        const buttons = row.querySelectorAll("button");
+        fireEvent.click(buttons[buttons.length - 1]);
+        await waitFor(() => expect(toastError).toHaveBeenCalledWith("تعذّر حذف القالب", "permission denied"));
+        expect(screen.getByText("Old offer")).toBeTruthy();
     });
 });
