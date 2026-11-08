@@ -11,6 +11,7 @@
  * Rate Limit: 30 requests per 30 seconds per user
  */
 
+import { z } from "zod";
 import { providerBaseUrls } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { formatPhoneToStandard } from "@/lib/order-utils";
@@ -87,6 +88,29 @@ async function getToken(): Promise<string> {
 }
 
 /**
+ * Al-Waseet sometimes answers with an HTML page (maintenance, proxy error)
+ * instead of JSON. response.json() then fails with "Unexpected token '<'",
+ * which says nothing useful. Read the body as text and name the real problem.
+ */
+export async function readWaseetJson(response: Response): Promise<WaseetEnvelope> {
+    const body = await response.text();
+    try {
+        return JSON.parse(body) as WaseetEnvelope;
+    } catch {
+        const type = response.headers.get("content-type") ?? "unknown type";
+        throw new Error(`Al-Waseet sent a non-JSON reply (HTTP ${response.status}, ${type}); the service may be down`);
+    }
+}
+
+/** Al-Waseet's reply shape: { status, errNum, msg, data }. */
+interface WaseetEnvelope {
+    status?: boolean;
+    errNum?: string | number;
+    msg?: string;
+    data?: unknown;
+}
+
+/**
  * Login to Al-Waseet API and cache the token.
  * Token persists until password change per API docs.
  */
@@ -107,13 +131,14 @@ async function login(): Promise<string> {
         body: formData,
     });
 
-    const result = await response.json();
+    const result = await readWaseetJson(response);
 
     if (!response.ok || !result?.status) {
         throw new Error(`Al-Waseet login failed: ${result?.msg || `HTTP ${response.status}`}`);
     }
 
-    const token = result?.data?.token;
+    const parsed = z.object({ token: z.string().min(1) }).safeParse(result.data);
+    const token = parsed.success ? parsed.data.token : null;
     if (!token) {
         throw new Error("Al-Waseet login response missing token in data.token");
     }
@@ -219,7 +244,7 @@ async function waseetRequest<T>(
                 continue;
             }
 
-            const responseData = await response.json();
+            const responseData = await readWaseetJson(response);
             const duration = Date.now() - startTime;
 
             // Audit log (fire-and-forget, never blocks)
