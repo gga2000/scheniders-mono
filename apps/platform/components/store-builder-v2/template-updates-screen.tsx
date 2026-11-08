@@ -69,7 +69,6 @@ export function TemplateUpdatesScreen({ builder, onClose }: TemplateUpdatesScree
             <ScreenHeader
                 setting="template_updates"
                 onBack={onClose}
-                backLabel={tx(s.close, locale)}
                 backTestId="template-updates-close"
             />
 

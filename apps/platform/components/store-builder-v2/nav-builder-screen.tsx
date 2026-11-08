@@ -98,7 +98,6 @@ export function NavBuilderScreen({
                 setting="nav"
                 subtitle={<>{t(STRINGS.advanced_chrome.nav_intro_prefix, locale)}{" "} <code dir="ltr" className="rounded bg-black/5 px-1">/products</code>{" · "} <code dir="ltr" className="rounded bg-black/5 px-1">/p/summer-sale</code> {t(STRINGS.advanced_chrome.nav_intro_suffix, locale)}</>}
                 onBack={onClose}
-                backLabel={t(STRINGS.advanced_chrome.nav_close_aria, locale)}
                 backTestId="nav-builder-close"
                 actions={
                     <>

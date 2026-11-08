@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { STRINGS, t } from "@/lib/editor-i18n";
 import { SETTING_TINT, getSettingLabel, settingIcon, type SettingsSectionId } from "./page-tree";
 
 /** Primary action button style for a screen header ("Add", "New", "Save snapshot"). */
@@ -30,7 +31,6 @@ export interface ScreenHeaderProps {
     subtitle?: ReactNode;
     /** Omitted when the screen is shown without a way back (e.g. embedded). */
     onBack?: () => void;
-    backLabel?: string;
     backTestId?: string;
     actions?: ReactNode;
 }
@@ -39,7 +39,6 @@ export function ScreenHeader({
     setting,
     subtitle,
     onBack,
-    backLabel,
     backTestId,
     actions,
 }: ScreenHeaderProps): React.ReactElement {
@@ -56,7 +55,7 @@ export function ScreenHeader({
                         type="button"
                         onClick={onBack}
                         data-testid={backTestId}
-                        aria-label={backLabel}
+                        aria-label={t(STRINGS.toolbar.back_to_canvas, locale)}
                         className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
                         <ChevronLeft className="h-4 w-4" />

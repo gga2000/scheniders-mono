@@ -403,7 +403,6 @@ export function HealthChecklistScreen(
                 setting="health"
                 subtitle={tFormat(STRINGS.health.subtitle, locale, { tenant: tenantName })}
                 onBack={onClose}
-                backLabel={t(STRINGS.health.close, locale)}
                 backTestId="health-close"
             />
 

@@ -134,8 +134,10 @@ export function I18nScreen({
             {/* Header */}
             <ScreenHeader
                 setting="i18n"
+                subtitle={tFormat(STRINGS.i18n_screen.showing, locale, {
+                    lang: t(STRINGS.languages[focusLocale], locale),
+                })}
                 onBack={onClose}
-                backLabel={t(STRINGS.i18n_screen.back, locale)}
                 backTestId="i18n-screen-back"
                 actions={
                     <>
@@ -168,12 +170,6 @@ export function I18nScreen({
 
             <div className="flex-1 overflow-y-auto p-6">
                 <div className="mx-auto max-w-3xl space-y-6">
-                    <p className="text-sm text-foreground/80">
-                        {tFormat(STRINGS.i18n_screen.showing, locale, {
-                            lang: t(STRINGS.languages[focusLocale], locale),
-                        })}
-                    </p>
-
                     {result.perPage.map((page) => {
                         const labelPage =
                             page.page_id === ("_globals" as PageId)
@@ -231,7 +227,8 @@ export function I18nScreen({
                                                 key={`${m.section_id}-${m.path}-${i}`}
                                                 className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-black/5"
                                             >
-                                                <div className="min-w-0 flex-1">
+                                                {/* Name and snippet share one edge. */}
+                                                <div className="min-w-0 flex-1 [&>div]:text-left!">
                                                     <div className="truncate font-medium">
                                                         {m.section_label}
                                                     </div>

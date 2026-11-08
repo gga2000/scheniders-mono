@@ -73,7 +73,6 @@ export function DiscountsScreen({
                 setting="discounts"
                 subtitle={t(STRINGS.advanced_chrome.disc_intro, locale)}
                 onBack={onClose}
-                backLabel={t(STRINGS.advanced_chrome.disc_close_aria, locale)}
                 backTestId="discounts-close"
                 actions={
                     <>

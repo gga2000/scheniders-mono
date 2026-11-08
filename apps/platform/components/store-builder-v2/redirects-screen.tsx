@@ -88,7 +88,6 @@ export function RedirectsScreen({
                 setting="redirects"
                 subtitle={<>{t(STRINGS.advanced_chrome.redir_intro_prefix, locale)}{" "} <code dir="ltr" className="whitespace-nowrap">/products/old</code>.</>}
                 onBack={onClose}
-                backLabel={t(STRINGS.advanced_chrome.redir_close_aria, locale)}
                 backTestId="redirects-close"
                 actions={
                     <>

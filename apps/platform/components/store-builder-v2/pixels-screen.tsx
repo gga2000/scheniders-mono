@@ -121,7 +121,6 @@ export function PixelsScreen({
             <ScreenHeader
                 setting="pixels"
                 onBack={onClose}
-                backLabel={t(P.close, locale)}
                 backTestId="pixels-close"
             />
 

@@ -109,7 +109,6 @@ export function OrderStatusScreen({ builder, contact: rawContact, onClose }: Ord
                 setting="order_status"
                 subtitle={tx(STRINGS.order_status.intro, locale)}
                 onBack={onClose}
-                backLabel={tx(STRINGS.order_status.close, locale)}
                 backTestId="order-status-close"
             />
 

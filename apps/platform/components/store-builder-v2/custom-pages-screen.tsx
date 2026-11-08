@@ -144,7 +144,6 @@ export function CustomPagesScreen({
                 setting="custom_pages"
                 subtitle={t(C.intro, ui)}
                 onBack={onClose}
-                backLabel={t(C.close, ui)}
                 backTestId="custom-pages-close"
             />
 

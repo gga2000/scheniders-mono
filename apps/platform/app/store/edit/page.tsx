@@ -29,6 +29,16 @@ const DEEP_LINK_SCREENS: readonly SettingsSectionId[] = [
     "i18n",
     "redirects",
     "pixels",
+    "shipping",
+    "discounts",
+    "bundles",
+    "cart_recovery",
+    "loyalty",
+    "order_status",
+    "free_gift",
+    "template_updates",
+    "custom_pages",
+    "nav",
 ];
 
 /**
