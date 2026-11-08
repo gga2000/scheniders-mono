@@ -1,5 +1,6 @@
 import { createSupabaseServiceClient, createSupabaseServerClientWithToken } from '@/lib/supabase-server';
 import { isBillingExempt } from "@/lib/billing-exempt";
+import { RESERVED_SLUGS } from "@/lib/tenant-slug";
 
 // =============================================
 // TYPES
@@ -153,8 +154,12 @@ export function generateSlug(name: string): string {
  * 20261022090000_tenant_slug_claim.sql refuses such an insert; skipping
  * those slugs here picks a free one instead of failing the signup.
  */
-export async function ensureUniqueSlug(baseSlug: string): Promise<string> {
+export async function ensureUniqueSlug(requested: string): Promise<string> {
     const adminClient = createSupabaseServiceClient();
+    // A store named "Support" or "Scheniders" must not become
+    // support.<root> / scheniders.<root>, which read as platform pages. The
+    // handle-claim route already refuses these; signup lands here instead.
+    const baseSlug = looksLikePlatformHost(requested) ? `store-${requested}` : requested;
     let slug = baseSlug;
     let attempt = 0;
 
@@ -177,6 +182,11 @@ export async function ensureUniqueSlug(baseSlug: string): Promise<string> {
         attempt++;
         slug = `${baseSlug}-${attempt}`;
     }
+}
+
+/** Reserved platform subdomains, and anything posing as the platform's name. */
+function looksLikePlatformHost(slug: string): boolean {
+    return RESERVED_SLUGS.has(slug) || slug.startsWith("schenider");
 }
 
 // =============================================
