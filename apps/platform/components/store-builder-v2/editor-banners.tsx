@@ -14,6 +14,7 @@ import { ExternalLink, PartyPopper, Sparkles } from "lucide-react";
 import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
+import { formatRelativeTime } from "@/lib/relative-time";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* FirstRunBanner                                                       */
@@ -344,14 +345,8 @@ export function PublishSuccessDialog({
 
 /** Relative "N min ago" label for the recovery banner timestamp. */
 function relativeTimeFrom(ms: number, locale: LocaleCode): string {
-    const diff = Date.now() - ms;
-    if (diff < 60_000) return t(STRINGS.recovery.time_just_now, locale);
-    const mins = Math.round(diff / 60_000);
-    if (mins < 60) return tFormat(STRINGS.recovery.time_minutes, locale, { n: mins });
-    const hrs = Math.round(mins / 60);
-    if (hrs < 24) return tFormat(STRINGS.recovery.time_hours, locale, { n: hrs });
-    const days = Math.round(hrs / 24);
-    return tFormat(STRINGS.recovery.time_days, locale, { n: days });
+    if (Date.now() - ms < 60_000) return t(STRINGS.recovery.time_just_now, locale);
+    return formatRelativeTime(new Date(ms), new Date(), locale);
 }
 
 /**

@@ -39,7 +39,7 @@ import {
 } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { cn } from "@/lib/utils";
-import { STRINGS, t } from "@/lib/editor-i18n";
+import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -51,15 +51,15 @@ type TrafficSource = (typeof TRAFFIC_SOURCES)[number];
 
 const DEVICES: Breakpoint[] = ["mobile", "tablet", "desktop"];
 
-const RULE_KIND_LABELS: Record<SegmentRule["kind"], string> = {
-    first_visit: "First visit",
-    returning_visitor: "Returning visitor",
-    has_ordered_before: "Has ordered before",
-    cart_total: "Cart total",
-    abandoned_cart: "Abandoned cart",
-    governorate: "Governorate",
-    traffic_source: "Traffic source",
-    device: "Device",
+const RULE_KIND_LABELS: Record<SegmentRule["kind"], EditorString> = {
+    first_visit: STRINGS.advanced_chrome.seg_rule_first_visit,
+    returning_visitor: STRINGS.advanced_chrome.seg_rule_returning,
+    has_ordered_before: STRINGS.advanced_chrome.seg_rule_ordered,
+    cart_total: STRINGS.advanced_chrome.seg_rule_cart_total,
+    abandoned_cart: STRINGS.advanced_chrome.seg_rule_abandoned,
+    governorate: STRINGS.advanced_chrome.seg_rule_governorate,
+    traffic_source: STRINGS.advanced_chrome.seg_rule_traffic,
+    device: STRINGS.advanced_chrome.seg_rule_device,
 };
 
 const ALL_RULE_KINDS: SegmentRule["kind"][] = [
@@ -138,14 +138,14 @@ export function SegmentsScreen({
 
     const handleCreate = useCallback((): void => {
         const seg = builder.createSegment({
-            name: "New segment",
+            name: t(STRINGS.advanced_chrome.seg_default_name, locale),
             description: "",
             rules: [],
             combine: "all",
         });
         setSelectedId(seg.id);
         setAcknowledgedRefs(false);
-    }, [builder]);
+    }, [builder, locale]);
 
     const handlePatch = useCallback(
         (patch: Partial<AudienceSegment>): void => {
@@ -299,8 +299,13 @@ export function SegmentsScreen({
                                                 {s.name || "(Untitled)"}
                                             </span>
                                             <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-                                                {s.rules.length} rule
-                                                {s.rules.length === 1 ? "" : "s"}
+                                                {tFormat(
+                                                    s.rules.length === 1
+                                                        ? STRINGS.advanced_chrome.seg_rule_count_one
+                                                        : STRINGS.advanced_chrome.seg_rule_count_many,
+                                                    locale,
+                                                    { n: s.rules.length },
+                                                )}
                                             </span>
                                         </div>
                                         {s.description && (
@@ -314,7 +319,7 @@ export function SegmentsScreen({
                                                     key={i}
                                                     className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-muted-foreground"
                                                 >
-                                                    {RULE_KIND_LABELS[r.kind]}
+                                                    {t(RULE_KIND_LABELS[r.kind], locale)}
                                                 </span>
                                             ))}
                                             {s.rules.length > 4 && (
@@ -415,7 +420,7 @@ function SegmentEditor({
                 </button>
             </header>
 
-            <Field label="Name">
+            <Field label={t(STRINGS.advanced_chrome.seg_field_name, locale)}>
                 <input
                     type="text"
                     value={segment.name}
@@ -425,7 +430,7 @@ function SegmentEditor({
                 />
             </Field>
 
-            <Field label="Description">
+            <Field label={t(STRINGS.advanced_chrome.seg_field_description, locale)}>
                 <textarea
                     value={segment.description ?? ""}
                     onChange={(e) => onPatch({ description: e.target.value })}
@@ -435,7 +440,7 @@ function SegmentEditor({
                 />
             </Field>
 
-            <Field label="Combine logic">
+            <Field label={t(STRINGS.advanced_chrome.seg_field_combine, locale)}>
                 <div
                     role="radiogroup"
                     aria-label={t(STRINGS.advanced_chrome.seg_field_combine, locale)}
@@ -456,7 +461,12 @@ function SegmentEditor({
                                     : "text-muted-foreground hover:text-foreground",
                             )}
                         >
-                            Match {opt === "all" ? "ALL" : "ANY"} rules
+                            {t(
+                                opt === "all"
+                                    ? STRINGS.advanced_chrome.seg_match_all
+                                    : STRINGS.advanced_chrome.seg_match_any,
+                                locale,
+                            )}
                         </button>
                     ))}
                 </div>
@@ -490,7 +500,7 @@ function SegmentEditor({
                                         data-testid={`segment-editor-add-rule-${k}`}
                                         className="block w-full rounded px-2 py-1.5 text-left text-[12px] hover:bg-black/5"
                                     >
-                                        {RULE_KIND_LABELS[k]}
+                                        {t(RULE_KIND_LABELS[k], locale)}
                                     </button>
                                 ))}
                             </div>
@@ -515,7 +525,7 @@ function SegmentEditor({
                             >
                                 <div className="flex items-start justify-between gap-2">
                                     <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                        {RULE_KIND_LABELS[r.kind]}
+                                        {t(RULE_KIND_LABELS[r.kind], locale)}
                                     </span>
                                     <button
                                         type="button"
@@ -753,7 +763,9 @@ function DeleteConfirm({
             <div className="w-full max-w-md overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <h3 className="text-base font-semibold tracking-tight">
-                        Delete &ldquo;{segment.name || "Untitled"}&rdquo;?
+                        {tFormat(STRINGS.advanced_chrome.seg_delete_title, locale, {
+                            name: segment.name || t(STRINGS.advanced_chrome.seg_untitled, locale),
+                        })}
                     </h3>
                     <button
                         type="button"
@@ -773,21 +785,24 @@ function DeleteConfirm({
                         >
                             <AlertCircle className="mt-0.5 h-3.5 w-3.5" />
                             <p>
-                                This segment is used by{" "}
+                                {t(STRINGS.advanced_chrome.seg_delete_refs_prefix, locale)}{" "}
                                 <span
                                     data-testid="segment-delete-refs-count"
                                     className="font-semibold"
                                 >
                                     {refsCount}
                                 </span>{" "}
-                                variant{refsCount === 1 ? "" : "s"}. Deleting it will
-                                leave those variants matching nothing. Proceed?
+                                {t(
+                                    refsCount === 1
+                                        ? STRINGS.advanced_chrome.seg_delete_refs_suffix_one
+                                        : STRINGS.advanced_chrome.seg_delete_refs_suffix_many,
+                                    locale,
+                                )}
                             </p>
                         </div>
                     ) : (
                         <p className="text-muted-foreground">
-                            This will remove the segment from your store config. Any
-                            variant that targets it will no longer match.
+                            {t(STRINGS.advanced_chrome.seg_delete_body, locale)}
                         </p>
                     )}
                 </div>
@@ -798,7 +813,7 @@ function DeleteConfirm({
                         data-testid="segment-delete-cancel-btn"
                         className="inline-flex h-9 items-center rounded-md px-3 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
                     >
-                        Cancel
+                        {t(STRINGS.common.cancel, locale)}
                     </button>
                     <button
                         type="button"

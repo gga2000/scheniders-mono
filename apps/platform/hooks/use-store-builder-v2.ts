@@ -17,6 +17,8 @@ import {
     pruneVariantsForDeletedExperiment,
     findCustomPageById,
 } from "@scheniders/shared";
+import { STRINGS, t } from "@/lib/editor-i18n";
+import { canonicalConfigJson } from "@/lib/store-draft";
 import { supabase } from "@/lib/supabase";
 import {
     diffJson,
@@ -415,7 +417,11 @@ export function useStoreBuilderV2(
     }, [serializedConfig]);
 
     /* ── Mark dirty whenever config changes ───────────────────────── */
+    // Compared by meaning (canonicalConfigJson), not raw JSON: undoing back to
+    // the loaded state can leave an empty list where there was no key, and
+    // that must not keep "unpublished changes" on.
     const initialSerializedRef = useRef<string>(JSON.stringify(initialConfig));
+    const initialCanonicalRef = useRef<string>(canonicalConfigJson(initialConfig));
     // A never-published store ALWAYS has something to publish — the seeded
     // draft itself. Without this, the effect below would flip the initial
     // `!hasPublished` dirty state back to false on mount (config === load
@@ -431,11 +437,11 @@ export function useStoreBuilderV2(
     const unpublishedDraftRef = useRef<boolean>(initiallyDirty);
     useEffect(() => {
         set_has_unpublished_changes(
-            serializedConfig !== initialSerializedRef.current ||
+            canonicalConfigJson(config) !== initialCanonicalRef.current ||
                 !everPublishedRef.current ||
                 unpublishedDraftRef.current,
         );
-    }, [serializedConfig]);
+    }, [config]);
 
     /* ── Auto-save to DB (2s debounce) ────────────────────────────── */
     const saveDraftRef = useRef<((cfg: StoreConfigV2) => Promise<void>) | null>(null);
@@ -790,6 +796,7 @@ export function useStoreBuilderV2(
             set_save_state("saved");
             set_last_saved_at(new Date());
             initialSerializedRef.current = JSON.stringify(config);
+            initialCanonicalRef.current = canonicalConfigJson(config);
             // The draft is nulled; the editor reloads from published = config.
             lastPersistedSerializedRef.current = initialSerializedRef.current;
             everPublishedRef.current = true;
@@ -859,6 +866,7 @@ export function useStoreBuilderV2(
             skipHistoryRef.current = true;
             setConfigState(published);
             initialSerializedRef.current = JSON.stringify(published);
+            initialCanonicalRef.current = canonicalConfigJson(published);
             lastPersistedSerializedRef.current = initialSerializedRef.current;
             everPublishedRef.current = true; // a published config just loaded
             unpublishedDraftRef.current = false; // the draft was discarded
@@ -984,7 +992,7 @@ export function useStoreBuilderV2(
                 setConfig(
                     (prev) =>
                         setByPathRoot(prev as unknown, path, value) as StoreConfigV2,
-                    "Edited field",
+                    t(STRINGS.history.edit_field, active_locale),
                 );
                 scheduleReconcileSave();
                 return;
@@ -1002,7 +1010,7 @@ export function useStoreBuilderV2(
             setConfig(
                 (prev) =>
                     setByPathRoot(prev as unknown, path, value) as StoreConfigV2,
-                "Edited field",
+                t(STRINGS.history.edit_field, active_locale),
             );
             // Fire-and-forget PATCH. On success the draft is persisted; on
             // failure, fall back to a full debounced save (configRef = latest).
@@ -1061,7 +1069,7 @@ export function useStoreBuilderV2(
                 scheduleReconcileSave();
             }
         },
-        [setConfig, tenantId, scheduleReconcileSave],
+        [setConfig, tenantId, scheduleReconcileSave, active_locale],
     );
 
     /* ── applyConfig (replace entire draft, e.g. version restore) ── */

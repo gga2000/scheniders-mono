@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyStoreConfigV2 } from "@scheniders/shared";
-import { hasUnpublishedDraft } from "./store-draft";
+import { canonicalConfigJson, hasUnpublishedDraft } from "./store-draft";
 
 describe("hasUnpublishedDraft", () => {
     it("is false without a draft", () => {
@@ -16,5 +16,19 @@ describe("hasUnpublishedDraft", () => {
         const draft = { ...emptyStoreConfigV2(), default_locale: "en" as const };
         const live = { ...emptyStoreConfigV2(), default_locale: "ar" as const };
         expect(hasUnpublishedDraft(draft, live)).toBe(true);
+    });
+});
+
+describe("sameStoreConfig", () => {
+    it("treats an undone empty list as no change", () => {
+        const live = emptyStoreConfigV2();
+        const draft = { ...live, segments: [] } as typeof live;
+        expect(hasUnpublishedDraft(draft, live)).toBe(false);
+    });
+    it("ignores key order", () => {
+        expect(canonicalConfigJson({ a: 1, b: 2 })).toBe(canonicalConfigJson({ b: 2, a: 1 }));
+    });
+    it("still sees a removed list entry", () => {
+        expect(canonicalConfigJson({ x: [1, 2] })).not.toBe(canonicalConfigJson({ x: [1] }));
     });
 });
