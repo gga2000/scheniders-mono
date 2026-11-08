@@ -64,6 +64,9 @@ export interface InspectorRailProps {
      * merchant clicks a row in the Layers strip.
      */
     onEditLayer?: (info: { field?: string; layerId?: string; el: HTMLElement }) => void;
+    /** Field the open section's form scrolls to once (health fix). */
+    focusField?: string | null;
+    onFocusFieldDone?: () => void;
 
     /* ── Style tab ──────────────────────────────────────────────── */
     /**
@@ -91,7 +94,7 @@ export interface InspectorRailProps {
         page: PageId,
         opts?: { tab?: "seo"; open?: "add_section" },
     ) => void;
-    onJumpToSection?: (page: PageId, sectionId: string) => void;
+    onJumpToSection?: (page: PageId, sectionId: string, field?: string) => void;
     /** Persist the store-level WhatsApp number (launch checklist inline capture). */
     onSetWhatsappNumber?: (value: string) => void;
     /** Persist the default delivery fee (launch checklist inline capture, S3-09). */
@@ -122,6 +125,8 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
         experiments,
         segments,
         onEditLayer,
+        focusField,
+        onFocusFieldDone,
         pageMeta,
         onChangePageMeta,
         storefrontUrl,
@@ -225,6 +230,8 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                         experiments={experiments}
                         segments={segments}
                         onEditLayer={onEditLayer}
+                        focusField={focusField}
+                        onFocusFieldDone={onFocusFieldDone}
                     />
                 ) : effectiveTab === "seo" ? (
                     <PageSeoPanel
@@ -252,8 +259,8 @@ export function InspectorRail(props: InspectorRailProps): React.ReactElement {
                                 onJumpToSetting?.(id);
                             }}
                             onSelectPage={(page, opts) => onJumpToPage?.(page, opts)}
-                            onSelectSection={(page, sectionId) =>
-                                onJumpToSection?.(page, sectionId)
+                            onSelectSection={(page, sectionId, field) =>
+                                onJumpToSection?.(page, sectionId, field)
                             }
                             onSetWhatsappNumber={onSetWhatsappNumber}
                             onSetDeliveryFee={onSetDeliveryFee}

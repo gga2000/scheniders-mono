@@ -586,6 +586,11 @@ describe("evaluateSegments", () => {
     return { id, name: id, rules, combine };
   }
 
+  it("an audience with no rules yet reaches no one, whatever it combines with", () => {
+    expect(evaluateSegments([seg("draft", [])], segCtx())).toEqual([]);
+    expect(evaluateSegments([seg("draft", [], "any")], segCtx())).toEqual([]);
+  });
+
   // Run match / non-match / edge for each rule.kind.
   const ruleCases: Array<{
     kind: string;

@@ -159,6 +159,28 @@ describe("PreviewOverlay", () => {
         expect(toolbar.style.top).toBe("108px");
     });
 
+    it("puts the toolbar inside a tall section so it never covers the header above", () => {
+        render(
+            <PreviewOverlay
+                bridge={makeBridge({
+                    rect_updates: {
+                        "sec-H": { top: 70, left: 0, width: 600, height: 420 },
+                    },
+                })}
+                selected_section_id="sec-H"
+                selected_section_label="Hero"
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+            />,
+        );
+        const toolbar = screen.getByTestId("preview-overlay-toolbar") as HTMLDivElement;
+        expect(toolbar.dataset.placement).toBe("inside");
+        // inside the section's top edge: 70 + 8 = 78, not above it at 30
+        expect(toolbar.style.top).toBe("78px");
+    });
+
     it("clicking Edit on the toolbar calls onEditRequest with the selected id", () => {
         const onEditRequest = vi.fn();
         render(

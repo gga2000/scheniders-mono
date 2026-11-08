@@ -295,17 +295,27 @@ export function SegmentsScreen({
                                         )}
                                     >
                                         <div className="flex w-full items-center justify-between gap-2">
-                                            <span className="truncate text-sm font-semibold">
-                                                {s.name || "(Untitled)"}
+                                            <span dir="auto" className="truncate text-sm font-semibold">
+                                                {s.name || t(STRINGS.advanced_chrome.seg_untitled, locale)}
                                             </span>
-                                            <span className="shrink-0 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
-                                                {tFormat(
-                                                    s.rules.length === 1
-                                                        ? STRINGS.advanced_chrome.seg_rule_count_one
-                                                        : STRINGS.advanced_chrome.seg_rule_count_many,
-                                                    locale,
-                                                    { n: s.rules.length },
+                                            <span
+                                                data-testid={`segments-list-item-${s.id}-rules`}
+                                                className={cn(
+                                                    "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+                                                    s.rules.length === 0
+                                                        ? "bg-amber-500/15 text-amber-700"
+                                                        : "bg-muted/60 text-muted-foreground",
                                                 )}
+                                            >
+                                                {s.rules.length === 0
+                                                    ? t(STRINGS.advanced_chrome.seg_rule_count_none, locale)
+                                                    : tFormat(
+                                                          s.rules.length === 1
+                                                              ? STRINGS.advanced_chrome.seg_rule_count_one
+                                                              : STRINGS.advanced_chrome.seg_rule_count_many,
+                                                          locale,
+                                                          { n: s.rules.length },
+                                                      )}
                                             </span>
                                         </div>
                                         {s.description && (

@@ -487,6 +487,10 @@ const TOOLBAR_HEIGHT = 32;
 const TOOLBAR_GAP = 8;
 /** When the section is too close to the top, flip the toolbar below. */
 const FLIP_THRESHOLD = 60;
+/** A section at least this tall carries the toolbar inside its own top
+ *  edge, so the toolbar covers the section being edited rather than the
+ *  neighbour above it (the store header's links, for the first section). */
+const INSIDE_MIN_HEIGHT = 160;
 
 function Toolbar(props: ToolbarProps): ReactElement {
     const {
@@ -500,19 +504,29 @@ function Toolbar(props: ToolbarProps): ReactElement {
     } = props;
     const locale = useEditorLocale();
 
-    const flip_below = rect.top < FLIP_THRESHOLD;
-    const top = flip_below
-        ? rect.top + rect.height + TOOLBAR_GAP
-        : rect.top - TOOLBAR_HEIGHT - TOOLBAR_GAP;
+    const placement: "inside" | "above" | "below" =
+        rect.height >= INSIDE_MIN_HEIGHT
+            ? "inside"
+            : rect.top < FLIP_THRESHOLD
+              ? "below"
+              : "above";
+    const flip_below = placement === "below";
+    const top =
+        placement === "inside"
+            ? rect.top + TOOLBAR_GAP
+            : placement === "below"
+              ? rect.top + rect.height + TOOLBAR_GAP
+              : rect.top - TOOLBAR_HEIGHT - TOOLBAR_GAP;
 
     return (
         <div
             data-testid="preview-overlay-toolbar"
             data-flip-below={flip_below ? "true" : "false"}
+            data-placement={placement}
             className="pointer-events-auto absolute z-10 flex h-8 items-center gap-1 rounded-md border border-pink-500 bg-pink-500 px-1.5 text-white shadow-lg"
             style={{
                 top,
-                left: rect.left,
+                left: placement === "inside" ? rect.left + TOOLBAR_GAP : rect.left,
                 maxWidth: Math.max(160, rect.width + 12),
             }}
         >

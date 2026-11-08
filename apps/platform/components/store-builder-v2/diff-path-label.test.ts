@@ -43,6 +43,14 @@ describe("describeDiffPath", () => {
     });
 });
 
+describe("describeDiffPath globals", () => {
+    it("names a global slot in words, never by its config key", () => {
+        const parts = describeDiffPath(["globals", "analytics_pixels", "base", "meta_pixel_id"], [config], "ar");
+        expect(parts[0]).toBe("البكسلات والتتبّع");
+        expect(parts.join(" ")).not.toMatch(/analytics_pixels/);
+    });
+});
+
 describe("isSecretDiffPath", () => {
     it("flags credentials so their values are never shown", () => {
         expect(isSecretDiffPath(["globals", "analytics_pixels", "base", "meta_capi_token"])).toBe(true);

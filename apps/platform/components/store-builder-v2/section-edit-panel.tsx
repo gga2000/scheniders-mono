@@ -11,7 +11,7 @@
 // Variants UI is intentionally stubbed (Agent J will build the editor).
 // =====================================================================
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import {
     BookOpen,
@@ -88,6 +88,27 @@ export interface SectionEditPanelProps {
      * edit on the matching canvas element.
      */
     onEditLayer?: (info: { field?: string; layerId?: string; el: HTMLElement }) => void;
+    /**
+     * A top-level field to bring into view and focus once, e.g. the image a
+     * health "Fix" points at. `onFocusFieldDone` clears it so a later edit
+     * does not scroll the form again.
+     */
+    focusField?: string | null;
+    onFocusFieldDone?: () => void;
+}
+
+/**
+ * The first rendered part of a field's form control. AutoForm ids read
+ * `auto-form-<group>.<field>[-part]`, the group being optional.
+ */
+function findFieldElement(root: HTMLElement, field: string): HTMLElement | null {
+    // The key can arrive from a URL (?field=); only a plain key is looked up.
+    if (!/^\w+$/.test(field)) return null;
+    const id = new RegExp(`^auto-form-(?:\\w+\\.)*${field}(?:-|$)`);
+    for (const el of root.querySelectorAll<HTMLElement>("[data-testid^='auto-form-']")) {
+        if (id.test(el.dataset.testid ?? "")) return el;
+    }
+    return null;
 }
 
 /* ─────────────────────────────────────────────────────────────────── */
@@ -138,7 +159,20 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
         activeBreakpoint,
         inline = false,
         onEditLayer,
+        focusField,
+        onFocusFieldDone,
     } = props;
+
+    const baseRef = useRef<HTMLElement>(null);
+    useEffect(() => {
+        if (!focusField || !baseRef.current) return;
+        const el = findFieldElement(baseRef.current, focusField);
+        if (el) {
+            el.scrollIntoView({ block: "center", behavior: "smooth" });
+            el.querySelector<HTMLElement>("input, textarea, button, [tabindex]")?.focus({ preventScroll: true });
+        }
+        onFocusFieldDone?.();
+    }, [focusField, onFocusFieldDone, instance.id]);
 
     const locale = useResolvedEditorLocale(activeLocale);
     const { mode, setMode } = useEditorMode();
@@ -303,7 +337,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                 <div className="my-4 h-px bg-(--card-border)" />
 
                 {/* Base properties — auto-form */}
-                <section data-testid="section-edit-panel-base">
+                <section ref={baseRef} data-testid="section-edit-panel-base">
                     <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
                         {t(STRINGS.section_edit.tab_properties, locale)}
                     </h3>

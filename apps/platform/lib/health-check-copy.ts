@@ -154,6 +154,14 @@ export const CHECK_COPY: Record<string, CheckCopy> = {
         },
         fix: { en: "Upload logo", ar: "ارفع الشعار", ku: "لۆگۆ باربکە" },
     },
+    brand_colors_readable: {
+        message: {
+            en: "Some of your colours are hard to read on the page background. Check the contrast in Brand kit.",
+            ar: "بعض ألوانك صعبة القراءة على خلفية الصفحة. راجع التباين في هوية العلامة.",
+            ku: "هەندێک لە ڕەنگەکانت لەسەر پاشبنەمای پەڕە بە ئاستەم دەخوێنرێنەوە. جیاوازی ڕەنگ لە ناسنامەی براند بپشکنە.",
+        },
+        fix: { en: "Adjust colours", ar: "عدّل الألوان", ku: "ڕەنگەکان ڕێک بخە" },
+    },
     favicon_uploaded: {
         message: {
             en: "No favicon — the browser tab will show a generic icon.",
@@ -365,6 +373,7 @@ export const CHECK_PASSED_COPY: Record<string, EditorString> = {
     business_name_set: { en: "Store name is set.", ar: "اسم المتجر مضبوط.", ku: "ناوی فرۆشگا دانراوە." },
     tagline_set: { en: "Your store has a tagline.", ar: "لمتجرك شعار نصي.", ku: "فرۆشگاکەت دروشمی هەیە." },
     logo_uploaded: { en: "Logo uploaded.", ar: "الشعار مرفوع.", ku: "لۆگۆ بارکراوە." },
+    brand_colors_readable: { en: "Your colours are easy to read.", ar: "ألوانك سهلة القراءة.", ku: "ڕەنگەکانت بە ئاسانی دەخوێنرێنەوە." },
     favicon_uploaded: { en: "Browser tab icon uploaded.", ar: "أيقونة تبويب المتصفح مرفوعة.", ku: "ئایکۆنی تابی وێبگەڕ بارکراوە." },
     social_links_set: { en: "Social links are set.", ar: "روابط التواصل الاجتماعي مضبوطة.", ku: "بەستەرەکانی سۆشیال میدیا دانراون." },
     home_has_content: { en: "Your home page has sections.", ar: "صفحتك الرئيسية فيها أقسام.", ku: "پەڕەی سەرەکیت بەشی تێدایە." },

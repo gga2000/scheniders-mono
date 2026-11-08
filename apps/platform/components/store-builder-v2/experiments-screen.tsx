@@ -1005,7 +1005,7 @@ function ExperimentViewer({
                             {experiment.name || t(STRINGS.advanced_chrome.exp_untitled, locale)}
                         </h3>
                         <p className="text-[11px] text-muted-foreground">
-                            Primary metric:{" "}
+                            {t(STRINGS.advanced_chrome.exp_primary_metric_label, locale)}{" "}
                             <span className="font-medium text-foreground/80">
                                 {t(METRIC_LABELS[experiment.primary_metric], locale)}
                             </span>
@@ -1081,7 +1081,7 @@ function ExperimentViewer({
                                                     </span>
                                                 )}
                                                 <span className="text-[11px] text-muted-foreground">
-                                                    {arm.traffic_pct}% traffic
+                                                    {tFormat(STRINGS.advanced_chrome.exp_pct_traffic, locale, { n: arm.traffic_pct })}
                                                 </span>
                                             </div>
                                             {sig && !isControl && (

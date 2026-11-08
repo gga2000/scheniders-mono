@@ -163,6 +163,8 @@ export interface EditorShellProps {
      */
     initialPageId?: PageId | null;
     initialSectionId?: string | null;
+    /** With `initialSectionId`: the field to bring into view (health fixes). */
+    initialFieldKey?: string | null;
     /**
      * Deep-link the Inspector rail to a specific tab on mount (e.g. the
      * Command Center "SEO" tile opens the per-page SEO tab). Defaults to
@@ -201,6 +203,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         initialSystemScreen,
         initialPageId,
         initialSectionId,
+        initialFieldKey,
         initialInspectorTab,
         initialWelcome,
         initialOpenPicker,
@@ -391,6 +394,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
     // Currently editing section (null = show the section list panel).
     const [editing_section_id, set_editing_section_id] = useState<string | null>(null);
+    /** A field the open section's form should scroll to once (health fix). */
+    const [focus_field, set_focus_field] = useState<string | null>(null);
+    const clearFocusField = useCallback((): void => set_focus_field(null), []);
 
     // Currently selected section (click-to-edit overlay highlight).
     const [selected_section_id, set_selected_section_id] = useState<string | null>(null);
@@ -1399,6 +1405,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     activeLocale={builder.active_locale}
                     activeBreakpoint={builder.active_breakpoint}
                     inline
+                    focusField={section.id === editing_section_id ? focus_field : null}
+                    onFocusFieldDone={clearFocusField}
                 />
             );
         },
@@ -1409,6 +1417,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             builder.config.segments,
             handleSectionsChange,
             tenant.id,
+            editing_section_id,
+            focus_field,
+            clearFocusField,
         ],
     );
 
@@ -1458,6 +1469,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 builder.set_active_page(go.page_id);
                 set_selected_section_id(go.section_id);
                 set_editing_section_id(go.section_id);
+                set_focus_field(go.field ?? null);
                 return;
             }
             if (go.kind === "external") {
@@ -1479,6 +1491,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         if (initialSectionId) {
             set_selected_section_id(initialSectionId);
             set_editing_section_id(initialSectionId);
+            set_focus_field(initialFieldKey ?? null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -1975,6 +1988,8 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                 )}
                             </div>
                             <InspectorRail
+                                focusField={focus_field}
+                                onFocusFieldDone={clearFocusField}
                                 activeTab={inspector_tab}
                                 onChangeTab={set_inspector_tab}
                                 pageId={builder.active_page}
@@ -2021,11 +2036,12 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                         set_picker_open(true);
                                     }
                                 }}
-                                onJumpToSection={(page, section_id) => {
+                                onJumpToSection={(page, section_id, field) => {
                                     set_system_screen(null);
                                     builder.set_active_page(page);
                                     set_selected_section_id(section_id);
                                     set_editing_section_id(section_id);
+                                    set_focus_field(field ?? null);
                                     // Leave the health tab so the section's
                                     // fields are what the merchant sees.
                                     set_inspector_tab("blocks");

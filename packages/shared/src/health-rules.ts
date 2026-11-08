@@ -13,6 +13,7 @@
 
 import type { LocaleCode, PageId, SectionInstance, StoreConfigV2 } from "./types/store-config-v2";
 import { SUPPORTED_LOCALES } from "./types/store-config-v2";
+import { brandKitContrast } from "./brand-kit-vars";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Public types                                                        */
@@ -49,7 +50,8 @@ export interface FixAction {
          *  open, for fixes whose remedy is "add a section here". */
         | { kind: "page"; page_id: PageId; tab?: "seo"; open?: "add_section" }
 
-        | { kind: "section"; page_id: PageId; section_id: string }
+        /** `field` is the top-level field the fix is about, brought into view. */
+        | { kind: "section"; page_id: PageId; section_id: string; field?: string }
         | { kind: "external"; href: string };
 }
 
@@ -648,6 +650,19 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         }
         return { status: "pass" };
     }),
+    check("brand_colors_readable", "conversion", 1, (cfg) => {
+        // Body text needs WCAG AA (4.5:1) on the page; the main colour
+        // carries buttons, prices and links, which need 3:1 (WCAG 1.4.11).
+        const { inkOnSurface, primaryOnSurface } = brandKitContrast(cfg.brand_kit);
+        if (inkOnSurface >= 4.5 && primaryOnSurface >= 3) return { status: "pass" };
+        const weak = inkOnSurface < 4.5 ? "text" : "main colour";
+        const ratio = inkOnSurface < 4.5 ? inkOnSurface : primaryOnSurface;
+        return {
+            status: "warn",
+            message: `The ${weak} is hard to read on the page background (${ratio.toFixed(2)}:1).`,
+            fix_action: fixSettings("brand_kit", "Adjust colours"),
+        };
+    }),
     check("logo_uploaded", "performance", 1, (cfg) => {
         const logo = cfg.brand_kit?.identity?.logo_url;
         if (logo && logo.trim()) return { status: "pass" };
@@ -803,13 +818,22 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         // Every image key a hero section stores its picture under, video
         // included (hero_card_float keeps it in `bg_image_url`).
         const IMAGE_KEY = /^(image_url|image|bg_url|bg_image_url|background_image_url|media_url|video_url|poster_url)$/;
-        const missing: Array<{ page_id: PageId; section_id: string }> = [];
+        // The field a hero keeps its picture in, for a hero that has none yet.
+        const IMAGE_FIELD: Record<string, string> = {
+            hero_card_float: "bg_image_url",
+            hero_video: "video_url",
+        };
+        const missing: Array<{ page_id: PageId; section_id: string; field: string }> = [];
         for (const page of cfg.pages) {
             for (const s of page.sections) {
                 if (s.enabled === false || !s.type.startsWith("hero_")) continue;
                 const img = findKey(s.base, (k) => IMAGE_KEY.test(k));
                 if (!img || !resolveStr(img).trim()) {
-                    missing.push({ page_id: page.page_id, section_id: s.id });
+                    missing.push({
+                        page_id: page.page_id,
+                        section_id: s.id,
+                        field: IMAGE_FIELD[s.type] ?? "image_url",
+                    });
                 }
             }
         }
@@ -821,7 +845,7 @@ export const HEALTH_CHECKS: HealthCheck[] = [
             // Open the first hero that needs a picture, not always Home.
             fix_action: {
                 label: "Add hero image",
-                go_to: { kind: "section", page_id: first.page_id, section_id: first.section_id },
+                go_to: { kind: "section", page_id: first.page_id, section_id: first.section_id, field: first.field },
             },
         };
     }),

@@ -56,6 +56,16 @@ const COMMERCE_AREAS: Record<string, EditorString> = {
     referral: STRINGS.version_history.area_referral,
 };
 
+/** Global slots are named like the publish sheet names them, not by type. */
+const GLOBAL_SLOTS: Record<string, EditorString> = {
+    header: STRINGS.publish.global_header,
+    footer: STRINGS.publish.global_footer,
+    promo_bar: STRINGS.publish.global_promo_bar,
+    sticky_bottom_bar: STRINGS.publish.global_sticky_bottom_bar,
+    newsletter_popup: STRINGS.publish.global_newsletter_popup,
+    analytics_pixels: STRINGS.publish.global_analytics_pixels,
+};
+
 /** One step into a config value; list items resolve by index or by `id`. */
 function step(cur: unknown, seg: string): unknown {
     if (Array.isArray(cur)) {
@@ -174,7 +184,12 @@ export function describeDiffPath(
     if (top === "globals" && second !== undefined) {
         const key = second as keyof StoreConfigV2["globals"];
         const section = configs.map((c) => c.globals[key]).find((s) => s !== undefined);
-        const name = section ? sectionName(section, locale) : resolveFieldLabel(undefined, second, locale);
+        const slotLabel = GLOBAL_SLOTS[second];
+        const name = slotLabel
+            ? t(slotLabel, locale)
+            : section
+              ? sectionName(section, locale)
+              : resolveFieldLabel(undefined, second, locale);
         return [name, ...tailParts(path, 2, configs, section?.type, locale)];
     }
     if (top === "commerce" && second !== undefined && COMMERCE_AREAS[second]) {

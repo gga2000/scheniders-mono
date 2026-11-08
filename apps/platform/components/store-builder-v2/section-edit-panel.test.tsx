@@ -229,3 +229,30 @@ describe("SectionEditPanel", () => {
         expect(screen.getByText("Arabic")).toBeTruthy();
     });
 });
+
+describe("SectionEditPanel focusField", () => {
+    it("brings the field a health fix points at into view, once", () => {
+        const scrolled: Element[] = [];
+        const original = Element.prototype.scrollIntoView;
+        Element.prototype.scrollIntoView = function (this: Element) {
+            scrolled.push(this);
+        };
+        const onDone = vi.fn();
+        try {
+            render(
+                <SectionEditPanel
+                    instance={heroInstance()}
+                    onChange={() => {}}
+                    onClose={() => {}}
+                    focusField="image_url"
+                    onFocusFieldDone={onDone}
+                />,
+            );
+        } finally {
+            Element.prototype.scrollIntoView = original;
+        }
+        expect(scrolled).toHaveLength(1);
+        expect((scrolled[0] as HTMLElement).dataset.testid).toMatch(/^auto-form-(?:\w+\.)*image_url(?:-|$)/);
+        expect(onDone).toHaveBeenCalledTimes(1);
+    });
+});

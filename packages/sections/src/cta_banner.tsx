@@ -199,10 +199,10 @@ function CtaBannerRender({
 const definition: SectionDefinition<Props> = {
   type: "cta_banner",
   category: "conversion",
-  name: { en: "CTA banner", ar: "شريط دعوة لاتخاذ إجراء" },
+  name: { en: "Call-to-action banner", ar: "لافتة مع زر" },
   description: {
-    en: "Full-bleed CTA banner with heading, sub, and button. Optional bg image.",
-    ar: "شريط دعوة لاتخاذ إجراء مع عنوان ووصف وزر، مع خلفية صورة اختيارية.",
+    en: "A wide banner with a heading, a line of text and a button. Optional background image.",
+    ar: "لافتة بعنوان ووصف وزر، ويمكن وضع صورة خلفية لها.",
   },
   thumbnail: "/sections/cta_banner.svg",
   valid_on: [
