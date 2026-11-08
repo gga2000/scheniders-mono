@@ -106,7 +106,7 @@ export function I18nStringInput({
             data-active-locale={activeLocale}
         >
             {label ? (
-                <label className="text-sm font-medium">{label}</label>
+                <label className="block text-left! text-sm font-medium">{label}</label>
             ) : null}
 
             {/* Active-locale field — THE input. */}
@@ -153,7 +153,7 @@ export function I18nStringInput({
                 )}
 
                 {helperText && !showFallback && (
-                    <p dir="auto" className="mt-1 text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-left! text-[11px] text-muted-foreground">
                         {helperText}
                     </p>
                 )}

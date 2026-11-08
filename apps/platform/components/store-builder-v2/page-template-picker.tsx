@@ -129,7 +129,7 @@ export function PageTemplatePicker(
                         >
                             <LayoutTemplate className="h-5 w-5" />
                         </span>
-                        <div className="min-w-0">
+                        <div className="min-w-0 [&_*]:text-left!">
                             <h2 className="text-base font-semibold tracking-tight">
                                 {tx(STRINGS.page_template.title, locale)}
                             </h2>

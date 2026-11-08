@@ -673,4 +673,31 @@ describe("ExperimentsScreen", () => {
             expect(screen.getByTestId("experiment-verdict-learning")).toBeTruthy();
         });
     });
+
+    it("ending a test asks first and says everyone goes back to the first version", () => {
+        const handle = makeBuilder({
+            experiments: [
+                {
+                    id: "exp_s",
+                    name: "Stop me",
+                    status: "running",
+                    primary_metric: "orders",
+                    arms: [
+                        { id: "control", label: "Today", traffic_pct: 50 },
+                        { id: "arm_b", label: "New", traffic_pct: 50 },
+                    ],
+                },
+            ],
+        });
+        const { rerender } = renderScreen(handle);
+        fireEvent.click(screen.getByTestId("experiment-row-exp_s-stop"));
+        expect(handle.getConfig().experiments[0]?.status).toBe("running");
+        const confirm = screen.getByTestId("experiment-row-exp_s-stop-confirm");
+        expect(confirm.textContent).toContain("Today");
+        act(() => {
+            fireEvent.click(screen.getByTestId("experiment-row-exp_s-stop-yes"));
+        });
+        rerender();
+        expect(handle.getConfig().experiments[0]?.status).toBe("completed");
+    });
 });

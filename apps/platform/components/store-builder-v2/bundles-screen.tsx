@@ -172,12 +172,12 @@ export function BundlesScreen({
                                         // in the cart; with fewer than two it is not a bundle.
                                         <span
                                             data-testid={`bundle-needs-products-${i}`}
-                                            className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                                            className="mb-[7px] rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
                                         >
                                             {t(STRINGS.advanced_chrome.bun_needs_products, locale)}
                                         </span>
                                     ) : (
-                                        <span className="text-xs text-muted-foreground">
+                                        <span className="mb-[9px] text-xs text-muted-foreground">
                                             {tFormat(STRINGS.advanced_chrome.bun_count, locale, { n: b.product_ids.length })}
                                         </span>
                                     )}
@@ -186,7 +186,7 @@ export function BundlesScreen({
                                         aria-label={t(STRINGS.advanced_chrome.bun_remove_aria, locale)}
                                         data-testid={`bundle-remove-${i}`}
                                         onClick={() => removeRow(i)}
-                                        className="ms-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                        className="mb-px ms-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>

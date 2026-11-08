@@ -345,7 +345,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
 
                 {/* Base properties — auto-form */}
                 <section ref={baseRef} data-testid="section-edit-panel-base">
-                    <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
+                    <h3 className="text-left! mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
                         {t(STRINGS.section_edit.tab_properties, locale)}
                     </h3>
                     {manifest ? (
@@ -410,7 +410,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
 
                 {/* Visibility */}
                 <section data-testid="section-edit-panel-visibility">
-                    <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
+                    <h3 className="text-left! mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
                         {t(STRINGS.section_edit.tab_visibility, locale)}
                     </h3>
                     {(instance.visibility?.length ?? 0) === 0 ? (

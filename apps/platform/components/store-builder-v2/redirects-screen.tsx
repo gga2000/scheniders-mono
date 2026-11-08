@@ -86,7 +86,7 @@ export function RedirectsScreen({
         >
             <ScreenHeader
                 setting="redirects"
-                subtitle={<>{t(STRINGS.advanced_chrome.redir_intro_prefix, locale)}{" "} <code dir="ltr" className="whitespace-nowrap">/products/old</code>.</>}
+                subtitle={t(STRINGS.advanced_chrome.redir_intro, locale)}
                 onBack={onClose}
                 backTestId="redirects-close"
                 actions={

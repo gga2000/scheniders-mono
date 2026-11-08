@@ -160,7 +160,7 @@ export function PageSeoPanel({
                     tenantId={tenantId}
                     testIdBase="seo-og-image"
                 />
-                <p dir="auto" className="text-xs text-muted-foreground">
+                <p className="text-left! text-xs text-muted-foreground">
                     {t(STRINGS.seo.og_help, locale)}
                 </p>
             </div>

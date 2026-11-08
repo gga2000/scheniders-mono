@@ -154,11 +154,11 @@ export function PublishConfirmSheet({
                         >
                             <Rocket className="h-5 w-5" />
                         </span>
-                        <div className="min-w-0">
+                        <div className="min-w-0 [&_*]:text-left!">
                             <h2 className="text-base font-bold text-foreground">
                                 {t(STRINGS.publish.confirm_title, locale)}
                             </h2>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
+                            <p className="text-left! mt-0.5 text-xs text-muted-foreground">
                                 {openChecks.length === 0
                                     ? t(STRINGS.publish.confirm_all_clear, locale)
                                     : tFormat(
@@ -214,7 +214,7 @@ export function PublishConfirmSheet({
                             </button>
                         ) : (
                             <>
-                                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
+                                <h3 className="text-left! mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground/80">
                                     {t(STRINGS.publish.checks_heading, locale)}
                                 </h3>
                                 <ul className="flex flex-col gap-2">
@@ -341,7 +341,7 @@ function PublishDiffSection({
                 data-first-publish="true"
                 className="rounded-xl border border-(--card-border) bg-background p-3"
             >
-                <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <h3 className="text-left! mb-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
                     <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
                     {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
@@ -367,10 +367,10 @@ function PublishDiffSection({
                 data-empty="true"
                 className="rounded-xl border border-dashed border-(--card-border) p-3"
             >
-                <h3 className="mb-1 text-sm font-semibold text-foreground">
+                <h3 className="text-left! mb-1 text-sm font-semibold text-foreground">
                     {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-left! text-xs text-muted-foreground">
                     {t(STRINGS.publish.diff_no_changes, locale)}
                 </p>
             </section>
@@ -383,7 +383,7 @@ function PublishDiffSection({
             className="rounded-xl border border-(--card-border) bg-background"
         >
             <header className="border-b border-(--card-border) px-3 py-2">
-                <h3 className="text-sm font-semibold text-foreground">
+                <h3 className="text-left! text-sm font-semibold text-foreground">
                     {t(STRINGS.publish.diff_heading, locale)}
                 </h3>
             </header>
