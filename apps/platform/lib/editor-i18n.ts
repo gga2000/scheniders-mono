@@ -450,8 +450,8 @@ export const STRINGS = {
         global_newsletter_popup: { en: "Sign-up popup", ar: "نافذة الاشتراك", ku: "پەنجەرەی بەشداربوون" },
         global_analytics_pixels: { en: "Pixels & tracking", ar: "البكسلات والتتبّع", ku: "پیکسڵ و شوێنکەوتن" },
         // tFormat: {n}
-        diff_change_count_one: { en: "— 1 change", ar: "— تغيير واحد", ku: "— گۆڕانکارییەک" },
-        diff_change_count_many: { en: "— {n} changes", ar: "— التغييرات: {n}", ku: "— {n} گۆڕانکاری" },
+        diff_change_count_one: { en: "1 change", ar: "تغيير واحد", ku: "گۆڕانکارییەک" },
+        diff_change_count_many: { en: "{n} changes", ar: "التغييرات: {n}", ku: "{n} گۆڕانکاری" },
         diff_fields_one: { en: "1 field", ar: "حقل واحد", ku: "خانەیەک" },
         // tFormat: {n}
         diff_fields_many: { en: "{n} fields", ar: "الحقول: {n}", ku: "{n} خانە" },
@@ -1183,7 +1183,12 @@ export const STRINGS = {
         funnel_visitors: { en: "Visitors", ar: "زوّار", ku: "سەردانکەران" },
         funnel_product_viewers: { en: "Viewed a product", ar: "شاهدوا منتجاً", ku: "بەرهەمێکیان بینی" },
         funnel_checkout_starters: { en: "Started an order", ar: "بدؤوا طلباً", ku: "داواکارییان دەستپێکرد" },
-        funnel_buyers: { en: "Ordered", ar: "طلبوا", ku: "داوایان کرد" },
+        funnel_buyers: { en: "Sent an order", ar: "أرسلوا طلباً", ku: "داواکارییان نارد" },
+        funnel_note: {
+            en: "Counts everyone who sent an order from the store, even if it was cancelled later. \"Orders\" above counts sold orders from every channel.",
+            ar: "يحسب كل من أرسل طلباً من المتجر حتى لو أُلغي لاحقاً. أما «الطلبات» في الأعلى فتحسب الطلبات المبيعة من كل القنوات.",
+            ku: "هەموو ئەوانە دەژمێرێت کە داواکارییان لە فرۆشگاکە نارد، تەنانەت ئەگەر دواتر هەڵوەشێنرابێتەوە. «داواکارییەکان» لە سەرەوە داواکارییە فرۆشراوەکان لە هەموو کەناڵەکان دەژمێرێت.",
+        },
         funnel_of_previous: { en: "Share of the previous step", ar: "نسبة من الخطوة السابقة", ku: "ڕێژە لە هەنگاوی پێشوو" },
         funnel_conversion: { en: "Visitors who ordered:", ar: "من الزوّار طلبوا:", ku: "لە سەردانکەران داوایان کرد:" },
         funnel_top_products: { en: "Most viewed → bought", ar: "الأكثر مشاهدة ← شراء", ku: "زۆرترین بینراو ← کڕدراو" },

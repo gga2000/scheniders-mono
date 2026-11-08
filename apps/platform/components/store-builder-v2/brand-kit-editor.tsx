@@ -42,6 +42,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { Tooltip } from "@/components/ui/tooltip";
+import { Switch } from "@scheniders/ui/switch";
+import { ScreenHeader } from "./screen-header";
 import { I18nStringInput } from "./i18n-string-input";
 import { BRAND_THEMES, type BrandTheme } from "@/lib/brand-themes";
 import { STRINGS, t as tChrome, tFormat as tChromeFormat } from "@/lib/editor-i18n";
@@ -244,20 +246,15 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
     };
 
     return (
-        <div
-            data-testid="brand-kit-editor"
-            className="grid h-full grid-cols-1 gap-6 overflow-y-auto bg-background p-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]"
-        >
+        <div data-testid="brand-kit-editor" className="flex h-full flex-col bg-background">
+            <ScreenHeader
+                setting="brand_kit"
+                title={tChrome(STRINGS.brand_kit.heading, chromeLocale)}
+                subtitle={tChrome(STRINGS.brand_kit.intro, chromeLocale)}
+            />
+            <div className="grid flex-1 grid-cols-1 gap-6 overflow-y-auto p-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
             {/* Left: form */}
             <div className="space-y-5">
-                <header className="space-y-1">
-                    <h2 className="text-xl font-bold tracking-tight">
-                        {tChrome(STRINGS.brand_kit.heading, chromeLocale)}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                        {tChrome(STRINGS.brand_kit.intro, chromeLocale)}
-                    </p>
-                </header>
 
                 {/* Identity */}
                 <Card
@@ -624,7 +621,6 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     {
                                         value: "compact",
                                         label: tChrome(STRINGS.brand_kit.opt_compact, chromeLocale),
-                                        sub: "0.875rem",
                                         preview: (
                                             <span style={{ fontSize: "11px" }}>Aa</span>
                                         ),
@@ -632,7 +628,6 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     {
                                         value: "comfortable",
                                         label: tChrome(STRINGS.brand_kit.opt_comfortable, chromeLocale),
-                                        sub: "1rem",
                                         preview: (
                                             <span style={{ fontSize: "14px" }}>Aa</span>
                                         ),
@@ -640,7 +635,6 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     {
                                         value: "spacious",
                                         label: tChrome(STRINGS.brand_kit.opt_spacious, chromeLocale),
-                                        sub: "1.125rem",
                                         preview: (
                                             <span style={{ fontSize: "18px" }}>Aa</span>
                                         ),
@@ -861,24 +855,12 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     {tChrome(STRINGS.brand_kit.help_motion_enabled, chromeLocale)}
                                 </p>
                             </div>
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-checked={motion.enabled}
-                                onClick={() => setMotionEnabled(!motion.enabled)}
+                            <Switch
+                                checked={motion.enabled}
+                                onCheckedChange={setMotionEnabled}
+                                aria-label={tChrome(STRINGS.brand_kit.field_motion_enabled, chromeLocale)}
                                 data-testid="motion-enabled-toggle"
-                                className={cn(
-                                    "relative h-6 w-11 rounded-full transition-colors",
-                                    motion.enabled ? "bg-primary" : "bg-muted",
-                                )}
-                            >
-                                <span
-                                    className={cn(
-                                        "absolute top-0.5 h-5 w-5 rounded-full bg-background shadow transition-transform",
-                                        motion.enabled ? "translate-x-5" : "translate-x-0.5",
-                                    )}
-                                />
-                            </button>
+                            />
                         </div>
 
                         <div className="space-y-1.5">
@@ -892,9 +874,9 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 columns={3}
                                 testIdPrefix="motion-speed"
                                 options={[
-                                    { value: "slow", label: tChrome(STRINGS.brand_kit.opt_slow, chromeLocale), sub: "300ms" },
-                                    { value: "normal", label: tChrome(STRINGS.brand_kit.opt_normal, chromeLocale), sub: "150ms" },
-                                    { value: "snappy", label: tChrome(STRINGS.brand_kit.opt_snappy, chromeLocale), sub: "80ms" },
+                                    { value: "slow", label: tChrome(STRINGS.brand_kit.opt_slow, chromeLocale) },
+                                    { value: "normal", label: tChrome(STRINGS.brand_kit.opt_normal, chromeLocale) },
+                                    { value: "snappy", label: tChrome(STRINGS.brand_kit.opt_snappy, chromeLocale) },
                                 ]}
                             />
                         </div>
@@ -958,6 +940,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
 
             {/* Right: live preview */}
             <LivePreview value={value} />
+            </div>
         </div>
     );
 }

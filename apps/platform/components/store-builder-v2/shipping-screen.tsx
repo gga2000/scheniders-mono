@@ -26,7 +26,7 @@
 // =====================================================================
 
 import { useCallback, useMemo, useState } from "react";
-import { X, Truck, AlertTriangle, Check } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { IRAQ_GOVERNORATES, computeDeliveryFee } from "@scheniders/shared";
 import type {
     GovernorateShippingConfig,
@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { ScreenHeader } from "./screen-header";
 
 export interface ShippingScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -253,25 +254,13 @@ export function ShippingScreen({
             data-shipping-mode={mode}
             className="flex h-full w-full flex-col bg-background"
         >
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        aria-label={t(s.ship_close_aria, locale)}
-                        data-testid="shipping-close"
-                        onClick={onClose}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <Truck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                        <h2 className="text-sm font-semibold text-foreground">
-                            {t(s.ship_heading, locale)}
-                        </h2>
-                    </div>
-                </div>
-            </header>
+            <ScreenHeader
+                setting="shipping"
+                title={t(s.ship_heading, locale)}
+                onBack={onClose}
+                backLabel={t(s.ship_close_aria, locale)}
+                backTestId="shipping-close"
+            />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
                 <p className="max-w-prose text-xs text-muted-foreground">

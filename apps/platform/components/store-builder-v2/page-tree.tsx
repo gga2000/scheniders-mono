@@ -201,6 +201,12 @@ const ADVANCED_SETTINGS: SettingsNode[] = [
     { id: "redirects", icon: Signpost, labelKey: "setting_redirects", label: "Redirects" },
 ];
 
+/** The rail icon for a settings screen, so each screen's header shows the same mark. */
+export function settingIcon(id: SettingsSectionId): LucideIcon {
+    const node = [...PRIMARY_SETTINGS, ...ADVANCED_SETTINGS].find((n) => n.id === id);
+    return node ? node.icon : FileText;
+}
+
 const ADVANCED_OPEN_KEY = "schneiders.builder.advanced.open";
 
 /* Group + setting → tinted icon-tile class (see `.sb-tile--*` in globals.css).
@@ -221,7 +227,7 @@ function groupTintClass(group: string): string {
     }
 }
 
-const SETTING_TINT: Record<SettingsSectionId, string> = {
+export const SETTING_TINT: Record<SettingsSectionId, string> = {
     brand_kit: "sb-tile--products",
     health: "sb-tile--story",
     i18n: "sb-tile--hero",

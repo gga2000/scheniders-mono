@@ -12,7 +12,7 @@
 // =====================================================================
 
 import { useCallback, useMemo, useState } from "react";
-import { X, Sparkles, Check, Lock, Plus } from "lucide-react";
+import { Check, Lock, Plus } from "lucide-react";
 import { resolveI18n } from "@scheniders/shared";
 import type { PageId } from "@scheniders/shared";
 import { applyTemplateUpgrade, planTemplateUpgrade } from "@/lib/store-templates/upgrade";
@@ -20,6 +20,7 @@ import { getManifestEntry } from "@/lib/sections-manifest";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t as tx } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { ScreenHeader } from "./screen-header";
 
 export interface TemplateUpdatesScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -65,19 +66,13 @@ export function TemplateUpdatesScreen({ builder, onClose }: TemplateUpdatesScree
 
     return (
         <div data-testid="template-updates-screen" className="flex h-full w-full flex-col bg-background">
-            <header className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <button
-                    type="button"
-                    aria-label={tx(s.close, locale)}
-                    data-testid="template-updates-close"
-                    onClick={onClose}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-                <Sparkles className="h-4 w-4 text-violet-600" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">{tx(s.title, locale)}</h2>
-            </header>
+            <ScreenHeader
+                setting="template_updates"
+                title={tx(s.title, locale)}
+                onBack={onClose}
+                backLabel={tx(s.close, locale)}
+                backTestId="template-updates-close"
+            />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
                 {!plan ? (

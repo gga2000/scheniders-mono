@@ -10,13 +10,14 @@
 // =====================================================================
 
 import { useCallback } from "react";
-import { X, Plus, Trash2, Menu, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, Menu, ArrowUp, ArrowDown } from "lucide-react";
 import { getSection } from "@scheniders/sections";
 import type { I18nString } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
 
 export interface NavBuilderScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -93,30 +94,26 @@ export function NavBuilderScreen({
             data-testid="nav-builder-screen"
             className="flex h-full w-full flex-col bg-background"
         >
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        aria-label={t(STRINGS.advanced_chrome.nav_close_aria, locale)}
-                        data-testid="nav-builder-close"
-                        onClick={onClose}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                    <Menu className="h-4 w-4 text-teal-600" aria-hidden="true" />
-                    <h2 className="text-sm font-semibold text-foreground">{t(STRINGS.advanced_chrome.nav_heading, locale)}</h2>
-                </div>
-                <button
-                    type="button"
-                    data-testid="nav-builder-add"
-                    onClick={addLink}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
-                >
-                    <Plus className="h-3.5 w-3.5" />
-                    {t(STRINGS.advanced_chrome.nav_add_link, locale)}
-                </button>
-            </header>
+            <ScreenHeader
+                setting="nav"
+                title={t(STRINGS.advanced_chrome.nav_heading, locale)}
+                onBack={onClose}
+                backLabel={t(STRINGS.advanced_chrome.nav_close_aria, locale)}
+                backTestId="nav-builder-close"
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            data-testid="nav-builder-add"
+                            onClick={addLink}
+                            className={screenHeaderActionCls}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            {t(STRINGS.advanced_chrome.nav_add_link, locale)}
+                        </button>
+                    </>
+                }
+            />
 
             <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-5">
                 <p dir="auto" className="max-w-prose text-xs text-muted-foreground">

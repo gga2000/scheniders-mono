@@ -102,6 +102,9 @@ export function FunnelCard({ funnel, isLoading, isError, locale }: FunnelCardPro
                             {funnel ? pct(funnel.buyers, funnel.visitors) : "—"}
                         </bdi>
                     </p>
+                    <p data-testid="funnel-note" className="mt-1 max-w-prose text-[11px] text-muted-foreground">
+                        {t(s.funnel_note, locale)}
+                    </p>
                     {funnel && funnel.top_products.length > 0 && (
                         <div className="mt-4">
                             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t(s.funnel_top_products, locale)}</h3>

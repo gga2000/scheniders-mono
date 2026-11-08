@@ -24,7 +24,6 @@ import {
     AlertCircle,
     BarChart3,
     Check,
-    ChevronLeft,
     Eye,
     Loader2,
     Pause,
@@ -49,6 +48,7 @@ import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { formatRelativeTime } from "@/lib/relative-time";
+import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
 
 /* ─────────────────────────────────────────────────────────────────── */
 /* Props                                                                */
@@ -312,36 +312,27 @@ export function ExperimentsScreen({
             data-testid="experiments-screen"
             className="flex h-full w-full flex-col bg-background"
         >
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        data-testid="experiments-back"
-                        aria-label={t(STRINGS.advanced_chrome.adv_back, locale)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <div>
-                        <h2 className="text-base font-bold tracking-tight">
-                            <ExpHeading />
-                        </h2>
-                        <p className="text-[11px] text-foreground/80">
-                            <ExpSubtitle />
-                        </p>
-                    </div>
-                </div>
-                <button
-                    type="button"
-                    onClick={handleCreate}
-                    data-testid="experiments-new"
-                    className="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)"
-                >
-                    <Plus className="h-3.5 w-3.5" />
-                    <ExpNewLabel />
-                </button>
-            </header>
+            <ScreenHeader
+                setting="experiments"
+                title={<ExpHeading />}
+                subtitle={<ExpSubtitle />}
+                onBack={onClose}
+                backLabel={t(STRINGS.advanced_chrome.adv_back, locale)}
+                backTestId="experiments-back"
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            onClick={handleCreate}
+                            data-testid="experiments-new"
+                            className={screenHeaderActionCls}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            <ExpNewLabel />
+                        </button>
+                    </>
+                }
+            />
 
             {experiments.length === 0 ? (
                 <div className="flex flex-1 items-center justify-center p-6">

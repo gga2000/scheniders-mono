@@ -475,7 +475,7 @@ function PageGroup({
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                 )}
                 <span className="font-semibold text-foreground">{getPageLabel(page.page_id, locale)}</span>
-                <span className="text-muted-foreground">
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     {page.changes.length === 1
                         ? t(STRINGS.publish.diff_change_count_one, locale)
                         : tFormat(STRINGS.publish.diff_change_count_many, locale, {

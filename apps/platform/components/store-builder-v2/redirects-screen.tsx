@@ -11,7 +11,6 @@
 
 import { useCallback } from "react";
 import {
-    X,
     Plus,
     Trash2,
     Signpost,
@@ -25,6 +24,7 @@ import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import type { LocaleCode } from "@scheniders/shared";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
 
 export interface RedirectsScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -84,34 +84,26 @@ export function RedirectsScreen({
             data-testid="redirects-screen"
             className="flex h-full w-full flex-col bg-background"
         >
-            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        aria-label={t(STRINGS.advanced_chrome.redir_close_aria, locale)}
-                        data-testid="redirects-close"
-                        onClick={onClose}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <Signpost className="h-4 w-4 text-amber-600" aria-hidden="true" />
-                        <h2 className="text-sm font-semibold text-foreground">
-                            {t(STRINGS.advanced_chrome.redir_heading, locale)}
-                        </h2>
-                    </div>
-                </div>
-                <button
-                    type="button"
-                    data-testid="redirects-add"
-                    onClick={addRow}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-xs font-semibold text-background transition-opacity hover:opacity-90"
-                >
-                    <Plus className="h-3.5 w-3.5" />
-                    {t(STRINGS.advanced_chrome.redir_add, locale)}
-                </button>
-            </header>
+            <ScreenHeader
+                setting="redirects"
+                title={t(STRINGS.advanced_chrome.redir_heading, locale)}
+                onBack={onClose}
+                backLabel={t(STRINGS.advanced_chrome.redir_close_aria, locale)}
+                backTestId="redirects-close"
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            data-testid="redirects-add"
+                            onClick={addRow}
+                            className={screenHeaderActionCls}
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            {t(STRINGS.advanced_chrome.redir_add, locale)}
+                        </button>
+                    </>
+                }
+            />
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
                 <p dir="auto" className="max-w-prose text-xs text-muted-foreground">

@@ -58,7 +58,7 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
     return (
         <aside
             data-testid="brand-kit-preview"
-            className="sticky top-4 flex flex-col gap-4 rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-sm"
+            className="sticky top-0 flex flex-col gap-4 self-start rounded-2xl border border-(--card-border) bg-(--card-bg) p-5 shadow-sm"
         >
             <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold tracking-tight">
@@ -217,8 +217,10 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
                             <Tooltip
                                 key={swatch.name}
                                 content={
-                                    <span className="font-mono text-[10px]">
-                                        {swatch.name}: {colorValue}
+                                    // The colour value only: the internal token names
+                                    // ("on-primary", "surface-alt") mean nothing to a merchant.
+                                    <span dir="ltr" className="font-mono text-[10px]">
+                                        {colorValue}
                                     </span>
                                 }
                                 side="top"
@@ -228,7 +230,7 @@ export function LivePreview({ value }: { value: BrandKit }): ReactElement {
                                     0×0 inside the grid cell. */}
                                 <div
                                     data-testid={`swatch-${swatch.name}`}
-                                    title={`${swatch.name}: ${colorValue}`}
+                                    title={colorValue}
                                     className="h-5 w-5 rounded-md border border-(--card-border)"
                                     style={{ background: colorValue }}
                                 />

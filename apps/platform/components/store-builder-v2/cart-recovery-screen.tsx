@@ -10,11 +10,12 @@
 // =====================================================================
 
 import { useCallback } from "react";
-import { X, ShoppingCart } from "lucide-react";
+
 import type { CartRecoveryConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { ScreenHeader } from "./screen-header";
 
 export interface CartRecoveryScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -55,19 +56,13 @@ export function CartRecoveryScreen({
             data-testid="cart-recovery-screen"
             className="flex h-full w-full flex-col bg-background"
         >
-            <header className="flex shrink-0 items-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-3">
-                <button
-                    type="button"
-                    aria-label={t(C.close, locale)}
-                    data-testid="cart-recovery-close"
-                    onClick={onClose}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground"
-                >
-                    <X className="h-4 w-4" />
-                </button>
-                <ShoppingCart className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                <h2 className="text-sm font-semibold text-foreground">{t(C.heading, locale)}</h2>
-            </header>
+            <ScreenHeader
+                setting="cart_recovery"
+                title={t(C.heading, locale)}
+                onBack={onClose}
+                backLabel={t(C.close, locale)}
+                backTestId="cart-recovery-close"
+            />
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
                 <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
