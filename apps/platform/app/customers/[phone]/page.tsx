@@ -81,7 +81,7 @@ function useCustomerProfile(phone: string) {
                 supabase.from("customer_notes").select("*")
                     .eq("tenant_id", tenantId).in("customer_phone", variants)
                     .order("created_at", { ascending: false }),
-                supabase.from("customer_tag_assignments").select("tag:customer_tags(*)")
+                supabase.from("customer_tag_assignments").select("tag:customer_tags!customer_tag_assignments_tag_same_store_fkey(*)")
                     .eq("tenant_id", tenantId).in("customer_phone", variants),
                 supabase.from("blacklist").select("phone")
                     .eq("tenant_id", tenantId).in("phone", variants).limit(1),
