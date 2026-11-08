@@ -116,7 +116,7 @@ export default function AdsPage() {
 
             {data ? (
                 <>
-                    <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    <section data-guide="ads-numbers" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                         <Kpi label={t("ads.spend")} value={formatIQD(data.spendIqd)} hint={`$${data.spendUsd.toFixed(2)}`} change={delta(data.spendIqd, before?.spendIqd ?? null)} />
                         <Kpi label={t("ads.results")} value={data.results.toLocaleString()} hint={t("ads.resultsHint")} change={delta(data.results, before?.results ?? null)} />
                         <Kpi

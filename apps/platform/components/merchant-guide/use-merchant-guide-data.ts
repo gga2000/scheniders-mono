@@ -28,8 +28,26 @@ const firstOrderSchema = z.object({
     seen: z.array(z.enum(["statuses", "whatsapp"])).optional(),
 });
 
+const tourRecordSchema = z.object({
+    started_at: z.string().optional(),
+    later_at: z.string().optional(),
+    done_at: z.string().optional(),
+    seen: z.array(z.string()).optional(),
+});
+
 const phasesSchema = z.object({
     first_order: firstOrderSchema.optional(),
+    courier: tourRecordSchema.optional(),
+    products: tourRecordSchema.optional(),
+    money: tourRecordSchema.optional(),
+    customers: tourRecordSchema.optional(),
+    team: tourRecordSchema.optional(),
+    till: tourRecordSchema.optional(),
+    look: tourRecordSchema.optional(),
+    /** The staff tour, for a staff member's own row. */
+    staff: tourRecordSchema.optional(),
+    /** «دليلك» hidden for good from its list; Settings brings it back. */
+    list_hidden_at: z.string().optional(),
 });
 export type GuidePhases = z.infer<typeof phasesSchema>;
 

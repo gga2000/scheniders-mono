@@ -14,9 +14,11 @@ export interface PrimeConnectionState {
     branchName: string | null;
     /** False until the server has answered (connected reads false meanwhile). */
     checked: boolean;
+    /** The status call failed: the link is unknown, not missing. */
+    failed: boolean;
 }
 
-const NOT_CONNECTED: PrimeConnectionState = { connected: false, branchName: null, checked: false };
+const NOT_CONNECTED: PrimeConnectionState = { connected: false, branchName: null, checked: false, failed: false };
 
 const failureReason = z.enum([
     "no_governorate",
@@ -98,10 +100,11 @@ export function usePrimeConnection(): PrimeConnectionState {
             const res = await fetch("/api/prime/connection", { headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) throw new Error(`Prime link status failed: ${res.status}`);
             const answer = connectionSchema.parse(await res.json());
-            return { connected: answer.connected, branchName: answer.branchName ?? null, checked: true };
+            return { connected: answer.connected, branchName: answer.branchName ?? null, checked: true, failed: false };
         },
     });
-    return connection.data ?? NOT_CONNECTED;
+    if (connection.data) return connection.data;
+    return connection.isError ? { ...NOT_CONNECTED, failed: true } : NOT_CONNECTED;
 }
 
 /**

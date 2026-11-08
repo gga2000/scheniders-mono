@@ -115,6 +115,78 @@ export const GUIDE_LINES = {
         ar: "طلبات التجربة خلص وقتها وانشالت. تكدر ترجع تجربها بأي وقت.",
         en: "The practice orders ran out of time and were removed. You can try them again any time.",
     },
+    "tour.offer": {
+        ar: "أول مرة هنا؟ عندي جولة قصيرة لهالصفحة، تريد نمشي بيها؟",
+        en: "First time here? I have a short tour of this page. Want to walk through it?",
+    },
+    "tour.done": {
+        ar: "عاشت إيدك! خلصت هالمرحلة.",
+        en: "Well done! That part is finished.",
+    },
+    "courier.request": {
+        ar: "من هنا تدز رقمك المسجل ببرايم، وفريقنا يربطه ويبلغك.",
+        en: "Send the phone number of your Prime account from here, and our team links it and tells you.",
+    },
+    "courier.sent": {
+        ar: "دزينا طلبك. فريقنا يربطه ويبلغك، وإنت كمل.",
+        en: "Your request is sent. Our team links it and tells you. Carry on meanwhile.",
+    },
+    "courier.queues": {
+        ar: "كل شي يخص برايم تسويه من صفحة الطلبات. «معالجة» للطلبات اللي تحتاج قرارك، و«راجع» للطلبات الراجعة إلك.",
+        en: "You do everything for Prime from the Orders page. Needs action holds orders that need your call, and Returning holds the ones coming back to you.",
+    },
+    "courier.strip": {
+        ar: "تحت كل طلب ويا برايم تشوف رحلة الطرد، وتكدر تذكّر الزبون لو تراسل برايم من نفس المكان.",
+        en: "Under each Prime order you see the parcel's journey, and you can remind the customer or message Prime from the same place.",
+    },
+    "products.low": {
+        ar: "الشريط هذا يگلك منو خلص ومنو قرب يخلص. المنتج ما ينسد وحده، إنت تختار تطفيه.",
+        en: "This strip shows what ran out and what is about to. A product never closes by itself; you choose to turn it off.",
+    },
+    "products.count": {
+        ar: "«جرد المخزون» تعد بيه البضاعة اللي عندك وتصحح الأرقام.",
+        en: "Stock count is where you count what you have and correct the numbers.",
+    },
+    "money.numbers": {
+        ar: "هاي مبيعاتك، وربحك الصافي، والفلوس اللي وصلتك فعلاً.",
+        en: "These are your sales, your net profit, and the money that actually reached you.",
+    },
+    "money.cash": {
+        ar: "هنا شكد فلوس بعدها عند شركة التوصيل، وشكد منها متأخرة.",
+        en: "Here is how much money the delivery company still holds, and how much of it is late.",
+    },
+    "money.expense": {
+        ar: "المصاريف ضيفها من «التكاليف»، حتى يطلع ربحك صح.",
+        en: "Add your expenses under Costs, so your profit comes out right.",
+    },
+    "customers.groups": {
+        ar: "الأزرار فوك تفرز زباينك: VIP، يحتاج تأكيد، خطر مرتفع، محظور.",
+        en: "The buttons at the top sort your customers: VIP, needs confirming, high risk, blocked.",
+    },
+    "customers.ads": {
+        ar: "هنا صرف الإعلان. أهم رقم «تكلفة الطلب المسلّم»: شكد دفعت على كل طلب وصل فعلاً.",
+        en: "This is your ad spend. The number that matters most is cost per delivered order: what you paid for each order that actually arrived.",
+    },
+    "customers.reports": {
+        ar: "التقارير تگلك وين المشكلة، مثل عناوين ناقصة لو زباين ما يردون.",
+        en: "Reports tell you where the problem is, like missing addresses or customers who don't answer.",
+    },
+    "team.invite": {
+        ar: "ضيف الموظف من هنا، وكل واحد ياخذ دوره وما يشوف الفلوس.",
+        en: "Add a staff member from here. Each one gets their role and doesn't see the money.",
+    },
+    "till.signin": {
+        ar: "كل موظف يختار اسمه ويكتب رمزه، وبعدها يبدي يبيع.",
+        en: "Each staff member picks their name and types their code, then starts selling.",
+    },
+    "look.start": {
+        ar: "هسه نخلي محلك حلو وعلى ذوقك. اختار إطلالة جاهزة، وبعدين غير اللي تريده.",
+        en: "Now let's make your shop look the way you like. Pick a ready look, then change whatever you want.",
+    },
+    "staff.hello": {
+        ar: "هلا بيك! هاي صفحاتك. أشرحلك كل وحدة بدقيقة.",
+        en: "Welcome! These are your pages. I'll explain each one in a minute.",
+    },
 } as const satisfies Record<string, GuideLine>;
 
 export type GuideLineId = keyof typeof GUIDE_LINES;

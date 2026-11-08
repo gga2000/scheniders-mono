@@ -29,8 +29,9 @@ import { toast } from "@/hooks/use-toast";
 import { nextFoundationStep } from "@/lib/merchant-guide/foundation";
 import { STORE_EDITOR_PATH, guideHiddenOn } from "@/lib/merchant-guide/steps";
 import { GuideDone } from "./guide-done";
-import { GuideFirstOrder } from "./guide-first-order";
+import { GuideAfterBasics } from "./guide-after-basics";
 import { GuideFoundationStep } from "./guide-foundation-step";
+import { GuideStaffTour } from "./guide-staff-tour";
 import { GuideWelcome } from "./guide-welcome";
 import { useGuideSetup } from "./guide-setup-store";
 import {
@@ -39,6 +40,9 @@ import {
     useSaveGuideProgress,
     type GuidePatch,
 } from "./use-merchant-guide-data";
+
+/** The staff tour ships now: staff who joined before it are not interrupted. */
+const STAFF_TOUR_SINCE = "2026-11-09T00:00:00Z";
 
 /** Sidebar widths from components/layout/sidebar.tsx, plus its 16px inset and a gap. */
 function pillLeftFor(pathname: string, collapsed: boolean): number {
@@ -58,11 +62,16 @@ export function MerchantGuide() {
     const locale = language === "ar" ? "ar" : "en";
     const userId = user?.id ?? null;
 
-    const enabled = role === "admin" && !!tenantId && !!userId && !isMobile && !guideHiddenOn(pathname);
+    const isAdmin = role === "admin";
+    // Staff get only their own short tour, and only staff who joined after it shipped.
+    const staffTour = !isAdmin && !!role && !!user?.created_at && user.created_at >= STAFF_TOUR_SINCE;
+    // The till console hides the guide, except for its own phase after the basics (see GuideAfterBasics).
+    const onTill = pathname === "/till";
+    const enabled = (isAdmin || staffTour) && !!tenantId && !!userId && !isMobile && (onTill || !guideHiddenOn(pathname));
     const progressQ = useGuideProgress(tenantId, userId, enabled);
     const progress = progressQ.data ?? null;
     const finished = !!progress?.foundation_done_at;
-    const shopQ = useGuideShop(tenantId, enabled && progressQ.isSuccess && !progress?.done_seen_at, !!progress && !finished);
+    const shopQ = useGuideShop(tenantId, isAdmin && enabled && progressQ.isSuccess && !progress?.done_seen_at, !!progress && !finished);
     const { save, saving } = useSaveGuideProgress(tenantId, userId);
 
     const persist = useCallback(
@@ -85,6 +94,21 @@ export function MerchantGuide() {
         const query = rest.toString();
         router.replace(query ? `${pathname}?${query}` : pathname);
     }, [replayRequested, enabled, progressQ.isSuccess, persist, searchParams, router, pathname]);
+
+    // ?guide=show (from Settings) brings «دليلك» back after it was hidden.
+    const showRequested = searchParams?.get("guide") === "show";
+    const shown = useRef(false);
+    useEffect(() => {
+        if (!showRequested || !enabled || !progressQ.isSuccess || shown.current) return;
+        shown.current = true;
+        const rest = { ...(progress?.phases ?? {}) };
+        delete rest.list_hidden_at;
+        persist({ phases: rest });
+        const params = new URLSearchParams(searchParams?.toString());
+        params.delete("guide");
+        const query = params.toString();
+        router.replace(query ? `${pathname}?${query}` : pathname);
+    }, [showRequested, enabled, progressQ.isSuccess, progress?.phases, persist, searchParams, router, pathname]);
 
     const status = shopQ.data?.status ?? null;
     const next = status ? nextFoundationStep(status) : null;
@@ -114,18 +138,35 @@ export function MerchantGuide() {
     const soundOn = progress?.sound_on ?? true;
     const toggleSound = (): void => persist({ sound_on: !soundOn });
 
-    // The basics are behind them: phase 2, "First order", on the Orders page.
-    if (progress?.done_seen_at) {
-        const phases = progress.phases;
+    const phases = progress?.phases ?? {};
+    if (onTill && (!isAdmin || !progress?.done_seen_at)) return null;
+    if (!isAdmin) {
         return (
-            <GuideFirstOrder
-                tenantId={tenantId}
-                record={phases.first_order}
+            <GuideStaffTour
+                record={phases.staff}
                 locale={locale}
                 soundOn={soundOn}
                 onToggleSound={toggleSound}
                 pillLeft={pillLeftFor(pathname, collapsed)}
-                onPatch={(patch) => persist({ phases: { ...phases, first_order: { ...phases.first_order, ...patch } } })}
+                saving={saving}
+                onRecord={(staff) => persist({ phases: { ...phases, staff } })}
+            />
+        );
+    }
+
+    // The basics are behind them: the optional phases, their offers and «دليلك».
+    if (progress?.done_seen_at) {
+        return (
+            <GuideAfterBasics
+                tenantId={tenantId}
+                answers={progress.answers}
+                phases={phases}
+                locale={locale}
+                soundOn={soundOn}
+                onToggleSound={toggleSound}
+                pillLeft={pillLeftFor(pathname, collapsed)}
+                saving={saving}
+                onPhases={(next) => persist({ phases: next })}
             />
         );
     }

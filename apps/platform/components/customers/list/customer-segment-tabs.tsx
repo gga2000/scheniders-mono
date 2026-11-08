@@ -100,7 +100,7 @@ export function CustomerSegmentTabs({
     const all = SEGMENTS[0];
 
     return (
-        <nav aria-label={t("customers.title")} className="flex items-center gap-1 flex-wrap">
+        <nav data-guide="customer-groups" aria-label={t("customers.title")} className="flex items-center gap-1 flex-wrap">
             {SEGMENTS.map((seg, index) => {
                 const isActive = active === seg.id;
                 const count = seg.count(stats);
