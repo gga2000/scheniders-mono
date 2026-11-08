@@ -2,13 +2,13 @@ import * as Sentry from "@sentry/nextjs";
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { COURIER_SHEET_COLUMNS, type CourierSheetOrder } from "@/lib/shipping/courier-sheets";
 import { isPrimeUnreachable, type PrimeClient } from "@/lib/prime/client";
-import { buildPrimeShipment, primeShipmentHash, primeUpdateFields, type PrimeMerchant, type PrimeSkipReason } from "@/lib/prime/shipment-payload";
+import { buildPrimeShipment, primeReadyStatus, primeShipmentHash, primeUpdateFields, type PrimeMerchant, type PrimeSkipReason } from "@/lib/prime/shipment-payload";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
 /** Why an order did not reach Prime through the API. Each one goes in the Excel file instead. */
 export type PrimeSendFailure =
-    | Exclude<PrimeSkipReason, "after_sale">
+    | PrimeSkipReason
     | "not_found"
     | "not_confirmed"
     | "duplicate_receipt"
@@ -19,10 +19,10 @@ export type PrimeSendFailure =
 export interface PrimeSendOutcome {
     sent: { orderId: string; caseId: number }[];
     /**
-     * Not sent on purpose, not a failure: refunds and replacements go in the
-     * Excel file; test orders (the guide's practice orders) go nowhere.
+     * Not sent on purpose, not a failure: test orders (the guide's practice
+     * orders) go nowhere.
      */
-    skipped: { orderId: string; reason: "after_sale" | "test_order" }[];
+    skipped: { orderId: string; reason: "test_order" }[];
     failed: { orderId: string; reason: PrimeSendFailure; message?: string }[];
 }
 
@@ -34,7 +34,7 @@ const UNIQUE_VIOLATION = "23505";
 const CLOSED_STATUSES = new Set(["CNCL", "FAILED_DELIVER_RETURNED_TO_SENDER"]);
 
 type SendableOrder = CourierSheetOrder & { id: string; status: string };
-type OneResult = "sent" | "skipped" | "rejected" | "unreachable";
+type OneResult = "sent" | "rejected" | "unreachable";
 
 /**
  * Hand a dispatch run's orders to Prime, one shipment each. Orders already
@@ -80,9 +80,8 @@ export async function sendOrdersToPrime(
         } else if (sent) outcome.sent.push({ orderId: id, caseId: sent.caseId });
         else if (!order) outcome.failed.push({ orderId: id, reason: "not_found" });
         else if (order.is_test) outcome.skipped.push({ orderId: id, reason: "test_order" });
-        else if (order.is_return || order.is_replacement) outcome.skipped.push({ orderId: id, reason: "after_sale" });
-        // The desk ships confirmed orders and moves them to in transit afterwards.
-        else if (order.status !== "confirmed") outcome.failed.push({ orderId: id, reason: "not_confirmed" });
+        // The desk ships confirmed orders (refunds: return_pending) and moves them to in transit afterwards.
+        else if (order.status !== primeReadyStatus(order)) outcome.failed.push({ orderId: id, reason: "not_confirmed" });
         else toSend.push(order);
     }
 
@@ -112,10 +111,6 @@ async function sendOne(
 ): Promise<{ result: OneResult; error?: unknown }> {
     const built = buildPrimeShipment(order, merchant);
     if (!built.ok) {
-        if (built.reason === "after_sale") {
-            outcome.skipped.push({ orderId: order.id, reason: built.reason });
-            return { result: "skipped" };
-        }
         outcome.failed.push({ orderId: order.id, reason: built.reason });
         return { result: "rejected" };
     }

@@ -160,6 +160,7 @@ export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onC
                     managers={managers}
                     reason={t("till.payout.askReason", { amount: formatIqd(amount) })}
                     maxOff={amount}
+                    purpose="payout"
                     onApproved={(ok) => {
                         setAskManager(false);
                         save(ok.id);
