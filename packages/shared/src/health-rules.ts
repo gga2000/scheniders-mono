@@ -657,8 +657,11 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         if (inkOnSurface >= 4.5 && primaryOnSurface >= 3) return { status: "pass" };
         const weak = inkOnSurface < 4.5 ? "text" : "main color";
         const ratio = inkOnSurface < 4.5 ? inkOnSurface : primaryOnSurface;
+        // Below 3:1 text or 2:1 buttons/prices the colour all but vanishes
+        // into the page: shoppers can't read it, so it is a fault, not a hint.
+        const unreadable = inkOnSurface < 3 || primaryOnSurface < 2;
         return {
-            status: "warn",
+            status: unreadable ? "fail" : "warn",
             message: `The ${weak} is hard to read on the page background (${ratio.toFixed(2)}:1).`,
             fix_action: fixSettings("brand_kit", "Adjust colors"),
         };
@@ -1020,6 +1023,24 @@ function severity(s: RuleStatus): number {
 /* ─────────────────────────────────────────────────────────────────── */
 /* Helpers exposed for the editor-shell publish gate                   */
 /* ─────────────────────────────────────────────────────────────────── */
+
+/**
+ * The word a score earns. The number alone can hide a broken store: one
+ * failing check in a light category barely moves a weighted score, so any
+ * failing check caps the band at "almost", and a publish blocker at
+ * "needs_work". Every surface that names the score uses this one rule.
+ */
+export type HealthBand = "needs_work" | "almost" | "ready" | "great";
+
+export function healthBand(report: HealthReport): HealthBand {
+    const fromScore: HealthBand =
+        report.score < 40 ? "needs_work" : report.score < 70 ? "almost" : report.score < 85 ? "ready" : "great";
+    if (blockingChecks(report).length > 0) return "needs_work";
+    if (report.checks.some((c) => c.status === "fail") && (fromScore === "ready" || fromScore === "great")) {
+        return "almost";
+    }
+    return fromScore;
+}
 
 export function blockingChecks(report: HealthReport): Array<HealthCheck & CheckResult> {
     return report.checks.filter((c) => c.status === "fail" && c.blocks_publish === true);

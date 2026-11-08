@@ -945,6 +945,7 @@ export const STRINGS = {
         diff_added: { en: "adds", ar: "سيُضاف", ku: "زیاد دەکرێت" },
         diff_removed: { en: "removes", ar: "سيُحذف", ku: "لادەبرێت" },
         diff_changed: { en: "changes", ar: "سيتغيّر", ku: "دەگۆڕێت" },
+        diff_to_default: { en: "back to default", ar: "سيعود للافتراضي", ku: "دەگەڕێتەوە بۆ بنەڕەت" },
         // tFormat: {n} — an unnamed list item in a change trail
         diff_item_n: { en: "Item {n}", ar: "العنصر {n}", ku: "بڕگەی {n}" },
         // Past tense, for the publish sheet (what you changed in the draft).
@@ -1645,6 +1646,11 @@ export const STRINGS = {
             en: "Shown on the product page and delivery promise as «افتح الطلب وتأكد قبل ما تدفع». Only turn this on if your courier honours it.",
             ar: "تظهر في صفحة المنتج ووعد التوصيل بعبارة «افتح الطلب وتأكد قبل ما تدفع». شغّلها فقط إذا كانت شركة التوصيل تلتزم بها.",
             ku: "لە پەڕەی بەرهەم و بەڵێنی گەیاندن وەک «افتح الطلب وتأكد قبل ما تدفع» دەردەکەوێت. تەنها هەڵیبکە ئەگەر کۆمپانیای گەیاندنەکەت پابەندی بێت.",
+        },
+        ship_door_off_note: {
+            en: "Off: we add nothing. Lines you wrote yourself in your sections and pages still show as written.",
+            ar: "متوقف: لا نضيف شيئاً. النصوص التي كتبتها بنفسك في الأقسام والصفحات تبقى كما كتبتها.",
+            ku: "کوژاوە: هیچ زیاد ناکەین. ئەو دەقانەی خۆت لە بەشەکان و پەڕەکاندا نووسیوتن وەک خۆیان دەمێننەوە.",
         },
         ship_door_on: { en: "Promised open-before-paying", ar: "تفعيل الفحص قبل الدفع", ku: "چالاککردنی پشکنین پێش پارەدان" },
         ship_door_off: { en: "Removed open-before-paying", ar: "إلغاء الفحص قبل الدفع", ku: "لابردنی پشکنین پێش پارەدان" },

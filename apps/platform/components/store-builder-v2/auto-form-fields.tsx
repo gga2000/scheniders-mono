@@ -1196,6 +1196,12 @@ export function summarizeArrayItem(item: unknown, locale: LocaleCode): string | 
     if (Object.keys(rec).length > 0 && Object.keys(rec).every((k) => LOCALE_KEY.test(k))) {
         return pickI18n(rec, locale);
     }
+    // A stat ({ value: "+3,000", label_i18n: "طلب وصل" }) reads as both
+    // together: the caption alone does not say which row it is.
+    if (typeof rec.value === "string" && rec.value.trim() && rec.label_i18n && typeof rec.label_i18n === "object") {
+        const caption = pickI18n(rec.label_i18n as Record<string, unknown>, locale);
+        if (caption) return truncate(`${rec.value.trim()} ${caption}`);
+    }
     // Known title-ish keys first, then any other text the merchant wrote.
     const keys = [...SUMMARY_KEYS, ...Object.keys(rec).filter((k) => !(SUMMARY_KEYS as readonly string[]).includes(k))];
     for (const key of keys) {
