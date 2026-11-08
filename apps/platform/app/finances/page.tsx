@@ -302,7 +302,7 @@ function FinancesContent() {
                                     <GoalsStrip data={overview} presetKey={period.preset} />
                                 </div>
                                 <div className="xl:col-span-2 space-y-5">
-                                    <CashHealthCard data={cash} />
+                                    <div data-guide="money-cash"><CashHealthCard data={cash} /></div>
                                     <TopMovers data={overview} />
                                 </div>
                             </div>

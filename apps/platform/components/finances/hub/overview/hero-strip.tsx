@@ -121,7 +121,7 @@ export function HeroStrip({ data, onTileClick, activeTile }: HeroStripProps) {
     const item = { hidden: { y: 12, opacity: 0 }, show: { y: 0, opacity: 1 } };
 
     return (
-        <motion.div
+        <motion.div data-guide="money-numbers"
             variants={container}
             initial="hidden"
             animate="show"

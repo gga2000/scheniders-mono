@@ -71,7 +71,7 @@ export function AttentionFlagsSummary({ data }: AttentionFlagsSummaryProps) {
     }
 
     return (
-        <motion.div
+        <motion.div data-guide="attention-flags"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="pastel-card p-6 border-amber-200 dark:border-amber-500/30 bg-gradient-to-br from-amber-50/50 to-orange-50/50"

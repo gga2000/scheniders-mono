@@ -26,6 +26,7 @@
     "./skeletons": "./src/skeletons.tsx",
     "./optimized-image": "./src/optimized-image.tsx",
     "./prompt-dialog": "./src/prompt-dialog.tsx",
+    "./turnstile": "./src/turnstile.tsx",
     "./styles": "./src/styles/index.css"
   },
   "dependencies": {

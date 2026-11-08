@@ -96,7 +96,7 @@ export function LowStockAlert({ products, onViewProduct, onShowInList }: LowStoc
     const hasCritical = visible.some((g) => g.severity === "critical");
 
     return (
-        <section
+        <section data-guide="low-stock"
             aria-label={t("products.alert.stockAlert")}
             className="rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)]"
         >

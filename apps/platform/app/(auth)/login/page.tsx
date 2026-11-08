@@ -8,6 +8,7 @@ import { Eye, EyeOff, Mail, Lock, Loader2, AlertCircle, CheckCircle2, Sparkles }
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { useLanguage } from "@/hooks/use-language";
+import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 
 /** Smooth two-tone ring spinner — replaces the default Loader2 for a more premium feel. */
 function ButtonSpinner() {
@@ -57,6 +58,7 @@ function LoginForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const captcha = useAuthCaptcha();
 
     const returnTo = safeRedirectPath(searchParams.get("returnTo"));
 
@@ -81,7 +83,8 @@ function LoginForm() {
         setIsLoading(true);
 
         try {
-            const { error: authError } = await signIn(email, password);
+            const { error: authError } = await signIn(email, password, captcha.token);
+            captcha.reset();
 
             if (authError) {
                 if (authError.message.includes("Invalid login credentials")) {
@@ -97,6 +100,7 @@ function LoginForm() {
             setSuccess("Welcome back! Redirecting...");
             router.push(returnTo);
         } catch {
+            captcha.reset();
             setError("An unexpected error occurred. Please try again.");
             setIsLoading(false);
         }
@@ -114,7 +118,7 @@ function LoginForm() {
         }
     };
 
-    const isFormValid = email.length > 0 && password.length >= 6;
+    const isFormValid = email.length > 0 && password.length >= 6 && captcha.ready;
 
     return (
         <motion.div
@@ -285,6 +289,8 @@ function LoginForm() {
                             {t("login.forgot")}
                         </Link>
                     </motion.div>
+
+                    <AuthCaptcha captcha={captcha} />
 
                     {/* Submit Button */}
                     <motion.div

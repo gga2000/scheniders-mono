@@ -7,6 +7,7 @@ import { AlertCircle, Clock, KeyRound, Loader2, Mail, MailCheck, RotateCcw, Shie
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage, useTextDir } from "@/hooks/use-language";
 import { AuthCardHeading, AuthCardShell } from "@/components/auth/auth-card-shell";
+import { AuthCaptcha, useAuthCaptcha } from "@/components/auth/auth-captcha";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -21,6 +22,7 @@ function ForgotPasswordForm() {
     const [error, setError] = useState<string | null>(null);
     const [sentTo, setSentTo] = useState<string | null>(null);
     const [cooldown, setCooldown] = useState(0);
+    const captcha = useAuthCaptcha();
 
     useEffect(() => {
         if (cooldown <= 0) return;
@@ -32,7 +34,7 @@ function ForgotPasswordForm() {
         setError(null);
         setIsLoading(true);
         try {
-            const { error: resetError } = await resetPassword(address);
+            const { error: resetError } = await resetPassword(address, captcha.token);
             if (resetError) {
                 setError(resetError.message);
                 return;
@@ -43,6 +45,7 @@ function ForgotPasswordForm() {
             setError(t("pwreset.forgot.unexpected"));
         } finally {
             setIsLoading(false);
+            captcha.reset();
         }
     };
 
@@ -118,7 +121,7 @@ function ForgotPasswordForm() {
 
                             <button
                                 type="submit"
-                                disabled={isLoading || !email.trim()}
+                                disabled={isLoading || !email.trim() || !captcha.ready}
                                 className="w-full h-12 rounded-2xl font-semibold text-[15px] text-white bg-[#1E1E1E] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                             >
                                 {isLoading ? (
@@ -177,7 +180,7 @@ function ForgotPasswordForm() {
                             <button
                                 type="button"
                                 onClick={() => void send(sentTo)}
-                                disabled={isLoading || cooldown > 0}
+                                disabled={isLoading || cooldown > 0 || !captcha.ready}
                                 className="h-11 px-3 rounded-2xl font-semibold text-[14px] text-white bg-[#1E1E1E] hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                             >
                                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
@@ -194,6 +197,8 @@ function ForgotPasswordForm() {
                     </motion.div>
                 )}
             </AnimatePresence>
+            {/* Outside the two states so "send again" still has a token. */}
+            <AuthCaptcha captcha={captcha} className="px-6 sm:px-8 pb-6 empty:hidden" />
         </AuthCardShell>
     );
 }
