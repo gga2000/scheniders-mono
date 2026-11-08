@@ -47,4 +47,16 @@ describe("RecoveryBoard", () => {
         wrap(<RecoveryBoard carts={[]} isLoading={false} isError />);
         expect(screen.getByRole("alert")).toBeTruthy();
     });
+
+    it("says when automatic reminders are off and links to the switch", () => {
+        wrap(<RecoveryBoard carts={[]} isLoading={false} isError={false} autoReminders={{ enabled: false, delayMinutes: 30 }} />);
+        const line = screen.getByTestId("auto-reminders");
+        expect(line.textContent).toContain("طافي");
+        expect(line.querySelector("a")?.getAttribute("href")).toBe("/store/edit?screen=cart_recovery");
+    });
+
+    it("says the delay when automatic reminders are on", () => {
+        wrap(<RecoveryBoard carts={[]} isLoading={false} isError={false} autoReminders={{ enabled: true, delayMinutes: 45 }} />);
+        expect(screen.getByTestId("auto-reminders").textContent).toContain("45");
+    });
 });
