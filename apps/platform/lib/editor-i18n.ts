@@ -1389,6 +1389,14 @@ export const STRINGS = {
         exp_field_status: { en: "Status", ar: "الحالة", ku: "دۆخ" },
         exp_stats_error: { en: "Failed to load stats", ar: "فشل تحميل الإحصائيات", ku: "بارکردنی ئامارەکان سەرکەوتوو نەبوو" },
         exp_no_data: { en: "No data yet.", ar: "لا توجد بيانات بعد.", ku: "هێشتا هیچ داتایەک نییە." },
+        exp_stats_error_body: {
+            en: "Could not load the numbers. Your test keeps running; nothing changed.",
+            ar: "تعذّر تحميل الأرقام. الاختبار ما زال يعمل ولم يتغير شيء.",
+            ku: "ژمارەکان بار نەکران. تاقیکردنەوەکە هێشتا کار دەکات؛ هیچ نەگۆڕا.",
+        },
+        exp_retry: { en: "Try again", ar: "حاول مرة أخرى", ku: "دووبارە هەوڵ بدەوە" },
+        // tFormat: {orders} {visitors}
+        exp_card_arm: { en: "{orders} orders · {visitors} visitors", ar: "الطلبات {orders} · الزوار {visitors}", ku: "داواکاری {orders} · سەردانکەر {visitors}" },
         exp_control_badge: { en: "Original", ar: "الأصل", ku: "کۆنترۆڵ" },
         // tFormat: {n}
         exp_pct_traffic: { en: "{n}% traffic", ar: "{n}% من الزوار", ku: "{n}% سەردانیکەران" },

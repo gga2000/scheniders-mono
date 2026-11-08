@@ -393,7 +393,7 @@ export function VersionHistoryScreen({
                                             onClick={() => setSelectedId(v.id)}
                                             data-testid={`version-history-row-${v.id}`}
                                             className={cn(
-                                                "flex w-full items-start gap-3 px-4 py-3 text-start transition-colors",
+                                                "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors",
                                                 isSelected
                                                     ? "bg-primary/10"
                                                     : "hover:bg-black/5",

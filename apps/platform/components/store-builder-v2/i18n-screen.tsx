@@ -168,8 +168,8 @@ export function I18nScreen({
                 }
             />
 
-            <div className="flex-1 overflow-y-auto p-6">
-                <div className="mx-auto max-w-3xl space-y-6">
+            <div className="flex-1 overflow-y-auto p-5">
+                <div className="max-w-3xl space-y-6">
                     {result.perPage.map((page) => {
                         const labelPage =
                             page.page_id === ("_globals" as PageId)

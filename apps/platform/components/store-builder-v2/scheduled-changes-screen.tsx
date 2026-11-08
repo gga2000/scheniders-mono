@@ -414,7 +414,7 @@ export function ScheduledChangesScreen({
             )}
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex-1 overflow-y-auto p-5 *:max-w-3xl">
                 {loading && !schedules ? (
                     <div className="flex h-32 items-center justify-center text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />

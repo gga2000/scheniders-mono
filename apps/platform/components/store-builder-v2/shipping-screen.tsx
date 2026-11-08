@@ -266,7 +266,7 @@ export function ShippingScreen({
                                 aria-pressed={active}
                                 onClick={() => chooseMode(m.id)}
                                 className={cn(
-                                    "rounded-xl border p-3 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                                    "rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                     active
                                         ? "border-primary bg-primary/5"
                                         : "border-(--card-border) bg-(--card-bg) hover:border-primary/40",

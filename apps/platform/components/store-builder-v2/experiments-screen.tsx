@@ -366,6 +366,7 @@ export function ExperimentsScreen({
                                     status={status}
                                     experiments={buckets[status]}
                                     now={now}
+                                    fetchStats={builder.fetchExperimentStats}
                                     onView={(id) => setViewingId(id)}
                                     onEdit={(id) => setEditingId(id)}
                                     onPause={handlePause}
@@ -426,12 +427,14 @@ interface StatusBucketProps {
     onResume: (id: string) => void;
     onStop: (id: string) => void;
     onDelete: (id: string) => void;
+    fetchStats: (id: string) => Promise<ExperimentStats>;
 }
 
 function StatusBucket({
     status,
     experiments,
     now,
+    fetchStats,
     onView,
     onEdit,
     onPause,
@@ -473,6 +476,7 @@ function StatusBucket({
                         onResume={() => onResume(e.id)}
                         onStop={() => onStop(e.id)}
                         onDelete={() => onDelete(e.id)}
+                        fetchStats={fetchStats}
                     />
                 ))}
             </div>
@@ -493,11 +497,13 @@ interface ExperimentRowProps {
     onResume: () => void;
     onStop: () => void;
     onDelete: () => void;
+    fetchStats: (id: string) => Promise<ExperimentStats>;
 }
 
 function ExperimentRow({
     experiment,
     now,
+    fetchStats,
     onView,
     onEdit,
     onPause,
@@ -509,6 +515,32 @@ function ExperimentRow({
     // Ending a test sends everyone back to the first arm; it adopts nothing.
     const [confirmStop, setConfirmStop] = useState(false);
     const controlLabel = experiment.arms[0]?.label ?? "";
+    // A live test shows its numbers on the card, so ending it from the
+    // list is never a blind choice. A failed read just shows nothing here;
+    // the «عرض» drawer carries the full stats and the error.
+    const live = experiment.status === "running" || experiment.status === "paused";
+    const [cardStats, setCardStats] = useState<ExperimentStats | null>(null);
+    // The builder recreates fetchStats on every config edit; read it through a
+    // ref so the card fetches once per test, not on every keystroke elsewhere.
+    const fetchRef = useRef(fetchStats);
+    useEffect(() => {
+        fetchRef.current = fetchStats;
+    }, [fetchStats]);
+    useEffect(() => {
+        if (!live) return;
+        let cancelled = false;
+        fetchRef.current(experiment.id).then(
+            (res) => {
+                if (!cancelled) setCardStats(res);
+            },
+            () => {
+                if (!cancelled) setCardStats(null);
+            },
+        );
+        return () => {
+            cancelled = true;
+        };
+    }, [live, experiment.id]);
     return (
         <article
             data-testid={`experiment-row-${experiment.id}`}
@@ -543,6 +575,23 @@ function ExperimentRow({
                         </span>
                     </p>
                     <ArmsTrafficBar arms={experiment.arms} />
+                    {live && cardStats ? (
+                        <ul data-testid={`experiment-row-${experiment.id}-results`} className="mt-2 flex flex-col gap-0.5 text-[11px]">
+                            {experiment.arms.map((a, idx) => {
+                                const st = cardStats.per_arm[a.id];
+                                return (
+                                    <li key={a.id ?? idx} className="text-left! text-muted-foreground">
+                                        <bdi className="font-medium text-foreground/80">{a.label}</bdi>
+                                        {": "}
+                                        {tFormat(STRINGS.advanced_chrome.exp_card_arm, locale, {
+                                            orders: (st?.orders ?? 0).toLocaleString("en-US"),
+                                            visitors: (st?.visitors ?? 0).toLocaleString("en-US"),
+                                        })}
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    ) : null}
                 </div>
             </header>
             <div className="mt-2 flex flex-wrap gap-1">
@@ -579,7 +628,7 @@ function ExperimentRow({
                             onClick={() => setConfirmStop(true)}
                             aria-expanded={confirmStop}
                             data-testid={`experiment-row-${experiment.id}-stop`}
-                            className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-rose-500/10 hover:text-rose-700"
+                            className="inline-flex h-7 items-center gap-1 rounded-md border border-(--card-border) px-2 text-[11px] font-medium transition-colors hover:bg-rose-500/10 hover:text-rose-700 aria-expanded:bg-rose-500/10 aria-expanded:text-rose-700 dark:hover:text-rose-300 dark:aria-expanded:text-rose-300"
                         >
                             <StopCircle className="h-3 w-3" />
                             {t(STRINGS.advanced_chrome.exp_stop_promote, locale)}
@@ -652,11 +701,11 @@ function StatusBadge({
     const locale = useEditorLocale();
     const tone =
         status === "running"
-            ? "bg-emerald-500/20 text-emerald-700"
+            ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
             : status === "paused"
-              ? "bg-amber-500/20 text-amber-700"
+              ? "bg-amber-500/20 text-amber-700 dark:text-amber-300"
               : status === "completed"
-                ? "bg-sky-500/20 text-sky-700"
+                ? "bg-sky-500/20 text-sky-700 dark:text-sky-300"
                 : "bg-muted text-muted-foreground";
     return (
         <span
@@ -1085,12 +1134,24 @@ function ExperimentViewer({
 
                 <div className="flex-1 overflow-y-auto p-5">
                     {error && (
-                        <div className="mb-3 flex items-center gap-2 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700">
-                            <AlertCircle className="h-3.5 w-3.5" />
-                            {error}
+                        <div
+                            role="alert"
+                            data-testid="experiment-viewer-error"
+                            className="mb-3 flex items-center gap-2 rounded-md border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-700 dark:text-rose-300"
+                        >
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span className="min-w-0 flex-1">{t(STRINGS.advanced_chrome.exp_stats_error_body, locale)}</span>
+                            <button
+                                type="button"
+                                onClick={() => void refresh()}
+                                data-testid="experiment-viewer-retry"
+                                className="shrink-0 rounded-md border border-rose-500/30 px-2 py-0.5 font-semibold hover:bg-rose-500/10"
+                            >
+                                {t(STRINGS.advanced_chrome.exp_retry, locale)}
+                            </button>
                         </div>
                     )}
-                    {loading && !stats ? (
+                    {error && !stats ? null : loading && !stats ? (
                         <div className="flex h-32 items-center justify-center text-muted-foreground">
                             <Loader2 className="h-4 w-4 animate-spin" />
                         </div>

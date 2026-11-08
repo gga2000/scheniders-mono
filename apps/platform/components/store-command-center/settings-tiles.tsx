@@ -33,7 +33,7 @@ function Tile({ icon, label, description, onClick, href }: TileProps) {
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-foreground group-hover:text-background">
                 {icon}
             </div>
-            <div className="min-w-0 text-start">
+            <div className="min-w-0 text-left">
                 <p className="text-sm font-semibold text-foreground">{label}</p>
                 <p className="truncate text-xs text-muted-foreground">{description}</p>
             </div>

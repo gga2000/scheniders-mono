@@ -230,13 +230,13 @@ export function PublishConfirmSheet({
                                                     aria-hidden="true"
                                                 />
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-sm font-semibold text-foreground/90">
+                                                    <div className="flex items-start gap-1.5">
+                                                        <span className="min-w-0 flex-1 text-sm font-semibold text-foreground/90">
                                                             {checkMessage(check, locale)}
                                                         </span>
                                                         <span
                                                             className={cn(
-                                                                "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                                                                "inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase",
                                                                 "bg-amber-500/15 text-amber-600 dark:text-amber-300",
                                                             )}
                                                         >
