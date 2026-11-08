@@ -66,6 +66,7 @@ export function DispatchActionBar({ selectedCount, shipping, primeLinked, onShip
             </button>
             <button
                 type="button"
+                data-guide="desk-print"
                 onClick={onShip}
                 disabled={none || shipping}
                 className="flex h-10 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-[var(--ink)] disabled:opacity-60"

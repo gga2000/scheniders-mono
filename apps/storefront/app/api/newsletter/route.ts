@@ -55,6 +55,9 @@ function successMessageFrom(config: unknown, locale: string | undefined): string
 const NEWSLETTER_PER_IP_PER_HOUR = 5;
 const NEWSLETTER_PER_STORE_PER_HOUR = 200;
 
+const tooMany = (): NextResponse =>
+  NextResponse.json({ ok: false, error: "محاولات كثيرة. حاول لاحقاً." }, { status: 429 });
+
 export async function POST(req: Request): Promise<NextResponse> {
   try {
     let body: unknown;
@@ -78,18 +81,15 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     // A script could otherwise fill a store's list with addresses it does not
     // own. Real visitors sign up once; fail-closed, since nobody loses an
-    // order when a sign-up waits a minute.
-    const ip = clientIp(req.headers);
-    const caps = await Promise.all([
-      consumeRateLimit(`newsletter:ip:${ip}`, NEWSLETTER_PER_IP_PER_HOUR, 3600, "fail-closed"),
-      consumeRateLimit(`newsletter:store:${tenant_id}`, NEWSLETTER_PER_STORE_PER_HOUR, 3600, "fail-closed"),
-    ]);
-    if (caps.some((c) => !c.allowed)) {
-      return NextResponse.json(
-        { ok: false, error: "محاولات كثيرة. حاول لاحقاً." },
-        { status: 429 },
-      );
-    }
+    // order when a sign-up waits a minute. The caller's own bucket is charged
+    // first, so one address cannot use up the store's bucket for everyone.
+    const byCaller = await consumeRateLimit(
+      `newsletter:ip:${clientIp(req.headers)}`,
+      NEWSLETTER_PER_IP_PER_HOUR,
+      3600,
+      "fail-closed",
+    );
+    if (!byCaller.allowed) return tooMany();
 
     // Service client — same trusted-server pattern as /api/reviews. Anon RLS
     // does allow this INSERT (policy `public_subscribe_with_tenant`), but the
@@ -117,6 +117,14 @@ export async function POST(req: Request): Promise<NextResponse> {
         { status: 404 },
       );
     }
+
+    const byStore = await consumeRateLimit(
+      `newsletter:store:${tenant_id}`,
+      NEWSLETTER_PER_STORE_PER_HOUR,
+      3600,
+      "fail-closed",
+    );
+    if (!byStore.allowed) return tooMany();
 
     // Idempotent signup: UNIQUE(tenant_id, email) exists (migration
     // 20260411000001), so a repeat signup no-ops instead of erroring — the

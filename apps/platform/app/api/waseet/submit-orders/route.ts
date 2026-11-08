@@ -115,6 +115,11 @@ async function processOrder(
         orderDisplayId: order.order_id,
     };
 
+    // A test order never reaches a courier.
+    if (order.is_test) {
+        return { ...baseResult, success: false, error: "Test orders are never sent to a courier" };
+    }
+
     // Validation: status must be confirmed or in_transit
     if (!["confirmed", "in_transit", "suspended"].includes(order.status)) {
         return {

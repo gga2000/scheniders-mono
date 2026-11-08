@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { StoreConfigV2 } from "@scheniders/shared";
 import { useLanguage } from "@/hooks/use-language";
@@ -23,9 +23,7 @@ import { productWalkStage } from "@/lib/merchant-guide/product-walk";
 import { GuideSpotlight } from "./guide-spotlight";
 import { useGuideVoice } from "./use-guide-voice";
 import { useTargetBox } from "./use-target-rect";
-
-/** How long a missing element may take to appear before offering "Take me there". */
-const FIND_GRACE_MS = 900;
+import { useMissingAfterGrace } from "./use-missing-after-grace";
 
 function pickTarget(
     step: FoundationStep,
@@ -40,17 +38,6 @@ function pickTarget(
     }
     if (step === "delivery" && choice) return DELIVERY_CHOICES[choice];
     return place.targets[Math.min(part, place.targets.length - 1)];
-}
-
-/** Waits a moment for the element to appear before calling it missing. */
-function useMissingAfterGrace(selector: string, found: boolean): boolean {
-    const [missing, setMissing] = useState<{ selector: string; missing: boolean }>({ selector, missing: false });
-    useEffect(() => {
-        if (found) return;
-        const timer = setTimeout(() => setMissing({ selector, missing: true }), FIND_GRACE_MS);
-        return () => clearTimeout(timer);
-    }, [selector, found]);
-    return !found && missing.selector === selector && missing.missing;
 }
 
 export function GuideFoundationStep({

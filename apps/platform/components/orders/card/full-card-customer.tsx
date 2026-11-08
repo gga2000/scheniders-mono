@@ -7,7 +7,7 @@ import { HighlightedText } from "@scheniders/ui/highlighted-text";
 import { getGuaranteeDaysRemaining, cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { formatShortDate, formatTime, getStatusBadgeStyle, getDisplayOrderId, isSystemActor } from "@/lib/order-format-utils";
-import { XCircle, Truck, Sparkles, AlertTriangle, Calendar, RotateCcw, FileText, Pin, Clock, Copy, CopyPlus, PhoneOff, History as HistoryIcon, Archive as ArchiveIcon, Bot, Cog, ExternalLink } from "lucide-react";
+import { XCircle, Truck, Sparkles, FlaskConical, AlertTriangle, Calendar, RotateCcw, FileText, Pin, Clock, Copy, CopyPlus, PhoneOff, History as HistoryIcon, Archive as ArchiveIcon, Bot, Cog, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { PriorityBadge } from "./priority-badge";
 import { SourceBadge } from "./source-badge";
@@ -149,9 +149,12 @@ export function FullCardCustomer({ m }: { m: OrderCardModel }) {
                                     </div>
                                 )}
                                 {order.is_test && (
-                                    <span className="bg-purple-600 text-white text-[11px] px-2 py-0.5 rounded-full font-bold uppercase shadow-lg ring-2 ring-purple-300 animate-pulse flex items-center gap-1">
-                                        <Sparkles className="w-3 h-3" />
-                                        TEST
+                                    <span
+                                        data-guide="practice-stamp"
+                                        className="-rotate-3 rounded border-2 border-dashed border-purple-500 px-1.5 py-0 text-[11px] font-bold text-purple-700 dark:border-purple-400 dark:text-purple-300 flex items-center gap-1"
+                                    >
+                                        <FlaskConical className="w-3 h-3" />
+                                        {t("orders.card.practiceStamp")}
                                     </span>
                                 )}
                                 {order.sequence_number && (

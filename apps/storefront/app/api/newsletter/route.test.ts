@@ -45,6 +45,12 @@ describe("POST /api/newsletter", () => {
     expect(consumeRateLimit).toHaveBeenCalledWith(`newsletter:store:${TENANT}`, 200, 3600, "fail-closed");
   });
 
+  it("an exhausted caller never charges the store's bucket", async () => {
+    vi.mocked(consumeRateLimit).mockResolvedValueOnce({ allowed: false, remaining: 0, retryAfterSeconds: 60 });
+    await POST(req());
+    expect(consumeRateLimit).toHaveBeenCalledTimes(1);
+  });
+
   it("stores nothing once a cap is reached", async () => {
     vi.mocked(consumeRateLimit).mockResolvedValueOnce({ allowed: false, remaining: 0, retryAfterSeconds: 60 });
     const res = await POST(req());

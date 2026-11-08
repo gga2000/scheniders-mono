@@ -32,7 +32,7 @@ export interface DispatchWhatsAppResult {
     success: boolean;
     /** Order id did not resolve to a row. */
     notFound?: boolean;
-    /** Auto-send is disabled; nothing was attempted. */
+    /** Auto-send is disabled, or the order is a test; nothing was attempted. */
     skipped?: boolean;
     error?: string;
     messageId?: string;
@@ -66,6 +66,9 @@ export async function dispatchWhatsAppEvent({
     }
 
     const order = orderData as Order;
+
+    // A test order never messages a real phone.
+    if (order.is_test) return { success: true, skipped: true };
 
     // 2. Check if whatsapp_auto_send is enabled
     const { data: settings } = await supabaseAdmin

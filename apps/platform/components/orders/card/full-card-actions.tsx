@@ -360,6 +360,7 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                                     onStatusUpdate(order.id, "confirmed");
                                 }}
                                 data-next-step={order.status === "contacted" ? "confirmed" : undefined}
+                                data-guide={order.guide_practice ? "practice-confirm" : undefined}
                                 disabled={isLoading}
                                 className="w-10 h-10 rounded-xl bg-[var(--pastel-green)] text-green-800 hover:bg-[var(--pastel-green-dark)] transition-all flex items-center justify-center disabled:opacity-50"
                                 title={t("orders.tip.markConfirmed")}
@@ -368,8 +369,8 @@ export function FullCardActions({ m }: { m: OrderCardModel }) {
                             </button>
                         )}
 
-                        {/* In Transit - Blue (order shipped) - only for confirmed orders */}
-                        {order.status === "confirmed" && (
+                        {/* In Transit - Blue (order shipped) - only for confirmed orders; a test order is never shipped */}
+                        {order.status === "confirmed" && !order.is_test && (
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();

@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("orders")
       .select("id, created_at, tenant_id")
+      .not("is_test", "is", true)
       .gte("created_at", new Date(Date.now() - 365 * 86400000).toISOString())
       .order("created_at", { ascending: true });
 

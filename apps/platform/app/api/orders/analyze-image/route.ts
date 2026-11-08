@@ -14,12 +14,14 @@ const ANALYZE_IMAGE_WINDOW_SECONDS = 60;
 
 export async function POST(request: NextRequest) {
   try {
-    // Each analysis is a billed Gemini call: only an active store member may
-    // spend, the store's spend is capped, and the cap fails closed.
+    // Each analysis is a billed Gemini call: only a store member who may create
+    // orders may spend, the store's spend is capped, and the cap fails closed.
     const caller = await requireMeteredCaller(request, {
       bucket: "analyze-image",
       limit: ANALYZE_IMAGE_LIMIT,
       windowSeconds: ANALYZE_IMAGE_WINDOW_SECONDS,
+      // Reading an order off a photo is the first step of creating one.
+      permission: "orders.create",
     });
     if (!caller.ok) return caller.response;
 

@@ -13,6 +13,10 @@
 // Who sees it: the store's admins, on desktop, on a shop whose basics are
 // not finished. A shop that is already complete never sees it, unless
 // someone opens any page with ?guide=start to replay it.
+//
+// Phase 2 ("First order", guide-first-order.tsx) follows once the basics'
+// finish card is closed: three practice orders and a walk through a day's
+// work on the Orders page and the dispatch desk.
 // =====================================================================
 
 import { useCallback, useEffect, useRef } from "react";
@@ -25,6 +29,7 @@ import { toast } from "@/hooks/use-toast";
 import { nextFoundationStep } from "@/lib/merchant-guide/foundation";
 import { STORE_EDITOR_PATH, guideHiddenOn } from "@/lib/merchant-guide/steps";
 import { GuideDone } from "./guide-done";
+import { GuideFirstOrder } from "./guide-first-order";
 import { GuideFoundationStep } from "./guide-foundation-step";
 import { GuideWelcome } from "./guide-welcome";
 import { useGuideSetup } from "./guide-setup-store";
@@ -74,7 +79,7 @@ export function MerchantGuide() {
     useEffect(() => {
         if (!replayRequested || !enabled || !progressQ.isSuccess || replayed.current) return;
         replayed.current = true;
-        persist({ answers: {}, foundation_done_at: null, done_seen_at: null });
+        persist({ answers: {}, foundation_done_at: null, done_seen_at: null, phases: {} });
         const rest = new URLSearchParams(searchParams?.toString());
         rest.delete("guide");
         const query = rest.toString();
@@ -105,10 +110,25 @@ export function MerchantGuide() {
     }, [welcomed, status, next, finished, persist]);
 
     if (!enabled || !progressQ.isSuccess || !tenantId) return null;
-    if (progress?.done_seen_at) return null;
 
     const soundOn = progress?.sound_on ?? true;
     const toggleSound = (): void => persist({ sound_on: !soundOn });
+
+    // The basics are behind them: phase 2, "First order", on the Orders page.
+    if (progress?.done_seen_at) {
+        const phases = progress.phases;
+        return (
+            <GuideFirstOrder
+                tenantId={tenantId}
+                record={phases.first_order}
+                locale={locale}
+                soundOn={soundOn}
+                onToggleSound={toggleSound}
+                pillLeft={pillLeftFor(pathname, collapsed)}
+                onPatch={(patch) => persist({ phases: { ...phases, first_order: { ...phases.first_order, ...patch } } })}
+            />
+        );
+    }
 
     if (finished) {
         return (
