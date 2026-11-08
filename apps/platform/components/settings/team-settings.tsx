@@ -207,7 +207,7 @@ export function TeamSettings() {
                         <ShieldAlert className="w-4 h-4" />
                         <span>{t("team.permissionsMatrix")}</span>
                     </button>
-                    <button
+                    <button data-guide="team-invite"
                         onClick={() => setShowInviteModal(true)} // Invite Modal logic not duplicated here for brevity but assumed present
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
                     >

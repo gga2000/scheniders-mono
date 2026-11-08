@@ -6,6 +6,7 @@ import { Save, Store, Bell, Boxes, Volume2 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 import { AccountLinkingCard } from "@/components/settings/account-linking-card";
+import { GuideSettingsCard } from "@/components/settings/guide-settings-card";
 import { SOUND_URLS } from "@/lib/notification-chime";
 
 const NOTIFICATION_SOUND_TESTS = [
@@ -214,6 +215,8 @@ export function GeneralSettings() {
                     </button>
                 </div>
             </div>
+
+            <GuideSettingsCard />
 
             <AccountLinkingCard />
         </div>

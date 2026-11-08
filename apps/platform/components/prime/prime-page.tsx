@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { useLanguage } from "@/hooks/use-language";
+import { PrimeLinkRequest } from "./prime-link-request";
 import { usePrimeConnection } from "@/hooks/use-prime-link";
 import { usePrimeBoard, type PrimeBoardData } from "@/hooks/use-prime-board";
 import { usePrimeTickets } from "@/hooks/use-prime-tickets";
@@ -98,6 +99,7 @@ export function PrimePage() {
                 <div className="max-w-md rounded-[22px] border border-[var(--card-border)] bg-[var(--card-bg)] p-8 text-center">
                     <h1 className="text-xl font-bold text-foreground">{t("prime.page.title")}</h1>
                     <p className="mt-2 text-sm text-muted">{t("prime.page.notConnected")}</p>
+                    {admin && <PrimeLinkRequest />}
                 </div>
             </div>
         );

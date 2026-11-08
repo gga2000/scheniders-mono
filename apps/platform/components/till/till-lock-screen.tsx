@@ -67,7 +67,7 @@ export function TillLockScreen({ shopId, cashiers, onUnlocked }: Props) {
 
     return (
         <div className="flex h-full items-center justify-center p-8">
-            <div className="grid w-full max-w-[880px] gap-8 rounded-[24px] border border-[var(--card-border)] bg-[var(--card-bg)] p-8 md:grid-cols-[1fr_320px]">
+            <div data-guide="till-signin" className="grid w-full max-w-[880px] gap-8 rounded-[24px] border border-[var(--card-border)] bg-[var(--card-bg)] p-8 md:grid-cols-[1fr_320px]">
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-muted">
                         <Lock className="h-4 w-4" aria-hidden="true" />

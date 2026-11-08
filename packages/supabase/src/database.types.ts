@@ -5723,6 +5723,44 @@ export type Database = {
           },
         ]
       }
+      prime_link_requests: {
+        Row: {
+          created_at: string
+          id: string
+          linked_at: string | null
+          linked_by: string | null
+          prime_phone: string
+          requested_by: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          linked_at?: string | null
+          linked_by?: string | null
+          prime_phone: string
+          requested_by?: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          linked_at?: string | null
+          linked_by?: string | null
+          prime_phone?: string
+          requested_by?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prime_link_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           barcode: string | null

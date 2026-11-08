@@ -2,9 +2,11 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, Wallet, Building2, Clock, AlertTriangle } from "lucide-react";
+import { Bell, Check, Wallet, Building2, Clock, AlertTriangle, Truck, Loader2 } from "lucide-react";
 import { EASE_CHROME } from "@/lib/animation-constants";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface Notification {
   id: string;
@@ -42,6 +44,34 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+const primeRequestsSchema = z.object({
+  requests: z.array(
+    z.object({
+      id: z.string(),
+      tenant_id: z.string(),
+      prime_phone: z.string(),
+      created_at: z.string(),
+      tenants: z.object({ business_name: z.string(), slug: z.string() }).nullable(),
+    }),
+  ),
+});
+type PrimeLinkRequest = z.infer<typeof primeRequestsSchema>["requests"][number];
+
+const PRIME_REQUESTS_KEY = ["admin", "prime-link-requests"] as const;
+
+/** Shops waiting for our team to link their Prime account; refreshed every minute. */
+function usePrimeLinkRequests() {
+  return useQuery({
+    queryKey: PRIME_REQUESTS_KEY,
+    queryFn: async (): Promise<PrimeLinkRequest[]> => {
+      const res = await adminFetch("/api/prime-link-requests");
+      if (!res.ok) throw new Error(`Prime link requests failed: ${res.status}`);
+      return primeRequestsSchema.parse(await res.json()).requests;
+    },
+    refetchInterval: 60_000,
+  });
+}
+
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -67,7 +97,17 @@ export function NotificationBell() {
 
     return unsub;
   }, [queryClient]);
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length;
+  const primeRequests = usePrimeLinkRequests();
+  const openPrime = primeRequests.data ?? [];
+  const markLinked = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await adminFetch(`/api/prime-link-requests/${id}`, { method: "POST" });
+      if (!res.ok && res.status !== 409) throw new Error(`Marking linked failed: ${res.status}`);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: PRIME_REQUESTS_KEY }),
+  });
+  // Open Prime requests always count: they wait on the team, not on a read mark.
+  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length + openPrime.length;
 
   const markAllRead = useCallback(() => {
     setReadIds(new Set(notifications.map((n) => n.id)));
@@ -127,9 +167,36 @@ export function NotificationBell() {
               )}
             </div>
 
+            {/* Prime link requests: shops waiting for our team */}
+            {openPrime.length > 0 && (
+              <div className="border-b border-[var(--card-border)]" data-testid="prime-link-requests">
+                <p className="px-4 pt-3 text-[10px] font-semibold uppercase tracking-wide text-foreground/40">Prime link requests</p>
+                {openPrime.map((req) => (
+                  <div key={req.id} className="flex items-start gap-3 px-4 py-3">
+                    <span className="mt-0.5 text-[#315EA8]"><Truck className="w-3.5 h-3.5" /></span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{req.tenants?.business_name ?? req.tenant_id}</p>
+                      <p className="text-[11px] text-foreground/50 tabular-nums mt-0.5">Prime account {req.prime_phone}</p>
+                      <p className="text-[10px] text-foreground/30 mt-1">{timeAgo(req.created_at)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => markLinked.mutate(req.id)}
+                      disabled={markLinked.isPending}
+                      className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-semibold text-background hover:opacity-90 disabled:opacity-50"
+                    >
+                      {markLinked.isPending && markLinked.variables === req.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                      Linked
+                    </button>
+                  </div>
+                ))}
+                {markLinked.isError && <p className="px-4 pb-3 text-[11px] text-red-600">Couldn&apos;t mark it linked. Try again.</p>}
+              </div>
+            )}
+
             {/* Notifications list */}
             <div className="max-h-[360px] overflow-y-auto">
-              {notifications.length === 0 ? (
+              {notifications.length === 0 && openPrime.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-foreground/40">
                   No notifications yet
                 </div>

@@ -14,7 +14,7 @@ const EDGE = 16;
 /** How far above the bottom edge the card rests when it has nothing to point at. */
 const DOCK_BOTTOM = 84;
 
-/** Next to the element when there's room: below, else above, right, left. */
+/** Next to the element when there's room: below, else above, right, left. Always clear of the pill's band. */
 function placeCard(card: HTMLElement, box: TargetBox | null, dockLeft: number): void {
     const w = card.offsetWidth;
     const h = card.offsetHeight;
@@ -25,7 +25,7 @@ function placeCard(card: HTMLElement, box: TargetBox | null, dockLeft: number): 
     if (!box) {
         left = dockLeft;
         top = vh - DOCK_BOTTOM - h;
-    } else if (box.top + box.height + GAP + h <= vh - EDGE) {
+    } else if (box.top + box.height + GAP + h <= vh - DOCK_BOTTOM) {
         top = box.top + box.height + GAP;
         left = box.left + box.width / 2 - w / 2;
     } else if (box.top - GAP - h >= EDGE) {
@@ -39,7 +39,8 @@ function placeCard(card: HTMLElement, box: TargetBox | null, dockLeft: number): 
         top = box.top + box.height / 2 - h / 2;
     }
     card.style.left = `${Math.max(EDGE, Math.min(vw - w - EDGE, left))}px`;
-    card.style.top = `${Math.max(EDGE, Math.min(vh - h - EDGE, top))}px`;
+    // Never under the guide pill in the bottom corner.
+    card.style.top = `${Math.max(EDGE, Math.min(vh - h - DOCK_BOTTOM, top))}px`;
 }
 
 export interface GuideCoachCardProps {
