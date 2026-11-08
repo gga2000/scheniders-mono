@@ -12,11 +12,12 @@ import {
     createSupabaseServerClientWithToken,
 } from "@/lib/supabase-server";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { isPushServiceEndpoint } from "@/lib/chat/push-endpoint";
 
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-    endpoint: z.string().min(1),
+    endpoint: z.string().min(1).max(2048).refine(isPushServiceEndpoint, "Not a browser push service"),
     p256dh: z.string().min(1),
     auth: z.string().min(1),
     userAgent: z.string().optional(),
