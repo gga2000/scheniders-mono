@@ -226,6 +226,23 @@ describe("AutoForm", () => {
         expect(screen.getByTestId("auto-form-root.mode-option-mixed")).toBeTruthy();
     });
 
+    it("an optional enum clears through its Default choice, with no extra Clear link", () => {
+        const schema = z.object({
+            mode: z.enum(["auto", "manual"]).optional(),
+        });
+        const onChange = vi.fn();
+        render(
+            <AutoForm
+                schema={schema}
+                value={{ mode: "auto" }}
+                onChange={onChange}
+            />,
+        );
+        expect(screen.queryByTestId("auto-form-root.mode-clear")).toBeNull();
+        fireEvent.click(screen.getByTestId("auto-form-root.mode-option-default"));
+        expect(onChange).toHaveBeenCalled();
+    });
+
     it("renders a dropdown for an enum with 6 options", () => {
         const schema = z.object({
             tint: z.enum(["red", "green", "blue", "yellow", "purple", "orange"]),

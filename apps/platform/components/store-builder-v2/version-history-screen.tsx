@@ -356,7 +356,7 @@ export function VersionHistoryScreen({
             )}
 
             {/* Body */}
-            <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)]">
                 {/* Timeline (left) */}
                 <aside
                     data-testid="version-history-timeline"
@@ -433,19 +433,19 @@ export function VersionHistoryScreen({
                                                         {v.diff_summary.added > 0 && (
                                                             <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
                                                                 <Plus className="h-2.5 w-2.5" />
-                                                                {v.diff_summary.added}
+                                                                {tFormat(STRINGS.advanced_chrome.vh_chip_added, locale, { n: String(v.diff_summary.added) })}
                                                             </span>
                                                         )}
                                                         {v.diff_summary.changed > 0 && (
                                                             <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
                                                                 <Pencil className="h-2.5 w-2.5" />
-                                                                {v.diff_summary.changed}
+                                                                {tFormat(STRINGS.advanced_chrome.vh_chip_changed, locale, { n: String(v.diff_summary.changed) })}
                                                             </span>
                                                         )}
                                                         {v.diff_summary.removed > 0 && (
                                                             <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:text-rose-300">
                                                                 <Minus className="h-2.5 w-2.5" />
-                                                                {v.diff_summary.removed}
+                                                                {tFormat(STRINGS.advanced_chrome.vh_chip_removed, locale, { n: String(v.diff_summary.removed) })}
                                                             </span>
                                                         )}
                                                     </div>
@@ -469,7 +469,7 @@ export function VersionHistoryScreen({
                             {t(STRINGS.version_history.select_to_view, locale)}
                         </div>
                     ) : (
-                        <div className="space-y-5 p-5">
+                        <div className="max-w-3xl space-y-5 p-5">
                             {/* Metadata */}
                             <header className="space-y-1.5">
                                 <div className="flex items-center gap-2">

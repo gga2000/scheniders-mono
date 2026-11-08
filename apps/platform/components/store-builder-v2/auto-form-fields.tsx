@@ -900,7 +900,8 @@ export function EnumControl(p: EnumControlProps): ReactElement {
     const isSpatial = p.options.includes("left") && p.options.includes("right");
     return (
         <div className="space-y-1.5">
-            <FieldHeader label={p.label} onClear={p.onClear} testIdBase={p.testIdBase} />
+            {/* No header «مسح» link: the «الافتراضي» choice already clears. */}
+            <FieldHeader label={p.label} testIdBase={p.testIdBase} />
             {useSegmented ? (
                 <div
                     role="radiogroup"

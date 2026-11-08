@@ -173,6 +173,22 @@ describe("VersionHistoryScreen", () => {
         expect(screen.getAllByText("Auto-save").length).toBeGreaterThan(0);
     });
 
+    it("diff chips say what changed, not a bare number", () => {
+        const builder = makeBuilder();
+        const v = makeVersion({ id: "v-chip", is_named: false, diff_summary: { added: 0, changed: 1, removed: 2 } });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        const row = screen.getByTestId("version-history-row-v-chip").textContent ?? "";
+        expect(row).toContain("1 changed");
+        expect(row).toContain("2 removed");
+        expect(row).not.toContain("added");
+    });
+
     it("clicking a row selects it and shows the detail pane", () => {
         const builder = makeBuilder();
         const v = makeVersion({ id: "v-alpha", label: "Alpha", is_named: true });

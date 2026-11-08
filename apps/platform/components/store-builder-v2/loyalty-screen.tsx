@@ -82,24 +82,29 @@ export function LoyaltyScreen({
         label: string;
         hint: string;
         value: number | undefined;
+        /** Example value, so an empty box still shows what a typical entry is. */
+        placeholder: string;
     }[] = [
         {
             key: "friend_discount_pct",
             label: t(L.friend_pct_label, locale),
             hint: t(L.friend_pct_hint, locale),
             value: referral.friend_discount_pct,
+            placeholder: "10",
         },
         {
             key: "friend_max_discount_iqd",
             label: t(L.friend_cap_label, locale),
             hint: t(L.friend_cap_hint, locale),
             value: referral.friend_max_discount_iqd,
+            placeholder: "10,000",
         },
         {
             key: "referrer_points",
             label: t(L.referrer_label, locale),
             hint: t(L.referrer_hint, locale),
             value: referral.referrer_points,
+            placeholder: "100",
         },
     ];
 
@@ -251,6 +256,7 @@ export function LoyaltyScreen({
                                 step="1"
                                 dir="ltr"
                                 data-testid={`referral-${row.key}`}
+                                placeholder={row.placeholder}
                                 value={row.value ?? ""}
                                 onChange={(e) =>
                                     updateReferral({ [row.key]: num(e.target.value) } as Partial<ReferralConfig>)

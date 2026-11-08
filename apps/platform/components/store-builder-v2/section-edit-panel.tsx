@@ -341,7 +341,8 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                 </section>
                 )}
 
-                <div className="my-4 h-px bg-(--card-border)" />
+                {/* Simple mode has no metadata or layers above, so no divider. */}
+                {!isSimple && <div className="my-4 h-px bg-(--card-border)" />}
 
                 {/* Base properties — auto-form */}
                 <section ref={baseRef} data-testid="section-edit-panel-base">
