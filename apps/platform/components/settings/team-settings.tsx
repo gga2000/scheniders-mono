@@ -282,9 +282,9 @@ export function TeamSettings() {
                             <h3 className="font-semibold mb-4">{t("team.matrix.title")}</h3>
                             <div className="grid gap-6">
                                 {PERMISSION_CATEGORIES.map((section) => (
-                                    <div key={section.category}>
+                                    <div key={section.id}>
                                         <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">
-                                            {section.category}
+                                            {t(`team.permCat.${section.id}`)}
                                         </h4>
                                         <div className="bg-background rounded-xl border border-border overflow-hidden">
                                             <table className="w-full text-sm">
@@ -299,7 +299,7 @@ export function TeamSettings() {
                                                 <tbody className="divide-y divide-border">
                                                     {section.items.map((item) => (
                                                         <tr key={item.key} className="hover:bg-muted/30">
-                                                            <td className="p-3 font-medium">{item.label}</td>
+                                                            <td className="p-3 font-medium">{t(`team.perm.${item.key}`)}</td>
                                                             {['admin', 'employee', 'viewer'].map(role => (
                                                                 <td key={role} className="p-3 text-center">
                                                                     <div className="flex justify-center">
