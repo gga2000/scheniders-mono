@@ -516,10 +516,11 @@ function ExperimentRow({
     const [confirmStop, setConfirmStop] = useState(false);
     const controlLabel = experiment.arms[0]?.label ?? "";
     // A live test shows its numbers on the card, so ending it from the
-    // list is never a blind choice. A failed read just shows nothing here;
-    // the «عرض» drawer carries the full stats and the error.
+    // list is never a blind choice. A failed read says so in one line and
+    // points to the «عرض» drawer, which carries the full stats and a retry.
     const live = experiment.status === "running" || experiment.status === "paused";
     const [cardStats, setCardStats] = useState<ExperimentStats | null>(null);
+    const [cardStatsFailed, setCardStatsFailed] = useState(false);
     // The builder recreates fetchStats on every config edit; read it through a
     // ref so the card fetches once per test, not on every keystroke elsewhere.
     const fetchRef = useRef(fetchStats);
@@ -531,10 +532,14 @@ function ExperimentRow({
         let cancelled = false;
         fetchRef.current(experiment.id).then(
             (res) => {
-                if (!cancelled) setCardStats(res);
+                if (cancelled) return;
+                setCardStats(res);
+                setCardStatsFailed(false);
             },
             () => {
-                if (!cancelled) setCardStats(null);
+                if (cancelled) return;
+                setCardStats(null);
+                setCardStatsFailed(true);
             },
         );
         return () => {
@@ -591,6 +596,13 @@ function ExperimentRow({
                                 );
                             })}
                         </ul>
+                    ) : live && cardStatsFailed ? (
+                        <p
+                            data-testid={`experiment-row-${experiment.id}-results-error`}
+                            className="mt-2 text-left! text-[11px] text-muted-foreground"
+                        >
+                            {t(STRINGS.advanced_chrome.exp_card_stats_error, locale)}
+                        </p>
                     ) : null}
                 </div>
             </header>

@@ -264,7 +264,7 @@ export function SegmentsScreen({
                     {/* LEFT: list */}
                     <aside
                         data-testid="segments-list"
-                        className="flex w-[40%] min-w-[260px] shrink-0 flex-col overflow-y-auto border-r border-(--card-border) bg-(--card-bg)"
+                        className="flex w-80 shrink-0 flex-col overflow-y-auto border-r border-(--card-border) bg-(--card-bg)"
                     >
                         <ul className="space-y-1 p-3">
                             {segments.map((s) => (
@@ -334,7 +334,7 @@ export function SegmentsScreen({
                     </aside>
 
                     {/* RIGHT: editor */}
-                    <section className="flex flex-1 flex-col overflow-y-auto p-5">
+                    <section className="flex flex-1 flex-col overflow-y-auto p-5 *:max-w-3xl">
                         {selected ? (
                             <SegmentEditor
                                 segment={selected}
