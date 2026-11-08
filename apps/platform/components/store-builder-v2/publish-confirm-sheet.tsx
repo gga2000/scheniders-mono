@@ -116,7 +116,10 @@ export function PublishConfirmSheet({
     // ad-tech checks don't stand between a first-timer and «انشر متجري».
     // Advanced keeps them expanded.
     const [recsOpen, setRecsOpen] = useState<boolean>(false);
-    const collapseRecs = mode === "simple" && openChecks.length > 0;
+    // A failing check is a problem shoppers will see, not advice: never
+    // fold it away, and say so in the subtitle.
+    const problemCount = openChecks.filter((c) => c.status === "fail").length;
+    const collapseRecs = mode === "simple" && openChecks.length > 0 && problemCount === 0;
     useEffect(() => {
         if (!open) return;
         const onKey = (e: KeyboardEvent): void => {
@@ -161,7 +164,15 @@ export function PublishConfirmSheet({
                             <p className="text-left! mt-0.5 text-xs text-muted-foreground">
                                 {openChecks.length === 0
                                     ? t(STRINGS.publish.confirm_all_clear, locale)
-                                    : tFormat(
+                                    : problemCount > 0
+                                      ? tFormat(
+                                            problemCount === 1
+                                                ? STRINGS.publish.confirm_problems_one
+                                                : STRINGS.publish.confirm_problems_many,
+                                            locale,
+                                            { n: problemCount },
+                                        )
+                                      : tFormat(
                                           openChecks.length === 1
                                               ? STRINGS.publish.confirm_subtitle_one
                                               : STRINGS.publish.confirm_subtitle_many,

@@ -444,6 +444,8 @@ export const STRINGS = {
         // tFormat: {n}
         confirm_subtitle_one: { en: "{n} item we recommend fixing before going live. You can publish anyway and come back to these later.", ar: "عنصر واحد يُستحسن إصلاحه قبل النشر. يمكنك النشر على أي حال والعودة إليه لاحقاً.", ku: "{n} بڕگە کە پێشنیار دەکرێت پێش بڵاوکردنەوە چاکبکرێت. دەتوانی هەر بڵاوی بکەیتەوە و دواتر بگەڕێیتەوە." },
         confirm_subtitle_many: { en: "{n} items we recommend fixing before going live. You can publish anyway and come back to these later.", ar: "عناصر يُستحسن إصلاحها قبل النشر: {n}. يمكنك النشر على أي حال والعودة لاحقاً.", ku: "{n} بڕگە کە پێشنیار دەکرێت پێش بڵاوکردنەوە چاکبکرێن. دەتوانی هەر بڵاوی بکەیتەوە و دواتر بگەڕێیتەوە." },
+        confirm_problems_one: { en: "1 problem shoppers will notice. Fix it first; you can still publish.", ar: "مشكلة واحدة سيلاحظها الزبائن، أصلحها أولاً. يمكنك النشر على أي حال.", ku: "1 کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکی بکە؛ هێشتا دەتوانی بڵاوی بکەیتەوە." },
+        confirm_problems_many: { en: "{n} problems shoppers will notice. Fix them first; you can still publish.", ar: "مشاكل سيلاحظها الزبائن: {n}، أصلحها أولاً. يمكنك النشر على أي حال.", ku: "{n} کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکیان بکە؛ هێشتا دەتوانی بڵاوی بکەیتەوە." },
         confirm_all_clear: { en: "Nothing blocks publishing.", ar: "لا شيء يمنع النشر.", ku: "هیچ شتێک ڕێگری لە بڵاوکردنەوە ناکات." },
         publish_anyway: { en: "Publish anyway", ar: "نشر على أي حال", ku: "هەر بڵاویبکەرەوە" },
         // Positive CTA when nothing needs fixing — first publish should feel
@@ -979,7 +981,7 @@ export const STRINGS = {
         key_rules: { en: "Conditions", ar: "الشروط", ku: "مەرجەکان" },
         key_values: { en: "Values", ar: "القيم", ku: "بەهاکان" },
         key_sections: { en: "Sections", ar: "الأقسام", ku: "بەشەکان" },
-        key_meta: { en: "Search & sharing", ar: "الظهور في البحث والمشاركة", ku: "دەرکەوتن لە گەڕان و هاوبەشکردن" },
+        key_meta: { en: "Google listing", ar: "الظهور في جوجل", ku: "دەرکەوتن لە گووگڵ" },
         key_fee_iqd: { en: "Delivery fee (IQD)", ar: "أجرة التوصيل (د.ع)", ku: "کرێی گەیاندن (د.ع)" },
         key_free_threshold_iqd: { en: "Free delivery from (IQD)", ar: "توصيل مجاني من (د.ع)", ku: "گەیاندنی بەخۆڕایی لە (د.ع)" },
         // Diff value words: on/off fields and a list of ids.

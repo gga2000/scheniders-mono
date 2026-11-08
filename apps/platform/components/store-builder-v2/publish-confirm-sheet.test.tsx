@@ -209,6 +209,29 @@ describe("PublishConfirmSheet — diff section", () => {
         expect(screen.getByTestId("publish-confirm-sheet-item-missing-cta")).toBeTruthy();
     });
 
+    it("a failing check is named a problem, with the red chip", () => {
+        const check = {
+            id: "brand_colors_readable",
+            category: "conversion",
+            weight: 1,
+            status: "fail",
+            message: "The main color is hard to read",
+        } as unknown as HealthCheck & CheckResult;
+        render(
+            <PublishConfirmSheet
+                open
+                openChecks={[check]}
+                onClose={() => {}}
+                onPublishAnyway={() => {}}
+                onJumpToFix={() => {}}
+                config={makeConfig({})}
+                publishedConfig={null}
+            />,
+        );
+        expect(screen.getByText(/1 problem shoppers will notice/)).toBeTruthy();
+        expect(screen.getByTestId("publish-confirm-sheet-item-brand_colors_readable").textContent).toContain("Problem");
+    });
+
     it("clicking 'Publish anyway' fires onPublishAnyway", () => {
         const onPublishAnyway = vi.fn();
         render(

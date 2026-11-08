@@ -882,6 +882,8 @@ interface EnumControlProps {
     testIdBase: string;
 }
 
+const SEGMENTED_MAX_CHARS = 32;
+
 export function EnumControl(p: EnumControlProps): ReactElement {
     const locale = useResolvedEditorLocale();
     // An optional choice that is unset uses the section's built-in look,
@@ -895,7 +897,11 @@ export function EnumControl(p: EnumControlProps): ReactElement {
         if (opt === DEFAULT) p.onClear?.();
         else p.onChange(opt);
     };
-    const useSegmented = p.options.length > 0 && choices.length <= 4;
+    // A pill row only while every label fits on one line in the inspector
+    // (~32 characters across it); longer labels wrap and the pills go
+    // uneven, so they get the dropdown instead.
+    const labelChars = choices.reduce((sum, opt) => sum + labelFor(opt).length, 0);
+    const useSegmented = p.options.length > 0 && choices.length <= 4 && labelChars <= SEGMENTED_MAX_CHARS;
     // Left/right choices are positions on the page, so they keep the page's
     // left on the left even when the editor reads right-to-left.
     const isSpatial = p.options.includes("left") && p.options.includes("right");
