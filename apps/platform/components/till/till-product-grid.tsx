@@ -462,8 +462,10 @@ function InCartBadge({ n, className }: { n: number; className: string }) {
 /** Stock left: plain when fine, an amber pill when low, a red pill when sold out. Same on the grid and the best-seller keys. */
 function StockTag({ product }: { product: TillProduct }) {
     const { t } = useLanguage();
-    const out = product.available <= 0;
-    const low = isLow(product);
+    // The last pieces are already in this sale: not sold out, so no red tag.
+    const allInCart = product.available === 0 && (product.in_cart ?? 0) > 0;
+    const out = product.available <= 0 && !allInCart;
+    const low = !allInCart && isLow(product);
     return (
         <span
             className={cn(
@@ -471,7 +473,7 @@ function StockTag({ product }: { product: TillProduct }) {
                 out ? "bg-[#FDE7EA] px-2 py-0.5 font-bold text-[#991B1B]" : low ? "bg-[#FEF3C7] px-2 py-0.5 font-bold text-[#92400E]" : "font-medium text-muted",
             )}
         >
-            {out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
+            {allInCart ? t("till.sell.allInCart") : out ? t("till.sell.out") : t("till.sell.left", { n: product.available })}
         </span>
     );
 }
