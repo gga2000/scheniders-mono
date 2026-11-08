@@ -162,7 +162,15 @@ export function OrderStatusScreen({ builder, contact: rawContact, onClose }: Ord
                                         {" — "}
                                         {preview.body}
                                         {preview.next ? ` ${preview.next}` : ""}
-                                        {preview.cta ? ` [${preview.cta.label}]` : ""}
+                                        {preview.cta ? (
+                                            // The tracker's button, drawn as a button chip.
+                                            <span
+                                                data-testid={`order-status-preview-${stage}-cta`}
+                                                className="ms-1.5 inline-flex rounded-md border border-(--card-border) bg-(--background-soft) px-1.5 py-px text-[11px] font-semibold text-foreground"
+                                            >
+                                                {preview.cta.label}
+                                            </span>
+                                        ) : null}
                                     </span>
                                 </span>
                             </button>

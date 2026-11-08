@@ -148,10 +148,10 @@ export function LoyaltyScreen({
                 backTestId="loyalty-close"
             />
 
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-2xl">
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-left! text-sm font-medium text-foreground">
                         {t(L.enable, locale)}
                     </span>
                     <input
@@ -190,7 +190,7 @@ export function LoyaltyScreen({
 
                 <section className="mt-2 flex flex-col gap-3" aria-labelledby="referral-heading">
                     <div>
-                        <h3 id="referral-heading" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <h3 id="referral-heading" className="text-left! text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             {t(L.referral_heading, locale)}
                         </h3>
                         <p className="mt-1 max-w-prose text-left! text-xs text-muted-foreground">
@@ -198,7 +198,7 @@ export function LoyaltyScreen({
                         </p>
                     </div>
                     <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                        <span className="text-sm font-medium text-foreground">{t(L.referral_enable, locale)}</span>
+                        <span className="text-left! text-sm font-medium text-foreground">{t(L.referral_enable, locale)}</span>
                         <input
                             type="checkbox"
                             data-testid="referral-enabled"

@@ -104,7 +104,7 @@ export function PixelsScreen({
 
     const renderField = (f: Field) => (
         <label key={f.key} className="block">
-            <span className="mb-1 block text-xs font-medium text-muted-foreground">
+            <span className="mb-1 block text-xs font-medium text-muted-foreground text-left!">
                 {tr(f.label)}
             </span>
             <input
@@ -135,17 +135,17 @@ export function PixelsScreen({
 
             <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-5">
                 <section className="flex flex-col gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground text-left!">
                         {t(P.pixels_group, locale)}
                     </p>
                     {ID_FIELDS.map(renderField)}
-                    <p dir="auto" className="text-xs text-muted-foreground">
-                        {t(P.pixels_help, locale)}
+                    <p className="text-xs text-muted-foreground text-left!">
+                        {t(P.pixels_help, locale)} {t(P.publish_note, locale)}
                     </p>
                 </section>
 
                 <section className="flex flex-col gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground text-left!">
                         {t(P.capi_group, locale)}
                     </p>
                     {keys.status.isPending ? (
@@ -177,9 +177,13 @@ export function PixelsScreen({
                             />
                         ))
                     )}
-                    {renderField(TEST_CODE_FIELD)}
-                    <p dir="auto" className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground text-left!">
                         {t(P.capi_help, locale)} {t(P.key_locked_help, locale)}
+                    </p>
+                    {/* The test code is part of the design, unlike the keys above. */}
+                    {renderField(TEST_CODE_FIELD)}
+                    <p data-testid="pixels-test-code-note" className="-mt-2 text-xs text-muted-foreground text-left!">
+                        {t(P.publish_note, locale)}
                     </p>
                 </section>
             </div>

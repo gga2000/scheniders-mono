@@ -404,7 +404,7 @@ function SegmentEditor({
     return (
         <div data-testid="segment-editor" className="space-y-5">
             <header className="flex items-start justify-between gap-3">
-                <h3 className="text-sm font-bold tracking-tight">{t(STRINGS.advanced_chrome.seg_edit_segment, locale)}</h3>
+                <h3 className="text-left! text-sm font-bold tracking-tight">{t(STRINGS.advanced_chrome.seg_edit_segment, locale)}</h3>
                 <button
                     type="button"
                     onClick={onDelete}
@@ -759,7 +759,7 @@ function DeleteConfirm({
         >
             <div className="w-full max-w-md overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
-                    <h3 className="text-base font-semibold tracking-tight">
+                    <h3 className="text-left! text-base font-semibold tracking-tight">
                         {tFormat(STRINGS.advanced_chrome.seg_delete_title, locale, {
                             name: segment.name || t(STRINGS.advanced_chrome.seg_untitled, locale),
                         })}

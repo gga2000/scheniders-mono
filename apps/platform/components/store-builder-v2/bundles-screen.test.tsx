@@ -42,6 +42,16 @@ describe("BundlesScreen", () => {
         expect(next?.[0]).toMatchObject({ kind: "percent", enabled: true, product_ids: [] });
     });
 
+    it("a bundle with fewer than two products cannot read as switched on", () => {
+        const { builder } = makeBuilder([
+            { id: "x", product_ids: ["p1"], kind: "percent", value: 10, enabled: true },
+        ]);
+        render(<BundlesScreen builder={builder} onClose={() => {}} />);
+        const toggle = screen.getByTestId("bundle-enabled-0") as HTMLInputElement;
+        expect(toggle.checked).toBe(false);
+        expect(toggle.disabled).toBe(true);
+    });
+
     it("toggles a product into a bundle", () => {
         const { builder, setConfig, config } = makeBuilder([
             { id: "x", product_ids: [], kind: "percent", value: 10, enabled: true },

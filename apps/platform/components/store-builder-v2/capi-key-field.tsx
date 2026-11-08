@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { Lock } from "lucide-react";
-import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
+import { STRINGS, t, type EditorString } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { cn } from "@/lib/utils";
 import { CapiKeyForbiddenError, type CapiKeyStatus, type CapiNetwork } from "./use-capi-keys";
@@ -54,7 +54,7 @@ export function CapiKeyField({ network, label, status, pending, onSave }: CapiKe
 
     return (
         <div data-testid={id} className="flex flex-col gap-1">
-            <label htmlFor={showInput ? `${id}-input` : undefined} className="text-xs font-medium text-muted-foreground">
+            <label htmlFor={showInput ? `${id}-input` : undefined} className="text-xs font-medium text-muted-foreground text-left!">
                 {t(label, locale)}
             </label>
             {showInput ? (
@@ -119,7 +119,11 @@ export function CapiKeyField({ network, label, status, pending, onSave }: CapiKe
                     <Lock aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
                     <span className="text-xs font-semibold text-emerald-700">{t(P.key_saved, locale)}</span>
                     <span data-testid={`${id}-last4`} className="min-w-0 flex-1 truncate text-xs text-muted-foreground text-left!">
-                        {status.last4 ? tFormat(P.key_ends_with, locale, { last4: status.last4 }) : null}
+                        {status.last4 ? (
+                            <>
+                                {t(P.key_ends_with, locale)} <bdi dir="ltr">…{status.last4}</bdi>
+                            </>
+                        ) : null}
                     </span>
                     <button
                         type="button"

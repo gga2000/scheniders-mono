@@ -454,7 +454,7 @@ function StatusBucket({
             className={cn("overflow-hidden rounded-2xl border", toneClasses)}
         >
             <header className="flex items-center gap-2 px-4 py-2.5">
-                <h3 className="text-sm font-semibold tracking-tight">
+                <h3 className="text-left! text-sm font-semibold tracking-tight">
                     {t(STATUS_LABELS[status], locale)}
                 </h3>
                 <span className="rounded-full bg-background/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
@@ -506,9 +506,6 @@ function ExperimentRow({
     onDelete,
 }: ExperimentRowProps): ReactElement {
     const locale = useEditorLocale();
-    const trafficSummary = experiment.arms
-        .map((a) => `${a.label} ${a.traffic_pct}%`)
-        .join(" / ");
     return (
         <article
             data-testid={`experiment-row-${experiment.id}`}
@@ -532,9 +529,13 @@ function ExperimentRow({
                     </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
                         {t(STRINGS.advanced_chrome.exp_traffic_split, locale)}{" "}
-                        <span className="font-medium text-foreground/80">
-                            {trafficSummary}
-                        </span>
+                        {/* Each arm isolated so a Latin name keeps its own percent. */}
+                        {experiment.arms.map((a, idx) => (
+                            <span key={a.id ?? idx} className="font-medium text-foreground/80">
+                                {idx > 0 ? " / " : null}
+                                <bdi>{`${a.label} ${a.traffic_pct}%`}</bdi>
+                            </span>
+                        ))}
                     </p>
                     <ArmsTrafficBar arms={experiment.arms} />
                 </div>
@@ -725,7 +726,7 @@ function ExperimentEditor({
         >
             <aside className="flex w-full max-w-xl flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
-                    <h3 className="text-base font-bold tracking-tight">
+                    <h3 className="text-left! text-base font-bold tracking-tight">
                         {t(STRINGS.advanced_chrome.exp_editor_title, locale)}
                     </h3>
                     <button
@@ -1290,7 +1291,7 @@ function DeleteConfirm({
         >
             <div className="w-full max-w-md overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
-                    <h3 className="text-base font-semibold tracking-tight">
+                    <h3 className="text-left! text-base font-semibold tracking-tight">
                         {tFormat(STRINGS.advanced_chrome.exp_delete_title, locale, {
                             name: experiment.name || t(STRINGS.advanced_chrome.exp_untitled, locale),
                         })}

@@ -328,7 +328,7 @@ export function VariantEditor(props: VariantEditorProps): ReactElement | null {
                                             aria-label={`Remove ${c.kind} condition`}
                                             data-testid={`variant-editor-condition-${i}-remove`}
                                             onClick={() => handleRemoveCondition(i)}
-                                            className="inline-flex h-6 w-6 items-center justify-center rounded text-destructive transition-colors hover:bg-destructive/10"
+                                            className="inline-flex h-6 w-6 items-center justify-center rounded text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                                         >
                                             <X className="h-3.5 w-3.5" aria-hidden="true" />
                                         </button>

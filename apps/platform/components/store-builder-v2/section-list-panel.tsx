@@ -441,7 +441,7 @@ function SectionRow({
                                     role="menuitem"
                                     data-testid={`section-row-${section.id}-delete`}
                                     onClick={handleDelete}
-                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-destructive transition-colors hover:bg-destructive/10"
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                                 >
                                     <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                                     {t(STRINGS.section_list.row_delete, locale)}

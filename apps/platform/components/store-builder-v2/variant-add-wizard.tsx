@@ -1466,7 +1466,7 @@ function IdListStep<K extends "product" | "category">({
                                     aria-label={`Remove ${id}`}
                                     data-testid={`variant-wizard-${kind}-chip-${id}-remove`}
                                     onClick={() => remove(id)}
-                                    className="text-muted-foreground hover:text-destructive"
+                                    className="text-muted-foreground hover:text-red-600"
                                 >
                                     <X className="h-3 w-3" aria-hidden="true" />
                                 </button>

@@ -478,7 +478,7 @@ export function VersionHistoryScreen({
                                     ) : (
                                         <Circle className="h-3 w-3 fill-muted-foreground text-muted-foreground" />
                                     )}
-                                    <h3 className="text-lg font-semibold tracking-tight">
+                                    <h3 className="text-left! text-lg font-semibold tracking-tight">
                                         {(selected.label ?? "").trim() ||
                                             (selected.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale))}
                                     </h3>
