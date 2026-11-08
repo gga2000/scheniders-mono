@@ -59,7 +59,7 @@ const def: SectionDefinition<Props> = {
   name: { en: "FAQ accordion", ar: "أسئلة شائعة" },
   description: {
     en: "Localised Q&A accordion with chunky bento cards.",
-    ar: "أكوردين أسئلة وأجوبة بتصميم بنتو.",
+    ar: "أسئلة وأجوبة قابلة للطي في بطاقات مرتبة.",
   },
   thumbnail: "/sections/faq_accordion.svg",
   valid_on: ["faq", "home", "product"],

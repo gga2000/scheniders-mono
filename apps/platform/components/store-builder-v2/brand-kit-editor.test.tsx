@@ -278,14 +278,14 @@ describe("BrandKitEditor", () => {
         render(<BrandKitEditor value={clone()} onChange={() => {}} />);
         const badge = screen.getByTestId("contrast-ink-surface-grade") as HTMLElement;
         // ink=#1a1a1a on surface=#fff7ed has very high contrast → AAA.
-        expect(badge.textContent).toBe("AAA");
+        expect(badge.dataset.grade).toBe("AAA");
     });
 
     it("contrast badge for primary on ink shows Fail for the candy default", () => {
         // primary=#ff5a8a vs ink=#1a1a1a — ratio is around 4.0 (below AA 4.5)
         render(<BrandKitEditor value={clone()} onChange={() => {}} />);
         const badge = screen.getByTestId("contrast-primary-ink-grade") as HTMLElement;
-        expect(["Fail", "AA"]).toContain(badge.textContent);
+        expect(["Fail", "AA"]).toContain(badge.dataset.grade);
     });
 
     it("contrast badge shows Fail for a deliberately low-contrast pair", () => {
@@ -294,6 +294,6 @@ describe("BrandKitEditor", () => {
         value.colors.surface = "#fefefe"; // near-white surface
         render(<BrandKitEditor value={value} onChange={() => {}} />);
         const badge = screen.getByTestId("contrast-ink-surface-grade") as HTMLElement;
-        expect(badge.textContent).toBe("Fail");
+        expect(badge.dataset.grade).toBe("Fail");
     });
 });

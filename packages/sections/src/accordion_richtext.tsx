@@ -298,10 +298,10 @@ function AccordionRichtextRender({
 const definition: SectionDefinition<Props> = {
   type: "accordion_richtext",
   category: "content",
-  name: { en: "Rich-text accordion", ar: "أكوردين نص غني" },
+  name: { en: "Rich-text accordion", ar: "قائمة قابلة للطي بنص منسّق" },
   description: {
     en: "Accordion with rich-text bodies for terms, shipping, returns, etc.",
-    ar: "أكوردين بمحتوى نصّي غني للسياسات والشحن والإرجاع.",
+    ar: "عناوين قابلة للطي بنص منسّق للسياسات والتوصيل والإرجاع.",
   },
   thumbnail: "/sections/accordion_richtext.svg",
   valid_on: [

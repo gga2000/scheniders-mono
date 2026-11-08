@@ -9,12 +9,14 @@
 // =====================================================================
 
 import {
+    Fragment,
     useCallback,
     useEffect,
     useMemo,
     useRef,
     useState,
     type ReactElement,
+    type ReactNode,
 } from "react";
 import {
     ChevronLeft,
@@ -729,7 +731,17 @@ function DiffRow({
 }): ReactElement {
     const locale = useEditorLocale();
     const parts = describeDiffPath(entry.path, configs, locale);
-    const where = parts.length > 0 ? parts.join(" › ") : t(diffGroupLabel(entry.path[0] ?? ""), locale);
+    const where: ReactNode =
+        parts.length > 0
+            ? parts.map((part, i) => (
+                  // Each crumb isolated, so a Latin name inside an Arabic
+                  // trail keeps its place in the order.
+                  <Fragment key={i}>
+                      {i > 0 && " › "}
+                      <bdi>{part}</bdi>
+                  </Fragment>
+              ))
+            : t(diffGroupLabel(entry.path[0] ?? ""), locale);
     const secret = isSecretDiffPath(entry.path);
     const tone =
         entry.kind === "added"

@@ -121,7 +121,7 @@ const definition: SectionDefinition<Props> = {
   name: { en: "Feature grid", ar: "شبكة ميزات" },
   description: {
     en: "3- or 4-up feature blocks with icon, title, and body copy.",
-    ar: "كتل ميزات 3 أو 4 أعمدة مع أيقونة وعنوان ووصف.",
+    ar: "مزايا في 3 أو 4 أعمدة، لكل منها أيقونة وعنوان ووصف.",
   },
   thumbnail: "/sections/feature_grid.svg",
   valid_on: ["home", "about", "product"],

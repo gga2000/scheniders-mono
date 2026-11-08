@@ -606,8 +606,17 @@ interface ContrastBadgeProps {
 }
 
 export function ContrastBadge({ label, fg, bg, testId }: ContrastBadgeProps): ReactElement {
+    const chromeLocale = useResolvedEditorLocale();
     const ratio = contrastRatio(fg, bg);
     const grade = gradeContrast(ratio);
+    const gradeLabel = tChrome(
+        grade === "AAA"
+            ? STRINGS.brand_kit.contrast_aaa
+            : grade === "AA"
+              ? STRINGS.brand_kit.contrast_aa
+              : STRINGS.brand_kit.contrast_fail,
+        chromeLocale,
+    );
     const tone =
         grade === "AAA"
             ? "bg-emerald-500/15 text-emerald-700"
@@ -638,12 +647,10 @@ export function ContrastBadge({ label, fg, bg, testId }: ContrastBadgeProps): Re
                 </span>
                 <span
                     data-testid={`${testId}-grade`}
-                    className={cn(
-                        "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-                        tone,
-                    )}
+                    data-grade={grade}
+                    className={cn("rounded px-1.5 py-0.5 text-[10px] font-bold", tone)}
                 >
-                    {grade}
+                    {gradeLabel}
                 </span>
             </div>
         </div>

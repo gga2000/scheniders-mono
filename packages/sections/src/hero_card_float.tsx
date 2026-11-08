@@ -162,12 +162,12 @@ const PCT_TOKEN = "{pct}";
  * figure. `{pct}` stands for the whole "36٪", sign included — the
  * merchant writes "خصم لحد {pct}", not "خصم لحد {pct}٪".
  *
- * The isolate is not cosmetic, and the sign must live INSIDE it. The page
- * is LTR in every locale, so an Arabic phrase carrying a Latin number and
- * a percent sign gets reordered by the bidi algorithm: measured in the
- * browser, splitting the two renders the chip as [36][٪][خصم لحد]. Kept
- * together in one `<bdi>` it reads [خصم لحد][36٪]. `formatPrice` pairs a
- * number with "د.ع" under exactly the same rule.
+ * The isolate is not cosmetic, and the sign must live INSIDE it: split, the
+ * bidi algorithm scatters the number and the sign. The page is LTR in every
+ * locale, so the chip's text box also carries `dir="auto"`: in an LTR box an
+ * Arabic phrase followed by the isolate puts the figure on the right, where
+ * an Arabic reader meets it FIRST («36٪ خصم لحد»). `formatPrice` pairs a
+ * number with "د.ع" under the same rule.
  *
  * Returns null when the template wants a figure and none exists, so a
  * shopper never sees a stray sign or a raw `{pct}`.
@@ -396,8 +396,10 @@ function HeroCardFloatRender({
               >
                 {/* One inline box: as direct flex items, the text parts
                     around the <bdi> would lose their edge spaces
-                    ("Up to36%off"). */}
-                <span>{badge}</span>
+                    ("Up to36%off"). `dir="auto"` gives an Arabic badge its
+                    own right-to-left direction, so the figure ends the
+                    phrase («خصم لحد 36٪») instead of starting it. */}
+                <span dir="auto">{badge}</span>
               </span>
             )}
             <h1

@@ -278,6 +278,18 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate on auth landing only
     }, [userId]);
+    // The editor's text follows the chosen language, so the page's `lang`
+    // must too (screen readers, hyphenation, fonts). Put back on leave.
+    // Only `lang` changes: the app stays LTR in every locale.
+    useEffect(() => {
+        const root = document.documentElement;
+        const before = root.lang;
+        root.lang = builder.active_locale;
+        return () => {
+            root.lang = before;
+        };
+    }, [builder.active_locale]);
+
     // One-time "what is Advanced?" intro, shown on the first MANUAL switch.
     const [mode_intro_open, set_mode_intro_open] = useState<boolean>(false);
 
@@ -1324,6 +1336,12 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         () => blockingChecks(healthReport),
         [healthReport],
     );
+    // The publish sheet lists every open check, the same set Store Health
+    // and the hub count, so it never says "nothing to fix" while they don't.
+    const healthOpen = useMemo(
+        () => healthReport.checks.filter((c) => c.status !== "pass"),
+        [healthReport],
+    );
     // Health no longer blocks publish — surfaced via PublishConfirmSheet.
     const publishDisabled = !builder.has_unpublished_changes;
     const publishBusy = builder.is_publishing;
@@ -1631,7 +1649,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
 
                 <PublishConfirmSheet
                     open={publish_sheet_open}
-                    blockingChecks={healthBlocking}
+                    openChecks={healthOpen}
                     onClose={() => set_publish_sheet_open(false)}
                     onPublishAnyway={handlePublishAnyway}
                     onJumpToFix={handlePublishJumpToFix}
@@ -2090,7 +2108,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             {/* Publish confirm sheet — opens when Publish has health warnings */}
             <PublishConfirmSheet
                 open={publish_sheet_open}
-                blockingChecks={healthBlocking}
+                openChecks={healthOpen}
                 onClose={() => set_publish_sheet_open(false)}
                 onPublishAnyway={handlePublishAnyway}
                 onJumpToFix={handlePublishJumpToFix}

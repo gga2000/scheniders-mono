@@ -656,16 +656,18 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                     fontFamily: `'${typography.display}', system-ui, sans-serif`,
                                 }}
                                 className="text-2xl font-bold tracking-tight"
+                                dir="auto"
                             >
-                                Aa — The quick brown fox 1234567890
+                                {tChrome(STRINGS.brand_kit.sample_display, chromeLocale)}
                             </div>
                             <div
                                 style={{
                                     fontFamily: `'${typography.body}', system-ui, sans-serif`,
                                 }}
                                 className="mt-1 text-sm text-muted-foreground"
+                                dir="auto"
                             >
-                                The quick brown fox jumps over the lazy dog.
+                                {tChrome(STRINGS.brand_kit.sample_body, chromeLocale)}
                             </div>
                         </div>
                     </div>

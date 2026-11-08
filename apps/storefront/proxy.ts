@@ -5,6 +5,7 @@ import {
   serializeAdAttribution,
 } from "@scheniders/shared/ad-attribution";
 import { extractSlug, storefrontRootDomain } from "@/lib/store-host";
+import { QUIET_VIEW_HEADER, QUIET_VIEW_PARAM } from "@/lib/quiet-view";
 import {
   FBC_COOKIE,
   FBP_COOKIE,
@@ -167,6 +168,11 @@ const TENANT_ROOT_FILES: ReadonlySet<string> = new Set([
  */
 const STORE_PATH_HEADER = "x-store-path";
 
+/** "1" when the hub's live preview asked for a page view that tracks nothing. */
+function quietFlag(request: NextRequest): string {
+  return request.nextUrl.searchParams.get(QUIET_VIEW_PARAM) === "1" ? "1" : "0";
+}
+
 /** The editor's preview route: `/_preview` and everything under it. */
 function isPreviewPath(pathname: string): boolean {
   return pathname === "/_preview" || pathname.startsWith("/_preview/");
@@ -209,6 +215,7 @@ export function proxy(request: NextRequest) {
         const requestHeaders = new Headers(request.headers);
         requestHeaders.set("x-store-base", `/s/${tenantSlug}`);
         requestHeaders.set(STORE_PATH_HEADER, storePath);
+        requestHeaders.set(QUIET_VIEW_HEADER, quietFlag(request));
         const response = NextResponse.next({ request: { headers: requestHeaders } });
         ensureVisitorCookie(request, response);
         ensureFirstSeenCookie(request, response);
@@ -228,6 +235,7 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-store-base", "");
   requestHeaders.set(STORE_PATH_HEADER, storePath);
+  requestHeaders.set(QUIET_VIEW_HEADER, quietFlag(request));
   const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   ensureVisitorCookie(request, response);
   ensureFirstSeenCookie(request, response);

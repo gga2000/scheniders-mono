@@ -1,5 +1,6 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { canPreviewDraft } from "./preview-access";
+import { QUIET_VIEW_HEADER } from "./quiet-view";
 
 /** httpOnly cookie holding a preview token; set by /api/draft-view. */
 export const DRAFT_VIEW_COOKIE = "sb_draft_view";
@@ -19,4 +20,14 @@ export const DRAFT_VIEW_COOKIE = "sb_draft_view";
 export async function isDraftViewRequest(tenantId: string): Promise<boolean> {
   const token = (await cookies()).get(DRAFT_VIEW_COOKIE)?.value;
   return canPreviewDraft(token, tenantId);
+}
+
+/**
+ * True when this page view must not count as a shopper: the merchant's own
+ * live preview in the store hub. Unlike draft view it shows the PUBLISHED
+ * store and needs no token, because all it can do is silence the asking
+ * visitor's own tracking (pixels, funnel page views, test exposures).
+ */
+export async function isQuietViewRequest(): Promise<boolean> {
+  return (await headers()).get(QUIET_VIEW_HEADER) === "1";
 }

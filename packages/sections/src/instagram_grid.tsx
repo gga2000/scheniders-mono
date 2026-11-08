@@ -126,7 +126,7 @@ const definition: SectionDefinition<Props> = {
   name: { en: "Instagram grid", ar: "شبكة إنستغرام" },
   description: {
     en: "6-12 Instagram-style image tiles linking out.",
-    ar: "شبكة صور بأسلوب إنستغرام تربط بحساب البراند.",
+    ar: "شبكة صور بأسلوب إنستغرام تربط بحساب متجرك.",
   },
   thumbnail: "/sections/instagram_grid.svg",
   valid_on: ["home", "about"],

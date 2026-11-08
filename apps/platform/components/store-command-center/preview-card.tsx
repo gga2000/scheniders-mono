@@ -187,7 +187,7 @@ export function PreviewCard({
                              * platform DOM. `allow-scripts` is required for hydration. */}
                             <iframe
                                 key={storefrontUrl}
-                                src={storefrontUrl}
+                                src={quietUrl(storefrontUrl)}
                                 loading="lazy"
                                 className="border-0"
                                 style={{
@@ -214,4 +214,16 @@ export function PreviewCard({
             )}
         </div>
     );
+}
+
+/**
+ * The frame is the merchant looking at their own store, not a shopper:
+ * `sb_quiet=1` makes the storefront skip ad pixels, funnel page views and
+ * test exposures, so opening the hub never inflates the store's numbers.
+ */
+function quietUrl(url: string): string {
+    // buildStorefrontUrl always returns an absolute URL.
+    const u = new URL(url);
+    u.searchParams.set("sb_quiet", "1");
+    return u.toString();
 }
