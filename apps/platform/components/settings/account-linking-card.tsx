@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ShieldCheck, Check } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { useLanguage } from "@/hooks/use-language";
 import { toast } from "@/hooks/use-toast";
 
 /**
@@ -15,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
  */
 export function AccountLinkingCard() {
     const { user, googleLinked, linkGoogle } = useAuth();
+    const { t } = useLanguage();
     const [linking, setLinking] = useState(false);
 
     const handleLink = async () => {
@@ -22,7 +24,7 @@ export function AccountLinkingCard() {
         const { error } = await linkGoogle();
         // On success the browser redirects to Google; we only get here on error.
         if (error) {
-            toast.error("Couldn't link Google", error.message);
+            toast.error(t("settings.signin.linkFailed"), error.message);
             setLinking(false);
         }
     };
@@ -33,18 +35,18 @@ export function AccountLinkingCard() {
                 <div className="w-8 h-8 rounded-lg bg-(--pastel-mint) flex items-center justify-center">
                     <ShieldCheck className="h-4 w-4 text-teal-700" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground">Sign-in methods</h3>
+                <h3 className="text-base font-semibold text-foreground">{t("settings.signin.title")}</h3>
             </div>
 
             <div className="space-y-3">
                 {/* Email & password — always present */}
                 <div className="flex items-center justify-between rounded-xl border border-(--card-border) bg-background px-4 py-3">
                     <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">Email &amp; password</p>
+                        <p className="text-sm font-medium text-foreground">{t("settings.signin.email")}</p>
                         <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                     </div>
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 shrink-0">
-                        <Check className="h-3.5 w-3.5" /> Active
+                        <Check className="h-3.5 w-3.5" /> {t("settings.signin.active")}
                     </span>
                 </div>
 
@@ -61,14 +63,14 @@ export function AccountLinkingCard() {
                             <p className="text-sm font-medium text-foreground">Google</p>
                             <p className="text-xs text-muted-foreground">
                                 {googleLinked
-                                    ? "You can sign in with Google into this account."
-                                    : "Link Google to sign in faster — your account and data stay the same."}
+                                    ? t("settings.signin.googleOn")
+                                    : t("settings.signin.googleOff")}
                             </p>
                         </div>
                     </div>
                     {googleLinked ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 shrink-0">
-                            <Check className="h-3.5 w-3.5" /> Connected
+                            <Check className="h-3.5 w-3.5" /> {t("settings.signin.connected")}
                         </span>
                     ) : (
                         <button
@@ -76,7 +78,7 @@ export function AccountLinkingCard() {
                             disabled={linking}
                             className="inline-flex items-center justify-center rounded-xl border-2 border-(--card-border) bg-background px-4 h-9 text-sm font-semibold text-foreground hover:bg-(--pastel-mint) hover:text-teal-800 transition-colors disabled:opacity-50 shrink-0"
                         >
-                            {linking ? "Connecting…" : "Connect"}
+                            {linking ? t("settings.signin.connecting") : t("settings.signin.connect")}
                         </button>
                     )}
                 </div>
