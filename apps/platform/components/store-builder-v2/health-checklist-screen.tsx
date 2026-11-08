@@ -681,7 +681,7 @@ export function HealthChecklistScreen(
             )}
             {isSimple && suggestions.length > 0 && (
                 <section data-testid="health-simple-suggestions" className="border-t border-(--card-border)">
-                    <h3 className="px-6 pt-3 text-xs font-semibold text-muted-foreground">
+                    <h3 className="text-left! px-6 pt-3 text-xs font-semibold text-muted-foreground">
                         {tFormat(
                             suggestions.length === 1
                                 ? STRINGS.command_center.health_suggestions_one

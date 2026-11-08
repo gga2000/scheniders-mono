@@ -95,6 +95,26 @@ export interface FieldRendererProps {
     unsetDefault?: unknown;
 }
 
+/**
+ * Copy fields a merchant writes a sentence or more into. They get a
+ * textarea so the whole line stays visible; titles and button labels stay
+ * one-line inputs.
+ */
+const LONG_COPY_KEYS = new Set<string>([
+    "sub",
+    "lead",
+    "text",
+    "caption",
+    "a",
+    "story",
+    "body_md",
+    "reassurance_text",
+    "referral_body",
+    "call_promise_note",
+    "cod_note",
+    "empty_state_message",
+]);
+
 export function FieldRenderer(props: FieldRendererProps): ReactElement {
     const {
         schema,
@@ -326,6 +346,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                     onChange={(next) => onChange(next)}
                     testIdPrefix={testIdBase}
                     activeLocale={activeLocale}
+                    multiline={LONG_COPY_KEYS.has(fieldKey)}
                 />
             );
             break;
@@ -1116,7 +1137,7 @@ export function ArrayControl(p: ArrayControlProps): ReactElement {
                                         aria-label={tx(STRINGS.auto_form.remove_item, arrayLocale)}
                                         data-testid={`${p.testIdBase}-item-${i}-remove`}
                                         onClick={() => handleRemove(i)}
-                                        className="inline-flex h-6 w-6 items-center justify-center rounded text-destructive transition-colors hover:bg-destructive/10"
+                                        className="inline-flex h-6 w-6 items-center justify-center rounded text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                                     >
                                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                                     </button>

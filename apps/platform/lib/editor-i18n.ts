@@ -523,7 +523,7 @@ export const STRINGS = {
         reset: { en: "Reset", ar: "إعادة تعيين", ku: "ڕێکخستنەوە" },
         // Field labels
         field_store_name: { en: "Store name", ar: "اسم المتجر", ku: "ناوی فرۆشگا" },
-        field_tagline: { en: "Tagline", ar: "الشعار النصي", ku: "دروشم" },
+        field_tagline: { en: "Slogan", ar: "العبارة التعريفية", ku: "دروشم" },
         field_logo: { en: "Logo", ar: "الشعار", ku: "لۆگۆ" },
         field_favicon: { en: "Favicon", ar: "أيقونة الموقع", ku: "ئایکۆنی ماڵپەڕ" },
         field_og_image: { en: "OG image", ar: "صورة المشاركة", ku: "وێنەی هاوبەشکردن" },
@@ -546,7 +546,7 @@ export const STRINGS = {
         // Helper texts + placeholders
         store_name_placeholder: { en: "Your store name", ar: "اسم متجرك", ku: "ناوی فرۆشگاکەت" },
         help_store_name: { en: "Used as the storefront wordmark and in the header by default.", ar: "يُستخدم كعلامة المتجر النصية وفي الترويسة افتراضياً.", ku: "بە شێوەی بنەڕەتی وەکو ناوی فرۆشگا و لە سەرپەڕەدا بەکاردێت." },
-        help_tagline: { en: "Falls back to English if a locale is empty.", ar: "يُعرض بالإنجليزية إذا كانت اللغة فارغة.", ku: "دەگەڕێتەوە بۆ ئینگلیزی ئەگەر زمانێک بەتاڵ بێت." },
+        help_tagline: { en: "A short line under your store name. If a language is left empty, the English line shows.", ar: "سطر قصير تحت اسم متجرك. إذا تركت لغة فارغة يظهر السطر الإنجليزي بدلها.", ku: "دێڕێکی کورت لە ژێر ناوی فرۆشگاکەت. ئەگەر زمانێک بەتاڵ بێت، دێڕە ئینگلیزییەکە دەردەکەوێت." },
         help_logo: { en: "PNG or SVG. Max 2MB. Appears in header + on receipts.", ar: "صورة PNG أو SVG، حجمها 2MB كحد أقصى. يظهر في الترويسة وعلى الفواتير.", ku: "وێنەی PNG یان SVG، زۆرترین 2MB. لە سەرپەڕە و لەسەر پسوولەکان دەردەکەوێت." },
         help_favicon: { en: "32×32 PNG or ICO. Max 512KB.", ar: "صورة PNG أو ICO بمقاس 32×32، حجمها 512KB كحد أقصى.", ku: "وێنەی PNG یان ICO بە قەبارەی 32×32، زۆرترین 512KB." },
         help_og_image: { en: "1200×630 JPG/PNG. Used when your store is shared on social.", ar: "صورة JPG أو PNG بمقاس 1200×630. تُستخدم عند مشاركة متجرك على وسائل التواصل.", ku: "وێنەی JPG یان PNG بە قەبارەی 1200×630. بەکاردێت کاتێک فرۆشگاکەت لە سۆشیال میدیا هاوبەش دەکرێت." },
@@ -565,8 +565,8 @@ export const STRINGS = {
         // Contrast card
         accessibility_contrast: { en: "Accessibility · contrast", ar: "إتاحة الوصول · التباين", ku: "گەیشتن · جیاوازی ڕەنگ" },
         contrast_primary_surface: { en: "Primary on surface", ar: "الأساسي على الخلفية", ku: "سەرەکی لەسەر ڕووکار" },
-        contrast_ink_surface: { en: "Ink on surface", ar: "الحبر على الخلفية", ku: "مەرەکەب لەسەر ڕووکار" },
-        contrast_primary_ink: { en: "Primary on ink", ar: "الأساسي على الحبر", ku: "سەرەکی لەسەر مەرەکەب" },
+        contrast_ink_surface: { en: "Text on background", ar: "النص على الخلفية", ku: "دەق لەسەر باکگراوند" },
+        contrast_primary_ink: { en: "Main colour on text colour", ar: "الأساسي على لون النص", ku: "سەرەکی لەسەر ڕەنگی دەق" },
         // Segmented option labels (shared across scale/shape/motion/voice)
         opt_compact: { en: "Compact", ar: "مضغوط", ku: "چڕ" },
         opt_comfortable: { en: "Comfortable", ar: "مريح", ku: "ئاسوودە" },
@@ -1097,7 +1097,7 @@ export const STRINGS = {
         color_accent: { en: "Accent", ar: "المميّز", ku: "جیاکەرەوە" },
         color_surface: { en: "Surface", ar: "الخلفية", ku: "ڕووکار" },
         color_surface_alt: { en: "Surface alt", ar: "الخلفية البديلة", ku: "ڕووکاری لاوەکی" },
-        color_ink: { en: "Ink", ar: "الحبر", ku: "مەرەکەب" },
+        color_ink: { en: "Text colour", ar: "لون النص", ku: "ڕەنگی دەق" },
         color_success: { en: "Success", ar: "النجاح", ku: "سەرکەوتن" },
         color_danger: { en: "Danger", ar: "الخطر", ku: "مەترسی" },
         // Palette extraction errors
@@ -1733,9 +1733,10 @@ export const STRINGS = {
         tiktok_capi: { en: "TikTok Events API token", ar: "رمز واجهة أحداث TikTok", ku: "تۆکنی API ی ڕووداوی TikTok" },
         meta_test_code: { en: "Meta test event code", ar: "رمز اختبار أحداث Meta", ku: "کۆدی تاقیکردنەوەی ڕووداوی Meta" },
         // Send keys live in a lockbox: saved / ends with / replace / delete.
+        publish_note: { en: "Goes live when you publish the store.", ar: "يُطبَّق عند نشر المتجر.", ku: "کاتێک فرۆشگاکە بڵاو دەکەیتەوە جێبەجێ دەبێت." },
         key_saved: { en: "Saved", ar: "محفوظ", ku: "پاشەکەوتکراوە" },
-        // tFormat: {last4}
-        key_ends_with: { en: "Ends with …{last4}", ar: "ينتهي بـ …{last4}", ku: "کۆتایی بە …{last4}" },
+        // Followed by the last four characters, isolated LTR («…WXYZ»).
+        key_ends_with: { en: "Ends with", ar: "ينتهي بـ", ku: "کۆتایی بە" },
         key_replace: { en: "Replace", ar: "استبدال", ku: "گۆڕین" },
         key_delete: { en: "Delete", ar: "حذف", ku: "سڕینەوە" },
         key_save: { en: "Save token", ar: "حفظ الرمز", ku: "پاشەکەوتکردنی تۆکن" },
@@ -1771,7 +1772,7 @@ export const STRINGS = {
         delay_unit: { en: "(minutes, 5–1440)", ar: "(بالدقائق، 5–1440)", ku: "(بە خولەک، 5–1440)" },
     },
     custom_pages: {
-        heading: { en: "Custom pages", ar: "صفحات مخصصة", ku: "پەڕە تایبەتەکان" },
+        heading: { en: "Custom pages", ar: "صفحات مخصّصة", ku: "پەڕە تایبەتەکان" },
         close: { en: "Close custom pages", ar: "إغلاق الصفحات المخصصة", ku: "داخستنی پەڕە تایبەتەکان" },
         intro: {
             en: "Build campaign, landing, or lookbook pages. Each one lives at its own address under /p/. Add a page here, then add sections to it from the page list.",
@@ -1780,7 +1781,7 @@ export const STRINGS = {
         },
         new_title: { en: "New page title", ar: "عنوان الصفحة الجديدة", ku: "ناونیشانی پەڕەی نوێ" },
         add: { en: "Add", ar: "إضافة", ku: "زیادکردن" },
-        empty: { en: "No custom pages yet.", ar: "لا توجد صفحات مخصصة بعد.", ku: "هێشتا هیچ پەڕەیەکی تایبەت نییە." },
+        empty: { en: "No custom pages yet.", ar: "لا توجد صفحات مخصّصة بعد.", ku: "هێشتا هیچ پەڕەیەکی تایبەت نییە." },
         page_title: { en: "Page title", ar: "عنوان الصفحة", ku: "ناونیشانی پەڕە" },
         page_slug: { en: "Page address", ar: "رابط الصفحة", ku: "بەستەری پەڕە" },
         hidden: { en: "Hidden", ar: "مخفية", ku: "شاراوە" },

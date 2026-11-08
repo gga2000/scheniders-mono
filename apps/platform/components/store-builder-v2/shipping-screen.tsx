@@ -294,7 +294,7 @@ export function ShippingScreen({
                 {/* The fee, for the two modes that charge one. */}
                 {(mode === "flat" || mode === "by_governorate") && (
                     <section className="rounded-xl border border-(--card-border) bg-(--card-bg) p-4">
-                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <h3 className="text-left! mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             {mode === "flat"
                                 ? t(s.ship_fee_label, locale)
                                 : t(s.ship_default_fee, locale)}
@@ -338,7 +338,7 @@ export function ShippingScreen({
                 {/* Per-governorate overrides, only where they mean something. */}
                 {mode === "by_governorate" && (
                     <section className="rounded-xl border border-(--card-border) bg-(--card-bg) p-4">
-                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <h3 className="text-left! mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             {t(s.ship_override_col, locale)}
                         </h3>
                         <ul className="flex flex-col divide-y divide-(--card-border)">
@@ -401,7 +401,7 @@ export function ShippingScreen({
 
                 {/* Promise at the door */}
                 <section className="rounded-xl border border-(--card-border) bg-(--card-bg) p-4">
-                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h3 className="mb-2 text-left! text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         {t(s.ship_door_heading, locale)}
                     </h3>
                     <label className="flex items-start gap-2.5 text-sm text-foreground">
@@ -426,7 +426,7 @@ export function ShippingScreen({
                     data-testid="shipping-preview"
                     className="rounded-xl border border-(--card-border) bg-(--card-bg) p-4"
                 >
-                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h3 className="text-left! mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         {t(s.ship_preview_heading, locale)}
                     </h3>
                     {preview.every((row) => row.baghdad === 0 && row.dearest === 0) ? (

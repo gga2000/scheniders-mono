@@ -157,7 +157,7 @@ export function TemplateUpdatesScreen({ builder, onClose }: TemplateUpdatesScree
                         {/* What the update deliberately does not touch. */}
                         {plan.customised.length > 0 && (
                             <section className="rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                                <h3 className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                <h3 className="text-left! inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     <Lock className="h-3.5 w-3.5" aria-hidden="true" />
                                     {tx(s.yours_heading, locale)}
                                 </h3>

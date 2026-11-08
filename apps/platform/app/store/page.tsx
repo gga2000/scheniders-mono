@@ -59,7 +59,7 @@ export default function StoreBuilderPage() {
 
     if (isError) {
         return (
-            <div role="alert" className="text-center py-20 text-destructive">
+            <div role="alert" className="text-center py-20 text-red-600 dark:text-red-400">
                 {t("store.loadError")}
             </div>
         );

@@ -66,7 +66,7 @@ export function FunnelCard({ funnel, isLoading, isError, locale }: FunnelCardPro
                     ))}
                 </div>
             ) : isError ? (
-                <p data-testid="funnel-error" role="alert" className="mt-3 max-w-prose text-xs text-destructive">
+                <p data-testid="funnel-error" role="alert" className="mt-3 max-w-prose text-xs text-red-600 dark:text-red-400">
                     {t(s.funnel_error, locale)}
                 </p>
             ) : empty ? (

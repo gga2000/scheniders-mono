@@ -437,7 +437,7 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
                                             aria-label={`Remove ${rule.kind} rule`}
                                             data-testid={`section-edit-panel-visibility-chip-${i}-remove`}
                                             onClick={() => handleVisibilityRemove(i)}
-                                            className="text-muted-foreground hover:text-destructive"
+                                            className="text-muted-foreground hover:text-red-600"
                                         >
                                             <X className="h-3 w-3" aria-hidden="true" />
                                         </button>

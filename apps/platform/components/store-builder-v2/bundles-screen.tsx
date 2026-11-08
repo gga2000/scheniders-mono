@@ -150,11 +150,14 @@ export function BundlesScreen({
                                             className={cn(inputCls, "w-20")}
                                         />
                                     </label>
-                                    <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                                    {/* A bundle with fewer than two products never applies, so it
+                                        cannot read as switched on until it has them. */}
+                                    <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground has-disabled:opacity-50">
                                         <input
                                             type="checkbox"
                                             data-testid={`bundle-enabled-${i}`}
-                                            checked={b.enabled !== false}
+                                            checked={b.enabled !== false && b.product_ids.length >= 2}
+                                            disabled={b.product_ids.length < 2}
                                             onChange={(e) =>
                                                 updateRow(i, { enabled: e.target.checked })
                                             }
@@ -189,7 +192,7 @@ export function BundlesScreen({
                                 <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-(--card-border) p-1.5">
                                     {productsError ? (
                                         // A failed read is not an empty catalogue: say so.
-                                        <p role="alert" data-testid={`bundle-${i}-products-error`} className="p-2 text-xs text-destructive">
+                                        <p role="alert" data-testid={`bundle-${i}-products-error`} className="p-2 text-xs text-red-600 dark:text-red-400">
                                             {t(STRINGS.advanced_chrome.bun_products_error, locale)}
                                         </p>
                                     ) : productsLoading ? (

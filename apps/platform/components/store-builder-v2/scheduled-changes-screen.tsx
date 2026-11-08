@@ -573,7 +573,7 @@ function Bucket({
         >
             <header className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+                    <h3 className="text-left! text-sm font-semibold tracking-tight">{title}</h3>
                     <span className="rounded-full bg-background/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
                         {count}
                     </span>
@@ -851,7 +851,7 @@ function TargetsViewer({ schedule, builder, onClose }: TargetsViewerProps): Reac
         >
             <aside className="flex w-full max-w-md flex-col border-l border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-4 py-3">
-                    <h3 className="text-sm font-semibold tracking-tight">{schedule.label}</h3>
+                    <h3 className="text-left! text-sm font-semibold tracking-tight">{schedule.label}</h3>
                     <button
                         type="button"
                         onClick={onClose}
@@ -1081,7 +1081,7 @@ function ScheduleCreatorModal({
             <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-(--card-border) bg-(--card-bg) shadow-xl">
                 <header className="flex items-center justify-between border-b border-(--card-border) px-5 py-3">
                     <div>
-                        <h3 className="text-base font-semibold tracking-tight">{tx(STRINGS.scheduled.new, locale)}</h3>
+                        <h3 className="text-left! text-base font-semibold tracking-tight">{tx(STRINGS.scheduled.new, locale)}</h3>
                         <p className="text-[11px] text-foreground/80">
                             {tx(STRINGS.advanced_chrome.sched_creator_subtitle, locale)}
                         </p>

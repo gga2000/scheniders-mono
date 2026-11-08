@@ -241,7 +241,7 @@ export function SaveStatePill({
             break;
         case "error":
             label = t(STRINGS.save_state.error, locale);
-            tone = "text-destructive";
+            tone = "text-red-600 dark:text-red-400";
             icon = <CloudOff className="h-3.5 w-3.5" aria-hidden="true" />;
             break;
         case "saved":
@@ -292,7 +292,7 @@ export function SaveStatePill({
                     data-testid="save-state-retry"
                     title={t(STRINGS.save_state.retry_hint, locale)}
                     onClick={onRetry}
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-destructive transition-colors hover:bg-destructive/10"
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
                 >
                     <RefreshCw className="h-3 w-3" aria-hidden="true" />
                 </button>

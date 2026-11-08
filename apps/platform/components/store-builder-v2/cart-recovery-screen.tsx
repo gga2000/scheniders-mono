@@ -63,10 +63,10 @@ export function CartRecoveryScreen({
                 backTestId="cart-recovery-close"
             />
 
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-2xl">
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-left! text-sm font-medium text-foreground">
                         {t(C.enable, locale)}
                     </span>
                     <input
@@ -78,7 +78,7 @@ export function CartRecoveryScreen({
                 </label>
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
-                    <span dir="auto" className="text-sm text-foreground">
+                    <span className="text-left! text-sm text-foreground">
                         {t(C.delay_label, locale)}{" "}
                         <span className=" text-xs text-muted-foreground">
                             {t(C.delay_unit, locale)}

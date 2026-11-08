@@ -577,7 +577,7 @@ function PresetRow({
                             e.stopPropagation();
                             setConfirmOpen(true);
                         }}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 group-hover:opacity-100"
                     >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>

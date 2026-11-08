@@ -204,7 +204,7 @@ export function DomainDialog({ tenantId, slug, onClose, locale }: DomainDialogPr
                         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                     </div>
                 ) : listFailed ? (
-                    <p role="alert" className="mb-4 text-xs text-destructive">
+                    <p role="alert" className="mb-4 text-xs text-red-600 dark:text-red-400">
                         {t(STRINGS.command_center.domain_list_error, locale)}
                     </p>
                 ) : domains.length > 0 ? (
