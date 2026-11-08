@@ -195,7 +195,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
             {above > 0 && (
                 <>
                     {/* A soft edge so a half-hidden line reads as "more up there", not as a cut row. */}
-                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-[var(--card-bg)] to-transparent" aria-hidden="true" />
+                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-[var(--card-bg)] from-50% to-transparent" aria-hidden="true" />
                     <button
                         type="button"
                         onClick={() => listRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
