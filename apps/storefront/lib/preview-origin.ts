@@ -11,16 +11,23 @@
 // navigation target must be a same-origin `/_preview/` path.
 // =====================================================================
 
-/** Hardcoded trusted editor origins (prod + local dev). */
+/**
+ * Local dev runs the editor on localhost. A production store never trusts it:
+ * any page served on a visitor's own machine could otherwise frame the store
+ * or drive the preview bridge.
+ */
+const TRUST_LOCALHOST = process.env.NODE_ENV !== "production";
+
+/** Hardcoded trusted editor origins (prod, plus local dev outside production). */
 export const SAFE_PARENT_ORIGINS: ReadonlySet<string> = new Set<string>([
-  "http://localhost:3000", // platform dev
   "https://schenidersapp.xyz", // production platform (merchant admin)
+  ...(TRUST_LOCALHOST ? ["http://localhost:3000"] : []), // platform dev
 ]);
 
 /**
  * True when `origin` is a trusted editor origin allowed to drive the preview.
  * Accepts the hardcoded set, the deploy-configured `NEXT_PUBLIC_PLATFORM_ORIGIN`,
- * and any localhost/127.0.0.1 origin (dev runs the editor on localhost). An
+ * and, outside production, any localhost/127.0.0.1 origin. An
  * empty/opaque origin is rejected.
  */
 export function isAllowedParentOrigin(origin: string | null | undefined): boolean {
@@ -28,6 +35,7 @@ export function isAllowedParentOrigin(origin: string | null | undefined): boolea
   if (SAFE_PARENT_ORIGINS.has(origin)) return true;
   const env = process.env.NEXT_PUBLIC_PLATFORM_ORIGIN;
   if (env && origin === env) return true;
+  if (!TRUST_LOCALHOST) return false;
   try {
     const host = new URL(origin).hostname;
     if (host === "localhost" || host === "127.0.0.1") return true;

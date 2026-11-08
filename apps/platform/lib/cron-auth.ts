@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 
@@ -32,10 +33,20 @@ export function requireCronAuth(request: Request): NextResponse | null {
         return NextResponse.json({ error: "Endpoint is not configured." }, { status: 503 });
     }
 
-    const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const authHeader = request.headers.get("authorization") ?? "";
+    if (!sameSecret(authHeader, `Bearer ${cronSecret}`)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     return null;
+}
+
+/**
+ * Constant-time compare. Hashing first gives both sides the same length, so
+ * neither the length nor the first differing byte shows in the response time.
+ */
+function sameSecret(given: string, expected: string): boolean {
+    const a = createHash("sha256").update(given).digest();
+    const b = createHash("sha256").update(expected).digest();
+    return timingSafeEqual(a, b);
 }

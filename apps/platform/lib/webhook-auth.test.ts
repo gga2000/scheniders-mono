@@ -194,8 +194,8 @@ describe("verifyWebhookAuth — lightfunnels-hmac", () => {
 });
 
 describe("resolveWebhookAuthMode", () => {
-    it("defaults to monitor", () => {
-        expect(resolveWebhookAuthMode(undefined, undefined)).toBe("monitor");
+    it("defaults to enforce, so an unset env never opens a webhook", () => {
+        expect(resolveWebhookAuthMode(undefined, undefined)).toBe("enforce");
     });
     it("uses the global flag", () => {
         expect(resolveWebhookAuthMode(undefined, "enforce")).toBe("enforce");

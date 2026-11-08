@@ -90,7 +90,7 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     afterEach(() => vi.restoreAllMocks());
 
     it("monitor: no webhook_secret configured — still confirms (today's traffic) and logs unconfigured", async () => {
-        configure({}, { api_key: "k" });
+        configure({ WEBHOOK_AUTH_MODE: "monitor" }, { api_key: "k" });
         const res = await call();
         expect(res.status).toBe(200);
         expect(confirmedOrder()).toBe(true);
@@ -99,10 +99,17 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     });
 
     it("monitor: secret configured but none presented — processes and logs missing", async () => {
-        configure({}, { webhook_secret: SECRET });
+        configure({ WEBHOOK_AUTH_MODE: "monitor" }, { webhook_secret: SECRET });
         const res = await call();
         expect(res.status).toBe(200);
         expect(confirmedOrder()).toBe(true);
+    });
+
+    it("with no mode set, an unsigned request is refused (default enforce)", async () => {
+        configure({}, { webhook_secret: SECRET });
+        const res = await call();
+        expect(res.status).toBe(401);
+        expect(confirmedOrder()).toBe(false);
     });
 
     it("monitor: a wrong token is refused and the order is untouched", async () => {
@@ -149,7 +156,7 @@ describe("POST /api/webhooks/interakt/[tenantId] — auth", () => {
     });
 
     it("stamps the route's tenant on the history and inbound whatsapp_logs rows (NEW-P1-17)", async () => {
-        configure({}, { api_key: "k" });
+        configure({ WEBHOOK_AUTH_MODE: "monitor" }, { api_key: "k" });
         await call();
         const history = state.inserts.filter(i => i.table === "order_status_history");
         const logs = state.inserts.filter(i => i.table === "whatsapp_logs");
