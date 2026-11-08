@@ -326,6 +326,13 @@ describe("ExperimentsScreen", () => {
             screen.getByTestId("experiment-viewer-arm-arm_b-visitors")
                 .textContent,
         ).toContain("200");
+
+        // Escape closes the sheet, like every other sheet in the editor.
+        fireEvent.keyDown(screen.getByTestId("experiment-viewer"), { key: "Escape" });
+        rerender();
+        await waitFor(() => {
+            expect(screen.queryByTestId("experiment-viewer")).toBeNull();
+        });
     });
 
     it("z-test significance: 200 visitors per arm + clear uplift → marked significant", async () => {

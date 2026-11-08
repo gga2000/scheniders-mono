@@ -117,7 +117,7 @@ const GENERIC_FIELD_LABELS: Record<string, EditorString> = {
 
 const GENERIC_FIELD_HELP: Record<string, EditorString> = {
     // Keys are normalized (lower-case, `_i18n` dropped) before lookup.
-    badge: { en: "Write {pct} where the discount should appear, e.g. “Up to {pct} off”. It shows your biggest real discount once “Offer badge” below is on.", ar: "اكتب {pct} حيث تريد أن يظهر الخصم، مثل «خصم لحد {pct}». تظهر فيه أكبر نسبة خصم حقيقية عند تشغيل «شارة العرض» في الأسفل.", ku: "{pct} بنووسە لەو شوێنەی داشکاندنەکە دەردەکەوێت، وەک «تا {pct} داشکاندن». گەورەترین داشکاندنی ڕاستەقینە پیشان دەدات کاتێک «نیشانەی ئۆفەر» لە خوارەوە هەڵکراوە." },
+    badge: { en: "Write {pct} where the discount should appear, e.g. “Up to {pct} off”. It shows your biggest real discount when “Offer badge” below is set to “Biggest discount”.", ar: "اكتب {pct} حيث تريد أن يظهر الخصم، مثل «خصم لحد {pct}». تظهر فيه أكبر نسبة خصم حقيقية عندما تختار «أكبر خصم» في «شارة العرض» بالأسفل.", ku: "{pct} بنووسە لەو شوێنەی داشکاندنەکە دەردەکەوێت، وەک «تا {pct} داشکاندن». گەورەترین داشکاندنی ڕاستەقینە پیشان دەدات کاتێک «گەورەترین داشکاندن» لە «نیشانەی ئۆفەر» لە خوارەوە هەڵدەبژێریت." },
     eyebrow: { en: "Optional — e.g. your store name or “New”.", ar: "اختياري — مثلاً اسم متجرك أو «جديد».", ku: "ئارەزوومەندانە — بۆ نموونە ناوی فرۆشگاکەت یان «نوێ»." },
     cta_href: { en: "The page the button opens.", ar: "الصفحة التي يفتحها الزر.", ku: "ئەو پەڕەیەی دوگمەکە دەیکاتەوە." },
     image_alt: { en: "Describe the image in a few words — helps Google find you.", ar: "صف الصورة بكلمات قليلة — يساعد غوغل على إيجادك.", ku: "بە چەند وشەیەک وێنەکە وەسف بکە — یارمەتی گووگڵ دەدات بتدۆزێتەوە." },

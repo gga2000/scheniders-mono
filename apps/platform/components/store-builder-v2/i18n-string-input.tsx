@@ -85,6 +85,10 @@ export function I18nStringInput({
 
     // "الإنجليزية مكتملة · الكردية غير مترجمة" — at-a-glance fill state for
     // the collapsed reveal, each language named in the editor's language.
+    // A field empty in every language (an optional override left on its
+    // default) has nothing to translate yet, so it names no language as
+    // missing: that read differently depending on the editor's language.
+    const anyFilled = Object.values(value ?? {}).some((v) => typeof v === "string" && v.trim() !== "");
     const fillState = secondaryLocales
         .map((loc) =>
             tFormat(
@@ -164,9 +168,11 @@ export function I18nStringInput({
                     className="inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
                 >
                     <span dir="auto">
-                        {tFormat(STRINGS.i18n_input.translations_toggle, activeLocale, {
-                            state: fillState,
-                        })}
+                        {anyFilled
+                            ? tFormat(STRINGS.i18n_input.translations_toggle, activeLocale, {
+                                  state: fillState,
+                              })
+                            : t(STRINGS.i18n_input.translations_toggle_empty, activeLocale)}
                     </span>
                     <Plus className="h-3 w-3" aria-hidden="true" />
                 </button>

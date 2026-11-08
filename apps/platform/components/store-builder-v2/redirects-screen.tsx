@@ -116,7 +116,7 @@ export function RedirectsScreen({
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
                 <p dir="auto" className="max-w-prose text-xs text-muted-foreground">
                     {t(STRINGS.advanced_chrome.redir_intro_prefix, locale)}{" "}
-                    <code dir="ltr">/products/old</code>).
+                    <code dir="ltr" className="whitespace-nowrap">/products/old</code>.
                 </p>
 
                 {redirects.length === 0 ? (

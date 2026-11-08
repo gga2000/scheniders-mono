@@ -88,6 +88,46 @@ function listPosition(configs: readonly StoreConfigV2[], listPath: readonly stri
     return 1;
 }
 
+/** Brand kit groups, named like the cards on the brand kit screen. */
+const BRAND_KIT_AREAS: Record<string, EditorString> = {
+    identity: STRINGS.brand_kit.card_identity,
+    colors: STRINGS.brand_kit.card_colors,
+    typography: STRINGS.brand_kit.card_typography,
+    shape: STRINGS.brand_kit.card_shape,
+    motion: STRINGS.brand_kit.card_motion,
+    voice: STRINGS.brand_kit.card_voice,
+};
+
+/** Brand kit fields, named like their labels on that screen. */
+const BRAND_KIT_KEYS: Record<string, EditorString> = {
+    name: STRINGS.brand_kit.field_store_name,
+    tagline: STRINGS.brand_kit.field_tagline,
+    logo_url: STRINGS.brand_kit.field_logo,
+    favicon_url: STRINGS.brand_kit.field_favicon,
+    og_image_url: STRINGS.brand_kit.field_og_image,
+    primary: STRINGS.brand_kit_body.color_primary,
+    secondary: STRINGS.brand_kit_body.color_secondary,
+    accent: STRINGS.brand_kit_body.color_accent,
+    surface: STRINGS.brand_kit_body.color_surface,
+    surface_alt: STRINGS.brand_kit_body.color_surface_alt,
+    ink: STRINGS.brand_kit_body.color_ink,
+    success: STRINGS.brand_kit_body.color_success,
+    danger: STRINGS.brand_kit_body.color_danger,
+    display: STRINGS.brand_kit.field_display_font,
+    body: STRINGS.brand_kit.field_body_font,
+    display_ar: STRINGS.brand_kit.field_display_font_ar,
+    body_ar: STRINGS.brand_kit.field_body_font_ar,
+    scale: STRINGS.brand_kit.field_scale,
+    radius: STRINGS.brand_kit.field_radius,
+    border_thickness: STRINGS.brand_kit.field_border_thickness,
+    shadow_style: STRINGS.brand_kit.field_shadow_style,
+    rotation_intensity: STRINGS.brand_kit.field_rotation,
+    enabled: STRINGS.brand_kit.field_motion_enabled,
+    speed: STRINGS.brand_kit.field_speed,
+    formality: STRINGS.brand_kit.field_formality,
+    notes: STRINGS.brand_kit.field_notes,
+};
+
 /** Config keys outside section schemas, named like the screens that edit them. */
 const CONFIG_KEYS: Record<string, EditorString> = {
     default_rate: STRINGS.version_history.key_default_rate,
@@ -191,6 +231,16 @@ export function describeDiffPath(
               ? sectionName(section, locale)
               : resolveFieldLabel(undefined, second, locale);
         return [name, ...tailParts(path, 2, configs, section?.type, locale)];
+    }
+    if (top === "brand_kit" && second !== undefined && BRAND_KIT_AREAS[second]) {
+        const parts = [t(STRINGS.brand_kit.heading, locale), t(BRAND_KIT_AREAS[second], locale)];
+        for (const seg of path.slice(2)) {
+            const key = BRAND_KIT_KEYS[seg];
+            parts.push(
+                key ? t(key, locale) : LOCALES.has(seg) ? t(STRINGS.languages[seg as LocaleCode], locale) : resolveFieldLabel(undefined, seg, locale),
+            );
+        }
+        return parts;
     }
     if (top === "commerce" && second !== undefined && COMMERCE_AREAS[second]) {
         return [t(COMMERCE_AREAS[second], locale), ...tailParts(path, 2, configs, undefined, locale)];

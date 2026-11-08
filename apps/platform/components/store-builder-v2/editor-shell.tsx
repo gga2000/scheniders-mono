@@ -1470,6 +1470,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 set_selected_section_id(go.section_id);
                 set_editing_section_id(go.section_id);
                 set_focus_field(go.field ?? null);
+                bridge.scrollToSection(go.section_id);
                 return;
             }
             if (go.kind === "external") {
@@ -1478,7 +1479,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                 }
             }
         },
-        [builder],
+        [builder, bridge],
     );
 
     // Apply a Command Center deep-link (?page=/&section=) once on mount, so a
@@ -2042,6 +2043,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                                     set_selected_section_id(section_id);
                                     set_editing_section_id(section_id);
                                     set_focus_field(field ?? null);
+                                    bridge.scrollToSection(section_id);
                                     // Leave the health tab so the section's
                                     // fields are what the merchant sees.
                                     set_inspector_tab("blocks");

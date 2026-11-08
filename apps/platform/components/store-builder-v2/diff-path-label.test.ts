@@ -51,6 +51,17 @@ describe("describeDiffPath globals", () => {
     });
 });
 
+describe("describeDiffPath brand kit", () => {
+    it("names brand kit fonts like the brand kit screen, in Arabic", () => {
+        const parts = describeDiffPath(["brand_kit", "typography", "body_ar"], [config], "ar");
+        expect(parts).toEqual(["هوية العلامة", "الخطوط", "الخط العربي: النصوص"]);
+    });
+
+    it("names a brand colour", () => {
+        expect(describeDiffPath(["brand_kit", "colors", "primary"], [config], "en").at(-1)).toBe("Primary");
+    });
+});
+
 describe("isSecretDiffPath", () => {
     it("flags credentials so their values are never shown", () => {
         expect(isSecretDiffPath(["globals", "analytics_pixels", "base", "meta_capi_token"])).toBe(true);

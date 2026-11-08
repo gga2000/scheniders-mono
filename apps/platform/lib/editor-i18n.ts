@@ -528,6 +528,11 @@ export const STRINGS = {
         field_favicon: { en: "Favicon", ar: "أيقونة الموقع", ku: "ئایکۆنی ماڵپەڕ" },
         field_og_image: { en: "OG image", ar: "صورة المشاركة", ku: "وێنەی هاوبەشکردن" },
         field_display_font: { en: "Display font", ar: "خط العناوين", ku: "فۆنتی ناونیشانەکان" },
+        field_display_font_ar: { en: "Arabic font: headings", ar: "الخط العربي: العناوين", ku: "فۆنتی عەرەبی: ناونیشانەکان" },
+        field_body_font_ar: { en: "Arabic font: text", ar: "الخط العربي: النصوص", ku: "فۆنتی عەرەبی: دەقەکان" },
+        help_display_font_ar: { en: "Used for headings on Arabic and Kurdish pages. Latin fonts have no Arabic letters.", ar: "يُستخدم للعناوين بالعربية والكردية، فالخطوط اللاتينية لا تحتوي أحرفاً عربية.", ku: "بۆ ناونیشانەکان لە پەڕە عەرەبی و کوردییەکان بەکاردێت. فۆنتە لاتینییەکان پیتی عەرەبییان تێدا نییە." },
+        help_body_font_ar: { en: "Used for paragraphs and descriptions on Arabic and Kurdish pages.", ar: "يُستخدم للفقرات والأوصاف بالعربية والكردية.", ku: "بۆ پەرەگراف و وەسفەکان لە پەڕە عەرەبی و کوردییەکان بەکاردێت." },
+        font_auto: { en: "Automatic (system font)", ar: "تلقائي (خط النظام)", ku: "خۆکار (فۆنتی سیستەم)" },
         field_body_font: { en: "Body font", ar: "خط النصوص", ku: "فۆنتی دەقەکان" },
         field_scale: { en: "Scale", ar: "الحجم", ku: "قەبارە" },
         field_radius: { en: "Radius", ar: "استدارة الزوايا", ku: "خڕی گۆشەکان" },
@@ -796,6 +801,7 @@ export const STRINGS = {
     i18n_input: {
         // tFormat: {state} e.g. "EN ✓ · KU –"
         translations_toggle: { en: "Translations ({state})", ar: "الترجمات ({state})", ku: "وەرگێڕانەکان ({state})" },
+        translations_toggle_empty: { en: "Translations", ar: "الترجمات", ku: "وەرگێڕانەکان" },
         // tFormat: {lang}
         lang_filled: { en: "{lang} done", ar: "{lang} مكتملة", ku: "{lang} تەواوە" },
         // tFormat: {lang}
@@ -963,7 +969,7 @@ export const STRINGS = {
 
     /* ── Health checklist ─────────────────────────────────────── */
     health: {
-        heading: { en: "Store Health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },
+        heading: { en: "Store health", ar: "صحة المتجر", ku: "تەندروستی فرۆشگا" },
         // tFormat: {tenant}
         subtitle: { en: "{tenant} — what to check before you publish", ar: "{tenant} — ما يجب فحصه قبل النشر", ku: "{tenant} — چی پێویستە بپشکنرێت پێش بڵاوکردنەوە" },
         out_of_100: { en: "out of 100", ar: "من 100", ku: "لە ١٠٠" },
@@ -1018,7 +1024,7 @@ export const STRINGS = {
         launch_done_policies: { en: "Policy pages filled", ar: "صفحات السياسات مكتملة", ku: "پەڕەکانی ڕێساکان تەواون" },
         launch_done_publish: { en: "Store published", ar: "المتجر منشور", ku: "فرۆشگاکە بڵاوکراوەتەوە" },
         launch_delivery_placeholder: { en: "5000", ar: "5000", ku: "5000" },
-        launch_delivery_invalid: { en: "Enter the fee in whole dinars, e.g. 5000, or 0 for free delivery.", ar: "أدخل الرسوم بالدينار العراقي (د.ع)، مثل 5000، أو 0 للتوصيل المجاني.", ku: "کرێیەکە بە دینار بنووسە، وەک 5000، یان 0 بۆ گەیاندنی بێبەرامبەر." },
+        launch_delivery_invalid: { en: "Enter the fee in whole dinars, e.g. 5000, or 0 for free delivery.", ar: "أدخل الرسوم بالدينار، مثل 5000، أو 0 للتوصيل المجاني.", ku: "کرێیەکە بە دینار بنووسە، وەک 5000، یان 0 بۆ گەیاندنی بێبەرامبەر." },
         launch_delivery_history: { en: "Set delivery fee", ar: "تحديد رسوم التوصيل", ku: "دیاریکردنی کرێی گەیاندن" },
     },
 
@@ -1356,7 +1362,8 @@ export const STRINGS = {
         bun_value: { en: "Value", ar: "القيمة", ku: "بڕ" },
         bun_active: { en: "Active", ar: "مفعّلة", ku: "چالاک" },
         // tFormat: {n}
-        bun_count: { en: "{n} product(s)", ar: "المنتجات: {n}", ku: "بەرهەمەکان: {n}" },
+        bun_count: { en: "Products: {n}", ar: "المنتجات: {n}", ku: "بەرهەمەکان: {n}" },
+        bun_needs_products: { en: "Pick at least 2 products", ar: "اختر منتجين على الأقل", ku: "لانیکەم 2 بەرهەم هەڵبژێرە" },
         bun_remove_aria: { en: "Remove bundle", ar: "إزالة الحزمة", ku: "لابردنی کۆمەڵە" },
         bun_no_products: { en: "No products to add.", ar: "لا توجد منتجات لإضافتها.", ku: "هیچ بەرهەمێک نییە بۆ زیادکردن." },
         ver_empty_title: { en: "No versions yet", ar: "لا توجد نسخ بعد", ku: "هێشتا هیچ وەشانێک نییە" },
@@ -1497,7 +1504,7 @@ export const STRINGS = {
         disc_close_aria: { en: "Close discount codes", ar: "إغلاق أكواد الخصم", ku: "داخستنی کۆدەکانی داشکاندن" },
         disc_heading: { en: "Discount codes", ar: "أكواد الخصم", ku: "کۆدەکانی داشکاندن" },
         disc_add_code: { en: "Add code", ar: "إضافة كود", ku: "زیادکردنی کۆد" },
-        disc_intro: { en: "Create coupon codes customers enter at checkout. Percent codes take a share off the subtotal (optionally capped); fixed codes take a set amount (IQD). Both can require a minimum subtotal.", ar: "أنشئ أكواد خصم يكتبها الزبون عند إتمام الطلب. كود النسبة يخصم نسبة من مجموع السلة (ويمكن وضع حد أعلى للخصم)، والكود الثابت يخصم مبلغاً محدداً بالدينار (د.ع). ويمكن لكليهما أن يشترط حداً أدنى لمجموع السلة.", ku: "کۆدی کۆپۆن دروست بکە کە کڕیاران لە کاتی پارەدان دەینووسن. کۆدە ڕێژەییەکان بەشێک لە کۆی بەرهەمەکان کەم دەکەنەوە (بە سنوورێکی ئارەزوومەندانە)؛ کۆدە جێگیرەکان بڕێکی دیاریکراو کەم دەکەنەوە (IQD). هەردووکیان دەتوانن داوای کەمترین کۆ بکەن." },
+        disc_intro: { en: "Create coupon codes customers enter at checkout. Percent codes take a share off the subtotal (optionally capped); fixed codes take a set amount (IQD). Both can require a minimum subtotal.", ar: "أنشئ أكواد خصم يكتبها الزبون عند إتمام الطلب. كود النسبة يخصم نسبة من مجموع السلة (ويمكن وضع حد أعلى للخصم)، والكود الثابت يخصم مبلغاً محدداً (د.ع). ويمكن لكليهما أن يشترط حداً أدنى لمجموع السلة.", ku: "کۆدی کۆپۆن دروست بکە کە کڕیاران لە کاتی پارەدان دەینووسن. کۆدە ڕێژەییەکان بەشێک لە کۆی بەرهەمەکان کەم دەکەنەوە (بە سنوورێکی ئارەزوومەندانە)؛ کۆدە جێگیرەکان بڕێکی دیاریکراو کەم دەکەنەوە (IQD). هەردووکیان دەتوانن داوای کەمترین کۆ بکەن." },
         disc_empty: { en: "No codes yet — add your first", ar: "لا توجد أكواد بعد — أضف أول كود", ku: "هێشتا هیچ کۆدێک نییە — یەکەمیان زیاد بکە" },
         disc_min_subtotal: { en: "Min subtotal", ar: "الحد الأدنى للإجمالي", ku: "کەمترین کۆ" },
         disc_max_off: { en: "Max off", ar: "أقصى خصم", ku: "زۆرترین داشکاندن" },
@@ -1533,13 +1540,13 @@ export const STRINGS = {
         ship_door_off: { en: "Removed open-before-paying", ar: "إلغاء الفحص قبل الدفع", ku: "لابردنی پشکنین پێش پارەدان" },
         ship_preview_heading: { en: "What a customer pays", ar: "ما يدفعه الزبون", ku: "ئەوەی کڕیار دەیدات" },
         ship_preview_free: { en: "Free", ar: "مجاني", ku: "بەخۆڕایی" },
-        ship_preview_basket: { en: "On a {n} IQD basket", ar: "على سلة بـ {n} د.ع", ku: "لەسەر سەبەتەی {n} IQD" },
+        ship_preview_basket: { en: "For a basket of {n} IQD", ar: "على سلة بـ {n} د.ع", ku: "لەسەر سەبەتەی {n} IQD" },
 
         // Redirects screen
         redir_close_aria: { en: "Close redirects", ar: "إغلاق إعادة التوجيه", ku: "داخستنی ئاراستەکردنەکان" },
         redir_heading: { en: "Redirects", ar: "إعادة التوجيه", ku: "ئاراستەکردنەکان" },
         redir_add: { en: "Add redirect", ar: "إضافة قاعدة", ku: "زیادکردنی ئاراستەکردن" },
-        redir_intro_prefix: { en: "Send an old URL to a new one. Useful after you change a product or category slug, so links you've shared on WhatsApp, ads, or that Google has indexed don't break. Paths are relative to your store (e.g.", ar: "حوّل رابطاً قديماً إلى رابط جديد. مفيد بعد تغيير رابط منتج أو فئة، حتى لا تتعطل الروابط التي شاركتها على واتساب أو في الإعلانات أو التي فهرسها جوجل. المسارات تبدأ من متجرك (مثل", ku: "بەستەرێکی کۆن بنێرە بۆ نوێیەک. بەسوودە دوای گۆڕینی بەستەری بەرهەم یان پۆل، بۆ ئەوەی ئەو بەستەرانەی لە واتسئاپ و ڕیکلامەکان بڵاوتکردوونەتەوە یان گووگڵ تۆماری کردوون نەشکێن. ڕێچکەکان لە فرۆشگاکەتەوە دەست پێدەکەن (وەکو" },
+        redir_intro_prefix: { en: "Send an old URL to a new one. Useful after you change a product or category slug, so links you've shared on WhatsApp, ads, or that Google has indexed don't break. Paths are relative to your store, for example", ar: "حوّل رابطاً قديماً إلى رابط جديد. مفيد بعد تغيير رابط منتج أو فئة، حتى لا تتعطل الروابط التي شاركتها على واتساب أو في الإعلانات أو التي فهرسها جوجل. المسارات تبدأ من متجرك، مثل", ku: "بەستەرێکی کۆن بنێرە بۆ نوێیەک. بەسوودە دوای گۆڕینی بەستەری بەرهەم یان پۆل، بۆ ئەوەی ئەو بەستەرانەی لە واتسئاپ و ڕیکلامەکان بڵاوتکردوونەتەوە یان گووگڵ تۆماری کردوون نەشکێن. ڕێچکەکان لە فرۆشگاکەتەوە دەست پێدەکەن (وەکو" },
         redir_empty: { en: "No redirects yet. Add your first", ar: "لا توجد قواعد إعادة توجيه بعد. أضف أول قاعدة", ku: "هێشتا هیچ ئاراستەکردنێک نییە. یەکەمیان زیاد بکە" },
         redir_issue_missing: { en: "Both source and destination are required.", ar: "الرابط القديم والجديد مطلوبان.", ku: "هەردوو بەستەری کۆن و نوێ پێویستن." },
         redir_issue_self: { en: "Source and destination are the same.", ar: "الرابط القديم والجديد متطابقان.", ku: "بەستەری کۆن و نوێ وەک یەکن." },
@@ -1680,7 +1687,7 @@ export const STRINGS = {
         referral_heading: { en: "Referrals", ar: "دعوة الأصدقاء", ku: "بانگهێشتی هاوڕێ" },
         referral_intro: {
             en: "Every buyer gets a code on the thank-you page and a WhatsApp share link. A friend using it on their first order gets the discount; the referrer gets points when that order is delivered.",
-            ar: "يحصل كل مشترٍ على رمز في صفحة الشكر ورابط مشاركة عبر واتساب. الصديق الذي يستخدمه في أول طلب يحصل على الخصم، وصاحب الرمز يحصل على نقاط عند توصيل ذلك الطلب.",
+            ar: "يحصل كل زبون على رمز في صفحة الشكر ورابط مشاركة عبر واتساب. الصديق الذي يستخدمه في أول طلب يحصل على الخصم، وصاحب الرمز يحصل على نقاط عند توصيل ذلك الطلب.",
             ku: "هەر کڕیارێک کۆدێک لە پەڕەی سوپاس و بەستەرێکی هاوبەشکردن بە واتسئاپ وەردەگرێت. هاوڕێیەک لە یەکەم داواکاریدا بەکاری بهێنێت داشکاندن وەردەگرێت، و خاوەنی کۆدەکە کاتێک ئەو داواکارییە دەگات خاڵ وەردەگرێت.",
         },
         referral_enable: { en: "Enable referrals", ar: "تشغيل دعوة الأصدقاء", ku: "چالاککردنی بانگهێشتی هاوڕێ" },

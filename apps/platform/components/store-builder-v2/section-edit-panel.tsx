@@ -165,13 +165,20 @@ export function SectionEditPanel(props: SectionEditPanelProps): ReactElement {
 
     const baseRef = useRef<HTMLElement>(null);
     useEffect(() => {
-        if (!focusField || !baseRef.current) return;
-        const el = findFieldElement(baseRef.current, focusField);
-        if (el) {
-            el.scrollIntoView({ block: "center", behavior: "smooth" });
-            el.querySelector<HTMLElement>("input, textarea, button, [tabindex]")?.focus({ preventScroll: true });
-        }
-        onFocusFieldDone?.();
+        const root = baseRef.current;
+        if (!focusField || !root) return;
+        // A frame later: the shell scrolls the section's row into view in
+        // its own effect, which runs after this one (parents commit last)
+        // and would otherwise win, leaving the field under the footer.
+        const frame = requestAnimationFrame(() => {
+            const el = findFieldElement(root, focusField);
+            if (el) {
+                el.scrollIntoView({ block: "center", behavior: "smooth" });
+                el.querySelector<HTMLElement>("input, textarea, button, [tabindex]")?.focus({ preventScroll: true });
+            }
+            onFocusFieldDone?.();
+        });
+        return () => cancelAnimationFrame(frame);
     }, [focusField, onFocusFieldDone, instance.id]);
 
     const locale = useResolvedEditorLocale(activeLocale);

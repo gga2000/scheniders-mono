@@ -575,7 +575,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                         {/* Arabic pairing ([D3]) — the store's primary script */}
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium">
-                                الخط العربي — العناوين
+                                {tChrome(STRINGS.brand_kit.field_display_font_ar, chromeLocale)}
                             </label>
                             <FontCombo
                                 value={typography.display_ar ?? ""}
@@ -585,17 +585,16 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 testId="typography-display-ar-select"
                                 fonts={ARABIC_GOOGLE_FONTS}
                                 allowEmpty
-                                emptyLabel="تلقائي (خط النظام)"
+                                emptyLabel={tChrome(STRINGS.brand_kit.font_auto, chromeLocale)}
                             />
                             <p className="text-[11px] text-muted-foreground">
-                                يُستخدم للعناوين بالعربية والكردية — الخطوط اللاتينية لا
-                                تحتوي على أحرف عربية.
+                                {tChrome(STRINGS.brand_kit.help_display_font_ar, chromeLocale)}
                             </p>
                         </div>
 
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium">
-                                الخط العربي — النصوص
+                                {tChrome(STRINGS.brand_kit.field_body_font_ar, chromeLocale)}
                             </label>
                             <FontCombo
                                 value={typography.body_ar ?? ""}
@@ -605,10 +604,10 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                                 testId="typography-body-ar-select"
                                 fonts={ARABIC_GOOGLE_FONTS}
                                 allowEmpty
-                                emptyLabel="تلقائي (خط النظام)"
+                                emptyLabel={tChrome(STRINGS.brand_kit.font_auto, chromeLocale)}
                             />
                             <p className="text-[11px] text-muted-foreground">
-                                يُستخدم للفقرات والأوصاف بالعربية والكردية.
+                                {tChrome(STRINGS.brand_kit.help_body_font_ar, chromeLocale)}
                             </p>
                         </div>
 
