@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 interface Line {
     id: string;
@@ -28,4 +28,35 @@ export function useShowChangedLine(listRef: RefObject<HTMLElement | null>, lines
             el.animate([{ backgroundColor: "#FDFFC2" }, { backgroundColor: rest }], { duration: 900, easing: "ease-out" });
         }
     }, [listRef, lines, scope]);
+}
+
+/**
+ * How many lines sit (fully or partly) above the visible top of a scrolled list, so the
+ * screen can say "3 more above" instead of silently hiding the first bottles.
+ */
+export function useLinesAbove(ul: HTMLElement | null): number {
+    const [above, setAbove] = useState(0);
+
+    useEffect(() => {
+        if (!ul) return;
+        const count = () => {
+            const top = ul.getBoundingClientRect().top + 4;
+            let n = 0;
+            for (const li of Array.from(ul.children)) if (li.getBoundingClientRect().top < top) n += 1;
+            setAbove(n);
+        };
+        // The ResizeObserver reports once right away, which gives the first count.
+        ul.addEventListener("scroll", count, { passive: true });
+        const resized = new ResizeObserver(count);
+        resized.observe(ul);
+        const changed = new MutationObserver(count);
+        changed.observe(ul, { childList: true });
+        return () => {
+            ul.removeEventListener("scroll", count);
+            resized.disconnect();
+            changed.disconnect();
+        };
+    }, [ul]);
+
+    return above;
 }

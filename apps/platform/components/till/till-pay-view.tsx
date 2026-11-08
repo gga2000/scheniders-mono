@@ -243,21 +243,6 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             </p>
                             <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">{formatIqd(due)}</p>
                         </div>
-                        <button
-                            type="button"
-                            role="checkbox"
-                            aria-checked={noticeIn}
-                            onClick={() => setNoticeIn((v) => !v)}
-                            className={cn(
-                                "flex h-14 items-center gap-3 rounded-2xl border px-5 text-base font-semibold",
-                                noticeIn ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200" : "border-[var(--card-border)] bg-[var(--card-bg)] text-foreground",
-                            )}
-                        >
-                            <span className={cn("flex h-6 w-6 items-center justify-center rounded-md border-2", noticeIn ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-500 dark:border-white/50")}>
-                                {noticeIn && <Check className="h-4 w-4" aria-hidden="true" />}
-                            </span>
-                            <span dir="auto">{t("till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
-                        </button>
                         <div className="flex items-center gap-3">
                             <div role="radiogroup" className="flex rounded-2xl border border-stone-400 dark:border-white/25 p-1">
                                 {[
@@ -297,6 +282,21 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 />
                             )}
                         </div>
+                        <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={noticeIn}
+                            onClick={() => setNoticeIn((v) => !v)}
+                            className={cn(
+                                "flex h-14 items-center gap-3 rounded-2xl border px-5 text-base font-semibold",
+                                noticeIn ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200" : "border-stone-400 dark:border-white/25 bg-[var(--card-bg)] text-foreground",
+                            )}
+                        >
+                            <span className={cn("flex h-6 w-6 items-center justify-center rounded-md border-2", noticeIn ? "border-emerald-600 bg-emerald-600 text-white" : "border-stone-500 dark:border-white/50")}>
+                                {noticeIn && <Check className="h-4 w-4" aria-hidden="true" />}
+                            </span>
+                            <span dir="auto">{t("till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
+                        </button>
                     </div>
                 )}
 

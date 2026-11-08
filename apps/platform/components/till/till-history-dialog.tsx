@@ -166,7 +166,7 @@ function SaleRow({ sale, receipt, withDay = false }: { sale: TillHistorySale; re
                     <span className="font-normal tabular-nums text-muted"> · #{sale.order_id}</span>
                 </span>
                 <span className="block truncate text-left text-xs text-muted" dir="auto">
-                    {t("till.cart.items", { n: items })} · {sale.items.map((i) => i.name).join("، ")}
+                    {t("till.cart.items", { n: items })}{sale.cashier ? ` · ${sale.cashier}` : ""} · {sale.items.map((i) => i.name).join("، ")}
                 </span>
             </span>
             <span className="hidden shrink-0 gap-1 sm:flex">
