@@ -30,6 +30,19 @@ export function approvalCovers(a: TicketApproval | null, off: number, now: numbe
     return a !== null && off <= a.maxOff && now < a.expiresAt;
 }
 
+/** Time left on an approval as m:ss, never below 0:00 and never above the full 15 minutes. */
+export function approvalClock(ms: number): string {
+    const s = Math.max(0, Math.ceil(Math.min(APPROVAL_MS, ms) / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** Chip colours as the approval runs out: calm, then amber under 2 minutes, then red under 30 seconds. */
+export function approvalTone(ms: number): string {
+    if (ms < 30_000) return "bg-red-100 text-red-900";
+    if (ms < 120_000) return "bg-amber-200 text-amber-950";
+    return "bg-[#B8E8E0] text-[#1E1E1E]";
+}
+
 export function newTicket(): Ticket {
     return { id: crypto.randomUUID(), cart: [], customerName: "", phone: "", discount: 0, approval: null, createdAt: Date.now() };
 }

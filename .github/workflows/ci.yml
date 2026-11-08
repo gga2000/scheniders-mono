@@ -19,6 +19,11 @@ concurrency:
   # build can't be hidden by the next merge.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# CI only reads the code. A read-only token means a compromised dependency
+# or action running in CI cannot push to the repo or edit releases.
+permissions:
+  contents: read
+
 env:
   TURBO_CACHE_DIR: .turbo
   # The platform type-check needs more than Node's default ~4 GB heap and was

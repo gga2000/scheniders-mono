@@ -1,7 +1,27 @@
 import type { NextConfig } from "next";
+import { SAFE_PARENT_ORIGINS } from "./lib/preview-origin";
+
+// Only the store itself and the merchant admin's store-builder preview may
+// frame a store page; any other site framing it is a clickjacking attempt.
+const FRAME_ANCESTORS = [
+  "'self'",
+  ...SAFE_PARENT_ORIGINS,
+  ...(process.env.NEXT_PUBLIC_PLATFORM_ORIGIN ? [process.env.NEXT_PUBLIC_PLATFORM_ORIGIN] : []),
+].join(" ");
+
+const SECURITY_HEADERS = [
+  { key: "Content-Security-Policy", value: `frame-ancestors ${FRAME_ANCESTORS}` },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+];
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
   transpilePackages: ["@scheniders/sections", "@scheniders/shared", "@scheniders/supabase"],
   images: {
     // Next image optimization is on so storefronts get avif/webp +

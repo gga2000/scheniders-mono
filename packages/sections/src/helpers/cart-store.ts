@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { CartItem } from "@scheniders/shared";
+import type { CartItem, DiscountCode } from "@scheniders/shared";
 import { priceOrderLines } from "@scheniders/shared";
 
 interface CartState {
@@ -15,7 +15,11 @@ interface CartState {
   /** Discount engine: applied coupon code, shared cart→checkout (validated +
    *  priced server-side; the client only previews it). */
   couponCode: string | null;
-  setCouponCode: (code: string | null) => void;
+  /** The applied code's definition, as /api/coupon/validate returned it: the
+   *  store's coupon list is never sent to the browser, so this is what the
+   *  cart and checkout preview the saving from. */
+  coupon: DiscountCode | null;
+  setCoupon: (coupon: DiscountCode | null) => void;
   addItem: (item: CartItem) => void;
   removeItem: (productId: string, variantId: string | null) => void;
   /** Drop every line of one product, whatever its variant. */
@@ -114,7 +118,8 @@ export const useCart = create<CartState>()(
       governorate: null,
       setGovernorate: (code) => set({ governorate: code }),
       couponCode: null,
-      setCouponCode: (code) => set({ couponCode: code }),
+      coupon: null,
+      setCoupon: (coupon) => set({ coupon, couponCode: coupon?.code ?? null }),
       addItem: (item) =>
         set((state) => {
           const existing = state.items.find(

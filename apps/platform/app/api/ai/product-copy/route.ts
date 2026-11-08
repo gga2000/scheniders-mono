@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyAccessToken } from "@/lib/supabase-server";
+import { requireMeteredCaller } from "@/lib/auth/require-metered-caller";
 import { ANTHROPIC_MESSAGES_URL } from "@/lib/anthropic-api";
 import {
     buildProductCopyMessages,
@@ -18,15 +18,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-    // Auth — same pattern as the customer AI summary route.
-    const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-    if (!token) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const { user, error: authError } = await verifyAccessToken(token);
-    if (authError || !user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // Paid Anthropic call: store members only, capped per store per hour.
+    const caller = await requireMeteredCaller(request, { bucket: "ai-product-copy", limit: 40, windowSeconds: 3600 });
+    if (!caller.ok) return caller.response;
 
     const parsed = bodySchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {

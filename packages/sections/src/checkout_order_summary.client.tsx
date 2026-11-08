@@ -50,6 +50,7 @@ export function CheckoutOrderSummaryRender({
   const subtotal = useCart((s) => s.getTotal());
   const governorate = useCart((s) => s.governorate);
   const couponCode = useCart((s) => s.couponCode);
+  const coupon = useCart((s) => s.coupon);
   const heading = resolveI18n(props.heading_i18n, locale);
   const codNote = resolveI18n(props.cod_note_i18n, locale);
 
@@ -63,7 +64,7 @@ export function CheckoutOrderSummaryRender({
     shipping: commerce?.shipping,
     governorate: governorate as GovernorateCode | null,
   });
-  const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
+  const discount = computeDiscount(subtotal, couponCode, coupon ? [coupon] : null);
   const couponAmount = discount?.amount_iqd ?? 0;
   const bundleAmount = computeBundleDiscounts(
     items,

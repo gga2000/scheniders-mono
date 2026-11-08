@@ -212,14 +212,35 @@ function getOrderHelpers(order: Order, overridePhone?: string) {
         order.city || order.governorate_code,
         order.address_details,
     ].filter(Boolean);
-    const address = addressParts.join(" - ") || "غير محدد";
+    const address = shopperText(addressParts.join(" - "), ADDRESS_MAX) || "غير محدد";
+    const customerName = shopperText(order.customer_name ?? "", NAME_MAX);
 
     const displayPhone = formatPhoneForDisplay(targetPhone);
     const displaySecondaryPhone = order.secondary_phone
         ? formatPhoneForDisplay(order.secondary_phone)
         : "—";
 
-    return { countryCode, phoneNumber, itemsList, totalPrice, collectibleTotal, address, displayPhone, displaySecondaryPhone };
+    return { countryCode, phoneNumber, itemsList, totalPrice, collectibleTotal, address, customerName, displayPhone, displaySecondaryPhone };
+}
+
+const NAME_MAX = 60;
+const ADDRESS_MAX = 160;
+// Links and bare domains ("evil.example/x", "www.x", "https://…").
+const LINK_PATTERN = /(?:https?:\/\/|www\.)\S*|\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}(?:\/\S*)?/gi;
+
+/**
+ * Name and address are typed by whoever places the order, and we send them to
+ * the phone number they typed, from the platform's one WhatsApp number. Left
+ * as-is, anyone could relay their own text (a phishing link) to any number
+ * under our name. Links are removed and length is capped; a real Iraqi name
+ * or address never needs either.
+ */
+export function shopperText(value: string, max: number): string {
+    const cleaned = value
+        .replace(LINK_PATTERN, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    return cleaned.length > max ? `${cleaned.slice(0, max - 1).trimEnd()}…` : cleaned;
 }
 
 // =============================================
@@ -242,7 +263,7 @@ function buildConfirmationBody(order: Order, overridePhone?: string): InteraktTe
             name: TEMPLATE_NAMES.confirmation,
             languageCode: TEMPLATE_LANGUAGE,
             bodyValues: [
-                order.customer_name,          // {{1}} — Customer name
+                h.customerName,               // {{1}} — Customer name
                 h.itemsList,                  // {{2}} — Products
                 order.order_id,               // {{3}} — Order number
                 h.address,                    // {{4}} — Address
@@ -280,7 +301,7 @@ function buildReminderBody(order: Order, overridePhone?: string): InteraktTempla
             name: TEMPLATE_NAMES.reminder,
             languageCode: "ar",
             bodyValues: [
-                order.customer_name || "عميلنا العزيز", // {{1}} — Customer name
+                h.customerName || "عميلنا العزيز", // {{1}} — Customer name
                 h.itemsList,                  // {{2}} — Products
                 h.address,                    // {{3}} — Address
                 h.totalPrice,                 // {{4}} — Total price
@@ -319,7 +340,7 @@ function buildDiscountBody(order: Order, discountPercent: number, overridePhone?
             name: TEMPLATE_NAMES.discount,
             languageCode: TEMPLATE_LANGUAGE,
             bodyValues: [
-                order.customer_name,          // {{1}} — Customer name
+                h.customerName,               // {{1}} — Customer name
                 `${discountPercent}%`,         // {{2}} — Discount (e.g. "10%")
                 h.itemsList,                  // {{3}} — Products
                 h.totalPrice,                 // {{4}} — Original price
@@ -569,7 +590,8 @@ function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplate
 
     const totalPrice = `IQD ${templateTotal(order).toLocaleString("en-US")}`;
     const addressParts = [order.city || order.governorate_code, order.address_details].filter(Boolean);
-    const address = addressParts.join(" - ") || "غير محدد";
+    const address = shopperText(addressParts.join(" - "), ADDRESS_MAX) || "غير محدد";
+    const customerName = shopperText(order.customer_name ?? "", NAME_MAX);
 
     const governorate = order.governorate_code || order.city || "غير محدد";
     const displayPhone = formatPhoneForDisplay(order.phone);
@@ -583,7 +605,7 @@ function buildStaffAlertBody(order: Order, staffPhone: string): InteraktTemplate
             name: STAFF_ALERT_TEMPLATE_NAME,
             languageCode: "ar",
             bodyValues: [
-                order.customer_name || "عميل",  // {{1}} customer name
+                customerName || "عميل",         // {{1}} customer name
                 itemsList,                       // {{2}} products
                 order.order_id,                  // {{3}} order id
                 governorate,                     // {{4}} governorate

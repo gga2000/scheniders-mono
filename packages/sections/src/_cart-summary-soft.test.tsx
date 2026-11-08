@@ -4,8 +4,8 @@
 // (token radius + token shadow, the one yellow fill), WhatsApp as the soft
 // green row named «اطلب عبر واتساب», no fine print. "chunky" = absent.
 
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { useCart } from "./helpers/cart-store";
 import cart_summary, { type Props } from "./cart_summary";
 import { COPY_ACTIONS } from "./_copy-terms";
@@ -15,6 +15,7 @@ import { expectSoftRules, html, mountInStore, withCart } from "./_cart-checkout-
 afterEach(() => {
   cleanup();
   withCart([]);
+  vi.unstubAllGlobals();
 });
 
 const SOFT: Props = { ...IRAQ_DRAFT_CART_SUMMARY_BASE, style: "soft" };
@@ -76,7 +77,10 @@ describe("cart_summary soft", () => {
     expect(view.querySelector<HTMLButtonElement>("button[disabled]")?.textContent).toBe("متابعة الدفعarrow_back");
   });
 
-  it("the promo input keeps working in the soft receipt", () => {
+  it("the promo input keeps working in the soft receipt", async () => {
+    // The code list is not in the page; the cart asks the server.
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ valid: false }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
     withCart(IRAQ_CART);
     const view = mount({ ...SOFT, show_promo_input: true });
     const input = view.querySelector<HTMLInputElement>("#cart-promo-input");
@@ -85,7 +89,24 @@ describe("cart_summary soft", () => {
     const apply = [...view.querySelectorAll("button")].find((b) => b.textContent === "تطبيق");
     if (!apply) throw new Error("missing apply");
     fireEvent.click(apply);
-    expect(view.querySelector('[role="alert"]')?.textContent).toBe("الكود غير صالح");
+    await waitFor(() => expect(view.querySelector('[role="alert"]')?.textContent).toBe("الكود غير صالح"));
     expect(useCart.getState().couponCode).toBeNull();
+    expect(String((fetchMock.mock.calls[0] as unknown[])[0])).toMatch(/^\/api\/coupon\/validate\?tenant_id=.+&code=NOPE$/);
+  });
+
+  it("a code the server confirms is applied from the server's definition", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      new Response(JSON.stringify({ valid: true, discount: { code: "VIP10", kind: "percent", value: 10, enabled: true } }), { status: 200 }),
+    ));
+    withCart(IRAQ_CART);
+    const view = mount({ ...SOFT, show_promo_input: true });
+    const input = view.querySelector<HTMLInputElement>("#cart-promo-input");
+    if (!input) throw new Error("missing the promo input");
+    fireEvent.change(input, { target: { value: "vip10" } });
+    const apply = [...view.querySelectorAll("button")].find((b) => b.textContent === "تطبيق");
+    if (!apply) throw new Error("missing apply");
+    fireEvent.click(apply);
+    await waitFor(() => expect(useCart.getState().couponCode).toBe("VIP10"));
+    expect(useCart.getState().coupon?.value).toBe(10);
   });
 });

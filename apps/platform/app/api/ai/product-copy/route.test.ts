@@ -3,9 +3,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/supabase-server", () => ({
     verifyAccessToken: vi.fn(),
 }));
+vi.mock("@/lib/auth/resolve-active-tenant", () => ({
+    resolveActiveTenant: vi.fn(async () => ({ ok: true, tenantId: "t1", role: "employee", platformAdmin: false })),
+}));
+vi.mock("@/lib/rate-limit", () => ({
+    consumeRateLimit: vi.fn(async () => ({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0 })),
+    rateLimitHeaders: () => ({}),
+}));
 
 import { POST } from "./route";
 import { verifyAccessToken } from "@/lib/supabase-server";
+import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
+import { consumeRateLimit } from "@/lib/rate-limit";
 
 function req(body: unknown, auth = "Bearer tok"): Request {
     const headers: Record<string, string> = { "content-type": "application/json" };
@@ -41,6 +50,28 @@ describe("POST /api/ai/product-copy", () => {
         });
         const res = await POST(req({ name: "X" }) as never);
         expect(res.status).toBe(401);
+    });
+
+    it("403s a signed-in account that belongs to no store", async () => {
+        (verifyAccessToken as ReturnType<typeof vi.fn>).mockResolvedValue({ user: { id: "u1" }, error: null });
+        vi.mocked(resolveActiveTenant).mockResolvedValueOnce({ ok: false, status: 403, error: "No store" } as never);
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        const res = await POST(req({ name: "X" }) as never);
+        expect(res.status).toBe(403);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("429s once the store's hourly AI budget is spent, and 503s when the limiter is down", async () => {
+        (verifyAccessToken as ReturnType<typeof vi.fn>).mockResolvedValue({ user: { id: "u1" }, error: null });
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        vi.mocked(consumeRateLimit).mockResolvedValueOnce({ allowed: false, remaining: 0, resetAt: null, retryAfterSeconds: 60 });
+        expect((await POST(req({ name: "X" }) as never)).status).toBe(429);
+        vi.mocked(consumeRateLimit).mockResolvedValueOnce({ allowed: true, remaining: 1, resetAt: null, retryAfterSeconds: 0, error: "db down" });
+        expect((await POST(req({ name: "X" }) as never)).status).toBe(503);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(vi.mocked(consumeRateLimit).mock.calls[0][0]).toBe("ai-product-copy:t1");
     });
 
     it("400s on invalid input", async () => {

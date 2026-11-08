@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { env } from '@/lib/env';
 import { provisionInvitedUserIfNeeded } from '@/lib/team-provisioning';
-import { safeRedirectPath } from '@/lib/safe-redirect-path';
+import { safeRedirectPath } from '@scheniders/shared/safe-redirect-path';
 
 /**
  * Auth Callback Handler
