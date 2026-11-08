@@ -17,6 +17,9 @@ import {
 import { GuideChoice } from "./guide-choice";
 import { GuideCoachCard } from "./guide-coach-card";
 import { GuidePill } from "./guide-pill";
+import { GuideProductWalk } from "./guide-product-walk";
+import { useGuideSetup } from "./guide-setup-store";
+import { productWalkStage } from "@/lib/merchant-guide/product-walk";
 import { GuideSpotlight } from "./guide-spotlight";
 import { useGuideVoice } from "./use-guide-voice";
 import { useTargetBox } from "./use-target-rect";
@@ -71,12 +74,21 @@ export function GuideFoundationStep({
     const pathname = usePathname();
     const router = useRouter();
     const place = FOUNDATION_PLACES[step];
-    // Walking a step's fields and the delivery answer both start over when
-    // the step changes, so they're kept per step.
-    const [partByStep, setPartByStep] = useState<Partial<Record<FoundationStep, number>>>({});
+    // The delivery answer starts over with each step (this card is keyed by step).
     const [choice, setChoice] = useState<DeliveryChoice | null>(null);
     const [minimized, setMinimized] = useState(false);
-    const part = partByStep[step] ?? 0;
+    // The first product walks itself: the light sits on the first field that
+    // still needs something. Back and Next override that only until the
+    // merchant fills or clears a field.
+    const productDraft = useGuideSetup((s) => s.productDraft);
+    const autoPart = productWalkStage(productDraft);
+    const [manualPart, setManualPart] = useState<{ forAuto: number; value: number } | null>(null);
+    const part =
+        step === "product"
+            ? manualPart && manualPart.forAuto === autoPart
+                ? manualPart.value
+                : autoPart
+            : 0;
 
     const onPage = pathname.startsWith(place.path);
     const target = pickTarget(step, working, part, step === "delivery" ? choice : null);
@@ -101,7 +113,7 @@ export function GuideFoundationStep({
         return <GuidePill left={pillLeft} label={label} done={done} total={FOUNDATION_STEPS.length} onOpen={() => setMinimized(false)} />;
     }
 
-    const setPart = (n: number): void => setPartByStep((p) => ({ ...p, [step]: n }));
+    const setPart = (n: number): void => setManualPart({ forAuto: autoPart, value: n });
     const walk = step === "product" ? { index: part, count: place.targets.length, onBack: () => setPart(Math.max(0, part - 1)), onNext: () => setPart(Math.min(place.targets.length - 1, part + 1)) } : undefined;
 
     return (
@@ -119,6 +131,7 @@ export function GuideFoundationStep({
                 onGo={showGo ? go : undefined}
                 onMinimize={() => setMinimized(true)}
             >
+                {step === "product" && onPage && !showGo && <GuideProductWalk draft={productDraft} stage={part} />}
                 {step === "delivery" && onPage && !showGo && (
                     <GuideChoice<DeliveryChoice>
                         tone="dark"

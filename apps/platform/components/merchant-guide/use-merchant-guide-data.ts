@@ -26,10 +26,18 @@ const progressSchema = z.object({
 });
 export type GuideProgress = z.infer<typeof progressSchema>;
 
+/** The oldest ready product, drawn on the done card. */
+export interface GuideFirstProduct {
+    name: string;
+    imageUrl: string;
+    price: number;
+}
+
 export interface GuideShopState {
     status: FoundationStatus;
     slug: string;
     working: StoreConfigV2 | null;
+    firstProduct: GuideFirstProduct | null;
 }
 
 /** How often the shop is re-read while the guide is waiting on a step. */
@@ -63,7 +71,9 @@ async function fetchShop(tenantId: string): Promise<GuideShopState> {
             .single(),
         supabase
             .from("products")
-            .select("id", { count: "exact", head: true })
+            // The count says whether a ready product exists; the first one is
+            // drawn on the done card.
+            .select("name, image_url, price", { count: "exact" })
             .eq("tenant_id", tenantId)
             .eq("status", "active")
             .eq("is_visible", true)
@@ -71,7 +81,9 @@ async function fetchShop(tenantId: string): Promise<GuideShopState> {
             .gt("price", 0)
             .gt("stock_quantity", 0)
             .not("image_url", "is", null)
-            .neq("image_url", ""),
+            .neq("image_url", "")
+            .order("created_at", { ascending: true })
+            .limit(1),
     ]);
     if (tenantRes.error) throw tenantRes.error;
     if (productsRes.error) throw productsRes.error;
@@ -81,9 +93,11 @@ async function fetchShop(tenantId: string): Promise<GuideShopState> {
         store_config_v2_draft: StoreConfigV2 | null;
     };
     const working = tenant.store_config_v2_draft ?? tenant.store_config_v2;
+    const first = productsRes.data?.[0];
     return {
         slug: tenant.slug,
         working,
+        firstProduct: first ? { name: first.name, imageUrl: first.image_url ?? "", price: first.price } : null,
         status: foundationStatus({
             working,
             published: tenant.store_config_v2,

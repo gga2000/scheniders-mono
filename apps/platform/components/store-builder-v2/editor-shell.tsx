@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils";
 import { OPEN_EDITOR_SCREEN_EVENT, isGuideEditorScreen } from "@/lib/merchant-guide/steps";
 import { EditorLocaleProvider } from "@/lib/editor-locale-context";
 import { EditorModeProvider, type EditorMode } from "@/lib/editor-mode-context";
+import { useGuideSetupActive } from "@/components/merchant-guide/guide-setup-store";
 import { EditorLinkTargetsProvider } from "@/lib/editor-link-targets-context";
 import { EditorStoreLocalesProvider } from "@/lib/editor-store-locales-context";
 import { useUserPreferences, PREFERENCE_KEYS } from "@/hooks/use-user-preferences";
@@ -356,17 +357,21 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
         set_mode_intro_open(false);
         setPreference(PREFERENCE_KEYS.EDITOR_MODE_INTRO_SEEN, true, 0);
     }, [setPreference]);
+    // A new shop doing the basics with the setup guide stays in Simple, sees
+    // only the screens the basics need, and gets one voice: the guide.
+    const setupMode = useGuideSetupActive();
+    const effective_mode: EditorMode = setupMode ? "simple" : editor_mode;
     // Simple hides the tablet breakpoint — never leave the canvas stuck on
     // a breakpoint the toolbar can no longer represent.
     useEffect(() => {
-        if (editor_mode === "simple" && builder.active_breakpoint === "tablet") {
+        if (effective_mode === "simple" && builder.active_breakpoint === "tablet") {
             builder.set_active_breakpoint("desktop");
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- react to mode flips only
-    }, [editor_mode]);
+    }, [effective_mode]);
     const editorModeCtx = useMemo(
-        () => ({ mode: editor_mode, setMode: set_editor_mode }),
-        [editor_mode, set_editor_mode],
+        () => ({ mode: effective_mode, setMode: set_editor_mode }),
+        [effective_mode, set_editor_mode],
     );
 
     // O3: live-activity badges on the Advanced settings buttons, so a
@@ -1739,8 +1744,9 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             <EditorToolbar
                 tenantName={tenant.business_name}
                 builder={builder}
-                editorMode={editor_mode}
+                editorMode={effective_mode}
                 onChangeMode={set_editor_mode}
+                hideModeToggle={setupMode}
                 previewAs={preview_as}
                 onChangePreviewAs={set_preview_as}
                 previewUrl={previewUrl}
@@ -1802,7 +1808,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             )}
 
             {/* Post-wizard welcome (one card, three facts, one CTA) */}
-            {welcome_open && (
+            {welcome_open && !setupMode && (
                 <WelcomeCard
                     locale={builder.active_locale}
                     onDismiss={dismiss_welcome}
@@ -1810,7 +1816,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
             )}
 
             {/* Deep link forced Advanced for this visit */}
-            {mode_elevated_toast && (
+            {mode_elevated_toast && !setupMode && (
                 <ModeElevatedToast
                     locale={builder.active_locale}
                     onDone={() => set_mode_elevated_toast(false)}
@@ -1830,6 +1836,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                     onManageCustomPages={() => handleSelectSetting("custom_pages")}
                     activeSettingId={system_screen}
                     settingBadges={settingBadges}
+                    setupMode={setupMode}
                 />
                 <main
                     data-testid="editor-shell-main"
@@ -1866,7 +1873,7 @@ export function EditorShell(props: EditorShellProps): React.ReactElement {
                             >
                                 <FirstRunBanner
                                     tenantId={tenant.id}
-                                    visible={isFirstTimeTenant && !welcome_open}
+                                    visible={isFirstTimeTenant && !welcome_open && !setupMode}
                                     isHome={
                                         builder.active_page === "home" &&
                                         !builder.active_custom_page_id

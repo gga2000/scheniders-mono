@@ -72,12 +72,12 @@ export const GUIDE_LINES = {
         en: "Choose a price per governorate. Type a default price, then change only the ones that differ.",
     },
     "open.publish": {
-        ar: "كلشي جاهز! اضغط «نشر» حتى يشوف الزباين محلك.",
-        en: "Everything's ready! Press Publish so customers can see your shop.",
+        ar: "لا تشيل هم شكل المحل هسه. انشره، وبعدين نرجعله سوه ونخليه حلو وعلى ذوقك.",
+        en: "Don't worry about how the shop looks yet. Publish it, and later we'll come back and make it beautiful, your way.",
     },
     "done.title": {
-        ar: "خلصت الأساس! محلك جاهز للطلبات.",
-        en: "The basics are done! Your shop is ready for orders.",
+        ar: "عاشت إيدك! محلك صار مفتوح للناس.",
+        en: "Well done! Your shop is open to everyone.",
     },
     "done.share": {
         ar: "هذا رابط محلك. انسخه وحطه بالبايو، وشاركه بالانستغرام والتيك توك.",

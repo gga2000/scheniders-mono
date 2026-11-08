@@ -281,7 +281,20 @@ export interface PageTreeProps {
      * experiments. Rendered as small count chips on the buttons.
      */
     settingBadges?: Partial<Record<SettingsSectionId, number>>;
+    /**
+     * A new shop doing the basics with the setup guide: show only the two
+     * screens the basics need (Brand kit, Delivery prices) and lock the rest
+     * until the basics are done.
+     */
+    setupMode?: boolean;
 }
+
+/** The two screens a new shop needs for the basics. */
+const SETUP_SETTINGS: SettingsNode[] = [
+    PRIMARY_SETTINGS[0],
+    { id: "shipping", icon: Truck, labelKey: "setting_shipping", label: "Shipping rates" },
+];
+const SETUP_LOCKED = ["setup_locked_pages", "setup_locked_offers", "setup_locked_tracking", "setup_locked_advanced"] as const;
 
 export function PageTree({
     active,
@@ -295,6 +308,7 @@ export function PageTree({
     onManageCustomPages,
     activeSettingId,
     settingBadges,
+    setupMode = false,
 }: PageTreeProps) {
     const locale = useResolvedEditorLocale(activeLocale);
     const { mode, setMode } = useEditorMode();
@@ -413,6 +427,33 @@ export function PageTree({
             </li>
         );
     };
+
+    if (setupMode) {
+        return (
+            <nav
+                aria-label={t(STRINGS.page_tree.aria_label, locale)}
+                data-testid="page-tree"
+                data-setup-mode="true"
+                className="sb-glass flex w-[264px] shrink-0 flex-col overflow-y-auto border-r border-(--card-border) p-3 text-sm"
+            >
+                <div className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {t(STRINGS.page_tree.setup_heading, locale)}
+                </div>
+                <ul className="space-y-0.5">{SETUP_SETTINGS.map(renderSettingButton)}</ul>
+                <div data-testid="page-tree-setup-locked" className="mt-5 border-t border-(--card-border) px-2 pt-4 text-muted-foreground">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold">
+                        <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t(STRINGS.page_tree.setup_locked, locale)}
+                    </div>
+                    <ul className="space-y-1.5 text-[13px] opacity-60">
+                        {SETUP_LOCKED.map((key) => (
+                            <li key={key}>{t(STRINGS.page_tree[key], locale)}</li>
+                        ))}
+                    </ul>
+                </div>
+            </nav>
+        );
+    }
 
     return (
         <nav
