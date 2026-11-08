@@ -21,7 +21,7 @@ export function mountInStore(node: ReactNode) {
 }
 
 export function withCart(items: CartItem[]): void {
-  useCart.setState({ items, governorate: null, couponCode: null });
+  useCart.setState({ items, governorate: null, couponCode: null, coupon: null });
 }
 
 /** The colour lock (D4) and the LTR rule over one soft render: yellow fills

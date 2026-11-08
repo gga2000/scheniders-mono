@@ -34,21 +34,28 @@ describe("replyInChat", () => {
     });
 });
 
-/** Answers the shipment, link and notice reads; records inserts. */
+/**
+ * Answers the shipment and link reads; records inserts. `existing` makes the
+ * notice insert fail the way the unique index on (tenant_id, group_key) does.
+ */
 function fakeDb({ shipments, active, existing = false }: { shipments: Row[]; active: string[]; existing?: boolean }) {
     const inserted: Row[] = [];
     const from = (table: string) => {
         const result = () => {
             if (table === "prime_shipments") return { data: shipments, error: null };
             if (table === "prime_connections") return { data: active.map((tenant_id) => ({ tenant_id })), error: null };
-            return { data: existing ? [{ id: "n1" }] : [], error: null };
+            return { data: [], error: null };
         };
         const builder = {
             select: () => builder,
             eq: () => builder,
             in: () => builder,
             limit: () => builder,
-            insert: (rows: Row[]) => (inserted.push(...rows), Promise.resolve({ error: null })),
+            insert: (rows: Row[]) => {
+                if (existing) return Promise.resolve({ error: { code: "23505", message: "duplicate key" } });
+                inserted.push(...rows);
+                return Promise.resolve({ error: null });
+            },
             then: (resolve: (r: unknown) => void) => resolve(result()),
         };
         return builder;

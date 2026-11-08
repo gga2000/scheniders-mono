@@ -31,6 +31,24 @@ function isActive(d: DiscountCode, now: number): boolean {
 }
 
 /**
+ * The store's definition for a typed code, when it exists and is live right
+ * now (enabled and inside its dates). Case-insensitive. Minimum subtotal is
+ * not checked here: it depends on the cart.
+ */
+export function findActiveDiscount(
+  rawCode: string | null | undefined,
+  discounts: DiscountCode[] | null | undefined,
+  now: Date = new Date(),
+): DiscountCode | null {
+  if (!rawCode || !discounts) return null;
+  const code = rawCode.trim().toLowerCase();
+  if (!code) return null;
+  const d = discounts.find((x) => x.code.trim().toLowerCase() === code);
+  if (!d || !isActive(d, now.getTime())) return null;
+  return d;
+}
+
+/**
  * Resolve a coupon code against the store's discounts and return the discount to
  * apply, or null when the code is unknown / inactive / unqualified. Match is
  * case-insensitive; the amount is clamped to `(0, subtotal]`.
@@ -43,12 +61,8 @@ export function computeDiscount(
 ): DiscountResult | null {
   if (!rawCode || !discounts) return null;
   if (!Number.isFinite(subtotalIqd) || subtotalIqd <= 0) return null;
-  const code = rawCode.trim().toLowerCase();
-  if (!code) return null;
-
-  const d = discounts.find((x) => x.code.trim().toLowerCase() === code);
+  const d = findActiveDiscount(rawCode, discounts, now);
   if (!d) return null;
-  if (!isActive(d, now.getTime())) return null;
   if (typeof d.min_subtotal_iqd === "number" && subtotalIqd < d.min_subtotal_iqd) {
     return null;
   }

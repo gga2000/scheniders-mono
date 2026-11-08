@@ -47,6 +47,8 @@ interface NoticeRow {
     group_key: string;
 }
 
+const UNIQUE_VIOLATION = "23505";
+
 async function insert(db: ServiceDb, rows: NoticeRow[]): Promise<void> {
     if (rows.length === 0) return;
     const { error } = await db.from("notifications").insert(rows);
@@ -147,10 +149,10 @@ export interface PrimeTicketReplyNotice {
 /** Prime answered in a ticket: one line for the store, unless this message was already announced. Returns whether it wrote one. */
 export async function noticeTicketReply(db: ServiceDb, tenantId: string, order: PrimeNoticeOrder, reply: PrimeTicketReplyNotice): Promise<boolean> {
     const groupKey = `prime.ticket_reply:${reply.ticketId}:${reply.messageKey}`;
-    const { data, error } = await db.from("notifications").select("id").eq("tenant_id", tenantId).eq("group_key", groupKey).limit(1);
-    if (error) throw new Error(error.message);
-    if ((data ?? []).length > 0) return false;
-    await insert(db, [
+    // The unique index notifications_prime_ticket_reply_once (tenant_id,
+    // group_key) is the "once per message" guard: a repeat insert is refused
+    // with 23505, which means this message was already announced.
+    const { error } = await db.from("notifications").insert([
         {
             tenant_id: tenantId,
             type: "prime.ticket_reply",
@@ -166,5 +168,7 @@ export async function noticeTicketReply(db: ServiceDb, tenantId: string, order: 
             group_key: groupKey,
         },
     ]);
+    if (error?.code === UNIQUE_VIOLATION) return false;
+    if (error) throw new Error(`Prime notification failed: ${error.message}`);
     return true;
 }

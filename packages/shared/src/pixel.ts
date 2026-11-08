@@ -154,8 +154,8 @@ export function pixelContentFromProduct(p: {
  * CAPI access tokens are stored in `globals.analytics_pixels.base` but are
  * SERVER-ONLY secrets. The full store config is serialized into the client
  * section tree, so strip the tokens before any config crosses to the browser.
- * (Pixel IDs stay — they're public by design.) Returns the config unchanged
- * when there's nothing to redact.
+ * (Pixel IDs stay — they're public by design.) Coupon definitions are removed
+ * the same way. Returns the config unchanged when there's nothing to redact.
  */
 const CAPI_SECRET_KEYS = [
   "meta_capi_token",
@@ -164,17 +164,27 @@ const CAPI_SECRET_KEYS = [
 ] as const;
 
 export function redactServerOnlyConfig<
-  T extends { globals?: { analytics_pixels?: { base?: Record<string, unknown> } } } | null | undefined,
+  T extends {
+    globals?: { analytics_pixels?: { base?: Record<string, unknown> } };
+    commerce?: { discounts?: unknown };
+  } | null | undefined,
 >(config: T): T {
-  const base = config?.globals?.analytics_pixels?.base;
-  if (!base || !CAPI_SECRET_KEYS.some((k) => k in base)) return config;
-  const cleanBase: Record<string, unknown> = { ...base };
-  for (const k of CAPI_SECRET_KEYS) delete cleanBase[k];
-  return {
-    ...config,
-    globals: {
-      ...config!.globals,
-      analytics_pixels: { ...config!.globals!.analytics_pixels, base: cleanBase },
-    },
-  } as T;
+  if (!config) return config;
+  let out: NonNullable<T> = config;
+  const pixels = out.globals?.analytics_pixels;
+  const base = pixels?.base;
+  if (base && CAPI_SECRET_KEYS.some((k) => k in base)) {
+    const cleanBase: Record<string, unknown> = { ...base };
+    for (const k of CAPI_SECRET_KEYS) delete cleanBase[k];
+    out = { ...out, globals: { ...out.globals, analytics_pixels: { ...pixels, base: cleanBase } } };
+  }
+  // Coupon codes are secrets too: shipping the list lets anyone read every
+  // private code from the page source. Shoppers check a typed code through
+  // /api/coupon/validate; checkout re-prices from the unredacted row.
+  if (out.commerce && "discounts" in out.commerce) {
+    const commerce: Record<string, unknown> = { ...out.commerce };
+    delete commerce.discounts;
+    out = { ...out, commerce };
+  }
+  return out;
 }

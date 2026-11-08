@@ -59,6 +59,20 @@ describe("redactServerOnlyConfig", () => {
     expect(cfg.globals.analytics_pixels.base.meta_capi_token).toBe("SECRET");
   });
 
+  it("strips coupon codes but keeps the rest of commerce, without mutating input", () => {
+    const cfg = {
+      commerce: {
+        discounts: [{ code: "VIP40", kind: "percent" as const, value: 40, enabled: true }],
+        shipping: { flat_fee_iqd: 5000 },
+      },
+    };
+    const out = redactServerOnlyConfig(cfg) as unknown as { commerce: Record<string, unknown> };
+    expect(out.commerce.discounts).toBeUndefined();
+    expect(out.commerce.shipping).toEqual({ flat_fee_iqd: 5000 });
+    expect(JSON.stringify(out)).not.toContain("VIP40");
+    expect(cfg.commerce.discounts).toHaveLength(1);
+  });
+
   it("returns the input unchanged when there's nothing to redact", () => {
     expect(redactServerOnlyConfig(null)).toBeNull();
     expect(redactServerOnlyConfig(undefined)).toBeUndefined();

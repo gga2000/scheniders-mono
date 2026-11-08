@@ -250,6 +250,7 @@ export function CheckoutFormRender({
   const updatePrice = useCart((st) => st.updatePrice);
   const setGovernorate = useCart((st) => st.setGovernorate);
   const couponCode = useCart((st) => st.couponCode);
+  const coupon = useCart((st) => st.coupon);
   const base = useStoreBase();
   const phoneErrorId = useId();
   const submitErrorId = useId();
@@ -434,7 +435,7 @@ export function CheckoutFormRender({
       | undefined,
   });
   // Discount: preview the applied coupon (server re-validates + records it).
-  const discount = computeDiscount(subtotal, couponCode, commerce?.discounts);
+  const discount = computeDiscount(subtotal, couponCode, coupon ? [coupon] : null);
   const couponAmount = discount?.amount_iqd ?? 0;
   const bundleAmount = computeBundleDiscounts(
     items,
