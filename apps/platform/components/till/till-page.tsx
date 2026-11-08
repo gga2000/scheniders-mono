@@ -126,6 +126,8 @@ export function TillPage() {
 
     // The customer screen mirrors the sale: idle (logo), the cart, the amount due, then the change.
     const [payShown, setPayShown] = useState<PayShown | null>(null);
+    // The ticket whose last Complete did not save, so the pay screen keeps saying so until it does.
+    const [failed, setFailed] = useState<{ ticketId: string; message: string } | null>(null);
     const onPayShown = useCallback((p: PayShown) => setPayShown(p), []);
     const shopName = shop?.name ?? "";
     const displayState = useMemo((): DisplayState => {
@@ -318,7 +320,9 @@ export function TillPage() {
                         setView("sell");
                     }
                     if (why === "locked") lock(t("till.lock.timedOut"));
-                    else toast({ title: t(`till.sale.error.${why}`), variant: "error" });
+                    // Back on the sell screen a toast says why; on the pay screen the box above Complete does, without covering it.
+                    else if (why === "approval_expired" || why === "approval_too_small") toast({ title: t(`till.sale.error.${why}`), variant: "error" });
+                    else setFailed({ ticketId: ticket.id, message: why === "failed" ? t("till.pay.notSaved") : t(`till.sale.error.${why}`) });
                 },
             },
         );
@@ -439,6 +443,7 @@ export function TillPage() {
                     hasPhone={!!ticket.phone.trim() && !!normalizeIraqiMobile(ticket.phone)}
                     payQr={{ fib: shop.fib_qr_url ?? undefined, zaincash: shop.zaincash_qr_url ?? undefined }}
                     onShown={onPayShown}
+                    failed={failed?.ticketId === ticket.id && !sale.isPending ? failed.message : null}
                     onBack={() => setView("sell")}
                     onComplete={complete}
                 />

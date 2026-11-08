@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Equal, MessageCircle, Minus, UserRound, X } from "lucide-react";
+import { AlertTriangle, Check, Equal, MessageCircle, Minus, ShieldCheck, UserRound, X } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import {
     addPartPayment,
@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { INK_BUTTON, NOTE_TILES } from "./till-colors";
 import type { PayShown } from "@/lib/till/customer-display";
-import type { Ticket } from "./till-ticket";
+import { approvalClock, approvalTone, type Ticket } from "./till-ticket";
 
 interface Props {
     ticket: Ticket;
@@ -31,6 +31,8 @@ interface Props {
     payQr: Partial<Record<PayMethod, string>>;
     /** Mirrors what the customer should see (method, amount due, change) on the customer screen. */
     onShown: (shown: PayShown) => void;
+    /** Why the last Complete press did not save; stays on screen until the next try. */
+    failed: string | null;
     onBack: () => void;
     onComplete: (payments: PaymentLine[], change: number) => void;
 }
@@ -38,7 +40,7 @@ interface Props {
 const KEY_NOTES = IQD_NOTES;
 
 /** Taking the money: method, note keys, change as the hero, split when asked. */
-export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, payQr, onShown, onBack, onComplete }: Props) {
+export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, payQr, onShown, failed, onBack, onComplete }: Props) {
     const { t } = useLanguage();
     const [method, setMethod] = useState<PayMethod>("cash");
     const [parts, setParts] = useState<PaymentLine[]>([]);
@@ -56,6 +58,14 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
     const saved = ticket.discount + ticket.cart.reduce((s, l) => s + Math.max(0, l.list_price - l.price) * l.quantity, 0);
     const change = result.ok ? result.change : 0;
     const name = ticket.customerName.trim();
+    // The manager's OK keeps counting down while the money is taken, so the cashier sees it before it runs out.
+    const approval = ticket.approval;
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        if (!approval) return;
+        const id = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, [approval]);
 
     const clear = () => {
         setNotes({});
@@ -91,6 +101,15 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
         <div className="flex min-h-0 flex-1">
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
                 <div>
+                    {approval && (
+                        <span className={cn("mb-2 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold transition-colors", approvalTone(approval.expiresAt - now))}>
+                            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                            <span dir="auto">
+                                {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqd(approval.maxOff) })}{" "}
+                                <span className="whitespace-nowrap font-bold tabular-nums">· {approvalClock(approval.expiresAt - now)}</span>
+                            </span>
+                        </span>
+                    )}
                     <p className="text-left text-sm font-semibold text-muted" dir="auto">{name ? t("till.pay.whoPays", { name }) : t("till.pay.toPay")}</p>
                     <p className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
                         {formatIqd(rest)} <span className="text-xl font-semibold text-muted">{t("till.iqd")}</span>
@@ -162,7 +181,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                             type="button"
                                             onClick={() => untapNote(note)}
                                             aria-label={t("till.pay.takeOne", { note: formatIqd(note) })}
-                                            className="absolute -right-2 -top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--card-bg)] text-foreground shadow-sm ring-1 ring-stone-400 dark:ring-white/25"
+                                            className="absolute right-1 -top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--card-bg)] text-foreground shadow-sm ring-1 ring-stone-400 dark:ring-white/25"
                                         >
                                             <Minus className="h-4 w-4" aria-hidden="true" />
                                         </button>
@@ -300,7 +319,14 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     </div>
                 )}
 
-                <div className="mt-auto flex gap-2">
+                {failed && (
+                    <p role="alert" className="mt-auto flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 px-4 py-3 text-base font-semibold text-red-900 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-100">
+                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                        <span dir="auto">{failed}</span>
+                    </p>
+                )}
+
+                <div className={cn("flex gap-2", !failed && "mt-auto")}>
                     {canSplit && (
                         <button
                             type="button"
