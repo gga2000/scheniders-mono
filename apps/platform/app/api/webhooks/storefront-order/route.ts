@@ -26,6 +26,11 @@ const LOG = "[storefront-order]";
 // about 45 orders a day; 30 in ten minutes only happens in a flood.
 const STORE_CONFIRM_BURST_LIMIT = 30;
 const STORE_CONFIRM_BURST_WINDOW_SECONDS = 600;
+// Instant confirmations per store per day. The busiest real store day so far
+// sent 33 (2026-11-08 query), so 200 is ~6x headroom while bounding what a
+// slow, steady fake-order drip under the burst cap can spend.
+const STORE_CONFIRM_DAILY_LIMIT = 200;
+const STORE_CONFIRM_DAILY_WINDOW_SECONDS = 86_400;
 
 const deliverySchema = z.object({ order_id: z.string().uuid() });
 
@@ -116,17 +121,23 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // A burst of orders far above any real store's pace is a fake-order
     // flood: each one would send paid WhatsApp to a number the attacker
-    // picked. Past the cap the order still lands for staff, unsent.
-    const burst = await consumeRateLimit(
-        `wa-confirm:${verdict.tenantId}`,
-        STORE_CONFIRM_BURST_LIMIT,
-        STORE_CONFIRM_BURST_WINDOW_SECONDS,
-    );
-    if (burst.error) {
-        console.error(`${LOG} order ${orderId}: burst limiter unavailable, sending anyway: ${burst.error}`);
-    } else if (!burst.allowed) {
-        console.warn(`${LOG} order ${orderId}: skipped (store_burst) tenant=${verdict.tenantId}`);
-        return NextResponse.json({ skipped: "store_burst" });
+    // picked. Past either cap the order still lands for staff, unsent.
+    // When the limiter cannot answer, nothing is claimed and QStash is asked
+    // to retry: a paid send waits rather than going out unmetered.
+    const caps = [
+        { name: "store_burst", key: `wa-confirm:${verdict.tenantId}`, limit: STORE_CONFIRM_BURST_LIMIT, window: STORE_CONFIRM_BURST_WINDOW_SECONDS },
+        { name: "store_daily", key: `wa-confirm-day:${verdict.tenantId}`, limit: STORE_CONFIRM_DAILY_LIMIT, window: STORE_CONFIRM_DAILY_WINDOW_SECONDS },
+    ] as const;
+    for (const cap of caps) {
+        const result = await consumeRateLimit(cap.key, cap.limit, cap.window);
+        if (result.error) {
+            console.error(`${LOG} order ${orderId}: ${cap.name} limiter unavailable, retry later: ${result.error}`);
+            return NextResponse.json({ error: "Rate limiter unavailable" }, { status: 503 });
+        }
+        if (!result.allowed) {
+            console.warn(`${LOG} order ${orderId}: skipped (${cap.name}) tenant=${verdict.tenantId}`);
+            return NextResponse.json({ skipped: cap.name });
+        }
     }
 
     // The claim repeats the gates, so a row that changed between the read and

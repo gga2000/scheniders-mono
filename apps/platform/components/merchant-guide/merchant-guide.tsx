@@ -27,6 +27,7 @@ import { STORE_EDITOR_PATH, guideHiddenOn } from "@/lib/merchant-guide/steps";
 import { GuideDone } from "./guide-done";
 import { GuideFoundationStep } from "./guide-foundation-step";
 import { GuideWelcome } from "./guide-welcome";
+import { useGuideSetup } from "./guide-setup-store";
 import {
     useGuideProgress,
     useGuideShop,
@@ -84,6 +85,16 @@ export function MerchantGuide() {
     const next = status ? nextFoundationStep(status) : null;
     const welcomed = !!progress?.answers.channel;
 
+    // Tell the pages which basics step is running, so the editor and the
+    // new-product page can simplify themselves while a new shop sets up.
+    const showing = enabled && progressQ.isSuccess && !progress?.done_seen_at;
+    const setupStep = showing && welcomed && !finished ? next : null;
+    const setStep = useGuideSetup((s) => s.setStep);
+    useEffect(() => {
+        setStep(setupStep);
+        return () => setStep(null);
+    }, [setupStep, setStep]);
+
     // The basics just finished: remember it once, so the guide stops checking.
     const markedDone = useRef(false);
     useEffect(() => {
@@ -105,6 +116,9 @@ export function MerchantGuide() {
                 locale={locale}
                 slug={shopQ.data?.slug ?? ""}
                 tenantId={tenantId}
+                shopName={shopQ.data?.working?.brand_kit?.identity?.name?.trim() ?? ""}
+                logoUrl={shopQ.data?.working?.brand_kit?.identity?.logo_url?.trim() ?? ""}
+                firstProduct={shopQ.data?.firstProduct ?? null}
                 soundOn={soundOn}
                 onToggleSound={toggleSound}
                 onClose={() => persist({ done_seen_at: new Date().toISOString() })}

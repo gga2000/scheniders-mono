@@ -43,6 +43,8 @@ import { SectionNav } from "./section-nav";
 import { AutoSaveIndicator } from "./auto-save-indicator";
 import { useLanguage } from "@/hooks/use-language";
 import dynamic from "next/dynamic";
+import { useEffect, useRef } from "react";
+import { useGuideSetup } from "@/components/merchant-guide/guide-setup-store";
 
 // Collapsed-by-default sections: their code (jsbarcode, qrcode, batch and
 // location tooling) loads when the section is opened, not with the editor.
@@ -73,6 +75,30 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
     // Batches and locations hang off a saved product, so only editing has them.
     const canEditProducts = can(PERMISSIONS.EDIT_PRODUCTS);
     const editProductId = mode === "edit" ? product?.id : undefined;
+
+    // The setup guide's first product: only the fields a first sale needs
+    // show (name, photo, price, stock), and the guide follows what is typed.
+    const guideStep = useGuideSetup((s) => s.step);
+    const setProductDraft = useGuideSetup((s) => s.setProductDraft);
+    const guideFocus = mode === "create" && guideStep === "product" && !editor.formData.is_supply;
+    const { name: draftName, image_url: draftImage, price: draftPrice, stock_quantity: draftStock, status: draftStatus } = editor.formData;
+    useEffect(() => {
+        setProductDraft(guideFocus ? { name: draftName, imageUrl: draftImage, price: draftPrice, stock: draftStock } : null);
+    }, [guideFocus, draftName, draftImage, draftPrice, draftStock, setProductDraft]);
+    useEffect(() => () => setProductDraft(null), [setProductDraft]);
+    // The first product is meant to sell, so it saves as active, not draft.
+    const { updateField } = editor;
+    const guideActivated = useRef(false);
+    // A remount resets the form to draft (the editor hook re-runs its reset),
+    // so the switch to active has to happen again after one.
+    useEffect(() => () => {
+        guideActivated.current = false;
+    }, []);
+    useEffect(() => {
+        if (!guideFocus || guideActivated.current || draftStatus !== "draft") return;
+        guideActivated.current = true;
+        updateField("status", "active");
+    }, [guideFocus, draftStatus, updateField]);
 
     return (
         <div className="min-h-screen bg-[var(--background)]">
@@ -132,7 +158,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Section Navigation (desktop vertical + mobile horizontal) */}
                     <SectionNav
-                        visibleSections={[
+                        visibleSections={guideFocus ? ["basic", "media", "pricing", "inventory"] : [
                             "type",
                             "basic",
                             "media",
@@ -150,6 +176,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                     {/* Main content */}
                     <div className="flex-1 min-w-0 space-y-6">
                         {/* === CORE SECTIONS === */}
+                        {!guideFocus && (
                         <div id="section-type">
                             <ProductTypeSelector
                                 value={editor.formData.product_type}
@@ -157,6 +184,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 mode={mode}
                             />
                         </div>
+                        )}
 
                         <div id="section-basic">
                             <ProductBasicSection
@@ -182,7 +210,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                 discountPercentage={editor.discountPercentage}
                                 showCost={showCost}
                             />
-                            {showCost && (
+                            {showCost && !guideFocus && (
                             <LandedCostSection
                                 costBreakdown={editor.formData.cost_breakdown_json}
                                 onCostBreakdownChange={(breakdown) => editor.updateField("cost_breakdown_json", breakdown)}
@@ -192,6 +220,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                             )}
                         </div>
 
+                        {!guideFocus && (<>
                         {/* Type-specific fields */}
                         {editor.formData.product_type === "digital" && (
                             <DigitalFieldsSection
@@ -257,6 +286,8 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                             />
                         </div>
 
+                        </>)}
+
                         {/* === ATTRIBUTES === */}
                         {mode === "edit" && product?.id && !editor.formData.is_supply && (
                             <div id="section-attributes">
@@ -284,11 +315,13 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                                     updateField={editor.updateField}
                                     reservedQuantity={product?.reserved_quantity}
                                 />
+                                {!guideFocus && (
                                 <ReorderAlertsSection
                                     formData={editor.formData}
                                     updateField={editor.updateField}
                                 />
-                                {!editor.formData.is_supply && (
+                                )}
+                                {!editor.formData.is_supply && !guideFocus && (
                                     <RecipeSection
                                         productId={product?.id ?? null}
                                         productName={editor.formData.name}
@@ -297,6 +330,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                             </div>
                         )}
 
+                        {!guideFocus && (<>
                         {/* === CMS TABS === */}
                         <div id="section-cms">
                         <ProductCMSTabs
@@ -427,6 +461,7 @@ export function ProductEditorPage({ product, mode, defaultIsSupply = false }: Pr
                             )}
                         </AdvancedOptionsSection>
                         </div>
+                        </>)}
                     </div>
 
                     {/* Sidebar */}

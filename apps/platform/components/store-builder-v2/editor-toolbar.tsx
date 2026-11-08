@@ -41,6 +41,8 @@ export interface EditorToolbarProps {
     builder: UseStoreBuilderV2Return;
     editorMode: EditorMode;
     onChangeMode: (mode: EditorMode) => void;
+    /** Hides the Simple / Advanced switch (the setup guide keeps a new shop in Simple). */
+    hideModeToggle?: boolean;
     previewAs: PreviewAsState;
     onChangePreviewAs: (state: PreviewAsState) => void;
     /** New-tab storefront preview URL (فتح). */
@@ -58,6 +60,7 @@ export function EditorToolbar({
     builder,
     editorMode,
     onChangeMode,
+    hideModeToggle = false,
     previewAs,
     onChangePreviewAs,
     previewUrl,
@@ -103,10 +106,12 @@ export function EditorToolbar({
             </div>
 
             <div className="flex items-center gap-2.5">
-                <span className="relative">
-                    <ModeToggle value={editorMode} onChange={onChangeMode} />
-                    {modeIntro}
-                </span>
+                {!hideModeToggle && (
+                    <span className="relative">
+                        <ModeToggle value={editorMode} onChange={onChangeMode} />
+                        {modeIntro}
+                    </span>
+                )}
                 <LocaleSelect
                     value={builder.active_locale}
                     onChange={builder.set_active_locale}
