@@ -19,10 +19,11 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-name" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.name")} <span className="text-rose-500">*</span>
                     </label>
                     <input
+                        id="product-name"
                         type="text"
                         dir="auto"
                         value={formData.name}
@@ -33,11 +34,12 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-short-name" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.shortName")}
                         <span className="text-xs text-muted ms-1">{t("products.ed.internal")}</span>
                     </label>
                     <input
+                        id="product-short-name"
                         type="text"
                         dir="auto"
                         value={formData.short_name}
@@ -49,11 +51,11 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-sku" className="block text-sm font-medium text-foreground mb-2">
                         SKU
-                        <span className="text-xs text-muted ms-1">(LightFunnels)</span>
                     </label>
                     <input
+                        id="product-sku"
                         type="text"
                         value={formData.sku}
                         onChange={(e) => updateField("sku", e.target.value)}
@@ -75,11 +77,12 @@ export function ProductBasicSection({ formData, updateField }: ProductBasicSecti
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
+                <label htmlFor="product-short-description" className="block text-sm font-medium text-foreground mb-2">
                     {t("products.ed.shortDescription")}
                     <span className="text-xs text-muted ms-1">{t("products.ed.shortDescriptionHint")}</span>
                 </label>
                 <textarea
+                    id="product-short-description"
                     dir="auto"
                     value={formData.short_description}
                     onChange={(e) => updateField("short_description", e.target.value)}

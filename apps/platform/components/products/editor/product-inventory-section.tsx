@@ -39,13 +39,16 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-stock" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.stock")}
                     </label>
                     <input
+                        id="product-stock"
                         type="number"
-                        value={formData.stock_quantity}
-                        onChange={(e) => updateField("stock_quantity", parseInt(e.target.value, 10) || 0)}
+                        // 0 shows as the empty field with its "0" placeholder: a
+                        // number input keeps a typed-after "0", so 20 read "020".
+                        value={formData.stock_quantity === 0 ? "" : formData.stock_quantity}
+                        onChange={(e) => updateField("stock_quantity", parseWholeNumber(e.target.value) ?? 0)}
                         placeholder="0"
                         min={0}
                         className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
@@ -53,10 +56,11 @@ export function ProductInventorySection({ formData, updateField, reservedQuantit
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-low-stock" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.lowStock")}
                     </label>
                     <input
+                        id="product-low-stock"
                         type="number"
                         value={formData.low_stock_threshold}
                         onChange={(e) => updateField("low_stock_threshold", parseWholeNumber(e.target.value) ?? 0)}
