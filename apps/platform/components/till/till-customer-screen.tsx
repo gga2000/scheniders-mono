@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Package } from "lucide-react";
+import { ArrowUp, Package } from "lucide-react";
 import { useTenantBrand } from "@/hooks/chat/use-tenant-brand";
 import { useLanguage } from "@/hooks/use-language";
 import { formatIqd } from "@/lib/till/cart";
 import { cn } from "@/lib/utils";
 import { CUSTOMER_CHANNEL, HELLO, readDisplayMessage, type DisplayState } from "@/lib/till/customer-display";
-import { useShowChangedLine } from "./use-show-changed-line";
+import { useLinesAbove, useShowChangedLine } from "./use-show-changed-line";
 
 /**
  * The screen that faces the customer. It only listens to the till window on this
@@ -25,6 +25,8 @@ export function TillCustomerScreen() {
     const saleLines = state && state.view !== "idle" ? state.lines : null;
     const shownLines = useMemo(() => (saleLines ?? []).map((l) => ({ id: `${l.name}|${l.variant ?? ""}|${l.price}`, quantity: l.quantity })), [saleLines]);
     useShowChangedLine(listRef, shownLines, "customer");
+    const [listEl, setListEl] = useState<HTMLUListElement | null>(null);
+    const above = useLinesAbove(listEl);
 
     useEffect(() => {
         if (typeof BroadcastChannel === "undefined") {
@@ -83,7 +85,20 @@ export function TillCustomerScreen() {
     // One layout at every step: the sale on the left, the dark panel on the right. Only the panel changes.
     return (
         <div className="till-screen grid h-screen grid-cols-[1fr_minmax(360px,38%)] bg-[#F6F1E9] text-[#1E1E1E] dark:bg-[#121212] dark:text-white" onDoubleClick={() => void document.documentElement.requestFullscreen?.()}>
-            <ul ref={listRef} className={cn("flex min-h-0 flex-col gap-3 overflow-y-auto p-10 transition-opacity", state.view === "done" && "opacity-50")}>
+            <div className="relative min-h-0">
+            {above > 0 && (
+                <span className="pointer-events-none absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[#1E1E1E] px-4 py-1.5 text-lg font-semibold text-white shadow-sm" dir="auto">
+                    <ArrowUp className="h-5 w-5" aria-hidden="true" />
+                    {t("till.cart.moreAbove", { n: above })}
+                </span>
+            )}
+            {/* scroll-py keeps a scrolled-to line clear of the list's edge padding. */}
+            <ul
+                ref={(el) => {
+                    listRef.current = el;
+                    setListEl(el);
+                }}
+                className={cn("flex h-full min-h-0 scroll-py-10 flex-col gap-3 overflow-y-auto p-10 transition-opacity", state.view === "done" && "opacity-50")}>
                 {state.lines.map((l, i) => (
                     <li key={i} className="flex items-center gap-5 rounded-[24px] bg-white p-4 dark:bg-white/5">
                         <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#F6F1E9] dark:bg-white/10">
@@ -111,6 +126,7 @@ export function TillCustomerScreen() {
                     </li>
                 )}
             </ul>
+            </div>
 
             <aside className="flex min-h-0 flex-col gap-4 bg-[#1E1E1E] p-10 text-white">
                 <div className="flex items-center gap-3">
@@ -124,7 +140,9 @@ export function TillCustomerScreen() {
                 {state.view === "cart" ? (
                     <div className="mt-auto flex flex-col gap-3">
                         {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
-                        <p className="text-xl text-white/60" dir="auto">{t("till.customer.total")}</p>
+                        <p className="text-xl text-white/60" dir="auto">
+                            {t("till.customer.total")} · {t("till.cart.items", { n: state.lines.reduce((n, l) => n + l.quantity, 0) })}
+                        </p>
                         <p className={cn("font-bold tabular-nums tracking-tight", bigSize(formatIqd(state.total)))}>
                             {formatIqd(state.total)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
                         </p>
