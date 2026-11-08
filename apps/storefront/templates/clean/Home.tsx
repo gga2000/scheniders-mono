@@ -10,6 +10,7 @@ import FAQSection from "@/components/sections/FAQSection";
 import PoliciesSection from "@/components/sections/PoliciesSection";
 import type { TemplateHomeProps } from "../registry";
 import type { SectionConfig } from "@scheniders/shared";
+import { AboutBody } from "@/components/storefront/AboutBody";
 
 const DEFAULT_SECTIONS_ORDER = ["hero", "products", "about"];
 
@@ -56,7 +57,7 @@ export default function CleanHome({ tenant, products, categories }: TemplateHome
       <section key="about" className="py-12 border-t border-zinc-100">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <h2 className="text-2xl font-bold text-zinc-900 mb-4">{about.title || "من نحن"}</h2>
-          <div className="text-zinc-600 leading-relaxed prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: about.body || "" }} />
+          <AboutBody className="text-zinc-600 leading-relaxed prose prose-sm max-w-none" body={about.body} />
         </div>
       </section>
     ) : null,
