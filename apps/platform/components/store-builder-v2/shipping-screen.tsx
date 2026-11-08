@@ -59,7 +59,7 @@ const PREVIEW_BASKETS = [30_000, 80_000] as const;
 // h-11 is 44px: the minimum touch target, which matters because the builder
 // also runs in the mobile editor shell.
 const inputCls =
-    "h-11 w-28 rounded-lg border border-(--card-border) bg-background px-2.5 text-sm tabular-nums transition-colors focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40";
+    "text-foreground placeholder:text-muted-foreground h-11 w-28 rounded-lg border border-(--card-border) bg-background px-2.5 text-sm tabular-nums transition-colors focus:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-40";
 
 export function ShippingScreen({
     builder,

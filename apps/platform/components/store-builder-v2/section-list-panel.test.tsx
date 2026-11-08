@@ -102,6 +102,26 @@ describe("SectionListPanel", () => {
         expect(next.find((s) => s.id === "sec-1")?.enabled).toBe(true);
     });
 
+    it("closes the row menu on Escape and on a press outside it", () => {
+        render(
+            <SectionListPanel
+                pageId="home"
+                pageLabel="Home"
+                sections={THREE_SECTIONS}
+                onChange={() => {}}
+                onAdd={() => {}}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("section-row-sec-2-menu-trigger"));
+        expect(screen.queryByTestId("section-row-sec-2-menu")).toBeTruthy();
+        fireEvent.keyDown(document, { key: "Escape" });
+        expect(screen.queryByTestId("section-row-sec-2-menu")).toBeNull();
+
+        fireEvent.click(screen.getByTestId("section-row-sec-2-menu-trigger"));
+        fireEvent.pointerDown(document.body);
+        expect(screen.queryByTestId("section-row-sec-2-menu")).toBeNull();
+    });
+
     it("deletes a section immediately (optimistic, no native confirm)", () => {
         const onChange = vi.fn();
 

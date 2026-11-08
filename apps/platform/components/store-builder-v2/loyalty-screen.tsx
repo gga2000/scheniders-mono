@@ -13,6 +13,7 @@ import { useCallback } from "react";
 
 import type { LoyaltyConfig, ReferralConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
+import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ScreenHeader } from "./screen-header";
@@ -23,7 +24,7 @@ export interface LoyaltyScreenProps {
 }
 
 const inputCls =
-    "w-28 rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
+    "text-foreground placeholder:text-muted-foreground w-28 rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
 
 /** Parse to a non-negative number, or undefined when blank. */
 function num(v: string): number | undefined {
@@ -136,6 +137,21 @@ export function LoyaltyScreen({
         },
     ];
 
+    // What the two rate settings mean in money, so a slip (0.01 vs 0.001)
+    // is visible before it reaches a customer.
+    const SAMPLE_SPEND = 100_000;
+    const earn = cfg.earn_per_iqd ?? 0;
+    const redeem = cfg.redeem_value_iqd ?? 0;
+    const summary =
+        earn > 0 && redeem > 0
+            ? tFormat(L.summary, locale, {
+                  points: (SAMPLE_SPEND * earn).toLocaleString("en-US", { maximumFractionDigits: 2 }),
+                  value: Math.round(SAMPLE_SPEND * earn * redeem).toLocaleString("en-US"),
+                  pct: (earn * redeem * 100).toLocaleString("en-US", { maximumFractionDigits: 1 }),
+              })
+            : null;
+    const referralOn = referral.enabled === true;
+
     return (
         <div
             data-testid="loyalty-screen"
@@ -188,6 +204,15 @@ export function LoyaltyScreen({
                     </label>
                 ))}
 
+                {summary ? (
+                    <p
+                        data-testid="loyalty-summary"
+                        className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-left! text-sm text-foreground"
+                    >
+                        {summary}
+                    </p>
+                ) : null}
+
                 <section className="mt-2 flex flex-col gap-3" aria-labelledby="referral-heading">
                     <div>
                         <h3 id="referral-heading" className="text-left! text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -209,7 +234,12 @@ export function LoyaltyScreen({
                     {referralRows.map((row) => (
                         <label
                             key={row.key}
-                            className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3"
+                            className={cn(
+                                "flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3",
+                                // Kept editable (set it up before turning it on) but
+                                // visibly not in effect while referrals are off.
+                                !referralOn && "opacity-60",
+                            )}
                         >
                             <span className="min-w-0 text-left! text-sm text-foreground">
                                 {row.label}

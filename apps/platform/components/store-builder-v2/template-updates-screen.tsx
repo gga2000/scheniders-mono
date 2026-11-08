@@ -12,7 +12,7 @@
 // =====================================================================
 
 import { useCallback, useMemo, useState } from "react";
-import { Check, Lock, Plus } from "lucide-react";
+import { Check, LayoutTemplate, Lock, Plus } from "lucide-react";
 import { resolveI18n } from "@scheniders/shared";
 import type { PageId } from "@scheniders/shared";
 import { applyTemplateUpgrade, planTemplateUpgrade } from "@/lib/store-templates/upgrade";
@@ -74,9 +74,13 @@ export function TemplateUpdatesScreen({ builder, onClose }: TemplateUpdatesScree
 
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
                 {!plan ? (
-                    <p data-testid="template-updates-unknown" className="max-w-prose text-xs text-muted-foreground">
-                        {tx(s.unknown_origin, locale)}
-                    </p>
+                    <div
+                        data-testid="template-updates-unknown"
+                        className="flex max-w-2xl flex-col items-center gap-2 rounded-2xl border border-dashed border-(--card-border) bg-(--background-soft) px-6 py-10 text-center text-sm text-muted-foreground"
+                    >
+                        <LayoutTemplate className="h-6 w-6" aria-hidden="true" />
+                        <p className="max-w-prose text-center!">{tx(s.unknown_origin, locale)}</p>
+                    </div>
                 ) : (
                     <>
                         <p className="max-w-prose text-xs text-muted-foreground">

@@ -530,12 +530,14 @@ function ExperimentRow({
                     <p className="mt-1 text-[11px] text-muted-foreground">
                         {t(STRINGS.advanced_chrome.exp_traffic_split, locale)}{" "}
                         {/* Each arm isolated so a Latin name keeps its own percent. */}
-                        {experiment.arms.map((a, idx) => (
-                            <span key={a.id ?? idx} className="font-medium text-foreground/80">
-                                {idx > 0 ? " / " : null}
-                                <bdi>{`${a.label} ${a.traffic_pct}%`}</bdi>
-                            </span>
-                        ))}
+                        <span className="inline-flex flex-wrap gap-x-1.5 font-medium text-foreground/80">
+                            {experiment.arms.map((a, idx) => (
+                                <span key={a.id ?? idx} className="inline-flex gap-1.5">
+                                    {idx > 0 ? <span aria-hidden="true">/</span> : null}
+                                    <bdi>{`${a.label} ${a.traffic_pct}%`}</bdi>
+                                </span>
+                            ))}
+                        </span>
                     </p>
                     <ArmsTrafficBar arms={experiment.arms} />
                 </div>

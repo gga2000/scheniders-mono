@@ -1622,6 +1622,9 @@ export const STRINGS = {
         warning_replace_one: { en: "This will replace 1 section already on this page. The original will be discarded.", ar: "سيستبدل هذا قسماً واحداً على هذه الصفحة. سيتم تجاهل الأصلي.", ku: "ئەمە بەشێکی ئەم پەڕەیە دەگۆڕێت. ئەو بەشە بنەڕەتییە لاندەبرێت." },
         warning_replace_many: { en: "This will replace {n} sections already on this page. The originals will be discarded.", ar: "سيحلّ هذا محل الأقسام الموجودة على هذه الصفحة (عددها: {n}). سيتم تجاهل الأصلية.", ku: "ئەمە {n} بەشی ئەم پەڕەیە دەگۆڕێت. ئەو بەشە بنەڕەتییەکان لاندەبرێن." },
         // tFormat: {n}
+        card_count_one: { en: "1 section", ar: "قسم واحد", ku: "1 بەش" },
+        // tFormat: {n}
+        card_count_many: { en: "{n} sections", ar: "{n} أقسام", ku: "{n} بەش" },
         includes_count_one: { en: "Includes 1 section", ar: "يحتوي على قسم واحد", ku: "بەشێک لەخۆدەگرێت" },
         includes_count_many: { en: "Includes {n} sections", ar: "عدد الأقسام: {n}", ku: "{n} بەش لەخۆدەگرێت" },
         cancel: { en: "Cancel", ar: "إلغاء", ku: "پاشگەزبوەوە" },
@@ -1692,6 +1695,12 @@ export const STRINGS = {
         min_hint: { en: "Customers can't redeem below this balance", ar: "لا يستطيع الزبون الاستبدال تحت هذا الرصيد", ku: "کڕیار ناتوانێت لە خوار ئەم بڕەوە بیگۆڕێتەوە" },
         max_label: { en: "Max % of order from points", ar: "أعلى نسبة من الطلب تُدفع بالنقاط", ku: "زۆرترین ڕێژەی داواکاری بە خاڵ" },
         max_hint: { en: "Cap redemption to this share of the subtotal (0–100)", ar: "حد الاستبدال كنسبة من مجموع الطلب (0–100)", ku: "سنووری گۆڕینەوە وەک ڕێژەیەک لە کۆی داواکاری (0–100)" },
+        // tFormat: {points} {value} {pct}. Live from the two settings above.
+        summary: {
+            en: "A customer who spends 100,000 IQD earns {points} points, worth {value} IQD off a later order ({pct}% back).",
+            ar: "زبون يصرف 100,000 د.ع يكسب {points} نقطة، تساوي خصم {value} د.ع على طلب لاحق (يرجع له {pct}%).",
+            ku: "کڕیارێک 100,000 دینار خەرج بکات {points} خاڵ وەردەگرێت، کە دەکاتە {value} دینار داشکاندن لە داواکارییەکی دواتر ({pct}% دەگەڕێتەوە).",
+        },
         referral_heading: { en: "Referrals", ar: "دعوة الأصدقاء", ku: "بانگهێشتی هاوڕێ" },
         referral_intro: {
             en: "Every buyer gets a code on the thank-you page and a WhatsApp share link. A friend using it on their first order gets the discount; the referrer gets points when that order is delivered.",

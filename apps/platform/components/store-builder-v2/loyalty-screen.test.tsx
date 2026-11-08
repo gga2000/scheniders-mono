@@ -30,6 +30,21 @@ describe("LoyaltyScreen", () => {
         expect(applyLast(setConfig, config).commerce?.loyalty?.enabled).toBe(true);
     });
 
+    it("says what the rates mean in money", () => {
+        const { builder } = makeBuilder({ enabled: true, earn_per_iqd: 0.01, redeem_value_iqd: 5 });
+        render(<LoyaltyScreen builder={builder} onClose={() => {}} />);
+        const text = screen.getByTestId("loyalty-summary").textContent ?? "";
+        expect(text).toContain("1,000");
+        expect(text).toContain("5,000");
+        expect(text).toContain("5%");
+    });
+
+    it("shows no summary until both rates are set", () => {
+        const { builder } = makeBuilder({ enabled: true, earn_per_iqd: 0.01 });
+        render(<LoyaltyScreen builder={builder} onClose={() => {}} />);
+        expect(screen.queryByTestId("loyalty-summary")).toBeNull();
+    });
+
     it("edits the earn rate + redeem value", () => {
         const { builder, setConfig, config } = makeBuilder({ enabled: true });
         render(<LoyaltyScreen builder={builder} onClose={() => {}} />);

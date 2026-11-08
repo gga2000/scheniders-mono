@@ -41,7 +41,7 @@ describe("PageTemplatePicker", () => {
             expect(
                 screen.getByTestId(`page-template-picker-card-${t.id}-count`)
                     .textContent,
-            ).toBe(String(t.sections.length));
+            ).toContain(String(t.sections.length));
         }
     });
 

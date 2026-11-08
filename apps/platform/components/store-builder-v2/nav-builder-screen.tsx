@@ -37,7 +37,7 @@ function newId(): string {
 }
 
 const inputCls =
-    "rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
+    "text-foreground placeholder:text-muted-foreground rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
 
 export function NavBuilderScreen({
     builder,
@@ -131,11 +131,11 @@ export function NavBuilderScreen({
                     <div
                         aria-hidden="true"
                         data-testid="nav-builder-columns"
-                        className="flex items-center gap-2.5 px-3 text-[11px] font-medium text-muted-foreground"
+                        className="flex items-center gap-2.5 px-[13px] text-[11px] font-medium text-muted-foreground"
                     >
-                        <span dir="auto" className="w-32">{t(STRINGS.advanced_chrome.nav_label_en_aria, locale)}</span>
-                        <span dir="auto" className="w-32">{t(STRINGS.advanced_chrome.nav_label_ar_aria, locale)}</span>
-                        <span dir="auto" className="flex-1">{t(STRINGS.advanced_chrome.nav_href_aria, locale)}</span>
+                        <span className="w-32 text-left!">{t(STRINGS.advanced_chrome.nav_label_en_aria, locale)}</span>
+                        <span className="w-32 text-left!">{t(STRINGS.advanced_chrome.nav_label_ar_aria, locale)}</span>
+                        <span className="flex-1 text-left!">{t(STRINGS.advanced_chrome.nav_href_aria, locale)}</span>
                     </div>
                     <ul className="flex flex-col gap-2.5">
                         {links.map((l, i) => (

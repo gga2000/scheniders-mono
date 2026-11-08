@@ -26,7 +26,7 @@ export interface FreeGiftScreenProps {
 }
 
 const inputCls =
-    "w-36 rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
+    "text-foreground placeholder:text-muted-foreground w-36 rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm tabular-nums focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
 
 /** Whole IQD, non-negative, or undefined when blank. */
 function iqd(v: string): number | undefined {
@@ -67,7 +67,7 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                 backTestId="free-gift-close"
             />
 
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-2xl">
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-sm font-medium text-foreground">{tx(STRINGS.free_gift.enable, locale)}</span>

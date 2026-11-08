@@ -234,10 +234,12 @@ export function PageTemplatePicker(
                                                 {pickText(t.name_i18n, locale) || t.id}
                                             </span>
                                             <span
-                                                className="inline-flex h-5 items-center rounded-full bg-muted/60 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground tabular-nums"
+                                                className="inline-flex h-5 shrink-0 items-center rounded-full bg-muted/60 px-1.5 text-[10px] font-semibold text-muted-foreground tabular-nums"
                                                 data-testid={`page-template-picker-card-${t.id}-count`}
                                             >
-                                                {t.sections.length}
+                                                {t.sections.length === 1
+                                                    ? tx(STRINGS.page_template.card_count_one, locale)
+                                                    : tFormat(STRINGS.page_template.card_count_many, locale, { n: t.sections.length })}
                                             </span>
                                         </div>
                                         <p className="line-clamp-2 text-xs text-foreground/80">

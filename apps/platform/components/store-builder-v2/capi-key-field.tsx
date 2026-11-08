@@ -24,7 +24,7 @@ export interface CapiKeyFieldProps {
 }
 
 const inputCls =
-    "w-full rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
+    "text-foreground placeholder:text-muted-foreground w-full rounded-lg border border-(--card-border) bg-background px-2.5 py-1.5 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30";
 const btnCls =
     "inline-flex h-8 shrink-0 items-center rounded-lg px-3 text-xs font-semibold transition-colors disabled:opacity-50";
 const quietBtnCls = cn(btnCls, "border border-(--card-border) text-foreground hover:bg-black/5");
