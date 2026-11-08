@@ -42,7 +42,12 @@ const KEY_NOTES = IQD_NOTES;
 /** Taking the money: method, note keys, change as the hero, split when asked. */
 export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, payQr, onShown, failed, onBack, onComplete }: Props) {
     const { t } = useLanguage();
-    const [method, setMethod] = useState<PayMethod>("cash");
+    // null after a part payment: the cashier picks how the rest is paid (Ali, split option B), nothing is guessed.
+    const [chosen, setMethod] = useState<PayMethod | null>("cash");
+    const picking = chosen === null;
+    const method: PayMethod = chosen ?? "cash";
+    // The method of the part just taken; the other methods glow as the likely next pick.
+    const [lastPart, setLastPart] = useState<PayMethod | null>(null);
     const [parts, setParts] = useState<PaymentLine[]>([]);
     // Notes tapped so far, by note value.
     const [notes, setNotes] = useState<Record<number, number>>({});
@@ -90,11 +95,12 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
 
     const due = method === "cash" ? rest : typed !== null && parseDinars(typed) > 0 ? Math.min(rest, parseDinars(typed)) : rest;
     useEffect(() => {
-        onShown({ method, due, given: method === "cash" ? given : 0, change });
-    }, [onShown, method, due, given, change]);
+        // While the cashier picks, the customer sees what is left with no method named.
+        onShown({ method, due, given: method === "cash" && !picking ? given : 0, change });
+    }, [onShown, method, picking, due, given, change]);
 
     const complete = () => {
-        if (result.ok) onComplete(result.payments, result.change);
+        if (result.ok && !picking) onComplete(result.payments, result.change);
     };
 
     return (
@@ -140,14 +146,18 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             key={m}
                             type="button"
                             role="radio"
-                            aria-checked={method === m}
+                            aria-checked={chosen === m}
                             onClick={() => {
                                 setMethod(m);
                                 clear();
                             }}
                             className={cn(
                                 "h-14 rounded-2xl border text-base font-semibold",
-                                method === m ? `border-transparent ${INK_BUTTON}` : "border-stone-400 dark:border-white/25 bg-[var(--card-bg)] text-foreground",
+                                chosen === m
+                                    ? `border-transparent ${INK_BUTTON}`
+                                    : picking && m !== lastPart
+                                      ? "border-[var(--ink)] bg-[#FDFFC2] text-foreground ring-4 ring-[#EFFF00]/60 dark:border-[#EFFF00] dark:bg-[#EFFF00]/15"
+                                      : "border-stone-400 dark:border-white/25 bg-[var(--card-bg)] text-foreground",
                             )}
                         >
                             {t(`till.pay.method.${m}`)}
@@ -155,7 +165,12 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     ))}
                 </div>
 
-                {method === "cash" ? (
+                {picking ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-[24px] bg-[var(--card-border)]/30 p-5 text-center">
+                        <p className="text-2xl font-bold text-foreground" dir="auto">{t("till.pay.pickRest", { rest: formatIqd(rest) })}</p>
+                        <p className="text-base text-muted-foreground" dir="auto">{t("till.pay.pickRestHint")}</p>
+                    </div>
+                ) : method === "cash" ? (
                     <div className="flex min-h-0 flex-1 flex-col gap-3">
                         {/* One slim row of white notes; each keeps its note colour as a small band so the hand finds it. */}
                         <div className="grid grid-cols-7 gap-2">
@@ -333,7 +348,8 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             onClick={() => {
                                 setParts(addPartPayment(total, parts, method, partAmount));
                                 clear();
-                                setMethod(method === "cash" ? "card" : "cash");
+                                setLastPart(method);
+                                setMethod(null);
                             }}
                             // FIB and ZainCash money counts only once its notice is ticked, part payments included.
                             disabled={needsNotice && !noticeIn}
@@ -350,13 +366,15 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                     <button
                         type="button"
                         onClick={complete}
-                        disabled={!result.ok || pending || (needsNotice && !noticeIn) || (method !== "cash" && typed !== null && parseDinars(typed) > 0 && parseDinars(typed) < rest)}
+                        disabled={picking || !result.ok || pending || (needsNotice && !noticeIn) || (method !== "cash" && typed !== null && parseDinars(typed) > 0 && parseDinars(typed) < rest)}
                         // Not ready yet is a state the cashier reads ("waiting for the FIB notice"), so it stays legible instead of fading.
                         className={cn("h-16 flex-1 rounded-2xl text-xl font-bold disabled:bg-[var(--card-border)] disabled:text-foreground/70 dark:disabled:bg-white/10 dark:disabled:text-white/70", INK_BUTTON)}
                     >
                         {pending
                             ? t("till.pay.saving")
-                            : change > 0
+                            : picking
+                              ? t("till.pay.pickFirst")
+                              : change > 0
                               ? t("till.pay.completeChange", { change: formatIqd(change) })
                               : needsNotice
                                 ? noticeIn
