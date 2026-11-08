@@ -267,6 +267,10 @@ export const CATALOGUE_FIELD_LABELS: Record<string, EditorString> = {
 
 /** Option labels for segmented controls and selects. */
 export const CATALOGUE_ENUM_LABELS: Record<string, EditorString> = {
+    // FAQ answer kinds (faq_contact_split product mode)
+    text: { en: "Written answer", ar: "إجابة مكتوبة", ku: "وەڵامی نووسراو" },
+    attribute: { en: "From a product detail", ar: "من تفاصيل المنتج", ku: "لە وردەکاری بەرهەم" },
+    size_ml: { en: "Bottle size (ml)", ar: "حجم العبوة (مل)", ku: "قەبارەی بوتڵ (مل)" },
     start: { en: "Start", ar: "البداية", ku: "سەرەتا" },
     end: { en: "End", ar: "النهاية", ku: "کۆتایی" },
     top: { en: "Top", ar: "أعلى", ku: "سەرەوە" },

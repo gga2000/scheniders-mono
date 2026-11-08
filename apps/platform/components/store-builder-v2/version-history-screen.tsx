@@ -44,7 +44,7 @@ import {
     type RestoreLosses,
 } from "./config-diff";
 import { getSettingLabel } from "./page-tree";
-import { resolveEnumValueLabel } from "@/lib/section-field-meta";
+import { knownEnumValueLabel } from "@/lib/section-field-meta";
 import type { LocaleCode } from "@scheniders/shared";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { describeDiffPath, isSecretDiffPath } from "./diff-path-label";
@@ -750,6 +750,8 @@ function DiffRow({
               ))
             : t(diffGroupLabel(entry.path[0] ?? ""), locale);
     const secret = isSecretDiffPath(entry.path);
+    // Two same-size id lists would both read «8 عناصر»; say what moved instead.
+    const listShift = idListShift(entry.before, entry.after);
     const tone =
         entry.kind === "added"
             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
@@ -777,7 +779,16 @@ function DiffRow({
                 </span>
                 <span dir="auto" className="text-[12px] font-medium">{where}</span>
             </div>
-            {entry.kind === "changed" && (
+            {entry.kind === "changed" && listShift ? (
+                <div className="text-[11px] opacity-80" data-testid="version-history-diff-list-shift">
+                    {t(
+                        listShift === "order"
+                            ? STRINGS.version_history.value_reordered
+                            : STRINGS.version_history.value_items_swapped,
+                        locale,
+                    )}
+                </div>
+            ) : entry.kind === "changed" && (
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
@@ -833,7 +844,17 @@ function RestoreLossNote({ losses, testId }: { losses: RestoreLosses; testId: st
 const SECRET_MASK = "••••••";
 
 const ID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
-const OPTION_KEY = /^[a-z][a-z0-9]*(_[a-z0-9]+)+$/;
+const TOKEN = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
+
+const isIdList = (v: unknown): v is string[] =>
+    Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && ID_LIKE.test(x));
+
+/** "order" when the same ids moved, "items" when same count but other ids. */
+function idListShift(before: unknown, after: unknown): "order" | "items" | null {
+    if (!isIdList(before) || !isIdList(after) || before.length !== after.length) return null;
+    const had = new Set(before);
+    return after.every((x) => had.has(x)) ? "order" : "items";
+}
 
 function previewValue(v: unknown, locale: LocaleCode): string {
     // Unset reads as a dash, not a programmer word.
@@ -842,13 +863,15 @@ function previewValue(v: unknown, locale: LocaleCode): string {
         return t(v ? STRINGS.version_history.value_on : STRINGS.version_history.value_off, locale);
     }
     // A list of ids means nothing to a merchant; say how many.
-    if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && ID_LIKE.test(x))) {
+    if (isIdList(v)) {
         return tFormat(STRINGS.version_history.value_items_n, locale, { n: v.length });
     }
     if (typeof v === "string") {
-        // An option key («scroll_to_form») reads as the label the editor's
-        // own choice control shows for it.
-        if (OPTION_KEY.test(v)) return `«${resolveEnumValueLabel(v, locale)}»`;
+        // A known option key («sky», «scroll_to_form») reads as the label the
+        // editor's own choice control shows. Unknown tokens (an icon name the
+        // merchant typed) stay exactly as typed.
+        const option = TOKEN.test(v) ? knownEnumValueLabel(v, locale) : null;
+        if (option) return `«${option}»`;
         // Policy and page bodies are markdown: show the words, not the syntax.
         const text = v
             .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")

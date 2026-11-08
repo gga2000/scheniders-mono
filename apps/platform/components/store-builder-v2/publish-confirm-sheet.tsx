@@ -475,13 +475,6 @@ function PageGroup({
                     <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                 )}
                 <span className="font-semibold text-foreground">{getPageLabel(page.page_id, locale)}</span>
-                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                    {page.changes.length === 1
-                        ? t(STRINGS.publish.diff_change_count_one, locale)
-                        : tFormat(STRINGS.publish.diff_change_count_many, locale, {
-                              n: page.changes.length,
-                          })}
-                </span>
                 <span className="ml-auto flex items-center gap-1">
                     {counts.added > 0 && (
                         <span
@@ -489,7 +482,8 @@ function PageGroup({
                             className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"
                         >
                             <Plus className="h-3 w-3" aria-hidden="true" />
-                            {counts.added}
+                            {/* Same worded chips as version history; one count, not two. */}
+                            {tFormat(STRINGS.advanced_chrome.vh_chip_added, locale, { n: counts.added })}
                         </span>
                     )}
                     {counts.removed > 0 && (
@@ -498,7 +492,7 @@ function PageGroup({
                             className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300"
                         >
                             <Minus className="h-3 w-3" aria-hidden="true" />
-                            {counts.removed}
+                            {tFormat(STRINGS.advanced_chrome.vh_chip_removed, locale, { n: counts.removed })}
                         </span>
                     )}
                     {counts.modified > 0 && (
@@ -507,7 +501,7 @@ function PageGroup({
                             className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"
                         >
                             <Pencil className="h-3 w-3" aria-hidden="true" />
-                            {counts.modified}
+                            {tFormat(STRINGS.advanced_chrome.vh_chip_changed, locale, { n: counts.modified })}
                         </span>
                     )}
                 </span>
