@@ -159,7 +159,9 @@ export function I18nScreen({
                                 {/* One run of text, so every chip reads in the same
                                     order (name, then percent) in either direction. */}
                                 <span dir="auto" className="tabular-nums">
-                                    {`${t(STRINGS.languages[loc], locale)} ${c.pct}%`}
+                                    {t(STRINGS.languages[loc], locale)}{" "}
+                                    {/* Isolated LTR so the sign stays after the number in Arabic. */}
+                                    <bdi dir="ltr">{`${c.pct}%`}</bdi>
                                 </span>
                             </button>
                         );
@@ -312,8 +314,10 @@ export function I18nToolbarPill({ config, onClick }: I18nToolbarPillProps) {
             className="inline-flex h-8 items-center gap-1.5 rounded-full border border-(--card-border) bg-(--background-soft) px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-(--border-hover) hover:text-foreground"
         >
             <Languages aria-hidden="true" className="h-3.5 w-3.5" />
-            <span dir="auto" className="tabular-nums">
-                {tFormat(STRINGS.i18n_screen.pill, locale, { pct })}
+            <span className="tabular-nums">
+                {t(STRINGS.i18n_screen.pill_word, locale)}{" "}
+                {/* Isolated LTR, like the screen's chips, so the sign stays after the number. */}
+                <bdi dir="ltr">{`${pct}%`}</bdi>
             </span>
         </button>
     );

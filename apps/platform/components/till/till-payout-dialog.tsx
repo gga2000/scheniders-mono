@@ -63,7 +63,9 @@ export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onC
     const submit = () => (needsPin ? setAskManager(true) : save(null));
 
     return (
-        <Dialog open onOpenChange={(open) => !open && onClose()}>
+        <>
+        {/* The PIN pad replaces this dialog while it is open, so no second outline peeks out behind it. */}
+        <Dialog open={!askManager} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="till-screen md:max-w-lg">
                 <div className="flex flex-col gap-6">
                 <DialogHeader>
@@ -154,12 +156,14 @@ export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onC
                 </button>
                 </div>
             </DialogContent>
+        </Dialog>
             {askManager && (
                 <TillManagerDialog
                     sessionId={sessionId}
                     managers={managers}
                     reason={t("till.payout.askReason", { amount: formatIqd(amount) })}
                     maxOff={amount}
+                    purpose="payout"
                     onApproved={(ok) => {
                         setAskManager(false);
                         save(ok.id);
@@ -167,6 +171,6 @@ export function TillPayoutDialog({ sessionId, isManager, pinAbove, managers, onC
                     onClose={() => setAskManager(false)}
                 />
             )}
-        </Dialog>
+        </>
     );
 }

@@ -215,6 +215,12 @@ export function resolveFieldHelp(
 }
 
 /** Localized label for an enum OPTION value ("whatsapp" → «واتساب»). */
+/** The label for a known option value, or null when it is not one. */
+export function knownEnumValueLabel(value: string, locale: LocaleCode): string | null {
+    const entry = ENUM_VALUE_LABELS[value.toLowerCase()];
+    return entry ? t(entry, locale) : null;
+}
+
 export function resolveEnumValueLabel(value: string, locale: LocaleCode): string {
     const entry = ENUM_VALUE_LABELS[value.toLowerCase()];
     if (entry) return t(entry, locale);

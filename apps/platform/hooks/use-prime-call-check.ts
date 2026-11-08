@@ -11,7 +11,6 @@ const fixReason = z.enum(["no_governorate", "bad_phone", "no_value", "bad_receip
 const sendSchema = z.discriminatedUnion("kind", [
     z.object({ orderId: z.string(), kind: z.literal("ready"), fee: z.number().nullable(), caseId: z.number().nullable() }),
     z.object({ orderId: z.string(), kind: z.literal("fix"), reason: fixReason, caseId: z.number().nullable() }),
-    z.object({ orderId: z.string(), kind: z.literal("after_sale"), caseId: z.number().nullable() }),
 ]);
 
 const checkSchema = z.object({

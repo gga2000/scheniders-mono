@@ -672,6 +672,10 @@ describe("ExperimentsScreen", () => {
         await waitFor(() => {
             expect(screen.getByTestId("experiment-verdict-learning")).toBeTruthy();
         });
+        // No headline percent while the result is not sure yet.
+        expect(screen.queryByTestId("experiment-viewer-arm-arm_b-uplift")).toBeNull();
+        // Instead it says how far the test is from a verdict.
+        expect(screen.getByTestId("experiment-viewer-arm-arm_b-progress").textContent).toMatch(/more visitors/);
     });
 
     it("ending a test asks first and says everyone goes back to the first version", () => {
@@ -760,5 +764,29 @@ describe("ExperimentsScreen", () => {
         expect(screen.getByTestId("experiment-viewer-retry")).toBeTruthy();
         expect(screen.getByTestId("experiment-viewer").textContent).not.toContain("No data yet");
         expect(screen.getByTestId("experiment-viewer").textContent).not.toContain("rpc down");
+    });
+
+    it("a card whose numbers fail to load says so instead of going quiet", async () => {
+        const handle = makeBuilder({
+            experiments: [
+                {
+                    id: "exp_f",
+                    name: "Broken card",
+                    status: "running",
+                    primary_metric: "orders",
+                    arms: [
+                        { id: "control", label: "Today", traffic_pct: 50 },
+                        { id: "arm_b", label: "New", traffic_pct: 50 },
+                    ],
+                },
+            ],
+        });
+        handle.builder.fetchExperimentStats = () => Promise.reject(new Error("rpc down"));
+        renderScreen(handle);
+        await waitFor(() => {
+            expect(screen.getByTestId("experiment-row-exp_f-results-error")).toBeTruthy();
+        });
+        expect(screen.queryByTestId("experiment-row-exp_f-results")).toBeNull();
+        expect(screen.getByTestId("experiment-row-exp_f-results-error").textContent).not.toContain("rpc down");
     });
 });

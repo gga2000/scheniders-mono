@@ -12,14 +12,10 @@
 //                  resolved address is private / loopback / link-local /
 //                  unique-local (v4, v6, IPv4-mapped, 6to4, NAT64).
 //                  `localhost` is rejected outright.
-//                  KNOWN LIMITATION (fast-follow): the validated address is NOT
-//                  pinned for the actual fetch — Node's fetch re-resolves the
-//                  hostname, so a low-TTL attacker-controlled resolver could
-//                  rebind public→private between validate and fetch (DNS
-//                  rebinding TOCTOU). This endpoint is authenticated-only, which
-//                  bounds the risk. Proper fix: pin the resolved IP via an
-//                  undici Agent whose `connect.lookup` re-checks isPrivateAddress
-//                  at connection time (needs runtime verification before shipping).
+//                  The request itself goes through node:http(s) with a
+//                  `lookup` that re-checks every resolved address at connect
+//                  time, so a low-TTL resolver cannot rebind public→private
+//                  between the check and the fetch (DNS rebinding).
 //   4. Redirects — fetch(..., { redirect: "manual" }); 3xx responses are NOT
 //                  auto-followed. Each redirect target is re-validated through
 //                  the SAME scheme + host + DNS checks before following, capped
@@ -35,8 +31,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import dns from "node:dns";
+import http, { type IncomingMessage } from "node:http";
+import https from "node:https";
 import net from "node:net";
-import { verifyAccessToken } from "@/lib/supabase-server";
+import { Readable } from "node:stream";
+import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
+import { requireRequestCaller } from "@/lib/auth/require-request-caller";
+import { consumeRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { isPrivateAddress } from "@/lib/chat/ssrf";
 import type { UnfurlResult } from "@/types/chat";
 
@@ -48,6 +49,9 @@ const MAX_BYTES = 512 * 1024; // 512 KB
 const MAX_REDIRECTS = 3;
 const CACHE_TTL_MS = 10 * 60_000; // 10 min
 const CACHE_MAX = 256;
+// Previews per store per minute. A chat shows a few links at a time; this
+// bounds how hard one login can drive the server to fetch arbitrary URLs.
+const UNFURLS_PER_STORE_PER_MINUTE = 60;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // URL validation (scheme + host + DNS). `isPrivateAddress` lives in the pure
@@ -96,6 +100,83 @@ async function validateUrl(raw: string): Promise<URL | null> {
     return parsed;
 }
 
+/**
+ * DNS lookup for the actual connection: resolves like the OS would, then
+ * refuses the connection if any address is private. This is what closes DNS
+ * rebinding: the address checked is the address connected to.
+ */
+const pinnedLookup: net.LookupFunction = (hostname, options, callback) => {
+    dns.lookup(hostname, { ...options, all: true }, (err, addresses) => {
+        if (err) return callback(err, "", 0);
+        const list = Array.isArray(addresses) ? addresses : [];
+        if (list.length === 0 || list.some(a => isPrivateAddress(a.address))) {
+            return callback(Object.assign(new Error("blocked address"), { code: "EBLOCKED" }), "", 0);
+        }
+        if (options.all) {
+            (callback as unknown as (e: null, a: dns.LookupAddress[]) => void)(null, list);
+            return;
+        }
+        callback(null, list[0].address, list[0].family);
+    });
+};
+
+/** One GET with no redirect following, connecting only to public addresses. */
+function decoded(res: IncomingMessage, headers: Headers): Readable {
+    const encoding = (headers.get("content-encoding") ?? "").trim().toLowerCase();
+    const decoder =
+        encoding === "gzip" || encoding === "x-gzip" ? createGunzip()
+        : encoding === "deflate" ? createInflate()
+        : encoding === "br" ? createBrotliDecompress()
+        : null;
+    if (!decoder) return res;
+    headers.delete("content-encoding");
+    headers.delete("content-length");
+    return res.pipe(decoder);
+}
+
+function pinnedGet(url: URL, signal: AbortSignal): Promise<Response> {
+    const client = url.protocol === "https:" ? https : http;
+    return new Promise((resolve, reject) => {
+        const req = client.get(
+            url,
+            {
+                lookup: pinnedLookup,
+                // A fresh connection per request: every connect goes through
+                // pinnedLookup, never a pooled socket from an earlier hop.
+                agent: false,
+                signal,
+                headers: {
+                    // A neutral UA + accept; some sites 403 an empty UA.
+                    "user-agent": "Mozilla/5.0 (compatible; SchenidersChatUnfurl/1.0)",
+                    accept: "text/html,application/xhtml+xml",
+                    "accept-encoding": "gzip, deflate, br",
+                },
+            },
+            res => {
+                const headers = new Headers();
+                for (const [key, value] of Object.entries(res.headers)) {
+                    if (typeof value === "string") headers.set(key, value);
+                    else if (Array.isArray(value)) headers.set(key, value.join(", "));
+                }
+                const status = res.statusCode ?? 502;
+                // Response() forbids a body on these statuses.
+                const bodyless = status === 204 || status === 304 || (status >= 100 && status < 200);
+                if (bodyless) res.resume();
+                // node:http does not decompress; a body we cannot read would
+                // just give an empty preview, so undo the common encodings.
+                const body = bodyless ? null : decoded(res, headers);
+                resolve(
+                    new Response(
+                        body ? (Readable.toWeb(body) as ReadableStream<Uint8Array>) : null,
+                        { status: status < 200 || status > 599 ? 502 : status, headers },
+                    ),
+                );
+            },
+        );
+        req.on("error", reject);
+    });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Fetch with manual redirect re-validation + size/timeout caps.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,15 +195,7 @@ async function safeFetchHtml(
         const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
         let res: Response;
         try {
-            res = await fetch(current, {
-                redirect: "manual",
-                signal: controller.signal,
-                headers: {
-                    // A neutral UA + accept; some sites 403 an empty UA.
-                    "user-agent": "Mozilla/5.0 (compatible; SchenidersChatUnfurl/1.0)",
-                    accept: "text/html,application/xhtml+xml",
-                },
-            });
+            res = await pinnedGet(current, controller.signal);
         } catch {
             clearTimeout(timer);
             return null;
@@ -295,11 +368,9 @@ function cacheSet(url: string, value: UnfurlResult): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-    // Layer 1: auth.
-    const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const { user, error } = await verifyAccessToken(token);
-    if (error || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Layer 1: auth — an active store member, not just any account.
+    const caller = await requireRequestCaller(request, "member");
+    if (!caller.ok) return caller.response;
 
     const rawUrl = request.nextUrl.searchParams.get("url");
     if (!rawUrl) {
@@ -315,6 +386,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const cached = cacheGet(rawUrl);
     if (cached) return NextResponse.json(cached);
+
+    // Each miss makes the server fetch an outside URL: cap it per store.
+    const limit = await consumeRateLimit(`chat-unfurl:${caller.tenantId}`, UNFURLS_PER_STORE_PER_MINUTE, 60);
+    if (limit.error) console.error(`[chat/unfurl] rate limiter unavailable: ${limit.error}`);
+    if (!limit.allowed) {
+        return NextResponse.json(empty(rawUrl), { headers: rateLimitHeaders(limit, UNFURLS_PER_STORE_PER_MINUTE) });
+    }
 
     // Layers 2 + 3: scheme + host/DNS.
     const validated = await validateUrl(rawUrl);

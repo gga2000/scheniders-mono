@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { toOmsGovernorateCode } from "@scheniders/shared/governorates";
-import { computeCodAmount } from "@/lib/order-money";
+import { computeCodAmount, computeRefundPayout, courierAmount } from "@/lib/order-money";
 import { labelReceiptNumber } from "@/lib/dispatch-label";
 import {
     courierGovernorateCode,
@@ -19,12 +19,8 @@ export interface PrimeMerchant {
     shopId: number;
 }
 
-/**
- * Why an order cannot go through the API; it then goes in the Excel file as before.
- *  - after_sale: refunds and replacements, by design for now (see below).
- *  - the rest are data problems a person must fix on the order.
- */
-export type PrimeSkipReason = "after_sale" | "no_governorate" | "bad_phone" | "no_value" | "bad_receipt" | "amount_out_of_range";
+/** Why an order cannot go through the API: a data problem a person must fix on the order. */
+export type PrimeSkipReason = "no_governorate" | "bad_phone" | "no_value" | "bad_receipt" | "amount_out_of_range";
 
 export type PrimePayloadResult =
     | { ok: true; payload: PrimeShipmentPayload }
@@ -53,16 +49,37 @@ function numericCaseId(orderId: string): number | undefined {
 }
 
 /**
+ * The status an order waits in for the desk to hand it to Prime: a refund is
+ * created as return_pending, every other order (replacements too) as confirmed.
+ * Taking a parcel back from Prime returns the order to it.
+ */
+export function primeReadyStatus(order: { is_return?: boolean | null }): "return_pending" | "confirmed" {
+    return order.is_return ? "return_pending" : "confirmed";
+}
+
+/**
+ * The cash on Prime's receipt, signed like Prime's own statements: positive
+ * when the driver collects it, negative when the driver pays the customer.
+ * A refund pays the customer back (the label's «ادفع للزبون»); a replacement
+ * collects the difference, or pays it when the new item is cheaper.
+ */
+export function primeReceiptAmount(order: CourierSheetOrder): number {
+    if (order.is_return) return 0 - computeRefundPayout(order);
+    if (order.is_replacement) return courierAmount(order);
+    return computeCodAmount(order);
+}
+
+/**
  * One order as a Prime shipment: the same receipt number, amount, notes and
  * product text as the label and the Prime Excel file, so Prime's scanner and
  * statement match the order exactly as they do today. The state code is our
  * governorate's OMS code; Prime's 18 state codes are the same set.
  *
- * Refund and replacement orders are left to the Excel file for now: their
- * pickup and cash direction have no tested mapping to the API yet.
+ * Refunds and replacements go the same way, marked as carrying items back
+ * (the old item the driver picks up), with their signed door cash.
  */
 export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerchant): PrimePayloadResult {
-    if (order.is_return || order.is_replacement) return { ok: false, reason: "after_sale" };
+    const afterSale = Boolean(order.is_return || order.is_replacement);
 
     const state = toOmsGovernorateCode(courierGovernorateCode(order));
     if (!state) return { ok: false, reason: "no_governorate" };
@@ -75,11 +92,12 @@ export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerc
         return { ok: false, reason: "bad_receipt" };
     }
 
-    const cod = computeCodAmount(order);
-    // A shipment with nothing to collect must declare the goods' value instead.
-    const goodsValue = Math.round(Number(order.price) || 0);
+    const cod = primeReceiptAmount(order);
+    // A shipment with nothing to collect must declare the goods' value instead
+    // (an after-sale order's price is negative when it pays the customer).
+    const goodsValue = Math.abs(Math.round(Number(order.price) || 0));
     if (cod === 0 && goodsValue <= 0) return { ok: false, reason: "no_value" };
-    if (cod < 0 || cod > PRIME_LIMITS.maxAmountIqd) return { ok: false, reason: "amount_out_of_range" };
+    if (Math.abs(cod) > PRIME_LIMITS.maxAmountIqd) return { ok: false, reason: "amount_out_of_range" };
 
     const secondPhone = primePhone(order.secondary_phone);
     const numericId = numericCaseId(order.order_id);
@@ -103,7 +121,8 @@ export function buildPrimeShipment(order: CourierSheetOrder, merchant: PrimeMerc
             qty: totalQuantity(order),
             productInfo: clip(productType(order), PRIME_LIMITS.productInfo),
             rmk: clip(courierNotes(order), PRIME_LIMITS.rmk),
-            haveReturnItems: "N",
+            haveReturnItems: afterSale ? "Y" : "N",
+            ...(afterSale ? { haveReturnItemsDesc: clip(productType(order), PRIME_LIMITS.productInfo) } : {}),
         },
     };
 }
@@ -128,6 +147,7 @@ export function primeUpdateFields(payload: PrimeShipmentPayload): PrimeShipmentU
         productInfo: payload.productInfo,
         rmk: payload.rmk,
         haveReturnItems: payload.haveReturnItems,
+        ...(payload.haveReturnItemsDesc ? { haveReturnItemsDesc: payload.haveReturnItemsDesc } : {}),
     };
 }
 

@@ -23,6 +23,7 @@ import { SchneidersProductCard } from "@/components/schneiders/product-card";
 import { SchneidersDesktopHome } from "@/components/schneiders/desktop-home";
 import { formatPrice } from "@/components/schneiders/format";
 import type { TemplateHomeProps } from "../registry";
+import { AboutBody } from "@/components/storefront/AboutBody";
 
 const DEFAULT_SECTIONS_ORDER = ["hero", "trust", "categories", "forYou", "newArrivals", "about"];
 
@@ -312,10 +313,7 @@ export default function SchneidersHome({ tenant, products, categories }: Templat
           <h2 className="font-display font-black text-3xl mt-2 mb-3 uppercase leading-tight">
             {about.title || "Made with love."}
           </h2>
-          <div
-            className="font-body text-sm leading-relaxed prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: about.body || "" }}
-          />
+          <AboutBody className="font-body text-sm leading-relaxed prose prose-sm max-w-none" body={about.body} />
         </BentoCard>
       </section>
     ) : null,

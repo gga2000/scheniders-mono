@@ -25,6 +25,7 @@ import {
     RefreshCw,
     Star,
     AlertCircle,
+    AlertTriangle,
     Check,
     Minus,
     Pencil,
@@ -38,8 +39,13 @@ import { cn } from "@/lib/utils";
 import {
     diffJson,
     groupDiffByTop,
+    restoreLosses,
     type DiffEntry,
+    type RestoreLosses,
 } from "./config-diff";
+import { getSettingLabel } from "./page-tree";
+import { knownEnumValueLabel } from "@/lib/section-field-meta";
+import type { LocaleCode } from "@scheniders/shared";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { describeDiffPath, isSecretDiffPath } from "./diff-path-label";
 import { useEditorLocale } from "@/lib/editor-locale-context";
@@ -182,6 +188,11 @@ export function VersionHistoryScreen({
             return null;
         }
     }, [builder.config, selected, selectedConfig]);
+
+    const losses = useMemo<RestoreLosses | null>(
+        () => (selectedConfig ? restoreLosses(builder.config, selectedConfig) : null),
+        [builder.config, selectedConfig],
+    );
 
     /* ── Actions ──────────────────────────────────────────────── */
 
@@ -356,7 +367,7 @@ export function VersionHistoryScreen({
             )}
 
             {/* Body */}
-            <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)]">
                 {/* Timeline (left) */}
                 <aside
                     data-testid="version-history-timeline"
@@ -433,19 +444,19 @@ export function VersionHistoryScreen({
                                                         {v.diff_summary.added > 0 && (
                                                             <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
                                                                 <Plus className="h-2.5 w-2.5" />
-                                                                {v.diff_summary.added}
+                                                                {tFormat(STRINGS.advanced_chrome.vh_chip_added, locale, { n: String(v.diff_summary.added) })}
                                                             </span>
                                                         )}
                                                         {v.diff_summary.changed > 0 && (
                                                             <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">
                                                                 <Pencil className="h-2.5 w-2.5" />
-                                                                {v.diff_summary.changed}
+                                                                {tFormat(STRINGS.advanced_chrome.vh_chip_changed, locale, { n: String(v.diff_summary.changed) })}
                                                             </span>
                                                         )}
                                                         {v.diff_summary.removed > 0 && (
                                                             <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:text-rose-300">
                                                                 <Minus className="h-2.5 w-2.5" />
-                                                                {v.diff_summary.removed}
+                                                                {tFormat(STRINGS.advanced_chrome.vh_chip_removed, locale, { n: String(v.diff_summary.removed) })}
                                                             </span>
                                                         )}
                                                     </div>
@@ -469,7 +480,7 @@ export function VersionHistoryScreen({
                             {t(STRINGS.version_history.select_to_view, locale)}
                         </div>
                     ) : (
-                        <div className="space-y-5 p-5">
+                        <div className="max-w-3xl space-y-5 p-5">
                             {/* Metadata */}
                             <header className="space-y-1.5">
                                 <div className="flex items-center gap-2">
@@ -518,6 +529,8 @@ export function VersionHistoryScreen({
                                 )}
                             </div>
 
+                            {losses ? <RestoreLossNote losses={losses} testId="version-history-losses" /> : null}
+
                             {/* Diff */}
                             <DiffView
                                 entries={diff ?? []}
@@ -540,13 +553,18 @@ export function VersionHistoryScreen({
                         <p className="mt-2 text-sm text-foreground/80">
                             {t(STRINGS.advanced_chrome.vh_restore_body_prefix, locale)}{" "}
                             <span className="font-medium text-foreground">
-                                &quot;{(confirmRestore.label ?? "").trim() ||
-                                    (confirmRestore.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale))}&quot;
+                                «<bdi>{(confirmRestore.label ?? "").trim() ||
+                                    (confirmRestore.is_named ? t(STRINGS.version_history.untitled_snapshot, locale) : t(STRINGS.version_history.auto_save, locale))}</bdi>»
                             </span>{" "}
                             {tFormat(STRINGS.advanced_chrome.vh_restore_body_suffix, locale, {
                                 time: absoluteTime(confirmRestore.created_at, locale),
                             })}
                         </p>
+                        {losses && confirmRestore.id === selected?.id ? (
+                            <div className="mt-3">
+                                <RestoreLossNote losses={losses} testId="version-history-restore-losses" />
+                            </div>
+                        ) : null}
                         <div className="mt-5 flex justify-end gap-2">
                             <button
                                 type="button"
@@ -732,6 +750,8 @@ function DiffRow({
               ))
             : t(diffGroupLabel(entry.path[0] ?? ""), locale);
     const secret = isSecretDiffPath(entry.path);
+    // Two same-size id lists would both read «8 عناصر»; say what moved instead.
+    const listShift = idListShift(entry.before, entry.after);
     const tone =
         entry.kind === "added"
             ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
@@ -759,15 +779,24 @@ function DiffRow({
                 </span>
                 <span dir="auto" className="text-[12px] font-medium">{where}</span>
             </div>
-            {entry.kind === "changed" && (
+            {entry.kind === "changed" && listShift ? (
+                <div className="text-[11px] opacity-80" data-testid="version-history-diff-list-shift">
+                    {t(
+                        listShift === "order"
+                            ? STRINGS.version_history.value_reordered
+                            : STRINGS.version_history.value_items_swapped,
+                        locale,
+                    )}
+                </div>
+            ) : entry.kind === "changed" && (
                 <div className="flex flex-col gap-0.5 text-[11px] opacity-80">
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_before, locale)}</span>{" "}
-                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before)}</bdi>
+                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.before, locale)}</bdi>
                     </div>
                     <div dir="auto">
                         <span className="font-semibold">{t(STRINGS.advanced_chrome.vh_diff_after, locale)}</span>{" "}
-                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.after)}</bdi>
+                        <bdi className="font-medium">{secret ? SECRET_MASK : previewValue(entry.after, locale)}</bdi>
                     </div>
                 </div>
             )}
@@ -775,12 +804,74 @@ function DiffRow({
     );
 }
 
+/** Names the live tests and programmes a restore would stop. */
+function RestoreLossNote({ losses, testId }: { losses: RestoreLosses; testId: string }): ReactElement | null {
+    const locale = useEditorLocale();
+    if (losses.tests.length === 0 && losses.programs.length === 0) return null;
+    return (
+        <div
+            role="note"
+            data-testid={testId}
+            className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-[12px] text-amber-800 dark:text-amber-200"
+        >
+            <p className="flex items-center gap-1.5 font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {t(STRINGS.version_history.restore_stops_title, locale)}
+            </p>
+            <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+                {losses.tests.length > 0 ? (
+                    <li>
+                        {t(STRINGS.version_history.restore_stops_tests, locale)}
+                        {/* One name per line, each isolated, so a Latin test
+                            name never splits the Arabic label mid-line. */}
+                        <ul className="mt-0.5 list-[circle] pl-4">
+                            {losses.tests.map((name, i) => (
+                                <li key={i}>
+                                    <bdi>{name}</bdi>
+                                </li>
+                            ))}
+                        </ul>
+                    </li>
+                ) : null}
+                {losses.programs.map((p) => (
+                    <li key={p}>{getSettingLabel(p, locale)}</li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
 const SECRET_MASK = "••••••";
 
-function previewValue(v: unknown): string {
-    if (v === undefined) return "undefined";
-    if (v === null) return "null";
+const ID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+const TOKEN = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/;
+
+const isIdList = (v: unknown): v is string[] =>
+    Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && ID_LIKE.test(x));
+
+/** "order" when the same ids moved, "items" when same count but other ids. */
+function idListShift(before: unknown, after: unknown): "order" | "items" | null {
+    if (!isIdList(before) || !isIdList(after) || before.length !== after.length) return null;
+    const had = new Set(before);
+    return after.every((x) => had.has(x)) ? "order" : "items";
+}
+
+function previewValue(v: unknown, locale: LocaleCode): string {
+    // Unset reads as a dash, not a programmer word.
+    if (v === undefined || v === null || v === "") return "—";
+    if (typeof v === "boolean") {
+        return t(v ? STRINGS.version_history.value_on : STRINGS.version_history.value_off, locale);
+    }
+    // A list of ids means nothing to a merchant; say how many.
+    if (isIdList(v)) {
+        return tFormat(STRINGS.version_history.value_items_n, locale, { n: v.length });
+    }
     if (typeof v === "string") {
+        // A known option key («sky», «scroll_to_form») reads as the label the
+        // editor's own choice control shows. Unknown tokens (an icon name the
+        // merchant typed) stay exactly as typed.
+        const option = TOKEN.test(v) ? knownEnumValueLabel(v, locale) : null;
+        if (option) return `«${option}»`;
         // Policy and page bodies are markdown: show the words, not the syntax.
         const text = v
             .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
@@ -788,9 +879,11 @@ function previewValue(v: unknown): string {
             .replace(/\*\*|`/g, "")
             .replace(/\s+/g, " ")
             .trim();
-        return text.length > 60 ? `"${text.slice(0, 57)}…"` : `"${text}"`;
+        // «» are mirrored by bidi, so they wrap the text in either direction
+        // instead of leaving a stray straight quote at the line end.
+        return text.length > 60 ? `«${text.slice(0, 57)}…»` : `«${text}»`;
     }
-    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (typeof v === "number") return v.toLocaleString("en-US");
     try {
         const s = JSON.stringify(v);
         return s.length > 60 ? `${s.slice(0, 57)}…` : s;

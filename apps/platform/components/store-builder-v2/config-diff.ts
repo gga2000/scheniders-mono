@@ -14,6 +14,8 @@
 // expanded before non-array siblings.
 // =====================================================================
 
+import { isDiscountActive, type Bundle, type StoreConfigV2 } from "@scheniders/shared";
+
 export type DiffKind = "added" | "removed" | "changed";
 
 export interface DiffEntry {
@@ -172,4 +174,62 @@ export function groupDiffByTop(entries: DiffEntry[]): Record<string, DiffEntry[]
         out[key].push(e);
     }
     return out;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* What a restore would switch off                                      */
+/* ─────────────────────────────────────────────────────────────────── */
+
+/** Selling programmes a restore can switch off, by their settings screen. */
+export type LiveProgram = "loyalty" | "free_gift" | "cart_recovery" | "bundles" | "discounts";
+
+export interface RestoreLosses {
+    /** Names of tests running now that would no longer be running. */
+    tests: string[];
+    /** Programmes on now that would be off (or gone) after the restore. */
+    programs: LiveProgram[];
+}
+
+const isOn = (c: { enabled?: boolean } | undefined): boolean => c?.enabled === true;
+
+/** Items live now (by `isLive`) that are not live in `target`. */
+function losesLiveItem<T>(
+    now: readonly T[] | undefined,
+    target: readonly T[] | undefined,
+    key: (x: T) => string,
+    isLive: (x: T) => boolean,
+): boolean {
+    const kept = new Set((target ?? []).filter(isLive).map(key));
+    return (now ?? []).some((x) => isLive(x) && !kept.has(key(x)));
+}
+
+/** The bundles screen's own rule: on, with at least two products picked. */
+const isBundleLive = (b: Bundle): boolean => b.enabled !== false && b.product_ids.length >= 2;
+
+/**
+ * Live things a restore of `target` over `current` would stop. A long diff
+ * lists these as ordinary rows; the restore screen names them up front so
+ * stopping a running test or the points programme is never a surprise.
+ */
+export function restoreLosses(current: StoreConfigV2, target: StoreConfigV2): RestoreLosses {
+    const runningAfter = new Set(
+        (target.experiments ?? []).filter((e) => e.status === "running").map((e) => e.id),
+    );
+    const tests = (current.experiments ?? [])
+        .filter((e) => e.status === "running" && !runningAfter.has(e.id))
+        .map((e) => e.name);
+    const now = current.commerce;
+    const after = target.commerce;
+    const programs: LiveProgram[] = [];
+    if ((isOn(now?.loyalty) && !isOn(after?.loyalty)) || (isOn(now?.referral) && !isOn(after?.referral))) {
+        programs.push("loyalty");
+    }
+    if (isOn(now?.free_gift) && !isOn(after?.free_gift)) programs.push("free_gift");
+    if (isOn(now?.cart_recovery) && !isOn(after?.cart_recovery)) programs.push("cart_recovery");
+    if (losesLiveItem(now?.bundles, after?.bundles, (b) => b.id, isBundleLive)) programs.push("bundles");
+    const at = Date.now();
+    if (losesLiveItem(now?.discounts, after?.discounts, (d) => d.code.toLowerCase(), (d) => isDiscountActive(d, at))) {
+        programs.push("discounts");
+    }
+    return { tests, programs };
 }

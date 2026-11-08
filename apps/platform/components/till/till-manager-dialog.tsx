@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Delete, ShieldCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@scheniders/ui/dialog";
 import { useLanguage } from "@/hooks/use-language";
-import { useTillApprove } from "@/hooks/use-till";
+import { useTillApprove, type TillApprovalPurpose } from "@/hooks/use-till";
 import type { TillMember } from "@/hooks/use-shops";
 import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
@@ -16,6 +16,8 @@ interface Props {
     reason: string;
     /** The price cuts + discount being allowed; null when no amount is involved (testers). */
     maxOff: number | null;
+    /** The one job this OK is for: a sale, a cash payout or a tester. */
+    purpose: TillApprovalPurpose;
     onApproved: (approval: { id: string; managerName: string }) => void;
     onClose: () => void;
 }
@@ -23,7 +25,7 @@ interface Props {
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
 
 /** A manager taps their name and types their PIN on the till to allow one sale over the cashier's limit. */
-export function TillManagerDialog({ sessionId, managers, reason, maxOff, onApproved, onClose }: Props) {
+export function TillManagerDialog({ sessionId, managers, reason, maxOff, purpose, onApproved, onClose }: Props) {
     const { t } = useLanguage();
     const approve = useTillApprove();
     const [who, setWho] = useState<TillMember | null>(managers.length === 1 ? managers[0] : null);
@@ -37,7 +39,7 @@ export function TillManagerDialog({ sessionId, managers, reason, maxOff, onAppro
         setMessage(null);
         if (next.length < 4) return;
         approve.mutate(
-            { sessionId, managerId: who.user_id, pin: next, maxOff },
+            { sessionId, managerId: who.user_id, pin: next, maxOff, purpose },
             {
                 onSuccess: (r) => {
                     if (r.result === "ok" && r.approval_id) {

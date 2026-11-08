@@ -413,6 +413,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                     managers={managers}
                     reason={overText}
                     maxOff={given}
+                    purpose="sale"
                     onApproved={(ok) => {
                         setAskManager(false);
                         onChange({ ...ticket, approval: { ...ok, maxOff: given, expiresAt: Date.now() + APPROVAL_MS } });
@@ -473,7 +474,7 @@ function LinePriceEditor({ line, onPrice, onDone }: { line: CartLine; onPrice: (
                         onPrice(line.list_price);
                         setText("");
                     }}
-                    className="h-10 rounded-xl px-2 text-xs font-semibold text-muted underline underline-offset-2"
+                    className="h-10 rounded-xl border border-stone-400 bg-[var(--card-bg)] px-3 text-sm font-semibold text-foreground dark:border-white/25"
                 >
                     {t("till.cart.fullPrice")}
                 </button>

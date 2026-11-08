@@ -69,10 +69,18 @@ describe("POST /api/webhooks/interakt/send", () => {
         expect(sendTemplateMessage).not.toHaveBeenCalled();
     });
 
-    it("403s a viewer (no orders.edit) and sends nothing", async () => {
+    it("403s a viewer (no orders.edit) before charging the meter, and sends nothing", async () => {
         state.canEdit = false;
         const res = await POST(req({ order: { id: ORDER_ID } }) as never);
         expect(res.status).toBe(403);
+        expect(consumeRateLimit).not.toHaveBeenCalled();
+        expect(sendTemplateMessage).not.toHaveBeenCalled();
+    });
+
+    it("refuses a custom price above the order total", async () => {
+        state.order = { ...state.order, price: 25000 };
+        const res = await POST(req({ order: { id: ORDER_ID }, templateType: "discount", customPrice: 30000 }) as never);
+        expect(res.status).toBe(400);
         expect(sendTemplateMessage).not.toHaveBeenCalled();
     });
 

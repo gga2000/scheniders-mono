@@ -22,8 +22,8 @@ export type PrimeDeskState =
     /** Ready for Prime, not sent yet. */
     | { kind: "waiting" }
     /** Prime refuses it as it stands; fixable on the desk. */
-    | { kind: "fix"; reason: Exclude<PrimeSkipReason, "after_sale"> }
-    /** Goes in the Excel file: a refund or replacement, or the API did not take it in this run. */
+    | { kind: "fix"; reason: PrimeSkipReason }
+    /** Goes in the Excel file: the API did not take it in this run. */
     | { kind: "excel" };
 
 /** Null while the desk check has not answered for the order. */
@@ -35,7 +35,6 @@ export function primeDeskState(orderId: string, row: PrimeDeskRow | undefined, p
     if (!row) return null;
     if (row.caseId !== null) return { kind: "sent", caseId: row.caseId };
     if (row.kind === "fix") return { kind: "fix", reason: row.reason };
-    if (row.kind === "after_sale") return { kind: "excel" };
     return { kind: "waiting" };
 }
 

@@ -10,7 +10,8 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { AuthCardShell, AuthCardHeading } from "@/components/auth/auth-card-shell";
 
-const MIN_LENGTH = 6;
+// Must match Supabase Auth > Email: minimum length 8, "Letters and digits".
+const MIN_LENGTH = 8;
 const strengthColors = ["#EF4444", "#F97316", "#EAB308", "#22C55E", "#16A34A"];
 
 function getPasswordStrength(pwd: string) {
@@ -128,8 +129,9 @@ export default function ResetPasswordPage() {
 
     const passwordStrength = getPasswordStrength(password);
     const longEnough = password.length >= MIN_LENGTH;
+    const hasLettersAndDigits = /[a-zA-Z]/.test(password) && /\d/.test(password);
     const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
-    const isFormValid = longEnough && passwordsMatch;
+    const isFormValid = longEnough && hasLettersAndDigits && passwordsMatch;
 
     const email = user?.email ?? profile?.email ?? null;
     const displayName = profile?.display_name?.trim() || null;
@@ -151,6 +153,10 @@ export default function ResetPasswordPage() {
         }
         if (!longEnough) {
             setError(t("pwreset.new.tooShort", { n: MIN_LENGTH }));
+            return;
+        }
+        if (!hasLettersAndDigits) {
+            setError(t("pwreset.new.needMix"));
             return;
         }
 
@@ -264,6 +270,7 @@ export default function ResetPasswordPage() {
 
                             <ul className="space-y-1.5">
                                 <Rule ok={longEnough}>{t("pwreset.new.ruleLength", { n: MIN_LENGTH })}</Rule>
+                                <Rule ok={hasLettersAndDigits}>{t("pwreset.new.ruleMix")}</Rule>
                                 <Rule ok={passwordsMatch}>{t("pwreset.new.ruleMatch")}</Rule>
                             </ul>
 

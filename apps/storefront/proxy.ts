@@ -6,6 +6,7 @@ import {
 } from "@scheniders/shared/ad-attribution";
 import { extractSlug, storefrontRootDomain } from "@/lib/store-host";
 import { QUIET_VIEW_HEADER, QUIET_VIEW_PARAM } from "@/lib/quiet-view";
+import { BOTID_ROUTE_PREFIX } from "@/lib/checkout-bot-paths";
 import {
   FBC_COOKIE,
   FBP_COOKIE,
@@ -200,6 +201,7 @@ export function proxy(request: NextRequest) {
   if (
     url.pathname.startsWith("/_next") ||
     url.pathname.startsWith("/api") ||
+    url.pathname.startsWith(BOTID_ROUTE_PREFIX) ||
     isPreviewPath(url.pathname) ||
     (url.pathname.includes(".") && !TENANT_ROOT_FILES.has(url.pathname))
   ) {

@@ -335,7 +335,7 @@ function CategorySpotlightPair({
 const definition: SectionDefinition<Props> = {
   type: "category_spotlight_pair",
   category: "content",
-  name: { en: "Category spotlight pair", ar: "فئات مميزة (زوج)" },
+  name: { en: "Two featured categories", ar: "فئتان مميزتان" },
   description: {
     en: "Eyebrow chip + title over large photo cards linking to categories, with a pill label on each photo.",
     ar: "شريحة تمهيدية وعنوان فوق بطاقات صور كبيرة تفتح الفئات، مع تسمية بارزة على كل صورة.",

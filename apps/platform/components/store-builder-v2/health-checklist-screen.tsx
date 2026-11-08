@@ -801,7 +801,8 @@ function HealthCheckRow({
           : humanize(check.id);
     // Section-level fixes can live on any page; name it so the merchant
     // doesn't look at Home when the About cover is the one missing a photo.
-    const goTo = check.fix_action?.go_to;
+    const fix = check.fix_action;
+    const goTo = fix?.go_to;
     const pageHint =
         !passed && goTo?.kind === "section"
             ? tFormat(STRINGS.health.on_page, locale, { page: getPageLabel(goTo.page_id, locale) })
@@ -817,9 +818,12 @@ function HealthCheckRow({
                 aria-hidden="true"
                 className={cn("mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full", statusDotColor(check.status))}
             />
+            {/* One column: title, then a meta line (category, publish chip),
+                then the fix button. Side-by-side squeezed the title to three
+                lines in the narrow inspector and left the chip floating. */}
             <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{title}</span>
+                <span className="block text-sm font-medium">{title}</span>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
                     <span className="rounded-full bg-muted/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                         {t(CATEGORY_LABEL[check.category], locale)}
                     </span>
@@ -830,22 +834,22 @@ function HealthCheckRow({
                     ) : null}
                 </div>
                 {subtitle ? (
-                    <p className="mt-0.5 text-xs text-foreground/80">{subtitle}</p>
+                    <p className="mt-1 text-xs text-foreground/80">{subtitle}</p>
+                ) : null}
+                {fix ? (
+                    <button
+                        type="button"
+                        data-testid={`health-fix-${check.id}`}
+                        onClick={() => onFix(fix, check.id)}
+                        className="mt-2 inline-flex items-center gap-1 rounded-lg border border-(--card-border) bg-(--background-soft) px-3 py-1.5 text-xs font-medium transition-colors hover:border-(--border-hover) hover:text-foreground"
+                    >
+                        {checkCopyFixLabel(check.id, fix.label, locale)}
+                        {fix.go_to.kind === "external" ? (
+                            <ExternalLink className="h-3 w-3" />
+                        ) : null}
+                    </button>
                 ) : null}
             </div>
-            {check.fix_action ? (
-                <button
-                    type="button"
-                    data-testid={`health-fix-${check.id}`}
-                    onClick={() => onFix(check.fix_action!, check.id)}
-                    className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-(--card-border) bg-(--background-soft) px-3 py-1.5 text-xs font-medium transition-colors hover:border-(--border-hover) hover:text-foreground"
-                >
-                    {checkCopyFixLabel(check.id, check.fix_action.label, locale)}
-                    {check.fix_action.go_to.kind === "external" ? (
-                        <ExternalLink className="h-3 w-3" />
-                    ) : null}
-                </button>
-            ) : null}
         </li>
     );
 }

@@ -474,8 +474,6 @@ export const STRINGS = {
         global_newsletter_popup: { en: "Sign-up popup", ar: "نافذة الاشتراك", ku: "پەنجەرەی بەشداربوون" },
         global_analytics_pixels: { en: "Pixels & tracking", ar: "البكسلات والتتبّع", ku: "پیکسڵ و شوێنکەوتن" },
         // tFormat: {n}
-        diff_change_count_one: { en: "1 change", ar: "تغيير واحد", ku: "گۆڕانکارییەک" },
-        diff_change_count_many: { en: "{n} changes", ar: "التغييرات: {n}", ku: "{n} گۆڕانکاری" },
         diff_fields_one: { en: "1 field", ar: "حقل واحد", ku: "خانەیەک" },
         // tFormat: {n}
         diff_fields_many: { en: "{n} fields", ar: "الحقول: {n}", ku: "{n} خانە" },
@@ -544,7 +542,7 @@ export const STRINGS = {
         card_shape: { en: "Shape", ar: "الشكل", ku: "شێوە" },
         card_motion: { en: "Motion", ar: "الحركة", ku: "جوڵە" },
         card_voice: { en: "Voice & tone", ar: "الصوت والنبرة", ku: "دەنگ و شێوازی قسە" },
-        reset: { en: "Reset", ar: "إعادة تعيين", ku: "ڕێکخستنەوە" },
+        reset: { en: "Use default", ar: "استخدم الافتراضي", ku: "بنەڕەت بەکاربهێنە" },
         // Field labels
         field_store_name: { en: "Store name", ar: "اسم المتجر", ku: "ناوی فرۆشگا" },
         field_tagline: { en: "Slogan", ar: "العبارة التعريفية", ku: "دروشم" },
@@ -760,6 +758,8 @@ export const STRINGS = {
         reset_title: { en: "Reset this section to its default content", ar: "إعادة هذا القسم إلى محتواه الافتراضي", ku: "گەڕاندنەوەی ئەم بەشە بۆ ناوەڕۆکی بنەڕەتی" },
         set: { en: "Add", ar: "إضافة", ku: "زیادکردن" },
         clear: { en: "Clear", ar: "مسح", ku: "سڕینەوە" },
+        // Field-header link on optional fields: unsets the value so the section's own default shows.
+        use_default: { en: "Use default", ar: "استخدم الافتراضي", ku: "بنەڕەت بەکاربهێنە" },
         add: { en: "Add", ar: "إضافة", ku: "زیادکردن" },
         no_items: { en: "No items yet", ar: "لا توجد عناصر بعد", ku: "هێشتا هیچ بڕگەیەک نییە" },
         // tFormat: {n}
@@ -942,9 +942,15 @@ export const STRINGS = {
         restore_confirm: { en: "Restore", ar: "استرجاع", ku: "گەڕاندنەوە" },
         diff_heading_count: { en: "What restoring changes: {n}", ar: "ما سيتغيّر عند الاسترجاع: {n}", ku: "ئەوەی بە گەڕاندنەوە دەگۆڕێت: {n}" },
         diff_empty: { en: "No differences vs your current draft.", ar: "لا توجد فروقات مقارنة بمسودتك الحالية.", ku: "هیچ جیاوازییەک نییە بەراورد بە ڕەشنووسی ئێستات." },
-        diff_added: { en: "added", ar: "أُضيف", ku: "زیادکرا" },
-        diff_removed: { en: "removed", ar: "أُزيل", ku: "لابرا" },
-        diff_changed: { en: "changed", ar: "تغيّر", ku: "گۆڕا" },
+        diff_added: { en: "adds", ar: "سيُضاف", ku: "زیاد دەکرێت" },
+        diff_removed: { en: "removes", ar: "سيُحذف", ku: "لادەبرێت" },
+        diff_changed: { en: "changes", ar: "سيتغيّر", ku: "دەگۆڕێت" },
+        // tFormat: {n} — an unnamed list item in a change trail
+        diff_item_n: { en: "Item {n}", ar: "العنصر {n}", ku: "بڕگەی {n}" },
+        // Past tense, for the publish sheet (what you changed in the draft).
+        changed_past: { en: "changed", ar: "تغيّر", ku: "گۆڕا" },
+        restore_stops_title: { en: "Restoring this stops what is live now:", ar: "استرجاع هذه النسخة يوقف ما يعمل الآن:", ku: "گەڕاندنەوەی ئەمە ئەوەی ئێستا کار دەکات ڕادەگرێت:" },
+        restore_stops_tests: { en: "Running tests:", ar: "اختبارات قيد التشغيل:", ku: "تاقیکردنەوە چالاکەکان:" },
         // Diff group titles, by the config's top-level field.
         group_pages: { en: "Pages", ar: "الصفحات", ku: "پەڕەکان" },
         group_globals: { en: "Header, footer and top bar", ar: "الترويسة والتذييل والشريط العلوي", ku: "سەرپەڕە، ژێرپەڕە و شریتی سەرەوە" },
@@ -970,6 +976,14 @@ export const STRINGS = {
         key_kind: { en: "Type", ar: "النوع", ku: "جۆر" },
         key_rules: { en: "Conditions", ar: "الشروط", ku: "مەرجەکان" },
         key_values: { en: "Values", ar: "القيم", ku: "بەهاکان" },
+        key_sections: { en: "Sections", ar: "الأقسام", ku: "بەشەکان" },
+        // Diff value words: on/off fields and a list of ids.
+        value_on: { en: "On", ar: "مفعّل", ku: "چالاک" },
+        value_off: { en: "Off", ar: "متوقف", ku: "ناچالاک" },
+        // tFormat: {n}
+        value_reordered: { en: "The order changes.", ar: "سيتغيّر الترتيب.", ku: "ڕیزبەندی دەگۆڕێت." },
+        value_items_swapped: { en: "Same number of items, but different ones.", ar: "العدد نفسه، لكن بعناصر مختلفة.", ku: "هەمان ژمارە، بەڵام بڕگەی جیاواز." },
+        value_items_n: { en: "{n} items", ar: "{n} عناصر", ku: "{n} بڕگە" },
         key_code: { en: "Code", ar: "الكود", ku: "کۆد" },
         key_value: { en: "Value", ar: "القيمة", ku: "بەها" },
         key_min_subtotal_iqd: { en: "Minimum order", ar: "الحد الأدنى للطلب", ku: "کەمترین داواکاری" },
@@ -1403,7 +1417,23 @@ export const STRINGS = {
         exp_stat_atc: { en: "ATC", ar: "إضافة للسلة", ku: "بۆ سەبەتە" },
         exp_stat_checkout: { en: "Checkout", ar: "الدفع", ku: "پارەدان" },
         exp_stat_aov: { en: "AOV", ar: "متوسط الطلب", ku: "تێکڕای داواکاری" },
-        exp_stat_uplift_control: { en: "Uplift vs original", ar: "التحسن مقابل الأصل", ku: "بەرزبوونەوە بەراورد بە کۆنترۆڵ" },
+        exp_stat_uplift_control: { en: "Conversion vs original", ar: "تحسن التحويل مقابل الأصل", ku: "گۆڕانی گۆڕین بەراورد بە بنەڕەت" },
+        // tFormat: {n} — under a "still learning" version in the test drawer
+        exp_needs_visitors: {
+            en: "About {n} more visitors per version before a winner can be called.",
+            ar: "يلزم نحو {n} زائر إضافي لكل نسخة قبل تحديد الفائز.",
+            ku: "نزیکەی {n} سەردانکەری زیاتر بۆ هەر وەشانێک پێویستە پێش دیاریکردنی براوە.",
+        },
+        exp_gap_too_small: {
+            en: "Enough visitors, but the gap is still too small to be sure. Keep it running.",
+            ar: "الزوار كافون، لكن الفرق ما زال صغيراً لنتأكد منه. اترك الاختبار يعمل.",
+            ku: "سەردانکەر بەسە، بەڵام جیاوازییەکە هێشتا بچووکە بۆ دڵنیابوون. با بەردەوام بێت.",
+        },
+        exp_card_stats_error: {
+            en: "Numbers did not load. Open View to try again.",
+            ar: "تعذّر تحميل الأرقام. افتح «عرض» للمحاولة مرة أخرى.",
+            ku: "ژمارەکان بار نەکران. «بینین» بکەرەوە بۆ دووبارە هەوڵدان.",
+        },
         exp_delete_refs_prefix: { en: "This test is used by", ar: "هذا الاختبار مستخدم في", ku: "ئەم تاقیکردنەوەیە ئاماژەی پێدراوە لەلایەن" },
         exp_delete_refs_suffix_one: { en: "variant. Deleting it will leave those variants targeting a non-existent test. Proceed?", ar: "نسخة واحدة. حذفها سيترك تلك النسخ تستهدف اختباراً غير موجود. متابعة؟", ku: "وەشانێک. سڕینەوەی وا دەکات ئەو وەشانانە تاقیکردنەوەیەکی نەبوو ئامانج بکەن. بەردەوامبیت؟" },
         exp_delete_refs_suffix_many: { en: "variants. Deleting it will leave those variants targeting a non-existent test. Proceed?", ar: "نسخ. حذفها سيترك تلك النسخ تستهدف اختباراً غير موجود. متابعة؟", ku: "وەشان. سڕینەوەی وا دەکات ئەو وەشانانە تاقیکردنەوەیەکی نەبوو ئامانج بکەن. بەردەوامبیت؟" },
@@ -1553,6 +1583,10 @@ export const STRINGS = {
         vh_restored_label: { en: "Restored \"{label}\"", ar: "استُرجعت \"{label}\"", ku: "\"{label}\" گەڕێنرایەوە" },
         vh_you: { en: "You", ar: "أنت", ku: "تۆ" },
         // tFormat: {name}
+        // tFormat: {n} — diff chips on a version row
+        vh_chip_added: { en: "{n} added", ar: "أُضيف {n}", ku: "{n} زیادکرا" },
+        vh_chip_changed: { en: "{n} changed", ar: "عُدّل {n}", ku: "{n} گۆڕدرا" },
+        vh_chip_removed: { en: "{n} removed", ar: "حُذف {n}", ku: "{n} سڕایەوە" },
         vh_by_author: { en: "by {name}", ar: "بواسطة {name}", ku: "لەلایەن {name}" },
         vh_restore_body_prefix: { en: "Restore", ar: "استرجاع", ku: "گەڕاندنەوەی" },
         // tFormat: {time}
@@ -1580,10 +1614,10 @@ export const STRINGS = {
         disc_close_aria: { en: "Close discount codes", ar: "إغلاق أكواد الخصم", ku: "داخستنی کۆدەکانی داشکاندن" },
         disc_heading: { en: "Discount codes", ar: "أكواد الخصم", ku: "کۆدەکانی داشکاندن" },
         disc_add_code: { en: "Add code", ar: "إضافة كود", ku: "زیادکردنی کۆد" },
-        disc_intro: { en: "Create coupon codes customers enter at checkout. Percent codes take a share off the subtotal (optionally capped); fixed codes take a set amount (IQD). Both can require a minimum subtotal.", ar: "أنشئ أكواد خصم يكتبها الزبون عند إتمام الطلب. كود النسبة يخصم نسبة من مجموع السلة (ويمكن وضع حد أعلى للخصم)، والكود الثابت يخصم مبلغاً محدداً (د.ع). ويمكن لكليهما أن يشترط حداً أدنى لمجموع السلة.", ku: "کۆدی کۆپۆن دروست بکە کە کڕیاران لە کاتی پارەدان دەینووسن. کۆدە ڕێژەییەکان بەشێک لە کۆی بەرهەمەکان کەم دەکەنەوە (بە سنوورێکی ئارەزوومەندانە)؛ کۆدە جێگیرەکان بڕێکی دیاریکراو کەم دەکەنەوە (IQD). هەردووکیان دەتوانن داوای کەمترین کۆ بکەن." },
+        disc_intro: { en: "Coupon codes customers type at checkout: a percent off or a fixed amount (IQD).", ar: "أكواد خصم يكتبها الزبون عند الطلب: نسبة من السلة أو مبلغ ثابت (د.ع).", ku: "کۆدی داشکاندن کە کڕیار لە کاتی داواکردن دەینووسێت: ڕێژەیەک یان بڕێکی جێگیر (IQD)." },
         disc_empty: { en: "No codes yet — add your first", ar: "لا توجد أكواد بعد — أضف أول كود", ku: "هێشتا هیچ کۆدێک نییە — یەکەمیان زیاد بکە" },
-        disc_min_subtotal: { en: "Min subtotal", ar: "الحد الأدنى للإجمالي", ku: "کەمترین کۆ" },
-        disc_max_off: { en: "Max off", ar: "أقصى خصم", ku: "زۆرترین داشکاندن" },
+        disc_min_subtotal: { en: "Min order (IQD)", ar: "أقل طلب (د.ع)", ku: "کەمترین کۆ" },
+        disc_max_off: { en: "Max off (IQD)", ar: "أقصى خصم (د.ع)", ku: "زۆرترین داشکاندن" },
         disc_code_label: { en: "Code", ar: "الكود", ku: "کۆد" },
         disc_kind_label: { en: "Type", ar: "النوع", ku: "جۆر" },
         disc_remove_aria: { en: "Remove code", ar: "إزالة الكود", ku: "لابردنی کۆد" },
@@ -1751,7 +1785,7 @@ export const STRINGS = {
         // tFormat: {n}
         more: { en: "+ {n} more", ar: "+ {n} أخرى", ku: "+ {n}ی تر" },
         // tFormat: {pct}
-        pill: { en: "Translated {pct}%", ar: "مترجم {pct}%", ku: "وەرگێڕدراو {pct}%" },
+        pill_word: { en: "Translated", ar: "مترجم", ku: "وەرگێڕدراو" },
         pill_title: { en: "See what still needs translating", ar: "اعرض ما يحتاج ترجمة", ku: "ئەوەی هێشتا وەرگێڕانی دەوێت ببینە" },
     },
     loyalty: {

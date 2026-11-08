@@ -39,9 +39,10 @@ import type {
     Experiment,
     ExperimentArm,
 } from "@scheniders/shared";
-import type {
-    UseStoreBuilderV2Return,
-    ExperimentStats,
+import {
+    EXPERIMENT_MIN_VISITORS_PER_ARM,
+    type UseStoreBuilderV2Return,
+    type ExperimentStats,
 } from "@/hooks/use-store-builder-v2";
 import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
@@ -516,10 +517,11 @@ function ExperimentRow({
     const [confirmStop, setConfirmStop] = useState(false);
     const controlLabel = experiment.arms[0]?.label ?? "";
     // A live test shows its numbers on the card, so ending it from the
-    // list is never a blind choice. A failed read just shows nothing here;
-    // the «عرض» drawer carries the full stats and the error.
+    // list is never a blind choice. A failed read says so in one line and
+    // points to the «عرض» drawer, which carries the full stats and a retry.
     const live = experiment.status === "running" || experiment.status === "paused";
     const [cardStats, setCardStats] = useState<ExperimentStats | null>(null);
+    const [cardStatsFailed, setCardStatsFailed] = useState(false);
     // The builder recreates fetchStats on every config edit; read it through a
     // ref so the card fetches once per test, not on every keystroke elsewhere.
     const fetchRef = useRef(fetchStats);
@@ -531,10 +533,14 @@ function ExperimentRow({
         let cancelled = false;
         fetchRef.current(experiment.id).then(
             (res) => {
-                if (!cancelled) setCardStats(res);
+                if (cancelled) return;
+                setCardStats(res);
+                setCardStatsFailed(false);
             },
             () => {
-                if (!cancelled) setCardStats(null);
+                if (cancelled) return;
+                setCardStats(null);
+                setCardStatsFailed(true);
             },
         );
         return () => {
@@ -591,6 +597,13 @@ function ExperimentRow({
                                 );
                             })}
                         </ul>
+                    ) : live && cardStatsFailed ? (
+                        <p
+                            data-testid={`experiment-row-${experiment.id}-results-error`}
+                            className="mt-2 text-left! text-[11px] text-muted-foreground"
+                        >
+                            {t(STRINGS.advanced_chrome.exp_card_stats_error, locale)}
+                        </p>
                     ) : null}
                 </div>
             </header>
@@ -1162,6 +1175,7 @@ function ExperimentViewer({
                     ) : (
                         <ul className="space-y-3" data-testid="experiment-viewer-arms">
                             {experiment.arms.map((arm) => {
+                                const controlVisitors = controlId ? (stats.per_arm[controlId]?.visitors ?? 0) : 0;
                                 const armStats = stats.per_arm[arm.id] ?? {
                                     visitors: 0,
                                     add_to_cart: 0,
@@ -1253,7 +1267,9 @@ function ExperimentViewer({
                                                         : "—"
                                                 }
                                             />
-                                            {sig && !isControl && (
+                                            {/* Only a sure result gets a headline percent; while
+                                                the verdict says it is still learning, a +6% is noise. */}
+                                            {sig?.significant && !isControl && (
                                                 <Stat
                                                     label={t(STRINGS.advanced_chrome.exp_stat_uplift_control, locale)}
                                                     value={`${sig.uplift_pct >= 0 ? "+" : ""}${sig.uplift_pct.toFixed(2)}%`}
@@ -1261,6 +1277,22 @@ function ExperimentViewer({
                                                 />
                                             )}
                                         </div>
+                                        {sig && !sig.significant && !isControl ? (
+                                            <p
+                                                data-testid={`experiment-viewer-arm-${arm.id}-progress`}
+                                                className="mt-2 text-left! text-[11px] text-muted-foreground"
+                                            >
+                                                {sig.needs_more_data
+                                                    ? tFormat(STRINGS.advanced_chrome.exp_needs_visitors, locale, {
+                                                          n: Math.max(
+                                                              0,
+                                                              EXPERIMENT_MIN_VISITORS_PER_ARM -
+                                                                  Math.min(armStats.visitors, controlVisitors),
+                                                          ).toLocaleString("en-US"),
+                                                      })
+                                                    : t(STRINGS.advanced_chrome.exp_gap_too_small, locale)}
+                                            </p>
+                                        ) : null}
                                     </li>
                                 );
                             })}

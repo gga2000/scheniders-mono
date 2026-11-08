@@ -1700,8 +1700,10 @@ html:lang(ar) :is(.customers-page, .customer-modal-surface) :is(.uppercase, [cla
    Stitch neon + deep charcoal surfaces
    ============================================ */
 
-/* Dialog surface override — deep charcoal with subtle glow border */
-.dark [role="dialog"][class*="bg-"] {
+/* Dialog surface override — deep charcoal with subtle glow border.
+   Full-screen backdrops that carry role="dialog" (bg-black/NN) are excluded:
+   they must stay translucent so the page behind still shows. */
+.dark [role="dialog"][class*="bg-"]:not([class*="bg-black"]) {
   background: #1A1A1A !important;
   border-color: #3F3F3F !important;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(239, 255, 0, 0.08) !important;

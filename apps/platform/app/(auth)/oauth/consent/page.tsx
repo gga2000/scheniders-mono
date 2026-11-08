@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Check, ShieldCheck, X } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { hasMcpAccess } from "@/lib/mcp/caller";
+import { hasMcpAccess, isClaudeClient } from "@/lib/mcp/caller";
 import { describeConsentRequest } from "@/lib/mcp/consent-details";
 import { resolveActiveTenant } from "@/lib/auth/resolve-active-tenant";
 import { decideAuthorization } from "./actions";
@@ -79,6 +79,15 @@ export default async function OAuthConsentPage({
                 title="This request has expired"
                 titleAr="انتهت صلاحية الطلب"
                 body="Start the connection again from Claude."
+            />
+        );
+    }
+    if ("authorization_id" in details && !(await isClaudeClient(details.client.id))) {
+        return (
+            <Message
+                title="Only Claude can connect"
+                titleAr="يمكن ربط Claude فقط"
+                body="This app is not Claude, so it cannot reach your store. You can close this page."
             />
         );
     }

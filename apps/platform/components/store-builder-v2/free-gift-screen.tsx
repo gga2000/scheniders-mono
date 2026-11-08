@@ -114,7 +114,7 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                         step="1000"
                         data-testid="free-gift-threshold"
                         value={cfg.threshold_iqd ?? ""}
-                        placeholder="50000"
+                        placeholder="50,000"
                         onChange={(e) => update({ threshold_iqd: iqd(e.target.value) })}
                         className={inputCls}
                     />

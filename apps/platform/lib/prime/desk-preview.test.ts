@@ -86,20 +86,18 @@ describe("previewPrimeRun", () => {
         expect(charge).toHaveBeenCalledWith("kut_store", "BAS", 55000, undefined);
     });
 
-    it("says what to fix, leaves refunds to the Excel file, and asks Prime nothing for either", async () => {
+    it("says what to fix and asks Prime nothing for it", async () => {
         const { db } = fakeDb([
             order("o1", { phone: "0770123456" }),
             order("o2", { governorate_code: null, city: "" }),
-            order("o3", { is_return: true }),
         ]);
         const charge = vi.fn();
 
-        const rows = await previewPrimeRun(db, clientWith(charge), "t1", merchant, ["o1", "o2", "o3"]);
+        const rows = await previewPrimeRun(db, clientWith(charge), "t1", merchant, ["o1", "o2"]);
 
         expect(rows).toEqual([
             { orderId: "o1", kind: "fix", reason: "bad_phone", caseId: null },
             { orderId: "o2", kind: "fix", reason: "no_governorate", caseId: null },
-            { orderId: "o3", kind: "after_sale", caseId: null },
         ]);
         expect(charge).not.toHaveBeenCalled();
     });

@@ -1,11 +1,12 @@
 import type { createSupabaseServiceClient } from "@/lib/supabase-server";
 import { buildStatusUpdate } from "@/lib/orders/status-update";
 import { isPrimeUnreachable, PRIME_ERROR, PrimeApiError, type PrimeClient } from "@/lib/prime/client";
+import { primeReadyStatus } from "@/lib/prime/shipment-payload";
 
 type ServiceDb = ReturnType<typeof createSupabaseServiceClient>;
 
 /** Orders whose parcel can be taken back: sent, not delivered, not closed. */
-const OPEN_STATUSES = new Set<string>(["confirmed", "in_transit"]);
+const OPEN_STATUSES = new Set<string>(["confirmed", "return_pending", "in_transit"]);
 
 export type PrimePullBackResult =
     | { ok: true }
@@ -17,7 +18,8 @@ export type PrimePullBackResult =
  * Take a parcel back from Prime before Prime picks it up, keeping the order:
  * the shipment is deleted at Prime and our record of it removed, so the
  * dispatch desk sees the order as never sent and the next run hands it off
- * afresh, and the order moves back to confirmed. The status history trigger
+ * afresh, and the order moves back to where the desk picks it up (confirmed,
+ * or return_pending for a refund). The status history trigger
  * records that move under `changedByName` (a service-role write has no
  * signed-in user of its own).
  *
@@ -43,7 +45,7 @@ export async function pullBackPrimeShipment(
 
     const { data: order, error: orderError } = await db
         .from("orders")
-        .select("status")
+        .select("status, is_return")
         .eq("tenant_id", tenantId)
         .eq("id", orderId)
         .is("deleted_at", null)
@@ -63,10 +65,11 @@ export async function pullBackPrimeShipment(
     const { error: deleteError } = await db.from("prime_shipments").delete().eq("tenant_id", tenantId).eq("id", row.id);
     if (deleteError) throw new Error(deleteError.message);
 
-    if (order.status === "confirmed") return { ok: true };
+    const ready = primeReadyStatus(order);
+    if (order.status === ready) return { ok: true };
     const { data: moved, error: moveError } = await db
         .from("orders")
-        .update(buildStatusUpdate("confirmed", { changedByName }))
+        .update(buildStatusUpdate(ready, { changedByName }))
         .eq("tenant_id", tenantId)
         .eq("id", orderId)
         .eq("status", String(order.status))

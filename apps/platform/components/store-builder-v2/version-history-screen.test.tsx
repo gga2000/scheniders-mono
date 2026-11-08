@@ -173,6 +173,22 @@ describe("VersionHistoryScreen", () => {
         expect(screen.getAllByText("Auto-save").length).toBeGreaterThan(0);
     });
 
+    it("diff chips say what changed, not a bare number", () => {
+        const builder = makeBuilder();
+        const v = makeVersion({ id: "v-chip", is_named: false, diff_summary: { added: 0, changed: 1, removed: 2 } });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        const row = screen.getByTestId("version-history-row-v-chip").textContent ?? "";
+        expect(row).toContain("1 changed");
+        expect(row).toContain("2 removed");
+        expect(row).not.toContain("added");
+    });
+
     it("clicking a row selects it and shows the detail pane", () => {
         const builder = makeBuilder();
         const v = makeVersion({ id: "v-alpha", label: "Alpha", is_named: true });
@@ -257,6 +273,92 @@ describe("VersionHistoryScreen", () => {
         expect(screen.getByTestId("version-history-diff")).toBeTruthy();
         // There should be at least one "changed" row.
         expect(screen.getAllByTestId("version-history-diff-row-changed").length).toBeGreaterThan(0);
+    });
+
+    it("warns up front when restoring would stop a running test and loyalty", () => {
+        const builder = makeBuilder();
+        builder.config.experiments = [
+            { id: "e1", name: "Hero test", status: "running", primary_metric: "orders", arms: [] },
+        ];
+        builder.config.commerce = { ...builder.config.commerce, loyalty: { enabled: true } };
+        const v = makeVersion({ id: "v-old", label: "Old", is_named: true, config: emptyStoreConfigV2() });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-old"));
+        const note = screen.getByTestId("version-history-losses").textContent ?? "";
+        expect(note).toContain("Hero test");
+        fireEvent.click(screen.getByTestId("version-history-restore-button"));
+        expect(screen.getByTestId("version-history-restore-losses")).toBeTruthy();
+    });
+
+    it("diff values read as words: on/off, not true/false", () => {
+        const builder = makeBuilder();
+        builder.config.commerce = { ...builder.config.commerce, enable_whatsapp_order: true };
+        const base = emptyStoreConfigV2();
+        const v = makeVersion({
+            id: "v-bool",
+            is_named: true,
+            label: "Bool",
+            config: { ...base, commerce: { ...base.commerce, enable_whatsapp_order: false } },
+        });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-bool"));
+        const text = screen.getByTestId("version-history-diff").textContent ?? "";
+        expect(text).toContain("On");
+        expect(text).toContain("Off");
+        expect(text).not.toContain("true");
+        expect(text).not.toContain("false");
+    });
+
+    it("a reordered section list says the order changes, not «2 items → 2 items»", () => {
+        const a = "11111111-1111-4111-8111-111111111111";
+        const b = "22222222-2222-4222-8222-222222222222";
+        const sec = (id: string) => ({ id, type: "rich_text", base: {}, enabled: true });
+        const builder = makeBuilder();
+        const base = emptyStoreConfigV2();
+        builder.config.pages = [{ page_id: "home", sections: [sec(a), sec(b)] }] as unknown as typeof base.pages;
+        const v = makeVersion({
+            id: "v-order",
+            is_named: true,
+            label: "Order",
+            config: { ...base, pages: [{ page_id: "home", sections: [sec(b), sec(a)] }] } as unknown as typeof base,
+        });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-order"));
+        expect(screen.getByTestId("version-history-diff-list-shift").textContent).toContain("order changes");
+        expect(screen.getByTestId("version-history-diff").textContent ?? "").not.toContain("2 items");
+    });
+
+    it("shows no warning when nothing live would stop", () => {
+        const builder = makeBuilder();
+        builder.config.default_locale = "ar";
+        const v = makeVersion({ id: "v-calm", is_named: true, label: "Calm", config: { ...emptyStoreConfigV2(), default_locale: "en" } });
+        render(
+            <VersionHistoryScreen
+                builder={builder}
+                onClose={() => {}}
+                initialVersions={[v]}
+            />,
+        );
+        fireEvent.click(screen.getByTestId("version-history-row-v-calm"));
+        expect(screen.queryByTestId("version-history-losses")).toBeNull();
     });
 
     it("fetches a version's config on demand for the diff (EC28 lazy load)", async () => {

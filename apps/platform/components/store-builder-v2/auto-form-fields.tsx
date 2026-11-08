@@ -431,7 +431,7 @@ export function FieldHeader({ label, onClear, testIdBase }: FieldHeaderProps): R
                     onClick={onClear}
                     className="text-[11px] text-muted-foreground hover:text-foreground"
                 >
-                    {tx(STRINGS.auto_form.clear, locale)}
+                    {tx(STRINGS.auto_form.use_default, locale)}
                 </button>
             )}
         </div>
@@ -900,7 +900,8 @@ export function EnumControl(p: EnumControlProps): ReactElement {
     const isSpatial = p.options.includes("left") && p.options.includes("right");
     return (
         <div className="space-y-1.5">
-            <FieldHeader label={p.label} onClear={p.onClear} testIdBase={p.testIdBase} />
+            {/* No header «مسح» link: the «الافتراضي» choice already clears. */}
+            <FieldHeader label={p.label} testIdBase={p.testIdBase} />
             {useSegmented ? (
                 <div
                     role="radiogroup"

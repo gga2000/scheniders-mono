@@ -10,6 +10,7 @@ import FAQSection from "@/components/sections/FAQSection";
 import PoliciesSection from "@/components/sections/PoliciesSection";
 import type { TemplateHomeProps } from "../registry";
 import type { SectionConfig } from "@scheniders/shared";
+import { AboutBody } from "@/components/storefront/AboutBody";
 
 const DEFAULT_SECTIONS_ORDER = ["hero", "products", "about"];
 
@@ -65,7 +66,7 @@ export default function BeautyHome({ tenant, products, categories }: TemplateHom
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-serif text-zinc-900 mb-4">{about.title || "من نحن"}</h2>
           <div className="w-12 h-0.5 bg-rose-400 mx-auto mb-6" />
-          <div className="text-zinc-600 leading-relaxed text-lg prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: about.body || "" }} />
+          <AboutBody className="text-zinc-600 leading-relaxed text-lg prose prose-sm max-w-none" body={about.body} />
         </div>
       </section>
     ) : null,
