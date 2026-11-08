@@ -36,10 +36,11 @@ export function ProductPricingSection({
                 {!formData.is_supply && (
                     <>
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">
+                            <label htmlFor="product-price" className="block text-sm font-medium text-foreground mb-2">
                                 {t("products.ed.price")} <span className="text-rose-500">*</span>
                             </label>
                             <IqdInput
+                                id="product-price"
                                 value={formData.price || 0}
                                 onChange={(v) => updateField("price", v)}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
@@ -47,10 +48,11 @@ export function ProductPricingSection({
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-foreground mb-2">
+                            <label htmlFor="product-compare-at" className="block text-sm font-medium text-foreground mb-2">
                                 {t("products.ed.compareAt")}
                             </label>
                             <IqdInput
+                                id="product-compare-at"
                                 value={formData.compare_at_price || 0}
                                 onChange={(v) => updateField("compare_at_price", v)}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"
@@ -63,11 +65,12 @@ export function ProductPricingSection({
 
                 {showCost && (
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-2">
+                    <label htmlFor="product-cost" className="block text-sm font-medium text-foreground mb-2">
                         {t("products.ed.cost")}
                         {formData.is_supply && <span className="text-rose-500 ms-1">*</span>}
                     </label>
                     <IqdInput
+                        id="product-cost"
                                 value={formData.cost || 0}
                                 onChange={(v) => updateField("cost", v)}
                                 className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--card-border)] rounded-xl text-foreground placeholder:text-[var(--foreground-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--pastel-yellow)] transition-all"

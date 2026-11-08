@@ -119,7 +119,7 @@ function useCustomerDialogData(phone: string | null, limit = 60) {
                     .select("avg_basket, delivered_count, community_avg_rating, community_rating_count, score_breakdown, first_order_date")
                     .eq("tenant_id", tenantId)
                     .eq("phone", normalized).maybeSingle(),
-                supabase.from("customer_tag_assignments").select("tag:customer_tags(name)").eq("tenant_id", tenantId).in("customer_phone", variants),
+                supabase.from("customer_tag_assignments").select("tag:customer_tags!customer_tag_assignments_tag_same_store_fkey(name)").eq("tenant_id", tenantId).in("customer_phone", variants),
                 supabase.from("customer_notes").select("note, created_at").eq("tenant_id", tenantId).in("customer_phone", variants).order("created_at", { ascending: false }),
             ]);
             for (const res of [ordersRes, reliabilityRes, trustRes, tagRes, noteRes]) {

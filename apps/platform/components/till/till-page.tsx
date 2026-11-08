@@ -329,7 +329,8 @@ export function TillPage() {
         );
     };
 
-    if (shops.isPending || members.isPending) {
+    // Till rules carry the cashier's discount limit; until they load, "no limit" would be a guess, so the till waits.
+    if (shops.isPending || members.isPending || rules.isPending) {
         return <div className="h-full animate-pulse bg-[var(--card-border)]/20" aria-busy="true" />;
     }
 

@@ -113,6 +113,25 @@ describe("matchOrdersToCampaigns", () => {
         expect(r.unmatched).toBe(3);
     });
 
+    it("matches any carried Meta id: a campaign id in the ad slot, or an ad / ad set id through linkedIds", () => {
+        // Real case (8 Nov): old ad links put the campaign id in utm_id (adId),
+        // the ad set id in utm_term and the ad name in utm_campaign.
+        const r = matchOrdersToCampaigns(campaigns, [
+            ad({ adId: "11", term: "900", campaign: "‎انفوي‎ - Copy" }),
+            ad({ adId: "700", campaign: "unknown ad name" }),
+            ad({ term: "900" }),
+            ad({ adId: "999" }),
+        ], { "700": "22", "900": "22" });
+        expect(r.byCampaign.get("11")).toBe(1);
+        expect(r.byCampaign.get("22")).toBe(2);
+        expect(r.unmatched).toBe(1);
+    });
+
+    it("ignores the invisible direction marks Meta keeps around Arabic names", () => {
+        const r = matchOrdersToCampaigns([{ campaignId: "5", campaignName: "انفوي - Copy" }], [ad({ campaign: "\u200eانفوي\u200e - Copy" })]);
+        expect(r.byCampaign.get("5")).toBe(1);
+    });
+
     it("never guesses between two campaigns that share a name", () => {
         const dup = [
             { campaignId: "1", campaignName: "Sale" },

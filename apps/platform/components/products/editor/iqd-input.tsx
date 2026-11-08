@@ -7,6 +7,7 @@ interface IqdInputProps {
     value: number;
     onChange: (value: number) => void;
     className?: string;
+    id?: string;
     "aria-label"?: string;
 }
 
@@ -14,11 +15,12 @@ interface IqdInputProps {
  * Whole dinars. Reads "95,000" while not being edited and plain digits while
  * typing, so a long price is easy to check at a glance.
  */
-export function IqdInput({ value, onChange, className, "aria-label": ariaLabel }: IqdInputProps) {
+export function IqdInput({ value, onChange, className, id, "aria-label": ariaLabel }: IqdInputProps) {
     const [focused, setFocused] = useState(false);
     const shown = value ? (focused ? String(value) : formatCount(value)) : "";
     return (
         <input
+            id={id}
             type="text"
             inputMode="numeric"
             dir="ltr"

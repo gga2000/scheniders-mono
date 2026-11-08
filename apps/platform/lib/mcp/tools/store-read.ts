@@ -194,7 +194,7 @@ export function registerStoreReadTools(server: McpServer): void {
                 caller.db.from("blacklist").select("reason").eq("tenant_id", caller.tenantId).like("phone", `%${last10}`).limit(1),
                 caller.db
                     .from("customer_tag_assignments")
-                    .select("tag:customer_tags(name)")
+                    .select("tag:customer_tags!customer_tag_assignments_tag_same_store_fkey(name)")
                     .eq("tenant_id", caller.tenantId)
                     .in("customer_phone", variants),
                 caller.db
