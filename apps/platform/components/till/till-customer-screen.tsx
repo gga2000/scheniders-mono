@@ -131,6 +131,7 @@ export function TillCustomerScreen() {
                         <p className={cn("font-bold tabular-nums tracking-tight", formatIqd(state.due).length > 7 ? "text-6xl" : "text-7xl")}>
                             {formatIqd(state.due)} <span className="text-2xl font-semibold text-white/60">{t("till.iqd")}</span>
                         </p>
+                        {state.saved > 0 && <Saved text={t("till.customer.saved", { amount: formatIqd(state.saved) })} />}
                         {(storeName || shopName) && (
                             <p className="text-xl text-white/60" dir="auto">{t("till.customer.payTo", { name: [storeName, shopName].filter(Boolean).join(" · ") })}</p>
                         )}
