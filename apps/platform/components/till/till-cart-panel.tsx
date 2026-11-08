@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { AlertTriangle, Bookmark, FlaskConical, Minus, Package, Pencil, Plus, ScanBarcode, ShieldCheck, Trash2, UserRound } from "lucide-react";
 import { normalizeIraqiMobile } from "@scheniders/shared";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { INK_BUTTON } from "./till-colors";
 import { TillManagerDialog } from "./till-manager-dialog";
 import { APPROVAL_MS, approvalCovers, type Ticket } from "./till-ticket";
+import { useShowChangedLine } from "./use-show-changed-line";
 
 interface Props {
     tickets: Ticket[];
@@ -53,6 +54,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
     const [discountText, setDiscountText] = useState("");
     const [editing, setEditing] = useState<string | null>(null);
     const [askManager, setAskManager] = useState(false);
+    const listRef = useRef<HTMLUListElement>(null);
+    const shownLines = useMemo(() => ticket.cart.map((l) => ({ id: l.key, quantity: l.quantity })), [ticket.cart]);
+    useShowChangedLine(listRef, shownLines, ticket.id);
 
     const normalPhone = ticket.phone.trim() ? normalizeIraqiMobile(ticket.phone) : null;
     const phoneBad = ticket.phone.trim() !== "" && !normalPhone;
@@ -185,7 +189,7 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                 )}
             </div>
 
-            <ul id={CART_TARGET_ID} className="min-h-0 flex-1 overflow-y-auto">
+            <ul ref={listRef} id={CART_TARGET_ID} className="min-h-0 flex-1 overflow-y-auto">
                 {ticket.cart.length === 0 ? (
                     <li className="flex h-full flex-col items-center justify-center gap-3 px-6 py-12 text-center">
                         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--card-border)]/40 text-muted">
@@ -277,8 +281,9 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                                     onBlur={() => setDiscountText("")}
                                     inputMode="numeric"
                                     className={cn(
-                                        "h-12 w-32 rounded-2xl border border-stone-400 dark:border-white/25 bg-transparent px-3 text-right tabular-nums outline-none focus:border-[var(--ink)]",
-                                        discountTooBig && "border-red-500",
+                                        "h-12 w-32 rounded-2xl border bg-transparent px-3 text-right tabular-nums outline-none",
+                                        // Over the limit stays red while the cashier is still typing the amount.
+                                        discountTooBig ? "border-red-500 focus:border-red-600" : "border-stone-400 focus:border-[var(--ink)] dark:border-white/25",
                                     )}
                                 />
                             </label>
@@ -292,11 +297,11 @@ export function TillCartPanel({ tickets, activeId, onSwitch, onNew, onChange, on
                             </button>
                         )}
                         {approval && approved && overLimit ? (
-                            <span className="flex items-center gap-1.5 rounded-xl bg-[#B8E8E0] px-3 py-1.5 text-xs font-semibold text-[#1E1E1E]" dir="auto">
+                            <span className="flex items-center gap-1.5 rounded-xl bg-[#B8E8E0] px-3 py-1.5 text-sm font-semibold text-[#1E1E1E]" dir="auto">
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                                 <span>
                                     {t("till.manager.allowedFor", { name: approval.managerName, amount: formatIqd(approval.maxOff) })}{" "}
-                                    <span className="whitespace-nowrap font-normal tabular-nums">· {clock(Math.min(APPROVAL_MS, approval.expiresAt - now))}</span>
+                                    <span className="whitespace-nowrap font-bold tabular-nums">· {clock(Math.min(APPROVAL_MS, approval.expiresAt - now))}</span>
                                 </span>
                             </span>
                         ) : discountTooBig ? null : (
