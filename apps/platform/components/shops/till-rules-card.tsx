@@ -12,12 +12,13 @@ const CARD = "rounded-[24px] border border-[var(--card-border)] bg-[var(--card-b
 const FIELD =
     "h-12 w-28 rounded-2xl border border-[var(--card-border)] bg-transparent px-4 text-right text-sm tabular-nums text-foreground outline-none focus:border-[var(--ink)] dark:focus:border-[#EFFF00]";
 
-type NumberRule = "cashier_discount_pct" | "pay_later_default_limit" | "commission_pct" | "return_days" | "lock_after_minutes";
+type NumberRule = "cashier_discount_pct" | "pay_later_default_limit" | "payout_pin_above" | "commission_pct" | "return_days" | "lock_after_minutes";
 type Draft = Record<NumberRule, string> & Pick<TillRules, "pin_for_refunds" | "whatsapp_receipt_default">;
 
 const NUMBER_RULES: { key: NumberRule; unit: string }[] = [
     { key: "cashier_discount_pct", unit: "%" },
     { key: "pay_later_default_limit", unit: "IQD" },
+    { key: "payout_pin_above", unit: "IQD" },
     { key: "commission_pct", unit: "%" },
     { key: "return_days", unit: "days" },
     { key: "lock_after_minutes", unit: "min" },
@@ -27,6 +28,7 @@ function toDraft(r: TillRules): Draft {
     return {
         cashier_discount_pct: r.cashier_discount_pct === null ? "" : String(r.cashier_discount_pct),
         pay_later_default_limit: r.pay_later_default_limit.toLocaleString("en-US"),
+        payout_pin_above: r.payout_pin_above.toLocaleString("en-US"),
         commission_pct: String(r.commission_pct),
         return_days: String(r.return_days),
         lock_after_minutes: String(r.lock_after_minutes),
@@ -75,6 +77,7 @@ function RulesForm({ initial }: { initial: TillRules }) {
             ...draft,
             cashier_discount_pct: draft.cashier_discount_pct.trim() === "" ? null : toNumber(draft.cashier_discount_pct),
             pay_later_default_limit: toNumber(draft.pay_later_default_limit),
+            payout_pin_above: toNumber(draft.payout_pin_above),
             commission_pct: toNumber(draft.commission_pct),
             return_days: toNumber(draft.return_days),
             lock_after_minutes: toNumber(draft.lock_after_minutes),

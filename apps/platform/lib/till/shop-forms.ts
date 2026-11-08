@@ -59,6 +59,8 @@ export const tillRulesSchema = z.object({
     lock_after_minutes: wholeNumber(1, 120),
     pin_for_refunds: z.boolean(),
     whatsapp_receipt_default: z.boolean(),
+    /** A pay-out from the drawer above this needs a manager's PIN; 0 means every pay-out does (Ali, option B). */
+    payout_pin_above: wholeNumber(0, 10_000_000),
 });
 
 export type TillRules = z.infer<typeof tillRulesSchema>;
@@ -72,6 +74,7 @@ export const DEFAULT_TILL_RULES: TillRules = {
     lock_after_minutes: 2,
     pin_for_refunds: true,
     whatsapp_receipt_default: true,
+    payout_pin_above: 25_000,
 };
 
 export const tillPinSchema = z.string().regex(/^\d{4}$/);
