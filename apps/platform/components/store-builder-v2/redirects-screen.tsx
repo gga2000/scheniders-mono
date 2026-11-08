@@ -104,7 +104,7 @@ export function RedirectsScreen({
                 }
             />
 
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5 *:max-w-3xl">
 
                 {redirects.length === 0 ? (
                     <button
@@ -131,7 +131,9 @@ export function RedirectsScreen({
                                             : "border-(--card-border)",
                                     )}
                                 >
-                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                                        <label className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
+                                        {t(STRINGS.advanced_chrome.redir_col_from, locale)}
                                         <input
                                             type="text"
                                             dir="ltr"
@@ -141,12 +143,15 @@ export function RedirectsScreen({
                                                 updateRow(i, { from: e.target.value })
                                             }
                                             placeholder="/products/old-slug"
-                                            className="min-w-0 flex-1 rounded-lg border border-(--card-border) bg-background px-3 py-2 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                            className="text-foreground placeholder:text-muted-foreground w-full min-w-0 rounded-lg border border-(--card-border) bg-background px-3 py-2 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                                         />
+                                        </label>
                                         <ArrowRight
-                                            className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block"
+                                            className="mb-2.5 hidden h-4 w-4 shrink-0 text-muted-foreground sm:block"
                                             aria-hidden="true"
                                         />
+                                        <label className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
+                                        {t(STRINGS.advanced_chrome.redir_col_to, locale)}
                                         <input
                                             type="text"
                                             dir="ltr"
@@ -156,9 +161,10 @@ export function RedirectsScreen({
                                                 updateRow(i, { to: e.target.value })
                                             }
                                             placeholder="/products/new-slug"
-                                            className="min-w-0 flex-1 rounded-lg border border-(--card-border) bg-background px-3 py-2 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                            className="text-foreground placeholder:text-muted-foreground w-full min-w-0 rounded-lg border border-(--card-border) bg-background px-3 py-2 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                                         />
-                                        <div className="flex shrink-0 items-center gap-2">
+                                        </label>
+                                        <div className="flex h-[38px] shrink-0 items-center gap-2">
                                             <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
                                                 <input
                                                     type="checkbox"
@@ -198,6 +204,11 @@ export function RedirectsScreen({
                         })}
                     </ul>
                 )}
+                {redirects.length > 0 ? (
+                    <p className="max-w-prose text-left! text-xs text-muted-foreground">
+                        {t(STRINGS.advanced_chrome.redir_permanent_hint, locale)}
+                    </p>
+                ) : null}
             </div>
         </div>
     );

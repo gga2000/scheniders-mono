@@ -89,7 +89,7 @@ export function DiscountsScreen({
                 }
             />
 
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5 *:max-w-3xl">
 
                 {discounts.length === 0 ? (
                     <button

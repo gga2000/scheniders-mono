@@ -114,7 +114,7 @@ export function NavBuilderScreen({
                 }
             />
 
-            <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-5 *:max-w-3xl">
 
                 {links.length === 0 ? (
                     <button

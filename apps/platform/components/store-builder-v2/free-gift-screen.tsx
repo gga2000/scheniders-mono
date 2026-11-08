@@ -67,7 +67,7 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                 backTestId="free-gift-close"
             />
 
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-2xl">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-3xl">
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-sm font-medium text-foreground">{tx(STRINGS.free_gift.enable, locale)}</span>

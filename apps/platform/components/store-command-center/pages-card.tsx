@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { LayoutGrid, ArrowRight } from "lucide-react";
 import type { LocaleCode, PageId, StoreConfigV2 } from "@scheniders/shared";
-import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
+import { STRINGS, t, sectionCount, tFormat, type EditorString } from "@/lib/editor-i18n";
 
 interface PagesCardProps {
     config: StoreConfigV2 | null;
@@ -68,13 +68,7 @@ export function PagesCard({ config, locale }: PagesCardProps) {
                                             : page.page_id}
                                     </span>
                                     <span className={page.sections.length === 0 ? "block text-[11px] text-amber-600" : "block text-[11px] text-muted-foreground"}>
-                                        {tFormat(
-                                            page.sections.length === 1
-                                                ? STRINGS.command_center.pages_section_count_one
-                                                : STRINGS.command_center.pages_section_count_other,
-                                            locale,
-                                            { n: page.sections.length },
-                                        )}
+                                        {sectionCount(page.sections.length, locale)}
                                     </span>
                                 </span>
                                 <ArrowRight

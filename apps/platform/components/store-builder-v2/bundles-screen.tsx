@@ -99,7 +99,7 @@ export function BundlesScreen({
                 }
             />
 
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5 *:max-w-3xl">
 
                 {bundles.length === 0 ? (
                     <button
@@ -122,7 +122,9 @@ export function BundlesScreen({
                                     b.enabled === false && "opacity-60",
                                 )}
                             >
-                                <div className="flex flex-wrap items-center gap-2.5">
+                                <div className="flex flex-wrap items-end gap-2.5">
+                                    <label className="flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
+                                    {t(STRINGS.advanced_chrome.disc_kind_label, locale)}
                                     <select
                                         data-testid={`bundle-kind-${i}`}
                                         value={b.kind}
@@ -136,7 +138,8 @@ export function BundlesScreen({
                                         <option value="percent">{t(STRINGS.advanced_chrome.bun_kind_percent, locale)}</option>
                                         <option value="fixed">{t(STRINGS.advanced_chrome.bun_kind_fixed, locale)}</option>
                                     </select>
-                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    </label>
+                                    <label className="flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                         {t(STRINGS.advanced_chrome.bun_value, locale)}
                                         <input
                                             type="number"
@@ -152,7 +155,7 @@ export function BundlesScreen({
                                     </label>
                                     {/* A bundle with fewer than two products never applies, so it
                                         cannot read as switched on until it has them. */}
-                                    <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground has-disabled:opacity-50">
+                                    <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground has-disabled:opacity-50">
                                         <input
                                             type="checkbox"
                                             data-testid={`bundle-enabled-${i}`}

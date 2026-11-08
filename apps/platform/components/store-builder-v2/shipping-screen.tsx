@@ -242,7 +242,7 @@ export function ShippingScreen({
                 backTestId="shipping-close"
             />
 
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-5 *:max-w-3xl">
 
                 {mode === "unset" && (
                     <p
@@ -430,7 +430,7 @@ export function ShippingScreen({
                         {t(s.ship_preview_heading, locale)}
                     </h3>
                     {preview.every((row) => row.baghdad === 0 && row.dearest === 0) ? (
-                        <p data-testid="shipping-preview-free-everywhere" className="text-sm font-semibold text-foreground">
+                        <p data-testid="shipping-preview-free-everywhere" className="text-left! text-sm font-semibold text-foreground">
                             {t(s.ship_preview_free_everywhere, locale)}
                         </p>
                     ) : (

@@ -283,6 +283,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
                             </div>
                             <input
                                 type="text"
+                                dir="auto"
                                 value={identity.name ?? ""}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder={tChrome(STRINGS.brand_kit.store_name_placeholder, chromeLocale)}

@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { resolveI18n } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
-import { STRINGS, t, tFormat, type EditorString } from "@/lib/editor-i18n";
+import { STRINGS, t, sectionCount, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ScreenHeader } from "./screen-header";
 
@@ -147,7 +147,7 @@ export function CustomPagesScreen({
                 backTestId="custom-pages-close"
             />
 
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5 *:max-w-3xl">
 
                 {/* New page */}
                 <div className="flex items-center gap-2">
@@ -294,7 +294,7 @@ export function CustomPagesScreen({
                                         </p>
                                     )}
                                     <p className="mt-1 text-xs text-muted-foreground">
-                                        {tFormat(C.section_count, ui, { n: p.sections.length })}
+                                        {sectionCount(p.sections.length, ui)}
                                     </p>
 
                                     {/* Guide details. A page is an ordinary page until
