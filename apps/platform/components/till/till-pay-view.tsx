@@ -128,7 +128,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             }}
                             className={cn(
                                 "h-14 rounded-2xl border text-base font-semibold",
-                                method === m ? `border-transparent ${INK_BUTTON}` : "border-[var(--card-border)] bg-[var(--card-bg)] text-foreground",
+                                method === m ? `border-transparent ${INK_BUTTON}` : "border-stone-400 dark:border-white/25 bg-[var(--card-bg)] text-foreground",
                             )}
                         >
                             {t(`till.pay.method.${m}`)}
@@ -162,7 +162,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                             type="button"
                                             onClick={() => untapNote(note)}
                                             aria-label={t("till.pay.takeOne", { note: formatIqd(note) })}
-                                            className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full bg-[var(--card-border)]/60 text-foreground"
+                                            className="absolute -right-2 -top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--card-bg)] text-foreground shadow-sm ring-1 ring-stone-400 dark:ring-white/25"
                                         >
                                             <Minus className="h-4 w-4" aria-hidden="true" />
                                         </button>
@@ -194,7 +194,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                                 inputMode="numeric"
                                 className="h-14 min-w-0 rounded-2xl border border-stone-400 dark:border-white/25 bg-[var(--card-bg)] px-4 text-center text-base font-semibold tabular-nums text-foreground outline-none placeholder:text-foreground focus:border-[var(--ink)]"
                             />
-                            <button type="button" onClick={clear} className="h-14 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] text-base font-semibold text-foreground">
+                            <button type="button" onClick={clear} className="h-14 rounded-2xl border border-stone-400 dark:border-white/25 bg-[var(--card-bg)] text-base font-semibold text-foreground">
                                 {t("till.pay.clear")}
                             </button>
                         </div>
@@ -259,7 +259,7 @@ export function TillPayView({ ticket, total, pending, print, onPrint, hasPhone, 
                             <span dir="auto">{t("till.pay.noticeIn", { method: t(`till.pay.method.${method}`), amount: formatIqd(due) })}</span>
                         </button>
                         <div className="flex items-center gap-3">
-                            <div role="radiogroup" className="flex rounded-2xl border border-[var(--card-border)] p-1">
+                            <div role="radiogroup" className="flex rounded-2xl border border-stone-400 dark:border-white/25 p-1">
                                 {[
                                     { all: true, label: t("till.pay.allOfIt") },
                                     { all: false, label: t("till.pay.partOnly") },
