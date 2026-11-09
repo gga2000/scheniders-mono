@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
-import { ScreenHeader } from "./screen-header";
+import { ScreenHeader, settingSwitchCls } from "./screen-header";
 import { shippingModeOf, type ShippingMode } from "@/lib/shipping-mode";
 
 export interface ShippingScreenProps {
@@ -407,6 +407,7 @@ export function ShippingScreen({
                     </h3>
                     <label className="flex items-start gap-2.5 text-sm text-foreground">
                         <Switch
+                            className={settingSwitchCls}
                             data-testid="shipping-inspect-before-paying"
                             checked={inspectBeforePaying}
                             onCheckedChange={(on) => setInspectBeforePaying(on)}

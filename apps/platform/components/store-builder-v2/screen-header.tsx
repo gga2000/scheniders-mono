@@ -20,6 +20,11 @@ import { SETTING_TINT, getSettingLabel, settingIcon, type SettingsSectionId } fr
 export const screenHeaderActionCls =
     "inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)";
 
+/** On/off switch in settings screens: the shared Switch's off track is too
+ *  faint on a white card, so settings give it a visible track (≥3:1). */
+export const settingSwitchCls =
+    "data-[state=unchecked]:bg-foreground/50 disabled:data-[state=unchecked]:bg-foreground/20";
+
 /** Quiet secondary action style (e.g. "Refresh"). */
 export const screenHeaderQuietCls =
     "inline-flex h-8 items-center gap-1 rounded-md px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-black/5 hover:text-foreground";
