@@ -30,6 +30,7 @@ const ROLE_KEYS: Record<string, string> = {
     admin: "team.roster.role.admin",
     employee: "team.roster.role.employee",
     viewer: "team.roster.role.viewer",
+    super_admin: "pwreset.role.superAdmin",
 };
 
 function roleLabel(role: string | null, t: (key: string) => string): string | null {
