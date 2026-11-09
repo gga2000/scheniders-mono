@@ -21,9 +21,10 @@ export const screenHeaderActionCls =
     "inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-(--card-shadow) transition-all duration-150 hover:-translate-y-px hover:shadow-(--card-shadow-hover)";
 
 /** On/off switch in settings screens: the shared Switch's off track is too
- *  faint on a white card, so settings give it a visible track (≥3:1). */
+ *  faint on a white card, so settings give it a visible track (≥3:1).
+ *  Disabled dims once, here; the row label must not dim it again. */
 export const settingSwitchCls =
-    "data-[state=unchecked]:bg-foreground/50 disabled:data-[state=unchecked]:bg-foreground/20";
+    "data-[state=unchecked]:bg-foreground/50 disabled:opacity-60";
 
 /** Quiet secondary action style (e.g. "Refresh"). */
 export const screenHeaderQuietCls =

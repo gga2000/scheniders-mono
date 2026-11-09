@@ -405,24 +405,24 @@ export function ShippingScreen({
                     <h3 className="mb-2 text-left! text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         {t(s.ship_door_heading, locale)}
                     </h3>
-                    <label className="flex items-start gap-2.5 text-sm text-foreground">
+                    <label className="flex items-center justify-between gap-3 text-sm text-foreground">
+                        <span className="min-w-0 text-left!">
+                            {t(s.ship_door_label, locale)}
+                            <span className="block text-xs text-muted-foreground">
+                                {t(s.ship_door_help, locale)}
+                            </span>
+                        </span>
                         <Switch
                             className={settingSwitchCls}
                             data-testid="shipping-inspect-before-paying"
                             checked={inspectBeforePaying}
                             onCheckedChange={(on) => setInspectBeforePaying(on)}
                         />
-                        <span className="text-left!">
-                            {t(s.ship_door_label, locale)}
-                            <span className="block text-xs text-muted-foreground">
-                                {t(s.ship_door_help, locale)}
-                            </span>
-                        </span>
                     </label>
                     {!inspectBeforePaying && (
                         <p
                             data-testid="shipping-inspect-off-note"
-                            className="text-left! mt-2 ps-6.5 text-xs text-muted-foreground"
+                            className="text-left! mt-2 text-xs text-muted-foreground"
                         >
                             {t(s.ship_door_off_note, locale)}
                         </p>
