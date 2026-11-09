@@ -3,6 +3,7 @@ import { createSupabaseServiceClient } from '@/lib/supabase-server';
 import { generateSlug, ensureUniqueSlug } from '@/lib/tenant';
 import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { reportOrderError } from '@/lib/order-telemetry';
+import { verifyTurnstile } from '@/lib/turnstile';
 
 /** Every self-serve signup starts a 14-day trial on this plan. The plan is never taken from the request. */
 const TRIAL_PLAN = 'growth';
@@ -26,7 +27,8 @@ function clientIp(request: NextRequest): string {
 
 export async function POST(request: NextRequest) {
     try {
-        const limit = await consumeRateLimit(`signup:${clientIp(request)}`, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS);
+        const ip = clientIp(request);
+        const limit = await consumeRateLimit(`signup:${ip}`, SIGNUP_LIMIT, SIGNUP_WINDOW_SECONDS);
         if (limit.error) {
             // Fails open so signup keeps working, but never silently.
             reportOrderError(new Error(`Rate limiter unavailable: ${limit.error}`), { operation: 'signup-rate-limit' });
@@ -39,7 +41,27 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { email, password, business_name, contact_phone, city } = body;
+        const { email, password, business_name, contact_phone, city, captcha_token } = body;
+
+        // This route creates the account with the service role, so Supabase's
+        // own CAPTCHA never sees it: check the Turnstile token here first.
+        const captcha = await verifyTurnstile(
+            typeof captcha_token === 'string' ? captcha_token : undefined,
+            ip === 'unknown' ? null : ip,
+        );
+        if (!captcha.ok) {
+            if (captcha.reason === 'unavailable') {
+                reportOrderError(new Error('Turnstile siteverify unavailable'), { operation: 'signup-captcha' });
+                return NextResponse.json(
+                    { error: 'Security check unavailable. Try again in a minute.', code: 'captcha_unavailable' },
+                    { status: 503 },
+                );
+            }
+            return NextResponse.json(
+                { error: 'Security check failed. Try again.', code: 'captcha_failed' },
+                { status: 403 },
+            );
+        }
         const plan = TRIAL_PLAN;
 
         // Validate required fields

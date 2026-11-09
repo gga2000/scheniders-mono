@@ -17,12 +17,46 @@ export function useAuthCaptcha() {
     const ref = useRef<TurnstileHandle>(null);
     const [token, setToken] = useState<string | null>(null);
     const [failed, setFailed] = useState(false);
+    const waiters = useRef<((token: string | undefined) => void)[]>([]);
+    const settle = useCallback((value: string | undefined) => {
+        for (const resolve of waiters.current.splice(0)) resolve(value);
+    }, []);
     const reset = useCallback(() => ref.current?.reset(), []);
     const onToken = useCallback((next: string | null) => {
         setToken(next);
-        if (next) setFailed(false);
-    }, []);
-    const onFailure = useCallback(() => setFailed(true), []);
+        if (next) {
+            setFailed(false);
+            settle(next);
+        }
+    }, [settle]);
+    const onFailure = useCallback(() => {
+        setFailed(true);
+        settle(undefined);
+    }, [settle]);
+    /**
+     * Throws away the current token and waits for the next one. For flows that
+     * need two checks in a row (sign-up: our server, then Supabase sign-in).
+     * Resolves undefined when no CAPTCHA is configured, the check fails, or no
+     * token arrives within `timeoutMs`.
+     */
+    const fresh = useCallback(
+        (timeoutMs = 20_000): Promise<string | undefined> => {
+            if (SITE_KEY.length === 0) return Promise.resolve(undefined);
+            return new Promise((resolve) => {
+                const timer = setTimeout(() => {
+                    waiters.current = waiters.current.filter((w) => w !== done);
+                    resolve(undefined);
+                }, timeoutMs);
+                const done = (value: string | undefined) => {
+                    clearTimeout(timer);
+                    resolve(value);
+                };
+                waiters.current.push(done);
+                ref.current?.reset();
+            });
+        },
+        [],
+    );
     return {
         enabled: SITE_KEY.length > 0,
         /** True when the form may submit: no CAPTCHA configured, or a token is ready. */
@@ -30,6 +64,7 @@ export function useAuthCaptcha() {
         token: token ?? undefined,
         failed,
         reset,
+        fresh,
         ref,
         onToken,
         onFailure,
