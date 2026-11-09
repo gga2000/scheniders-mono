@@ -407,6 +407,7 @@ export function HealthChecklistScreen(
         >
             {/* Header */}
             <ScreenHeader
+                wide
                 setting="health"
                 subtitle={tFormat(STRINGS.health.subtitle, locale, { tenant: tenantName })}
                 onBack={onClose}
