@@ -217,7 +217,7 @@ export function LoyaltyScreen({
                 {summary ? (
                     <p
                         data-testid="loyalty-summary"
-                        className="border-l-2 border-primary/60 py-1 pl-3 text-left! text-sm text-foreground"
+                        className={cn("border-l-2 border-primary/60 py-1 pl-3 text-left! text-sm text-foreground", !enabled && "opacity-60")}
                     >
                         {summary}
                     </p>

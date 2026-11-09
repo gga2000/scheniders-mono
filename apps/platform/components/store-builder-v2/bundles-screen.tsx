@@ -156,7 +156,7 @@ export function BundlesScreen({
                                     </label>
                                     {/* A bundle with fewer than two products never applies, so it
                                         cannot read as switched on until it has them. */}
-                                    <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground has-disabled:opacity-50">
+                                    <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground">
                                         <Switch
                                             className={settingSwitchCls}
                                             data-testid={`bundle-enabled-${i}`}
