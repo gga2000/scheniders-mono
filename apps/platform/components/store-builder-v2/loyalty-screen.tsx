@@ -17,7 +17,7 @@ import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { cn } from "@/lib/utils";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
-import { ScreenHeader } from "./screen-header";
+import { ScreenHeader, settingSwitchCls } from "./screen-header";
 
 export interface LoyaltyScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -177,6 +177,7 @@ export function LoyaltyScreen({
                         {t(L.enable, locale)}
                     </span>
                     <Switch
+                        className={settingSwitchCls}
                         data-testid="loyalty-enabled"
                         checked={enabled}
                         onCheckedChange={(on) => update({ enabled: on })}
@@ -186,7 +187,11 @@ export function LoyaltyScreen({
                 {rows.map((row) => (
                     <label
                         key={row.key}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3"
+                        className={cn(
+                            "flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3",
+                            // Same rule as referrals: editable, visibly not in effect while off.
+                            !enabled && "opacity-60",
+                        )}
                     >
                         <span className="min-w-0 text-left! text-sm text-foreground">
                             {row.label}
@@ -230,6 +235,7 @@ export function LoyaltyScreen({
                     <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                         <span className="text-left! text-sm font-medium text-foreground">{t(L.referral_enable, locale)}</span>
                         <Switch
+                            className={settingSwitchCls}
                             data-testid="referral-enabled"
                             checked={referral.enabled === true}
                             onCheckedChange={(on) => updateReferral({ enabled: on })}

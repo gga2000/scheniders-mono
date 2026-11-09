@@ -24,7 +24,7 @@ import { resolveI18n } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, sectionCount, tFormat, type EditorString } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
-import { ScreenHeader } from "./screen-header";
+import { ScreenHeader, settingSwitchCls } from "./screen-header";
 
 export interface CustomPagesScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -223,6 +223,7 @@ export function CustomPagesScreen({
                                         />
                                         <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                                             <Switch
+                                                className={settingSwitchCls}
                                                 data-testid={`custom-page-hidden-${i}`}
                                                 checked={p.hidden === true}
                                                 onCheckedChange={(on) => updatePage(i, { hidden: on })}

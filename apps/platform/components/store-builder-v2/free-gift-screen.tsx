@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t as tx } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ProductPickerField } from "./resource-picker";
-import { ScreenHeader } from "./screen-header";
+import { ScreenHeader, settingSwitchCls } from "./screen-header";
 
 export interface FreeGiftScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -74,6 +74,7 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-left! text-sm font-medium text-foreground">{tx(STRINGS.free_gift.enable, locale)}</span>
                     <Switch
+                        className={settingSwitchCls}
                         data-testid="free-gift-enabled"
                         checked={enabled}
                         onCheckedChange={(on) => update({ enabled: on })}

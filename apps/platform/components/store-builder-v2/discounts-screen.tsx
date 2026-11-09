@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
-import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
+import { ScreenHeader, screenHeaderActionCls, settingSwitchCls } from "./screen-header";
 
 export interface DiscountsScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -198,13 +198,14 @@ export function DiscountsScreen({
                                     )}
                                     <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground">
                                         <Switch
+                                            className={settingSwitchCls}
                                             data-testid={`discount-enabled-${i}`}
                                             checked={d.enabled !== false}
                                             onCheckedChange={(on) =>
                                                 updateRow(i, { enabled: on })
                                             }
                                         />
-                                        {t(STRINGS.advanced_chrome.adv_active, locale)}
+                                        {t(STRINGS.advanced_chrome.disc_active, locale)}
                                     </label>
                                     <button
                                         type="button"

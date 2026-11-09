@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
-import { ScreenHeader, screenHeaderActionCls } from "./screen-header";
+import { ScreenHeader, screenHeaderActionCls, settingSwitchCls } from "./screen-header";
 
 export interface BundlesScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -158,6 +158,7 @@ export function BundlesScreen({
                                         cannot read as switched on until it has them. */}
                                     <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground has-disabled:opacity-50">
                                         <Switch
+                                            className={settingSwitchCls}
                                             data-testid={`bundle-enabled-${i}`}
                                             checked={b.enabled !== false && b.product_ids.length >= 2}
                                             disabled={b.product_ids.length < 2}

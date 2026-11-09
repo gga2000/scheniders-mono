@@ -18,7 +18,7 @@ import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { cn } from "@/lib/utils";
-import { ScreenHeader } from "./screen-header";
+import { ScreenHeader, settingSwitchCls } from "./screen-header";
 
 export interface CartRecoveryScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -73,6 +73,7 @@ export function CartRecoveryScreen({
                         {t(C.enable, locale)}
                     </span>
                     <Switch
+                        className={settingSwitchCls}
                         data-testid="cart-recovery-enabled"
                         checked={enabled}
                         onCheckedChange={(on) => update({ enabled: on })}
