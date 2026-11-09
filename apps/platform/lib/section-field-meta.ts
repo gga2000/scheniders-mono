@@ -221,6 +221,19 @@ export function knownEnumValueLabel(value: string, locale: LocaleCode): string |
     return entry ? t(entry, locale) : null;
 }
 
+/**
+ * What "unset" means for an optional choice, when the generic
+ * «الافتراضي» would not say it: an unset `metric` shows no live number.
+ */
+const ENUM_DEFAULT_LABELS: Record<string, Record<LocaleCode, string>> = {
+    metric: { en: "No live number", ar: "بدون رقم حي", ku: "بێ ژمارەی زیندوو" },
+};
+
+export function resolveEnumDefaultLabel(fieldKey: string, locale: LocaleCode): string | null {
+    const entry = ENUM_DEFAULT_LABELS[fieldKey];
+    return entry ? entry[locale] : null;
+}
+
 export function resolveEnumValueLabel(value: string, locale: LocaleCode): string {
     const entry = ENUM_VALUE_LABELS[value.toLowerCase()];
     if (entry) return t(entry, locale);

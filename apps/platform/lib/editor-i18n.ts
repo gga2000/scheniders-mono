@@ -444,8 +444,8 @@ export const STRINGS = {
         // tFormat: {n}
         confirm_subtitle_one: { en: "{n} item we recommend fixing before going live. You can publish anyway and come back to these later.", ar: "عنصر واحد يُستحسن إصلاحه قبل النشر. يمكنك النشر على أي حال والعودة إليه لاحقاً.", ku: "{n} بڕگە کە پێشنیار دەکرێت پێش بڵاوکردنەوە چاکبکرێت. دەتوانی هەر بڵاوی بکەیتەوە و دواتر بگەڕێیتەوە." },
         confirm_subtitle_many: { en: "{n} items we recommend fixing before going live. You can publish anyway and come back to these later.", ar: "عناصر يُستحسن إصلاحها قبل النشر: {n}. يمكنك النشر على أي حال والعودة لاحقاً.", ku: "{n} بڕگە کە پێشنیار دەکرێت پێش بڵاوکردنەوە چاکبکرێن. دەتوانی هەر بڵاوی بکەیتەوە و دواتر بگەڕێیتەوە." },
-        confirm_problems_one: { en: "1 problem shoppers will notice. Fix it first; you can still publish.", ar: "مشكلة واحدة سيلاحظها الزبائن، أصلحها أولاً. يمكنك النشر على أي حال.", ku: "1 کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکی بکە؛ هێشتا دەتوانی بڵاوی بکەیتەوە." },
-        confirm_problems_many: { en: "{n} problems shoppers will notice. Fix them first; you can still publish.", ar: "مشاكل سيلاحظها الزبائن: {n}، أصلحها أولاً. يمكنك النشر على أي حال.", ku: "{n} کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکیان بکە؛ هێشتا دەتوانی بڵاوی بکەیتەوە." },
+        confirm_problems_one: { en: "1 problem shoppers will notice. Fix it before publishing.", ar: "مشكلة واحدة سيلاحظها الزبائن، أصلحها قبل النشر.", ku: "1 کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکی بکە؛ هێشتا دەتوانی بڵاوی بکەیتەوە." },
+        confirm_problems_many: { en: "{n} problems shoppers will notice. Fix them before publishing.", ar: "مشاكل سيلاحظها الزبائن: {n}، أصلحها قبل النشر.", ku: "{n} کێشە کە کڕیاران هەستی پێدەکەن. یەکەم چاکیان بکە؛ هێشتا دەتوانی بڵاوی بکەیتەوە." },
         confirm_all_clear: { en: "Nothing blocks publishing.", ar: "لا شيء يمنع النشر.", ku: "هیچ شتێک ڕێگری لە بڵاوکردنەوە ناکات." },
         publish_anyway: { en: "Publish anyway", ar: "نشر على أي حال", ku: "هەر بڵاویبکەرەوە" },
         // Positive CTA when nothing needs fixing — first publish should feel
@@ -1040,8 +1040,8 @@ export const STRINGS = {
         blocks_publish_chip: { en: "Blocks publish", ar: "يحظر النشر", ku: "ڕێگری لە بڵاوکردنەوە دەکات" },
         close: { en: "Close health screen", ar: "إغلاق شاشة الصحة", ku: "داخستنی پەردەی تەندروستی" },
         filter_all: { en: "all", ar: "الكل", ku: "هەموو" },
-        filter_failing: { en: "Failing + Warn", ar: "فشل + تحذير", ku: "شکست + ئاگاداری" },
-        filter_warn: { en: "warn", ar: "تحذير", ku: "ئاگاداری" },
+        filter_failing: { en: "Problems + advice", ar: "مشاكل ونصائح", ku: "کێشە و ئامۆژگاری" },
+        filter_warn: { en: "Advice", ar: "ننصح بإصلاحه", ku: "پێشنیار دەکرێت" },
         filter_passing: { en: "passing", ar: "ناجح", ku: "سەرکەوتوو" },
         // tFormat: {visible} {total}
         checks_count: { en: "{visible} of {total} checks", ar: "الفحوصات: {visible} من {total}", ku: "{visible} لە {total} پشکنین" },
@@ -1251,10 +1251,6 @@ export const STRINGS = {
         health_new_store_heading: { en: "Finish setting up your store", ar: "أكمل إعداد متجرك", ku: "ڕێکخستنی فرۆشگاکەت تەواو بکە" },
         health_new_store_body: { en: "Your store doesn't have any content yet. Open the editor to add sections and build out your home page — your store health score will appear once you've started.", ar: "متجرك لا يحتوي على أي محتوى بعد. افتح المحرّر لإضافة الأقسام وبناء صفحتك الرئيسية — ستظهر درجة صحة متجرك بمجرد أن تبدأ.", ku: "فرۆشگاکەت هێشتا هیچ ناوەڕۆکێکی نییە. دەستکاریکەر بکەرەوە بۆ زیادکردنی بەشەکان و دروستکردنی پەڕەی سەرەکی — خاڵی تەندروستی فرۆشگاکەت دەردەکەوێت هەر کە دەستت پێکرد." },
         health_get_started: { en: "Get started", ar: "ابدأ الآن", ku: "دەست پێبکە" },
-        health_score_needs_attention: { en: "Needs attention", ar: "يحتاج انتباهاً", ku: "پێویستی بە سەرنجە" },
-        health_score_getting_there: { en: "Getting there", ar: "في الطريق الصحيح", ku: "بەرەو باشتر دەچێت" },
-        health_score_looking_good: { en: "Looking good", ar: "يبدو جيداً", ku: "باش دیارە" },
-        health_score_launch_ready: { en: "In good shape", ar: "بحالة ممتازة", ku: "لە باشترین دۆخدایە" },
         health_all_passing_detail: { en: "All checks passing.", ar: "جميع الفحوصات ناجحة.", ku: "هەموو پشکنینەکان سەرکەوتوون." },
         // tFormat: {n}
         health_items_to_address_one: { en: "{n} item blocks publishing.", ar: "عنصر واحد يمنع النشر.", ku: "{n} بابەت ڕێگری لە بڵاوکردنەوە دەکات." },
@@ -1425,7 +1421,7 @@ export const STRINGS = {
         // tFormat: {n}
         exp_pct_traffic: { en: "{n}% traffic", ar: "{n}% من الزوار", ku: "{n}% سەردانیکەران" },
         exp_stat_atc: { en: "ATC", ar: "إضافة للسلة", ku: "بۆ سەبەتە" },
-        exp_stat_checkout: { en: "Checkout", ar: "الدفع", ku: "پارەدان" },
+        exp_stat_checkout: { en: "Started order", ar: "بدأ الطلب", ku: "داواکاری دەستپێکرد" },
         exp_stat_aov: { en: "AOV", ar: "متوسط الطلب", ku: "تێکڕای داواکاری" },
         exp_stat_uplift_control: { en: "Conversion vs original", ar: "تحسن التحويل مقابل الأصل", ku: "گۆڕانی گۆڕین بەراورد بە بنەڕەت" },
         // tFormat: {n} — under a "still learning" version in the test drawer
@@ -1435,8 +1431,8 @@ export const STRINGS = {
             ku: "نزیکەی {n} سەردانکەری زیاتر بۆ هەر وەشانێک پێویستە پێش دیاریکردنی براوە.",
         },
         exp_gap_too_small: {
-            en: "Enough visitors, but the gap is still too small to be sure. Keep it running.",
-            ar: "الزوار كافون، لكن الفرق ما زال صغيراً لنتأكد منه. اترك الاختبار يعمل.",
+            en: "Enough visitors, but the gap between this version and the original is still too small to be sure. Keep it running.",
+            ar: "الزوار كافون، لكن الفرق بين هذه النسخة والأصل ما زال صغيراً لنتأكد منه. اترك الاختبار يعمل.",
             ku: "سەردانکەر بەسە، بەڵام جیاوازییەکە هێشتا بچووکە بۆ دڵنیابوون. با بەردەوام بێت.",
         },
         exp_card_stats_error: {
