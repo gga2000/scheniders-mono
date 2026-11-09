@@ -2061,11 +2061,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "customer_tag_assignments_tag_id_fkey"
-            columns: ["tag_id"]
+            foreignKeyName: "customer_tag_assignments_tag_same_store_fkey"
+            columns: ["tenant_id", "tag_id"]
             isOneToOne: false
             referencedRelation: "customer_tags"
-            referencedColumns: ["id"]
+            referencedColumns: ["tenant_id", "id"]
           },
           {
             foreignKeyName: "customer_tag_assignments_tenant_id_fkey"
