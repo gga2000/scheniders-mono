@@ -52,7 +52,7 @@ export function GeneralSettings() {
         if (failed.length > 0) {
             toast.error(t("toast.saveFailed") || "Failed to save settings", failed.map(r => r.error).join(", "));
         } else {
-            toast.success(t("toast.settingsSaved") || "Settings saved successfully");
+            toast.success(t("settings.general.saved"));
         }
         setIsSaving(false);
     };

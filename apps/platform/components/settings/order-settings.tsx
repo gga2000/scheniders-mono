@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { Settings, Package, XCircle, MessageSquare, BellRing } from "lucide-react";
 import { OrderReasonsManager } from "@/components/settings/order-reasons-manager";
 import { DeliveryFeesForm } from "@/components/settings/delivery-fees-form";
@@ -9,11 +10,12 @@ import { MessageTemplatesList } from "@/components/settings/message-templates-li
 
 
 export function OrderSettings() {
+    const { t } = useLanguage();
     return (
         <div className="space-y-4">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">Order Settings</h2>
-                <p className="text-sm text-muted-foreground">Configure order processing workflows and defaults.</p>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.orders.title")}</h2>
+                <p className="text-sm text-muted-foreground">{t("settings.orders.subtitle")}</p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -23,9 +25,9 @@ export function OrderSettings() {
                         <div className="w-8 h-8 rounded-lg bg-[var(--pastel-pink)] flex items-center justify-center">
                             <XCircle className="h-4 w-4 text-rose-700" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground">Cancel &amp; Reject Reasons</h3>
+                        <h3 className="text-lg font-semibold text-foreground">{t("settings.orders.reasons")}</h3>
                     </div>
-                    <p className="text-sm text-muted mb-4">Manage the reasons shown in the cancel (before shipping) and reject (after shipping) dialogs.</p>
+                    <p className="text-sm text-muted mb-4">{t("settings.orders.reasonsHint")}</p>
                     <OrderReasonsManager />
                 </div>
 
@@ -35,9 +37,9 @@ export function OrderSettings() {
                         <div className="w-8 h-8 rounded-lg bg-[var(--pastel-mint)] flex items-center justify-center">
                             <Package className="h-4 w-4 text-teal-700" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground">Delivery Fees</h3>
+                        <h3 className="text-lg font-semibold text-foreground">{t("settings.orders.fees")}</h3>
                     </div>
-                    <p className="text-sm text-muted mb-4">Set default delivery prices for different regions.</p>
+                    <p className="text-sm text-muted mb-4">{t("settings.orders.feesHint")}</p>
                     <DeliveryFeesForm />
                 </div>
 
@@ -47,7 +49,7 @@ export function OrderSettings() {
                         <div className="w-8 h-8 rounded-lg bg-[var(--background)] border border-[var(--card-border)] flex items-center justify-center">
                             <Settings className="h-4 w-4 text-gray-600" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground">Workflow Rules</h3>
+                        <h3 className="text-lg font-semibold text-foreground">{t("settings.orders.workflow")}</h3>
                     </div>
                     <WorkflowSettingsForm />
                 </div>
@@ -58,7 +60,7 @@ export function OrderSettings() {
                         <div className="w-8 h-8 rounded-lg bg-[var(--pastel-yellow)] flex items-center justify-center">
                             <BellRing className="h-4 w-4 text-amber-700" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground">Order Reminder</h3>
+                        <h3 className="text-lg font-semibold text-foreground">{t("settings.orders.reminder")}</h3>
                     </div>
                     <ReminderSettingsForm />
                 </div>
@@ -69,9 +71,9 @@ export function OrderSettings() {
                         <div className="w-8 h-8 rounded-lg bg-[var(--pastel-green)] flex items-center justify-center">
                             <MessageSquare className="h-4 w-4 text-green-700" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground">Message Templates</h3>
+                        <h3 className="text-lg font-semibold text-foreground">{t("settings.orders.templates")}</h3>
                     </div>
-                    <p className="text-sm text-muted mb-4">Customize WhatsApp and SMS templates.</p>
+                    <p className="text-sm text-muted mb-4">{t("settings.orders.templatesHint")}</p>
                     <MessageTemplatesList />
                 </div>
             </div>

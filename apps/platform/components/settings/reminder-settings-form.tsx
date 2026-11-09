@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/hooks/use-language";
 import { useState } from "react";
 import { Save } from "lucide-react";
 import { Switch } from "@scheniders/ui/switch";
@@ -19,11 +20,12 @@ const selectClass =
 
 export function ReminderSettingsForm() {
     const { settings, isLoading, isSaving, save } = useReminderSettings();
+    const { t } = useLanguage();
     // Edits live in `edited` until saved; until then the saved values show.
     const [edited, setDraft] = useState<ReminderSettings | null>(null);
     const draft: ReminderSettings = edited ?? settings ?? { enabled: true, window: DEFAULT_FOLLOW_UP_WINDOW };
 
-    if (isLoading) return <div className="text-sm text-muted">Loading...</div>;
+    if (isLoading) return <div className="text-sm text-muted">{t("common.loading")}</div>;
 
     const invalid = draft.window.end_hour <= draft.window.start_hour;
 
@@ -31,9 +33,9 @@ export function ReminderSettingsForm() {
         try {
             await save(draft);
             setDraft(null);
-            toast.success("Reminder settings saved");
+            toast.success(t("settings.reminder.saved"));
         } catch (error) {
-            toast.error("Failed to save reminder settings", error instanceof Error ? error.message : undefined);
+            toast.error(t("settings.reminder.saveFailed"), error instanceof Error ? error.message : undefined);
         }
     };
 
@@ -41,10 +43,9 @@ export function ReminderSettingsForm() {
         <div className="space-y-4">
             <div className="flex items-center justify-between gap-4">
                 <Label htmlFor="reminder-enabled" className="flex flex-col gap-1">
-                    <span>Automatic reminder</span>
+                    <span>{t("settings.reminder.auto")}</span>
                     <span className="text-xs font-normal text-muted-foreground">
-                        Sent {REMINDER_DELAY_HOURS} hours after the order, only inside the hours below (Baghdad time).
-                        Needs the Auto-send button on.
+                        {t("settings.reminder.hint", { hours: String(REMINDER_DELAY_HOURS) })}
                     </span>
                 </Label>
                 <Switch
@@ -56,7 +57,7 @@ export function ReminderSettingsForm() {
 
             {draft.enabled && (
                 <div className="flex flex-wrap items-center gap-3">
-                    <Label htmlFor="reminder-start">Send between</Label>
+                    <Label htmlFor="reminder-start">{t("settings.reminder.between")}</Label>
                     <select
                         id="reminder-start"
                         className={selectClass}
@@ -67,7 +68,7 @@ export function ReminderSettingsForm() {
                             <option key={h} value={h}>{pad(h)}</option>
                         ))}
                     </select>
-                    <Label htmlFor="reminder-end">and</Label>
+                    <Label htmlFor="reminder-end">{t("settings.reminder.and")}</Label>
                     <select
                         id="reminder-end"
                         className={selectClass}
@@ -75,15 +76,15 @@ export function ReminderSettingsForm() {
                         onChange={(e) => setDraft({ ...draft, window: { ...draft.window, end_hour: Number(e.target.value) } })}
                     >
                         {END_HOURS.map((h) => (
-                            <option key={h} value={h}>{pad(h === 24 ? 0 : h)}{h === 24 ? " (midnight)" : ""}</option>
+                            <option key={h} value={h}>{pad(h === 24 ? 0 : h)}{h === 24 ? ` (${t("settings.reminder.midnight")})` : ""}</option>
                         ))}
                     </select>
-                    {invalid && <span className="text-xs text-rose-600">The closing hour must be after the opening hour.</span>}
+                    {invalid && <span className="text-xs text-rose-600">{t("settings.reminder.invalid")}</span>}
                 </div>
             )}
 
             <Button onClick={handleSave} disabled={isSaving || invalid} size="sm">
-                {isSaving ? "Saving..." : <><Save className="h-4 w-4 mr-2" /> Save Reminder Settings</>}
+                {isSaving ? t("common.saving") : <><Save className="h-4 w-4 mr-2" /> {t("settings.reminder.save")}</>}
             </Button>
         </div>
     );

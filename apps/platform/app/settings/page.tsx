@@ -19,6 +19,7 @@ import {
     PackageX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 import { GeneralSettings } from "@/components/settings/general-settings";
 import { OrderSettings } from "@/components/settings/order-settings";
 import { PrintingSettings } from "@/components/settings/printing-settings";
@@ -34,12 +35,13 @@ import { StaffAlertsSettings } from "@/components/settings/staff-alerts-settings
 import { OrderReasonsManager } from "@/components/settings/order-reasons-manager";
 
 function IntegrationsSettings() {
+    const { t } = useLanguage();
     const [tab, setTab] = useState<"lightfunnels" | "waseet">("lightfunnels");
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">Integrations</h2>
-                <p className="text-sm text-muted-foreground">Manage your third-party platform connections.</p>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.integrations.title")}</h2>
+                <p className="text-sm text-muted-foreground">{t("settings.integrations.subtitle")}</p>
             </div>
             <div className="flex gap-1 p-1 bg-muted/40 rounded-xl w-fit border border-(--card-border)">
                 {(["lightfunnels", "waseet"] as const).map((id) => (
@@ -67,8 +69,8 @@ function IntegrationsSettings() {
 const SECTIONS = [
     {
         id: "business",
-        title: "Business",
-        description: "Profile, branding & plan",
+        title: "settings.nav.business",
+        description: "settings.nav.businessDesc",
         icon: Building2,
         colorVar: "--pastel-orange",
         iconColor: "text-orange-700",
@@ -77,8 +79,8 @@ const SECTIONS = [
     },
     {
         id: "billing",
-        title: "Billing",
-        description: "Wallet, usage & plans",
+        title: "settings.nav.billing",
+        description: "settings.nav.billingDesc",
         icon: CreditCard,
         colorVar: "--pastel-green",
         iconColor: "text-green-700",
@@ -87,8 +89,8 @@ const SECTIONS = [
     },
     {
         id: "general",
-        title: "Store",
-        description: "Profile, currency & timezone",
+        title: "settings.nav.general",
+        description: "settings.nav.generalDesc",
         icon: Store,
         colorVar: "--pastel-purple",
         iconColor: "text-purple-700",
@@ -97,8 +99,8 @@ const SECTIONS = [
     },
     {
         id: "orders",
-        title: "Orders",
-        description: "Fees, workflow & templates",
+        title: "settings.nav.orders",
+        description: "settings.nav.ordersDesc",
         icon: Package,
         colorVar: "--pastel-yellow",
         iconColor: "text-amber-700",
@@ -107,8 +109,8 @@ const SECTIONS = [
     },
     {
         id: "printing",
-        title: "Printing",
-        description: "Labels & batch settings",
+        title: "settings.nav.printing",
+        description: "settings.nav.printingDesc",
         icon: Printer,
         colorVar: "--pastel-blue",
         iconColor: "text-blue-700",
@@ -117,8 +119,8 @@ const SECTIONS = [
     },
     {
         id: "team",
-        title: "Team",
-        description: "Users, roles & access",
+        title: "settings.nav.team",
+        description: "settings.nav.teamDesc",
         icon: UsersRound,
         colorVar: "--pastel-green",
         iconColor: "text-green-700",
@@ -127,8 +129,8 @@ const SECTIONS = [
     },
     {
         id: "integrations",
-        title: "Integrations",
-        description: "Lightfunnels & Waseet",
+        title: "settings.nav.integrations",
+        description: "settings.nav.integrationsDesc",
         icon: Link2,
         colorVar: "--pastel-mint",
         iconColor: "text-teal-700",
@@ -137,8 +139,8 @@ const SECTIONS = [
     },
     {
         id: "staff-alerts",
-        title: "Staff Alerts",
-        description: "WhatsApp alerts on new orders",
+        title: "settings.nav.staffAlerts",
+        description: "settings.nav.staffAlertsDesc",
         icon: BellRing,
         colorVar: "--pastel-yellow",
         iconColor: "text-amber-700",
@@ -147,8 +149,8 @@ const SECTIONS = [
     },
     {
         id: "order-reasons",
-        title: "Order Reasons",
-        description: "Manage cancel/reject reasons",
+        title: "settings.nav.orderReasons",
+        description: "settings.nav.orderReasonsDesc",
         icon: PackageX,
         colorVar: "--pastel-orange",
         iconColor: "text-orange-700",
@@ -157,8 +159,8 @@ const SECTIONS = [
     },
     {
         id: "blacklist",
-        title: "Blacklist",
-        description: "Block problem customers",
+        title: "settings.nav.blacklist",
+        description: "settings.nav.blacklistDesc",
         icon: ShieldBan,
         colorVar: "--pastel-pink",
         iconColor: "text-rose-700",
@@ -167,8 +169,8 @@ const SECTIONS = [
     },
     {
         id: "pages",
-        title: "Pages",
-        description: "Access & permissions",
+        title: "settings.nav.pages",
+        description: "settings.nav.pagesDesc",
         icon: LayoutDashboard,
         colorVar: "--pastel-purple",
         iconColor: "text-purple-700",
@@ -177,8 +179,8 @@ const SECTIONS = [
     },
     {
         id: "data",
-        title: "Data",
-        description: "Backup & export",
+        title: "settings.nav.data",
+        description: "settings.nav.dataDesc",
         icon: Database,
         colorVar: "--pastel-blue",
         iconColor: "text-blue-700",
@@ -201,17 +203,18 @@ function SettingsPageContent() {
         SECTIONS.some((s) => s.id === requested) ? (requested as string) : "business",
     );
     const [search, setSearch] = useState("");
+    const { t } = useLanguage();
 
     const filtered = useMemo(() => {
         if (!search.trim()) return SECTIONS;
         const q = search.toLowerCase();
         return SECTIONS.filter(
             (s) =>
-                s.title.toLowerCase().includes(q) ||
-                s.description.toLowerCase().includes(q) ||
+                t(s.title).toLowerCase().includes(q) ||
+                t(s.description).toLowerCase().includes(q) ||
                 s.keywords.some((k) => k.includes(q))
         );
-    }, [search]);
+    }, [search, t]);
 
     const ActiveComponent =
         SECTIONS.find((s) => s.id === activeSection)?.component || GeneralSettings;
@@ -225,15 +228,15 @@ function SettingsPageContent() {
                         <Settings className="w-5 h-5 text-purple-700" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-foreground leading-tight">Settings</h1>
-                        <p className="text-xs text-muted-foreground">System Configuration</p>
+                        <h1 className="text-xl font-bold text-foreground leading-tight">{t("settings.page.title")}</h1>
+                        <p className="text-xs text-muted-foreground">{t("settings.page.subtitle")}</p>
                     </div>
                 </div>
                 <div className="relative w-56">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                     <input
                         type="text"
-                        placeholder="Search settings..."
+                        placeholder={t("settings.page.search")}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-full pl-8 pr-4 h-8 rounded-xl border border-(--card-border) bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-(--pastel-purple) focus:border-transparent transition-all"
@@ -247,7 +250,7 @@ function SettingsPageContent() {
                 <div className="w-full md:w-72 shrink-0 overflow-y-auto">
                     {filtered.length === 0 ? (
                         <div className="text-sm text-muted-foreground text-center py-10">
-                            No settings found for &quot;{search}&quot;
+                            {t("settings.page.noResults", { q: search })}
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 gap-2.5">
@@ -276,17 +279,17 @@ function SettingsPageContent() {
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <p className={cn("font-semibold text-sm leading-tight", isActive ? "text-foreground" : "text-foreground/80")}>
-                                                {section.title}
+                                                {t(section.title)}
                                             </p>
                                             <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-                                                {section.description}
+                                                {t(section.description)}
                                             </p>
                                         </div>
                                         {isActive && (
                                             <div className="flex items-center gap-1">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-(--button-success)" />
                                                 <span className="text-[10px] text-(--button-success) font-semibold uppercase tracking-wide">
-                                                    Active
+                                                    {t("settings.page.active")}
                                                 </span>
                                             </div>
                                         )}

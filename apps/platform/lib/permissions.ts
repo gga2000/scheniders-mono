@@ -152,52 +152,53 @@ export function hasRole(userRole: UserRole | string | undefined | null, allowedR
     return allowedRoles.includes(userRole as UserRole);
 }
 
-// Helper for UI Matrix display
-export const PERMISSION_CATEGORIES = [
+// Matrix rows for the Team screens. Names come from i18n:
+// `team.permCat.<id>` for the group, `team.perm.<key>` for each row.
+export const PERMISSION_CATEGORIES: readonly { id: string; items: readonly { key: PermissionKey }[] }[] = [
     {
-        category: "Orders",
+        id: "orders",
         items: [
-            { key: PERMISSIONS.VIEW_ORDERS, label: "View Orders" },
-            { key: PERMISSIONS.CREATE_ORDERS, label: "Create Orders" },
-            { key: PERMISSIONS.EDIT_ORDERS, label: "Edit Orders" },
-            { key: PERMISSIONS.DELETE_ORDERS, label: "Delete Orders" },
-            { key: PERMISSIONS.EXPORT_DATA, label: "Export Data" },
-        ]
+            { key: PERMISSIONS.VIEW_ORDERS },
+            { key: PERMISSIONS.CREATE_ORDERS },
+            { key: PERMISSIONS.EDIT_ORDERS },
+            { key: PERMISSIONS.DELETE_ORDERS },
+            { key: PERMISSIONS.EXPORT_DATA },
+        ],
     },
     {
-        category: "Customers",
+        id: "customers",
         items: [
-            { key: PERMISSIONS.VIEW_CUSTOMERS, label: "View Customers" },
-            { key: PERMISSIONS.EDIT_CUSTOMERS, label: "Edit Customer Details" },
-            { key: PERMISSIONS.BLOCK_CUSTOMERS, label: "Block Customers" },
-            { key: PERMISSIONS.UNBLOCK_CUSTOMERS, label: "Unblock Customers" },
-            { key: PERMISSIONS.EXPORT_CUSTOMERS, label: "Export Customer Data" },
-        ]
+            { key: PERMISSIONS.VIEW_CUSTOMERS },
+            { key: PERMISSIONS.EDIT_CUSTOMERS },
+            { key: PERMISSIONS.BLOCK_CUSTOMERS },
+            { key: PERMISSIONS.UNBLOCK_CUSTOMERS },
+            { key: PERMISSIONS.EXPORT_CUSTOMERS },
+        ],
     },
     {
-        category: "Products",
+        id: "products",
         items: [
-            { key: PERMISSIONS.EDIT_PRODUCTS, label: "Add and Edit Products and Stock" },
-            { key: PERMISSIONS.MANAGE_PRODUCTS, label: "Delete Products, Bulk Prices, Inventory Tools" },
-        ]
+            { key: PERMISSIONS.EDIT_PRODUCTS },
+            { key: PERMISSIONS.MANAGE_PRODUCTS },
+        ],
     },
     {
-        category: "Shop till",
+        id: "till",
         items: [
-            { key: PERMISSIONS.TILL_SELL, label: "Sell at the Till" },
-            { key: PERMISSIONS.TILL_DISCOUNT, label: "Give Discounts (up to the store limit)" },
-            { key: PERMISSIONS.TILL_SHIFT, label: "Open and Close a Shift" },
-            { key: PERMISSIONS.TILL_REFUND, label: "Returns and Refunds at the Till" },
-            { key: PERMISSIONS.MANAGE_SHOPS, label: "Manage Shops and Till Rules" },
-        ]
+            { key: PERMISSIONS.TILL_SELL },
+            { key: PERMISSIONS.TILL_DISCOUNT },
+            { key: PERMISSIONS.TILL_SHIFT },
+            { key: PERMISSIONS.TILL_REFUND },
+            { key: PERMISSIONS.MANAGE_SHOPS },
+        ],
     },
     {
-        category: "System",
+        id: "system",
         items: [
-            { key: PERMISSIONS.MANAGE_USERS, label: "Manage Users" },
-            { key: PERMISSIONS.ACCESS_SETTINGS, label: "System Settings" },
-            { key: PERMISSIONS.VIEW_ANALYTICS, label: "View Analytics Pages" },
-            { key: PERMISSIONS.VIEW_FINANCIALS, label: "View Financial Data (Profit/Cost)" },
-        ]
-    }
+            { key: PERMISSIONS.MANAGE_USERS },
+            { key: PERMISSIONS.ACCESS_SETTINGS },
+            { key: PERMISSIONS.VIEW_ANALYTICS },
+            { key: PERMISSIONS.VIEW_FINANCIALS },
+        ],
+    },
 ];

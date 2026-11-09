@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { BellOff, BellRing } from "lucide-react";
 import { Badge } from "@scheniders/ui";
 import { cartItemCount } from "@scheniders/shared";
 import { formatIQD } from "@/lib/utils";
@@ -31,9 +33,11 @@ export interface RecoveryBoardProps {
     carts: AbandonedCartRow[];
     isLoading: boolean;
     isError: boolean;
+    /** Automatic WhatsApp reminder setting; null while it loads. */
+    autoReminders?: { enabled: boolean; delayMinutes: number } | null;
 }
 
-export function RecoveryBoard({ carts, isLoading, isError }: RecoveryBoardProps) {
+export function RecoveryBoard({ carts, isLoading, isError, autoReminders = null }: RecoveryBoardProps) {
     const { t } = useLanguage();
     const stats = summarizeRecovery(carts);
 
@@ -66,6 +70,26 @@ export function RecoveryBoard({ carts, isLoading, isError }: RecoveryBoardProps)
             <header className="mb-6">
                 <h1 className="text-2xl font-bold text-foreground">{t("recovery.title")}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">{t("recovery.subtitle")}</p>
+                {autoReminders && (
+                    <p
+                        data-testid="auto-reminders"
+                        className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground"
+                    >
+                        {autoReminders.enabled ? (
+                            <BellRing className="h-4 w-4 text-emerald-600" aria-hidden />
+                        ) : (
+                            <BellOff className="h-4 w-4 text-muted-foreground" aria-hidden />
+                        )}
+                        <span>
+                            {autoReminders.enabled
+                                ? t("recovery.auto.on", { minutes: autoReminders.delayMinutes })
+                                : t("recovery.auto.off")}
+                        </span>
+                        <Link href="/store/edit?screen=cart_recovery" className="font-semibold underline-offset-2 hover:underline">
+                            {autoReminders.enabled ? t("recovery.auto.change") : t("recovery.auto.turnOn")}
+                        </Link>
+                    </p>
+                )}
             </header>
 
             <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-6">

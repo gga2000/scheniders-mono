@@ -59,3 +59,22 @@ export async function removeFromBlacklist(tenantId: string, phone: string): Prom
     if (error) throw error;
     if (!data?.length) throw new Error("Customer was not unblocked");
 }
+
+export interface BlacklistRow {
+    phone: string;
+    reason: string;
+    notes: string | null;
+    added_by: string | null;
+    created_at: string;
+}
+
+/** Every blocked number of the store, newest first (Settings › Blacklist). */
+export async function listBlacklist(tenantId: string): Promise<BlacklistRow[]> {
+    const { data, error } = await supabase
+        .from("blacklist")
+        .select("phone, reason, notes, added_by, created_at")
+        .eq("tenant_id", tenantId)
+        .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+}

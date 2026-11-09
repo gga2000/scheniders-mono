@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth/auth-provider";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface TenantData {
     id: string;
@@ -52,19 +53,19 @@ interface TenantData {
 }
 
 const PLAN_LABELS: Record<string, { label: string; color: string }> = {
-    starter: { label: "Starter", color: "bg-blue-100 text-blue-700" },
-    growth: { label: "Growth", color: "bg-green-100 text-green-700" },
-    professional: { label: "Professional", color: "bg-purple-100 text-purple-700" },
-    enterprise: { label: "Enterprise", color: "bg-amber-100 text-amber-700" },
+    starter: { label: "settings.biz.plan.starter", color: "bg-blue-100 text-blue-700" },
+    growth: { label: "settings.biz.plan.growth", color: "bg-green-100 text-green-700" },
+    professional: { label: "settings.biz.plan.professional", color: "bg-purple-100 text-purple-700" },
+    enterprise: { label: "settings.biz.plan.enterprise", color: "bg-amber-100 text-amber-700" },
     // The house tier (never billed). Without its own entry it fell back to "Starter".
-    internal: { label: "Internal", color: "bg-gray-100 text-gray-700" },
+    internal: { label: "settings.biz.plan.internal", color: "bg-gray-100 text-gray-700" },
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    trial: { label: "Trial", color: "bg-yellow-100 text-yellow-700" },
-    active: { label: "Active", color: "bg-green-100 text-green-700" },
-    suspended: { label: "Suspended", color: "bg-red-100 text-red-700" },
-    cancelled: { label: "Cancelled", color: "bg-gray-100 text-gray-700" },
+    trial: { label: "settings.biz.status.trial", color: "bg-yellow-100 text-yellow-700" },
+    active: { label: "settings.biz.status.active", color: "bg-green-100 text-green-700" },
+    suspended: { label: "settings.biz.status.suspended", color: "bg-red-100 text-red-700" },
+    cancelled: { label: "settings.biz.status.cancelled", color: "bg-gray-100 text-gray-700" },
 };
 
 async function fetchTenantData(tenantId: string): Promise<TenantData> {
@@ -84,6 +85,7 @@ function computeTrialDays(trialEndsAt: string | null): number | null {
 
 export function BusinessSettings() {
     const { tenantId } = useAuth();
+    const { t } = useLanguage();
 
     const { data: tenant, isLoading: loading } = useQuery({
         queryKey: ["tenant", tenantId],
@@ -95,7 +97,7 @@ export function BusinessSettings() {
         return (
             <div className="flex items-center justify-center py-20 text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Loading business settings...
+                {t("settings.biz.loading")}
             </div>
         );
     }
@@ -103,7 +105,7 @@ export function BusinessSettings() {
     if (!tenant) {
         return (
             <div className="text-center py-20 text-muted-foreground">
-                No business found. Please contact support.
+                {t("settings.biz.notFound")}
             </div>
         );
     }
@@ -114,6 +116,7 @@ export function BusinessSettings() {
 
 function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenantId: string }) {
     const queryClient = useQueryClient();
+    const { t } = useLanguage();
 
     // Initialize form state from tenant data (no useEffect needed)
     const [businessName, setBusinessName] = useState(tenant.business_name || "");
@@ -132,7 +135,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
 
     const handleLogoUpload = async (file: File) => {
         if (file.size > 512 * 1024) {
-            toast.error("Logo must be under 512KB");
+            toast.error(t("settings.biz.logoTooBig"));
             return;
         }
         setIsUploadingLogo(true);
@@ -142,14 +145,14 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
             .from("tenant-assets")
             .upload(path, file, { cacheControl: "3600", upsert: true });
         if (uploadError) {
-            toast.error("Upload failed", uploadError.message);
+            toast.error(t("settings.biz.uploadFailed"), uploadError.message);
             setIsUploadingLogo(false);
             return;
         }
         const { data: urlData } = supabase.storage.from("tenant-assets").getPublicUrl(path);
         setLogoUrl(urlData.publicUrl);
         setIsUploadingLogo(false);
-        toast.success("Logo uploaded");
+        toast.success(t("settings.biz.logoUploaded"));
     };
 
     const handleRemoveLogo = () => {
@@ -188,11 +191,11 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
             if (error) throw error;
         },
         onSuccess: () => {
-            toast.success("Business settings saved");
+            toast.success(t("settings.biz.saved"));
             queryClient.invalidateQueries({ queryKey: ["tenant", tenantId] });
         },
         onError: (err: Error) => {
-            toast.error("Failed to save", err.message);
+            toast.error(t("settings.biz.saveFailed"), err.message);
         },
     });
 
@@ -204,8 +207,8 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-foreground">Business</h2>
-                    <p className="text-sm text-muted-foreground">Manage your business profile and branding</p>
+                    <h2 className="text-2xl font-bold tracking-tight text-foreground">{t("settings.biz.title")}</h2>
+                    <p className="text-sm text-muted-foreground">{t("settings.biz.subtitle")}</p>
                 </div>
                 <button
                     onClick={() => saveMutation.mutate()}
@@ -217,7 +220,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                     )}
                 >
                     {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Save Changes
+                    {t("settings.biz.save")}
                 </button>
             </div>
 
@@ -227,23 +230,23 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                     <div className="w-8 h-8 rounded-lg bg-(--pastel-yellow) flex items-center justify-center">
                         <Crown className="h-4 w-4 text-amber-700" />
                     </div>
-                    <h3 className="text-base font-semibold text-foreground">Subscription</h3>
+                    <h3 className="text-base font-semibold text-foreground">{t("settings.biz.subscription")}</h3>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                     <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", planInfo.color)}>
-                        {planInfo.label} Plan
+                        {t("settings.biz.planName", { plan: t(planInfo.label) })}
                     </span>
                     <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", statusInfo.color)}>
-                        {statusInfo.label}
+                        {t(statusInfo.label)}
                     </span>
                     {trialDaysLeft !== null && (
                         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <Calendar className="w-3.5 h-3.5" />
-                            {trialDaysLeft} days left in trial
+                            {t("settings.biz.trialLeft", { days: String(trialDaysLeft) })}
                         </span>
                     )}
                     <span className="text-xs text-muted-foreground ml-auto">
-                        Slug: <code className="px-1.5 py-0.5 bg-muted rounded text-xs">{tenant.slug}</code>
+                        {t("settings.biz.slug")}: <code className="px-1.5 py-0.5 bg-muted rounded text-xs">{tenant.slug}</code>
                     </span>
                 </div>
             </div>
@@ -255,25 +258,25 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         <div className="w-8 h-8 rounded-lg bg-(--pastel-blue) flex items-center justify-center">
                             <Building2 className="h-4 w-4 text-blue-700" />
                         </div>
-                        <h3 className="text-base font-semibold text-foreground">Business Info</h3>
+                        <h3 className="text-base font-semibold text-foreground">{t("settings.biz.info")}</h3>
                     </div>
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-                                Business Name *
+                                {t("settings.biz.name")} *
                             </label>
                             <input
                                 type="text"
                                 value={businessName}
                                 onChange={(e) => setBusinessName(e.target.value)}
                                 className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                placeholder="Your business name"
+                                placeholder={t("settings.biz.namePh")}
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                                 <Mail className="w-3 h-3 inline mr-1" />
-                                Contact Email
+                                {t("settings.biz.email")}
                             </label>
                             <input
                                 type="email"
@@ -286,7 +289,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         <div>
                             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                                 <Phone className="w-3 h-3 inline mr-1" />
-                                Contact Phone
+                                {t("settings.biz.phone")}
                             </label>
                             <input
                                 type="tel"
@@ -299,7 +302,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         <div>
                             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                                 <MessageCircle className="w-3 h-3 inline mr-1" />
-                                WhatsApp Number
+                                {t("settings.biz.whatsapp")}
                             </label>
                             <input
                                 type="tel"
@@ -309,35 +312,34 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                 placeholder="07XXXXXXXXX"
                             />
                             <p className="text-[11px] text-muted-foreground mt-1">
-                                Used for every WhatsApp button across your storefront.
-                                Individual buttons can override this in the store builder.
+                                {t("settings.biz.whatsappHint")}
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                                     <MapPin className="w-3 h-3 inline mr-1" />
-                                    City
+                                    {t("settings.biz.city")}
                                 </label>
                                 <input
                                     type="text"
                                     value={city}
                                     onChange={(e) => setCity(e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Baghdad"
+                                    placeholder={t("settings.biz.cityPh")}
                                 />
                             </div>
                             <div>
                                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                                     <Globe className="w-3 h-3 inline mr-1" />
-                                    Address
+                                    {t("settings.biz.address")}
                                 </label>
                                 <input
                                     type="text"
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl border border-(--card-border) bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    placeholder="Street address"
+                                    placeholder={t("settings.biz.addressPh")}
                                 />
                             </div>
                         </div>
@@ -350,13 +352,13 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                         <div className="w-8 h-8 rounded-lg bg-(--pastel-mint) flex items-center justify-center">
                             <Palette className="h-4 w-4 text-teal-700" />
                         </div>
-                        <h3 className="text-base font-semibold text-foreground">Branding</h3>
+                        <h3 className="text-base font-semibold text-foreground">{t("settings.biz.branding")}</h3>
                     </div>
                     <div className="space-y-5">
                         {/* Logo Upload */}
                         <div>
                             <label className="block text-xs font-medium text-muted-foreground mb-2">
-                                Business Logo
+                                {t("settings.biz.logo")}
                             </label>
                             <div className="flex items-center gap-4">
                                 {logoUrl ? (
@@ -398,16 +400,16 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-(--card-border) text-xs font-medium hover:bg-muted/30 transition-colors disabled:opacity-50"
                                     >
                                         {isUploadingLogo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                                        {logoUrl ? "Change" : "Upload"}
+                                        {logoUrl ? t("settings.biz.change") : t("settings.biz.upload")}
                                     </button>
-                                    <p className="text-[10px] text-muted-foreground mt-1">PNG, JPG, WebP. Max 512KB.</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">{t("settings.biz.logoRules")}</p>
                                 </div>
                             </div>
                         </div>
 
                         <div>
                             <label className="block text-xs font-medium text-muted-foreground mb-2">
-                                Primary Color
+                                {t("settings.biz.primary")}
                             </label>
                             <div className="flex items-center gap-3">
                                 <input
@@ -426,13 +428,13 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                     className="flex-1 h-10 rounded-xl flex items-center justify-center text-white text-xs font-semibold"
                                     style={{ backgroundColor: primaryColor }}
                                 >
-                                    Preview Button
+                                    {t("settings.biz.previewButton")}
                                 </div>
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-muted-foreground mb-2">
-                                Secondary Color
+                                {t("settings.biz.secondary")}
                             </label>
                             <div className="flex items-center gap-3">
                                 <input
@@ -451,14 +453,14 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                     className="flex-1 h-10 rounded-xl flex items-center justify-center text-white text-xs font-semibold"
                                     style={{ backgroundColor: secondaryColor }}
                                 >
-                                    Preview Accent
+                                    {t("settings.biz.previewAccent")}
                                 </div>
                             </div>
                         </div>
 
                         {/* Preview */}
                         <div className="mt-4 p-4 rounded-xl border border-(--card-border) bg-muted/30">
-                            <p className="text-xs text-muted-foreground mb-3">Brand Preview</p>
+                            <p className="text-xs text-muted-foreground mb-3">{t("settings.biz.preview")}</p>
                             <div className="flex items-center gap-3">
                                 {logoUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -473,7 +475,7 @@ function BusinessSettingsForm({ tenant, tenantId }: { tenant: TenantData; tenant
                                 )}
                                 <div>
                                     <p className="font-semibold text-sm" style={{ color: primaryColor }}>
-                                        {businessName || "Your Business"}
+                                        {businessName || t("settings.biz.yourBusiness")}
                                     </p>
                                     <p className="text-xs" style={{ color: secondaryColor }}>
                                         {tenant.slug}.scheniders.com
