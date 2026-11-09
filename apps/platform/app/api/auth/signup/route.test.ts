@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const createUser = vi.fn();
 const tableInserts: { table: string; row: Record<string, unknown> }[] = [];
 const consumeRateLimit = vi.fn();
+const verifyTurnstile = vi.fn();
 
 function table(name: string) {
     const chain: Record<string, unknown> = {};
@@ -32,6 +33,9 @@ vi.mock("@/lib/rate-limit", () => ({
     rateLimitHeaders: () => ({ "Retry-After": "60" }),
 }));
 vi.mock("@/lib/order-telemetry", () => ({ reportOrderError: vi.fn() }));
+vi.mock("@/lib/turnstile", () => ({
+    verifyTurnstile: (...args: unknown[]) => verifyTurnstile(...args),
+}));
 
 import { NextRequest } from "next/server";
 import { POST } from "./route";
@@ -52,6 +56,7 @@ describe("POST /api/auth/signup", () => {
         tableInserts.length = 0;
         consumeRateLimit.mockResolvedValue({ allowed: true, remaining: 9, resetAt: null, retryAfterSeconds: 0 });
         createUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+        verifyTurnstile.mockResolvedValue({ ok: true, skipped: false });
     });
 
     it("ignores a plan sent in the body: the server picks the trial plan", async () => {
@@ -69,5 +74,27 @@ describe("POST /api/auth/signup", () => {
         expect(res.status).toBe(429);
         expect(createUser).not.toHaveBeenCalled();
         expect(consumeRateLimit.mock.calls[0][0]).toBe("signup:203.0.113.9");
+    });
+
+    it("checks the captcha token with the client IP before creating any account", async () => {
+        const res = await POST(request({ ...base, captcha_token: "tok-1" }));
+        expect(res.status).toBe(201);
+        expect(verifyTurnstile).toHaveBeenCalledWith("tok-1", "203.0.113.9");
+    });
+
+    it("refuses a missing or rejected captcha token and creates nothing", async () => {
+        verifyTurnstile.mockResolvedValue({ ok: false, reason: "rejected" });
+        const res = await POST(request(base));
+        expect(res.status).toBe(403);
+        expect(await res.json()).toMatchObject({ code: "captcha_failed" });
+        expect(createUser).not.toHaveBeenCalled();
+        expect(tableInserts).toHaveLength(0);
+    });
+
+    it("fails closed when Cloudflare cannot be reached", async () => {
+        verifyTurnstile.mockResolvedValue({ ok: false, reason: "unavailable" });
+        const res = await POST(request({ ...base, captcha_token: "tok-1" }));
+        expect(res.status).toBe(503);
+        expect(createUser).not.toHaveBeenCalled();
     });
 });

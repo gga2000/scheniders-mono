@@ -7126,6 +7126,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.haveAccount": "Already have an account?",
         "signup.signIn": "Sign in",
         "signup.success": "Account created! Taking you to your store…",
+        "signup.captchaRejected": "The security check expired. Press the button again.",
         "signup.signOutFailed": "Your account was created, but this browser is still signed in to another account and we could not sign it out. Sign out of it, then sign in with your new account.",
         // ── Password reset flow ──
         "auth.captcha.failed": "The security check did not load. Refresh the page, or try another browser.",
@@ -14344,6 +14345,7 @@ export const translations: Record<Locale, Record<string, string>> = {
         "signup.cityPlaceholder": "بغداد",
         "signup.submit": "ابدأ التجربة المجانية",
         "signup.submitting": "جاري إنشاء الحساب...",
+        "signup.captchaRejected": "انتهت صلاحية فحص الأمان. اضغط الزر مرة أخرى.",
         "signup.haveAccount": "لديك حساب بالفعل؟",
         "signup.signIn": "تسجيل الدخول",
         "signup.success": "تم إنشاء حسابك! جاري نقلك إلى متجرك…",

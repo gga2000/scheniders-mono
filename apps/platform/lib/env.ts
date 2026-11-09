@@ -58,6 +58,9 @@ const tenantIdList = z
 
 const serverSchema = z.object({
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+    // Cloudflare Turnstile secret for server-side token checks (lib/turnstile).
+    // Unset = the check is skipped (dev and previews).
+    TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
     LIGHTFUNNELS_WEBHOOK_SECRET: z.string().min(1).optional(),
     LIGHTFUNNELS_TENANT_ID: z.string().uuid().optional(),
     // HMAC key for the `lightfunnels-hmac` header (the LightFunnels app's client
@@ -140,6 +143,7 @@ function validateEnv() {
         const orUndef = (v: string | undefined) => (v && v.trim() ? v.trim() : undefined);
         const serverResult = serverSchema.safeParse({
             SUPABASE_SERVICE_ROLE_KEY: orUndef(process.env.SUPABASE_SERVICE_ROLE_KEY),
+            TURNSTILE_SECRET_KEY: orUndef(process.env.TURNSTILE_SECRET_KEY),
             LIGHTFUNNELS_WEBHOOK_SECRET: orUndef(process.env.LIGHTFUNNELS_WEBHOOK_SECRET),
             LIGHTFUNNELS_TENANT_ID: orUndef(process.env.LIGHTFUNNELS_TENANT_ID),
             LIGHTFUNNELS_APP_SECRET: orUndef(process.env.LIGHTFUNNELS_APP_SECRET),
