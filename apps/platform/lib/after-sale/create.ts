@@ -4,7 +4,7 @@ import { ORDER_WRITE_ROLES } from "@/lib/auth/resolve-order-caller";
 import { isAdminRole } from "@/lib/permissions";
 import { assertNotBlocked, TenantBlockedError } from "@/lib/restrictions";
 import { canCreateOrder } from "@/lib/tenant";
-import { chargeAndTrack } from "@/lib/order-service";
+import { trackOrderUsage } from "@/lib/order-service";
 import { reportOrderError } from "@/lib/order-telemetry";
 
 // =============================================
@@ -147,8 +147,8 @@ export async function createAfterSaleOrder(actor: AfterSaleActor, input: AfterSa
     const created = createdSchema.safeParse(data);
     if (!created.success) return { success: false, error: "The order was created but could not be read back" };
 
-    chargeAndTrack(tenantId, supabase).catch((err) => {
-        reportOrderError(err, { operation: "chargeAndTrack", tenantId });
+    trackOrderUsage(tenantId, supabase).catch((err) => {
+        reportOrderError(err, { operation: "trackOrderUsage", tenantId });
     });
     return { success: true, orderId: created.data.id, orderNumber: created.data.order_id };
 }

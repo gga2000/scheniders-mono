@@ -5,8 +5,13 @@ import { consumeRateLimit, rateLimitHeaders } from '@/lib/rate-limit';
 import { reportOrderError } from '@/lib/order-telemetry';
 import { verifyTurnstile } from '@/lib/turnstile';
 
-/** Every self-serve signup starts a 14-day trial on this plan. The plan is never taken from the request. */
-const TRIAL_PLAN = 'growth';
+/**
+ * Every self-serve signup starts a trial on the one plan (Ali, 9 Nov): 7 days
+ * or 50 orders, whichever comes first. The 50-order end is enforced in the
+ * database (end_trial_at_order_cap). The plan is never taken from the request.
+ */
+const TRIAL_PLAN = 'starter';
+const TRIAL_DAYS = 7;
 
 // Each signup creates an auth user, a tenant and four supporting rows with the
 // service role. Vercel sets the client IP; mobile carriers share NATs, so the
@@ -106,7 +111,7 @@ export async function POST(request: NextRequest) {
         const userId = authData.user.id;
 
         // ── 2. Create tenant ──
-        const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days
+        const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
         const { data: tenant, error: tenantError } = await adminClient
             .from('tenants')
@@ -260,7 +265,7 @@ export async function POST(request: NextRequest) {
             trial_ends_at: trialEndsAt,
             message: partialFailure
                 ? `Account created but some setup steps failed. An admin will review your account shortly.`
-                : `Account created! You have a 14-day free trial on the ${plan} plan.`,
+                : `Account created! You have a ${TRIAL_DAYS}-day free trial.`,
         }, { status: 201 });
 
     } catch (err) {

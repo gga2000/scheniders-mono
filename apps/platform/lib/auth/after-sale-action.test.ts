@@ -16,12 +16,12 @@ vi.mock("@/lib/restrictions", () => ({
 }));
 
 vi.mock("@/lib/tenant", () => ({ canCreateOrder: vi.fn() }));
-vi.mock("@/lib/order-service", () => ({ chargeAndTrack: vi.fn(async () => undefined) }));
+vi.mock("@/lib/order-service", () => ({ trackOrderUsage: vi.fn(async () => undefined) }));
 vi.mock("@/lib/order-telemetry", () => ({ reportOrderError: vi.fn() }));
 
 import { createAfterSaleOrderAction, receiveAfterSaleItemAction } from "@/app/actions/after-sale";
 import { canCreateOrder } from "@/lib/tenant";
-import { chargeAndTrack } from "@/lib/order-service";
+import { trackOrderUsage } from "@/lib/order-service";
 import { resolveCaller } from "@/lib/auth/resolve-order-caller";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 
@@ -36,7 +36,7 @@ function asRole(role: string) {
 
 beforeEach(() => {
     vi.mocked(canCreateOrder).mockReset().mockResolvedValue({ allowed: true });
-    vi.mocked(chargeAndTrack).mockClear();
+    vi.mocked(trackOrderUsage).mockClear();
     rpc.mockReset().mockResolvedValue({ data: { id: CHILD, order_id: "RTN-3951-2" }, error: null });
     const rows: Record<string, unknown> = {
         user_profiles: { display_name: "Ali" },
@@ -116,7 +116,7 @@ describe("createAfterSaleOrderAction", () => {
             { kind: "replacement", originalOrderId: ORIGINAL, lines: [{ originalLine: 0, qty: 1 }] },
             "token",
         );
-        expect(chargeAndTrack).toHaveBeenCalledWith("tenant-a", expect.anything());
+        expect(trackOrderUsage).toHaveBeenCalledWith("tenant-a", expect.anything());
     });
 
     it("refuses when the plan's order limit is reached, before creating anything", async () => {
@@ -128,7 +128,7 @@ describe("createAfterSaleOrderAction", () => {
         );
         expect(result).toEqual({ success: false, error: "Monthly order limit reached" });
         expect(rpc).not.toHaveBeenCalled();
-        expect(chargeAndTrack).not.toHaveBeenCalled();
+        expect(trackOrderUsage).not.toHaveBeenCalled();
     });
 });
 
