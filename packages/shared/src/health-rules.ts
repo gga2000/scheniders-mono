@@ -650,7 +650,8 @@ export const HEALTH_CHECKS: HealthCheck[] = [
         }
         return { status: "pass" };
     }),
-    check("brand_colors_readable", "content", 1, (cfg) => {
+    check("brand_colors_readable", "conversion", 1, (cfg) => {
+        // Conversion, not content: unreadable buttons and prices lose sales.
         // Body text needs WCAG AA (4.5:1) on the page; the main colour
         // carries buttons, prices and links, which need 3:1 (WCAG 1.4.11).
         const { inkOnSurface, primaryOnSurface } = brandKitContrast(cfg.brand_kit);
