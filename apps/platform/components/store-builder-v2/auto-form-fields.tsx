@@ -37,6 +37,7 @@ import { STRINGS, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useResolvedEditorLocale } from "@/lib/editor-locale-context";
 import {
     knownEnumValueLabel,
+    resolveEnumDefaultLabel,
     resolveEnumValueLabel,
     resolveFieldHelp,
     resolveFieldLabel,
@@ -324,6 +325,7 @@ export function FieldRenderer(props: FieldRendererProps): ReactElement {
                     onChange={onChange}
                     optional={optional}
                     onClear={optional ? () => onChange(undefined) : undefined}
+                    defaultLabel={resolveEnumDefaultLabel(fieldKey, fieldLocale) ?? undefined}
                     testIdBase={testIdBase}
                 />
             );
@@ -879,6 +881,8 @@ interface EnumControlProps {
     onChange: (next: string) => void;
     optional: boolean;
     onClear?: () => void;
+    /** Field-specific wording for the unset choice. */
+    defaultLabel?: string;
     testIdBase: string;
 }
 
@@ -892,7 +896,7 @@ export function EnumControl(p: EnumControlProps): ReactElement {
     const DEFAULT = "";
     const choices = p.optional ? [DEFAULT, ...p.options] : p.options;
     const labelFor = (opt: string): string =>
-        opt === DEFAULT ? tx(STRINGS.auto_form.enum_default, locale) : resolveEnumValueLabel(opt, locale);
+        opt === DEFAULT ? (p.defaultLabel ?? tx(STRINGS.auto_form.enum_default, locale)) : resolveEnumValueLabel(opt, locale);
     const pick = (opt: string): void => {
         if (opt === DEFAULT) p.onClear?.();
         else p.onChange(opt);

@@ -72,7 +72,7 @@ export function ScreenHeader({
                         {getSettingLabel(setting, locale)}
                     </h2>
                     {subtitle ? (
-                        <p className="text-[11px] text-pretty text-muted-foreground">
+                        <p className="max-w-3xl text-[11px] text-pretty text-muted-foreground">
                             {subtitle}
                         </p>
                     ) : null}

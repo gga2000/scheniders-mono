@@ -58,11 +58,12 @@ const BAND_COLOR: Record<HealthBand, string> = {
     great: "#16a34a",
 };
 
+// The same words the editor's health screen uses for the same band.
 const BAND_LABEL: Record<HealthBand, EditorString> = {
-    needs_work: STRINGS.command_center.health_score_needs_attention,
-    almost: STRINGS.command_center.health_score_getting_there,
-    ready: STRINGS.command_center.health_score_looking_good,
-    great: STRINGS.command_center.health_score_launch_ready,
+    needs_work: STRINGS.health.score_needs_work,
+    almost: STRINGS.health.score_almost,
+    ready: STRINGS.health.score_ready,
+    great: STRINGS.health.score_great,
 };
 
 /** Simple SVG ring showing the score 0–100. */
