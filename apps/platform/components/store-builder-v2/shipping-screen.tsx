@@ -26,6 +26,7 @@
 // =====================================================================
 
 import { useCallback, useMemo, useState } from "react";
+import { Switch } from "@scheniders/ui/switch";
 import { AlertTriangle, Check } from "lucide-react";
 import { IRAQ_GOVERNORATES, computeDeliveryFee } from "@scheniders/shared";
 import type {
@@ -405,12 +406,10 @@ export function ShippingScreen({
                         {t(s.ship_door_heading, locale)}
                     </h3>
                     <label className="flex items-start gap-2.5 text-sm text-foreground">
-                        <input
-                            type="checkbox"
+                        <Switch
                             data-testid="shipping-inspect-before-paying"
                             checked={inspectBeforePaying}
-                            onChange={(e) => setInspectBeforePaying(e.target.checked)}
-                            className="mt-0.5 h-4 w-4 accent-primary"
+                            onCheckedChange={(on) => setInspectBeforePaying(on)}
                         />
                         <span className="text-left!">
                             {t(s.ship_door_label, locale)}

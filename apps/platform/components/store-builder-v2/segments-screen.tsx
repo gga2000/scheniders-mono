@@ -335,7 +335,7 @@ export function SegmentsScreen({
                     </aside>
 
                     {/* RIGHT: editor */}
-                    <section className="flex flex-1 flex-col overflow-y-auto p-5 *:max-w-3xl">
+                    <section className="flex flex-1 flex-col overflow-y-auto p-5">
                         {selected ? (
                             <SegmentEditor
                                 segment={selected}

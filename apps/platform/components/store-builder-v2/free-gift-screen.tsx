@@ -12,6 +12,7 @@
 // =====================================================================
 
 import { useCallback } from "react";
+import { Switch } from "@scheniders/ui/switch";
 
 import { resolveFreeGift, type FreeGiftRewardConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
@@ -72,11 +73,10 @@ export function FreeGiftScreen({ builder, onClose }: FreeGiftScreenProps): React
 
                 <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                     <span className="text-left! text-sm font-medium text-foreground">{tx(STRINGS.free_gift.enable, locale)}</span>
-                    <input
-                        type="checkbox"
+                    <Switch
                         data-testid="free-gift-enabled"
                         checked={enabled}
-                        onChange={(e) => update({ enabled: e.target.checked })}
+                        onCheckedChange={(on) => update({ enabled: on })}
                     />
                 </label>
 

@@ -10,6 +10,7 @@
 // =====================================================================
 
 import { useCallback } from "react";
+import { Switch } from "@scheniders/ui/switch";
 import { Plus, Trash2, Boxes } from "lucide-react";
 import type { Bundle } from "@scheniders/shared";
 import { useProductsQuery } from "@/hooks/use-products-query";
@@ -156,13 +157,12 @@ export function BundlesScreen({
                                     {/* A bundle with fewer than two products never applies, so it
                                         cannot read as switched on until it has them. */}
                                     <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground has-disabled:opacity-50">
-                                        <input
-                                            type="checkbox"
+                                        <Switch
                                             data-testid={`bundle-enabled-${i}`}
                                             checked={b.enabled !== false && b.product_ids.length >= 2}
                                             disabled={b.product_ids.length < 2}
-                                            onChange={(e) =>
-                                                updateRow(i, { enabled: e.target.checked })
+                                            onCheckedChange={(on) =>
+                                                updateRow(i, { enabled: on })
                                             }
                                         />
                                         {t(STRINGS.advanced_chrome.bun_active, locale)}

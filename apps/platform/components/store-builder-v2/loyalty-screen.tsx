@@ -10,6 +10,7 @@
 // =====================================================================
 
 import { useCallback } from "react";
+import { Switch } from "@scheniders/ui/switch";
 
 import type { LoyaltyConfig, ReferralConfig } from "@scheniders/shared";
 import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
@@ -175,11 +176,10 @@ export function LoyaltyScreen({
                     <span className="text-left! text-sm font-medium text-foreground">
                         {t(L.enable, locale)}
                     </span>
-                    <input
-                        type="checkbox"
+                    <Switch
                         data-testid="loyalty-enabled"
                         checked={enabled}
-                        onChange={(e) => update({ enabled: e.target.checked })}
+                        onCheckedChange={(on) => update({ enabled: on })}
                     />
                 </label>
 
@@ -229,11 +229,10 @@ export function LoyaltyScreen({
                     </div>
                     <label className="flex items-center justify-between gap-3 rounded-xl border border-(--card-border) bg-(--card-bg) p-3">
                         <span className="text-left! text-sm font-medium text-foreground">{t(L.referral_enable, locale)}</span>
-                        <input
-                            type="checkbox"
+                        <Switch
                             data-testid="referral-enabled"
                             checked={referral.enabled === true}
-                            onChange={(e) => updateReferral({ enabled: e.target.checked })}
+                            onCheckedChange={(on) => updateReferral({ enabled: on })}
                         />
                     </label>
                     {referralRows.map((row) => (

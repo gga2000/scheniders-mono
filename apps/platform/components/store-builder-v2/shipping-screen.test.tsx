@@ -176,8 +176,8 @@ describe("ShippingScreen — editing rates", () => {
         } as unknown as StoreConfigV2;
         const builder = { config, setConfig } as unknown as UseStoreBuilderV2Return;
         render(<ShippingScreen builder={builder} onClose={() => {}} />);
-        const box = screen.getByTestId("shipping-inspect-before-paying") as HTMLInputElement;
-        expect(box.checked).toBe(false);
+        const box = screen.getByTestId("shipping-inspect-before-paying");
+        expect(box.getAttribute("aria-checked")).toBe("false");
         fireEvent.click(box);
         const on = applyLast(setConfig, config);
         expect(on.commerce?.returns_policy).toEqual({ window_days: 7, inspect_before_paying: true });
@@ -191,8 +191,8 @@ describe("ShippingScreen — editing rates", () => {
                 onClose={() => {}}
             />,
         );
-        const box2 = screen.getByTestId("shipping-inspect-before-paying") as HTMLInputElement;
-        expect(box2.checked).toBe(true);
+        const box2 = screen.getByTestId("shipping-inspect-before-paying");
+        expect(box2.getAttribute("aria-checked")).toBe("true");
         fireEvent.click(box2);
         expect(applyLast(setConfig2, on).commerce?.returns_policy).toEqual({ window_days: 7 });
     });
