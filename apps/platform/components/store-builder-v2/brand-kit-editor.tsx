@@ -250,6 +250,7 @@ export function BrandKitEditor(props: BrandKitEditorProps): ReactElement {
     return (
         <div data-testid="brand-kit-editor" className="flex h-full flex-col bg-background">
             <ScreenHeader
+                wide
                 setting="brand_kit"
                 subtitle={tChrome(STRINGS.brand_kit.intro, chromeLocale)}
                 onBack={onClose}

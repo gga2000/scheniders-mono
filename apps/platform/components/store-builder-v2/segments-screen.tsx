@@ -215,6 +215,7 @@ export function SegmentsScreen({
         >
             {/* Header */}
             <ScreenHeader
+                wide
                 setting="segments"
                 subtitle={t(STRINGS.segment.subtitle, locale)}
                 onBack={onClose}

@@ -33,6 +33,9 @@ export interface ScreenHeaderProps {
     onBack?: () => void;
     backTestId?: string;
     actions?: ReactNode;
+    /** The screen lays out wider than the 3xl settings column (lists beside
+     *  details, dashboards): the header spans the pane with it. */
+    wide?: boolean;
 }
 
 export function ScreenHeader({
@@ -41,14 +44,19 @@ export function ScreenHeader({
     onBack,
     backTestId,
     actions,
+    wide = false,
 }: ScreenHeaderProps): React.ReactElement {
     const locale = useEditorLocale();
     const Icon = settingIcon(setting);
     return (
         <header
             data-testid="screen-header"
-            className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-(--card-border) bg-(--card-bg) px-5 py-2.5"
+            className="flex min-h-14 shrink-0 items-center border-b border-(--card-border) bg-(--card-bg) px-5 py-2.5"
         >
+            {/* The title, subtitle and actions share the content column's
+                width, so the subtitle wraps where the cards end and the
+                actions sit at the edge of what they act on. */}
+            <div className={cn("flex w-full min-w-0 items-center justify-between gap-3", !wide && "max-w-3xl")}>
             <div className="flex min-w-0 items-center gap-2.5">
                 {onBack ? (
                     <button
@@ -72,13 +80,14 @@ export function ScreenHeader({
                         {getSettingLabel(setting, locale)}
                     </h2>
                     {subtitle ? (
-                        <p className="max-w-3xl text-[11px] text-pretty text-muted-foreground">
+                        <p className="text-[11px] text-pretty text-muted-foreground">
                             {subtitle}
                         </p>
                     ) : null}
                 </div>
             </div>
             {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+            </div>
         </header>
     );
 }

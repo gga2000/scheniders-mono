@@ -288,6 +288,7 @@ export function VersionHistoryScreen({
         >
             {/* Header */}
             <ScreenHeader
+                wide
                 setting="versions"
                 subtitle={t(STRINGS.version_history.subtitle, locale)}
                 onBack={onClose}
