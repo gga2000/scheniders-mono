@@ -18,8 +18,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactElement } from "react";
 import { Check, Layout, LayoutTemplate, X } from "lucide-react";
-import type { PageId, SectionInstance } from "@scheniders/shared";
-import { cn } from "@/lib/utils";
+import type { LocaleCode, PageId, SectionInstance } from "@scheniders/shared";
+import { getManifestEntry, sectionDisplayName } from "@/lib/sections-manifest";
 import {
     PAGE_TEMPLATES,
     applyTemplate,
@@ -28,6 +28,7 @@ import {
 } from "@/lib/page-templates";
 import { STRINGS, sectionCount, t as tx, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
+import { TemplateSketch } from "./template-sketch";
 
 export interface PageTemplatePickerProps {
     open: boolean;
@@ -43,6 +44,12 @@ export interface PageTemplatePickerProps {
     activePageId?: PageId;
     /** Test-only — override the template list. */
     templatesOverride?: PageTemplate[];
+}
+
+/** A section's name as the left rail shows it, never its code. */
+function sectionName(type: string, locale: LocaleCode): string {
+    const entry = getManifestEntry(type);
+    return entry ? sectionDisplayName(entry, locale) : type;
 }
 
 /** The editor language's text, falling back to English. */
@@ -186,7 +193,7 @@ export function PageTemplatePicker(
                                             className="h-3.5 w-3.5 text-muted-foreground"
                                             aria-hidden="true"
                                         />
-                                        <span>{s.type}</span>
+                                        <span>{sectionName(s.type, locale)}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -228,7 +235,7 @@ export function PageTemplatePicker(
                                         onClick={() => setPendingId(t.id)}
                                         className="sb-row flex w-full flex-col gap-2 rounded-xl border border-(--card-border) bg-(--card-bg) p-3 text-left shadow-(--card-shadow)"
                                     >
-                                        <TemplateThumbnail count={t.sections.length} />
+                                        <TemplateSketch types={t.sections.map((s) => s.type)} />
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="truncate text-sm font-semibold">
                                                 {pickText(t.name_i18n, locale) || t.id}
@@ -250,29 +257,6 @@ export function PageTemplatePicker(
                     </div>
                 )}
             </div>
-        </div>
-    );
-}
-
-function TemplateThumbnail({ count }: { count: number }): ReactElement {
-    // Cheap placeholder visual — N stacked bars hinting at the section
-    // arrangement without us shipping a thumbnail per template.
-    const bars = Array.from({ length: Math.min(count, 5) }, (_, i) => i);
-    return (
-        <div className="flex aspect-[16/9] w-full flex-col justify-center gap-1.5 rounded bg-gradient-to-br from-primary/10 to-muted/30 px-3 py-2">
-            {bars.map((i) => (
-                <div
-                    key={i}
-                    className={cn(
-                        "h-1.5 rounded-full bg-primary/40",
-                        i === 0 && "w-3/4",
-                        i === 1 && "w-full",
-                        i === 2 && "w-2/3",
-                        i === 3 && "w-5/6",
-                        i === 4 && "w-1/2",
-                    )}
-                />
-            ))}
         </div>
     );
 }

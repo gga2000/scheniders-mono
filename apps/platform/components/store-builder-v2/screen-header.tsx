@@ -10,8 +10,9 @@
 // =====================================================================
 
 import type { ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, CloudOff, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useScreenSaveState } from "./screen-save-state";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { STRINGS, t } from "@/lib/editor-i18n";
 import { SETTING_TINT, getSettingLabel, settingIcon, type SettingsSectionId } from "./page-tree";
@@ -54,10 +55,11 @@ export function ScreenHeader({
 }: ScreenHeaderProps): React.ReactElement {
     const locale = useEditorLocale();
     const Icon = settingIcon(setting);
+    const save = useScreenSaveState();
     return (
         <header
             data-testid="screen-header"
-            className="flex min-h-14 shrink-0 items-center border-b border-(--card-border) bg-(--card-bg) px-5 py-2.5"
+            className="flex min-h-14 shrink-0 flex-col justify-center gap-2 border-b border-(--card-border) bg-(--card-bg) px-5 py-2.5"
         >
             {/* The title, subtitle and actions share the content column's
                 width, so the subtitle wraps where the cards end and the
@@ -94,6 +96,28 @@ export function ScreenHeader({
             </div>
             {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
             </div>
+            {save?.failed ? (
+                <div
+                    role="alert"
+                    data-testid="screen-save-failed"
+                    className={cn(
+                        "flex w-full items-center gap-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400",
+                        !wide && "max-w-3xl",
+                    )}
+                >
+                    <CloudOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 text-left!">{t(STRINGS.save_state.screen_failed, locale)}</span>
+                    <button
+                        type="button"
+                        data-testid="screen-save-retry"
+                        onClick={save.retry}
+                        className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-red-600/40 px-2 text-xs font-semibold transition-colors hover:bg-red-100 dark:border-red-400/40 dark:hover:bg-red-500/20"
+                    >
+                        <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                        {t(STRINGS.save_state.screen_retry, locale)}
+                    </button>
+                </div>
+            ) : null}
         </header>
     );
 }

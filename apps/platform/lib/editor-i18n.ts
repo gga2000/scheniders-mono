@@ -522,6 +522,9 @@ export const STRINGS = {
         error: { en: "Save failed", ar: "فشل الحفظ", ku: "خەزنکردن سەرکەوتوو نەبوو" },
         retry: { en: "Retry save", ar: "إعادة محاولة الحفظ", ku: "دووبارە هەوڵبدەرەوە بۆ خەزنکردن" },
         retry_hint: { en: "Click to try saving again.", ar: "اضغط لمحاولة الحفظ مرة أخرى.", ku: "کلیک بکە بۆ هەوڵدانەوەی خەزنکردن." },
+        // Settings screen strip: the edit is kept and retried, never lost.
+        screen_failed: { en: "Your last change is not saved yet. We keep retrying.", ar: "لم يُحفظ آخر تعديل بعد. نعيد المحاولة تلقائياً.", ku: "دوایین گۆڕانکاری هێشتا خەزن نەکراوە. بەردەوام هەوڵ دەدەینەوە." },
+        screen_retry: { en: "Retry now", ar: "أعد المحاولة الآن", ku: "ئێستا هەوڵبدەرەوە" },
     },
 
     /* ── Brand kit — theme gallery ────────────────────────────── */
@@ -1479,6 +1482,15 @@ export const STRINGS = {
         bun_no_products: { en: "No products to add.", ar: "لا توجد منتجات لإضافتها.", ku: "هیچ بەرهەمێک نییە بۆ زیادکردن." },
         bun_products_error: { en: "Couldn't load your products. Refresh the page to try again.", ar: "تعذّر تحميل منتجاتك. حدّث الصفحة وحاول مجدداً.", ku: "نەتوانرا بەرهەمەکانت باربکرێن. پەڕەکە نوێ بکەرەوە." },
         bun_products_loading: { en: "Loading products…", ar: "جارٍ تحميل المنتجات…", ku: "بەرهەمەکان باردەکرێن…" },
+        bun_name: { en: "Bundle name", ar: "اسم الحزمة", ku: "ناوی کۆمەڵە" },
+        bun_name_hint: { en: "(customers see it)", ar: "(يظهر للزبون)", ku: "(کڕیار دەیبینێت)" },
+        bun_name_placeholder: { en: "e.g. Summer duo", ar: "مثال: ثنائي الصيف", ku: "نموونە: دوانەی هاوین" },
+        bun_search: { en: "Search products", ar: "ابحث عن منتج", ku: "گەڕان بۆ بەرهەم" },
+        bun_no_match: { en: "No product matches this search.", ar: "لا يوجد منتج بهذا الاسم.", ku: "هیچ بەرهەمێک لەگەڵ ئەم گەڕانە ناگونجێت." },
+        // tFormat: {name}
+        bun_unpick_aria: { en: "Remove {name} from the bundle", ar: "إزالة {name} من الحزمة", ku: "{name} لە کۆمەڵەکە لابە" },
+        // tFormat: {n}
+        bun_price: { en: "{n} IQD", ar: "{n} د.ع", ku: "{n} د.ع" },
         ver_empty_title: { en: "No versions yet", ar: "لا توجد نسخ بعد", ku: "هێشتا هیچ وەشانێک نییە" },
         ver_empty_body: { en: "Snapshots are created automatically on publish, or you can save a named snapshot right now.", ar: "تُنشأ النسخ تلقائياً عند النشر، أو يمكنك حفظ نسخة باسم الآن.", ku: "وێنەگرتنەکان بە خۆکاری لە کاتی بڵاوکردنەوەدا دروست دەبن، یان دەتوانیت ئێستا وێنەیەکی ناودار هەڵبگریت." },
         sched_empty_title: { en: "No scheduled changes", ar: "لا توجد تغييرات مجدولة", ku: "هیچ گۆڕانکاریەکی کاتبەندیکراو نییە" },

@@ -4,6 +4,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { ScreenHeader } from "./screen-header";
 import { getSettingLabel } from "./page-tree";
+import { ScreenSaveStateProvider } from "./screen-save-state";
 
 afterEach(() => {
     cleanup();
@@ -38,5 +39,26 @@ describe("ScreenHeader", () => {
         render(<ScreenHeader setting="health" />);
         const tile = screen.getByTestId("screen-header").querySelector(".sb-tile");
         expect(tile?.className).toContain("sb-tile--story");
+    });
+
+    it("shows no save strip while saves land", () => {
+        render(
+            <ScreenSaveStateProvider value={{ failed: false, retry: vi.fn() }}>
+                <ScreenHeader setting="bundles" />
+            </ScreenSaveStateProvider>,
+        );
+        expect(screen.queryByTestId("screen-save-failed")).toBeNull();
+    });
+
+    it("shows a failed save under the title, and retry saves again", () => {
+        const retry = vi.fn();
+        render(
+            <ScreenSaveStateProvider value={{ failed: true, retry }}>
+                <ScreenHeader setting="bundles" />
+            </ScreenSaveStateProvider>,
+        );
+        expect(screen.getByRole("alert").textContent).toBeTruthy();
+        fireEvent.click(screen.getByTestId("screen-save-retry"));
+        expect(retry).toHaveBeenCalledTimes(1);
     });
 });

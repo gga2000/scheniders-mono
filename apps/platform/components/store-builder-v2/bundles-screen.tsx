@@ -19,6 +19,7 @@ import type { UseStoreBuilderV2Return } from "@/hooks/use-store-builder-v2";
 import { STRINGS, t, tFormat } from "@/lib/editor-i18n";
 import { useEditorLocale } from "@/lib/editor-locale-context";
 import { ScreenHeader, screenHeaderActionCls, settingSwitchCls } from "./screen-header";
+import { BundleProductPicker } from "./bundle-product-picker";
 
 export interface BundlesScreenProps {
     builder: UseStoreBuilderV2Return;
@@ -123,6 +124,25 @@ export function BundlesScreen({
                                     b.enabled === false && "opacity-60",
                                 )}
                             >
+                                <label className="mb-2.5 flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
+                                    <span>
+                                        {t(STRINGS.advanced_chrome.bun_name, locale)}
+                                        <span className="ms-1 text-muted-foreground/80">{t(STRINGS.advanced_chrome.bun_name_hint, locale)}</span>
+                                    </span>
+                                    <input
+                                        type="text"
+                                        data-testid={`bundle-name-${i}`}
+                                        value={b.name?.[locale] ?? ""}
+                                        placeholder={t(STRINGS.advanced_chrome.bun_name_placeholder, locale)}
+                                        onChange={(e) => {
+                                            const next = { ...(b.name ?? {}) };
+                                            if (e.target.value === "") delete next[locale];
+                                            else next[locale] = e.target.value;
+                                            updateRow(i, { name: Object.keys(next).length > 0 ? next : undefined });
+                                        }}
+                                        className={cn(inputCls, "w-full max-w-sm")}
+                                    />
+                                </label>
                                 <div className="flex flex-wrap items-end gap-2.5">
                                     <label className="flex flex-col items-start gap-1 text-left! text-xs text-muted-foreground">
                                     {t(STRINGS.advanced_chrome.disc_kind_label, locale)}
@@ -193,37 +213,15 @@ export function BundlesScreen({
                                     </button>
                                 </div>
 
-                                <div className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-(--card-border) p-1.5">
-                                    {productsError ? (
-                                        // A failed read is not an empty catalogue: say so.
-                                        <p role="alert" data-testid={`bundle-${i}-products-error`} className="p-2 text-xs text-red-600 dark:text-red-400">
-                                            {t(STRINGS.advanced_chrome.bun_products_error, locale)}
-                                        </p>
-                                    ) : productsLoading ? (
-                                        <p className="p-2 text-xs text-muted-foreground">
-                                            {t(STRINGS.advanced_chrome.bun_products_loading, locale)}
-                                        </p>
-                                    ) : products.length === 0 ? (
-                                        <p className="p-2 text-xs text-muted-foreground">
-                                            {t(STRINGS.advanced_chrome.bun_no_products, locale)}
-                                        </p>
-                                    ) : (
-                                        products.map((p) => (
-                                            <label
-                                                key={p.id}
-                                                className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-black/5"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    data-testid={`bundle-${i}-product-${p.id}`}
-                                                    checked={b.product_ids.includes(p.id)}
-                                                    onChange={() => toggleProduct(i, p.id)}
-                                                />
-                                                <span className="truncate text-foreground">{p.name}</span>
-                                            </label>
-                                        ))
-                                    )}
-                                </div>
+                                <BundleProductPicker
+                                    index={i}
+                                    productIds={b.product_ids}
+                                    products={products}
+                                    loading={productsLoading}
+                                    error={productsError}
+                                    locale={locale}
+                                    onToggle={(id) => toggleProduct(i, id)}
+                                />
                             </li>
                         ))}
                     </ul>
