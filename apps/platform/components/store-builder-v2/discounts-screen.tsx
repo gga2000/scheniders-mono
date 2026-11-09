@@ -10,6 +10,7 @@
 // =====================================================================
 
 import { useCallback } from "react";
+import { Switch } from "@scheniders/ui/switch";
 import { Plus, Trash2, Ticket } from "lucide-react";
 import type { DiscountCode } from "@scheniders/shared";
 import { cn } from "@/lib/utils";
@@ -196,12 +197,11 @@ export function DiscountsScreen({
                                         </label>
                                     )}
                                     <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                                        <input
-                                            type="checkbox"
+                                        <Switch
                                             data-testid={`discount-enabled-${i}`}
                                             checked={d.enabled !== false}
-                                            onChange={(e) =>
-                                                updateRow(i, { enabled: e.target.checked })
+                                            onCheckedChange={(on) =>
+                                                updateRow(i, { enabled: on })
                                             }
                                         />
                                         {t(STRINGS.advanced_chrome.adv_active, locale)}

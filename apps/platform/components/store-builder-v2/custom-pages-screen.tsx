@@ -10,6 +10,7 @@
 // =====================================================================
 
 import { useCallback, useRef, useState } from "react";
+import { Switch } from "@scheniders/ui/switch";
 import { Plus, Trash2, EyeOff, PencilRuler, BookOpen } from "lucide-react";
 import {
     normalizeSlug,
@@ -221,11 +222,10 @@ export function CustomPagesScreen({
                                             )}
                                         />
                                         <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                                            <input
-                                                type="checkbox"
+                                            <Switch
                                                 data-testid={`custom-page-hidden-${i}`}
                                                 checked={p.hidden === true}
-                                                onChange={(e) => updatePage(i, { hidden: e.target.checked })}
+                                                onCheckedChange={(on) => updatePage(i, { hidden: on })}
                                             />
                                             <EyeOff className="h-3.5 w-3.5" />
                                             {t(C.hidden, ui)}

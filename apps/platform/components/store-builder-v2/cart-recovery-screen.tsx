@@ -10,6 +10,7 @@
 // =====================================================================
 
 import { useCallback } from "react";
+import { Switch } from "@scheniders/ui/switch";
 import { MessageCircle } from "lucide-react";
 
 import type { CartRecoveryConfig } from "@scheniders/shared";
@@ -71,11 +72,10 @@ export function CartRecoveryScreen({
                     <span className="text-left! text-sm font-medium text-foreground">
                         {t(C.enable, locale)}
                     </span>
-                    <input
-                        type="checkbox"
+                    <Switch
                         data-testid="cart-recovery-enabled"
                         checked={enabled}
-                        onChange={(e) => update({ enabled: e.target.checked })}
+                        onCheckedChange={(on) => update({ enabled: on })}
                     />
                 </label>
 

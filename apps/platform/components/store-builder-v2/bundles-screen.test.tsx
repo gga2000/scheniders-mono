@@ -47,8 +47,8 @@ describe("BundlesScreen", () => {
             { id: "x", product_ids: ["p1"], kind: "percent", value: 10, enabled: true },
         ]);
         render(<BundlesScreen builder={builder} onClose={() => {}} />);
-        const toggle = screen.getByTestId("bundle-enabled-0") as HTMLInputElement;
-        expect(toggle.checked).toBe(false);
+        const toggle = screen.getByTestId("bundle-enabled-0") as HTMLButtonElement;
+        expect(toggle.getAttribute("aria-checked")).toBe("false");
         expect(toggle.disabled).toBe(true);
     });
 
