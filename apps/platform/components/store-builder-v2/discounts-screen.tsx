@@ -196,7 +196,8 @@ export function DiscountsScreen({
                                             />
                                         </label>
                                     )}
-                                    <label className="flex h-[34px] items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                                    <label className="flex h-[34px] items-center gap-2 text-xs font-medium text-muted-foreground">
+                                        {t(STRINGS.advanced_chrome.disc_active, locale)}
                                         <Switch
                                             className={settingSwitchCls}
                                             data-testid={`discount-enabled-${i}`}
@@ -205,7 +206,6 @@ export function DiscountsScreen({
                                                 updateRow(i, { enabled: on })
                                             }
                                         />
-                                        {t(STRINGS.advanced_chrome.disc_active, locale)}
                                     </label>
                                     <button
                                         type="button"
