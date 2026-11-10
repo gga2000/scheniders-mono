@@ -463,7 +463,7 @@ export function SectionPicker(props: SectionPickerProps): React.ReactElement | n
                                     {t(STRINGS.section_picker.presets_empty_title, locale)}
                                 </p>
                                 <p className="max-w-sm text-xs text-foreground/80">
-                                    {t(STRINGS.section_picker.presets_empty_hint, locale)}
+                                    {t(mode === "simple" ? STRINGS.section_picker.presets_empty_hint_simple : STRINGS.section_picker.presets_empty_hint, locale)}
                                 </p>
                             </div>
                         ) : (

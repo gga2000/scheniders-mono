@@ -174,7 +174,8 @@ export function PageTemplatePicker(
                         {currentSectionCount > 0 && (
                             <div
                                 data-testid="page-template-picker-warning"
-                                className="rounded-xl border border-yellow-400/40 bg-yellow-50 px-3 py-2 text-xs text-yellow-900 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200"
+                                dir="auto"
+                                className="text-left rounded-xl border border-yellow-400/40 bg-yellow-50 px-3 py-2 text-xs text-yellow-900 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-200"
                             >
                                 {currentSectionCount === 1
                                     ? tx(STRINGS.page_template.warning_replace_one, locale)
