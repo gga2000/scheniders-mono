@@ -40,7 +40,7 @@ export interface WalletTransaction {
     type: string;
     amount_iqd: number;
     balance_after_iqd: number;
-    description: string;
+    description: string | null;
     payment_method: string | null;
     reference_id: string | null;
     created_at: string;
