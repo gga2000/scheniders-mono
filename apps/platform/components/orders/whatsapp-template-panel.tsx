@@ -255,6 +255,8 @@ export function WhatsAppTemplatePanel({
             let successCount = 0;
             let failCount = 0;
             let lastError = "";
+            // Orders left unsent because the store hit its hourly send limit.
+            let notSentForLimit = 0;
 
             // Fetched once rather than per target: a bulk send is one operator
             // action, and the token is the same for all of them.
@@ -262,7 +264,7 @@ export function WhatsAppTemplatePanel({
             const accessToken = session?.access_token;
 
             // Loop through all target orders (1 in single mode, N in bulk mode)
-            for (const target of targetOrders) {
+            for (const [index, target] of targetOrders.entries()) {
                 // Determine override phone (only works in single mode)
                 const effectiveOverridePhone = !isBulkMode && phoneToOverride !== target.phone ? phoneToOverride : undefined;
 
@@ -285,6 +287,13 @@ export function WhatsAppTemplatePanel({
                     }),
                 });
 
+                // 429: the hourly limit is reached and every later send would be
+                // refused too, so stop instead of hammering the limiter.
+                if (res.status === 429) {
+                    notSentForLimit = targetOrders.length - index;
+                    break;
+                }
+
                 const data = await res.json();
 
                 if (data.success) {
@@ -304,7 +313,11 @@ export function WhatsAppTemplatePanel({
 
             const typeLabel = t(templateConfig[selectedType].labelKey);
 
-            if (isBulkMode) {
+            if (notSentForLimit > 0) {
+                const message = t("orders.tpl.limitReached", { ok: successCount, left: notSentForLimit });
+                setSendResult({ success: false, message });
+                toast.warning(t("orders.tpl.limitReachedTitle"), message);
+            } else if (isBulkMode) {
                 const total = targetOrders.length;
                 if (failCount === 0) {
                     setSendResult({ success: true, message: t("orders.tpl.bulkAllSent", { count: successCount }) });

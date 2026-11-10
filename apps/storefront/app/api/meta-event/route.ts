@@ -6,6 +6,8 @@ import { META_BROWSE_EVENTS, sendMetaBrowseCapi } from "@/lib/capi";
 import { liveStoreAnalytics } from "@/lib/capi-config";
 import { capiRequestContext } from "@/lib/capi-context";
 import { clientIp, consumeRateLimit } from "@/lib/rate-limit";
+import { resolveStoreTenant } from "@/lib/route-guards";
+import { storeKeyFromRequest } from "@/lib/store-host";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -65,6 +67,14 @@ export async function POST(req: Request): Promise<NextResponse> {
     const cap = await consumeRateLimit(`meta-event:ip:${ip}`, BEACONS_PER_IP, BEACON_WINDOW_SECONDS, "fail-open");
     if (!cap.allowed) return NO_CONTENT();
   }
+
+  // The store is the one whose page sent the beacon (host, or /s/<slug> on
+  // the root domain), never just the body: a beacon naming another store is
+  // dropped, so nobody can spend a rival's Conversions API token from here.
+  const storeKey = storeKeyFromRequest(req.headers);
+  if (!storeKey) return NO_CONTENT();
+  const store = await resolveStoreTenant(storeKey);
+  if (!store || store.id !== body.tenant_id || store.is_draft_view) return NO_CONTENT();
 
   const analytics = await liveStoreAnalytics(body.tenant_id);
   if (!analytics?.meta_pixel_id || !analytics.meta_capi_token) return NO_CONTENT();

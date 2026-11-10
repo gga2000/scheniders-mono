@@ -3,6 +3,7 @@ import { requireCronAuth } from "@/lib/cron-auth";
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { env } from '@/lib/env';
 import { autoBackupFoldersToPrune } from '@/lib/vault-retention';
+import { generateBackupCsv, type CsvRow } from '@/lib/backup-csv';
 
 // We need to bypass RLS for a background cron job using the Service Role Key
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
@@ -38,25 +39,6 @@ function describeError(err: unknown): string {
     return String(err);
 }
 
-// Reusable CSV Generator
-type CsvRow = Record<string, unknown>;
-
-function generateCsv(data: CsvRow[]): string {
-    if (!data || data.length === 0) return '';
-    const headers = Object.keys(data[0]);
-    const csvRows = [headers.join(',')];
-
-    for (const row of data) {
-        const values = headers.map(header => {
-            const cellValue = row[header];
-            if (cellValue === null || cellValue === undefined) return '';
-            const stringValue = typeof cellValue === 'object' ? JSON.stringify(cellValue) : String(cellValue);
-            return `"${stringValue.replace(/"/g, '""')}"`;
-        });
-        csvRows.push(values.join(','));
-    }
-    return csvRows.join('\n');
-}
 
 // Fetches all rows from a table using chunked pagination with retry logic
 async function fetchAllInBatches(
@@ -166,7 +148,7 @@ export async function GET(request: Request) {
                     const rows = await fetchAllInBatches(supabase, source, tenantId, orderBy);
                     const { error } = await supabase.storage
                         .from('vault_backups')
-                        .upload(`${folderName}/${file}`, generateCsv(rows), {
+                        .upload(`${folderName}/${file}`, generateBackupCsv(rows), {
                             contentType: 'text/csv',
                             upsert: true,
                         });
