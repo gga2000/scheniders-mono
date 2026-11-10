@@ -8147,6 +8147,53 @@ export type Database = {
           },
         ]
       }
+      wallet_topup_requests: {
+        Row: {
+          amount_iqd: number
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          method: string
+          outcome: string | null
+          receipt_path: string
+          requested_by: string
+          tenant_id: string
+        }
+        Insert: {
+          amount_iqd: number
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          method: string
+          outcome?: string | null
+          receipt_path: string
+          requested_by?: string
+          tenant_id: string
+        }
+        Update: {
+          amount_iqd?: number
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          method?: string
+          outcome?: string | null
+          receipt_path?: string
+          requested_by?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_topup_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_transactions: {
         Row: {
           amount_iqd: number
@@ -8927,6 +8974,10 @@ export type Database = {
         }
         Returns: Json
       }
+      decide_wallet_topup_request: {
+        Args: { _admin_id: string; _approve: boolean; _request_id: string }
+        Returns: Json
+      }
       generate_seed_orders: { Args: never; Returns: undefined }
       get_current_tenant_id: { Args: never; Returns: string }
       get_abandoned_cart_recovery: {
@@ -9193,6 +9244,7 @@ export type Database = {
         Args: { _days?: number; _tenant_id: string }
         Returns: Json
       }
+      get_topup_payment_details: { Args: never; Returns: Json }
       get_user_tenant_ids: { Args: never; Returns: string[] }
       guide_end_practice_orders: {
         Args: { _tenant_id: string }
