@@ -107,6 +107,29 @@ describe("PreviewOverlay", () => {
         expect(ring.style.left).toBe("54px");
     });
 
+    it("keeps the selected ring inside the frame for full-width and tall sections", () => {
+        render(
+            <PreviewOverlay
+                bridge={makeBridge({
+                    rect_updates: {
+                        "sec-W": { top: 400, left: 0, width: 800, height: 900 },
+                    },
+                })}
+                selected_section_id="sec-W"
+                selected_section_label="Wide"
+                onEditRequest={() => {}}
+                onDeleteRequest={() => {}}
+                onAction={() => {}}
+                iframeBounds={BOUNDS}
+            />,
+        );
+        const ring = screen.getByTestId("preview-overlay-selected-ring") as HTMLDivElement;
+        expect(ring.style.left).toBe("0px");
+        expect(ring.style.width).toBe("800px");
+        expect(ring.style.top).toBe("394px");
+        expect(ring.style.height).toBe("206px"); // clipped at the frame bottom (600)
+    });
+
     it("renders the selected ring + toolbar at the right coords", () => {
         render(
             <PreviewOverlay
