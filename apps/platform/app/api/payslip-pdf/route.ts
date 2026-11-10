@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import puppeteer from "puppeteer-core";
 import { ACCOUNT_CHECK_FAILED, requireAdminOverUser } from "@/lib/auth/require-action-caller";
+import { isAllowedPdfRequest } from "@/lib/pdf-request-allowlist";
 import { buildPayslipHTML } from "@/lib/payslip-html";
 import { payslipRequestSchema } from "@/lib/payslip-schema";
 
@@ -64,6 +65,11 @@ export async function POST(req: NextRequest) {
 
         try {
             const page = await browser.newPage();
+            await page.setRequestInterception(true);
+            page.on("request", (request) => {
+                if (isAllowedPdfRequest(request.url())) void request.continue();
+                else void request.abort("blockedbyclient");
+            });
             await page.setContent(html, { waitUntil: ["networkidle0", "load", "domcontentloaded"] });
             // Let webfont shaping settle before printing (Google Fonts → Almarai/Markazi/Manrope).
             await page.evaluateHandle("document.fonts.ready");

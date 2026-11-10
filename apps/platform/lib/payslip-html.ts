@@ -441,7 +441,7 @@ export function buildPayslipHTML(data: PayslipData): string {
       <div class="hero-meta">
         <div class="period">${periodLabel}</div>
         <div class="meta-row">صدرت في: ${issued}</div>
-        <div class="meta-row dim">المرجع: <span class="latin">${ref}</span></div>
+        <div class="meta-row dim">المرجع: <span class="latin">${esc(ref)}</span></div>
       </div>
     </div>
   </header>
@@ -526,7 +526,7 @@ export function buildPayslipHTML(data: PayslipData): string {
 
   <footer class="foot">
     <div class="l">${esc(companyName)} — قسيمة راتب سرّية للاستخدام الداخلي</div>
-    <div class="r">Ref ${ref}</div>
+    <div class="r">Ref ${esc(ref)}</div>
   </footer>
 </div>
 </body>

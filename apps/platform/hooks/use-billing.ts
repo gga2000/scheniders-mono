@@ -23,12 +23,6 @@ export interface SubscriptionData {
     plan_change_at: string | null;
 }
 
-export interface UsageData {
-    orders_count: number;
-    orders_charged: number;
-    team_members_count: number;
-}
-
 export interface PlanLimitsData {
     plan: string;
     max_orders_per_month: number;
@@ -36,6 +30,9 @@ export interface PlanLimitsData {
     order_price_iqd: number;
     overage_price_iqd: number;
     base_price_iqd: number;
+    trial_days: number;
+    trial_order_cap: number;
+    whatsapp_message_price_iqd: number;
     features: Record<string, boolean>;
 }
 
@@ -44,8 +41,9 @@ export interface WalletTransaction {
     type: string;
     amount_iqd: number;
     balance_after_iqd: number;
-    description: string;
+    description: string | null;
     payment_method: string | null;
+    reference_id: string | null;
     created_at: string;
 }
 
@@ -82,23 +80,6 @@ export function useBilling() {
         enabled: !!tenantId,
     });
 
-    const usage = useQuery({
-        queryKey: ["usage", tenantId],
-        queryFn: async () => {
-            const now = new Date();
-            const { data, error } = await supabase
-                .from("usage_tracking")
-                .select("orders_count, orders_charged, team_members_count")
-                .eq("tenant_id", tenantId!)
-                .eq("year", now.getFullYear())
-                .eq("month", now.getMonth() + 1)
-                .maybeSingle();
-            if (error) throw error;
-            return (data ?? { orders_count: 0, orders_charged: 0, team_members_count: 0 }) as UsageData;
-        },
-        enabled: !!tenantId,
-    });
-
     const planLimits = useQuery({
         queryKey: ["plan_limits"],
         queryFn: async () => {
@@ -116,7 +97,7 @@ export function useBilling() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("wallet_transactions")
-                .select("id, type, amount_iqd, balance_after_iqd, description, payment_method, created_at")
+                .select("id, type, amount_iqd, balance_after_iqd, description, payment_method, reference_id, created_at")
                 .eq("tenant_id", tenantId!)
                 .order("created_at", { ascending: false })
                 .limit(50);
@@ -126,20 +107,45 @@ export function useBilling() {
         enabled: !!tenantId,
     });
 
-    const isLoading = wallet.isLoading || subscription.isLoading || usage.isLoading || planLimits.isLoading;
+    const isLoading = wallet.isLoading || subscription.isLoading || planLimits.isLoading;
 
     return {
         wallet: wallet.data ?? null,
         subscription: subscription.data ?? null,
-        usage: usage.data ?? null,
         allPlans: planLimits.data ?? [],
         transactions: transactions.data ?? [],
         isLoading,
         refetch: () => {
             wallet.refetch();
             subscription.refetch();
-            usage.refetch();
             transactions.refetch();
         },
     };
+}
+
+/**
+ * Real customer orders so far, the number the free trial is capped on. Same
+ * rule as the database (order_is_billable): no test, guide practice, staff
+ * "taken" stock, till sales, abandoned carts or unfinished checkouts.
+ */
+export function useTrialOrderCount(enabled: boolean) {
+    const { tenantId } = useAuth();
+    return useQuery({
+        queryKey: ["trial_order_count", tenantId],
+        queryFn: async () => {
+            const { count, error } = await supabase
+                .from("orders")
+                .select("id", { count: "exact", head: true })
+                .eq("tenant_id", tenantId!)
+                .not("is_test", "is", true)
+                .not("guide_practice", "is", true)
+                .is("take_kind", null)
+                .is("till_session_id", null)
+                .is("abandoned_cart_at", null)
+                .neq("status", "pending_checkout");
+            if (error) throw error;
+            return count ?? 0;
+        },
+        enabled: enabled && !!tenantId,
+    });
 }

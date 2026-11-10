@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron-auth";
-import { Receiver } from "@upstash/qstash";
+import { verifyQstashCallback } from "@/lib/qstash-verify";
 import { env } from "@/lib/env";
 import { createSupabaseServiceClient } from "@/lib/supabase-server";
 import {
@@ -199,11 +199,10 @@ export async function POST(request: Request): Promise<NextResponse> {
             { status: 401 },
         );
     }
-    const receiver = new Receiver({ currentSigningKey, nextSigningKey });
     const body = await request.text();
     const signature = request.headers.get("upstash-signature") || "";
     try {
-        await receiver.verify({ signature, body });
+        await verifyQstashCallback({ currentSigningKey, nextSigningKey, signature, body, requestUrl: request.url });
     } catch {
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }

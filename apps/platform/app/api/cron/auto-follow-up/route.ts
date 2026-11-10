@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Receiver } from "@upstash/qstash";
+import { verifyQstashCallback } from "@/lib/qstash-verify";
 import { sendTemplateMessage, TEMPLATE_NAMES, type TemplateType } from "@/lib/interakt";
 import { env } from "@/lib/env";
 import { DISCOUNT_DELAY_HOURS, REMINDER_DELAY_HOURS } from "@/lib/qstash";
@@ -30,13 +30,11 @@ export async function POST(request: Request) {
     if (!currentSigningKey || !nextSigningKey) {
         return NextResponse.json({ error: "QStash signing keys not configured" }, { status: 401 });
     }
-
-    const receiver = new Receiver({ currentSigningKey, nextSigningKey });
     const body = await request.text();
     const signature = request.headers.get("upstash-signature") || "";
 
     try {
-        await receiver.verify({ signature, body });
+        await verifyQstashCallback({ currentSigningKey, nextSigningKey, signature, body, requestUrl: request.url });
     } catch {
         console.error("[Auto Follow-up] Invalid QStash signature");
         return NextResponse.json({ error: "Invalid signature" }, { status: 401 });

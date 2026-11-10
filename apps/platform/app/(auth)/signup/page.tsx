@@ -57,13 +57,20 @@ function SignupForm() {
                     business_name: businessName.trim(),
                     contact_phone: contactPhone.trim() || undefined,
                     city: city.trim() || undefined,
+                    captcha_token: captcha.token,
                 }),
             });
 
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "Something went wrong. Please try again.");
+                // The server spent this token whatever the outcome.
+                captcha.reset();
+                setError(
+                    data.code === "captcha_failed"
+                        ? t("signup.captchaRejected")
+                        : data.error || "Something went wrong. Please try again.",
+                );
                 setIsLoading(false);
                 return;
             }
@@ -84,10 +91,12 @@ function SignupForm() {
             // S3-02: the account is auto-confirmed server-side, so sign the
             // merchant straight in and land them on the store builder — no
             // silent bounce through an empty /login form.
+            // The sign-up call spent the first token; Supabase needs its own.
+            const signInToken = await captcha.fresh();
             const { error: signInError } = await supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password,
-                options: { captchaToken: captcha.token },
+                options: { captchaToken: signInToken },
             });
             captcha.reset();
             if (signInError) {

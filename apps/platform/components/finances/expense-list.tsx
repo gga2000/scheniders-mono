@@ -12,11 +12,13 @@ interface ExpenseListProps {
     expenses: Expense[];
     onEdit: (expense: Expense) => void;
     onDelete: (id: string) => void;
+    /** False hides edit and delete (the database refuses them without system.financials.edit). */
+    canEdit?: boolean;
 }
 
 const DAYS_SHOWN = 10;
 
-export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
+export function ExpenseList({ expenses, onEdit, onDelete, canEdit = true }: ExpenseListProps) {
     const { t, language } = useLanguage();
     const categoryLabel = useExpenseCategoryLabel();
     const dateLocale = language === "ar" ? "ar-IQ-u-nu-latn" : "en-US";
@@ -144,7 +146,7 @@ export function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
                                             </span>
 
                                             {/* Actions Menu: integration rows are kept in sync by the integration, so they are read-only. */}
-                                            {!isAutoExpense(expense) && (
+                                            {canEdit && !isAutoExpense(expense) && (
                                             <div className="relative">
                                                 <button
                                                     onClick={() => setMenuOpen(menuOpen === expense.id ? null : expense.id)}

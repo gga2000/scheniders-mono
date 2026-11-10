@@ -87,7 +87,7 @@ export function GuideList({
                             <span dir={dir} className="flex-1 text-sm font-semibold">
                                 {t(item.labelKey)}
                             </span>
-                            <span className="text-xs tabular-nums text-neutral-400">{t("guide.list.minutes", { count: item.minutes })}</span>
+                            <span dir={dir} className="text-xs tabular-nums text-neutral-400">{t("guide.list.minutes", { count: item.minutes })}</span>
                             <ChevronRight className="h-4 w-4 text-neutral-500" aria-hidden="true" />
                         </button>
                     ))}

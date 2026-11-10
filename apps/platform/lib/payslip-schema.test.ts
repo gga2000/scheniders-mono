@@ -25,4 +25,11 @@ describe("payslipRequestSchema", () => {
     it("rejects text where money goes (it is printed into the HTML)", () => {
         expect(payslipRequestSchema.safeParse({ ...valid, record: { ...valid.record, net_salary: "<img src=x>" } }).success).toBe(false);
     });
+    it("takes a record uuid or a preview id as the reference, nothing else", () => {
+        const withId = (id: string) => payslipRequestSchema.safeParse({ ...valid, record: { ...valid.record, id } }).success;
+        expect(withId("5f0c6f5e-8c1a-4a57-9d8e-0d6a3f1b2c3d")).toBe(true);
+        expect(withId("preview-1731196800000")).toBe(true);
+        expect(withId("<img src=x>")).toBe(false);
+        expect(withId("")).toBe(false);
+    });
 });

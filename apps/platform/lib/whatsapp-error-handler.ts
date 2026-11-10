@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "./env";
 import type { SendTemplateResult } from "./interakt";
+import { SHOP_WALLET_EMPTY } from "./whatsapp-wallet";
 
 const supabaseAdmin = createClient(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -31,7 +32,11 @@ export function categorizeWhatsAppFailure(
     // Categorize by Interakt's own reason first: it answers 400 for an empty
     // wallet, a bad template and a bad number alike, so the status code alone
     // cannot tell a customer's number apart from our own account's state.
-    if (msg.includes("sufficient balance") || msg.includes("recharge your wallet")) {
+    if (errorMsg === SHOP_WALLET_EMPTY) {
+        // The shop's own wallet in our app, not the platform's Interakt wallet.
+        reason = "whatsapp_shop_wallet_empty";
+        notePrefix = "لم تُرسل رسالة واتساب: رصيد محفظة المتجر لا يكفي، اشحن المحفظة من الفوترة";
+    } else if (msg.includes("sufficient balance") || msg.includes("recharge your wallet")) {
         reason = "whatsapp_wallet_empty";
         notePrefix = "رصيد محفظة Interakt غير كافٍ — اشحن المحفظة";
     } else if (/phone ?number|country ?code/.test(msg)) {
